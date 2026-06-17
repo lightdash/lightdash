@@ -11,7 +11,15 @@ import type { AnyType } from '@lightdash/common';
 import { getThinkingBlocks } from '../utils/getSlackBlocks';
 
 export type SectionState =
-    | { kind: 'pending'; sql: string; toolCallId: string; threadUuid: string }
+    | {
+          kind: 'pending';
+          sql: string;
+          toolCallId: string;
+          threadUuid: string;
+          // Native AI-SDK approval cards carry a `:native` action suffix so the
+          // button handler enqueues a resume job (vs the legacy blocking poll).
+          native?: boolean;
+      }
     | { kind: 'approved'; sql: string }
     | { kind: 'running'; sql: string }
     | {
@@ -59,6 +67,9 @@ export const renderBlocks = (
     siteUrl: string,
 ): AnyType[] => {
     if (state.kind === 'pending') {
+        const suffix = state.native ? ':native' : '';
+        const actionId = (decision: string) =>
+            `actions.sql_approval:${state.toolCallId}:${state.threadUuid}:${decision}${suffix}`;
         // Prominent block — user action required, can't be a context block
         // (Slack disallows buttons in context blocks).
         return [
@@ -82,7 +93,7 @@ export const renderBlocks = (
                     {
                         type: 'button',
                         text: { type: 'plain_text', text: 'Approve' },
-                        action_id: `actions.sql_approval:${state.toolCallId}:${state.threadUuid}:approved`,
+                        action_id: actionId('approved'),
                         value: state.toolCallId,
                         style: 'primary',
                     },
@@ -92,13 +103,13 @@ export const renderBlocks = (
                             type: 'plain_text',
                             text: "Approve & don't ask again",
                         },
-                        action_id: `actions.sql_approval:${state.toolCallId}:${state.threadUuid}:approved_always`,
+                        action_id: actionId('approved_always'),
                         value: state.toolCallId,
                     },
                     {
                         type: 'button',
                         text: { type: 'plain_text', text: 'Reject' },
-                        action_id: `actions.sql_approval:${state.toolCallId}:${state.threadUuid}:rejected`,
+                        action_id: actionId('rejected'),
                         value: state.toolCallId,
                         style: 'danger',
                     },

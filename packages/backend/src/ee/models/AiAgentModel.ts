@@ -5168,7 +5168,8 @@ export class AiAgentModel {
     async getToolCallsAndResultsForPrompt(promptUuid: string): Promise<
         Array<{
             toolCall: AiAgentToolCall;
-            toolResult: AiAgentToolResult;
+            toolResult: AiAgentToolResult | null;
+            approvalDecision: AiSqlApprovalDecision | null;
         }>
     > {
         const rows = await this.database(AiAgentToolCallTableName)
@@ -5179,6 +5180,7 @@ export class AiAgentModel {
                         result: string | null;
                         metadata: Record<string, unknown> | null;
                         result_created_at: Date | null;
+                        approval_decision: AiSqlApprovalDecision | null;
                     }
                 >
             >(
@@ -5187,11 +5189,20 @@ export class AiAgentModel {
                 `${AiAgentToolResultTableName}.result`,
                 `${AiAgentToolResultTableName}.metadata`,
                 `${AiAgentToolResultTableName}.created_at as result_created_at`,
+                `${AiSqlApprovalTableName}.decision as approval_decision`,
             )
             .leftJoin(
                 AiAgentToolResultTableName,
                 `${AiAgentToolCallTableName}.tool_call_id`,
                 `${AiAgentToolResultTableName}.tool_call_id`,
+            )
+            // Tool calls awaiting/granted SQL approval may have no result yet —
+            // join the decision so history reconstruction can replay the
+            // native approval request/response parts.
+            .leftJoin(
+                AiSqlApprovalTableName,
+                `${AiAgentToolCallTableName}.tool_call_id`,
+                `${AiSqlApprovalTableName}.tool_call_id`,
             )
             .where(`${AiAgentToolCallTableName}.ai_prompt_uuid`, promptUuid)
             // Subagent children are stored with `parent_tool_call_id` set so the
@@ -5203,26 +5214,71 @@ export class AiAgentModel {
         return rows
             .filter(
                 (row) =>
-                    row.result !== null && isParseableToolName(row.tool_name),
+                    (row.result !== null || row.approval_decision !== null) &&
+                    isParseableToolName(row.tool_name),
             )
             .map((row) => {
                 const toolCall = this.parseToolCall(row);
 
-                const toolResult = this.parseToolResult({
-                    ai_agent_tool_result_uuid: row.ai_agent_tool_result_uuid!,
-                    ai_prompt_uuid: row.ai_prompt_uuid,
-                    tool_call_id: row.tool_call_id,
-                    tool_name: row.tool_name,
-                    result: row.result!,
-                    metadata: row.metadata!,
-                    created_at: row.result_created_at!,
-                });
+                const toolResult =
+                    row.result !== null
+                        ? this.parseToolResult({
+                              ai_agent_tool_result_uuid:
+                                  row.ai_agent_tool_result_uuid!,
+                              ai_prompt_uuid: row.ai_prompt_uuid,
+                              tool_call_id: row.tool_call_id,
+                              tool_name: row.tool_name,
+                              result: row.result,
+                              metadata: row.metadata!,
+                              created_at: row.result_created_at!,
+                          })
+                        : null;
 
                 return {
                     toolCall,
                     toolResult,
+                    approvalDecision: row.approval_decision,
                 };
             });
+    }
+
+    // A runSql call the agent suspended on awaiting approval: it has no result
+    // (never executed) and no recorded decision yet. Used to detect a suspended
+    // run and to post the approval card.
+    async getPendingSqlApprovalForPrompt(
+        promptUuid: string,
+    ): Promise<{ toolCallId: string; sql: string } | null> {
+        const row = await this.database(AiAgentToolCallTableName)
+            .leftJoin(
+                AiAgentToolResultTableName,
+                `${AiAgentToolCallTableName}.tool_call_id`,
+                `${AiAgentToolResultTableName}.tool_call_id`,
+            )
+            .leftJoin(
+                AiSqlApprovalTableName,
+                `${AiAgentToolCallTableName}.tool_call_id`,
+                `${AiSqlApprovalTableName}.tool_call_id`,
+            )
+            .where(`${AiAgentToolCallTableName}.ai_prompt_uuid`, promptUuid)
+            .where(`${AiAgentToolCallTableName}.tool_name`, 'runSql')
+            .whereNull(
+                `${AiAgentToolResultTableName}.ai_agent_tool_result_uuid`,
+            )
+            .whereNull(`${AiSqlApprovalTableName}.tool_call_id`)
+            .orderBy(`${AiAgentToolCallTableName}.created_at`, 'desc')
+            .first<Pick<DbAiAgentToolCall, 'tool_call_id' | 'tool_args'>>(
+                `${AiAgentToolCallTableName}.tool_call_id`,
+                `${AiAgentToolCallTableName}.tool_args`,
+            );
+
+        if (!row) {
+            return null;
+        }
+        const sql =
+            typeof (row.tool_args as { sql?: unknown })?.sql === 'string'
+                ? (row.tool_args as { sql: string }).sql
+                : '';
+        return { toolCallId: row.tool_call_id, sql };
     }
 
     async getToolCallsForPrompt(

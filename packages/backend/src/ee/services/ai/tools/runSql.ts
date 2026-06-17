@@ -12,6 +12,7 @@ import type {
     RecordSqlApprovalFn,
     RunSqlJobFn,
     SendFileFn,
+    StoreToolResultsFn,
     UpdateProgressFn,
     UpdateSlackMessageFn,
     WaitForSqlApprovalFn,
@@ -30,6 +31,7 @@ type Dependencies = {
     siteUrl: string;
     waitForSqlApproval: WaitForSqlApprovalFn;
     recordSqlApproval: RecordSqlApprovalFn;
+    storeToolResults: StoreToolResultsFn;
     maxQueryLimit: number;
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
@@ -81,6 +83,7 @@ export const getRunSql = ({
     siteUrl,
     waitForSqlApproval,
     recordSqlApproval,
+    storeToolResults,
     maxQueryLimit,
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
@@ -92,11 +95,25 @@ export const getRunSql = ({
         maxLimit: maxQueryLimit,
     });
 
+    // Modern Slack path uses the AI SDK's native tool approval: the loop halts
+    // on a tool-approval-request and the worker job ends; a resume job re-runs
+    // generation and the SDK re-invokes execute once approved. Auto-approve and
+    // "don't ask again" threads bypass approval entirely.
+    const usesNativeApproval = async () => {
+        if (!useSlackStreamCard || autoApproveSql) return false;
+        const prompt = await getPrompt();
+        return (
+            isSlackPrompt(prompt) &&
+            !isSlackThreadAutoApproved(prompt.threadUuid)
+        );
+    };
+
     return tool({
         description: buildRunSqlDescription(500, maxQueryLimit),
         inputSchema,
         outputSchema: toolDefinition.outputSchema,
         toModelOutput: toolDefinition.toModelOutput,
+        needsApproval: usesNativeApproval,
         execute: async ({ sql, limit }, { toolCallId }) => {
             if (sqlApprovalTimedOut) {
                 return {
@@ -121,6 +138,41 @@ export const getRunSql = ({
             const slackAutoApproved =
                 isSlack && isSlackThreadAutoApproved(prompt.threadUuid);
             const shouldAutoApprove = autoApproveSql || slackAutoApproved;
+            // When native approval gated this call, execute only runs after the
+            // user approved (or auto-approve). No blocking wait, no pending card
+            // — the reply flow posted the approval card and the decision is
+            // already recorded.
+            const isNativeApprovalPath =
+                useSlackStreamCard && isSlack && !shouldAutoApprove;
+
+            // When execute runs as a RESUME of a previously-suspended approval,
+            // onStepFinish won't persist the result (the tool call was made in a
+            // prior run), so we persist it here. Otherwise the call is left
+            // result-less — which re-triggers execution on later turns and
+            // shows a stale approval card on the web. A resume is identified
+            // either by the native path, or (when "don't ask again" flipped the
+            // thread to auto-approve) by the decision already being recorded.
+            let isResumeExecution = isNativeApprovalPath;
+            const persistResumeResult = async <
+                T extends { result: string; metadata: AnyType },
+            >(
+                output: T,
+            ): Promise<T> => {
+                if (isResumeExecution) {
+                    await storeToolResults([
+                        {
+                            promptUuid: prompt.promptUuid,
+                            toolCallId,
+                            toolName: 'runSql',
+                            result: output.result,
+                            metadata: output.metadata,
+                        },
+                    ]).catch(() => {
+                        // Best-effort; the model already has the result.
+                    });
+                }
+                return output;
+            };
 
             // Render a runSql state INTO the bot's existing progress message
             // (the bolt-gif "Thinking…" message at response_slack_ts). One
@@ -144,11 +196,18 @@ export const getRunSql = ({
                     if (isSlack) {
                         await renderState({ kind: 'approved', sql });
                     }
-                    await recordSqlApproval(
+                    const recorded = await recordSqlApproval(
                         toolCallId,
                         'approved',
                         autoApproveSql ? autoApproveSqlUserUuid : null,
                     );
+                    // A pre-existing decision means this is a resume (the button
+                    // recorded it), so onStepFinish won't persist the result.
+                    if (!recorded) {
+                        isResumeExecution = true;
+                    }
+                } else if (isNativeApprovalPath) {
+                    // Approval already handled by the SDK before this call.
                 } else if (isSlack) {
                     await renderState({
                         kind: 'pending',
@@ -160,9 +219,10 @@ export const getRunSql = ({
                     await updateProgress('Awaiting approval to run SQL...');
                 }
 
-                const decision = shouldAutoApprove
-                    ? 'approved'
-                    : await waitForSqlApproval(toolCallId);
+                const decision =
+                    shouldAutoApprove || isNativeApprovalPath
+                        ? 'approved'
+                        : await waitForSqlApproval(toolCallId);
                 if (decision === 'rejected') {
                     await renderState({ kind: 'rejected', sql });
                     return {
@@ -198,14 +258,14 @@ export const getRunSql = ({
                         inlineCsv: '',
                         truncated: false,
                     });
-                    return {
+                    return await persistResumeResult({
                         result: `Query returned 0 rows.${
                             columns.length > 0
                                 ? ` Columns: ${columns.join(', ')}`
                                 : ''
                         }`,
                         metadata: { status: 'success', rowCount: 0 },
-                    };
+                    });
                 }
 
                 const csv = stringify(
@@ -272,12 +332,12 @@ export const getRunSql = ({
                         ? `\n(Showing first ${PREVIEW_ROW_LIMIT} of ${rowCount} rows.)`
                         : '';
 
-                return {
+                return await persistResumeResult({
                     result: `${rowCount} rows. Columns: ${columns.join(
                         ', ',
                     )}.${truncatedNote}\n${serializeData(previewCsv, 'csv')}`,
                     metadata: { status: 'success', rowCount },
-                };
+                });
             } catch (e) {
                 // Post-section errors (runSqlJob threw, Slack call failed,
                 // etc.). Reflect the error in the living Slack block so the
@@ -287,10 +347,10 @@ export const getRunSql = ({
                 await renderState({ kind: 'error', sql, message }).catch(() => {
                     /* don't shadow the original error if rendering fails */
                 });
-                return {
+                return persistResumeResult({
                     result: toolErrorHandler(e, 'Error running SQL query.'),
                     metadata: { status: 'error' },
-                };
+                });
             }
         },
     });

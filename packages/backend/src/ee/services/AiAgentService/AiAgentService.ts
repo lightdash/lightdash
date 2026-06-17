@@ -213,6 +213,7 @@ import { generateEmbedding } from '../ai/agents/embeddingGenerator';
 import { routeProjectForSlack } from '../ai/agents/projectRouter';
 import { generateArtifactQuestion } from '../ai/agents/questionGenerator';
 import { evaluateAgentReadiness } from '../ai/agents/readinessScorer';
+import { sqlApprovalId } from '../ai/agents/sqlApprovalSuspend';
 import {
     generateAgentSuggestions,
     SUGGESTION_FALLBACK_CHIPS,
@@ -240,6 +241,7 @@ import {
     MountingRepoFileSystem,
 } from '../ai/repoFs/mountingRepoFileSystem';
 import { RepoFs } from '../ai/repoFs/RepoFs';
+import { renderBlocks as renderSqlApprovalBlocks } from '../ai/tools/slackSqlAggregate';
 import { markSlackThreadAutoApproved } from '../ai/tools/sqlApprovals';
 import { AiAgentArgs, AiAgentDependencies } from '../ai/types/aiAgent';
 import {
@@ -5487,6 +5489,108 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         } satisfies UserModelMessage;
     }
 
+    // A turn suspended mid SQL-approval has a tool call with a decision but no
+    // result yet. Its partial `response` text must not be replayed (it would
+    // leave the runSql tool_use without a following tool_result on resume).
+    static hasUnresolvedSqlApproval(
+        toolCallsAndResults: Awaited<
+            ReturnType<
+                typeof AiAgentModel.prototype.getToolCallsAndResultsForPrompt
+            >
+        >,
+    ): boolean {
+        return toolCallsAndResults.some(
+            ({ toolResult, approvalDecision }) =>
+                approvalDecision !== null && toolResult === null,
+        );
+    }
+
+    // Rebuilds the assistant/tool turns for a prompt's tool calls. SQL-approval
+    // calls replay a tool-approval-request (assistant) + tool-approval-response
+    // (tool) so the SDK resumes — executing runSql on approve, skipping on
+    // reject — and the real tool-result is appended once it exists.
+    static buildToolCallTurnMessages(
+        toolCallsAndResults: Awaited<
+            ReturnType<
+                typeof AiAgentModel.prototype.getToolCallsAndResultsForPrompt
+            >
+        >,
+    ): ModelMessage[] {
+        return toolCallsAndResults.flatMap(
+            ({ toolCall, toolResult, approvalDecision }) => {
+                const assistantContent: AssistantModelMessage['content'] = [
+                    {
+                        type: 'tool-call' as const,
+                        toolCallId: toolCall.toolCallId,
+                        toolName: toolCall.toolName,
+                        input: toolCall.toolArgs,
+                    },
+                    ...(approvalDecision
+                        ? [
+                              {
+                                  type: 'tool-approval-request' as const,
+                                  approvalId: sqlApprovalId(
+                                      toolCall.toolCallId,
+                                  ),
+                                  toolCallId: toolCall.toolCallId,
+                              },
+                          ]
+                        : []),
+                ];
+
+                const toolTurnMessages: ModelMessage[] = [
+                    {
+                        role: 'assistant',
+                        content: assistantContent,
+                    } satisfies AssistantModelMessage,
+                ];
+
+                if (approvalDecision) {
+                    toolTurnMessages.push({
+                        role: 'tool',
+                        content: [
+                            {
+                                type: 'tool-approval-response' as const,
+                                approvalId: sqlApprovalId(toolCall.toolCallId),
+                                approved: approvalDecision === 'approved',
+                            },
+                        ],
+                    } satisfies ToolModelMessage);
+                }
+
+                if (toolResult) {
+                    toolTurnMessages.push({
+                        role: 'tool',
+                        content: [
+                            {
+                                type: 'tool-result',
+                                toolCallId: toolResult.toolCallId,
+                                toolName: toolResult.toolName,
+                                output:
+                                    isToolProposeChangeSuccessResult(
+                                        toolResult,
+                                    ) &&
+                                    toolResult.metadata.userFeedback ===
+                                        'rejected'
+                                        ? {
+                                              type: 'json',
+                                              value: `${toolResult.result}\nUser rejected proposed change.`,
+                                          }
+                                        : {
+                                              type: 'json',
+                                              // TODO :: based on tool, if there's a need for it we can use the metadata here
+                                              value: toolResult.result,
+                                          },
+                            },
+                        ],
+                    } satisfies ToolModelMessage);
+                }
+
+                return toolTurnMessages;
+            },
+        );
+    }
+
     async getChatHistoryFromThreadMessages(
         // TODO: move getThreadMessages to AiAgentModel and improve types
         // also, it should be called through a service method...
@@ -5553,50 +5657,26 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     await this.aiAgentModel.getToolCallsAndResultsForPrompt(
                         message.ai_prompt_uuid,
                     );
-                const toolCallmessages = toolCallsAndResults.flatMap(
-                    ({ toolCall, toolResult }) => [
-                        {
-                            role: 'assistant',
-                            content: [
-                                {
-                                    type: 'tool-call' as const,
-                                    toolCallId: toolCall.toolCallId,
-                                    toolName: toolCall.toolName,
-                                    input: toolCall.toolArgs,
-                                },
-                            ] satisfies ToolCallPart[],
-                        } satisfies AssistantModelMessage,
-                        {
-                            role: 'tool',
-                            content: [
-                                {
-                                    type: 'tool-result',
-                                    toolCallId: toolResult.toolCallId,
-                                    toolName: toolResult.toolName,
-                                    output:
-                                        isToolProposeChangeSuccessResult(
-                                            toolResult,
-                                        ) &&
-                                        toolResult.metadata.userFeedback ===
-                                            'rejected'
-                                            ? {
-                                                  type: 'json',
-                                                  value: `${toolResult.result}\nUser rejected proposed change.`,
-                                              }
-                                            : {
-                                                  type: 'json',
-                                                  // TODO :: based on tool, if there's a need for it we can use the metadata here
-                                                  value: toolResult.result,
-                                              },
-                                },
-                            ],
-                        } satisfies ToolModelMessage,
-                    ],
+                messages.push(
+                    ...AiAgentService.buildToolCallTurnMessages(
+                        toolCallsAndResults,
+                    ),
                 );
 
-                messages.push(...toolCallmessages);
+                // A turn suspended mid SQL-approval has a partial `response`
+                // (text emitted before the runSql call). Replaying it would
+                // leave the runSql tool_use without a following tool_result, so
+                // skip it — the resumed run regenerates from the approval.
+                const hasUnresolvedApproval =
+                    AiAgentService.hasUnresolvedSqlApproval(
+                        toolCallsAndResults,
+                    );
 
-                if (message.response && !message.error_message) {
+                if (
+                    message.response &&
+                    !message.error_message &&
+                    !hasUnresolvedApproval
+                ) {
                     messages.push({
                         role: 'assistant',
                         content: message.response,
@@ -7316,6 +7396,35 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         );
     }
 
+    // Posts the SQL approval card as its own message after the task-list card
+    // so the run can suspend and resume on the user's decision.
+    private async postSqlApprovalCard(input: {
+        slackPrompt: SlackPrompt;
+        threadTs: string;
+        toolCallId: string;
+        sql: string;
+        agentName?: string;
+    }): Promise<void> {
+        await this.slackClient.postMessage({
+            organizationUuid: input.slackPrompt.organizationUuid,
+            channel: input.slackPrompt.slackChannelId,
+            thread_ts: input.threadTs,
+            username: input.agentName,
+            text: 'Awaiting approval to run SQL',
+            blocks: renderSqlApprovalBlocks(
+                {
+                    kind: 'pending',
+                    sql: input.sql,
+                    toolCallId: input.toolCallId,
+                    threadUuid: input.slackPrompt.threadUuid,
+                    native: true,
+                },
+                this.lightdashConfig.siteUrl,
+            ),
+            unfurl_links: false,
+        });
+    }
+
     private async postSlackMultiAgentTipIfNeeded(
         slackPrompt: SlackPrompt,
         threadMessages: Awaited<ReturnType<AiAgentModel['getThreadMessages']>>,
@@ -7763,6 +7872,38 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     onSlackStepProgress: appendTaskUpdate,
                 },
             );
+
+            // Native SQL approval: the loop halted awaiting approval. Finalize
+            // the task card and post the approval card below it; the run resumes
+            // via a re-enqueued reply job once the user decides.
+            const pendingApproval =
+                await this.aiAgentModel.getPendingSqlApprovalForPrompt(
+                    slackPrompt.promptUuid,
+                );
+            if (pendingApproval) {
+                finalizeToolTasksForSuccess();
+                await flushTaskUpdates();
+                await updatePlanTitle('Waiting for SQL approval');
+                // Finalize the task card without extra copy — its header plus
+                // the approval card below already say we're waiting.
+                await this.slackClient.stopAgentStream({
+                    organizationUuid: slackPrompt.organizationUuid,
+                    channelId: slackPrompt.slackChannelId,
+                    threadTs,
+                    messageTs: streamTs,
+                    text: 'Waiting for approval to run SQL.',
+                    chunks: [],
+                });
+                await this.postSqlApprovalCard({
+                    slackPrompt,
+                    threadTs,
+                    toolCallId: pendingApproval.toolCallId,
+                    sql: pendingApproval.sql,
+                    agentName: agent?.name,
+                });
+                await persistStreamResponseTsAndDeletePlaceholder();
+                return true;
+            }
 
             if (!response) {
                 await flushTaskUpdates();
@@ -8478,12 +8619,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 }
                 const actionId = 'action_id' in action ? action.action_id : '';
                 const parts = actionId.split(':');
-                if (parts.length !== 4) {
+                if (parts.length !== 4 && parts.length !== 5) {
                     return;
                 }
                 const toolCallId = parts[1];
                 const threadUuid = parts[2];
                 const rawDecision = parts[3];
+                // Native approval cards carry a trailing ':native' segment;
+                // those runs are suspended and resume via a re-enqueued reply.
+                const isNative = parts.length === 5 && parts[4] === 'native';
 
                 const isApprovedAlways = rawDecision === 'approved_always';
                 const decision: 'approved' | 'rejected' =
@@ -8505,11 +8649,34 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 // here (no direct join exists), so the audit trail records
                 // the decision without a user reference. The Slack user id
                 // is available via body.user.id if we want to enrich later.
-                await this.aiAgentModel.recordSqlApproval(
+                const recorded = await this.aiAgentModel.recordSqlApproval(
                     toolCallId,
                     decision,
                     null,
                 );
+
+                // Resume the suspended run once, on the first recorded decision.
+                // The reply job rebuilds history with the approval response, so
+                // the SDK executes runSql (approve) or skips it (reject).
+                if (isNative && recorded) {
+                    const context =
+                        await this.aiAgentModel.findSqlApprovalContext(
+                            toolCallId,
+                        );
+                    const resumePrompt = context
+                        ? await this.aiAgentModel.findSlackPrompt(
+                              context.promptUuid,
+                          )
+                        : undefined;
+                    if (resumePrompt) {
+                        await this.schedulerClient.slackAiPrompt({
+                            slackPromptUuid: resumePrompt.promptUuid,
+                            userUuid: resumePrompt.createdByUserUuid,
+                            projectUuid: resumePrompt.projectUuid,
+                            organizationUuid: resumePrompt.organizationUuid,
+                        });
+                    }
+                }
 
                 const emoji =
                     decision === 'approved'
