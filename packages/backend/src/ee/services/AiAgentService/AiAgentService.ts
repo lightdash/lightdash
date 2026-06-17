@@ -5638,7 +5638,20 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
                 messages.push(...toolCallmessages);
 
-                if (message.response && !message.error_message) {
+                // A turn suspended mid SQL-approval has a partial `response`
+                // (text emitted before the runSql call). Replaying it would
+                // leave the runSql tool_use without a following tool_result, so
+                // skip it — the resumed run regenerates from the approval.
+                const hasUnresolvedApproval = toolCallsAndResults.some(
+                    ({ toolResult, approvalDecision }) =>
+                        approvalDecision !== null && toolResult === null,
+                );
+
+                if (
+                    message.response &&
+                    !message.error_message &&
+                    !hasUnresolvedApproval
+                ) {
                     messages.push({
                         role: 'assistant',
                         content: message.response,
@@ -7365,11 +7378,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         threadTs: string;
         toolCallId: string;
         sql: string;
+        agentName?: string;
     }): Promise<void> {
         await this.slackClient.postMessage({
             organizationUuid: input.slackPrompt.organizationUuid,
             channel: input.slackPrompt.slackChannelId,
             thread_ts: input.threadTs,
+            username: input.agentName,
             text: 'Awaiting approval to run SQL',
             blocks: renderSqlApprovalBlocks(
                 {
@@ -7864,6 +7879,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     threadTs,
                     toolCallId: pendingApproval.toolCallId,
                     sql: pendingApproval.sql,
+                    agentName: agent?.name,
                 });
                 await persistStreamResponseTsAndDeletePlaceholder();
                 return true;
