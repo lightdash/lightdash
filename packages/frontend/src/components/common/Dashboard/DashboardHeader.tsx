@@ -48,7 +48,7 @@ import dayjs from 'dayjs';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useToggle } from 'react-use';
-import { AskAiAgentButton } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentButton';
+import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import AIDashboardSummary from '../../../ee/features/ambientAi/components/aiDashboardSummary';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
@@ -704,18 +704,6 @@ const DashboardHeader = memo(
                         )}
 
                         {!isFullscreen && (
-                            <AskAiAgentButton
-                                projectUuid={projectUuid}
-                                dashboardUuid={dashboard.uuid}
-                                clickedFrom="dashboard_header"
-                                variant="default"
-                                size="md"
-                                radius="md"
-                                iconSize={18}
-                            />
-                        )}
-
-                        {!isFullscreen && (
                             <Menu
                                 data-testid="dashboard-header-menu"
                                 position="bottom"
@@ -759,6 +747,12 @@ const DashboardHeader = memo(
                                 </Menu.Target>
 
                                 <Menu.Dropdown>
+                                    <AskAiAgentMenuItem
+                                        projectUuid={projectUuid}
+                                        dashboardUuid={dashboard.uuid}
+                                        clickedFrom="dashboard_header"
+                                        withDivider
+                                    />
                                     {!!userCanManageDashboard && (
                                         <>
                                             {preAggregatesEnabled &&
