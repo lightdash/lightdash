@@ -213,6 +213,7 @@ import { generateEmbedding } from '../ai/agents/embeddingGenerator';
 import { routeProjectForSlack } from '../ai/agents/projectRouter';
 import { generateArtifactQuestion } from '../ai/agents/questionGenerator';
 import { evaluateAgentReadiness } from '../ai/agents/readinessScorer';
+import { sqlApprovalId } from '../ai/agents/sqlApprovalSuspend';
 import {
     generateAgentSuggestions,
     SUGGESTION_FALLBACK_CHIPS,
@@ -5554,44 +5555,84 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         message.ai_prompt_uuid,
                     );
                 const toolCallmessages = toolCallsAndResults.flatMap(
-                    ({ toolCall, toolResult }) => [
-                        {
-                            role: 'assistant',
-                            content: [
+                    ({ toolCall, toolResult, approvalDecision }) => {
+                        // Native SQL-approval: replay the request on the
+                        // assistant turn and the response on a tool turn so the
+                        // SDK can resume (execute on approve, skip on reject).
+                        const assistantContent: AssistantModelMessage['content'] =
+                            [
                                 {
                                     type: 'tool-call' as const,
                                     toolCallId: toolCall.toolCallId,
                                     toolName: toolCall.toolName,
                                     input: toolCall.toolArgs,
                                 },
-                            ] satisfies ToolCallPart[],
-                        } satisfies AssistantModelMessage,
-                        {
-                            role: 'tool',
-                            content: [
-                                {
-                                    type: 'tool-result',
-                                    toolCallId: toolResult.toolCallId,
-                                    toolName: toolResult.toolName,
-                                    output:
-                                        isToolProposeChangeSuccessResult(
-                                            toolResult,
-                                        ) &&
-                                        toolResult.metadata.userFeedback ===
-                                            'rejected'
-                                            ? {
-                                                  type: 'json',
-                                                  value: `${toolResult.result}\nUser rejected proposed change.`,
-                                              }
-                                            : {
-                                                  type: 'json',
-                                                  // TODO :: based on tool, if there's a need for it we can use the metadata here
-                                                  value: toolResult.result,
-                                              },
-                                },
-                            ],
-                        } satisfies ToolModelMessage,
-                    ],
+                                ...(approvalDecision
+                                    ? [
+                                          {
+                                              type: 'tool-approval-request' as const,
+                                              approvalId: sqlApprovalId(
+                                                  toolCall.toolCallId,
+                                              ),
+                                              toolCallId: toolCall.toolCallId,
+                                          },
+                                      ]
+                                    : []),
+                            ];
+
+                        const toolTurnMessages: ModelMessage[] = [
+                            {
+                                role: 'assistant',
+                                content: assistantContent,
+                            } satisfies AssistantModelMessage,
+                        ];
+
+                        if (approvalDecision) {
+                            toolTurnMessages.push({
+                                role: 'tool',
+                                content: [
+                                    {
+                                        type: 'tool-approval-response' as const,
+                                        approvalId: sqlApprovalId(
+                                            toolCall.toolCallId,
+                                        ),
+                                        approved:
+                                            approvalDecision === 'approved',
+                                    },
+                                ],
+                            } satisfies ToolModelMessage);
+                        }
+
+                        if (toolResult) {
+                            toolTurnMessages.push({
+                                role: 'tool',
+                                content: [
+                                    {
+                                        type: 'tool-result',
+                                        toolCallId: toolResult.toolCallId,
+                                        toolName: toolResult.toolName,
+                                        output:
+                                            isToolProposeChangeSuccessResult(
+                                                toolResult,
+                                            ) &&
+                                            toolResult.metadata.userFeedback ===
+                                                'rejected'
+                                                ? {
+                                                      type: 'json',
+                                                      value: `${toolResult.result}\nUser rejected proposed change.`,
+                                                  }
+                                                : {
+                                                      type: 'json',
+                                                      // TODO :: based on tool, if there's a need for it we can use the metadata here
+                                                      value: toolResult.result,
+                                                  },
+                                    },
+                                ],
+                            } satisfies ToolModelMessage);
+                        }
+
+                        return toolTurnMessages;
+                    },
                 );
 
                 messages.push(...toolCallmessages);
