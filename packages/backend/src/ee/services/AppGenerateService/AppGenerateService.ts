@@ -75,6 +75,7 @@ import type { ProjectService } from '../../../services/ProjectService/ProjectSer
 import type { PromoteService } from '../../../services/PromoteService/PromoteService';
 import type { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
+import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { getModel } from '../ai/models';
 import { assertCanViewApp as assertUserCanViewApp } from './appAuthz';
@@ -99,6 +100,12 @@ import {
 } from './designSandboxCopy';
 import { getTemplateInstructions } from './templates';
 
+type AppExternalConnectionSample = {
+    connectionUuid: string;
+    alias: string;
+    sample: unknown; // null when no sample saved
+};
+
 type AppGenerateServiceDeps = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
@@ -116,6 +123,7 @@ type AppGenerateServiceDeps = {
     dashboardService: DashboardService;
     projectService: ProjectService;
     promoteService: PromoteService;
+    externalConnectionModel: ExternalConnectionModel;
 };
 
 type GenerateAppResult = {
@@ -161,6 +169,8 @@ export class AppGenerateService extends BaseService {
 
     private readonly promoteService: PromoteService;
 
+    private readonly externalConnectionModel: ExternalConnectionModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -178,6 +188,7 @@ export class AppGenerateService extends BaseService {
         dashboardService,
         projectService,
         promoteService,
+        externalConnectionModel,
     }: AppGenerateServiceDeps) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -196,6 +207,7 @@ export class AppGenerateService extends BaseService {
         this.dashboardService = dashboardService;
         this.projectService = projectService;
         this.promoteService = promoteService;
+        this.externalConnectionModel = externalConnectionModel;
     }
 
     /**
@@ -1087,6 +1099,75 @@ export class AppGenerateService extends BaseService {
         );
     }
 
+    /**
+     * For each linked external connection that has a saved sample, write the
+     * sample JSON to /tmp/external-data/{alias}.json in the sandbox and return
+     * a one-line-per-connection block to prepend to the prompt. Connections
+     * without a sample are skipped. Returns '' when nothing was written.
+     *
+     * Mirrors writeChartReferences: individual files + a discoverable listing
+     * prepended to /tmp/prompt.txt so Claude knows the file exists and what
+     * API it describes.
+     */
+    private async writeExternalConnectionSamples(
+        sandbox: Sandbox,
+        appUuid: string,
+        links: AppExternalConnectionSample[],
+    ): Promise<string> {
+        const withSample = links.filter(
+            (l) => l.sample !== null && l.sample !== undefined,
+        );
+        if (withSample.length === 0) return '';
+
+        await sandbox.commands.run('mkdir -p /tmp/external-data', {
+            timeoutMs: 10_000,
+        });
+
+        const fileEntries: string[] = [];
+        for (const link of withSample) {
+            const json = JSON.stringify(link.sample, null, 2);
+            // eslint-disable-next-line no-await-in-loop
+            await sandbox.files.write(
+                `/tmp/external-data/${link.alias}.json`,
+                json,
+            );
+            fileEntries.push(
+                `- /tmp/external-data/${link.alias}.json — saved response sample for the "${link.alias}" external connection`,
+            );
+        }
+
+        this.logger.info(
+            `App ${appUuid}: wrote ${withSample.length} external connection sample(s) to /tmp/external-data/`,
+        );
+
+        return (
+            `[Linked external connections — saved response samples available at /tmp/external-data/. ` +
+            `These show the shape of each external API's responses; the app fetches live data at runtime via the SDK's external-fetch bridge. ` +
+            `Treat samples as illustrative of structure, not exhaustive of values.]\n` +
+            `${fileEntries.join('\n')}\n\n`
+        );
+    }
+
+    /**
+     * Resolve the app's linked external connections to { alias, sample }
+     * pairs. Connections with no saved sample carry sample: null and are
+     * skipped by the writer.
+     */
+    private async resolveExternalConnectionSamples(
+        appId: string,
+    ): Promise<AppExternalConnectionSample[]> {
+        const links = await this.externalConnectionModel.listAppLinks(appId);
+        return Promise.all(
+            links.map(async (link) => ({
+                connectionUuid: link.connection.externalConnectionUuid,
+                alias: link.alias,
+                sample: await this.externalConnectionModel.getSampleForPipeline(
+                    link.connection.externalConnectionUuid,
+                ),
+            })),
+        );
+    }
+
     private async writeCatalogAndPrompt(
         sandbox: Sandbox,
         appUuid: string,
@@ -1114,7 +1195,7 @@ export class AppGenerateService extends BaseService {
         // different ownership (e.g. root-owned after Claude CLI execution),
         // which would cause a permission error on write.
         await sandbox.commands.run(
-            'rm -f /tmp/dbt-repo/models/schema.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/metric-queries 2>/dev/null; true',
+            'rm -f /tmp/dbt-repo/models/schema.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/metric-queries /tmp/external-data 2>/dev/null; true',
             { timeoutMs: 10_000 },
         );
 
@@ -1129,6 +1210,21 @@ export class AppGenerateService extends BaseService {
                 chartReferences,
             );
             finalPrompt = referenceBlock + finalPrompt;
+        }
+
+        // Linked external connections: write each saved sample into the sandbox
+        // and prepend a one-line reference so Claude knows the API shape.
+        const externalLinks =
+            await this.resolveExternalConnectionSamples(appUuid);
+        if (externalLinks.length > 0) {
+            const externalBlock = await this.writeExternalConnectionSamples(
+                sandbox,
+                appUuid,
+                externalLinks,
+            );
+            if (externalBlock) {
+                finalPrompt = externalBlock + finalPrompt;
+            }
         }
 
         // Prepend starter-template instructions, when one was selected on creation
