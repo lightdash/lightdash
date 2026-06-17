@@ -77,6 +77,7 @@ import type { SavedChartService } from '../../../services/SavedChartsService/Sav
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { getModel } from '../ai/models';
+import { assertCanViewApp as assertUserCanViewApp } from './appAuthz';
 import {
     classifyClaudeCliFailure,
     ClaudeGenerationError,
@@ -256,19 +257,17 @@ export class AppGenerateService extends BaseService {
             organization_uuid: string;
         },
     ): Promise<void> {
-        const spaceContext = app.space_uuid
-            ? await this.spacePermissionService.getSpaceAccessContext(
-                  user.userUuid,
-                  app.space_uuid,
-              )
-            : {};
-        this.assertDataAppAbility(
+        await assertUserCanViewApp(
+            {
+                auditedAbility: this.createAuditedAbility(user),
+                getSpaceAccessContext: (userUuid, spaceUuid) =>
+                    this.spacePermissionService.getSpaceAccessContext(
+                        userUuid,
+                        spaceUuid,
+                    ),
+            },
             user,
-            'view',
-            app.organization_uuid,
-            app.project_uuid,
-            'Insufficient permissions to access this data app',
-            { ...spaceContext, createdByUserUuid: app.created_by_user_uuid },
+            app,
         );
     }
 
