@@ -1,3 +1,10 @@
+# [0.3183.0](https://github.com/lightdash/lightdash/compare/0.3182.0...0.3183.0) (2026-06-17)
+
+
+### Features
+
+* **timezone:** merge DST fall-back hour on ClickHouse behind flag ([#24415](https://github.com/lightdash/lightdash/issues/24415)) ([3f8e9b6](https://github.com/lightdash/lightdash/commit/3f8e9b6348e60c28aa3f376da45d1050481cd8b9))
+
 # [0.3182.0](https://github.com/lightdash/lightdash/compare/0.3181.0...0.3182.0) (2026-06-17)
 
 
