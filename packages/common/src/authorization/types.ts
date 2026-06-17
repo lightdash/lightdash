@@ -38,6 +38,7 @@ export type CaslSubjectNames =
     | 'DashboardComments'
     | 'DeletedContent'
     | 'Explore'
+    | 'ExternalConnection'
     | 'ExportCsv'
     | 'GitIntegration'
     | 'GoogleSheets'

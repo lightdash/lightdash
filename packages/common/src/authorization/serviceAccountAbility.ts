@@ -321,6 +321,9 @@ const applyServiceAccountStaticAbilities: Record<
         can('manage', 'DataApp', {
             organizationUuid,
         });
+        can('manage', 'ExternalConnection', {
+            organizationUuid,
+        });
         can('manage', 'OrganizationDesign', {
             organizationUuid,
         });
