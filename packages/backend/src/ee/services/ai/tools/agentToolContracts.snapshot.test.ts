@@ -177,6 +177,7 @@ const makeAgentTools = () => {
         runSql: getRunSql({
             getPrompt: noop,
             recordSqlApproval: noop,
+            storeToolResults: noop,
             runSqlJob: noop,
             sendFile: noop,
             siteUrl: 'https://lightdash.example',

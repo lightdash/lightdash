@@ -62,6 +62,7 @@ const makeTool = ({
         siteUrl: 'https://lightdash.example',
         waitForSqlApproval,
         recordSqlApproval,
+        storeToolResults: jest.fn().mockResolvedValue(undefined),
         autoApproveSql,
         autoApproveSqlUserUuid,
         maxQueryLimit,

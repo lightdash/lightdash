@@ -242,6 +242,7 @@ const getAgentTools = (
               siteUrl: args.siteUrl,
               waitForSqlApproval: dependencies.waitForSqlApproval,
               recordSqlApproval: dependencies.recordSqlApproval,
+              storeToolResults: dependencies.storeToolResults,
               maxQueryLimit: args.runSqlMaxLimit,
               autoApproveSql: args.autoApproveSql,
               autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,

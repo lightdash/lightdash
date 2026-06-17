@@ -12,6 +12,7 @@ import type {
     RecordSqlApprovalFn,
     RunSqlJobFn,
     SendFileFn,
+    StoreToolResultsFn,
     UpdateProgressFn,
     UpdateSlackMessageFn,
     WaitForSqlApprovalFn,
@@ -30,6 +31,7 @@ type Dependencies = {
     siteUrl: string;
     waitForSqlApproval: WaitForSqlApprovalFn;
     recordSqlApproval: RecordSqlApprovalFn;
+    storeToolResults: StoreToolResultsFn;
     maxQueryLimit: number;
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
@@ -81,6 +83,7 @@ export const getRunSql = ({
     siteUrl,
     waitForSqlApproval,
     recordSqlApproval,
+    storeToolResults,
     maxQueryLimit,
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
@@ -141,6 +144,32 @@ export const getRunSql = ({
             // already recorded.
             const isNativeApprovalPath =
                 useSlackStreamCard && isSlack && !shouldAutoApprove;
+
+            // On the native path execute runs during resume, where onStepFinish
+            // does not persist the result (the tool call was made in a prior
+            // run). Persist it here so the call isn't left result-less — which
+            // would re-trigger execution on later turns and show a stale
+            // approval card on the web.
+            const persistResultIfNative = async <
+                T extends { result: string; metadata: AnyType },
+            >(
+                output: T,
+            ): Promise<T> => {
+                if (isNativeApprovalPath) {
+                    await storeToolResults([
+                        {
+                            promptUuid: prompt.promptUuid,
+                            toolCallId,
+                            toolName: 'runSql',
+                            result: output.result,
+                            metadata: output.metadata,
+                        },
+                    ]).catch(() => {
+                        // Best-effort; the model already has the result.
+                    });
+                }
+                return output;
+            };
 
             // Render a runSql state INTO the bot's existing progress message
             // (the bolt-gif "Thinking…" message at response_slack_ts). One
@@ -221,14 +250,14 @@ export const getRunSql = ({
                         inlineCsv: '',
                         truncated: false,
                     });
-                    return {
+                    return await persistResultIfNative({
                         result: `Query returned 0 rows.${
                             columns.length > 0
                                 ? ` Columns: ${columns.join(', ')}`
                                 : ''
                         }`,
                         metadata: { status: 'success', rowCount: 0 },
-                    };
+                    });
                 }
 
                 const csv = stringify(
@@ -295,12 +324,12 @@ export const getRunSql = ({
                         ? `\n(Showing first ${PREVIEW_ROW_LIMIT} of ${rowCount} rows.)`
                         : '';
 
-                return {
+                return await persistResultIfNative({
                     result: `${rowCount} rows. Columns: ${columns.join(
                         ', ',
                     )}.${truncatedNote}\n${serializeData(previewCsv, 'csv')}`,
                     metadata: { status: 'success', rowCount },
-                };
+                });
             } catch (e) {
                 // Post-section errors (runSqlJob threw, Slack call failed,
                 // etc.). Reflect the error in the living Slack block so the
@@ -310,10 +339,10 @@ export const getRunSql = ({
                 await renderState({ kind: 'error', sql, message }).catch(() => {
                     /* don't shadow the original error if rendering fails */
                 });
-                return {
+                return persistResultIfNative({
                     result: toolErrorHandler(e, 'Error running SQL query.'),
                     metadata: { status: 'error' },
-                };
+                });
             }
         },
     });
