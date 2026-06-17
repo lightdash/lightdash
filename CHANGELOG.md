@@ -1,3 +1,16 @@
+# [0.3185.0](https://github.com/lightdash/lightdash/compare/0.3184.1...0.3185.0) (2026-06-17)
+
+
+### Bug Fixes
+
+* **ai-writeback:** surface GitHub write-permission failures as actionable, non-retryable guidance ([#24422](https://github.com/lightdash/lightdash/issues/24422)) ([16e4094](https://github.com/lightdash/lightdash/commit/16e4094cc55dae16d6a347259f516e0abb407b88))
+
+
+### Features
+
+* **ai:** prove a writeback is value-correct before calling it safe (PROD-8354) ([#24432](https://github.com/lightdash/lightdash/issues/24432)) ([b0dfe7f](https://github.com/lightdash/lightdash/commit/b0dfe7f1cfad060780c609b5ff4baef39d3452c1))
+* **gsheets:** report export progress to the UI ([#24431](https://github.com/lightdash/lightdash/issues/24431)) ([aaafa05](https://github.com/lightdash/lightdash/commit/aaafa0504df476578b023ad90b68f5d14f4e3a4c))
+
 ## [0.3184.1](https://github.com/lightdash/lightdash/compare/0.3184.0...0.3184.1) (2026-06-17)
 
 
