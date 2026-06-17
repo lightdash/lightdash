@@ -23,7 +23,11 @@ export async function loadLightdashModel(
 ): Promise<LightdashModel> {
     try {
         const fileContents = await fs.promises.readFile(filePath, 'utf8');
-        const parsed = yaml.load(fileContents) as LightdashModel;
+        // JSON_SCHEMA: model files come from a cloned repo (untrusted); restrict
+        // to JSON-compatible types so no YAML-specific deserialization applies.
+        const parsed = yaml.load(fileContents, {
+            schema: yaml.JSON_SCHEMA,
+        }) as LightdashModel;
 
         if (!parsed.type || !parsed.name || !parsed.dimensions) {
             throw new ParseError(
@@ -55,7 +59,9 @@ export async function loadLightdashModel(
 async function isLightdashModelFile(filePath: string): Promise<boolean> {
     try {
         const fileContents = await fs.promises.readFile(filePath, 'utf8');
-        const parsed = yaml.load(fileContents) as { type?: string } | null;
+        const parsed = yaml.load(fileContents, {
+            schema: yaml.JSON_SCHEMA,
+        }) as { type?: string } | null;
         if (!parsed || typeof parsed !== 'object') {
             return false;
         }
