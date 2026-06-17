@@ -58,6 +58,17 @@ const getProjectId = (owner: string, repo: string) =>
 const getApiUrl = (hostDomain: string, endpoint: string) =>
     `https://${hostDomain}/api/v4${endpoint}`;
 
+/**
+ * GitLab returns 429 when an org's token exceeds its API rate limit. The
+ * read-only repo VFS reads many files per command, so surface this distinctly:
+ * {@link gitlabRepoSource} maps it to an agent-recoverable error instead of a
+ * hard failure. Mirrors `isGithubRateLimitError` for the GitHub path.
+ */
+export class GitlabRateLimitError extends Error {}
+
+export const isGitlabRateLimitError = (error: unknown): boolean =>
+    error instanceof GitlabRateLimitError;
+
 const makeGitlabRequest = async (
     url: string,
     token: string,
@@ -87,6 +98,13 @@ const makeGitlabRequest = async (
         }
         if (response.status === 404) {
             throw new NotFoundError('GitLab resource not found');
+        }
+        // Surface rate limits distinctly so callers (e.g. the repo VFS) can
+        // degrade gracefully instead of treating a transient 429 as a fault.
+        if (response.status === 429) {
+            throw new GitlabRateLimitError(
+                `GitLab API rate limit reached: ${errorText}`,
+            );
         }
         throw new UnexpectedGitError(
             `GitLab API error: ${response.status} ${errorText}`,
@@ -523,17 +541,6 @@ export const getDirectoryContents = async ({
         throw error;
     }
 };
-
-/**
- * GitLab returns 429 when an org's token exceeds its API rate limit. The
- * read-only repo VFS reads many files per command, so surface this distinctly:
- * {@link gitlabRepoSource} maps it to an agent-recoverable error instead of a
- * hard failure. Mirrors `isGithubRateLimitError` for the GitHub path.
- */
-export class GitlabRateLimitError extends Error {}
-
-export const isGitlabRateLimitError = (error: unknown): boolean =>
-    error instanceof GitlabRateLimitError;
 
 // Offset pagination cap for the recursive tree walk: 50 pages × 100 = 5000
 // files. Beyond this we report `truncated` (same contract as the GitHub tree)

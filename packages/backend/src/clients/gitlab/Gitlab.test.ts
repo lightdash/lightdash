@@ -1,5 +1,6 @@
 import fetchMock from 'jest-fetch-mock';
 import {
+    getFileContent,
     getGitlabRepoTree,
     getMergeRequestComments,
     isGitlabRateLimitError,
@@ -163,6 +164,32 @@ describe('GitlabClient.getGitlabRepoTree', () => {
         fetchMock.mockResponseOnce('rate limited', { status: 429 });
 
         const error = await getGitlabRepoTree(args).catch((e) => e);
+        expect(isGitlabRateLimitError(error)).toBe(true);
+    });
+});
+
+describe('GitlabClient.getFileContent rate limiting', () => {
+    beforeEach(() => {
+        fetchMock.resetMocks();
+    });
+
+    // Regression for M1: file reads go through makeGitlabRequest, which must map
+    // a 429 to the recoverable GitlabRateLimitError (not UnexpectedGitError) so
+    // the VFS degrades gracefully under a real rate limit, same as the tree path.
+    it('maps a 429 to a recoverable GitlabRateLimitError', async () => {
+        fetchMock.mockResponseOnce(
+            'Rate limit exceeded; see https://docs.gitlab.com/...',
+            { status: 429 },
+        );
+
+        const error = await getFileContent({
+            owner: 'my-group',
+            repo: 'my-repo',
+            branch: 'main',
+            fileName: 'dbt/dbt_project.yml',
+            token: 'glpat-xxx',
+        }).catch((e) => e);
+
         expect(isGitlabRateLimitError(error)).toBe(true);
     });
 });
