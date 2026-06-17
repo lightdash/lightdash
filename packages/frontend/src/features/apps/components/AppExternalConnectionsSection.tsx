@@ -13,6 +13,7 @@ import { IconPlugConnected, IconTrash } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
+import useApp from '../../../providers/App/useApp';
 import { ExfilWarningCallout } from '../../externalConnections/components/ExfilWarningCallout';
 import { useAppExternalConnections } from '../../externalConnections/hooks/useAppExternalConnections';
 import { useExternalConnections } from '../../externalConnections/hooks/useExternalConnections';
@@ -35,9 +36,11 @@ export const AppExternalConnectionsSection: FC<Props> = ({
     appUuid,
 }) => {
     const ability = useAbilityContext();
+    const { user } = useApp();
     const canManage = ability.can(
         'manage',
         subject('ExternalConnection', {
+            organizationUuid: user.data?.organizationUuid,
             projectUuid,
         }),
     );
