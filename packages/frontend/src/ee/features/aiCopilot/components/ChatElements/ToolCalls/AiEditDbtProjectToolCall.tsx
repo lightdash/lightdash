@@ -555,13 +555,13 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
             }
         >
             <Stack gap="xs">
-                <Group
-                    gap="sm"
-                    align="center"
-                    justify="space-between"
-                    wrap="nowrap"
-                >
-                    <Group gap="xs" align="center" wrap="nowrap">
+                <Box className={styles.header}>
+                    <Group
+                        className={styles.titleBlock}
+                        gap="xs"
+                        align="center"
+                        wrap="nowrap"
+                    >
                         <MantineIcon
                             icon={IconGitPullRequest}
                             size={18}
@@ -621,12 +621,13 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                         </Stack>
                     </Group>
                     <Box className={styles.actions}>
-                        {/* View (preview / PR / diff) stands alone; the Close and
-                            Merge terminal actions are joined in their own group.
-                            Preview URL is generated server-side during the run
-                            and carried in the tool metadata — a setup PR never
-                            previews itself. Stacks vertically in the narrow
-                            minimized chat bubble (see the module's container query). */}
+                        {/* Sits inline to the right of the title when there's room
+                            (the original look); below ~520px the .header container
+                            query drops this onto its own full-width row (View left,
+                            Close/Merge right), and below 360px the two controls
+                            stack. View = preview / PR / diff; the preview URL is
+                            generated server-side during the run — a setup PR never
+                            previews itself. */}
                         <PullRequestViewMenu
                             projectUuid={projectUuid}
                             prUrl={metadata.prUrl}
@@ -669,7 +670,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                             onClose={() => close({ prUrl: resolvedPrUrl })}
                         />
                     </Box>
-                </Group>
+                </Box>
                 <PullRequestCiChecks
                     prUrl={metadata.prUrl}
                     ciChecks={ciChecks ?? null}
