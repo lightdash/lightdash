@@ -4590,20 +4590,25 @@ export class ProjectService extends BaseService {
                     validExplore ??
                     (await this.getExplore(account, projectUuid, exploreName));
 
-                const { rows, cacheMetadata, fields } =
-                    await this.runMetricQuery({
-                        account,
-                        metricQuery,
-                        projectUuid,
-                        exploreName,
-                        csvLimit,
-                        context,
-                        queryTags,
-                        invalidateCache,
-                        explore,
-                        dateZoom,
-                        chartUuid,
-                    });
+                const {
+                    rows,
+                    cacheMetadata,
+                    fields,
+                    displayTimezone,
+                    warehouseType,
+                } = await this.runMetricQuery({
+                    account,
+                    metricQuery,
+                    projectUuid,
+                    exploreName,
+                    csvLimit,
+                    context,
+                    queryTags,
+                    invalidateCache,
+                    explore,
+                    dateZoom,
+                    chartUuid,
+                });
                 span.setAttribute('rows', rows.length);
 
                 this.logger.info(
@@ -4611,35 +4616,14 @@ export class ProjectService extends BaseService {
                         Object.keys(rows?.[0] || {}).length
                     } columns with querytags ${JSON.stringify(queryTags)}`,
                 );
-                const { warehouseConnection } =
-                    await this.projectModel.getWithSensitiveFields(projectUuid);
-                if (warehouseConnection) {
-                    span.setAttribute('warehouse', warehouseConnection?.type);
-                }
-
-                const projectTimezone =
-                    await this.getQueryTimezoneForProject(projectUuid);
-                const resolvedTimezone = resolveQueryTimezone({
-                    sessionTimezone: null,
-                    metricQuery,
-                    projectTimezone,
-                    userTimezone: getAccountUserTimezone(account),
-                });
-                const isTimezoneSupportEnabled =
-                    await this.isTimezoneSupportEnabled({
-                        userUuid: account.user.id,
-                        organizationUuid: account.organization.organizationUuid,
-                    });
-                const displayTimezone = isTimezoneSupportEnabled
-                    ? resolvedTimezone
-                    : undefined;
+                span.setAttribute('warehouse', warehouseType);
 
                 // If there are more than 500 rows, we need to format them in a background job
                 const formattedRows = await wrapSentryTransaction<ResultRow[]>(
                     'ProjectService.runQueryAndFormatRows.formatRows',
                     {
                         rows: rows.length,
-                        warehouse: warehouseConnection?.type,
+                        warehouse: warehouseType,
                     },
                     async (formatRowsSpan) => {
                         const useWorker = rows.length > 500;
@@ -4889,6 +4873,8 @@ export class ProjectService extends BaseService {
         rows: Record<string, AnyType>[];
         cacheMetadata: CacheMetadata;
         fields: ItemsMap;
+        displayTimezone: string | undefined;
+        warehouseType: WarehouseTypes;
     }> {
         return wrapSentryTransaction(
             'ProjectService.runMetricQuery',
@@ -5091,7 +5077,15 @@ export class ProjectService extends BaseService {
                             invalidateCache,
                         });
                     await sshTunnel.disconnect();
-                    return { rows, cacheMetadata, fields: fieldsWithOverrides };
+                    return {
+                        rows,
+                        cacheMetadata,
+                        fields: fieldsWithOverrides,
+                        displayTimezone: useTimezoneAwareDateTrunc
+                            ? timezone
+                            : undefined,
+                        warehouseType: warehouseClient.credentials.type,
+                    };
                 } catch (e) {
                     span.setStatus({
                         code: 2, // ERROR
