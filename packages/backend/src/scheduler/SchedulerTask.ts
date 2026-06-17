@@ -35,6 +35,8 @@ import {
     getRequestMethod,
     getSchedulerResourceTypeAndId,
     getSchedulerUuid,
+    GoogleSheetsQuotaError,
+    GoogleSheetsTransientError,
     GsheetsNotificationPayload,
     isChartScheduler,
     isChartValidationError,
@@ -83,6 +85,7 @@ import {
     setUuidParam,
     SlackInstallationNotFoundError,
     SlackNotificationPayload,
+    sleep,
     SqlRunnerPayload,
     SqlRunnerPivotQueryPayload,
     SyncSlackChannelsPayload,
@@ -104,12 +107,14 @@ import {
     type EmailBatchNotificationPayload,
     type GoogleChatBatchNotificationPayload,
     type GoogleChatNotificationPayload,
+    type ItemsMap,
     type MaterializePreAggregatePayload,
     type MetricQuery,
     type MsTeamsBatchNotificationPayload,
     type MsTeamsNotificationPayload,
     type PartialFailure,
     type PivotConfiguration,
+    type ReadyQueryResultsPage,
     type SchedulerIndexCatalogJobPayload,
     type SlackBatchNotificationPayload,
 } from '@lightdash/common';
@@ -266,6 +271,30 @@ export function setSchedulerJobLogContext(
     const scheduler = buildSchedulerLogContext(args);
     if (!scheduler) return;
     update({ scheduler });
+}
+
+export const GSHEET_UPLOAD_MAX_ATTEMPTS = 3;
+const GSHEET_UPLOAD_RETRY_BASE_MS = 2000;
+
+// Retries only the Google Sheets write step on transient Google errors. The query
+// results are passed in already-resolved, so a retry here never re-runs the warehouse
+// query — unlike a job-level retry, which would re-execute everything.
+export async function retryTransientGoogleSheetsWrite(
+    write: () => Promise<void>,
+    attempt = 1,
+): Promise<void> {
+    try {
+        await write();
+    } catch (e) {
+        const isTransient =
+            e instanceof GoogleSheetsTransientError ||
+            e instanceof GoogleSheetsQuotaError;
+        if (!isTransient || attempt >= GSHEET_UPLOAD_MAX_ATTEMPTS) {
+            throw e;
+        }
+        await sleep(GSHEET_UPLOAD_RETRY_BASE_MS * attempt);
+        await retryTransientGoogleSheetsWrite(write, attempt + 1);
+    }
 }
 
 export default class SchedulerTask {
@@ -2435,50 +2464,15 @@ export default class SchedulerTask {
                 throw new Error('Unable to create new sheet');
             }
 
-            if (payload.pivotConfig) {
-                if (!pivotDetails) {
-                    throw new UnexpectedServerError(
-                        'Cannot export pivoted results without SQL pivot details',
-                    );
-                }
-                // pivotResultsAsCsv expects a formatted ResultRow[] type, so we need to convert it first
-                const formattedRows = formatRows(
-                    rows,
-                    itemMap,
-                    undefined,
-                    undefined,
-                    displayTimezone ?? undefined,
-                );
-
-                const pivotedResults = pivotResultsAsCsv({
-                    pivotConfig: payload.pivotConfig,
-                    rows: formattedRows,
-                    itemMap,
-                    customLabels: payload.customLabels,
-                    onlyRaw: true,
-                    pivotDetails,
-                    timezone: displayTimezone ?? undefined,
-                });
-
-                await this.googleDriveClient.appendCsvToSheet(
-                    refreshToken,
-                    spreadsheetId,
-                    pivotedResults,
-                );
-            } else {
-                await this.googleDriveClient.appendToSheet(
-                    refreshToken,
-                    spreadsheetId,
-                    rows,
-                    itemMap,
-                    payload.showTableNames,
-                    undefined, // tabName
-                    payload.columnOrder,
-                    payload.customLabels,
-                    payload.hiddenFields,
-                    displayTimezone ?? undefined,
-                );
-            }
+            await this.uploadResultsToGoogleSheet({
+                refreshToken,
+                spreadsheetId,
+                rows,
+                itemMap,
+                pivotDetails,
+                displayTimezone,
+                payload,
+            });
 
             const { csvCellsLimit } = await resolveOrganizationExportLimits(
                 this.organizationSettingsModel,
@@ -2527,6 +2521,77 @@ export default class SchedulerTask {
 
             throw e;
         }
+    }
+
+    // Writes already-resolved query results to the Google Sheet, retrying only the
+    // upload on transient Google errors. The query has already run by this point, so
+    // retries never re-execute it.
+    private async uploadResultsToGoogleSheet({
+        refreshToken,
+        spreadsheetId,
+        rows,
+        itemMap,
+        pivotDetails,
+        displayTimezone,
+        payload,
+    }: {
+        refreshToken: string;
+        spreadsheetId: string;
+        rows: Record<string, unknown>[];
+        itemMap: ItemsMap;
+        pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        displayTimezone: string | null;
+        payload: UploadMetricGsheetPayload;
+    }): Promise<void> {
+        if (payload.pivotConfig) {
+            if (!pivotDetails) {
+                throw new UnexpectedServerError(
+                    'Cannot export pivoted results without SQL pivot details',
+                );
+            }
+            // pivotResultsAsCsv expects a formatted ResultRow[] type, so we need to convert it first
+            const formattedRows = formatRows(
+                rows,
+                itemMap,
+                undefined,
+                undefined,
+                displayTimezone ?? undefined,
+            );
+
+            const pivotedResults = pivotResultsAsCsv({
+                pivotConfig: payload.pivotConfig,
+                rows: formattedRows,
+                itemMap,
+                customLabels: payload.customLabels,
+                onlyRaw: true,
+                pivotDetails,
+                timezone: displayTimezone ?? undefined,
+            });
+
+            await retryTransientGoogleSheetsWrite(() =>
+                this.googleDriveClient.appendCsvToSheet(
+                    refreshToken,
+                    spreadsheetId,
+                    pivotedResults,
+                ),
+            );
+            return;
+        }
+
+        await retryTransientGoogleSheetsWrite(() =>
+            this.googleDriveClient.appendToSheet(
+                refreshToken,
+                spreadsheetId,
+                rows,
+                itemMap,
+                payload.showTableNames,
+                undefined, // tabName
+                payload.columnOrder,
+                payload.customLabels,
+                payload.hiddenFields,
+                displayTimezone ?? undefined,
+            ),
+        );
     }
 
     protected async sendEmailNotification(
