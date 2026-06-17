@@ -1,6 +1,10 @@
 import {
     assertRegisteredAccount,
     type ApiErrorPayload,
+    type ApiSaveExternalConnectionSampleRequest,
+    type ApiSaveExternalConnectionSampleResponse,
+    type ApiTestExternalConnectionRequest,
+    type ApiTestExternalConnectionResponse,
     type CreateExternalConnection,
     type ExternalConnection,
     type ExternalFetchRequest,
@@ -333,8 +337,71 @@ export class ExternalConnectionController extends BaseController {
         };
     }
 
-    // M5 adds `@Post('external-connections/{connectionUuid}/test')`
-    // delegating to ExternalConnectionService.testConnection.
+    /**
+     * Run a single test request through the same validation + fetch core as
+     * the runtime proxy. Admin-only. Returns the bounded response.
+     * @summary Test an external connection
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('external-connections/{connectionUuid}/test')
+    @OperationId('testExternalConnection')
+    async testExternalConnection(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() connectionUuid: string,
+        @Body() body: ApiTestExternalConnectionRequest,
+    ): Promise<ApiTestExternalConnectionResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.getService().testConnection(
+            req.account,
+            projectUuid,
+            connectionUuid,
+            {
+                method: body.method,
+                path: body.path,
+                query: body.query,
+                body: body.body,
+            },
+        );
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Save a sanitized, truncated sample of the connection's response so the
+     * data-app generate pipeline can ground Claude in the API's shape.
+     * Admin-only. Stores no secrets.
+     * @summary Save an external connection sample
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('external-connections/{connectionUuid}/sample')
+    @OperationId('saveExternalConnectionSample')
+    async saveExternalConnectionSample(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() connectionUuid: string,
+        @Body() body: ApiSaveExternalConnectionSampleRequest,
+    ): Promise<ApiSaveExternalConnectionSampleResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        await this.getService().saveSample(
+            req.account,
+            projectUuid,
+            connectionUuid,
+            body.sample,
+        );
+        return { status: 'ok', results: undefined };
+    }
 
     private getService(): ExternalConnectionService {
         return this.services.getExternalConnectionService<ExternalConnectionService>();

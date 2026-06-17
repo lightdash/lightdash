@@ -24,6 +24,8 @@ export type ExternalConnection = {
     updatedByUserUuid: string | null;
     createdAt: Date;
     updatedAt: Date;
+    /** Timestamp of the last successful admin "Test connection" run. */
+    lastTestedAt: Date | null;
 };
 
 /** WRITE shape — includes the secret. */
@@ -71,4 +73,25 @@ export type ExternalFetchResponse = {
     contentType: string;
     body: unknown;
     truncated: boolean;
+};
+
+export type ApiTestExternalConnectionRequest = {
+    method?: 'GET' | 'POST';
+    path: string;
+    query?: Record<string, string>;
+    body?: unknown;
+};
+
+export type ApiTestExternalConnectionResponse = {
+    status: 'ok';
+    results: ExternalFetchResponse;
+};
+
+export type ApiSaveExternalConnectionSampleRequest = {
+    sample: unknown;
+};
+
+export type ApiSaveExternalConnectionSampleResponse = {
+    status: 'ok';
+    results: undefined;
 };

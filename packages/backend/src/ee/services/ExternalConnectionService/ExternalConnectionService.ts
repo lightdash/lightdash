@@ -3,7 +3,6 @@ import {
     FeatureFlags,
     ForbiddenError,
     NotFoundError,
-    NotImplementedError,
     ParameterError,
     TooManyRequestsError,
     type CreateExternalConnection,
@@ -758,15 +757,156 @@ export class ExternalConnectionService extends BaseService {
         });
     }
 
+    // Bound the persisted sample so a large response can't bloat the row or
+    // the sandbox file. JSON-byte cap + a row cap for array bodies.
+    static readonly MAX_SAMPLE_BYTES = 16 * 1024; // 16 KB
+
+    static readonly MAX_SAMPLE_ROWS = 50;
+
     /**
-     * EXTENSION POINT (M5): a "test connection" dry-run that exercises
-     * proxyFetch against the connection's origin without persisting.
-     * Intentionally unimplemented in M1/M2.
+     * Redaction keys whose values are blanked before persisting a sample.
+     * Belt-and-braces guard: executeExternalFetch never returns request
+     * headers in the body, but a sample could still echo an auth field.
      */
-    // eslint-disable-next-line class-methods-use-this
-    async testConnection(): Promise<never> {
-        throw new NotImplementedError(
-            'testConnection is implemented in milestone M5',
+    private static readonly SAMPLE_REDACT_KEYS = new Set([
+        'authorization',
+        'api_key',
+        'apikey',
+        'token',
+        'access_token',
+        'secret',
+        'password',
+        'x-api-key',
+    ]);
+
+    /**
+     * Sanitize an admin-supplied sample: cap array length, redact known
+     * secret keys, then hard-truncate by JSON byte size. Pure + secret-free
+     * — never touches the connection's decrypted credential.
+     */
+    private static sanitizeSample(sample: unknown): unknown {
+        const redact = (value: unknown): unknown => {
+            if (Array.isArray(value)) {
+                return value
+                    .slice(0, ExternalConnectionService.MAX_SAMPLE_ROWS)
+                    .map(redact);
+            }
+            if (value && typeof value === 'object') {
+                return Object.fromEntries(
+                    Object.entries(value as Record<string, unknown>).map(
+                        ([k, v]) =>
+                            ExternalConnectionService.SAMPLE_REDACT_KEYS.has(
+                                k.toLowerCase(),
+                            )
+                                ? [k, '[redacted]']
+                                : [k, redact(v)],
+                    ),
+                );
+            }
+            return value;
+        };
+
+        let result = redact(sample);
+        // Hard byte cap: if still over budget, wrap in a truncated note so
+        // the persisted blob is always bounded regardless of shape.
+        const json = JSON.stringify(result) ?? 'null';
+        if (
+            Buffer.byteLength(json) > ExternalConnectionService.MAX_SAMPLE_BYTES
+        ) {
+            const truncated = json.slice(
+                0,
+                ExternalConnectionService.MAX_SAMPLE_BYTES,
+            );
+            result = {
+                truncated: true,
+                preview: truncated.slice(
+                    0,
+                    ExternalConnectionService.MAX_SAMPLE_BYTES - 64,
+                ),
+            };
+        }
+        return result;
+    }
+
+    /**
+     * Loads a connection and verifies it belongs to the given project.
+     * A cross-project or missing UUID is treated as 404 to avoid leaking
+     * existence information.
+     */
+    private async loadConnectionForProject(
+        connectionUuid: string,
+        projectUuid: string,
+    ): Promise<ExternalConnection> {
+        const conn =
+            await this.externalConnectionModel.findByUuid(connectionUuid);
+        if (!conn || conn.projectUuid !== projectUuid) {
+            throw new NotFoundError(
+                `External connection ${connectionUuid} not found`,
+            );
+        }
+        return conn;
+    }
+
+    /**
+     * Admin-only "Test connection". Loads the connection, decrypts its
+     * secret, and runs a single request through the SAME validation +
+     * SSRF-guarded fetch core the runtime proxy uses (`executeExternalFetch`).
+     * Returns the bounded response. Does not involve an app.
+     */
+    async testConnection(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+        req: {
+            method?: ExternalConnectionMethod;
+            path: string;
+            query?: Record<string, string>;
+            body?: unknown;
+        },
+    ): Promise<ExternalFetchResponse> {
+        const conn = await this.loadConnectionForProject(
+            connectionUuid,
+            projectUuid,
+        );
+        this.assertCanManage(account, conn.projectUuid, conn.organizationUuid);
+
+        const secret =
+            conn.type === 'none'
+                ? null
+                : await this.externalConnectionModel.getDecryptedSecret(
+                      connectionUuid,
+                  );
+
+        const result = await this.executeExternalFetch(conn, secret, {
+            method: req.method ?? 'GET',
+            path: req.path,
+            query: req.query,
+            body: req.body,
+        });
+        return result.response;
+    }
+
+    /**
+     * Admin-only. Persist a sanitized, truncated sample of the connection's
+     * response onto the row so the generate pipeline can ground Claude in the
+     * API's shape. Stores NO secret material — never calls getDecryptedSecret.
+     */
+    async saveSample(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+        sample: unknown,
+    ): Promise<void> {
+        const conn = await this.loadConnectionForProject(
+            connectionUuid,
+            projectUuid,
+        );
+        this.assertCanManage(account, conn.projectUuid, conn.organizationUuid);
+
+        const sanitized = ExternalConnectionService.sanitizeSample(sample);
+        await this.externalConnectionModel.saveSample(
+            connectionUuid,
+            sanitized,
         );
     }
 }

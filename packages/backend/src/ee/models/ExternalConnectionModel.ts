@@ -70,6 +70,7 @@ export class ExternalConnectionModel {
             updatedByUserUuid: row.updated_by_user_uuid,
             createdAt: row.created_at,
             updatedAt: row.updated_at,
+            lastTestedAt: row.last_tested_at ?? null,
         };
     }
 
@@ -353,6 +354,29 @@ export class ExternalConnectionModel {
         await db(ExternalConnectionSecretsTableName)
             .where('external_connection_uuid', uuid)
             .delete();
+    }
+
+    async saveSample(uuid: string, sample: unknown): Promise<void> {
+        await this.database(ExternalConnectionsTableName)
+            .where('external_connection_uuid', uuid)
+            .update({
+                last_test_sample:
+                    sample === null ? null : JSON.stringify(sample),
+                last_tested_at: new Date(),
+            });
+    }
+
+    /**
+     * Read the saved sample for the generate pipeline only. Returns the parsed
+     * JSON body, or null when no test sample has been saved. Deliberately not
+     * exposed on the standard `ExternalConnection` read shape.
+     */
+    async getSampleForPipeline(uuid: string): Promise<unknown> {
+        const row = await this.database(ExternalConnectionsTableName)
+            .select('last_test_sample')
+            .where('external_connection_uuid', uuid)
+            .first<{ last_test_sample: unknown } | undefined>();
+        return row?.last_test_sample ?? null;
     }
 
     async linkToApp(

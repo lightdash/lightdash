@@ -43,6 +43,8 @@ const makeDbConnection = (overrides: Record<string, unknown> = {}) => ({
     created_at: new Date('2026-01-01T00:00:00Z'),
     updated_at: new Date('2026-01-01T00:00:00Z'),
     deleted_at: null,
+    last_test_sample: null,
+    last_tested_at: null,
     ...overrides,
 });
 
@@ -352,6 +354,55 @@ describe('ExternalConnectionModel', () => {
                 new Date('2026-01-01T00:00:00Z'),
             );
             expect(count).toBe(7);
+        });
+    });
+
+    describe('sample storage', () => {
+        it('saveSample issues an update to the connections table', async () => {
+            tracker.on.update(ExternalConnectionsTableName).responseOnce(1);
+
+            await model.saveSample(CONNECTION_UUID, {
+                temp: 21,
+                city: 'Berlin',
+            });
+
+            const updates = tracker.history.update.filter((q) =>
+                q.sql.includes(ExternalConnectionsTableName),
+            );
+            expect(updates).toHaveLength(1);
+            // Should serialize the sample as JSON string for the jsonb column
+            expect(updates[0].bindings).toEqual(
+                expect.arrayContaining([
+                    JSON.stringify({ temp: 21, city: 'Berlin' }),
+                ]),
+            );
+        });
+
+        it('getSampleForPipeline returns the parsed sample', async () => {
+            tracker.on
+                .select(ExternalConnectionsTableName)
+                .responseOnce([
+                    { last_test_sample: { temp: 21, city: 'Berlin' } },
+                ]);
+
+            const sample = await model.getSampleForPipeline(CONNECTION_UUID);
+            expect(sample).toEqual({ temp: 21, city: 'Berlin' });
+        });
+
+        it('getSampleForPipeline returns null when no sample saved', async () => {
+            tracker.on
+                .select(ExternalConnectionsTableName)
+                .responseOnce([{ last_test_sample: null }]);
+
+            const sample = await model.getSampleForPipeline(CONNECTION_UUID);
+            expect(sample).toBeNull();
+        });
+
+        it('getSampleForPipeline returns null when row not found', async () => {
+            tracker.on.select(ExternalConnectionsTableName).responseOnce([]);
+
+            const sample = await model.getSampleForPipeline(CONNECTION_UUID);
+            expect(sample).toBeNull();
         });
     });
 });

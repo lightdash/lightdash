@@ -1674,6 +1674,12 @@
             },
             "ExternalConnection": {
                 "properties": {
+                    "lastTestedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true,
+                        "description": "Timestamp of the last successful admin \"Test connection\" run."
+                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
@@ -1760,6 +1766,7 @@
                     }
                 },
                 "required": [
+                    "lastTestedAt",
                     "updatedAt",
                     "createdAt",
                     "updatedByUserUuid",
@@ -2041,6 +2048,56 @@
                     }
                 },
                 "required": ["path", "connectionAlias"],
+                "type": "object"
+            },
+            "ApiTestExternalConnectionResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ExternalFetchResponse"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiTestExternalConnectionRequest": {
+                "properties": {
+                    "body": {},
+                    "query": {
+                        "$ref": "#/components/schemas/Record_string.string_"
+                    },
+                    "path": {
+                        "type": "string"
+                    },
+                    "method": {
+                        "type": "string",
+                        "enum": ["GET", "POST"]
+                    }
+                },
+                "required": ["path"],
+                "type": "object"
+            },
+            "ApiSaveExternalConnectionSampleResponse": {
+                "properties": {
+                    "results": {},
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["status"],
+                "type": "object"
+            },
+            "ApiSaveExternalConnectionSampleRequest": {
+                "properties": {
+                    "sample": {}
+                },
+                "required": ["sample"],
                 "type": "object"
             },
             "Pick_Organization.name-or-createdAt-or-organizationUuid_": {
@@ -15347,6 +15404,19 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
