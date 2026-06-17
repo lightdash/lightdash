@@ -1,5 +1,5 @@
 import dns from 'dns/promises';
-import fetch, { Response } from 'node-fetch';
+import fetch, { FetchError, Response } from 'node-fetch';
 import { secureFetch, SecureFetchError } from './secureFetch';
 
 jest.mock('dns/promises', () => ({
@@ -209,5 +209,86 @@ describe('secureFetch GET behavior', () => {
         expect(calledOpts.method).toBe('GET');
         expect(calledOpts.size).toBe(BASE_OPTIONS.maxResponseBytes);
         expect(calledOpts.agent).toBeDefined();
+    });
+});
+
+describe('secureFetch timeout', () => {
+    it('maps an aborted request to reason timeout', async () => {
+        const abortError = new FetchError(
+            'The user aborted a request.',
+            'aborted',
+        );
+        mockedFetch.mockRejectedValue(abortError);
+        await expectReason(
+            secureFetch('https://example.com/x.json', {
+                ...BASE_OPTIONS,
+                timeoutMs: 1,
+            }),
+            'timeout',
+        );
+    });
+
+    it('aborts the request after the configured timeout', async () => {
+        jest.useFakeTimers();
+        let capturedSignal: AbortSignal | undefined;
+        // Use a real promise so dns.lookup mock settles without fake timers.
+        let resolveFetch!: (value?: unknown) => void;
+        mockedFetch.mockImplementation((_url, opts) => {
+            capturedSignal = opts.signal as AbortSignal;
+            return new Promise((resolve) => {
+                resolveFetch = resolve;
+            });
+        });
+
+        const pending = secureFetch('https://example.com/x.json', {
+            ...BASE_OPTIONS,
+            timeoutMs: 500,
+        });
+        // Flush microtasks: dns.lookup mock (real Promise) + then-chains.
+        // We need several ticks because the async function has multiple awaits.
+        for (let i = 0; i < 10; i += 1) {
+            // eslint-disable-next-line no-await-in-loop
+            await Promise.resolve();
+        }
+
+        expect(capturedSignal?.aborted).toBe(false);
+        jest.advanceTimersByTime(500);
+        expect(capturedSignal?.aborted).toBe(true);
+
+        // Let the pending promise settle.
+        resolveFetch();
+        await pending.catch(() => undefined);
+        jest.useRealTimers();
+    });
+
+    it('hard-caps the timeout at 30000ms', async () => {
+        jest.useFakeTimers();
+        let capturedSignal: AbortSignal | undefined;
+        let resolveFetch!: (value?: unknown) => void;
+        mockedFetch.mockImplementation((_url, opts) => {
+            capturedSignal = opts.signal as AbortSignal;
+            return new Promise((resolve) => {
+                resolveFetch = resolve;
+            });
+        });
+
+        const pending = secureFetch('https://example.com/x.json', {
+            ...BASE_OPTIONS,
+            timeoutMs: 999999, // way over the cap
+        });
+        for (let i = 0; i < 10; i += 1) {
+            // eslint-disable-next-line no-await-in-loop
+            await Promise.resolve();
+        }
+
+        expect(capturedSignal?.aborted).toBe(false);
+        jest.advanceTimersByTime(29999);
+        expect(capturedSignal?.aborted).toBe(false);
+        jest.advanceTimersByTime(1);
+        expect(capturedSignal?.aborted).toBe(true);
+
+        resolveFetch();
+        await pending.catch(() => undefined);
+        jest.useRealTimers();
     });
 });

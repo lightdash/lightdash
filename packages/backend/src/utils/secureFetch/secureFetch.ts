@@ -138,6 +138,8 @@ const resolveAndValidateHost = async (
     return { address, family: family === 6 ? 6 : 4 };
 };
 
+const MAX_TIMEOUT_MS = 30000;
+
 // HTTPS agent whose DNS lookup is pinned to a single pre-validated IP. This
 // defeats DNS rebinding between validation and socket open: the kernel never
 // resolves the hostname a second time.
@@ -170,6 +172,10 @@ export async function secureFetch(
     );
     const agent = createPinnedHttpsAgent(address, family);
 
+    const controller = new AbortController();
+    const effectiveTimeout = Math.min(options.timeoutMs, MAX_TIMEOUT_MS);
+    const timer = setTimeout(() => controller.abort(), effectiveTimeout);
+
     let response: import('node-fetch').Response;
     try {
         response = await fetch(rawUrl, {
@@ -178,9 +184,16 @@ export async function secureFetch(
             headers: options.headers,
             agent,
             redirect: 'manual',
+            signal: controller.signal as never,
             size: options.maxResponseBytes,
         });
     } catch (error) {
+        if (
+            controller.signal.aborted ||
+            (error instanceof FetchError && error.type === 'aborted')
+        ) {
+            throw new SecureFetchError('timeout', 'Request timed out');
+        }
         if (error instanceof FetchError) {
             throw new SecureFetchError(
                 'request_failed',
@@ -188,6 +201,8 @@ export async function secureFetch(
             );
         }
         throw new SecureFetchError('request_failed', 'Request failed');
+    } finally {
+        clearTimeout(timer);
     }
 
     // Validation only covered the initial URL; any redirect target is
