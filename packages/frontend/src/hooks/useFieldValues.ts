@@ -358,10 +358,12 @@ export const useFieldValues = (
         [search],
     );
 
-    // reset state when field changes
+    // reset state when field changes or force-refresh is triggered
     useEffect(() => {
         if (!!fieldName && field.name !== fieldName) {
             setFieldName(field.name);
+        }
+        if ((!!fieldName && field.name !== fieldName) || forceRefresh) {
             setSearches(new Set<string>());
             setResults(new Set(initialData));
             setResultCounts(new Map());
