@@ -5245,6 +5245,60 @@ describe('Timezone-aware DATE_TRUNC day-or-coarser → DATE cast (GLITCH-452)', 
         // (LHS is a DATE now — a timestamptz literal would re-introduce a tz drift).
         expect(query).not.toContain(`'2024-01-15'::timestamp`);
     });
+
+    // GLITCH-510: Date Zoom re-grains the raw base TIMESTAMP dim in place, so the
+    // zoomed dim's timeIntervalBaseDimensionName points at its own (now DATE-typed)
+    // id. The base lookup must resolve from originalExplore to recover the raw
+    // TIMESTAMP base and emit the tz-wrapped, DATE-cast SELECT.
+    const buildBaseZoomedExplore = (): Explore => {
+        const original = buildDayExplore();
+        const baseDim = original.tables.events.dimensions.occurred_at;
+        return {
+            ...original,
+            tables: {
+                ...original.tables,
+                events: {
+                    ...original.tables.events,
+                    dimensions: {
+                        ...original.tables.events.dimensions,
+                        occurred_at: {
+                            ...baseDim,
+                            type: DimensionType.DATE,
+                            timeInterval: TimeFrames.MONTH,
+                            timeIntervalBaseDimensionName: 'occurred_at',
+                            timeIntervalBaseDimensionType:
+                                DimensionType.TIMESTAMP,
+                            compiledSql: `DATE_TRUNC('MONTH', "events".occurred_at)`,
+                        },
+                    },
+                },
+            },
+        };
+    };
+
+    const baseZoomedQuery: CompiledMetricQuery = {
+        ...dayQuery,
+        dimensions: ['events_occurred_at'],
+    };
+
+    test('Date Zoom of the raw base TIMESTAMP dim in place casts to DATE with tz wrap (Postgres)', () => {
+        const { query } = buildQuery({
+            explore: buildBaseZoomedExplore(),
+            compiledMetricQuery: baseZoomedQuery,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: true,
+            originalExplore: buildDayExplore(),
+        });
+        expect(query).toContain(
+            `CAST(DATE_TRUNC('MONTH', ("events".occurred_at)::timestamptz AT TIME ZONE 'America/New_York') AS DATE) AS "events_occurred_at"`,
+        );
+        // Bug: the un-recomputed plain DATE_TRUNC must not leak into the SELECT.
+        expect(query).not.toMatch(
+            /DATE_TRUNC\('MONTH', "events"\.occurred_at\) AS "events_occurred_at"/,
+        );
+    });
 });
 
 describe('Timezone-aware EXTRACT-based time dimensions', () => {
