@@ -394,6 +394,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 showColumnCalculation={showColumnCalculation}
                 showSubtotals={showSubtotals}
                 showSubtotalsExpanded={showSubtotalsExpanded}
+                showRowGrouping={showRowGrouping}
                 conditionalFormattings={conditionalFormattings}
                 minMaxMap={minMaxMap}
                 onColumnWidthChange={onColumnWidthChange}

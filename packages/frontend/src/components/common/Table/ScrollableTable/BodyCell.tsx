@@ -5,6 +5,7 @@ import {
     type RawResultRow,
     type ResultRow,
 } from '@lightdash/common';
+import { clsx } from '@mantine/core';
 import {
     getHotkeyHandler,
     useClipboard,
@@ -26,6 +27,7 @@ import { JsonCellModal } from '../../JsonViewer/JsonCellViewer';
 import { type JsonCellValue } from '../../JsonViewer/utils';
 import { Td } from '../Table.styles';
 import { type CellContextMenuProps } from '../types';
+import bodyCellStyles from './BodyCell.module.css';
 import CellMenu from './CellMenu';
 import CellTooltip from './CellTooltip';
 
@@ -42,6 +44,8 @@ interface CommonBodyCellProps {
     isLargeText?: boolean;
     tooltipContent?: string;
     minimal?: boolean;
+    // Set on a row-grouping block-start cell that vertically merges >1 row.
+    rowSpan?: number;
 }
 
 const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
@@ -58,7 +62,9 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
     style,
     tooltipContent,
     minimal = false,
+    rowSpan,
 }) => {
+    const isMerged = !!rowSpan && rowSpan > 1;
     const elementRef = useRef<HTMLTableCellElement>(null);
     const { showToastSuccess } = useToaster();
     const { copy } = useClipboard();
@@ -143,7 +149,11 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
         <>
             <Td
                 ref={elementRef}
-                className={className}
+                className={clsx(
+                    className,
+                    isMerged && bodyCellStyles.mergedDimCell,
+                )}
+                rowSpan={isMerged ? rowSpan : undefined}
                 style={style}
                 $rowIndex={index}
                 $isSelected={isMenuOpen}

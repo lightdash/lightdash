@@ -32,10 +32,15 @@ import {
 import { getConditionalRuleLabelFromItem } from '../../Filters/FilterInputs/utils';
 import MantineIcon from '../../MantineIcon';
 import {
+    getRowSpanMerges,
+    type RowSpanMerge,
+} from '../../PivotTable/getRowSpanMerges';
+import {
     FROZEN_COLUMN_BACKGROUND,
     ROW_HEIGHT_PX,
     SMALL_TEXT_LENGTH,
 } from '../constants';
+import { getGroupedDimensionColumnIds } from '../getGroupedDimensionColumnIds';
 import { Tr } from '../Table.styles';
 import { type TableContext } from '../types';
 import { useTableContext } from '../useTableContext';
@@ -69,6 +74,9 @@ interface TableRowProps {
     conditionalFormattings: TableContext['conditionalFormattings'];
     minMaxMap: TableContext['minMaxMap'];
     minimal?: boolean;
+    // Per-column rowSpan-merge info for row-grouping mode, keyed by column id;
+    // null when not in row-grouping mode.
+    rowSpanMergesByColumnId?: Map<string, RowSpanMerge[]> | null;
 }
 
 const TableRow: FC<TableRowProps> = ({
@@ -80,6 +88,7 @@ const TableRow: FC<TableRowProps> = ({
     conditionalFormattings,
     minMaxMap,
     minimal = false,
+    rowSpanMergesByColumnId,
 }) => {
     const { colorScheme } = useMantineColorScheme();
     const rowFields = useMemo(
@@ -130,6 +139,15 @@ const TableRow: FC<TableRowProps> = ({
     return (
         <Tr $index={index} ref={measureElement} data-index={virtualIndex}>
             {row.getVisibleCells().map((cell) => {
+                const rowSpanMerge = rowSpanMergesByColumnId?.get(
+                    cell.column.id,
+                )?.[index];
+                // Absorbed (non-block-start) merged cell: the block-start cell's
+                // rowSpan already covers this row, so render no <td> here.
+                if (rowSpanMerge && !rowSpanMerge.isBlockStart) {
+                    return null;
+                }
+
                 const meta = cell.column.columnDef.meta;
                 const field = meta?.item;
                 const cellValue = cell.getValue() as ResultRow[0] | undefined;
@@ -221,6 +239,7 @@ const TableRow: FC<TableRowProps> = ({
                 return (
                     <BodyCell
                         minimal={minimal}
+                        rowSpan={rowSpanMerge?.rowSpan}
                         key={cell.id}
                         style={meta?.style}
                         backgroundColor={backgroundColor}
@@ -314,9 +333,12 @@ const SCROLL_THRESHOLD = 100;
 const VirtualizedTableBody: FC<{
     tableContainerRef: React.RefObject<HTMLDivElement | null>;
     minimal?: boolean;
-}> = ({ tableContainerRef, minimal }) => {
+    showSubtotals?: boolean;
+    showRowGrouping?: boolean;
+}> = ({ tableContainerRef, minimal, showSubtotals, showRowGrouping }) => {
     const {
         table,
+        columns,
         cellContextMenu,
         conditionalFormattings,
         minMaxMap,
@@ -325,6 +347,30 @@ const VirtualizedTableBody: FC<{
         fetchMoreRows,
     } = useTableContext();
     const { rows } = table.getRowModel();
+
+    // Row-grouping (no subtotals): merge repeated dimension values with rowSpan,
+    // matching the pivot table. Renders a flat row model (no TanStack grouping),
+    // so rowSpans line up with the source rows.
+    const groupingOnlyMode = !!showRowGrouping && !showSubtotals;
+    const columnOrder = table.getState().columnOrder;
+    const rowSpanMergesByColumnId = useMemo(() => {
+        if (!groupingOnlyMode) return null;
+        const groupedColumnIds = getGroupedDimensionColumnIds(
+            columns,
+            columnOrder,
+        );
+        if (groupedColumnIds.length === 0) return null;
+        return getRowSpanMerges(
+            rows.length,
+            groupedColumnIds,
+            (rowIndex, columnId) =>
+                (
+                    rows[rowIndex]?.getValue(columnId) as
+                        | { value?: { raw?: unknown } }
+                        | undefined
+                )?.value?.raw,
+        );
+    }, [groupingOnlyMode, columns, columnOrder, rows]);
 
     const rowVirtualizer = useVirtualizer({
         getScrollElement: () => tableContainerRef.current,
@@ -400,6 +446,30 @@ const VirtualizedTableBody: FC<{
               (virtualRows[virtualRows.length - 1]?.end || 0)
             : 0;
 
+    // Row-grouping mode renders every row (no virtualization) so the merged
+    // dimension cells' rowSpans span their full block — virtualization would
+    // unmount the absorbed rows and break the span.
+    if (groupingOnlyMode) {
+        return (
+            <tbody>
+                {rows.map((row, index) => (
+                    <TableRow
+                        minimal={minimal}
+                        key={index}
+                        index={index}
+                        virtualIndex={index}
+                        measureElement={measureElement}
+                        row={row}
+                        cellContextMenu={cellContextMenu}
+                        conditionalFormattings={conditionalFormattings}
+                        minMaxMap={minMaxMap}
+                        rowSpanMergesByColumnId={rowSpanMergesByColumnId}
+                    />
+                ))}
+            </tbody>
+        );
+    }
+
     return (
         <tbody>
             {paddingTop > 0 && (
@@ -469,13 +539,22 @@ const VirtualizedTableBody: FC<{
 interface TableBodyProps {
     minimal?: boolean;
     tableContainerRef: React.RefObject<HTMLDivElement | null>;
+    showSubtotals?: boolean;
+    showRowGrouping?: boolean;
 }
 
-const TableBody: FC<TableBodyProps> = ({ minimal, tableContainerRef }) => {
+const TableBody: FC<TableBodyProps> = ({
+    minimal,
+    tableContainerRef,
+    showSubtotals,
+    showRowGrouping,
+}) => {
     return (
         <VirtualizedTableBody
             tableContainerRef={tableContainerRef}
             minimal={minimal}
+            showSubtotals={showSubtotals}
+            showRowGrouping={showRowGrouping}
         />
     );
 };

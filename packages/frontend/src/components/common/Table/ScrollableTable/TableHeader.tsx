@@ -1,10 +1,11 @@
 import { Draggable } from '@hello-pangea/dnd';
-import { isCustomDimension, isDimension, isField } from '@lightdash/common';
+import { isField } from '@lightdash/common';
 import { Tooltip, useMantineTheme } from '@mantine/core';
 import { flexRender } from '@tanstack/react-table';
 import isEqual from 'lodash/isEqual';
 import React, { useEffect, type FC } from 'react';
 import { ROW_NUMBER_COLUMN_ID } from '../constants';
+import { getGroupedDimensionColumnIds } from '../getGroupedDimensionColumnIds';
 import {
     Th,
     ThActionsContainer,
@@ -35,25 +36,10 @@ const TableHeader: FC<TableHeaderProps> = ({
 
     useEffect(() => {
         if (showSubtotals) {
-            const groupedColumns = columns
-                .filter((col) => {
-                    const item = col.meta?.item;
-                    return (
-                        item && (isDimension(item) || isCustomDimension(item))
-                    );
-                })
-                .map((col) => col.id);
-
-            const sortedColumns = table
-                .getState()
-                .columnOrder.reduce<string[]>((acc, sortedId) => {
-                    return groupedColumns.includes(sortedId)
-                        ? [...acc, sortedId]
-                        : acc;
-                }, [])
-                // The last dimension column essentially groups rows for each unique value in that column.
-                // Grouping on it would result in many useless expandable groups containing just one item.
-                .slice(0, -1);
+            const sortedColumns = getGroupedDimensionColumnIds(
+                columns,
+                table.getState().columnOrder,
+            );
 
             if (!isEqual(sortedColumns, table.getState().grouping)) {
                 table.setGrouping(sortedColumns);
