@@ -682,6 +682,21 @@ describe('AiWritebackService repo read access', () => {
         dbtVersion: SupportedDbtVersions.V1_9,
     });
 
+    const gitlabProject = (): AnyType => ({
+        organizationUuid: ORG,
+        name: 'Analytics',
+        dbtConnection: {
+            type: DbtProjectType.GITLAB,
+            personal_access_token: 'pat',
+            repository: 'acme/analytics',
+            branch: 'main',
+            project_sub_path: 'transform/dbt',
+            host_domain: 'gitlab.acme.com',
+        },
+        warehouseConnection: { type: WarehouseTypes.POSTGRES },
+        dbtVersion: SupportedDbtVersions.V1_9,
+    });
+
     const buildWithInstallation = (project: AnyType = githubProject()) => {
         const githubAppService = {
             getValidUserToken: jest.fn().mockResolvedValue(undefined),
@@ -711,8 +726,8 @@ describe('AiWritebackService repo read access', () => {
         jest.clearAllMocks();
     });
 
-    describe('getRepoReadAccess (dbt project repo, unchanged contract)', () => {
-        it('returns the dbt repo owner/repo/branch/token/subPath', async () => {
+    describe('getRepoReadAccess (dbt project repo, provider-tagged)', () => {
+        it('returns github-tagged access for a GitHub dbt connection', async () => {
             const { service } = buildWithInstallation();
             await expect(
                 service.getRepoReadAccess({
@@ -720,6 +735,7 @@ describe('AiWritebackService repo read access', () => {
                     projectUuid: 'p1',
                 }),
             ).resolves.toEqual({
+                provider: 'github',
                 owner: 'acme',
                 repo: 'analytics',
                 branch: 'main',
@@ -728,6 +744,33 @@ describe('AiWritebackService repo read access', () => {
             });
             // Branch came from the connection; no default-branch lookup.
             expect(getRepoDefaultBranch).not.toHaveBeenCalled();
+        });
+
+        it('returns gitlab-tagged access (with hostDomain) for a GitLab dbt connection', async () => {
+            const { service } = buildWithInstallation(gitlabProject());
+            jest.spyOn(
+                (service as AnyType).gitlabProvider,
+                'resolveInstallation',
+            ).mockResolvedValue({
+                provider: PullRequestProvider.GITLAB,
+                token: 'gitlab-install-token',
+                instanceUrl: 'https://gitlab.acme.com',
+                commitAuthor: { name: 'n', email: 'e' },
+            } as AnyType);
+            await expect(
+                service.getRepoReadAccess({
+                    user: userWithOrg(true),
+                    projectUuid: 'p1',
+                }),
+            ).resolves.toEqual({
+                provider: 'gitlab',
+                owner: 'acme',
+                repo: 'analytics',
+                branch: 'main',
+                token: 'gitlab-install-token',
+                hostDomain: 'gitlab.acme.com',
+                subPath: 'transform/dbt',
+            });
         });
 
         it('rejects a user without view:SourceCode', async () => {

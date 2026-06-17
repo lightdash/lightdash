@@ -93,6 +93,7 @@ import {
     formatWritebackStep,
     interpretAgentEvent,
     parseGithubConnection,
+    parseGitlabConnection,
     parsePullNumber,
     progressTextForStage,
     resolvePrMetadataValue,
@@ -135,6 +136,31 @@ export type SourceCodeRepoAccess = {
     private: boolean;
     token: string;
 };
+
+/**
+ * Resolved read-only access to a project's dbt repo for the agent's `exploreRepo`
+ * VFS, discriminated by `provider`. The `repoFs` layer creates the matching
+ * {@link RepoSource} (GitHub Trees+Contents, or GitLab Trees+Files) from this.
+ * GitLab adds `hostDomain` for self-hosted instances; GitHub has none.
+ */
+export type RepoReadAccess =
+    | {
+          provider: 'github';
+          owner: string;
+          repo: string;
+          branch: string;
+          token: string;
+          subPath: string;
+      }
+    | {
+          provider: 'gitlab';
+          owner: string;
+          repo: string;
+          branch: string;
+          token: string;
+          hostDomain: string;
+          subPath: string;
+      };
 
 type RepoListing = {
     owner: string;
@@ -263,16 +289,20 @@ export class AiWritebackService extends BaseService {
      * {@link getInstallationRepoReadAccess} (any accessible repo): org check →
      * view:SourceCode ability gate → installation token. GitHub-only for now.
      */
-    private async resolveSourceCodeInstallation({
+    /**
+     * Org membership + view:SourceCode gate shared by every read-only source
+     * access path, independent of git provider. Returns the project (so callers
+     * can branch on its dbt connection type) and the org uuid (narrowed here).
+     */
+    private async assertSourceCodeAccess({
         user,
         projectUuid,
     }: {
         user: SessionUser;
         projectUuid: string;
     }): Promise<{
-        installationId: string;
-        token: string;
         project: Awaited<ReturnType<ProjectModel['get']>>;
+        organizationUuid: string;
     }> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -294,9 +324,28 @@ export class AiWritebackService extends BaseService {
                 'You do not have permission to view this project source code',
             );
         }
-        const installation = await this.githubProvider.resolveInstallation(
-            user.organizationUuid,
+        return { project, organizationUuid: user.organizationUuid };
+    }
+
+    private async resolveSourceCodeInstallation({
+        user,
+        projectUuid,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+    }): Promise<{
+        installationId: string;
+        token: string;
+        project: Awaited<ReturnType<ProjectModel['get']>>;
+    }> {
+        const { project, organizationUuid } = await this.assertSourceCodeAccess(
+            {
+                user,
+                projectUuid,
+            },
         );
+        const installation =
+            await this.githubProvider.resolveInstallation(organizationUuid);
         if (installation.provider !== PullRequestProvider.GITHUB) {
             throw new WritebackGitNotConnectedError(
                 PullRequestProvider.GITHUB,
@@ -316,43 +365,73 @@ export class AiWritebackService extends BaseService {
     }: {
         user: SessionUser;
         projectUuid: string;
-    }): Promise<{
-        owner: string;
-        repo: string;
-        branch: string;
-        token: string;
-        subPath: string;
-    }> {
-        const { installationId, token, project } =
-            await this.resolveSourceCodeInstallation({ user, projectUuid });
-        const provider = this.getGitProvider(project.dbtConnection.type);
-        if (provider.provider !== PullRequestProvider.GITHUB) {
-            throw new WritebackGitNotConnectedError(
-                provider.provider,
-                'Repository read access is currently only supported for GitHub dbt connections',
-            );
-        }
-        const connection = parseGithubConnection(project.dbtConnection);
-        // Read the project's configured dbt branch so the shell inspects the
-        // same source the Lightdash project compiles from. Only fall back to the
-        // repo's default branch when the project left the branch unset.
-        const branch =
-            connection.branch ||
-            (await getRepoDefaultBranch({
+    }): Promise<RepoReadAccess> {
+        const { project, organizationUuid } = await this.assertSourceCodeAccess(
+            {
+                user,
+                projectUuid,
+            },
+        );
+        const { dbtConnection } = project;
+
+        // Scope the read-only VFS to the dbt project subdirectory so it can't
+        // expose secrets/other files elsewhere in the repo. '.' (repo root)
+        // means no scoping. Read the project's configured dbt branch so the
+        // shell inspects the same source the Lightdash project compiles from.
+        if (dbtConnection.type === DbtProjectType.GITHUB) {
+            const installation =
+                await this.githubProvider.resolveInstallation(organizationUuid);
+            if (installation.provider !== PullRequestProvider.GITHUB) {
+                throw new WritebackGitNotConnectedError(
+                    PullRequestProvider.GITHUB,
+                    'GitHub App is not installed for this organization',
+                );
+            }
+            const connection = parseGithubConnection(dbtConnection);
+            const branch =
+                connection.branch ||
+                (await getRepoDefaultBranch({
+                    owner: connection.owner,
+                    repo: connection.repo,
+                    installationId: installation.installationId,
+                }));
+            return {
+                provider: 'github',
                 owner: connection.owner,
                 repo: connection.repo,
-                installationId,
-            }));
-        return {
-            owner: connection.owner,
-            repo: connection.repo,
-            branch,
-            token,
-            // Scope the read-only VFS to the dbt project subdirectory so it
-            // can't expose secrets/other files elsewhere in the repo. '.' (repo
-            // root) means no scoping.
-            subPath: connection.projectSubPath,
-        };
+                branch,
+                token: installation.token,
+                subPath: connection.projectSubPath,
+            };
+        }
+
+        if (dbtConnection.type === DbtProjectType.GITLAB) {
+            const installation =
+                await this.gitlabProvider.resolveInstallation(organizationUuid);
+            if (installation.provider !== PullRequestProvider.GITLAB) {
+                throw new WritebackGitNotConnectedError(
+                    PullRequestProvider.GITLAB,
+                    'GitLab App is not installed for this organization',
+                );
+            }
+            const connection = parseGitlabConnection(dbtConnection);
+            // parseGitlabConnection omits the branch; read it from the typed
+            // connection (GitLab dbt config always carries a branch).
+            return {
+                provider: 'gitlab',
+                owner: connection.owner,
+                repo: connection.repo,
+                branch: dbtConnection.branch,
+                token: installation.token,
+                hostDomain: connection.hostDomain,
+                subPath: connection.projectSubPath,
+            };
+        }
+
+        throw new WritebackGitNotConnectedError(
+            this.getGitProvider(dbtConnection.type).provider,
+            'Repository read access is currently only supported for GitHub and GitLab dbt connections',
+        );
     }
 
     /**

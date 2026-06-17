@@ -235,6 +235,7 @@ import {
     rethrowAsRecoverable,
     type RepoFsTimingEvent,
 } from '../ai/repoFs/githubRepoSource';
+import { createGitlabRepoSource } from '../ai/repoFs/gitlabRepoSource';
 import {
     DBT_MOUNT,
     MountingRepoFileSystem,
@@ -6011,9 +6012,17 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 user,
                 projectUuid,
             });
-            return new RepoFs(
-                createGithubRepoSource({ ...access, onTiming: onRepoFsTiming }),
-            );
+            const source =
+                access.provider === 'gitlab'
+                    ? createGitlabRepoSource({
+                          ...access,
+                          onTiming: onRepoFsTiming,
+                      })
+                    : createGithubRepoSource({
+                          ...access,
+                          onTiming: onRepoFsTiming,
+                      });
+            return new RepoFs(source);
         };
         const buildRepoFs = async (
             owner: string,
@@ -6042,11 +6051,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const getMountFs = () => {
             if (!mountFsPromise) {
                 mountFsPromise = (async () => {
-                    // /dbt is only mountable when the project's dbt repo is on
-                    // GitHub (getRepoReadAccess is GitHub-only).
+                    // /dbt is mountable when the project's dbt repo is on a
+                    // host the VFS can read read-only (GitHub or GitLab); other
+                    // connection types have no repo source.
                     const project = await this.projectModel.get(projectUuid);
                     const hasDbtMount =
-                        project.dbtConnection.type === DbtProjectType.GITHUB;
+                        project.dbtConnection.type === DbtProjectType.GITHUB ||
+                        project.dbtConnection.type === DbtProjectType.GITLAB;
                     return MountingRepoFileSystem.create({
                         listRepos: async () => {
                             this.prometheusMetrics?.incrementRepoFsGithubRequest(
