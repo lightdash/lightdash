@@ -734,12 +734,12 @@ export const getSqlForTruncatedDate = (
     startOfWeek?: WeekDay | null,
     timezone?: string,
     sourceTimezone?: string,
-    castDayGrainToDate: boolean = false,
+    castDayOrCoarserToDate: boolean = false,
 ): string => {
     const wrap = resolveTimezoneWrap(type, timezone, sourceTimezone);
     // GLITCH-452: day-or-coarser grains emit a real DATE so the warehouse type
     // matches the metadata; sub-day grains stay TIMESTAMP.
-    const castToDate = castDayGrainToDate && !isSubDayTimeFrame(timeFrame);
+    const castToDate = castDayOrCoarserToDate && !isSubDayTimeFrame(timeFrame);
     if (!wrap) {
         const bare = warehouseConfigs[adapterType].getSqlForTruncatedDate(
             timeFrame,

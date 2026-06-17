@@ -74,7 +74,7 @@ CAST(DATE_TRUNC('day', "orders"."order_date" AT TIME ZONE 'UTC' AT TIME ZONE 'As
 
 The wrap-inactive branch (UTC project / round-trip no-op) also casts the raw `DATE_TRUNC(...)` to DATE — output must be `DATE` per the AC regardless of zone.
 
-**Gating:** thread a `castDayGrainToDate` boolean param (default `false`) into `getSqlForTruncatedDate`. Pass `true` from:
+**Gating:** thread a `castDayOrCoarserToDate` boolean param (default `false`) into `getSqlForTruncatedDate`. Pass `true` from:
 - `MetricQueryBuilder.getTimezoneAwareDimensionSql` — only reached when the flag is on; covers the SELECT and the WHERE LHS (filter parity).
 - `QueryBuilder/utils.ts → getDimensionFromId` (date-zoom) — **decision: not applied.** Date-zoom dims keep the old `TIMESTAMP` round-trip (display stays correct via the existing shift, verified no off-by-one); casting them for raw-value consistency is tracked as **GLITCH-505**.
 

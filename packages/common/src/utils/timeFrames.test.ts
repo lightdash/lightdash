@@ -715,9 +715,9 @@ describe('TimeFrames', () => {
             );
         });
 
-        // GLITCH-452: with castDayGrainToDate, a day-or-coarser trunc casts the
+        // GLITCH-452: with castDayOrCoarserToDate, a day-or-coarser trunc casts the
         // project-wall-clock value to DATE and drops the toUTC round-trip-back.
-        test('day grain with castDayGrainToDate casts the wall-clock trunc to DATE (Postgres)', () => {
+        test('day grain with castDayOrCoarserToDate casts the wall-clock trunc to DATE (Postgres)', () => {
             expect(
                 getSqlForTruncatedDate(
                     SupportedDbtAdapter.POSTGRES,
@@ -727,16 +727,16 @@ describe('TimeFrames', () => {
                     null,
                     tz,
                     undefined,
-                    true, // castDayGrainToDate
+                    true, // castDayOrCoarserToDate
                 ),
             ).toEqual(
                 `CAST(DATE_TRUNC('DAY', (${col})::timestamptz AT TIME ZONE '${tz}') AS DATE)`,
             );
         });
 
-        // GLITCH-452: sub-day grains are real instants — castDayGrainToDate must
+        // GLITCH-452: sub-day grains are real instants — castDayOrCoarserToDate must
         // not cast them; they keep the TIMESTAMP round-trip.
-        test('sub-day grain ignores castDayGrainToDate and keeps the timestamp round-trip (Postgres)', () => {
+        test('sub-day grain ignores castDayOrCoarserToDate and keeps the timestamp round-trip (Postgres)', () => {
             expect(
                 getSqlForTruncatedDate(
                     SupportedDbtAdapter.POSTGRES,
@@ -746,7 +746,7 @@ describe('TimeFrames', () => {
                     null,
                     tz,
                     undefined,
-                    true, // castDayGrainToDate — ignored for sub-day
+                    true, // castDayOrCoarserToDate — ignored for sub-day
                 ),
             ).toEqual(
                 `(DATE_TRUNC('HOUR', (${col})::timestamptz AT TIME ZONE '${tz}')) AT TIME ZONE '${tz}'`,
@@ -765,7 +765,7 @@ describe('TimeFrames', () => {
                     null,
                     'UTC',
                     undefined,
-                    true, // castDayGrainToDate
+                    true, // castDayOrCoarserToDate
                 ),
             ).toEqual(`CAST(DATE_TRUNC('DAY', ${col}) AS DATE)`);
         });
@@ -784,7 +784,7 @@ describe('TimeFrames', () => {
                     null,
                     tz,
                     undefined,
-                    true, // castDayGrainToDate
+                    true, // castDayOrCoarserToDate
                 ),
             ).toEqual(
                 `DATE(TIMESTAMP_TRUNC(TIMESTAMP(${col}), DAY, '${tz}'), '${tz}')`,
