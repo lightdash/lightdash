@@ -128,6 +128,41 @@ describe('Formatting', () => {
             ).toBeUndefined();
         });
 
+        // With a known base type the decision no longer depends on the value
+        // shape — a DATE base never shifts even for a midnight ISO instant.
+        test('MIN/MAX with a DATE base does NOT shift, even for a midnight ISO value', () => {
+            const item: Metric = {
+                ...metric,
+                type: MetricType.MAX,
+                baseDimensionType: DimensionType.DATE,
+            };
+            expect(
+                getFormatterTimezone(item, '2025-01-15T00:00:00.000Z', tz),
+            ).toBeUndefined();
+            expect(
+                getFormatterTimezone(
+                    item,
+                    new Date('2025-01-15T00:00:00.000Z'),
+                    tz,
+                ),
+            ).toBeUndefined();
+        });
+
+        test('MIN/MAX with a TIMESTAMP base shifts (unchanged)', () => {
+            const item: Metric = {
+                ...metric,
+                type: MetricType.MAX,
+                baseDimensionType: DimensionType.TIMESTAMP,
+            };
+            expect(getFormatterTimezone(item, tsString, tz)).toEqual(tz);
+        });
+
+        test('MIN/MAX with no known base falls back to value shape (unchanged)', () => {
+            const item: Metric = { ...metric, type: MetricType.MAX };
+            expect(getFormatterTimezone(item, tsString, tz)).toEqual(tz);
+            expect(getFormatterTimezone(item, dateOnly, tz)).toBeUndefined();
+        });
+
         test('STRING item carrying a timestamp value does NOT shift', () => {
             // The by-value fallback is scoped to MIN/MAX; a known non-temporal
             // type is trusted even when the value looks like an instant.
@@ -1466,6 +1501,151 @@ describe('Formatting', () => {
                     tz,
                 ),
             ).toEqual('2018-10-31');
+        });
+
+        describe('formatItemValue MIN/MAX with a known base type', () => {
+            const tz = 'Pacific/Pago_Pago'; // -11:00, exposes any wrong shift
+
+            test('DATE base renders an unshifted calendar date at the base grain', () => {
+                const dayMax: Metric = {
+                    ...metric,
+                    type: MetricType.MAX,
+                    baseDimensionType: DimensionType.DATE,
+                    baseDimensionTimeInterval: TimeFrames.DAY,
+                };
+                const monthMax: Metric = {
+                    ...dayMax,
+                    baseDimensionTimeInterval: TimeFrames.MONTH,
+                };
+                const yearMax: Metric = {
+                    ...dayMax,
+                    baseDimensionTimeInterval: TimeFrames.YEAR,
+                };
+                // Both the fresh Date and the cached midnight-ISO string render
+                // the bare day, unshifted.
+                expect(
+                    formatItemValue(
+                        dayMax,
+                        '2026-03-03T00:00:00.000Z',
+                        false,
+                        undefined,
+                        tz,
+                    ),
+                ).toEqual('2026-03-03');
+                expect(
+                    formatItemValue(
+                        dayMax,
+                        new Date('2026-03-03T00:00:00.000Z'),
+                        false,
+                        undefined,
+                        tz,
+                    ),
+                ).toEqual('2026-03-03');
+                // Coarser grains follow the base dimension's format.
+                expect(
+                    formatItemValue(
+                        monthMax,
+                        '2026-03-01T00:00:00.000Z',
+                        false,
+                        undefined,
+                        tz,
+                    ),
+                ).toEqual('2026-03');
+                expect(
+                    formatItemValue(
+                        yearMax,
+                        '2026-01-01T00:00:00.000Z',
+                        false,
+                        undefined,
+                        tz,
+                    ),
+                ).toEqual('2026');
+            });
+
+            test('TIMESTAMP base still shifts into the project tz (unchanged)', () => {
+                const tsMax: Metric = {
+                    ...metric,
+                    type: MetricType.MAX,
+                    baseDimensionType: DimensionType.TIMESTAMP,
+                };
+                expect(
+                    formatItemValue(
+                        tsMax,
+                        '2018-10-31T06:44:22.667Z',
+                        false,
+                        undefined,
+                        'Asia/Tokyo', // +09:00
+                    ),
+                ).toEqual('2018-10-31, 15:44:22:667 (+09:00)');
+            });
+
+            test('DATE base with a date/timestamp formatOptions still renders the bare date (UI custom metric)', () => {
+                // The UI auto-stamps formatOptions {type: date} on a MAX over a
+                // date dim. Without this fix the ISO value falls through
+                // applyCustomFormat and renders raw. A timestamp formatOptions on a
+                // calendar value is likewise rendered as the bare date.
+                const dateFmt: Metric = {
+                    ...metric,
+                    type: MetricType.MAX,
+                    baseDimensionType: DimensionType.DATE,
+                    baseDimensionTimeInterval: TimeFrames.DAY,
+                    formatOptions: {
+                        type: CustomFormatType.DATE,
+                        timeInterval: TimeFrames.DAY,
+                    },
+                };
+                expect(
+                    formatItemValue(
+                        dateFmt,
+                        '2025-01-15T00:00:00.000Z',
+                        false,
+                        undefined,
+                        tz,
+                    ),
+                ).toEqual('2025-01-15');
+                expect(
+                    formatItemValue(
+                        {
+                            ...dateFmt,
+                            formatOptions: {
+                                type: CustomFormatType.TIMESTAMP,
+                                timeInterval: TimeFrames.RAW,
+                            },
+                        },
+                        '2025-01-15T00:00:00.000Z',
+                        false,
+                        undefined,
+                        tz,
+                    ),
+                ).toEqual('2025-01-15');
+            });
+
+            test('DATE base with a numeric value is NOT rendered as a date (soundness)', () => {
+                const dateMax: Metric = {
+                    ...metric,
+                    type: MetricType.MAX,
+                    baseDimensionType: DimensionType.DATE,
+                };
+                expect(
+                    formatItemValue(dateMax, 5000, false, undefined, tz),
+                ).toEqual('5,000');
+            });
+
+            test('flag off (no timezone) is byte-identical to an unknown base', () => {
+                // With no timezone the DATE-base branch is skipped, so a known
+                // base renders exactly like today's shape-based path.
+                const value = '2026-03-03T00:00:00.000Z';
+                const dateMax: Metric = {
+                    ...metric,
+                    type: MetricType.MAX,
+                    baseDimensionType: DimensionType.DATE,
+                    baseDimensionTimeInterval: TimeFrames.DAY,
+                };
+                const unknownMax: Metric = { ...metric, type: MetricType.MAX };
+                expect(formatItemValue(dateMax, value)).toEqual(
+                    formatItemValue(unknownMax, value),
+                );
+            });
         });
 
         test('formatItemValue shifts a custom-format timestamp into the project tz (GLITCH-492)', () => {
