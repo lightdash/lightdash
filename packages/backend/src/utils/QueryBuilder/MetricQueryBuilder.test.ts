@@ -5245,6 +5245,74 @@ describe('Timezone-aware DATE_TRUNC day-or-coarser → DATE cast (GLITCH-452)', 
         // (LHS is a DATE now — a timestamptz literal would re-introduce a tz drift).
         expect(query).not.toContain(`'2024-01-15'::timestamp`);
     });
+
+    const popDayQuery: CompiledMetricQuery = {
+        ...dayQuery,
+        metrics: ['events_event_count', 'events_event_count__pop__day_1__t'],
+        sorts: [{ fieldId: 'events_occurred_at_day', descending: false }],
+        additionalMetrics: [
+            {
+                table: 'events',
+                name: 'event_count__pop__day_1__t',
+                label: 'Previous day event_count',
+                type: MetricType.COUNT,
+                sql: '${TABLE}.id',
+                generationType: 'periodOverPeriod' as const,
+                baseMetricId: 'events_event_count',
+                timeDimensionId: 'events_occurred_at_day',
+                granularity: TimeFrames.DAY,
+                periodOffset: 1,
+            },
+        ],
+        compiledAdditionalMetrics: [
+            {
+                type: MetricType.COUNT,
+                fieldType: FieldType.METRIC,
+                table: 'events',
+                tableLabel: 'events',
+                name: 'event_count__pop__day_1__t',
+                label: 'Previous day event_count',
+                sql: '${TABLE}.id',
+                compiledSql: 'COUNT("events".id)',
+                tablesReferences: ['events'],
+                hidden: true,
+            },
+        ],
+    };
+
+    test('TIMESTAMP base + flag on: PoP range pre-filter LHS is the DATE-cast expression (Postgres)', () => {
+        const { query } = buildQuery({
+            explore: buildDayExplore(),
+            compiledMetricQuery: popDayQuery,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: true,
+        });
+        const popLhs = `CAST(DATE_TRUNC('DAY', ("events".occurred_at)::timestamptz AT TIME ZONE 'America/New_York') AS DATE)`;
+        // Both range bounds compare the DATE-cast LHS, matching the SELECT/min/max.
+        expect(query).toContain(`${popLhs} >=`);
+        expect(query).toContain(`${popLhs} <=`);
+        // The un-cast DATE_TRUNC must not appear as a range pre-filter LHS.
+        expect(query).not.toMatch(
+            /DATE_TRUNC\('DAY', "events"\.occurred_at\)\s*(>=|<=)/,
+        );
+    });
+
+    test('flag off: PoP range pre-filter LHS stays the un-cast DATE_TRUNC (byte-identical)', () => {
+        const { query } = buildQuery({
+            explore: buildDayExplore(),
+            compiledMetricQuery: popDayQuery,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: false,
+        });
+        expect(query).toMatch(
+            /DATE_TRUNC\('DAY', "events"\.occurred_at\)\s*>=/,
+        );
+        expect(query).not.toContain(`AT TIME ZONE`);
+    });
 });
 
 describe('Timezone-aware EXTRACT-based time dimensions', () => {
