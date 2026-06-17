@@ -57,3 +57,18 @@ export const EXTERNAL_CONNECTION_DEFAULTS = {
     requestMaxBytes: 262144,
     timeoutMs: 10000,
 } as const;
+
+export type ExternalFetchRequest = {
+    connectionAlias: string;
+    method?: ExternalConnectionMethod;
+    path: string;
+    query?: Record<string, string>;
+    body?: unknown;
+};
+
+export type ExternalFetchResponse = {
+    status: number;
+    contentType: string;
+    body: unknown;
+    truncated: boolean;
+};
