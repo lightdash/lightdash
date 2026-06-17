@@ -92,11 +92,25 @@ export const getRunSql = ({
         maxLimit: maxQueryLimit,
     });
 
+    // Modern Slack path uses the AI SDK's native tool approval: the loop halts
+    // on a tool-approval-request and the worker job ends; a resume job re-runs
+    // generation and the SDK re-invokes execute once approved. Auto-approve and
+    // "don't ask again" threads bypass approval entirely.
+    const usesNativeApproval = async () => {
+        if (!useSlackStreamCard || autoApproveSql) return false;
+        const prompt = await getPrompt();
+        return (
+            isSlackPrompt(prompt) &&
+            !isSlackThreadAutoApproved(prompt.threadUuid)
+        );
+    };
+
     return tool({
         description: buildRunSqlDescription(500, maxQueryLimit),
         inputSchema,
         outputSchema: toolDefinition.outputSchema,
         toModelOutput: toolDefinition.toModelOutput,
+        needsApproval: usesNativeApproval,
         execute: async ({ sql, limit }, { toolCallId }) => {
             if (sqlApprovalTimedOut) {
                 return {
@@ -121,6 +135,12 @@ export const getRunSql = ({
             const slackAutoApproved =
                 isSlack && isSlackThreadAutoApproved(prompt.threadUuid);
             const shouldAutoApprove = autoApproveSql || slackAutoApproved;
+            // When native approval gated this call, execute only runs after the
+            // user approved (or auto-approve). No blocking wait, no pending card
+            // — the reply flow posted the approval card and the decision is
+            // already recorded.
+            const isNativeApprovalPath =
+                useSlackStreamCard && isSlack && !shouldAutoApprove;
 
             // Render a runSql state INTO the bot's existing progress message
             // (the bolt-gif "Thinking…" message at response_slack_ts). One
@@ -149,6 +169,8 @@ export const getRunSql = ({
                         'approved',
                         autoApproveSql ? autoApproveSqlUserUuid : null,
                     );
+                } else if (isNativeApprovalPath) {
+                    // Approval already handled by the SDK before this call.
                 } else if (isSlack) {
                     await renderState({
                         kind: 'pending',
@@ -160,9 +182,10 @@ export const getRunSql = ({
                     await updateProgress('Awaiting approval to run SQL...');
                 }
 
-                const decision = shouldAutoApprove
-                    ? 'approved'
-                    : await waitForSqlApproval(toolCallId);
+                const decision =
+                    shouldAutoApprove || isNativeApprovalPath
+                        ? 'approved'
+                        : await waitForSqlApproval(toolCallId);
                 if (decision === 'rejected') {
                     await renderState({ kind: 'rejected', sql });
                     return {

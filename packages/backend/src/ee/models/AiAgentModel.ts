@@ -5242,6 +5242,45 @@ export class AiAgentModel {
             });
     }
 
+    // A runSql call the agent suspended on awaiting approval: it has no result
+    // (never executed) and no recorded decision yet. Used to detect a suspended
+    // run and to post the approval card.
+    async getPendingSqlApprovalForPrompt(
+        promptUuid: string,
+    ): Promise<{ toolCallId: string; sql: string } | null> {
+        const row = await this.database(AiAgentToolCallTableName)
+            .leftJoin(
+                AiAgentToolResultTableName,
+                `${AiAgentToolCallTableName}.tool_call_id`,
+                `${AiAgentToolResultTableName}.tool_call_id`,
+            )
+            .leftJoin(
+                AiSqlApprovalTableName,
+                `${AiAgentToolCallTableName}.tool_call_id`,
+                `${AiSqlApprovalTableName}.tool_call_id`,
+            )
+            .where(`${AiAgentToolCallTableName}.ai_prompt_uuid`, promptUuid)
+            .where(`${AiAgentToolCallTableName}.tool_name`, 'runSql')
+            .whereNull(
+                `${AiAgentToolResultTableName}.ai_agent_tool_result_uuid`,
+            )
+            .whereNull(`${AiSqlApprovalTableName}.tool_call_id`)
+            .orderBy(`${AiAgentToolCallTableName}.created_at`, 'desc')
+            .first<Pick<DbAiAgentToolCall, 'tool_call_id' | 'tool_args'>>(
+                `${AiAgentToolCallTableName}.tool_call_id`,
+                `${AiAgentToolCallTableName}.tool_args`,
+            );
+
+        if (!row) {
+            return null;
+        }
+        const sql =
+            typeof (row.tool_args as { sql?: unknown })?.sql === 'string'
+                ? (row.tool_args as { sql: string }).sql
+                : '';
+        return { toolCallId: row.tool_call_id, sql };
+    }
+
     async getToolCallsForPrompt(
         promptUuid: string,
     ): Promise<DbAiAgentToolCallWithMcpServer[]> {

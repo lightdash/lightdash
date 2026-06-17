@@ -241,6 +241,7 @@ import {
     MountingRepoFileSystem,
 } from '../ai/repoFs/mountingRepoFileSystem';
 import { RepoFs } from '../ai/repoFs/RepoFs';
+import { renderBlocks as renderSqlApprovalBlocks } from '../ai/tools/slackSqlAggregate';
 import { markSlackThreadAutoApproved } from '../ai/tools/sqlApprovals';
 import { AiAgentArgs, AiAgentDependencies } from '../ai/types/aiAgent';
 import {
@@ -7357,6 +7358,33 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         );
     }
 
+    // Posts the SQL approval card as its own message after the task-list card
+    // so the run can suspend and resume on the user's decision.
+    private async postSqlApprovalCard(input: {
+        slackPrompt: SlackPrompt;
+        threadTs: string;
+        toolCallId: string;
+        sql: string;
+    }): Promise<void> {
+        await this.slackClient.postMessage({
+            organizationUuid: input.slackPrompt.organizationUuid,
+            channel: input.slackPrompt.slackChannelId,
+            thread_ts: input.threadTs,
+            text: 'Awaiting approval to run SQL',
+            blocks: renderSqlApprovalBlocks(
+                {
+                    kind: 'pending',
+                    sql: input.sql,
+                    toolCallId: input.toolCallId,
+                    threadUuid: input.slackPrompt.threadUuid,
+                    native: true,
+                },
+                this.lightdashConfig.siteUrl,
+            ),
+            unfurl_links: false,
+        });
+    }
+
     private async postSlackMultiAgentTipIfNeeded(
         slackPrompt: SlackPrompt,
         threadMessages: Awaited<ReturnType<AiAgentModel['getThreadMessages']>>,
@@ -7804,6 +7832,42 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     onSlackStepProgress: appendTaskUpdate,
                 },
             );
+
+            // Native SQL approval: the loop halted awaiting approval. Finalize
+            // the task card and post the approval card below it; the run resumes
+            // via a re-enqueued reply job once the user decides.
+            const pendingApproval =
+                await this.aiAgentModel.getPendingSqlApprovalForPrompt(
+                    slackPrompt.promptUuid,
+                );
+            if (pendingApproval) {
+                finalizeToolTasksForSuccess();
+                await flushTaskUpdates();
+                await updatePlanTitle('Waiting for SQL approval');
+                await this.slackClient.stopAgentStream({
+                    organizationUuid: slackPrompt.organizationUuid,
+                    channelId: slackPrompt.slackChannelId,
+                    threadTs,
+                    messageTs: streamTs,
+                    text: 'Waiting for approval to run SQL.',
+                    chunks: [
+                        {
+                            type: 'blocks',
+                            blocks: getMarkdownBlocks(
+                                '_Waiting for approval to run SQL…_',
+                            ),
+                        },
+                    ],
+                });
+                await this.postSqlApprovalCard({
+                    slackPrompt,
+                    threadTs,
+                    toolCallId: pendingApproval.toolCallId,
+                    sql: pendingApproval.sql,
+                });
+                await persistStreamResponseTsAndDeletePlaceholder();
+                return true;
+            }
 
             if (!response) {
                 await flushTaskUpdates();
@@ -8519,12 +8583,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 }
                 const actionId = 'action_id' in action ? action.action_id : '';
                 const parts = actionId.split(':');
-                if (parts.length !== 4) {
+                if (parts.length !== 4 && parts.length !== 5) {
                     return;
                 }
                 const toolCallId = parts[1];
                 const threadUuid = parts[2];
                 const rawDecision = parts[3];
+                // Native approval cards carry a trailing ':native' segment;
+                // those runs are suspended and resume via a re-enqueued reply.
+                const isNative = parts.length === 5 && parts[4] === 'native';
 
                 const isApprovedAlways = rawDecision === 'approved_always';
                 const decision: 'approved' | 'rejected' =
@@ -8546,11 +8613,34 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 // here (no direct join exists), so the audit trail records
                 // the decision without a user reference. The Slack user id
                 // is available via body.user.id if we want to enrich later.
-                await this.aiAgentModel.recordSqlApproval(
+                const recorded = await this.aiAgentModel.recordSqlApproval(
                     toolCallId,
                     decision,
                     null,
                 );
+
+                // Resume the suspended run once, on the first recorded decision.
+                // The reply job rebuilds history with the approval response, so
+                // the SDK executes runSql (approve) or skips it (reject).
+                if (isNative && recorded) {
+                    const context =
+                        await this.aiAgentModel.findSqlApprovalContext(
+                            toolCallId,
+                        );
+                    const resumePrompt = context
+                        ? await this.aiAgentModel.findSlackPrompt(
+                              context.promptUuid,
+                          )
+                        : undefined;
+                    if (resumePrompt) {
+                        await this.schedulerClient.slackAiPrompt({
+                            slackPromptUuid: resumePrompt.promptUuid,
+                            userUuid: resumePrompt.createdByUserUuid,
+                            projectUuid: resumePrompt.projectUuid,
+                            organizationUuid: resumePrompt.organizationUuid,
+                        });
+                    }
+                }
 
                 const emoji =
                     decision === 'approved'
