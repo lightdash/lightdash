@@ -1354,7 +1354,8 @@ export class SchedulerService extends BaseService {
         }
         if (job.status === 'error') {
             throw new NotFoundError(
-                job.details?.error ?? 'Unable to download CSV',
+                job.details?.userFacingError ??
+                    'This export could not be completed.',
             );
         }
         return job;

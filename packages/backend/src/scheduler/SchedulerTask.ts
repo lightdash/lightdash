@@ -276,9 +276,6 @@ export function setSchedulerJobLogContext(
 export const GSHEET_UPLOAD_MAX_ATTEMPTS = 3;
 const GSHEET_UPLOAD_RETRY_BASE_MS = 2000;
 
-// Retries only the Google Sheets write step on transient Google errors. The query
-// results are passed in already-resolved, so a retry here never re-runs the warehouse
-// query — unlike a job-level retry, which would re-execute everything.
 export async function retryTransientGoogleSheetsWrite(
     write: () => Promise<void>,
     attempt = 1,
@@ -2385,6 +2382,8 @@ export default class SchedulerTask {
             fileType: SchedulerFormat.GSHEETS,
         };
 
+        let failureStage: 'query' | 'upload' = 'query';
+
         try {
             if (!this.googleDriveClient.isEnabled) {
                 throw new Error(
@@ -2451,6 +2450,8 @@ export default class SchedulerTask {
                 SCHEDULER_POLLING_OPTIONS,
             );
 
+            failureStage = 'upload';
+
             const refreshToken = await this.userService.getRefreshToken(
                 payload.userUuid,
             );
@@ -2502,12 +2503,18 @@ export default class SchedulerTask {
                 properties: analyticsProperties,
             });
         } catch (e) {
+            const userFacingError =
+                failureStage === 'query'
+                    ? "This export couldn't be completed because the query took too long or failed."
+                    : "We couldn't write the results to Google Sheets.";
+
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
                 status: SchedulerJobStatus.ERROR,
                 details: {
                     createdByUserUuid: payload.userUuid,
                     error: getErrorMessage(e),
+                    userFacingError,
                     projectUuid: payload.projectUuid,
                     organizationUuid: payload.organizationUuid,
                 },
@@ -2523,9 +2530,6 @@ export default class SchedulerTask {
         }
     }
 
-    // Writes already-resolved query results to the Google Sheet, retrying only the
-    // upload on transient Google errors. The query has already run by this point, so
-    // retries never re-execute it.
     private async uploadResultsToGoogleSheet({
         refreshToken,
         spreadsheetId,

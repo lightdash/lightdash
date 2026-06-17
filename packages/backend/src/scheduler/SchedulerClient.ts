@@ -1139,9 +1139,7 @@ export class SchedulerClient {
             payload,
             now,
             JobPriority.HIGH,
-            // Single attempt: a job-level retry would re-run the (often slow) warehouse
-            // query. The query step is terminal on failure; only the upload is retried,
-            // in-process, by the task itself.
+            // Single attempt: a retry would re-run the slow warehouse query.
             1,
         );
 
