@@ -1,5 +1,21 @@
 import fetchMock from 'jest-fetch-mock';
-import { getMergeRequestComments } from './Gitlab';
+import {
+    getGitlabRepoTree,
+    getMergeRequestComments,
+    isGitlabRateLimitError,
+} from './Gitlab';
+
+// One GitLab Trees API page: `entries` are raw {type, path} items (blobs AND
+// trees); `nextPage` populates the x-next-page header GitLab uses for offset
+// pagination (empty string ⇒ last page).
+const treePage = (
+    entries: Array<{ type: string; path: string }>,
+    nextPage: string,
+) =>
+    [
+        JSON.stringify(entries),
+        { headers: { 'x-next-page': nextPage } },
+    ] as const;
 
 describe('GitlabClient.getMergeRequestComments', () => {
     afterEach(() => {
@@ -63,5 +79,90 @@ describe('GitlabClient.getMergeRequestComments', () => {
         expect(url).toBe(
             'https://gitlab.internal.acme.com/api/v4/projects/my-group%2Fmy-repo/merge_requests/7/notes?order_by=created_at&sort=desc&per_page=100',
         );
+    });
+});
+
+describe('GitlabClient.getGitlabRepoTree', () => {
+    beforeEach(() => {
+        fetchMock.resetMocks();
+    });
+
+    const args = {
+        owner: 'my-group',
+        repo: 'my-repo',
+        branch: 'main',
+        token: 'glpat-xxx',
+    };
+
+    it('follows x-next-page across pages and returns only blobs (size 0)', async () => {
+        fetchMock.mockResponseOnce(
+            ...treePage(
+                [
+                    { type: 'tree', path: 'models' },
+                    { type: 'blob', path: 'models/orders.sql' },
+                ],
+                '2', // more pages
+            ),
+        );
+        fetchMock.mockResponseOnce(
+            ...treePage(
+                [{ type: 'blob', path: 'dbt_project.yml' }],
+                '', // last page
+            ),
+        );
+
+        const { files, truncated } = await getGitlabRepoTree(args);
+
+        expect(fetchMock.mock.calls).toHaveLength(2);
+        // directory ('tree') entries dropped; blobs from both pages combined
+        expect(files).toEqual([
+            { path: 'models/orders.sql', size: 0 },
+            { path: 'dbt_project.yml', size: 0 },
+        ]);
+        expect(truncated).toBe(false);
+        // page params requested in order
+        expect(fetchMock.mock.calls[0][0]).toContain('page=1');
+        expect(fetchMock.mock.calls[1][0]).toContain('page=2');
+    });
+
+    it('stops at maxPages and reports truncated when more pages remain', async () => {
+        fetchMock.mockResponseOnce(
+            ...treePage([{ type: 'blob', path: 'a.sql' }], '2'),
+        );
+        // A second page exists, but maxPages=1 means we must not fetch it.
+        fetchMock.mockResponseOnce(
+            ...treePage([{ type: 'blob', path: 'b.sql' }], ''),
+        );
+
+        const { files, truncated } = await getGitlabRepoTree({
+            ...args,
+            maxPages: 1,
+        });
+
+        expect(fetchMock.mock.calls).toHaveLength(1);
+        expect(files).toEqual([{ path: 'a.sql', size: 0 }]);
+        expect(truncated).toBe(true);
+    });
+
+    it('does not set truncated when the single page is the last page', async () => {
+        fetchMock.mockResponseOnce(
+            ...treePage([{ type: 'blob', path: 'only.sql' }], ''),
+        );
+
+        const { files, truncated } = await getGitlabRepoTree({
+            ...args,
+            maxPages: 1,
+        });
+
+        expect(fetchMock.mock.calls).toHaveLength(1);
+        expect(files).toEqual([{ path: 'only.sql', size: 0 }]);
+        expect(truncated).toBe(false);
+    });
+
+    it('throws a recoverable GitlabRateLimitError on HTTP 429', async () => {
+        fetchMock.mockResponseOnce('rate limited', { status: 429 });
+
+        const error = await getGitlabRepoTree(args).catch((e) => e);
+        expect(isGitlabRateLimitError(error)).toBe(true);
     });
 });

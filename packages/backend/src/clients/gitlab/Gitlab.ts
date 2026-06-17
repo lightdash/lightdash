@@ -553,7 +553,8 @@ export const getGitlabRepoTree = async ({
     branch,
     token,
     hostDomain = DEFAULT_GITLAB_HOST_DOMAIN,
-}: GitlabApiParams & { branch: string }): Promise<{
+    maxPages = MAX_TREE_PAGES,
+}: GitlabApiParams & { branch: string; maxPages?: number }): Promise<{
     files: Array<{ path: string; size: number }>;
     truncated: boolean;
 }> => {
@@ -608,7 +609,7 @@ export const getGitlabRepoTree = async ({
 
         const nextPage = response.headers.get('x-next-page');
         if (!nextPage) break;
-        if (page >= MAX_TREE_PAGES) {
+        if (page >= maxPages) {
             truncated = true;
             break;
         }
