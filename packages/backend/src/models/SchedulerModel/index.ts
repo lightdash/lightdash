@@ -2,6 +2,7 @@ import {
     AnyType,
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
+    GsheetExportProgress,
     isAppCreateScheduler,
     isChartCreateScheduler,
     isChartScheduler,
@@ -1779,6 +1780,22 @@ export class SchedulerModel {
             throw new NotFoundError('Google Sheets export job not found');
 
         return job;
+    }
+
+    async updateGsheetExportProgress(
+        jobId: string,
+        progress: GsheetExportProgress,
+    ): Promise<void> {
+        await this.database(SchedulerLogTableName)
+            .where('job_id', jobId)
+            .andWhere('task', 'uploadGsheetFromQuery')
+            .andWhere('status', SchedulerJobStatus.STARTED)
+            .update({
+                details: this.database.raw(
+                    "coalesce(details, '{}'::jsonb) || ?::jsonb",
+                    [JSON.stringify({ progress })],
+                ),
+            });
     }
 
     async getJobStatus(jobId: string) {

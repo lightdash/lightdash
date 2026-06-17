@@ -278,6 +278,7 @@ const GSHEET_UPLOAD_RETRY_BASE_MS = 2000;
 
 export async function retryTransientGoogleSheetsWrite(
     write: () => Promise<void>,
+    onRetry: (attempt: number) => Promise<void> = async () => {},
     attempt = 1,
 ): Promise<void> {
     try {
@@ -290,7 +291,8 @@ export async function retryTransientGoogleSheetsWrite(
             throw e;
         }
         await sleep(GSHEET_UPLOAD_RETRY_BASE_MS * attempt);
-        await retryTransientGoogleSheetsWrite(write, attempt + 1);
+        await onRetry(attempt + 1);
+        await retryTransientGoogleSheetsWrite(write, onRetry, attempt + 1);
     }
 }
 
@@ -2396,6 +2398,7 @@ export default class SchedulerTask {
                     createdByUserUuid: payload.userUuid,
                     projectUuid: payload.projectUuid,
                     organizationUuid: payload.organizationUuid,
+                    progress: { phase: 'query', attempt: 1 },
                 },
                 status: SchedulerJobStatus.STARTED,
             });
@@ -2451,6 +2454,10 @@ export default class SchedulerTask {
             );
 
             failureStage = 'upload';
+            await this.schedulerService.updateGsheetExportProgress(jobId, {
+                phase: 'upload',
+                attempt: 1,
+            });
 
             const refreshToken = await this.userService.getRefreshToken(
                 payload.userUuid,
@@ -2466,6 +2473,7 @@ export default class SchedulerTask {
             }
 
             await this.uploadResultsToGoogleSheet({
+                jobId,
                 refreshToken,
                 spreadsheetId,
                 rows,
@@ -2531,6 +2539,7 @@ export default class SchedulerTask {
     }
 
     private async uploadResultsToGoogleSheet({
+        jobId,
         refreshToken,
         spreadsheetId,
         rows,
@@ -2539,6 +2548,7 @@ export default class SchedulerTask {
         displayTimezone,
         payload,
     }: {
+        jobId: string;
         refreshToken: string;
         spreadsheetId: string;
         rows: Record<string, unknown>[];
@@ -2547,6 +2557,12 @@ export default class SchedulerTask {
         displayTimezone: string | null;
         payload: UploadMetricGsheetPayload;
     }): Promise<void> {
+        const onRetry = (attempt: number) =>
+            this.schedulerService.updateGsheetExportProgress(jobId, {
+                phase: 'upload',
+                attempt,
+            });
+
         if (payload.pivotConfig) {
             if (!pivotDetails) {
                 throw new UnexpectedServerError(
@@ -2572,29 +2588,33 @@ export default class SchedulerTask {
                 timezone: displayTimezone ?? undefined,
             });
 
-            await retryTransientGoogleSheetsWrite(() =>
-                this.googleDriveClient.appendCsvToSheet(
-                    refreshToken,
-                    spreadsheetId,
-                    pivotedResults,
-                ),
+            await retryTransientGoogleSheetsWrite(
+                () =>
+                    this.googleDriveClient.appendCsvToSheet(
+                        refreshToken,
+                        spreadsheetId,
+                        pivotedResults,
+                    ),
+                onRetry,
             );
             return;
         }
 
-        await retryTransientGoogleSheetsWrite(() =>
-            this.googleDriveClient.appendToSheet(
-                refreshToken,
-                spreadsheetId,
-                rows,
-                itemMap,
-                payload.showTableNames,
-                undefined, // tabName
-                payload.columnOrder,
-                payload.customLabels,
-                payload.hiddenFields,
-                displayTimezone ?? undefined,
-            ),
+        await retryTransientGoogleSheetsWrite(
+            () =>
+                this.googleDriveClient.appendToSheet(
+                    refreshToken,
+                    spreadsheetId,
+                    rows,
+                    itemMap,
+                    payload.showTableNames,
+                    undefined, // tabName
+                    payload.columnOrder,
+                    payload.customLabels,
+                    payload.hiddenFields,
+                    displayTimezone ?? undefined,
+                ),
+            onRetry,
         );
     }
 

@@ -510,4 +510,17 @@ describe('retryTransientGoogleSheetsWrite', () => {
         );
         expect(write).toHaveBeenCalledTimes(1);
     });
+
+    it('reports each upcoming retry attempt via onRetry', async () => {
+        const write = jest
+            .fn()
+            .mockRejectedValueOnce(new GoogleSheetsTransientError())
+            .mockRejectedValueOnce(new GoogleSheetsTransientError())
+            .mockResolvedValueOnce(undefined);
+        const onRetry = jest.fn().mockResolvedValue(undefined);
+
+        await retryTransientGoogleSheetsWrite(write, onRetry);
+
+        expect(onRetry.mock.calls).toEqual([[2], [3]]);
+    });
 });
