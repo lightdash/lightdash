@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { ProjectType } from '@lightdash/common';
+import { DbtProjectType, ProjectType } from '@lightdash/common';
 import { Stack } from '@mantine-8/core';
 import { type FC } from 'react';
 import { useParams } from 'react-router';
@@ -71,6 +71,10 @@ const Home: FC = () => {
         return <ForbiddenPanel />;
     }
 
+    const isGitHubProject =
+        project.data.type !== ProjectType.PREVIEW &&
+        project.data.dbtConnection.type === DbtProjectType.GITHUB;
+
     return (
         <Page withFixedContent withPaddedContent withFooter>
             <Stack gap="xl">
@@ -93,6 +97,7 @@ const Home: FC = () => {
                         {isAiAgentsEnabled && (
                             <AiSearchBox
                                 projectUuid={project.data.projectUuid}
+                                showAiReviewsPromo={isGitHubProject}
                             />
                         )}
                         <PinnedItemsProvider
