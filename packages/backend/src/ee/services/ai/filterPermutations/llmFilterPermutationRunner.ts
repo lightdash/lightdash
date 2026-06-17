@@ -4,7 +4,7 @@ import {
     filtersSchemaV2,
     getErrorMessage,
 } from '@lightdash/common';
-import { generateText, stepCountIs, tool } from 'ai';
+import { generateText, stepCountIs, tool, type JSONValue } from 'ai';
 import isEqual from 'lodash/isEqual';
 import { type z } from 'zod';
 import { aiCopilotConfigSchema } from '../../../../config/aiConfigSchema';
@@ -23,6 +23,13 @@ type FilterRuleInput = NonNullable<FiltersInput['dimensions']>[number];
 
 type FilterPermutationModelOptions = ReturnType<typeof getModel>;
 export type FilterPermutationToolSchemaMode = 'strict' | 'unstrict';
+export type FilterPermutationProvider = 'openai' | 'anthropic';
+export type FilterPermutationModelConfig = {
+    label: string;
+    provider: FilterPermutationProvider;
+    modelName: string;
+    requiredEnvVar: string;
+};
 
 export type FilterPermutationResult = {
     caseId: string;
@@ -34,7 +41,21 @@ export type FilterPermutationResult = {
     text: string;
 };
 
-const MODEL_NAME = 'gpt-5.4-nano';
+export const filterPermutationModelConfigs = [
+    {
+        label: 'OpenAI GPT-5 Mini',
+        provider: 'openai',
+        modelName: 'gpt-5-mini',
+        requiredEnvVar: 'OPENAI_API_KEY',
+    },
+    {
+        label: 'Anthropic Claude Sonnet 4.6',
+        provider: 'anthropic',
+        modelName: 'claude-sonnet-4-6',
+        requiredEnvVar: 'ANTHROPIC_API_KEY',
+    },
+] as const satisfies readonly FilterPermutationModelConfig[];
+
 const TODAY = new Date().toISOString();
 
 const fieldCatalogText = Object.entries(fieldCatalog)
@@ -81,15 +102,24 @@ Rules:
 - Do not use natural-language phrases as values.
 - Use ISO dates/datetimes for explicit date values.`;
 
+type FilterPermutationProviderOptions = Record<
+    string,
+    Record<string, JSONValue>
+>;
+
 const getProviderOptions = (
-    providerOptions: Record<string, Record<string, unknown>> | undefined,
-) => ({
-    ...providerOptions,
-    openai: {
-        ...providerOptions?.openai,
-        parallelToolCalls: false,
-    },
-});
+    providerOptions: FilterPermutationProviderOptions | undefined,
+): FilterPermutationProviderOptions | undefined => {
+    if (!providerOptions?.openai) return providerOptions;
+
+    return {
+        ...providerOptions,
+        openai: {
+            ...providerOptions.openai,
+            parallelToolCalls: false,
+        },
+    };
+};
 
 const hasProperty = <TProperty extends string>(
     value: unknown,
@@ -250,21 +280,26 @@ const validateTransformedFilters = (
     return errors;
 };
 
-export const getFilterPermutationModelOptions =
-    (): FilterPermutationModelOptions => {
-        const config = aiCopilotConfigSchema.parse(getAiConfig());
-        if (!config.providers.openai) {
-            throw new Error(
-                'OpenAI provider is not configured. Set existing OPENAI_API_KEY.',
-            );
-        }
+export const isFilterPermutationModelConfigured = (
+    modelConfig: FilterPermutationModelConfig,
+): boolean => Boolean(process.env[modelConfig.requiredEnvVar]);
 
-        return getModel(config, {
-            provider: 'openai',
-            modelName: MODEL_NAME,
-            enableReasoning: false,
-        });
-    };
+export const getFilterPermutationModelOptions = (
+    modelConfig: FilterPermutationModelConfig = filterPermutationModelConfigs[0],
+): FilterPermutationModelOptions => {
+    const config = aiCopilotConfigSchema.parse(getAiConfig());
+    if (!config.providers[modelConfig.provider]) {
+        throw new Error(
+            `${modelConfig.label} is not configured. Set existing ${modelConfig.requiredEnvVar}.`,
+        );
+    }
+
+    return getModel(config, {
+        provider: modelConfig.provider,
+        modelName: modelConfig.modelName,
+        enableReasoning: false,
+    });
+};
 
 export const runLlmFilterPermutationCase = async ({
     probeCase,
@@ -283,7 +318,7 @@ export const runLlmFilterPermutationCase = async ({
             ...modelOptions.callOptions,
             providerOptions: getProviderOptions(
                 modelOptions.providerOptions as
-                    | Record<string, Record<string, unknown>>
+                    | FilterPermutationProviderOptions
                     | undefined,
             ),
             model: modelOptions.model,
