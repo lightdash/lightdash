@@ -313,6 +313,37 @@ describe('ExcelService', () => {
             expect(result[2]).toBe('test string');
         });
 
+        it('GLITCH-503: raw mode emits bare YYYY-MM-DD for DATE fields when a display tz is resolved', () => {
+            const row = {
+                date_column: '2024-01-15T00:00:00.000Z',
+                date_base_ts_column: '2024-01-15T00:00:00.000Z',
+                timestamp_column: '2024-01-15T09:30:00.000Z',
+            };
+            const result = ExcelService.convertRowToExcel(
+                row,
+                mockItemMapWithFormats,
+                true,
+                ['date_column', 'date_base_ts_column', 'timestamp_column'],
+                'Asia/Tokyo',
+            );
+            // DATE (incl. DATE-base-TS, a real DATE post-452) → bare date, matching the API raw
+            expect(result[0]).toBe('2024-01-15');
+            expect(result[1]).toBe('2024-01-15');
+            // TIMESTAMP raw stays the ISO instant (unchanged)
+            expect(result[2]).toBe('2024-01-15T09:30:00.000Z');
+        });
+
+        it('GLITCH-503: raw mode is byte-identical passthrough when no tz is resolved (flag off)', () => {
+            const row = { date_column: '2024-01-15T00:00:00.000Z' };
+            const result = ExcelService.convertRowToExcel(
+                row,
+                mockItemMapWithFormats,
+                true,
+                ['date_column'],
+            );
+            expect(result[0]).toBe('2024-01-15T00:00:00.000Z');
+        });
+
         it('should handle null and undefined values', () => {
             const row = {
                 number_with_usd_format: null,

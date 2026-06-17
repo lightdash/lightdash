@@ -1,13 +1,11 @@
-import { getItemLabelWithoutTableName } from '@lightdash/common';
+import { getItemLabelWithoutTableName, type ItemsMap } from '@lightdash/common';
 import { stringify } from 'csv-stringify/sync';
 import { CsvService } from '../../../../services/CsvService/CsvService';
-import { ProjectService } from '../../../../services/ProjectService/ProjectService';
 
-export const convertQueryResultsToCsv = (
-    queryResults: Awaited<
-        ReturnType<InstanceType<typeof ProjectService>['runMetricQuery']>
-    >,
-): string => {
+export const convertQueryResultsToCsv = (queryResults: {
+    rows: Record<string, unknown>[];
+    fields: ItemsMap;
+}): string => {
     const fieldIds = queryResults.rows[0]
         ? Object.keys(queryResults.rows[0])
         : [];

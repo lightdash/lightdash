@@ -4138,10 +4138,11 @@ export class AsyncQueryService extends ProjectService {
         const projectTimezone =
             queryTimezone ?? this.lightdashConfig.query.timezone ?? 'UTC';
 
-        // Explore load and warehouse credentials are independent, run them in parallel
+        // Run independent data loads in parallel to minimize Postgres round-trips
         const [
             { explore, userAccessControls: preloadedUserAccessControls },
             warehouseCredentials,
+            projectParameters,
         ] = await Promise.all([
             this.getExploreForMetricQueryExecution({
                 account,
@@ -4162,8 +4163,9 @@ export class AsyncQueryService extends ProjectService {
                 preloadedOrgWarehouseCredentialsUuid:
                     organizationWarehouseCredentialsUuid,
             }),
+            this.projectParametersModel.find(projectUuid),
         ]);
-        const prepLoadMs = Date.now() - metricQueryStart;
+        const parallelLoadMs = Date.now() - metricQueryStart;
 
         // Dashboard filters (e.g. from a data-app tile) are merged once the
         // explore is known so we can drop filters that target fields outside
@@ -4201,6 +4203,8 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             explore,
             parameters,
+            undefined,
+            projectParameters,
         );
 
         const prepareStart = Date.now();
@@ -4230,6 +4234,7 @@ export class AsyncQueryService extends ProjectService {
             materializationRole,
             columnTimezone: getColumnTimezone(warehouseCredentials),
             preloadedUserAccessControls,
+            preloadedProjectParameters: projectParameters,
             preloadedProjectTimezone: projectTimezone,
         });
         const prepareMs = Date.now() - prepareStart;
@@ -4249,7 +4254,7 @@ export class AsyncQueryService extends ProjectService {
         });
 
         this.logger.info(
-            `Metric query prep for ${metricQuery.exploreName}: explore_and_wh_credentials=${prepLoadMs}ms prepare_query=${prepareMs}ms routing=${routingDecision.target} total=${Date.now() - metricQueryStart}ms`,
+            `Metric query prep for ${metricQuery.exploreName}: parallel_load=${parallelLoadMs}ms prepare_query=${prepareMs}ms routing=${routingDecision.target} total=${Date.now() - metricQueryStart}ms`,
         );
 
         if (routingDecision.preAggregateMetadata) {
