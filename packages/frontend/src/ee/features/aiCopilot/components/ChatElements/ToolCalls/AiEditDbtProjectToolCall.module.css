@@ -68,12 +68,32 @@
     );
 }
 
+/* Default (wide): title on the left, actions on the right, sharing one row —
+   the original inline look. The container queries below only kick in once that
+   no longer fits. */
+.header {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--mantine-spacing-sm);
+}
+
+/* Let the title/summary shrink before the buttons do, so the inline row holds
+   together as long as it reasonably can. */
+.titleBlock {
+    min-width: 0;
+}
+
 .actions {
     display: flex;
     flex-direction: row;
     flex-wrap: nowrap;
     align-items: center;
     gap: var(--mantine-spacing-xs);
+    /* Keep the buttons at their natural size in the inline row — the title
+       shrinks first. */
+    flex-shrink: 0;
 }
 
 .mergedStatus:disabled,
@@ -92,9 +112,24 @@
     );
 }
 
-/* In the narrow minimized chat bubble, "View" + the Close/Merge group overflow
-   side by side, so stack them and let each fill the column width. */
-@container (max-width: 400px) {
+/* Too tight for title + actions on one line: give the actions their own
+   full-width row beneath the title (View at the left edge, the Close/Merge group
+   at the right). This is the only state with a dedicated action area. */
+@container (max-width: 520px) {
+    .header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--mantine-spacing-xs);
+    }
+    .actions {
+        justify-content: space-between;
+    }
+}
+
+/* Tighter still — the View button and the Close/Merge group can't sit side by
+   side even across the full row, so stack them into a column with each control
+   filling the row width. */
+@container (max-width: 360px) {
     .actions {
         flex-direction: column;
         align-items: stretch;
