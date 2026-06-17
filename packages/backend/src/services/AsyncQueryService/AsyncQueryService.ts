@@ -5740,14 +5740,21 @@ export class AsyncQueryService extends ProjectService {
     }) {
         const startTime = performance.now();
 
-        // 1. Warehouse Client & Credentials
+        // 1. Warehouse Client & Credentials + 2. User Attributes
+        // These are independent, so load them in parallel.
         const sectionStartWarehouse = performance.now();
-        const warehouseCredentials = await this.getWarehouseCredentials({
-            projectUuid,
-            userId: account.user.id,
-            isRegisteredUser: account.isRegisteredUser(),
-            isServiceAccount: account.isServiceAccount(),
-        });
+        const [
+            warehouseCredentials,
+            { userAttributes, intrinsicUserAttributes },
+        ] = await Promise.all([
+            this.getWarehouseCredentials({
+                projectUuid,
+                userId: account.user.id,
+                isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
+            }),
+            this.getUserAttributes({ account }),
+        ]);
         const warehouseConnection = await this._getWarehouseClient(
             projectUuid,
             warehouseCredentials,
@@ -5762,15 +5769,8 @@ export class AsyncQueryService extends ProjectService {
             ...(chartUuid ? { chart_uuid: chartUuid } : {}),
             ...(dashboardUuid ? { dashboard_uuid: dashboardUuid } : {}),
         };
-        const durationWarehouse = performance.now() - sectionStartWarehouse;
-
-        // 2. User Attributes
-        const sectionStartUserAttributes = performance.now();
-        // Get user attributes for replacement
-        const { userAttributes, intrinsicUserAttributes } =
-            await this.getUserAttributes({ account });
-        const durationUserAttributes =
-            performance.now() - sectionStartUserAttributes;
+        const durationWarehouseAndUserAttributes =
+            performance.now() - sectionStartWarehouse;
 
         // 3. Column Discovery
         const sectionStartColumnDiscovery = performance.now();
@@ -6007,8 +6007,8 @@ export class AsyncQueryService extends ProjectService {
                 event: 'prepare_sql_chart_async_query_args.completed',
                 projectUuid,
                 totalTimeMs: totalTime,
-                warehouseMs: durationWarehouse,
-                userAttributesMs: durationUserAttributes,
+                warehouseAndUserAttributesMs:
+                    durationWarehouseAndUserAttributes,
                 columnDiscoveryMs: durationColumnDiscovery,
                 queryBuildingMs: durationQueryBuilding,
                 sqlGenerationMs: durationSqlGeneration,
@@ -6186,11 +6186,16 @@ export class AsyncQueryService extends ProjectService {
             await this.assertSavedChartAccess(account, 'view', savedChart);
         }
 
-        const dashboardParameters = convertDashboardParametersToValuesMap(
-            await this.dashboardModel.getDashboardParametersByIdOrSlug(
+        const [rawDashboardParameters, projectParameters] = await Promise.all([
+            this.dashboardModel.getDashboardParametersByIdOrSlug(
                 resolvedDashboardUuid,
                 projectUuid,
             ),
+            this.projectParametersModel.find(projectUuid),
+        ]);
+
+        const dashboardParameters = convertDashboardParametersToValuesMap(
+            rawDashboardParameters,
         );
 
         // Combine default parameter values, dashboard parameters, and request parameters first
@@ -6199,6 +6204,7 @@ export class AsyncQueryService extends ProjectService {
             undefined,
             args.parameters,
             dashboardParameters,
+            projectParameters,
         );
 
         const {
