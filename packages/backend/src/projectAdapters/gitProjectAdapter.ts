@@ -52,24 +52,33 @@ export class GitProjectAdapter implements ProjectAdapter {
             this.args.branch,
             this.args.projectDirectorySubPath,
         );
-        const projectDir = await repository.clone();
-        const lightdashModelFiles = await findLightdashModelFiles(projectDir);
 
-        if (lightdashModelFiles.length > 0) {
-            Logger.info(
-                `Detected Lightdash YAML project (${lightdashModelFiles.length} model file(s))`,
-            );
-            this.yamlRepository = repository;
-            this.resolved = new LightdashYamlProjectAdapter({
-                projectDir,
-                warehouseClient: this.args.warehouseClient,
-            });
-        } else {
-            Logger.info('Detected dbt project, delegating to dbt adapter');
+        try {
+            const projectDir = await repository.clone();
+            const lightdashModelFiles =
+                await findLightdashModelFiles(projectDir);
+
+            if (lightdashModelFiles.length > 0) {
+                Logger.info(
+                    `Detected Lightdash YAML project (${lightdashModelFiles.length} model file(s))`,
+                );
+                this.yamlRepository = repository;
+                this.resolved = new LightdashYamlProjectAdapter({
+                    projectDir,
+                    warehouseClient: this.args.warehouseClient,
+                });
+            } else {
+                Logger.info('Detected dbt project, delegating to dbt adapter');
+                await repository.destroy();
+                this.resolved = this.args.createDbtAdapter();
+            }
+            return this.resolved;
+        } catch (error) {
+            // Don't leak the /tmp/git_* checkout if detection/adapter setup
+            // fails between clone and a successful handoff.
             await repository.destroy();
-            this.resolved = this.args.createDbtAdapter();
+            throw error;
         }
-        return this.resolved;
     }
 
     public async compileAllExplores(

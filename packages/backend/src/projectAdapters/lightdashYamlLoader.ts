@@ -81,7 +81,15 @@ export async function findLightdashModelFiles(
         path.join(projectDir, 'models'),
         path.join(projectDir, 'lightdash', 'models'),
     ];
-    const lightdashModelsDir = possibleDirs.find((dir) => fs.existsSync(dir));
+    const dirExists = await Promise.all(
+        possibleDirs.map((dir) =>
+            fs.promises.access(dir).then(
+                () => true,
+                () => false,
+            ),
+        ),
+    );
+    const lightdashModelsDir = possibleDirs.find((_, i) => dirExists[i]);
     if (!lightdashModelsDir) {
         return [];
     }
