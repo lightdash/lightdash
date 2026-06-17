@@ -159,11 +159,18 @@ export const dateTruncTimezoneConversions: Record<
             `CAST(with_timezone(${sql}, '${tz}') AT TIME ZONE 'UTC' AS timestamp)`,
         castAsDate: (sql) => `CAST(${sql} AS DATE)`,
     },
-    // Relabel to UTC so the wire value is the real instant. toDateTime lifts
-    // Date truncs (month/year/etc.) into DateTime; no-op for DateTime inputs.
+    // Merge the DST fall-back: ClickHouse DateTime always carries a zone and
+    // toTimeZone only relabels (instant domain), so the two folded instants
+    // would stay distinct. Render project-TZ wall-clock to a string and
+    // re-parse as naive UTC so the fold collapses before truncation; toUTC
+    // re-parses the truncated wall-clock as project-local to recover a real
+    // instant. The minute specifier is %i (%M is month name); %f keeps
+    // sub-second precision so MILLISECOND-grain data is not rounded to seconds.
     [SupportedDbtAdapter.CLICKHOUSE]: {
-        toProjectTz: (sql, tz) => `toTimeZone(${sql}, '${tz}')`,
-        toUTC: (sql, tz) => `toTimeZone(toDateTime(${sql}, '${tz}'), 'UTC')`,
+        toProjectTz: (sql, tz) =>
+            `toDateTime64(formatDateTime(toTimeZone(${sql}, '${tz}'), '%Y-%m-%d %H:%i:%S.%f'), 3, 'UTC')`,
+        toUTC: (sql, tz) =>
+            `toTimeZone(toDateTime64(formatDateTime(${sql}, '%Y-%m-%d %H:%i:%S.%f'), 3, '${tz}'), 'UTC')`,
         castAsDate: (sql) => `CAST(${sql} AS DATE)`,
     },
 };

@@ -644,11 +644,19 @@ describe('TimeFrames', () => {
             );
         });
 
-        test('ClickHouse toUTC lifts Date-returning truncs into DateTime before relabeling', () => {
+        test('ClickHouse toProjectTz renders project-TZ wall-clock to a naive UTC-labelled DateTime64 (merge, ms-preserving)', () => {
+            const { toProjectTz } =
+                dateTruncTimezoneConversions[SupportedDbtAdapter.CLICKHOUSE];
+            expect(toProjectTz('col', 'America/New_York')).toEqual(
+                `toDateTime64(formatDateTime(toTimeZone(col, 'America/New_York'), '%Y-%m-%d %H:%i:%S.%f'), 3, 'UTC')`,
+            );
+        });
+
+        test('ClickHouse toUTC re-parses the truncated wall-clock as project-local, collapsing the DST fold (ms-preserving)', () => {
             const { toUTC } =
                 dateTruncTimezoneConversions[SupportedDbtAdapter.CLICKHOUSE];
-            expect(toUTC('truncated', 'Asia/Tokyo')).toEqual(
-                `toTimeZone(toDateTime(truncated, 'Asia/Tokyo'), 'UTC')`,
+            expect(toUTC('truncated', 'America/New_York')).toEqual(
+                `toTimeZone(toDateTime64(formatDateTime(truncated, '%Y-%m-%d %H:%i:%S.%f'), 3, 'America/New_York'), 'UTC')`,
             );
         });
 
