@@ -205,7 +205,7 @@ describe('ExternalConnectionModel', () => {
     });
 
     describe('rotateSecret', () => {
-        it('encrypts and upserts the new secret', async () => {
+        it('encrypts and upserts the new secret, stamping rotated_at', async () => {
             tracker.on
                 .insert(ExternalConnectionSecretsTableName)
                 .responseOnce([{}]);
@@ -224,6 +224,13 @@ describe('ExternalConnectionModel', () => {
             );
             expect(wroteEncrypted).toBe(true);
             expect(wroteRawPlaintext).toBe(false);
+
+            // rotateSecret passes markRotated=true to upsertSecret, which
+            // includes `rotated_at` in both the INSERT and the ON CONFLICT merge.
+            const hasRotatedAt = tracker.history.insert
+                .concat(tracker.history.update ?? [])
+                .some((q) => q.sql.includes('rotated_at'));
+            expect(hasRotatedAt).toBe(true);
         });
     });
 
@@ -244,6 +251,19 @@ describe('ExternalConnectionModel', () => {
             tracker.on
                 .select(ExternalConnectionSecretsTableName)
                 .responseOnce([]);
+            await expect(
+                model.getDecryptedSecret(CONNECTION_UUID),
+            ).resolves.toBeNull();
+        });
+
+        it('returns null for a soft-deleted connection', async () => {
+            // Insert a connection+secret then soft-delete the connection.
+            // getDecryptedSecret joins external_connections and checks deleted_at IS NULL,
+            // so the result must be null even though the secret row exists.
+            tracker.on
+                .select(ExternalConnectionSecretsTableName)
+                .responseOnce([]);
+
             await expect(
                 model.getDecryptedSecret(CONNECTION_UUID),
             ).resolves.toBeNull();
