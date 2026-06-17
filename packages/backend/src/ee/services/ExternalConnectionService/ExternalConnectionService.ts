@@ -298,18 +298,17 @@ export class ExternalConnectionService extends BaseService {
             app.app_id,
         );
         const link = links.find((l) => l.alias === alias);
+        if (!link) {
+            throw new NotFoundError('App external connection link not found');
+        }
         await this.externalConnectionModel.unlinkFromApp(app.app_id, alias);
         this.analytics.track({
             event: 'external_connection.unlinked',
             userId: account.user.id,
             properties: {
-                organizationId:
-                    link?.connection.organizationUuid ??
-                    account.organization.organizationUuid ??
-                    '',
+                organizationId: link.connection.organizationUuid,
                 projectId: projectUuid,
-                externalConnectionUuid:
-                    link?.connection.externalConnectionUuid ?? '',
+                externalConnectionUuid: link.connection.externalConnectionUuid,
                 appUuid,
                 alias,
             },
