@@ -1,3 +1,16 @@
+# [0.3181.0](https://github.com/lightdash/lightdash/compare/0.3180.1...0.3181.0) (2026-06-17)
+
+
+### Bug Fixes
+
+* support upstream self preview permissions ([#24225](https://github.com/lightdash/lightdash/issues/24225)) ([b1cb433](https://github.com/lightdash/lightdash/commit/b1cb4337356f06d742b574a26f6f3edf5cc7f608)), closes [#24224](https://github.com/lightdash/lightdash/issues/24224)
+
+
+### Features
+
+* **slack:** durable SQL approval (suspend/resume) for the AI agent ([#24407](https://github.com/lightdash/lightdash/issues/24407)) ([26de44c](https://github.com/lightdash/lightdash/commit/26de44c37c5189b927207292229c9ffb2b3d1efe))
+* support one-character CJK omnibar searches ([#24295](https://github.com/lightdash/lightdash/issues/24295)) ([2e40f34](https://github.com/lightdash/lightdash/commit/2e40f347e3743d039d6b310eaca9b8929596ec4a))
+
 ## [0.3180.1](https://github.com/lightdash/lightdash/compare/0.3180.0...0.3180.1) (2026-06-17)
 
 
