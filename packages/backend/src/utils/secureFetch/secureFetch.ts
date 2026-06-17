@@ -1,5 +1,6 @@
 import dns from 'dns/promises';
 import https from 'https';
+import * as ipaddr from 'ipaddr.js';
 import { LookupFunction } from 'net';
 import fetch, { FetchError } from 'node-fetch';
 
@@ -59,56 +60,17 @@ const parseHttpsUrl = (rawUrl: string): URL => {
     return parsedUrl;
 };
 
-const isPrivateIPv4 = (ip: string): boolean => {
-    const parts = ip.split('.').map(Number);
-    if (
-        parts.length !== 4 ||
-        parts.some((p) => Number.isNaN(p) || p < 0 || p > 255)
-    ) {
+// Returns true when the address must be blocked (non-routable, private,
+// loopback, link-local, multicast, reserved, or unparseable). Uses ipaddr.js
+// so that tunnelled ranges like 6to4 (2002:7f00::/16) and NAT64
+// (64:ff9b::/96) collapse to their IPv4 range via ipaddr.process(). Fail-closed:
+// if the address cannot be parsed it is treated as blocked.
+const isNonPublicAddress = (address: string): boolean => {
+    try {
+        return ipaddr.process(address).range() !== 'unicast';
+    } catch {
         return true; // unparseable — fail closed
     }
-    const [a, b] = parts;
-    if (a === 0) return true; // 0.0.0.0/8
-    if (a === 10) return true; // 10.0.0.0/8 RFC 1918
-    if (a === 100 && b >= 64 && b <= 127) return true; // 100.64.0.0/10 CGNAT
-    if (a === 127) return true; // 127.0.0.0/8 loopback
-    if (a === 169 && b === 254) return true; // 169.254.0.0/16 link-local (IMDS)
-    if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12 RFC 1918
-    if (a === 192 && b === 168) return true; // 192.168.0.0/16 RFC 1918
-    if (a >= 224) return true; // 224.0.0.0/4 multicast + 240.0.0.0/4 reserved
-    return false;
-};
-
-const isPrivateIPv6 = (ip: string): boolean => {
-    const lower = ip.toLowerCase();
-    if (lower === '::1' || lower === '::') return true;
-    if (/^f[cd]/.test(lower)) return true; // fc00::/7 unique local
-    if (/^fe[89ab]/.test(lower)) return true; // fe80::/10 link-local
-    if (/^ff/.test(lower)) return true; // ff00::/8 multicast
-
-    const mappedHex = lower.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
-    if (mappedHex) {
-        const hi = parseInt(mappedHex[1], 16);
-        const lo = parseInt(mappedHex[2], 16);
-        return isPrivateIPv4(
-            `${Math.floor(hi / 256)}.${hi % 256}.${Math.floor(lo / 256)}.${
-                lo % 256
-            }`,
-        );
-    }
-    const mappedDotted = lower.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-    if (mappedDotted) return isPrivateIPv4(mappedDotted[1]);
-
-    const compat = lower.match(/^::(\d+\.\d+\.\d+\.\d+)$/);
-    if (compat) return isPrivateIPv4(compat[1]);
-
-    return false;
-};
-
-const isPrivateAddress = (address: string, family: number): boolean => {
-    if (family === 4) return isPrivateIPv4(address);
-    if (family === 6) return isPrivateIPv6(address);
-    return true; // unknown family — fail closed
 };
 
 const resolveAndValidateHost = async (
@@ -126,8 +88,8 @@ const resolveAndValidateHost = async (
     if (addresses.length === 0) {
         throw new SecureFetchError('blocked_ip', 'Unable to resolve hostname');
     }
-    for (const { address, family } of addresses) {
-        if (isPrivateAddress(address, family)) {
+    for (const { address } of addresses) {
+        if (isNonPublicAddress(address)) {
             throw new SecureFetchError(
                 'blocked_ip',
                 'Access to private/internal addresses is not allowed',
@@ -235,14 +197,18 @@ export async function secureFetch(
         .split(';')[0]
         .trim()
         .toLowerCase();
-    const allowed = options.allowedContentTypes.map((t) =>
-        t.split(';')[0].trim().toLowerCase(),
-    );
-    if (!allowed.includes(contentType)) {
-        throw new SecureFetchError(
-            'disallowed_content_type',
-            `Disallowed content-type: ${contentType || '(none)'}`,
+    // Empty allowlist = no content-type restriction (explicit opt-out; the proxy
+    // always passes a non-empty list). When non-empty, enforce a strict allowlist.
+    if (options.allowedContentTypes.length > 0) {
+        const allowed = options.allowedContentTypes.map((t) =>
+            t.split(';')[0].trim().toLowerCase(),
         );
+        if (!allowed.includes(contentType)) {
+            throw new SecureFetchError(
+                'disallowed_content_type',
+                `Disallowed content-type: ${contentType || '(none)'}`,
+            );
+        }
     }
 
     let bodyText: string;

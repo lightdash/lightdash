@@ -75,6 +75,10 @@ describe('secureFetch blocks private/internal resolved IPs', () => {
             { address: '169.254.169.254', family: 4 },
         ],
         ['IPv4 224/4 multicast', { address: '224.0.0.1', family: 4 }],
+        [
+            'IPv4 192.0.2.1 reserved (TEST-NET)',
+            { address: '192.0.2.1', family: 4 },
+        ],
         ['IPv6 ::1 loopback', { address: '::1', family: 6 }],
         ['IPv6 fc00::/7 unique-local', { address: 'fc00::1', family: 6 }],
         ['IPv6 fe80::/10 link-local', { address: 'fe80::1', family: 6 }],
@@ -82,6 +86,14 @@ describe('secureFetch blocks private/internal resolved IPs', () => {
         [
             'IPv6 mapped private ::ffff:169.254.169.254',
             { address: '::ffff:169.254.169.254', family: 6 },
+        ],
+        [
+            'IPv6 6to4 2002:7f00:1:: (tunnels to 127.0.0.1)',
+            { address: '2002:7f00:1::', family: 6 },
+        ],
+        [
+            'IPv6 NAT64 64:ff9b::7f00:1 (maps to 127.0.0.1)',
+            { address: '64:ff9b::7f00:1', family: 6 },
         ],
     ];
 
@@ -116,8 +128,13 @@ describe('secureFetch blocks private/internal resolved IPs', () => {
         );
     });
 
-    it('fails closed on unknown address family', async () => {
-        mockedLookup.mockResolvedValue([{ address: '1.2.3.4', family: 0 }]);
+    it('fails closed on an unparseable address string from DNS', async () => {
+        // The family field from dns.lookup is no longer used for classification;
+        // only the address string matters. An address that ipaddr.js cannot parse
+        // triggers the fail-closed catch branch and is treated as blocked.
+        mockedLookup.mockResolvedValue([
+            { address: 'not-an-ip-at-all', family: 4 },
+        ]);
         await expectReason(
             secureFetch('https://evil.example.com/x.json', BASE_OPTIONS),
             'blocked_ip',
@@ -387,5 +404,42 @@ describe('secureFetch size and content-type', () => {
         });
         expect(result.contentType).toBe('application/json');
         expect(result.bodyText).toBe('{"ok":true}');
+    });
+
+    it('skips content-type check when allowedContentTypes is empty', async () => {
+        // Empty allowlist = explicit opt-out of the content-type check. Any
+        // content-type (or none at all) must be accepted and the body returned.
+        mockedFetch.mockResolvedValue(
+            new Response('raw body', {
+                status: 200,
+                headers: { 'content-type': 'text/html' },
+            }),
+        );
+        const result = await secureFetch('https://example.com/file', {
+            ...BASE_OPTIONS,
+            allowedContentTypes: [],
+        });
+        expect(result.bodyText).toBe('raw body');
+        expect(result.contentType).toBe('text/html');
+    });
+
+    it('accepts a response with no content-type header when allowedContentTypes is empty', async () => {
+        // Simulate a server that sends no content-type header by using a plain
+        // object mock (node-fetch's Response always sets a default content-type).
+        const noContentTypeResponse = {
+            status: 200,
+            ok: true,
+            headers: {
+                get: (name: string) => (name === 'content-type' ? null : null),
+            },
+            text: jest.fn().mockResolvedValue('{}'),
+        };
+        mockedFetch.mockResolvedValue(noContentTypeResponse);
+        const result = await secureFetch('https://example.com/file', {
+            ...BASE_OPTIONS,
+            allowedContentTypes: [],
+        });
+        expect(result.bodyText).toBe('{}');
+        expect(result.contentType).toBe('');
     });
 });
