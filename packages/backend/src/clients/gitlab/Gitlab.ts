@@ -3,6 +3,7 @@ import {
     AnyType,
     ForbiddenError,
     getErrorMessage,
+    LightdashError,
     NotFoundError,
     ParameterError,
     PullRequestState,
@@ -62,9 +63,20 @@ const getApiUrl = (hostDomain: string, endpoint: string) =>
  * GitLab returns 429 when an org's token exceeds its API rate limit. The
  * read-only repo VFS reads many files per command, so surface this distinctly:
  * {@link gitlabRepoSource} maps it to an agent-recoverable error instead of a
- * hard failure. Mirrors `isGithubRateLimitError` for the GitHub path.
+ * hard failure. Mirrors `isGithubRateLimitError` for the GitHub path. Extends
+ * LightdashError (statusCode 429) so it flows through the project's error
+ * categorisation/Sentry filtering rather than bypassing it as a bare Error.
  */
-export class GitlabRateLimitError extends Error {}
+export class GitlabRateLimitError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'GitlabRateLimitError',
+            statusCode: 429,
+            data: {},
+        });
+    }
+}
 
 export const isGitlabRateLimitError = (error: unknown): boolean =>
     error instanceof GitlabRateLimitError;
