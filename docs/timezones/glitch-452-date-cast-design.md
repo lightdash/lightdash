@@ -74,7 +74,7 @@ CAST(DATE_TRUNC('day', "orders"."order_date" AT TIME ZONE 'UTC' AT TIME ZONE 'As
 
 The wrap-inactive branch (UTC project / round-trip no-op) also casts the raw `DATE_TRUNC(...)` to DATE — output must be `DATE` per the AC regardless of zone.
 
-**Gating:** thread a `castDayGrainToDate` boolean param (default `false`) into `getSqlForTruncatedDate`. Pass `true` from:
+**Gating:** thread a `castDayOrCoarserToDate` boolean param (default `false`) into `getSqlForTruncatedDate`. Pass `true` from:
 - `MetricQueryBuilder.getTimezoneAwareDimensionSql` — only reached when the flag is on; covers the SELECT and the WHERE LHS (filter parity).
 - `QueryBuilder/utils.ts → getDimensionFromId` (date-zoom) — **not applied, and GLITCH-505 confirmed this is the wrong location.** Date-zoom dims are replaced in place in the explore and resolved directly (not through `getDimensionFromId`'s un-cast `getDateDimension` branch), so their SELECT already casts via `getTimezoneAwareDimensionSql`. GLITCH-505's real fix was routing the PoP range pre-filter's `popField` through `getTimezoneAwareDimensionSql`.
 
