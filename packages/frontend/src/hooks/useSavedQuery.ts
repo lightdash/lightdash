@@ -17,6 +17,7 @@ import {
 } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router';
 import { lightdashApi } from '../api';
+import useEmbed from '../ee/providers/Embed/useEmbed';
 import useApp from '../providers/App/useApp';
 import { convertDateFilters } from '../utils/dateFilter';
 import useToaster from './toaster/useToaster';
@@ -365,6 +366,8 @@ export const useCreateMutation = ({
     const navigate = useNavigate();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
+    const { embedToken } = useEmbed();
+    const isEmbedded = embedToken !== undefined;
     const { showToastSuccess, showToastError, showToastApiError } =
         useToaster();
     return useMutation<SavedChart, ApiError, CreateSavedChart>(
@@ -384,7 +387,9 @@ export const useCreateMutation = ({
                     showToastSuccess({
                         title: `Success! Chart was saved.`,
                         action:
-                            redirectOnSuccess || !showViewChartAction
+                            isEmbedded ||
+                            redirectOnSuccess ||
+                            !showViewChartAction
                                 ? undefined
                                 : {
                                       children: 'View chart',
