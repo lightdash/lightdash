@@ -145,17 +145,20 @@ export const getRunSql = ({
             const isNativeApprovalPath =
                 useSlackStreamCard && isSlack && !shouldAutoApprove;
 
-            // On the native path execute runs during resume, where onStepFinish
-            // does not persist the result (the tool call was made in a prior
-            // run). Persist it here so the call isn't left result-less — which
-            // would re-trigger execution on later turns and show a stale
-            // approval card on the web.
-            const persistResultIfNative = async <
+            // When execute runs as a RESUME of a previously-suspended approval,
+            // onStepFinish won't persist the result (the tool call was made in a
+            // prior run), so we persist it here. Otherwise the call is left
+            // result-less — which re-triggers execution on later turns and
+            // shows a stale approval card on the web. A resume is identified
+            // either by the native path, or (when "don't ask again" flipped the
+            // thread to auto-approve) by the decision already being recorded.
+            let isResumeExecution = isNativeApprovalPath;
+            const persistResumeResult = async <
                 T extends { result: string; metadata: AnyType },
             >(
                 output: T,
             ): Promise<T> => {
-                if (isNativeApprovalPath) {
+                if (isResumeExecution) {
                     await storeToolResults([
                         {
                             promptUuid: prompt.promptUuid,
@@ -193,11 +196,16 @@ export const getRunSql = ({
                     if (isSlack) {
                         await renderState({ kind: 'approved', sql });
                     }
-                    await recordSqlApproval(
+                    const recorded = await recordSqlApproval(
                         toolCallId,
                         'approved',
                         autoApproveSql ? autoApproveSqlUserUuid : null,
                     );
+                    // A pre-existing decision means this is a resume (the button
+                    // recorded it), so onStepFinish won't persist the result.
+                    if (!recorded) {
+                        isResumeExecution = true;
+                    }
                 } else if (isNativeApprovalPath) {
                     // Approval already handled by the SDK before this call.
                 } else if (isSlack) {
@@ -250,7 +258,7 @@ export const getRunSql = ({
                         inlineCsv: '',
                         truncated: false,
                     });
-                    return await persistResultIfNative({
+                    return await persistResumeResult({
                         result: `Query returned 0 rows.${
                             columns.length > 0
                                 ? ` Columns: ${columns.join(', ')}`
@@ -324,7 +332,7 @@ export const getRunSql = ({
                         ? `\n(Showing first ${PREVIEW_ROW_LIMIT} of ${rowCount} rows.)`
                         : '';
 
-                return await persistResultIfNative({
+                return await persistResumeResult({
                     result: `${rowCount} rows. Columns: ${columns.join(
                         ', ',
                     )}.${truncatedNote}\n${serializeData(previewCsv, 'csv')}`,
@@ -339,7 +347,7 @@ export const getRunSql = ({
                 await renderState({ kind: 'error', sql, message }).catch(() => {
                     /* don't shadow the original error if rendering fails */
                 });
-                return persistResultIfNative({
+                return persistResumeResult({
                     result: toolErrorHandler(e, 'Error running SQL query.'),
                     metadata: { status: 'error' },
                 });
