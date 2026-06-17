@@ -1,3 +1,13 @@
+## [0.3184.1](https://github.com/lightdash/lightdash/compare/0.3184.0...0.3184.1) (2026-06-17)
+
+
+### Bug Fixes
+
+* **ai-agents:** eliminate typing lag in agent instructions field ([#24427](https://github.com/lightdash/lightdash/issues/24427)) ([1eaef0c](https://github.com/lightdash/lightdash/commit/1eaef0cee5fc9e67bde41fb550482023946c121e))
+* **echarts:** shift sub-day time-axis to project timezone like DAY+ ([#24419](https://github.com/lightdash/lightdash/issues/24419)) ([b40efd3](https://github.com/lightdash/lightdash/commit/b40efd33412737ca6870b91fc188ab4de2c59656))
+* **gsheets:** stop re-running the query when an export fails, and surface a clear error ([#24421](https://github.com/lightdash/lightdash/issues/24421)) ([5a1c669](https://github.com/lightdash/lightdash/commit/5a1c669ca4a65cbd4b0b96b33e898c340eb9dcbf))
+* handle invalid date filter values ([#24325](https://github.com/lightdash/lightdash/issues/24325)) ([5100f9c](https://github.com/lightdash/lightdash/commit/5100f9c3968b543eb620dfe8dcd4c12b5367f12b))
+
 # [0.3184.0](https://github.com/lightdash/lightdash/compare/0.3183.0...0.3184.0) (2026-06-17)
 
 
