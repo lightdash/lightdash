@@ -380,13 +380,17 @@ export const AiChartQuickOptions = ({
                         </>
                     )}
 
-                    <Menu.Item
-                        leftSection={<MantineIcon icon={IconExternalLink} />}
-                        disabled={isDisabled}
-                        onClick={handleExploreFromHere}
-                    >
-                        Explore from here
-                    </Menu.Item>
+                    {!isEmbed && (
+                        <Menu.Item
+                            leftSection={
+                                <MantineIcon icon={IconExternalLink} />
+                            }
+                            disabled={isDisabled}
+                            onClick={handleExploreFromHere}
+                        >
+                            Explore from here
+                        </Menu.Item>
+                    )}
 
                     {!!compiledSql && (
                         <HoverCard
