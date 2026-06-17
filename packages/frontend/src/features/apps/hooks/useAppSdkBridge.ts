@@ -6,7 +6,6 @@ import {
     getGdriveAccessToken,
     triggerGdriveLogin,
 } from '../../../hooks/gdrive/useGdrive';
-import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
 import {
     handleGsheetExport,
@@ -155,6 +154,10 @@ export function useAppSdkBridge(
      * defence-in-depth check for the non-sandboxed/dev case.
      */
     expectedPreviewOrigin: string,
+    /** Project the proxied EE external-fetch calls run against. */
+    projectUuid: string,
+    /** App the proxied EE external-fetch calls are attributed to. */
+    appUuid: string,
     onQueryEvent?: (event: QueryEvent) => void,
     onElementSelected?: (event: ElementSelectedEvent) => void,
     onInspectorAvailable?: () => void,
@@ -189,7 +192,6 @@ export function useAppSdkBridge(
     //     unchanged — the rewrite happens entirely on the parent side.
     const { embedToken, projectUuid: embedProjectUuid } = useEmbed();
     const { health, user } = useApp();
-    const projectUuid = useProjectUuid();
 
     // Maps queryUuid → POST request id. The SDK transport assigns a fresh
     // request id to the POST (`/metric-query`) and again to each GET poll
@@ -293,6 +295,79 @@ export function useAppSdkBridge(
                 } catch (e) {
                     respondGsheet({
                         error: e instanceof Error ? e.message : 'Export failed',
+                    });
+                }
+                return;
+            }
+
+            if (data?.type === 'lightdash:sdk:external-fetch') {
+                const {
+                    id: externalId,
+                    alias,
+                    method: externalMethod,
+                    path: externalPath,
+                    query: externalQuery,
+                    body: externalBody,
+                } = data;
+
+                const respondExternal = (response: {
+                    result?: unknown;
+                    error?: string;
+                }) => {
+                    iframeRef.current?.contentWindow?.postMessage(
+                        {
+                            type: 'lightdash:sdk:external-fetch-response',
+                            id: externalId,
+                            ...response,
+                        },
+                        '*',
+                    );
+                };
+
+                // Build the EE request body from app-supplied fields ONLY.
+                // No URL, no headers, no connection UUID — the backend resolves
+                // the alias and attaches the connection's secrets. The
+                // ALLOWED_ROUTES allowlist is deliberately NOT consulted here:
+                // this is a dedicated, separately-authorized endpoint.
+                const externalFetchPath = `/api/v1/ee/projects/${projectUuid}/apps/${appUuid}/external-fetch`;
+                const externalFetchBody = {
+                    connectionAlias: alias,
+                    method: externalMethod ?? 'GET',
+                    path: externalPath,
+                    query: externalQuery,
+                    body: externalBody,
+                };
+
+                try {
+                    const res = await fetch(
+                        resolveFetchUrl(externalFetchPath),
+                        {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                ...(embedToken
+                                    ? { [JWT_HEADER_NAME]: embedToken }
+                                    : {}),
+                            },
+                            body: JSON.stringify(externalFetchBody),
+                        },
+                    );
+                    const json = await res.json();
+                    if (json.status === 'ok') {
+                        respondExternal({ result: json.results });
+                    } else {
+                        respondExternal({
+                            error:
+                                json.error?.message ??
+                                `External fetch failed (${res.status})`,
+                        });
+                    }
+                } catch (err) {
+                    respondExternal({
+                        error:
+                            err instanceof Error
+                                ? err.message
+                                : 'Unknown error',
                     });
                 }
                 return;
@@ -562,6 +637,8 @@ export function useAppSdkBridge(
         [
             iframeRef,
             expectedPreviewOrigin,
+            projectUuid,
+            appUuid,
             onQueryEvent,
             onElementSelected,
             onInspectorAvailable,
