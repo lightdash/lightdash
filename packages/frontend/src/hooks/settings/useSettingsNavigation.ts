@@ -25,6 +25,7 @@ import {
     IconMessageCircle,
     IconPalette,
     IconPlug,
+    IconPlugConnected,
     IconRefresh,
     IconReportAnalytics,
     IconRobotFace,
@@ -619,6 +620,26 @@ export const useSettingsNavigation = (
                 children: [],
                 exact: true,
             });
+
+            if (
+                isDataAppsEnabled &&
+                ability?.can(
+                    'manage',
+                    subject('ExternalConnection', {
+                        organizationUuid: organization.organizationUuid,
+                        projectUuid: project.projectUuid,
+                    }),
+                )
+            ) {
+                projectItems.push({
+                    label: 'Data app connections',
+                    to: `${base}/dataAppConnections`,
+                    icon: IconPlugConnected,
+                    keywords: ['external', 'api', 'http', 'fetch', 'apps'],
+                    children: [],
+                    exact: true,
+                });
+            }
 
             if (
                 ability?.can(
