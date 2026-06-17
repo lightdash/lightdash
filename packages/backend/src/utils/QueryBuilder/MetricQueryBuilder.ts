@@ -80,6 +80,7 @@ import {
 } from './parameters';
 import {
     assertValidDimensionRequiredAttribute,
+    findDateGrainTableCalcWarnings,
     findMetricInflationWarnings,
     findTablesWithMetricInflation,
     getCustomBinDimensionSql,
@@ -4348,6 +4349,20 @@ export class MetricQueryBuilder {
             }
         }
         warnings.push(...experimentalMetricsCteSQL.warnings);
+
+        try {
+            warnings.push(
+                ...findDateGrainTableCalcWarnings({
+                    tableCalculations: compiledMetricQuery.tableCalculations,
+                    dimensions: this.exploreDimensions,
+                    useTimezoneAwareDateTrunc:
+                        this.args.useTimezoneAwareDateTrunc ?? false,
+                }),
+            );
+        } catch (e) {
+            // Log error but don't block code execution
+            Logger.error('Error during date-grain table calc detection', e);
+        }
 
         // Deduplicated distinct CTE: build separate CTEs for distinct metrics (sum_distinct, average_distinct), joined on dimensions
         const ddMetricIds = this.getSelectedAndReferencedMetricIds().filter(

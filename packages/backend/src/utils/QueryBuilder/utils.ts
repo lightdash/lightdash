@@ -7,10 +7,12 @@ import {
     CompiledExploreJoin,
     CompiledMetric,
     CompiledTable,
+    convertFieldRefToFieldId,
     CustomBinDimension,
     CustomDimension,
     DbtModelJoinType,
     Dimension,
+    DimensionType,
     Explore,
     FieldId,
     FieldReferenceError,
@@ -27,11 +29,14 @@ import {
     getUserAttributeRegex,
     IntrinsicUserAttributes,
     isCompiledCustomSqlDimension,
+    isSqlTableCalculation,
     JoinRelationship,
+    lightdashVariablePattern,
     MetricType,
     parseAllReferences,
     QueryWarning,
     SupportedDbtAdapter,
+    TableCalculation,
     UserAttributeValueMap,
     WeekDay,
     type WarehouseSqlBuilder,
@@ -1062,6 +1067,106 @@ type FindMetricInflationWarningsProps = {
     baseTable: Explore['baseTable']; // query table
     joinedTables: Set<string>; // query joined tables
     metrics: Pick<CompiledMetric, 'name' | 'table' | 'type' | 'label'>[]; // metrics in query
+};
+
+/**
+ * Time-of-day operations that silently no-op once a day-or-coarser date
+ * dimension is cast to a real DATE (GLITCH-452). The reference is stripped
+ * before matching, so this only catches ops the user wrote, not field names.
+ * Kept tight on purpose: day-or-coarser math (intervals in days/weeks/months,
+ * comparisons, datediff) is unaffected and must not warn.
+ */
+const SUB_DAY_TABLE_CALC_PATTERN =
+    /\b(?:hours?|minutes?|seconds?|milliseconds?|microseconds?|epoch)\b|::\s*(?:timestamp|datetime)|\b(?:timestamp|datetime)_trunc\b|\bas\s+(?:timestamp|datetime)\b/i;
+
+/**
+ * Warns when a SQL table calculation applies a sub-day / time-of-day operation
+ * to a day-or-coarser date dimension that has been cast to a real DATE under
+ * timezone support. The cast drops the time component, so these ops produce
+ * wrong results — the user should reference the raw timestamp dimension.
+ */
+export const findDateGrainTableCalcWarnings = ({
+    tableCalculations,
+    dimensions,
+    useTimezoneAwareDateTrunc,
+}: {
+    tableCalculations: TableCalculation[];
+    dimensions: Record<
+        string,
+        Pick<
+            CompiledDimension,
+            'type' | 'timeIntervalBaseDimensionType' | 'label'
+        >
+    >;
+    useTimezoneAwareDateTrunc: boolean;
+}): QueryWarning[] => {
+    if (!useTimezoneAwareDateTrunc) {
+        return [];
+    }
+
+    const warnings: QueryWarning[] = [];
+
+    tableCalculations.forEach((calc) => {
+        if (!isSqlTableCalculation(calc)) {
+            return;
+        }
+
+        const refs = (calc.sql.match(lightdashVariablePattern) ?? []).map(
+            (match) => match.slice(2, -1), // strip ${ and }
+        );
+
+        const castDateFieldIds = [
+            ...new Set(
+                refs
+                    .map((ref) => {
+                        // A ref is either an already-resolved field id or a
+                        // "table.field" reference that needs converting.
+                        if (dimensions[ref]) {
+                            return ref;
+                        }
+                        try {
+                            return convertFieldRefToFieldId(ref);
+                        } catch {
+                            return null;
+                        }
+                    })
+                    .filter((fieldId): fieldId is string => {
+                        const dim = fieldId ? dimensions[fieldId] : undefined;
+                        // type DATE + TIMESTAMP base = a day-or-coarser trunc
+                        // that GLITCH-452 collapses to a real DATE.
+                        return (
+                            !!dim &&
+                            dim.type === DimensionType.DATE &&
+                            dim.timeIntervalBaseDimensionType ===
+                                DimensionType.TIMESTAMP
+                        );
+                    }),
+            ),
+        ];
+
+        if (castDateFieldIds.length === 0) {
+            return;
+        }
+
+        // Match time-of-day ops on the user-written SQL only (refs stripped).
+        const userSql = calc.sql.replace(lightdashVariablePattern, ' ');
+        if (!SUB_DAY_TABLE_CALC_PATTERN.test(userSql)) {
+            return;
+        }
+
+        const labels = castDateFieldIds
+            .map((fieldId) => dimensions[fieldId]?.label ?? fieldId)
+            .join(', ');
+
+        warnings.push({
+            message: `Table calculation "${
+                calc.displayName || calc.name
+            }" applies a time-of-day operation to date field(s) ${labels}, which are truncated to whole dates when timezone support is enabled. The time component is dropped, so the result may be incorrect — reference the raw timestamp dimension instead.`,
+            fields: castDateFieldIds,
+        });
+    });
+
+    return warnings;
 };
 
 /**
