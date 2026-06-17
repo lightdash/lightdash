@@ -4,6 +4,7 @@ import { lightdashConfig } from './config/lightdashConfig';
 import { getEnterpriseAppArguments } from './ee';
 import knexConfig from './knexfile';
 import Logger from './logging/logger';
+import { getProcessTimezoneWarning } from './utils/processTimezone';
 
 // trigger BE tests
 
@@ -16,6 +17,16 @@ process.on('uncaughtException', () => {
 
 (async () => {
     try {
+        const timezoneWarning = getProcessTimezoneWarning({
+            enableTimezoneSupport: Boolean(
+                lightdashConfig.query.enableTimezoneSupport,
+            ),
+            timezoneOffsetMinutes: new Date().getTimezoneOffset(),
+        });
+        if (timezoneWarning) {
+            Logger.warn(timezoneWarning);
+        }
+
         const app = new App({
             lightdashConfig,
             port: process.env.PORT || 8080,

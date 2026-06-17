@@ -3,6 +3,7 @@ import { getEnterpriseAppArguments } from './ee';
 import knexConfig from './knexfile';
 import Logger from './logging/logger';
 import SchedulerApp from './SchedulerApp';
+import { getProcessTimezoneWarning } from './utils/processTimezone';
 
 // Winston (handleExceptions/handleRejections in winston.ts) owns structured logging
 // for both events. Logger uses exitOnError: false so rejections are tolerated.
@@ -13,6 +14,16 @@ process.on('uncaughtException', () => {
 
 (async () => {
     if (process.env.CI !== 'true') {
+        const timezoneWarning = getProcessTimezoneWarning({
+            enableTimezoneSupport: Boolean(
+                lightdashConfig.query.enableTimezoneSupport,
+            ),
+            timezoneOffsetMinutes: new Date().getTimezoneOffset(),
+        });
+        if (timezoneWarning) {
+            Logger.warn(timezoneWarning);
+        }
+
         const schedulerApp = new SchedulerApp({
             lightdashConfig,
             port: process.env.PORT || 8081,
