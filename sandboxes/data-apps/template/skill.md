@@ -162,6 +162,15 @@ Each file contains:
   **Only strip the prefix if it matches the explore name.** If it doesn't match, it's a joined table.
 - **Table calculation names:** Do NOT strip — pass them through as-is.
 
+## Linked external connections
+
+If the app is linked to one or more **external connections** (third-party HTTP APIs the project admin configured), you'll see a `[Linked external connections — saved response samples ...]` block at the top of this prompt and one JSON file per connection at **`/tmp/external-data/{alias}.json`**.
+
+- Each file is a **saved sample of that API's response** — use it to learn the response shape (field names, nesting, value formats) so your fetch/render code matches reality. Never guess field names.
+- Samples are **illustrative of structure, not exhaustive of values** and may be truncated. Don't hardcode sample values into the app.
+- At runtime the app fetches **live** data through the SDK's external-fetch bridge (`useLightdash().externalFetch(alias, path, options)`) — it does **not** read these files. The files exist only to ground your code generation. See the SDK Reference section for the external-fetch call signature.
+- A connection with no saved sample has no file; build defensively against the documented/known shape in that case.
+
 ## Attached images
 
 The user can attach images to a prompt. Use the Read tool to view each one at

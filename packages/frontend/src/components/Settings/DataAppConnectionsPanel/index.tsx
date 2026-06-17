@@ -16,6 +16,7 @@ import { ConnectionsTable } from './ConnectionsTable';
 import { CreateConnectionModal } from './CreateConnectionModal';
 import { DeleteConnectionModal } from './DeleteConnectionModal';
 import { EditConnectionModal } from './EditConnectionModal';
+import { TestConnectionPanel } from './TestConnectionPanel';
 
 type Props = {
     projectUuid: string;
@@ -84,13 +85,12 @@ const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
                 )}
             </Stack>
 
-            {/*
-              M5 SLOT — Test connection panel + saved samples
-              ------------------------------------------------
-              M5 fills this region with its "Test connection" panel and the
-              saved-sample UI. It will likely take `connections` + a selected
-              connection here. Leave this comment in place until M5 lands.
-            */}
+            {connections && connections.length > 0 && (
+                <TestConnectionPanel
+                    projectUuid={projectUuid}
+                    connections={connections}
+                />
+            )}
 
             {isCreating && (
                 <CreateConnectionModal

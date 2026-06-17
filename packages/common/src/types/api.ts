@@ -58,6 +58,7 @@ import type {
     DecodedEmbed,
     EmbedUrl,
     ExternalConnection,
+    ExternalFetchResponse,
 } from '../ee';
 import type { DashboardPreAggregateAudit } from '../ee/preAggregates/audit';
 import type { PivotValuesColumn } from '../visualizations/types';
@@ -1162,7 +1163,8 @@ type ApiResults =
     | ExternalConnection
     | ExternalConnection[]
     | AppExternalConnectionLink
-    | AppExternalConnectionLink[];
+    | AppExternalConnectionLink[]
+    | ExternalFetchResponse;
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 
