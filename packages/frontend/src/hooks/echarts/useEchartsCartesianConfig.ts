@@ -105,7 +105,6 @@ import {
     applyTimezoneShiftToEchartsOptions,
     resolveAxisTimezone,
     TIME_INTERVALS_FOR_CATEGORY_AXIS,
-    type DetectedTimeAxisField,
 } from './timezoneShift';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 
@@ -1535,59 +1534,6 @@ type CategoryDateAxisConfig = {
     boundaryGap?: boolean;
 };
 
-// Sub-day axes relabel ticks in the resolved zone but leave tick placement to
-// ECharts' native time-axis algorithm (GLITCH-502).
-type SubDayTimeAxisConfig = {
-    axisLabel?: {
-        rich: undefined;
-        formatter: (value: number) => string;
-    };
-};
-
-// Sub-day axes are positioned by raw UTC instant, so ECharts (useUTC) would
-// label the ticks in UTC. Render each tick in the resolved zone instead,
-// mirroring ECharts' own getUnitFromValue + defaultLeveledFormatter
-// (echarts/lib/util/time): the most-significant non-zero unit selects the
-// format, and a day boundary shows the date. Labels only — positions stay raw
-// UTC, so DST continuity is untouched.
-const formatSubDayAxisLabel = (value: number, timezone: string): string => {
-    const date = dayjs.utc(value).tz(timezone);
-    if (date.millisecond() !== 0) return date.format('HH:mm:ss SSS');
-    if (date.second() !== 0) return date.format('HH:mm:ss');
-    if (date.minute() !== 0 || date.hour() !== 0) return date.format('HH:mm');
-    if (date.date() !== 1) return date.format('D');
-    if (date.month() !== 0) return date.format('MMM');
-    return date.format('YYYY');
-};
-
-// resolveAxisTimezone decides which field qualifies and forwards it as a
-// sub-day-format timeAxisField. Bars are positioned by raw UTC instant, so this
-// is labels-only: render each tick in the resolved zone and let ECharts place
-// the ticks natively (GLITCH-502). DST continuity is untouched.
-export const getSubDayTimeAxisConfig = (
-    axisId: string | undefined,
-    rows: ResultRow[] | undefined,
-    timeAxisField: DetectedTimeAxisField | undefined,
-): SubDayTimeAxisConfig => {
-    if (
-        !axisId ||
-        !rows ||
-        timeAxisField?.mode !== 'sub-day-format' ||
-        timeAxisField.fieldId !== axisId
-    ) {
-        return {};
-    }
-
-    return {
-        axisLabel: {
-            // Drop the rich-text style ECharts' leveled formatter leaves behind.
-            rich: undefined,
-            formatter: (value: number) =>
-                formatSubDayAxisLabel(value, timeAxisField.timezone),
-        },
-    };
-};
-
 export const getCategoryDateAxisConfig = (
     axisId?: string,
     axisField?: Field | TableCalculation | CustomDimension,
@@ -1713,7 +1659,6 @@ const getEchartAxes = ({
     parameters,
     resolvedTimezone,
     displayTimezone,
-    timeAxisField,
 }: {
     validCartesianConfig: CartesianChart;
     itemsMap: ItemsMap;
@@ -1724,7 +1669,6 @@ const getEchartAxes = ({
     parameters?: ParametersValuesMap;
     resolvedTimezone?: string;
     displayTimezone?: string;
-    timeAxisField: DetectedTimeAxisField | undefined;
 }) => {
     const xAxisItemId = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.layout?.yField?.[0]
@@ -1927,17 +1871,6 @@ const getEchartAxes = ({
         eChartsSeries,
         resolvedTimezone,
     );
-    const bottomAxisSubDayConfig = getSubDayTimeAxisConfig(
-        bottomAxisXId,
-        axisRows,
-        timeAxisField,
-    );
-    const leftAxisSubDayConfig = getSubDayTimeAxisConfig(
-        leftAxisYId,
-        axisRows,
-        timeAxisField,
-    );
-
     const axisLabelFontSize =
         validCartesianConfig?.eChartsConfig?.axisLabelFontSize;
     const axisTitleFontSize =
@@ -2179,7 +2112,6 @@ const getEchartAxes = ({
                         hideOverlap: true,
                     }
                   : {}),
-              ...bottomAxisSubDayConfig.axisLabel,
           }
         : undefined;
 
@@ -2198,7 +2130,6 @@ const getEchartAxes = ({
                         hideOverlap: false,
                     }
                   : {}),
-              ...leftAxisSubDayConfig.axisLabel,
           }
         : undefined;
 
@@ -2692,7 +2623,6 @@ const useEchartsCartesianConfig = (
             parameters,
             resolvedTimezone: axisTimezone,
             displayTimezone: axisDisplayTimezone,
-            timeAxisField,
         });
     }, [
         itemsMap,
@@ -2704,7 +2634,6 @@ const useEchartsCartesianConfig = (
         parameters,
         axisTimezone,
         axisDisplayTimezone,
-        timeAxisField,
     ]);
 
     // Shared by stackedSeriesWithColorAssignments (non-stacked bar styling) and
@@ -3723,7 +3652,7 @@ const useEchartsCartesianConfig = (
             }),
         };
 
-        return timeAxisField?.mode === 'shift'
+        return timeAxisField
             ? applyTimezoneShiftToEchartsOptions(baseOptions, timeAxisField)
             : baseOptions;
     }, [
