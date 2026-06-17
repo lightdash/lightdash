@@ -1,3 +1,10 @@
+## [0.3180.1](https://github.com/lightdash/lightdash/compare/0.3180.0...0.3180.1) (2026-06-17)
+
+
+### Bug Fixes
+
+* **backend:** cast PoP range pre-filter LHS to DATE under timezone flag (GLITCH-505) ([#24402](https://github.com/lightdash/lightdash/issues/24402)) ([eb7bb50](https://github.com/lightdash/lightdash/commit/eb7bb5000d0b020444753eefc945c059c4408c65))
+
 # [0.3180.0](https://github.com/lightdash/lightdash/compare/0.3179.1...0.3180.0) (2026-06-17)
 
 
