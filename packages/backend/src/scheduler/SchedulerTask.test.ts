@@ -1,14 +1,19 @@
 import {
+    DimensionType,
     FieldReferenceError,
+    FieldType,
     ForbiddenError,
     GoogleSheetsQuotaError,
     GoogleSheetsTransientError,
+    MetricType,
     NotEnoughResults,
     ThresholdOperator,
+    type UploadGsheetPayload,
 } from '@lightdash/common';
 import ExecutionContext from 'node-execution-context';
 import type { ExecutionContextInfo } from '../logging/winston';
 import SchedulerTask, {
+    buildItemMapFromColumns,
     buildSchedulerLogContext,
     GSHEET_UPLOAD_MAX_ATTEMPTS,
     retryTransientGoogleSheetsWrite,
@@ -522,5 +527,171 @@ describe('retryTransientGoogleSheetsWrite', () => {
         await retryTransientGoogleSheetsWrite(write, onRetry);
 
         expect(onRetry.mock.calls).toEqual([[2], [3]]);
+    });
+});
+
+describe('buildItemMapFromColumns', () => {
+    it('maps a string column to a DIMENSION with STRING type', () => {
+        const result = buildItemMapFromColumns([
+            { key: 'name', label: 'Full Name', type: 'string' },
+        ]);
+        expect(result.name).toMatchObject({
+            name: 'name',
+            label: 'Full Name',
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.STRING,
+        });
+    });
+
+    it('maps a number column to a METRIC with NUMBER type', () => {
+        const result = buildItemMapFromColumns([
+            { key: 'revenue', type: 'number' },
+        ]);
+        expect(result.revenue).toMatchObject({
+            name: 'revenue',
+            label: 'revenue',
+            fieldType: FieldType.METRIC,
+            type: MetricType.NUMBER,
+        });
+    });
+
+    it('maps date, timestamp, and boolean column types correctly', () => {
+        const result = buildItemMapFromColumns([
+            { key: 'd', type: 'date' },
+            { key: 'ts', type: 'timestamp' },
+            { key: 'flag', type: 'boolean' },
+        ]);
+        expect(result.d).toMatchObject({
+            type: DimensionType.DATE,
+        });
+        expect(result.ts).toMatchObject({
+            type: DimensionType.TIMESTAMP,
+        });
+        expect(result.flag).toMatchObject({
+            type: DimensionType.BOOLEAN,
+        });
+    });
+
+    it('falls back to STRING type when column type is undefined', () => {
+        const result = buildItemMapFromColumns([{ key: 'misc' }]);
+        expect(result.misc).toMatchObject({
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.STRING,
+        });
+    });
+
+    it('uses key as label when label is absent', () => {
+        const result = buildItemMapFromColumns([{ key: 'col1' }]);
+        expect(result.col1).toMatchObject({ label: 'col1' });
+    });
+});
+
+describe('uploadGsheetFromQuery — rows branch', () => {
+    // SchedulerTask has 20+ constructor dependencies. We create minimal mocks
+    // for only the services touched by the rows branch.
+
+    const makeTask = (
+        overrides: Partial<ConstructorParameters<typeof SchedulerTask>[0]> = {},
+    ) => {
+        const stub = {} as ConstructorParameters<typeof SchedulerTask>[0];
+        const task = new SchedulerTask({
+            ...stub,
+            ...overrides,
+        });
+        return task;
+    };
+
+    it('calls createNewSheet with payload.title and appendToSheet with payload rows — never calls executeMetricQueryAndGetResults', async () => {
+        const mockCreateNewSheet = jest.fn().mockResolvedValue({
+            spreadsheetId: 'sheet-123',
+            spreadsheetUrl: 'https://sheets.example.com/sheet-123',
+        });
+        const mockAppendToSheet = jest.fn().mockResolvedValue(undefined);
+        const mockGetRefreshToken = jest
+            .fn()
+            .mockResolvedValue('refresh-token');
+        const mockGetAccountByUserUuid = jest.fn().mockResolvedValue({
+            user: { id: 'user-1' },
+        });
+        const mockLogSchedulerJob = jest.fn().mockResolvedValue(undefined);
+        const mockTrackAccount = jest.fn();
+        const mockTrack = jest.fn();
+        const mockExecuteMetricQueryAndGetResults = jest.fn();
+
+        const task = makeTask({
+            googleDriveClient: {
+                isEnabled: true,
+                createNewSheet: mockCreateNewSheet,
+                appendToSheet: mockAppendToSheet,
+            } as unknown as ConstructorParameters<
+                typeof SchedulerTask
+            >[0]['googleDriveClient'],
+            userService: {
+                getRefreshToken: mockGetRefreshToken,
+                getAccountByUserUuid: mockGetAccountByUserUuid,
+            } as unknown as ConstructorParameters<
+                typeof SchedulerTask
+            >[0]['userService'],
+            schedulerService: {
+                logSchedulerJob: mockLogSchedulerJob,
+                updateGsheetExportProgress: jest
+                    .fn()
+                    .mockResolvedValue(undefined),
+            } as unknown as ConstructorParameters<
+                typeof SchedulerTask
+            >[0]['schedulerService'],
+            analytics: {
+                trackAccount: mockTrackAccount,
+                track: mockTrack,
+            } as unknown as ConstructorParameters<
+                typeof SchedulerTask
+            >[0]['analytics'],
+            asyncQueryService: {
+                executeMetricQueryAndGetResults:
+                    mockExecuteMetricQueryAndGetResults,
+            } as unknown as ConstructorParameters<
+                typeof SchedulerTask
+            >[0]['asyncQueryService'],
+            lightdashConfig: {
+                query: {},
+            } as unknown as ConstructorParameters<
+                typeof SchedulerTask
+            >[0]['lightdashConfig'],
+        });
+
+        const payload = {
+            source: 'rows' as const,
+            userUuid: 'user-1',
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            title: 'My App Export',
+            columns: [
+                { key: 'name', label: 'Name', type: 'string' as const },
+                { key: 'amount', type: 'number' as const },
+            ],
+            rows: [
+                { name: 'Alice', amount: 100 },
+                { name: 'Bob', amount: 200 },
+            ],
+        };
+
+        // Access protected method via cast
+        await (
+            task as unknown as {
+                uploadGsheetFromQuery(
+                    jobId: string,
+                    scheduledTime: Date,
+                    payload: UploadGsheetPayload,
+                ): Promise<void>;
+            }
+        ).uploadGsheetFromQuery('job-1', new Date(), payload);
+
+        expect(mockCreateNewSheet).toHaveBeenCalledWith(
+            'refresh-token',
+            'My App Export',
+        );
+        expect(mockAppendToSheet).toHaveBeenCalledTimes(1);
+        expect(mockAppendToSheet.mock.calls[0][2]).toEqual(payload.rows);
+        expect(mockExecuteMetricQueryAndGetResults).not.toHaveBeenCalled();
     });
 });

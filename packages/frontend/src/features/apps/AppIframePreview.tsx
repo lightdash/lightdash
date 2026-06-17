@@ -65,6 +65,10 @@ type Props = {
     /** Fired on every iframe `onload` (including the initial about:blank).
      *  Used by `MinimalApp` to gate the screenshot readiness signal. */
     onIframeLoad?: () => void;
+    /** SDK capabilities the host opts into. Closed by default — hosts that
+     *  serve untrusted viewers (embed/JWT) must omit each capability flag.
+     *  `gsheetExport`: enables `exportToSheets()` from the iframe SDK. */
+    capabilities?: { gsheetExport?: boolean };
 };
 
 /**
@@ -103,6 +107,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             dashboardFilters,
             invalidateCache,
             onIframeLoad,
+            capabilities,
         },
         ref,
     ) => {
@@ -126,6 +131,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
                 handleScreenshotAnnounce,
                 dashboardFilters,
                 invalidateCache,
+                capabilities,
             );
         const { captureScreenshot } = useIframeScreenshot(iframeRef);
 

@@ -3,6 +3,26 @@ import { GoogleDriveClient } from './GoogleDriveClient';
 
 describe('GoogleDriveClient', () => {
     describe('formatRow', () => {
+        test('should defuse spreadsheet formula injection', () => {
+            // Leading =, @, tab, and CR are unambiguous formula-injection
+            // vectors when a viewer edits and re-enters the cell. Prefix with
+            // a single quote to keep the cell literal.
+            expect(GoogleDriveClient.formatCell('=HYPERLINK("evil")')).toEqual(
+                `'=HYPERLINK("evil")`,
+            );
+            expect(GoogleDriveClient.formatCell('@SUM(A1:A10)')).toEqual(
+                "'@SUM(A1:A10)",
+            );
+            expect(GoogleDriveClient.formatCell('\t=A1')).toEqual("'\t=A1");
+            expect(GoogleDriveClient.formatCell('\r=A1')).toEqual("'\r=A1");
+            // Leading - / + are NOT sanitised — negative numeric strings like
+            // "-100" are extremely common and would otherwise be mangled.
+            expect(GoogleDriveClient.formatCell('-100')).toEqual('-100');
+            expect(GoogleDriveClient.formatCell('+0.5')).toEqual('+0.5');
+            // Embedded = / @ are safe; only leading characters matter.
+            expect(GoogleDriveClient.formatCell('a=b')).toEqual('a=b');
+        });
+
         test('should format values', async () => {
             expect(GoogleDriveClient.formatCell(1)).toEqual(1);
             expect(GoogleDriveClient.formatCell(1.99)).toEqual(1.99);

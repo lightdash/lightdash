@@ -12,12 +12,14 @@ import {
     DashboardFilters,
     DateZoom,
     derivePivotConfigurationFromPivotConfig,
+    DimensionType,
     DownloadFileType,
     EmailNotificationPayload,
     ExportContentPayload,
     ExportCsvDashboardPayload,
     FeatureFlags,
     FieldReferenceError,
+    FieldType,
     ForbiddenError,
     formatRows,
     friendlyName,
@@ -56,6 +58,7 @@ import {
     isVizTableConfig,
     LightdashPage,
     MAX_SAFE_INTEGER,
+    MetricType,
     MissingConfigError,
     NotEnoughResults,
     NotFoundError,
@@ -96,6 +99,8 @@ import {
     translateSlackError,
     UnexpectedGoogleSheetsError,
     UnexpectedServerError,
+    UploadGsheetFromRowsPayload,
+    UploadGsheetPayload,
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
     VizColumn,
@@ -107,6 +112,7 @@ import {
     type EmailBatchNotificationPayload,
     type GoogleChatBatchNotificationPayload,
     type GoogleChatNotificationPayload,
+    type GsheetColumn,
     type ItemsMap,
     type MaterializePreAggregatePayload,
     type MetricQuery,
@@ -294,6 +300,45 @@ export async function retryTransientGoogleSheetsWrite(
         await onRetry(attempt + 1);
         await retryTransientGoogleSheetsWrite(write, onRetry, attempt + 1);
     }
+}
+
+function gsheetColumnTypeToFieldType(
+    columnType: GsheetColumn['type'],
+): MetricType | DimensionType {
+    switch (columnType) {
+        case 'number':
+            return MetricType.NUMBER;
+        case 'date':
+            return DimensionType.DATE;
+        case 'timestamp':
+            return DimensionType.TIMESTAMP;
+        case 'boolean':
+            return DimensionType.BOOLEAN;
+        default:
+            return DimensionType.STRING;
+    }
+}
+
+export function buildItemMapFromColumns(columns: GsheetColumn[]): ItemsMap {
+    // appendToSheet's formatter reads `type` (for date/timestamp parsing) and
+    // ignores most other Item fields, so a minimal synthetic shape is enough.
+    // Cast via unknown — the real Item union has many required fields, but
+    // appendToSheet's formatter only reads `type` and `fieldType`.
+    const map: ItemsMap = {};
+    for (const col of columns) {
+        map[col.key] = {
+            name: col.key,
+            label: col.label ?? col.key,
+            fieldType:
+                col.type === 'number' ? FieldType.METRIC : FieldType.DIMENSION,
+            type: gsheetColumnTypeToFieldType(col.type),
+            table: '',
+            tableLabel: '',
+            sql: '',
+            hidden: false,
+        } as unknown as ItemsMap[string];
+    }
+    return map;
 }
 
 export default class SchedulerTask {
@@ -2366,7 +2411,7 @@ export default class SchedulerTask {
     protected async uploadGsheetFromQuery(
         jobId: string,
         scheduledTime: Date,
-        payload: UploadMetricGsheetPayload,
+        payload: UploadGsheetPayload,
     ) {
         setSchedulerJobLogContext({ jobId });
         const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> =
@@ -2389,9 +2434,10 @@ export default class SchedulerTask {
         try {
             if (!this.googleDriveClient.isEnabled) {
                 throw new Error(
-                    'Unable to upload Google Sheet from query, Google Drive is not enabled',
+                    'Unable to upload Google Sheet, Google Drive is not enabled',
                 );
             }
+
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
                 details: {
@@ -2411,99 +2457,29 @@ export default class SchedulerTask {
                 userId: payload.userUuid,
                 properties: analyticsProperties,
             });
-            // Build MetricQuery with exploreName (required by executeAsyncMetricQuery)
-            const metricQuery: MetricQuery = {
-                ...payload.metricQuery,
-                exploreName: payload.exploreId,
-            };
 
-            // Build PivotConfiguration if pivotConfig is present
-            let pivotConfiguration: PivotConfiguration | undefined;
-            if (payload.pivotConfig) {
-                const explore = await this.projectService.getExplore(
+            if (payload.source === 'rows') {
+                // Rows path has no query phase — go straight to upload.
+                failureStage = 'upload';
+                await this.uploadGsheetFromRowsInner(
+                    payload,
+                    baseLog,
+                    analyticsProperties,
                     account,
-                    payload.projectUuid,
-                    payload.exploreId,
+                    jobId,
                 );
-                const fields = getItemMap(
-                    explore,
-                    metricQuery.additionalMetrics,
-                    metricQuery.tableCalculations,
-                );
-                pivotConfiguration = derivePivotConfigurationFromPivotConfig(
-                    payload.pivotConfig,
-                    metricQuery,
-                    fields,
+            } else {
+                await this.uploadGsheetFromMetricQueryInner(
+                    payload,
+                    baseLog,
+                    analyticsProperties,
+                    account,
+                    jobId,
+                    () => {
+                        failureStage = 'upload';
+                    },
                 );
             }
-
-            const {
-                rows,
-                fields: itemMap,
-                pivotDetails,
-                displayTimezone,
-            } = await this.asyncQueryService.executeMetricQueryAndGetResults(
-                {
-                    account,
-                    projectUuid: payload.projectUuid,
-                    metricQuery,
-                    context: QueryExecutionContext.GSHEETS,
-                    pivotConfiguration,
-                },
-                SCHEDULER_POLLING_OPTIONS,
-            );
-
-            failureStage = 'upload';
-            await this.schedulerService.updateGsheetExportProgress(jobId, {
-                phase: 'upload',
-                attempt: 1,
-            });
-
-            const refreshToken = await this.userService.getRefreshToken(
-                payload.userUuid,
-            );
-            const { spreadsheetId, spreadsheetUrl } =
-                await this.googleDriveClient.createNewSheet(
-                    refreshToken,
-                    payload.exploreId,
-                );
-
-            if (!spreadsheetId) {
-                throw new Error('Unable to create new sheet');
-            }
-
-            await this.uploadResultsToGoogleSheet({
-                jobId,
-                refreshToken,
-                spreadsheetId,
-                rows,
-                itemMap,
-                pivotDetails,
-                displayTimezone,
-                payload,
-            });
-
-            const { csvCellsLimit } = await resolveOrganizationExportLimits(
-                this.organizationSettingsModel,
-                this.lightdashConfig.query,
-                payload.organizationUuid,
-            );
-            const truncated = this.csvService.couldBeTruncated(
-                rows,
-                csvCellsLimit,
-            );
-
-            await this.schedulerService.logSchedulerJob({
-                ...baseLog,
-                details: {
-                    fileUrl: spreadsheetUrl,
-                    createdByUserUuid: payload.userUuid,
-                    truncated,
-                    projectUuid: payload.projectUuid,
-                    organizationUuid: payload.organizationUuid,
-                },
-                status: SchedulerJobStatus.COMPLETED,
-            });
 
             this.analytics.trackAccount(account, {
                 event: 'download_results.completed',
@@ -2616,6 +2592,174 @@ export default class SchedulerTask {
                 ),
             onRetry,
         );
+    }
+
+    private async uploadGsheetFromMetricQueryInner(
+        payload: UploadMetricGsheetPayload,
+        baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'>,
+        analyticsProperties: DownloadCsv['properties'],
+        account: AccountType,
+        jobId: string,
+        onQueryComplete: () => void,
+    ) {
+        const metricQuery: MetricQuery = {
+            ...payload.metricQuery,
+            exploreName: payload.exploreId,
+        };
+
+        let pivotConfiguration: PivotConfiguration | undefined;
+        if (payload.pivotConfig) {
+            const explore = await this.projectService.getExplore(
+                account,
+                payload.projectUuid,
+                payload.exploreId,
+            );
+            const fields = getItemMap(
+                explore,
+                metricQuery.additionalMetrics,
+                metricQuery.tableCalculations,
+            );
+            pivotConfiguration = derivePivotConfigurationFromPivotConfig(
+                payload.pivotConfig,
+                metricQuery,
+                fields,
+            );
+        }
+
+        const {
+            rows,
+            fields: itemMap,
+            pivotDetails,
+            displayTimezone,
+        } = await this.asyncQueryService.executeMetricQueryAndGetResults(
+            {
+                account,
+                projectUuid: payload.projectUuid,
+                metricQuery,
+                context: QueryExecutionContext.GSHEETS,
+                pivotConfiguration,
+            },
+            SCHEDULER_POLLING_OPTIONS,
+        );
+
+        onQueryComplete();
+        await this.schedulerService.updateGsheetExportProgress(jobId, {
+            phase: 'upload',
+            attempt: 1,
+        });
+
+        const refreshToken = await this.userService.getRefreshToken(
+            payload.userUuid,
+        );
+        const { spreadsheetId, spreadsheetUrl } =
+            await this.googleDriveClient.createNewSheet(
+                refreshToken,
+                payload.exploreId,
+            );
+
+        if (!spreadsheetId) {
+            throw new Error('Unable to create new sheet');
+        }
+
+        await this.uploadResultsToGoogleSheet({
+            jobId,
+            refreshToken,
+            spreadsheetId,
+            rows,
+            itemMap,
+            pivotDetails,
+            displayTimezone,
+            payload,
+        });
+
+        const { csvCellsLimit } = await resolveOrganizationExportLimits(
+            this.organizationSettingsModel,
+            this.lightdashConfig.query,
+            payload.organizationUuid,
+        );
+        const truncated = this.csvService.couldBeTruncated(rows, csvCellsLimit);
+
+        await this.schedulerService.logSchedulerJob({
+            ...baseLog,
+            details: {
+                fileUrl: spreadsheetUrl,
+                createdByUserUuid: payload.userUuid,
+                truncated,
+                projectUuid: payload.projectUuid,
+                organizationUuid: payload.organizationUuid,
+            },
+            status: SchedulerJobStatus.COMPLETED,
+        });
+    }
+
+    private async uploadGsheetFromRowsInner(
+        payload: UploadGsheetFromRowsPayload,
+        baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'>,
+        analyticsProperties: DownloadCsv['properties'],
+        account: AccountType,
+        jobId: string,
+    ) {
+        // Rows path has no warehouse query step — we're already in the upload
+        // phase from the outer wrapper's perspective. Report progress + retry
+        // the Sheets write on transient errors, same as the metric-query path.
+        await this.schedulerService.updateGsheetExportProgress(jobId, {
+            phase: 'upload',
+            attempt: 1,
+        });
+
+        const refreshToken = await this.userService.getRefreshToken(
+            payload.userUuid,
+        );
+        const { spreadsheetId, spreadsheetUrl } =
+            await this.googleDriveClient.createNewSheet(
+                refreshToken,
+                payload.title,
+            );
+
+        if (!spreadsheetId) {
+            throw new Error('Unable to create new sheet');
+        }
+
+        const itemMap = buildItemMapFromColumns(payload.columns);
+        const columnOrder = payload.columns.map((c) => c.key);
+        const customLabels = Object.fromEntries(
+            payload.columns
+                .filter((c) => c.label)
+                .map((c) => [c.key, c.label as string]),
+        );
+
+        await retryTransientGoogleSheetsWrite(
+            () =>
+                this.googleDriveClient.appendToSheet(
+                    refreshToken,
+                    spreadsheetId,
+                    payload.rows,
+                    itemMap,
+                    false, // showTableNames — no table context for app-supplied rows
+                    undefined, // tabName
+                    columnOrder,
+                    customLabels,
+                    [], // hiddenFields
+                    undefined, // timezone
+                ),
+            (attempt) =>
+                this.schedulerService.updateGsheetExportProgress(jobId, {
+                    phase: 'upload',
+                    attempt,
+                }),
+        );
+
+        await this.schedulerService.logSchedulerJob({
+            ...baseLog,
+            details: {
+                fileUrl: spreadsheetUrl,
+                createdByUserUuid: payload.userUuid,
+                truncated: false,
+                projectUuid: payload.projectUuid,
+                organizationUuid: payload.organizationUuid,
+            },
+            status: SchedulerJobStatus.COMPLETED,
+        });
     }
 
     protected async sendEmailNotification(

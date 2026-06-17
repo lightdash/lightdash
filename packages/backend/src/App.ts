@@ -9,6 +9,7 @@ import {
     MissingConfigError,
     OauthAuthenticationError,
     UnexpectedServerError,
+    UPLOAD_GSHEET_FROM_ROWS_MAX_BYTES,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import flash from 'connect-flash';
@@ -369,6 +370,14 @@ export default class App {
             );
         }
 
+        // Raise body-parser limit for the data-apps gsheet export route only.
+        // Must run BEFORE the global parser below — `express.json()` is a no-op
+        // when `req.body` is already populated, so whichever parser sees the
+        // request first wins.
+        expressApp.use(
+            '/api/v1/gdrive/upload-gsheet-from-rows',
+            express.json({ limit: UPLOAD_GSHEET_FROM_ROWS_MAX_BYTES }),
+        );
         expressApp.use(
             express.json({ limit: this.lightdashConfig.maxPayloadSize }),
         );

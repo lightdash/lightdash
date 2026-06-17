@@ -3,6 +3,7 @@ import {
     ApiGdriveAccessTokenResponse,
     ApiJobScheduledResponse,
     assertRegisteredAccount,
+    UploadGsheetFromRows,
     UploadMetricGsheet,
 } from '@lightdash/common';
 import {
@@ -68,6 +69,29 @@ export class GoogleDriveController extends BaseController {
             results: await req.services
                 .getGdriveService()
                 .scheduleUploadGsheet(req.account!, body),
+        };
+    }
+
+    /**
+     * Upload client-supplied rows to a new Google Sheet (data apps).
+     * @summary Upload rows to Google Sheet
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/upload-gsheet-from-rows')
+    @OperationId('uploadGsheetFromRows')
+    async postFromRows(
+        @Body() body: UploadGsheetFromRows,
+        @Request() req: express.Request,
+    ): Promise<ApiJobScheduledResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await req.services
+                .getGdriveService()
+                .scheduleUploadGsheetFromRows(req.account, body),
         };
     }
 }

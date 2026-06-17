@@ -3,7 +3,13 @@ import {
     Account,
     CustomSqlQueryForbiddenError,
     ForbiddenError,
+    GoogleNotConnectedError,
     isCustomSqlDimension,
+    NotFoundError,
+    ParameterError,
+    UPLOAD_GSHEET_FROM_ROWS_MAX_ROWS,
+    UploadGsheetFromRows,
+    UploadGsheetFromRowsPayload,
     UploadMetricGsheet,
     UploadMetricGsheetPayload,
 } from '@lightdash/common';
@@ -107,10 +113,80 @@ export class GdriveService extends BaseService {
             ...gsheetOptions,
             userUuid: account.user.id,
             organizationUuid,
+            source: 'metricQuery',
         };
 
         const { jobId } =
             await this.schedulerClient.uploadGsheetFromQueryJob(payload);
+
+        return { jobId };
+    }
+
+    async scheduleUploadGsheetFromRows(
+        account: Account,
+        options: UploadGsheetFromRows,
+    ) {
+        const projectSummary = await this.projectModel.getSummary(
+            options.projectUuid,
+        );
+        const auditedAbility = this.createAuditedAbility(account);
+        const projectMetadata = {
+            projectUuid: projectSummary.projectUuid,
+            projectName: projectSummary.name,
+        };
+
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('ExportCsv', {
+                    organizationUuid: projectSummary.organizationUuid,
+                    projectUuid: projectSummary.projectUuid,
+                    metadata: projectMetadata,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('GoogleSheets', {
+                    organizationUuid: projectSummary.organizationUuid,
+                    projectUuid: projectSummary.projectUuid,
+                    metadata: projectMetadata,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (options.rows.length > UPLOAD_GSHEET_FROM_ROWS_MAX_ROWS) {
+            throw new ParameterError(
+                `Export too large (max ${UPLOAD_GSHEET_FROM_ROWS_MAX_ROWS} rows)`,
+            );
+        }
+
+        try {
+            await this.userModel.getRefreshToken(account.user.id);
+        } catch (e) {
+            if (e instanceof NotFoundError) {
+                throw new GoogleNotConnectedError(
+                    'Google account not connected',
+                );
+            }
+            throw e;
+        }
+
+        const payload: UploadGsheetFromRowsPayload = {
+            ...options,
+            userUuid: account.user.id,
+            organizationUuid: projectSummary.organizationUuid,
+            source: 'rows',
+        };
+
+        const { jobId } =
+            await this.schedulerClient.uploadGsheetFromRowsJob(payload);
 
         return { jobId };
     }

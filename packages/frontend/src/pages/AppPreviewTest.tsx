@@ -258,6 +258,7 @@ export default function AppPreviewTest() {
                 identityKey={`${appUuid}:${version}`}
                 invalidateCache={invalidateCache}
                 onQueryEvent={handleQueryEvent}
+                capabilities={{ gsheetExport: true }}
             />
             {!queriesPanelHidden && (
                 <QueryInspector

@@ -11,14 +11,14 @@ import { convertDateFilters } from '../../utils/dateFilter';
 import useHealth from '../health/useHealth';
 import useToaster from '../toaster/useToaster';
 
-const getGdriveAccessToken = async () =>
+export const getGdriveAccessToken = async () =>
     lightdashApi<ApiGdriveAccessTokenResponse['results']>({
         url: `/gdrive/get-access-token`,
         method: 'GET',
         body: undefined,
     });
 
-const triggerGdriveLogin = async (
+export const triggerGdriveLogin = async (
     loginPath: 'gdrive' | 'bigquery',
     siteUrl: string,
 ) => {

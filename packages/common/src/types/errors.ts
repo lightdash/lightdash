@@ -45,6 +45,17 @@ export class ForbiddenError extends LightdashError {
     }
 }
 
+export class GoogleNotConnectedError extends LightdashError {
+    constructor(message = 'Google account not connected') {
+        super({
+            message,
+            name: 'GoogleNotConnectedError',
+            statusCode: 412,
+            data: {},
+        });
+    }
+}
+
 export class DeactivatedAccountError extends LightdashError {
     constructor(
         message = 'Your account has been deactivated. Please contact your organization administrator.',

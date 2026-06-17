@@ -14,7 +14,7 @@ import {
     type SlackPromptJobPayload,
 } from '../ee';
 import { type SchedulerIndexCatalogJobPayload } from './catalog';
-import { type UploadMetricGsheetPayload } from './gdrive';
+import { type UploadGsheetPayload } from './gdrive';
 import { type RenameResourcesPayload } from './rename';
 import {
     type CompileProjectPayload,
@@ -133,7 +133,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.SEND_MSTEAMS_BATCH_NOTIFICATION]: MsTeamsBatchNotificationPayload;
     [SCHEDULER_TASKS.SEND_GOOGLE_CHAT_BATCH_NOTIFICATION]: GoogleChatBatchNotificationPayload;
     [SCHEDULER_TASKS.UPLOAD_GSHEETS]: GsheetsNotificationPayload;
-    [SCHEDULER_TASKS.UPLOAD_GSHEET_FROM_QUERY]: UploadMetricGsheetPayload;
+    [SCHEDULER_TASKS.UPLOAD_GSHEET_FROM_QUERY]: UploadGsheetPayload;
     [SCHEDULER_TASKS.VALIDATE_PROJECT]: ValidateProjectPayload;
     [SCHEDULER_TASKS.COMPILE_PROJECT]: CompileProjectPayload;
     [SCHEDULER_TASKS.CREATE_PROJECT_WITH_COMPILE]: SchedulerCreateProjectWithCompilePayload;

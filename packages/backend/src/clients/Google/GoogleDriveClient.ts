@@ -372,6 +372,16 @@ export class GoogleDriveClient {
                     formattedValue.substring(0, TRUNCATE_INDEX) +
                     TRUNCATION_SUFFIX;
             }
+            // Defuse spreadsheet formula injection. With valueInputOption: 'RAW'
+            // these are stored as text on write, but Sheets re-parses them as
+            // formulas the moment a viewer edits and re-enters the cell — a
+            // common CSV-injection vector. We prefix a single quote so the
+            // cell stays a literal string. Skip leading `-`/`+` because
+            // negative/signed numeric strings are extremely common and
+            // legitimate.
+            if (/^[=@\t\r]/.test(formattedValue)) {
+                formattedValue = `'${formattedValue}`;
+            }
         }
 
         return formattedValue;

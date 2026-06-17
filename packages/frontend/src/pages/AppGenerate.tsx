@@ -248,6 +248,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
                 onInspectorAvailabilityChange={onInspectorAvailabilityChange}
                 onScreenshotAvailabilityChange={onScreenshotAvailabilityChange}
                 onInspectorCancelled={onInspectorCancelled}
+                capabilities={{ gsheetExport: true }}
             />
         );
     },
