@@ -1093,6 +1093,15 @@ export class UnfurlService extends BaseService {
                                 .internalLightdashHostIgnoreHttpsErrors,
                     });
 
+                    if (lightdashPage === LightdashPage.APP) {
+                        // Browserless connects over CDP, where the viewport
+                        // passed to newPage can be ignored. Apply it
+                        // explicitly before navigation so the app iframe's
+                        // 100vh/100% box starts at the intended screenshot
+                        // size.
+                        await page.setViewportSize(initialViewport);
+                    }
+
                     // Polyfill crypto.randomUUID (needed for Loom iframes)
                     await page.addInitScript(() => {
                         if (
