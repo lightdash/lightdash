@@ -84,10 +84,9 @@ type WarehouseConfig = {
 /** Per-warehouse SQL for the DATE_TRUNC timezone round-trip. `toProjectTz`
  *  shifts into project-local wall-clock before truncation; `toUTC` converts
  *  the truncated value back into a proper UTC instant. `castAsDate` casts a
- *  truncated wall-clock value to a real DATE (GLITCH-452) — default
- *  `CAST(x AS DATE)`, but BigQuery needs `DATE(x, tz)` because its
- *  `TIMESTAMP_TRUNC` returns a UTC instant (a plain cast would read its UTC
- *  date — off by one on positive offsets). `sourceTimezone` is the timezone the
+ *  truncated wall-clock value to a real DATE (GLITCH-452) — every adapter's
+ *  wrapped path truncates a naive project-local wall-clock, so `CAST(x AS DATE)`
+ *  reads the right date. `sourceTimezone` is the timezone the
  *  column is in — only Snowflake uses it explicitly (in `CONVERT_TIMEZONE`);
  *  other adapters ignore it. */
 type DateTruncTimezoneConversion = {
@@ -100,12 +99,15 @@ export const dateTruncTimezoneConversions: Record<
     SupportedDbtAdapter,
     DateTruncTimezoneConversion
 > = {
-    // BigQuery: TIMESTAMP_TRUNC accepts timezone natively and preserves the
-    // UTC instant — round-trip is a no-op.
+    // BigQuery: shift the UTC instant into a naive project-TZ DATETIME so the
+    // DST fall-back fold collapses under DATETIME_TRUNC (merge), then re-attach
+    // the zone to recover a real instant. Coerce via TIMESTAMP() first because a
+    // declared-TIMESTAMP dim can emit DATETIME at runtime; DATETIME(timestamp,
+    // tz) requires a TIMESTAMP left side.
     [SupportedDbtAdapter.BIGQUERY]: {
-        toProjectTz: (sql) => sql,
-        toUTC: (sql) => sql,
-        castAsDate: (sql, tz) => `DATE(${sql}, '${tz}')`,
+        toProjectTz: (sql, tz) => `DATETIME(TIMESTAMP(${sql}), '${tz}')`,
+        toUTC: (sql, tz) => `TIMESTAMP(${sql}, '${tz}')`,
+        castAsDate: (sql) => `CAST(${sql} AS DATE)`,
     },
     [SupportedDbtAdapter.SNOWFLAKE]: {
         toProjectTz: (sql, tz, sourceTimezone = 'UTC') =>
@@ -252,10 +254,10 @@ const bigqueryStartOfWeekMap: Record<WeekDay, string> = {
 };
 
 const bigqueryConfig: WarehouseConfig = {
-    // BigQuery: TIMESTAMP_TRUNC(ts, part, tz) truncates in the given zone and
-    // returns a TIMESTAMP (real UTC instant). We intentionally do NOT wrap
-    // with DATETIME(..., tz) — that would strip the zone back to a naive
-    // wall-clock and mis-label it as UTC downstream.
+    // BigQuery: on the timezone-wrapped path `toProjectTz` has already shifted
+    // the value into a naive project-TZ DATETIME, so truncate with
+    // DATETIME_TRUNC (the fold merges) and let `toUTC` re-attach the zone. The
+    // bare path (no timezone) keeps TIMESTAMP_TRUNC, truncating the UTC instant.
     getSqlForTruncatedDate: (
         timeFrame,
         originalSql,
@@ -269,9 +271,7 @@ const bigqueryConfig: WarehouseConfig = {
                 : timeFrame;
         if (type === DimensionType.TIMESTAMP) {
             if (timezone) {
-                // 3-arg overload requires TIMESTAMP; coerce in case the
-                // declared TIMESTAMP dim emits DATETIME at runtime.
-                return `TIMESTAMP_TRUNC(TIMESTAMP(${originalSql}), ${datePart}, '${timezone}')`;
+                return `DATETIME_TRUNC(${originalSql}, ${datePart})`;
             }
             return `TIMESTAMP_TRUNC(${originalSql}, ${datePart})`;
         }
@@ -768,8 +768,10 @@ export const getSqlForTruncatedDate = (
         wrap.timezone,
     );
     // Day-or-coarser grains return a real DATE (drop the toUTC round-trip).
-    // The per-adapter cast lives on the Record — most use CAST(... AS DATE);
-    // BigQuery needs DATE(expr, tz). See `castAsDate` in dateTruncTimezoneConversions.
+    // Every adapter's wrapped path now truncates to a naive wall-clock value
+    // (BigQuery shifts to DATETIME in toProjectTz), so the per-adapter castAsDate
+    // — CAST(... AS DATE) everywhere — reads the right calendar date in the
+    // project tz. See `castAsDate` in dateTruncTimezoneConversions.
     if (!castToDate) {
         return toUTC(truncated, wrap.timezone);
     }
