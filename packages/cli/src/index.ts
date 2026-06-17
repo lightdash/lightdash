@@ -1167,6 +1167,11 @@ ${styles.bold('Examples:')}
   )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
       'diagnostics',
+  )} --auth ${styles.secondary(
+      '-- outputs authenticated user and ability rules as JSON',
+  )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+      'diagnostics',
   )} --dbt ${styles.secondary('-- includes dbt debug output')}
   ${styles.title('⚡')}️lightdash ${styles.bold(
       'diagnostics',
@@ -1174,6 +1179,11 @@ ${styles.bold('Examples:')}
       '-- runs dbt debug with custom project directory',
   )}
 `,
+    )
+    .option(
+        '--auth',
+        'Output authenticated user and ability rules as JSON',
+        false,
     )
     .option('--dbt', 'Include dbt debug information', false)
     .option(
@@ -1476,6 +1486,12 @@ const errorHandler = (err: Error) => {
 };
 
 const successHandler = () => {
+    if (
+        process.argv.includes('diagnostics') &&
+        process.argv.includes('--auth')
+    ) {
+        process.exit(0);
+    }
     console.error(`Done 🕶`);
     process.exit(0);
 };
