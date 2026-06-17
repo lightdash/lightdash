@@ -1,0 +1,136 @@
+.root {
+    --ai-agent-icon-size: 18px;
+    --ai-agent-icon-shadow: color-mix(in oklch, #5e4cff 34%, transparent);
+
+    position: relative;
+    display: inline-block;
+    width: var(--ai-agent-icon-size);
+    height: var(--ai-agent-icon-size);
+    flex-shrink: 0;
+    overflow: hidden;
+    border-radius: 50%;
+    isolation: isolate;
+    background:
+        radial-gradient(
+            circle at 30% 23%,
+            rgba(255, 255, 255, 0.98) 0 11%,
+            rgba(224, 210, 255, 0.88) 12% 24%,
+            transparent 36%
+        ),
+        radial-gradient(
+            circle at 72% 70%,
+            rgba(255, 255, 255, 0.72) 0 8%,
+            transparent 30%
+        ),
+        conic-gradient(
+            from 218deg at 52% 52%,
+            #9836ff 0deg,
+            #e0d2ff 72deg,
+            #ffffff 116deg,
+            #5e4cff 176deg,
+            #9836ff 230deg,
+            #e0d2ff 292deg,
+            #5e4cff 360deg
+        );
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.68),
+        inset 0 -5px 10px rgba(94, 76, 255, 0.22),
+        0 1px 2px rgba(94, 76, 255, 0.2),
+        0 0 0 1px var(--ai-agent-icon-shadow);
+    transform: translateZ(0);
+}
+
+.root::before,
+.root::after {
+    position: absolute;
+    inset: -34%;
+    content: '';
+    opacity: 0;
+    pointer-events: none;
+    transition:
+        opacity 180ms ease,
+        transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.root::before {
+    background:
+        radial-gradient(circle at 28% 44%, #ffffff 0 9%, transparent 24%),
+        radial-gradient(circle at 60% 30%, #9836ff 0 11%, transparent 30%),
+        radial-gradient(circle at 56% 68%, #e0d2ff 0 13%, transparent 32%),
+        radial-gradient(circle at 78% 60%, #5e4cff 0 10%, transparent 28%);
+    filter: blur(5px);
+    mix-blend-mode: screen;
+}
+
+.root::after {
+    background: conic-gradient(
+        from 90deg,
+        transparent,
+        rgba(255, 255, 255, 0.86),
+        rgba(224, 210, 255, 0.6),
+        transparent,
+        rgba(152, 54, 255, 0.72),
+        rgba(94, 76, 255, 0.7),
+        transparent
+    );
+    filter: blur(7px);
+    mix-blend-mode: soft-light;
+}
+
+.root:hover,
+:global(button:hover) .root,
+:global(a:hover) .root,
+:global(.mantine-Group-root:hover) .root,
+:global([role='menuitem']:hover) .root,
+:global([data-combobox-selected='true']) .root {
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.82),
+        inset 0 -5px 11px rgba(94, 76, 255, 0.28),
+        0 2px 7px rgba(152, 54, 255, 0.26),
+        0 0 0 1px color-mix(in oklch, #9836ff 42%, transparent);
+}
+
+.root:hover::before,
+.root:hover::after,
+:global(button:hover) .root::before,
+:global(button:hover) .root::after,
+:global(a:hover) .root::before,
+:global(a:hover) .root::after,
+:global(.mantine-Group-root:hover) .root::before,
+:global(.mantine-Group-root:hover) .root::after,
+:global([role='menuitem']:hover) .root::before,
+:global([role='menuitem']:hover) .root::after,
+:global([data-combobox-selected='true']) .root::before,
+:global([data-combobox-selected='true']) .root::after {
+    opacity: 1;
+    animation: ai-agent-icon-drift 1.6s cubic-bezier(0.22, 1, 0.36, 1) infinite
+        alternate;
+}
+
+.root:hover::after,
+:global(button:hover) .root::after,
+:global(a:hover) .root::after,
+:global(.mantine-Group-root:hover) .root::after,
+:global([role='menuitem']:hover) .root::after,
+:global([data-combobox-selected='true']) .root::after {
+    animation-duration: 2.1s;
+    animation-direction: alternate-reverse;
+}
+
+@keyframes ai-agent-icon-drift {
+    from {
+        transform: translate3d(-7%, -3%, 0) rotate(-10deg) scale(1);
+    }
+
+    to {
+        transform: translate3d(6%, 5%, 0) rotate(18deg) scale(1.08);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .root::before,
+    .root::after {
+        animation: none !important;
+        transition: opacity 120ms ease;
+    }
+}

@@ -1,7 +1,5 @@
 import { Menu } from '@mantine-8/core';
-import { IconMessageCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
-import MantineIcon from '../../../../../components/common/MantineIcon';
 import useApp from '../../../../../providers/App/useApp';
 import { type AiAgentAskClickedSource } from '../../../../../providers/Tracking/types';
 import useTracking from '../../../../../providers/Tracking/useTracking';
@@ -9,6 +7,7 @@ import { EventName } from '../../../../../types/Events';
 import { useAiAgentButtonVisibility } from '../../hooks/useAiAgentsButtonVisibility';
 import { store as aiAgentStore } from '../../store';
 import { openPanel } from '../../store/aiAgentLauncherSlice';
+import { AiAgentIcon } from '../AiAgentIcon';
 import { useDefaultAiAgent } from '../Launcher/useDefaultAiAgent';
 
 type Props = {
@@ -66,7 +65,7 @@ export const AskAiAgentMenuItem: FC<Props> = ({
     return (
         <>
             <Menu.Item
-                leftSection={<MantineIcon icon={IconMessageCircle} />}
+                leftSection={<AiAgentIcon size={16} />}
                 onClick={handleClick}
             >
                 Ask AI Agent

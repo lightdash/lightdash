@@ -15,7 +15,6 @@ import {
     IconCornerDownLeft,
     IconGitPullRequest,
     IconSettings,
-    IconSparkles,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Provider } from 'react-redux';
@@ -23,6 +22,7 @@ import { Link, useNavigate } from 'react-router';
 import { CategoryBadge } from '../../../../components/common/CategoryBadge';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../../components/common/PolymorphicGroupButton';
+import { AiAgentIcon } from '../../../features/aiCopilot/components/AiAgentIcon';
 import { CompactAgentSelector } from '../../../features/aiCopilot/components/AgentSelector';
 import {
     AI_ROUTING_AUTO_VALUE,
@@ -236,14 +236,11 @@ const AiSearchBoxInner: FC<Props> = ({
                                         style={{ overflow: 'hidden' }}
                                         align="flex-start"
                                     >
-                                        <MantineIcon
+                                        <AiAgentIcon
                                             style={{
                                                 flexShrink: 0,
                                                 marginTop: 4,
                                             }}
-                                            icon={IconSparkles}
-                                            color="violet.4"
-                                            fill="violet.4"
                                             size={16}
                                         />
                                         <Text
@@ -304,13 +301,7 @@ const AiSearchBoxInner: FC<Props> = ({
                                     <Button
                                         size="compact-xs"
                                         variant="subtle"
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconSparkles}
-                                                color="violet.5"
-                                                fill="violet.5"
-                                            />
-                                        }
+                                        leftSection={<AiAgentIcon size={14} />}
                                         component={Link}
                                         to="/ai-agents"
                                     >
@@ -329,11 +320,7 @@ const AiSearchBoxInner: FC<Props> = ({
                                     </Button>
                                 ) : showAgentSetupPrompt && isTrial ? (
                                     <Group gap="xs">
-                                        <MantineIcon
-                                            icon={IconSparkles}
-                                            color="violet.5"
-                                            fill="violet.5"
-                                        />
+                                        <AiAgentIcon size={14} />
                                         <Text size="xs" c="ldGray.8">
                                             You are trialing the AI Agents
                                             feature.
