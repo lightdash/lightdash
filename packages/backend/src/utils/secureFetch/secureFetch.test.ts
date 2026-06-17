@@ -61,3 +61,82 @@ describe('secureFetch URL validation', () => {
         expect(mockedFetch).not.toHaveBeenCalled();
     });
 });
+
+describe('secureFetch blocks private/internal resolved IPs', () => {
+    const blocked: Array<[string, { address: string; family: number }]> = [
+        ['IPv4 loopback 127.0.0.1', { address: '127.0.0.1', family: 4 }],
+        ['IPv4 0.0.0.0/8', { address: '0.0.0.0', family: 4 }],
+        ['IPv4 10/8 RFC1918', { address: '10.1.2.3', family: 4 }],
+        ['IPv4 172.16/12 RFC1918', { address: '172.16.5.5', family: 4 }],
+        ['IPv4 192.168/16 RFC1918', { address: '192.168.1.1', family: 4 }],
+        ['IPv4 100.64/10 CGNAT', { address: '100.64.0.1', family: 4 }],
+        [
+            'IPv4 169.254 link-local/metadata',
+            { address: '169.254.169.254', family: 4 },
+        ],
+        ['IPv4 224/4 multicast', { address: '224.0.0.1', family: 4 }],
+        ['IPv6 ::1 loopback', { address: '::1', family: 6 }],
+        ['IPv6 fc00::/7 unique-local', { address: 'fc00::1', family: 6 }],
+        ['IPv6 fe80::/10 link-local', { address: 'fe80::1', family: 6 }],
+        ['IPv6 ff00::/8 multicast', { address: 'ff02::1', family: 6 }],
+        [
+            'IPv6 mapped private ::ffff:169.254.169.254',
+            { address: '::ffff:169.254.169.254', family: 6 },
+        ],
+    ];
+
+    it.each(blocked)(
+        'blocks %s with reason blocked_ip',
+        async (_label, resolved) => {
+            mockedLookup.mockResolvedValue([resolved]);
+            await expectReason(
+                secureFetch('https://evil.example.com/x.json', BASE_OPTIONS),
+                'blocked_ip',
+            );
+            expect(mockedFetch).not.toHaveBeenCalled();
+        },
+    );
+
+    it('blocks when ANY resolved address is private (mixed set)', async () => {
+        mockedLookup.mockResolvedValue([
+            { address: '93.184.216.34', family: 4 },
+            { address: '10.0.0.5', family: 4 },
+        ]);
+        await expectReason(
+            secureFetch('https://evil.example.com/x.json', BASE_OPTIONS),
+            'blocked_ip',
+        );
+    });
+
+    it('fails closed on unparseable IPv4 from DNS', async () => {
+        mockedLookup.mockResolvedValue([{ address: '999.1.1.1', family: 4 }]);
+        await expectReason(
+            secureFetch('https://evil.example.com/x.json', BASE_OPTIONS),
+            'blocked_ip',
+        );
+    });
+
+    it('fails closed on unknown address family', async () => {
+        mockedLookup.mockResolvedValue([{ address: '1.2.3.4', family: 0 }]);
+        await expectReason(
+            secureFetch('https://evil.example.com/x.json', BASE_OPTIONS),
+            'blocked_ip',
+        );
+    });
+
+    it('rejects with blocked_ip when DNS resolution fails', async () => {
+        mockedLookup.mockRejectedValue(new Error('ENOTFOUND'));
+        await expectReason(
+            secureFetch('https://nope.example.com/x.json', BASE_OPTIONS),
+            'blocked_ip',
+        );
+    });
+
+    it('rejects with blocked_ip when DNS returns no addresses', async () => {
+        mockedLookup.mockResolvedValue([]);
+        await expectReason(
+            secureFetch('https://empty.example.com/x.json', BASE_OPTIONS),
+            'blocked_ip',
+        );
+    });
+});
