@@ -3,6 +3,7 @@ import {
     AnyType,
     ForbiddenError,
     getErrorMessage,
+    LightdashError,
     NotFoundError,
     ParameterError,
     PullRequestState,
@@ -58,6 +59,28 @@ const getProjectId = (owner: string, repo: string) =>
 const getApiUrl = (hostDomain: string, endpoint: string) =>
     `https://${hostDomain}/api/v4${endpoint}`;
 
+/**
+ * GitLab returns 429 when an org's token exceeds its API rate limit. The
+ * read-only repo VFS reads many files per command, so surface this distinctly:
+ * {@link gitlabRepoSource} maps it to an agent-recoverable error instead of a
+ * hard failure. Mirrors `isGithubRateLimitError` for the GitHub path. Extends
+ * LightdashError (statusCode 429) so it flows through the project's error
+ * categorisation/Sentry filtering rather than bypassing it as a bare Error.
+ */
+export class GitlabRateLimitError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'GitlabRateLimitError',
+            statusCode: 429,
+            data: {},
+        });
+    }
+}
+
+export const isGitlabRateLimitError = (error: unknown): boolean =>
+    error instanceof GitlabRateLimitError;
+
 const makeGitlabRequest = async (
     url: string,
     token: string,
@@ -87,6 +110,13 @@ const makeGitlabRequest = async (
         }
         if (response.status === 404) {
             throw new NotFoundError('GitLab resource not found');
+        }
+        // Surface rate limits distinctly so callers (e.g. the repo VFS) can
+        // degrade gracefully instead of treating a transient 429 as a fault.
+        if (response.status === 429) {
+            throw new GitlabRateLimitError(
+                `GitLab API rate limit reached: ${errorText}`,
+            );
         }
         throw new UnexpectedGitError(
             `GitLab API error: ${response.status} ${errorText}`,
@@ -522,6 +552,90 @@ export const getDirectoryContents = async ({
         }
         throw error;
     }
+};
+
+// Offset pagination cap for the recursive tree walk: 50 pages × 100 = 5000
+// files. Beyond this we report `truncated` (same contract as the GitHub tree)
+// rather than walk unbounded — dbt repos are well under this.
+const MAX_TREE_PAGES = 50;
+
+/**
+ * Recursive listing of every blob path in a repo via the GitLab Trees API
+ * (`recursive=true`, offset-paginated). Returns file paths only (tree entries
+ * are dropped) with `size: 0` — GitLab's tree API does not return blob sizes,
+ * so size is unknown here (used only for `ls -l` display, never to gate reads).
+ * `truncated` signals the page cap was hit. Backs `listAllPaths` in the VFS.
+ */
+export const getGitlabRepoTree = async ({
+    owner,
+    repo,
+    branch,
+    token,
+    hostDomain = DEFAULT_GITLAB_HOST_DOMAIN,
+    maxPages = MAX_TREE_PAGES,
+}: GitlabApiParams & { branch: string; maxPages?: number }): Promise<{
+    files: Array<{ path: string; size: number }>;
+    truncated: boolean;
+}> => {
+    const projectId = getProjectId(owner, repo);
+    const files: Array<{ path: string; size: number }> = [];
+    let page = 1;
+    let truncated = false;
+
+    for (;;) {
+        const url = getApiUrl(
+            hostDomain,
+            `/projects/${projectId}/repository/tree?ref=${encodeURIComponent(
+                branch,
+            )}&recursive=true&per_page=100&page=${page}`,
+        );
+        // eslint-disable-next-line no-await-in-loop
+        const response = await fetch(url, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (response.status === 429) {
+            throw new GitlabRateLimitError(
+                'GitLab API rate limit reached while listing repository files',
+            );
+        }
+        if (!response.ok) {
+            // eslint-disable-next-line no-await-in-loop
+            const errorText = await response.text();
+            if (response.status === 401 || response.status === 403) {
+                throw new ForbiddenError('Invalid GitLab access token');
+            }
+            if (response.status === 404) {
+                throw new NotFoundError(
+                    `GitLab repository tree not found for ${owner}/${repo}@${branch}`,
+                );
+            }
+            throw new UnexpectedGitError(
+                `GitLab API error: ${response.status} ${errorText}`,
+            );
+        }
+
+        // eslint-disable-next-line no-await-in-loop
+        const items = (await response.json()) as Array<{
+            type: string;
+            path: string;
+        }>;
+        for (const item of items) {
+            if (item.type === 'blob') {
+                files.push({ path: item.path, size: 0 });
+            }
+        }
+
+        const nextPage = response.headers.get('x-next-page');
+        if (!nextPage) break;
+        if (page >= maxPages) {
+            truncated = true;
+            break;
+        }
+        page = Number(nextPage);
+    }
+
+    return { files, truncated };
 };
 
 export const deleteFile = async ({

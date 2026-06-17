@@ -24,12 +24,17 @@ ENV_FILE=".env.development.local"
 [ -f "$ENV_FILE" ] || { echo "FAIL: reconcile -- $ENV_FILE missing (run the profile setup first)" >&2; exit 1; }
 
 # The secret the backend actually decrypts with — read from the running pm2 api process.
-RUNNING_SECRET="$(pm2 jlist 2>/dev/null | LD_INSTANCE_ID="$LD_INSTANCE_ID" python3 -c "
+# Match the api process by its instance-prefixed name first; if pnpm pm2:start named it
+# generically (e.g. `lightdash-api`), fall back to the api whose pm_cwd is in THIS worktree.
+RUNNING_SECRET="$(pm2 jlist 2>/dev/null | LD_INSTANCE_ID="$LD_INSTANCE_ID" REPO_ROOT="$REPO_ROOT" python3 -c "
 import sys, json, os
-inst = os.environ['LD_INSTANCE_ID']
+inst = os.environ['LD_INSTANCE_ID']; root = os.environ['REPO_ROOT']
 try: ps = json.load(sys.stdin)
 except Exception: ps = []
 api = [p for p in ps if p.get('name') == inst + '-api']
+if not api:
+    api = [p for p in ps if p.get('name','').endswith('-api')
+           and (p.get('pm2_env',{}).get('pm_cwd','') or '').startswith(root)]
 print(api[0]['pm2_env'].get('LIGHTDASH_SECRET', '') if api else '')
 " 2>/dev/null)"
 if [ -z "$RUNNING_SECRET" ]; then

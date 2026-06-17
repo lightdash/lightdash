@@ -236,6 +236,7 @@ import {
     rethrowAsRecoverable,
     type RepoFsTimingEvent,
 } from '../ai/repoFs/githubRepoSource';
+import { createGitlabRepoSource } from '../ai/repoFs/gitlabRepoSource';
 import {
     DBT_MOUNT,
     MountingRepoFileSystem,
@@ -6059,19 +6060,42 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         // descent and a per-run budget bounds an unscoped recursive walk. The
         // tool's `target` just picks the starting directory, so a repo target
         // reads exactly as before while absolute paths can cross repos.
-        const onRepoFsTiming = (event: RepoFsTimingEvent) => {
-            this.prometheusMetrics?.incrementRepoFsGithubRequest(event.kind);
-            if (event.kind === 'tree') {
-                this.prometheusMetrics?.observeRepoFsGithubTreeDuration(
-                    event.durationMs,
+        // Record repo-VFS latency/requests against the metrics for the repo's
+        // host, so GitLab activity isn't mislabelled as GitHub.
+        const makeRepoFsTiming =
+            (provider: 'github' | 'gitlab') => (event: RepoFsTimingEvent) => {
+                if (provider === 'gitlab') {
+                    this.prometheusMetrics?.incrementRepoFsGitlabRequest(
+                        event.kind,
+                    );
+                    if (event.kind === 'tree') {
+                        this.prometheusMetrics?.observeRepoFsGitlabTreeDuration(
+                            event.durationMs,
+                        );
+                    } else if (event.kind === 'file') {
+                        this.prometheusMetrics?.observeRepoFsGitlabFileDuration(
+                            event.durationMs,
+                            event.outcome,
+                        );
+                    }
+                    return;
+                }
+                this.prometheusMetrics?.incrementRepoFsGithubRequest(
+                    event.kind,
                 );
-            } else if (event.kind === 'file') {
-                this.prometheusMetrics?.observeRepoFsGithubFileDuration(
-                    event.durationMs,
-                    event.outcome,
-                );
-            }
-        };
+                if (event.kind === 'tree') {
+                    this.prometheusMetrics?.observeRepoFsGithubTreeDuration(
+                        event.durationMs,
+                    );
+                } else if (event.kind === 'file') {
+                    this.prometheusMetrics?.observeRepoFsGithubFileDuration(
+                        event.durationMs,
+                        event.outcome,
+                    );
+                }
+            };
+        // The installation-browse path (buildRepoFs) is GitHub-App-only.
+        const onRepoFsTiming = makeRepoFsTiming('github');
         let installationAccessPromise: ReturnType<
             typeof this.aiWritebackService.getInstallationRepoReadAccess
         > | null = null;
@@ -6091,9 +6115,17 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 user,
                 projectUuid,
             });
-            return new RepoFs(
-                createGithubRepoSource({ ...access, onTiming: onRepoFsTiming }),
-            );
+            const source =
+                access.provider === 'gitlab'
+                    ? createGitlabRepoSource({
+                          ...access,
+                          onTiming: makeRepoFsTiming('gitlab'),
+                      })
+                    : createGithubRepoSource({
+                          ...access,
+                          onTiming: makeRepoFsTiming('github'),
+                      });
+            return new RepoFs(source);
         };
         const buildRepoFs = async (
             owner: string,
@@ -6122,11 +6154,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const getMountFs = () => {
             if (!mountFsPromise) {
                 mountFsPromise = (async () => {
-                    // /dbt is only mountable when the project's dbt repo is on
-                    // GitHub (getRepoReadAccess is GitHub-only).
+                    // /dbt is mountable when the project's dbt repo is on a
+                    // host the VFS can read read-only (GitHub or GitLab); other
+                    // connection types have no repo source.
                     const project = await this.projectModel.get(projectUuid);
                     const hasDbtMount =
-                        project.dbtConnection.type === DbtProjectType.GITHUB;
+                        project.dbtConnection.type === DbtProjectType.GITHUB ||
+                        project.dbtConnection.type === DbtProjectType.GITLAB;
                     return MountingRepoFileSystem.create({
                         listRepos: async () => {
                             this.prometheusMetrics?.incrementRepoFsGithubRequest(

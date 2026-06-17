@@ -7,6 +7,19 @@ import {
 } from '../../../../clients/github/Github';
 import Logger from '../../../../logging/logger';
 import { RepoSource } from './RepoFs';
+import {
+    isDeniedRepoPath,
+    type RepoFsTimingCallback,
+} from './repoSourceShared';
+
+// Re-exported for backward compatibility: these provider-agnostic helpers moved
+// to ./repoSourceShared so a non-GitHub source can reuse them, but existing
+// importers (AiAgentService, tests) still reach them through this module.
+export {
+    isDeniedRepoPath,
+    type RepoFsTimingEvent,
+    type RepoFsTimingCallback,
+} from './repoSourceShared';
 
 /** Message + sentinel code for a GitHub rate-limit hit. The `ERATELIMIT` code is
  *  mapped to an agent-recoverable ShellError in {@link ./bashShell} so a 403 from
@@ -27,45 +40,6 @@ export const rethrowAsRecoverable = (error: unknown): never => {
     }
     throw error;
 };
-
-/**
- * Latency signal for each backing GitHub call, so a caller (e.g. the agent
- * service) can record metrics without coupling this layer to Prometheus.
- */
-export type RepoFsTimingEvent =
-    | { kind: 'tree'; durationMs: number }
-    | {
-          kind: 'file';
-          durationMs: number;
-          outcome: 'found' | 'missing' | 'error';
-      }
-    | { kind: 'search'; durationMs: number };
-
-export type RepoFsTimingCallback = (event: RepoFsTimingEvent) => void;
-
-/**
- * Paths that must never be exposed through the read-only shell. Removing the
- * `subPath` confinement (so the whole repo is readable for an explicit
- * `exploreRepo` target) widens the blast radius to secrets that previously lived
- * outside the dbt subdirectory, so deny common credential/secret files at the
- * source layer — they're filtered from listings and read back as absent.
- */
-const DENIED_PATH_PATTERNS: RegExp[] = [
-    /(^|\/)\.env(\..*)?$/i, // .env, .env.local, .env.production, ...
-    /\.pem$/i,
-    /\.key$/i,
-    /\.p12$/i,
-    /\.pfx$/i,
-    /(^|\/)id_rsa(\.pub)?$/i,
-    /(^|\/)id_ed25519(\.pub)?$/i,
-    /(^|\/)\.npmrc$/i,
-    /(^|\/)\.pypirc$/i,
-    /(^|\/)credentials$/i,
-    /\.keyfile(\.json)?$/i,
-];
-
-export const isDeniedRepoPath = (path: string): boolean =>
-    DENIED_PATH_PATTERNS.some((re) => re.test(path));
 
 /**
  * A read-only {@link RepoSource} backed by the GitHub API (Git Trees + Contents)

@@ -103,6 +103,16 @@ export default class PrometheusMetrics {
     // so a runaway crawl that drains the installation's rate limit is visible.
     public repoFsGithubRequestCounter: prometheus.Counter<'kind'> | null = null;
 
+    // repoShell (read-only repo VFS) GitLab API latency — twin of the GitHub
+    // metrics above, for dbt repos connected over GitLab.
+    public repoFsGitlabTreeDurationHistogram: prometheus.Histogram | null =
+        null;
+
+    public repoFsGitlabFileDurationHistogram: prometheus.Histogram<'outcome'> | null =
+        null;
+
+    public repoFsGitlabRequestCounter: prometheus.Counter<'kind'> | null = null;
+
     // GitHub rate limit by resource (core | search | code_search | graphql),
     // read from x-ratelimit-* response headers on every call. The limit is
     // installation-wide (shared across writeback, PR ops, the repo shell, …), so
@@ -440,6 +450,30 @@ export default class PrometheusMetrics {
                     ...rest,
                 });
 
+                this.repoFsGitlabTreeDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'ai_repofs_gitlab_tree_duration_ms',
+                        help: 'repoShell GitLab Repository Trees fetch (repo file listing) duration in ms',
+                        buckets: githubRequestBuckets,
+                        ...rest,
+                    });
+
+                this.repoFsGitlabFileDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'ai_repofs_gitlab_file_duration_ms',
+                        help: 'repoShell GitLab Files fetch (per file) duration in ms',
+                        labelNames: ['outcome'],
+                        buckets: githubRequestBuckets,
+                        ...rest,
+                    });
+
+                this.repoFsGitlabRequestCounter = new prometheus.Counter({
+                    name: 'ai_repofs_gitlab_requests_total',
+                    help: 'repoShell GitLab API requests by kind (tree | file | search | list)',
+                    labelNames: ['kind'],
+                    ...rest,
+                });
+
                 this.githubRateLimitLimitGauge = new prometheus.Gauge({
                     name: 'github_ratelimit_limit',
                     help: 'GitHub App installation rate limit (max) by resource, from x-ratelimit-limit',
@@ -519,10 +553,12 @@ export default class PrometheusMetrics {
                 // entire first burst of observations is invisible to rate().
                 (['found', 'missing', 'error'] as const).forEach((outcome) => {
                     this.repoFsGithubFileDurationHistogram?.zero({ outcome });
+                    this.repoFsGitlabFileDurationHistogram?.zero({ outcome });
                 });
                 (['tree', 'file', 'search', 'list'] as const).forEach(
                     (kind) => {
                         this.repoFsGithubRequestCounter?.inc({ kind }, 0);
+                        this.repoFsGitlabRequestCounter?.inc({ kind }, 0);
                     },
                 );
                 (['success', 'error'] as const).forEach((status) => {
@@ -1193,6 +1229,26 @@ export default class PrometheusMetrics {
         kind: 'tree' | 'file' | 'search' | 'list',
     ) {
         this.repoFsGithubRequestCounter?.inc({ kind });
+    }
+
+    public observeRepoFsGitlabTreeDuration(durationMs: number) {
+        this.repoFsGitlabTreeDurationHistogram?.observe(durationMs);
+    }
+
+    public observeRepoFsGitlabFileDuration(
+        durationMs: number,
+        outcome: 'found' | 'missing' | 'error',
+    ) {
+        this.repoFsGitlabFileDurationHistogram?.observe(
+            { outcome },
+            durationMs,
+        );
+    }
+
+    public incrementRepoFsGitlabRequest(
+        kind: 'tree' | 'file' | 'search' | 'list',
+    ) {
+        this.repoFsGitlabRequestCounter?.inc({ kind });
     }
 
     public observeGithubRateLimit(rl: {
