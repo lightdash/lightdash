@@ -125,6 +125,7 @@ type MetricDetailContentProps = {
     projectUuid: string;
     compiledQueryConfig?: CompiledQueryConfig;
     isOpen: boolean;
+    onExplore: () => void;
 };
 
 const MetricDetailContent: FC<MetricDetailContentProps> = ({
@@ -135,6 +136,7 @@ const MetricDetailContent: FC<MetricDetailContentProps> = ({
     projectUuid,
     compiledQueryConfig,
     isOpen,
+    onExplore,
 }) => {
     const exploreMetric = useExploreMetric();
     const [showCompiled, setShowCompiled] = useState(false);
@@ -224,7 +226,12 @@ const MetricDetailContent: FC<MetricDetailContentProps> = ({
                     variant="dark"
                     size="xs"
                     fullWidth
-                    onClick={() => exploreMetric({ tableName, metricName })}
+                    onClick={() => {
+                        // Close the hover card before opening the modal,
+                        // otherwise its dropdown floats above the modal.
+                        onExplore();
+                        exploreMetric({ tableName, metricName });
+                    }}
                 >
                     Explore
                 </Button>
@@ -242,6 +249,9 @@ export const MetricDetailPopover: FC<Props> = ({
     compiledQueryConfig,
 }) => {
     const [opened, setOpened] = useState(false);
+    // HoverCard is uncontrolled (no `opened` prop), so bumping this key
+    // remounts it to force the dropdown closed when the user explores.
+    const [instanceKey, setInstanceKey] = useState(0);
 
     const { data: metric, isLoading } = useMetric({
         projectUuid,
@@ -252,6 +262,7 @@ export const MetricDetailPopover: FC<Props> = ({
 
     return (
         <HoverCard
+            key={instanceKey}
             position="bottom-start"
             withArrow
             shadow="md"
@@ -280,6 +291,7 @@ export const MetricDetailPopover: FC<Props> = ({
                         projectUuid={projectUuid}
                         compiledQueryConfig={compiledQueryConfig}
                         isOpen={opened}
+                        onExplore={() => setInstanceKey((key) => key + 1)}
                     />
                 )}
             </HoverCard.Dropdown>

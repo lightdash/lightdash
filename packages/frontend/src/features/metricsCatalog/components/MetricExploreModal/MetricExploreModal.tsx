@@ -128,6 +128,11 @@ export const MetricExploreModal: FC<Props> = (props) => {
         [metrics, metricName, tableName],
     );
 
+    // Prev/next walk the catalog list order, which only makes sense in the
+    // list view. From the canvas/tree the order is unrelated to what's on
+    // screen, so navigation is disabled there.
+    const canNavigateBetweenMetrics = props.navigation === 'url';
+
     const nextMetricInList = metrics[currentMetricIndex + 1];
     const previousMetricInList = metrics[currentMetricIndex - 1];
 
@@ -324,11 +329,15 @@ export const MetricExploreModal: FC<Props> = (props) => {
         },
     });
 
-    // Keyboard navigation
-    useHotkeys([
-        ['ArrowUp', handleGoToPreviousMetric],
-        ['ArrowDown', handleGoToNextMetric],
-    ]);
+    // Keyboard navigation (list view only — see canNavigateBetweenMetrics)
+    useHotkeys(
+        canNavigateBetweenMetrics
+            ? [
+                  ['ArrowUp', handleGoToPreviousMetric],
+                  ['ArrowDown', handleGoToNextMetric],
+              ]
+            : [],
+    );
 
     const handleSegmentDimensionChange = useCallback(
         (value: string | null) => {
@@ -485,7 +494,10 @@ export const MetricExploreModal: FC<Props> = (props) => {
                                     radius="sm"
                                     className={styles.navActionIcon}
                                     onClick={handleGoToPreviousMetric}
-                                    disabled={!previousMetricInList}
+                                    disabled={
+                                        !canNavigateBetweenMetrics ||
+                                        !previousMetricInList
+                                    }
                                 >
                                     <MantineIcon icon={IconChevronUp} />
                                 </ActionIcon>
@@ -506,7 +518,10 @@ export const MetricExploreModal: FC<Props> = (props) => {
                                     radius="sm"
                                     className={styles.navActionIcon}
                                     onClick={handleGoToNextMetric}
-                                    disabled={!nextMetricInList}
+                                    disabled={
+                                        !canNavigateBetweenMetrics ||
+                                        !nextMetricInList
+                                    }
                                 >
                                     <MantineIcon icon={IconChevronDown} />
                                 </ActionIcon>
