@@ -4910,9 +4910,21 @@ export class AiAgentModel {
         >,
         dashboardSlugByUuid: Map<string, string>,
     ): AiPromptContextItem {
+        // chart/dashboard/thread are uuid-keyed: entity_uuid is a non-null
+        // invariant (only file/repository leave it null, using entity_ref).
+        // A null here means a corrupt row — fail loud rather than emit a broken
+        // reference with an empty uuid.
+        const requireEntityUuid = (): string => {
+            if (row.entity_uuid === null) {
+                throw new Error(
+                    `ai_prompt_context row ${row.ai_prompt_context_uuid} of type '${row.entity_type}' is missing entity_uuid`,
+                );
+            }
+            return row.entity_uuid;
+        };
         switch (row.entity_type) {
             case 'chart': {
-                const entityUuid = row.entity_uuid ?? '';
+                const entityUuid = requireEntityUuid();
                 const chartData = chartDataByUuid.get(entityUuid);
                 return {
                     type: 'chart',
@@ -4925,7 +4937,7 @@ export class AiAgentModel {
                 };
             }
             case 'dashboard': {
-                const entityUuid = row.entity_uuid ?? '';
+                const entityUuid = requireEntityUuid();
                 return {
                     type: 'dashboard',
                     dashboardUuid: entityUuid,
@@ -4937,7 +4949,7 @@ export class AiAgentModel {
             case 'thread':
                 return {
                     type: 'thread',
-                    threadUuid: row.entity_uuid ?? '',
+                    threadUuid: requireEntityUuid(),
                     promptUuid: row.pinned_version_uuid,
                     displayName: row.display_name,
                 };
