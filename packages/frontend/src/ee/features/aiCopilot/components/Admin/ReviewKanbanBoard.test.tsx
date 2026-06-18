@@ -16,6 +16,14 @@ vi.mock('../../hooks/useAiAgentAdmin', () => ({
         mutate: vi.fn(),
         isLoading: false,
     }),
+    useUpdateAiAgentReviewItemAssignee: () => ({
+        mutate: vi.fn(),
+        isLoading: false,
+    }),
+}));
+
+vi.mock('../../../../../hooks/useProjectAccess', () => ({
+    useProjectAccess: () => ({ data: [] }),
 }));
 
 vi.mock('../AgentNamePill', () => ({ AgentNamePill: () => null }));

@@ -7,7 +7,6 @@ import {
     HoverCard,
     Stack,
     Text,
-    UnstyledButton,
 } from '@mantine-8/core';
 import {
     IconArrowUpRight,
@@ -23,6 +22,7 @@ import {
 } from '../../hooks/useAiAgentAdmin';
 import { AiAgentIcon } from '../AiAgentIcon';
 import { ProjectContextWritebackModal } from './ProjectContextWritebackModal';
+import { ReviewAssigneeMenu } from './ReviewAssigneeMenu';
 import {
     formatReviewDate,
     getIssueTitle,
@@ -71,10 +71,18 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
         <Box
             className={`${styles.card}${isSelected ? ` ${styles.cardSelected}` : ''}`}
         >
-            <UnstyledButton
+            <Box
                 className={styles.cardBody}
                 p="sm"
+                role="button"
+                tabIndex={0}
                 onClick={() => onSelect(item)}
+                onKeyDown={(e: React.KeyboardEvent) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onSelect(item);
+                    }
+                }}
             >
                 <Stack gap={8}>
                     <Group
@@ -99,45 +107,73 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                         </Group>
                     </Group>
 
-                    <Group gap={6} wrap="wrap">
-                        <CategoryBadge
-                            color={reviewRootCauseColors[item.primaryRootCause]}
-                            label={reviewRootCauseLabels[item.primaryRootCause]}
-                        />
+                    <Group
+                        gap={6}
+                        wrap="nowrap"
+                        justify="space-between"
+                        align="center"
+                    >
+                        <Group gap={6} wrap="wrap">
+                            <CategoryBadge
+                                color={
+                                    reviewRootCauseColors[item.primaryRootCause]
+                                }
+                                label={
+                                    reviewRootCauseLabels[item.primaryRootCause]
+                                }
+                            />
 
-                        {prNumber !== null && (
-                            <HoverCard
-                                width={300}
-                                shadow="md"
-                                openDelay={150}
-                                withinPortal
-                            >
-                                <HoverCard.Target>
-                                    <Box>
-                                        <Badge
-                                            size="sm"
-                                            radius="sm"
-                                            variant="light"
-                                            color="green"
-                                            leftSection={
-                                                <MantineIcon
-                                                    icon={IconGitPullRequest}
-                                                    size={11}
-                                                />
-                                            }
-                                        >
-                                            #{prNumber}
-                                        </Badge>
-                                    </Box>
-                                </HoverCard.Target>
-                                <HoverCard.Dropdown>
-                                    <ReviewPrHoverCard item={item} />
-                                </HoverCard.Dropdown>
-                            </HoverCard>
-                        )}
+                            {prNumber !== null && (
+                                <HoverCard
+                                    width={300}
+                                    shadow="md"
+                                    openDelay={150}
+                                    withinPortal
+                                >
+                                    <HoverCard.Target>
+                                        <Box>
+                                            <Badge
+                                                size="sm"
+                                                radius="sm"
+                                                variant="light"
+                                                color="green"
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={
+                                                            IconGitPullRequest
+                                                        }
+                                                        size={11}
+                                                    />
+                                                }
+                                            >
+                                                #{prNumber}
+                                            </Badge>
+                                        </Box>
+                                    </HoverCard.Target>
+                                    <HoverCard.Dropdown>
+                                        <ReviewPrHoverCard item={item} />
+                                    </HoverCard.Dropdown>
+                                </HoverCard>
+                            )}
+                        </Group>
+
+                        <ReviewAssigneeMenu
+                            projectUuid={
+                                item.projectUuid ??
+                                item.latestFinding?.projectUuid ??
+                                null
+                            }
+                            fingerprint={item.fingerprint}
+                            assignedToUserUuid={item.assignedToUserUuid}
+                            className={
+                                item.assignedToUserUuid
+                                    ? undefined
+                                    : styles.assigneeUnassigned
+                            }
+                        />
                     </Group>
                 </Stack>
-            </UnstyledButton>
+            </Box>
 
             {hasPreview && !isPreviewBuilding && previewHref && (
                 <Box
@@ -184,6 +220,9 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                     variant="filled"
                     loading={createWriteback.isLoading}
                     className={styles.startAction}
+                    onPointerDown={(e: React.PointerEvent) =>
+                        e.stopPropagation()
+                    }
                     onClick={(e: React.MouseEvent) => {
                         e.stopPropagation();
                         updateStatus.mutate({

@@ -14,6 +14,7 @@ import {
     ApiUpdateAiOrganizationSettingsResponse,
     assertRegisteredAccount,
     KnexPaginateArgs,
+    UpdateAiAgentReviewItemAssignee,
     UpdateAiAgentReviewItemStatus,
     UpdateAiOrganizationSettings,
     type ApiAiAgentReviewItemWritebackPreviewResponse,
@@ -285,6 +286,34 @@ export class AiAgentAdminController extends BaseController {
                 body,
             ),
         };
+    }
+
+    /**
+     * Set the assignee on an AI agent review item
+     * @summary Update AI agent review item assignee
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('/review-items/{fingerprint}/assignee')
+    @OperationId('updateAiAgentReviewItemAssignee')
+    async updateReviewItemAssignee(
+        @Request() req: express.Request,
+        @Path() fingerprint: string,
+        @Body() body: UpdateAiAgentReviewItemAssignee,
+    ): Promise<ApiAiAgentReviewItemResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results =
+            await this.getAiAgentAdminService().updateReviewItemAssignee(
+                toSessionUser(req.account),
+                fingerprint,
+                body.assignedToUserUuid,
+            );
+        return { status: 'ok', results };
     }
 
     /**

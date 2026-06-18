@@ -647,6 +647,10 @@ export type UpdateAiAgentReviewItemStatus = {
     dismissedReason: AiAgentReviewItemDismissedReason | null;
 };
 
+export type UpdateAiAgentReviewItemAssignee = {
+    assignedToUserUuid: string | null;
+};
+
 export type ApiAiAgentReviewItemResponse = ApiSuccess<AiAgentReviewItemSummary>;
 
 /**
