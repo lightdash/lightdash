@@ -601,9 +601,11 @@ const renderContentMentionItem = (
 const generateContentMentionSuggestion = ({
     getProjectUuid,
     getPriorityItems,
+    onPopupOpenChange,
 }: {
     getProjectUuid: () => string | undefined;
     getPriorityItems: () => ContentMentionSuggestionItem[];
+    onPopupOpenChange?: (open: boolean) => void;
 }): MentionOptions['suggestion'] => ({
     char: '@',
     allowSpaces: true,
@@ -681,6 +683,7 @@ const generateContentMentionSuggestion = ({
 
         return {
             onStart: (props) => {
+                onPopupOpenChange?.(true);
                 component = new ReactRenderer(SuggestionList, {
                     props: {
                         ...props,
@@ -723,12 +726,14 @@ const generateContentMentionSuggestion = ({
             },
             onKeyDown: (props) => {
                 if (props.event.key === 'Escape') {
+                    onPopupOpenChange?.(false);
                     popup?.hide();
                     return true;
                 }
                 return component?.ref?.onKeyDown(props) ?? false;
             },
             onExit: () => {
+                onPopupOpenChange?.(false);
                 popup?.destroy();
                 component?.destroy();
                 popup = undefined;
@@ -741,9 +746,11 @@ const generateContentMentionSuggestion = ({
 export const createContentMentionExtension = ({
     getProjectUuid,
     getPriorityItems,
+    onPopupOpenChange,
 }: {
     getProjectUuid: () => string | undefined;
     getPriorityItems: () => ContentMentionSuggestionItem[];
+    onPopupOpenChange?: (open: boolean) => void;
 }) =>
     Mention.extend({
         name: CONTENT_MENTION_NAME,
@@ -790,6 +797,7 @@ export const createContentMentionExtension = ({
         suggestion: generateContentMentionSuggestion({
             getProjectUuid,
             getPriorityItems,
+            onPopupOpenChange,
         }),
         renderText: ({ node }) =>
             typeof node.attrs.label === 'string' ? node.attrs.label : '',
