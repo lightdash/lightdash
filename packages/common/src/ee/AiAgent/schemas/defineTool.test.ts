@@ -46,7 +46,7 @@ describe('defineTool', () => {
         ).toEqual({ type: 'error-text', value: 'Nope' });
     });
 
-    it('keeps MCP input schemas ref-free', () => {
+    it('builds agent validation and keeps MCP input schemas ref-free', () => {
         const sharedSchema = z.object({ value: z.string() });
         const input = {
             first: { value: 'one' },
@@ -71,9 +71,24 @@ describe('defineTool', () => {
             },
         });
 
+        const agentInputSchema = tool.for('agent').inputSchema;
+        const { jsonSchema, validate } = agentInputSchema;
+        expect(jsonSchema).toEqual(
+            zodToJsonSchema(inputSchema, {
+                $refStrategy: 'root',
+                target: 'jsonSchema7',
+            }),
+        );
+        expect(validate?.(input)).toEqual({
+            success: true,
+            value: input,
+        });
         expect(
-            JSON.stringify(tool.for('agent').inputSchema.jsonSchema),
-        ).toContain('"$ref"');
+            validate?.({
+                first: { value: 1 },
+                second: { value: 'two' },
+            }),
+        ).toMatchObject({ success: false });
 
         const mcpInputSchema = tool.for('mcp').inputSchema;
         expect(mcpInputSchema).not.toBe(inputSchema);

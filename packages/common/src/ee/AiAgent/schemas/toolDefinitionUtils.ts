@@ -1,6 +1,3 @@
-import { jsonSchema, type Schema } from 'ai';
-import { type z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 import {
     type AgentToModelOutput,
     type McpErrorResult,
@@ -36,27 +33,6 @@ export const defaultAgentToModelOutput: AgentToModelOutput<
     output.metadata.status === 'error'
         ? { type: 'error-text', value: output.result }
         : { type: 'text', value: output.result };
-
-export const createAgentInputSchema = <TInput extends z.ZodTypeAny>(
-    inputSchema: TInput,
-): Schema<z.infer<TInput>> => {
-    const agentJsonSchema = zodToJsonSchema(inputSchema, {
-        $refStrategy: 'root',
-        target: 'jsonSchema7',
-    }) as Schema<z.infer<TInput>>['jsonSchema'];
-
-    return jsonSchema<z.infer<TInput>>(agentJsonSchema, {
-        validate: (value) => {
-            const result = inputSchema.safeParse(value);
-
-            if (result.success) {
-                return { success: true, value: result.data as z.infer<TInput> };
-            }
-
-            return { success: false, error: result.error };
-        },
-    });
-};
 
 const text = (textContent: string): McpTextResult => ({
     content: [{ type: 'text', text: textContent }],

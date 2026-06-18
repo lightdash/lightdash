@@ -1,5 +1,6 @@
 import snakeCase from 'lodash/snakeCase';
 import { type z } from 'zod';
+import { createAgentInputSchema } from './agentInputSchema';
 import {
     type AgentToolConfig,
     type AgentToolView,
@@ -12,7 +13,6 @@ import {
 import { createMcpCompatibleInputSchema } from './McpSchemaCompatLayer';
 import {
     assertAvailable,
-    createAgentInputSchema,
     createMcpToolResultBuilders,
     defaultAgentToModelOutput,
     resolveDescription,
