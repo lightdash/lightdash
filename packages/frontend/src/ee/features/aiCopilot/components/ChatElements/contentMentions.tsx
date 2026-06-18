@@ -14,6 +14,7 @@ import {
 import { Group, Text } from '@mantine-8/core';
 import {
     IconBrandGithub,
+    IconBrandGitlab,
     IconCircleCheck,
     IconFile,
     IconLayoutDashboard,
@@ -98,14 +99,15 @@ const REPOSITORY_MENTION_GROUP = 'repository';
 const REPOSITORY_MENTION_CONTENT_TYPE = 'repository';
 const MAX_REPOSITORY_SUGGESTIONS = 8;
 
-// A GitHub repository the org's installation can access. Like file mentions it
-// carries no context payload — picking it inserts `owner/repo` as plain text so
-// the agent reads that repository's mount directly (it's the user pre-selecting
-// which repo to focus on, so the agent doesn't have to ask).
+// A GitHub or GitLab repository the org's installation can access. Like file
+// mentions it carries no context payload — picking it inserts `owner/repo` as
+// plain text so the agent reads that repository's mount directly (it's the user
+// pre-selecting which repo to focus on, so the agent doesn't have to ask).
 export type RepositoryMentionSuggestionItem = SuggestionItem & {
     kind: 'repository';
     fullName: string;
     ownerLogin: string;
+    provider?: 'github' | 'gitlab';
     group: typeof REPOSITORY_MENTION_GROUP;
 };
 
@@ -223,6 +225,7 @@ const getRepositorySuggestions = async (
         kind: 'repository',
         fullName: repo.fullName,
         ownerLogin: repo.ownerLogin,
+        provider: repo.provider,
         group: REPOSITORY_MENTION_GROUP,
     }));
 };
@@ -522,7 +525,11 @@ const renderRepositoryMentionItem = (
         >
             <Group wrap="nowrap" gap="xs" w="100%">
                 <MantineIcon
-                    icon={IconBrandGithub}
+                    icon={
+                        item.provider === 'gitlab'
+                            ? IconBrandGitlab
+                            : IconBrandGithub
+                    }
                     size="sm"
                     color="ldGray.6"
                 />

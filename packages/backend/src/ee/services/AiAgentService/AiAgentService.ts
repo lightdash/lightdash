@@ -6136,8 +6136,28 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     );
                 }
             };
-        // The installation-browse path (buildRepoFs) is GitHub-App-only.
         const onRepoFsTiming = makeRepoFsTiming('github');
+        // The browse path supports GitHub (installation, user+org union) and
+        // GitLab (org install, single token). Determine the project's provider
+        // once so the listing/mounting/search callbacks pick the right backend.
+        let repoProviderPromise: Promise<'github' | 'gitlab' | null> | null =
+            null;
+        const getRepoProvider = () => {
+            if (!repoProviderPromise) {
+                repoProviderPromise = (async () => {
+                    const project = await this.projectModel.get(projectUuid);
+                    switch (project.dbtConnection.type) {
+                        case DbtProjectType.GITHUB:
+                            return 'github';
+                        case DbtProjectType.GITLAB:
+                            return 'gitlab';
+                        default:
+                            return null;
+                    }
+                })();
+            }
+            return repoProviderPromise;
+        };
         let installationAccessPromise: ReturnType<
             typeof this.aiWritebackService.getInstallationRepoReadAccess
         > | null = null;
@@ -6150,6 +6170,21 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     });
             }
             return installationAccessPromise;
+        };
+        let gitlabAccessPromise: ReturnType<
+            typeof this.aiWritebackService.getGitlabInstallationRepoReadAccess
+        > | null = null;
+        const getGitlabAccess = () => {
+            if (!gitlabAccessPromise) {
+                gitlabAccessPromise =
+                    this.aiWritebackService.getGitlabInstallationRepoReadAccess(
+                        {
+                            user,
+                            projectUuid,
+                        },
+                    );
+            }
+            return gitlabAccessPromise;
         };
 
         const buildDbtRepoFs = async (): Promise<RepoFs> => {
@@ -6173,6 +6208,24 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             owner: string,
             repo: string,
         ): Promise<RepoFs> => {
+            if ((await getRepoProvider()) === 'gitlab') {
+                const access = await getGitlabAccess();
+                const { branch, token } = await access.resolveRepoAccess(
+                    owner,
+                    repo,
+                );
+                return new RepoFs(
+                    createGitlabRepoSource({
+                        owner,
+                        repo,
+                        branch,
+                        token,
+                        hostDomain: access.hostDomain,
+                        // No subPath => the whole repo is readable, root-relative.
+                        onTiming: makeRepoFsTiming('gitlab'),
+                    }),
+                );
+            }
             const access = await getInstallationAccess();
             // The token is per-repo: org-installation repos read with the
             // installation token, the user's own repos with their user token.
@@ -6205,6 +6258,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         project.dbtConnection.type === DbtProjectType.GITLAB;
                     return MountingRepoFileSystem.create({
                         listRepos: async () => {
+                            if ((await getRepoProvider()) === 'gitlab') {
+                                this.prometheusMetrics?.incrementRepoFsGitlabRequest(
+                                    'list',
+                                );
+                                return (await getGitlabAccess()).listRepos();
+                            }
                             this.prometheusMetrics?.incrementRepoFsGithubRequest(
                                 'list',
                             );
@@ -6214,6 +6273,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         buildDbtRepoFs,
                         buildRepoFs,
                         searchOwner: async (owner, query) => {
+                            // GitLab's RepoSource has no server-side code search
+                            // yet; the shell's grep falls back to reading files,
+                            // so there are no owner-wide search hits to surface.
+                            if ((await getRepoProvider()) === 'gitlab') {
+                                return [];
+                            }
                             const { installationToken, userToken } =
                                 await getInstallationAccess();
                             // Code search is token-scoped: the installation
