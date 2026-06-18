@@ -1697,40 +1697,42 @@ export class ScimService extends BaseService {
             return this.convertLightdashGroupToScimGroup(updatedGroup);
         } catch (error) {
             if (error instanceof ScimError) {
-                switch (error.constructor) {
-                    case ParameterError:
-                    case InvalidScimPatchRequest:
-                        throw new ScimError({
-                            detail: error.message,
-                            status: 400,
-                            scimType: 'invalidValue',
-                        });
-                    case NotFoundError:
-                        throw new ScimError({
-                            detail: `Group with UUID ${groupUuid} not found`,
-                            status: 404,
-                            scimType: 'noTarget',
-                        });
-                    case ScimError:
-                        throw error; // pass through scim errors
-                    default:
-                        this.logger.error(
-                            `Failed to patch SCIM group: ${getErrorMessage(
-                                error,
-                            )}`,
-                        );
-                        const scimError = new ScimError({
-                            detail: 'Failed to patch SCIM group',
-                            status: ScimService.getErrorStatus(error) ?? 500,
-                        });
-                        Sentry.captureException(scimError);
-                        throw scimError;
-                }
+                throw error;
             }
-            throw new ScimError({
-                detail: 'Failed to patch SCIM group: unknown error',
+            if (
+                error instanceof ParameterError ||
+                error instanceof InvalidScimPatchRequest
+            ) {
+                throw new ScimError({
+                    detail: error.message,
+                    status: 400,
+                    scimType: 'invalidValue',
+                });
+            }
+            if (error instanceof NotFoundError) {
+                throw new ScimError({
+                    detail: `Group with UUID ${groupUuid} not found`,
+                    status: 404,
+                    scimType: 'noTarget',
+                });
+            }
+            if (error instanceof AlreadyExistsError) {
+                throw new ScimError({
+                    detail: error.message,
+                    status: 409,
+                    scimType: 'uniqueness',
+                });
+            }
+
+            this.logger.error(
+                `Failed to patch SCIM group: ${getErrorMessage(error)}`,
+            );
+            const scimError = new ScimError({
+                detail: 'Failed to patch SCIM group',
                 status: ScimService.getErrorStatus(error) ?? 500,
             });
+            Sentry.captureException(scimError);
+            throw scimError;
         }
     }
 
