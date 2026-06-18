@@ -5,6 +5,7 @@ import {
     getErrorMessage,
 } from '@lightdash/common';
 import { promises as fs } from 'fs';
+import fetch from 'node-fetch';
 import * as path from 'path';
 import globalState from '../globalState';
 
@@ -35,6 +36,41 @@ export const loadManifest = async ({
 }: LoadManifestArgs): Promise<DbtManifest> => {
     const filename = await getManifestPath(targetDir);
     return loadManifestFromFile(filename);
+};
+
+export const isHttpUrl = (value: string): boolean => {
+    try {
+        const { protocol } = new URL(value);
+        return protocol === 'http:' || protocol === 'https:';
+    } catch {
+        return false;
+    }
+};
+
+export const loadManifestFromUrl = async (
+    url: string,
+): Promise<DbtManifest> => {
+    globalState.debug(`> Loading dbt manifest from ${url}`);
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`${response.status} ${response.statusText}`);
+        }
+        const manifest = JSON.parse(await response.text()) as DbtManifest;
+        return manifest;
+    } catch (err: unknown) {
+        const msg = getErrorMessage(err);
+        throw new Error(`Could not load manifest from ${url}:\n  ${msg}`);
+    }
+};
+
+export const loadCombineManifest = async (
+    pathOrUrl: string,
+): Promise<DbtManifest> => {
+    if (isHttpUrl(pathOrUrl)) {
+        return loadManifestFromUrl(pathOrUrl);
+    }
+    return loadManifestFromFile(path.resolve(pathOrUrl));
 };
 
 export type CombineManifestsResult = {

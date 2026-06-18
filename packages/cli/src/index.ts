@@ -531,8 +531,8 @@ program
     )
     .option('--ignore-errors', 'Allows deploy with errors on compile', false)
     .option(
-        '--combine-manifest <path>',
-        'Path to an additional dbt manifest.json. Models present in this file but missing from the preview manifest are merged in so the preview shows the full project. The preview-generated manifest always wins on conflicts.',
+        '--combine-manifest <path-or-url>',
+        'Path or http(s) URL to an additional dbt manifest.json. Models present in this file but missing from the preview manifest are merged in so the preview shows the full project. The preview-generated manifest always wins on conflicts.',
     )
     .option(
         '--table-configuration <prod|all>',
@@ -660,8 +660,8 @@ program
     )
     .option('--ignore-errors', 'Allows deploy with errors on compile', false)
     .option(
-        '--combine-manifest <path>',
-        'Path to an additional dbt manifest.json. Models present in this file but missing from the preview manifest are merged in so the preview shows the full project. The preview-generated manifest always wins on conflicts.',
+        '--combine-manifest <path-or-url>',
+        'Path or http(s) URL to an additional dbt manifest.json. Models present in this file but missing from the preview manifest are merged in so the preview shows the full project. The preview-generated manifest always wins on conflicts.',
     )
     .option(
         '--table-configuration <prod|all>',
@@ -873,8 +873,8 @@ program
     )
     .option('--ignore-errors', 'Allows deploy with errors on compile', false)
     .option(
-        '--combine-manifest <path>',
-        'Path to an additional dbt manifest.json. Models present in this file but missing from the deploy manifest are merged in so the deploy includes the full project. The deploy-generated manifest always wins on conflicts.',
+        '--combine-manifest <path-or-url>',
+        'Path or http(s) URL to an additional dbt manifest.json. Models present in this file but missing from the deploy manifest are merged in so the deploy includes the full project. The deploy-generated manifest always wins on conflicts.',
     )
     .option(
         '--start-of-week <number>',
