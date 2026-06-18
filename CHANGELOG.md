@@ -1,3 +1,10 @@
+## [0.3196.1](https://github.com/lightdash/lightdash/compare/0.3196.0...0.3196.1) (2026-06-18)
+
+
+### Bug Fixes
+
+* unpin/pin sidebar with hook ([#24491](https://github.com/lightdash/lightdash/issues/24491)) ([4633008](https://github.com/lightdash/lightdash/commit/4633008600f9a470b7dac0060ca88c52c78e5cc8))
+
 # [0.3196.0](https://github.com/lightdash/lightdash/compare/0.3195.0...0.3196.0) (2026-06-18)
 
 
