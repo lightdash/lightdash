@@ -535,7 +535,9 @@ export class ExcelService {
         const workbook = new Excel.stream.xlsx.WorkbookWriter({
             filename: tempFilePath,
             useStyles: true,
-            useSharedStrings: true,
+            // Inline strings avoid buffering a shared-strings table that
+            // exceeds V8's max string length (~512MB) on large exports.
+            useSharedStrings: false,
         });
         const worksheet = workbook.addWorksheet('Sheet1');
 
