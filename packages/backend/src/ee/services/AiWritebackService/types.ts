@@ -4,6 +4,7 @@ import type {
     SupportedDbtVersions,
     WarehouseTypes,
 } from '@lightdash/common';
+import type { Sandbox } from 'e2b';
 import type { AiWritebackFailureStage } from '../../../analytics/LightdashAnalytics';
 import type { AiWritebackThreadWithPrUrl } from '../../models/AiWritebackThreadModel';
 import type { GitProvider } from './providers/GitProvider';
@@ -103,6 +104,61 @@ export type CloneTarget = {
 };
 
 export type SetStage = (stage: AiWritebackFailureStage) => void;
+
+/**
+ * Per-turn agent invocation parameters produced by a {@link CodingAgentConfig}:
+ * the assembled system prompt plus the Claude Code CLI knobs that differ between
+ * the dbt-writeback specialization and the general coding agent (tool allowlist,
+ * extra `--add-dir` mounts, model).
+ */
+export type CodingAgentSetup = {
+    systemPrompt: string;
+    /** Claude Code `--allowedTools` string for this mode. */
+    allowedTools: string;
+    /** Extra `--add-dir` mounts beyond the repo CWD (e.g. /tmp, skills dirs). */
+    addDirs: string[];
+    /** Anthropic model the CLI runs with. */
+    model: string;
+};
+
+/**
+ * The injected, mode-specific half of a coding-agent run. The shared core
+ * ({@link AiWritebackService.runCodingAgent}) owns sandbox lifecycle, network
+ * lockdown, stream parsing, the signed-commit → PR pipeline, timeouts, and
+ * analytics; this config supplies only what varies between the dbt-writeback
+ * specialization and the general `editRepo` agent. dbt writeback is itself just
+ * one config, so "no in-sandbox build / no Bash" for the general agent is a
+ * property of its config, not a fork of the core.
+ */
+export type CodingAgentConfig = {
+    /** Tags logs/analytics and selects the few remaining mode branches. */
+    mode: 'dbt-writeback' | 'general';
+    /** E2B template a fresh sandbox is created from (dbt vs lean image). */
+    resolveTemplateRef: () => string;
+    /** Extra options merged into `sandbox.git.clone` (e.g. a blob filter). */
+    cloneExtraOptions: Record<string, unknown>;
+    /**
+     * Stage any sandbox prerequisites that inform the prompt (repo context,
+     * profiles, tree listing) and build the system prompt + CLI knobs for this
+     * turn. Runs after the repo is cloned/resumed and before the agent runs.
+     */
+    buildAgentSetup: (input: {
+        sandbox: Sandbox;
+        turn: TurnContext;
+        repository: string;
+    }) => Promise<CodingAgentSetup>;
+    /**
+     * Hook run immediately before the Claude CLI invocation — for side effects
+     * that don't belong in the prompt (dbt: install the secret-stripping compile
+     * wrapper, push warehouse skills, reset the compile-timings log).
+     */
+    beforeAgentRun: (sandbox: Sandbox, turn: TurnContext) => Promise<void>;
+    /**
+     * Hook run immediately after the Claude CLI exits — for diagnostics that
+     * depend on what the agent did (dbt: read + report the compile timings).
+     */
+    afterAgentRun: (sandbox: Sandbox) => Promise<void>;
+};
 
 export type TurnContext = {
     organizationUuid: string;

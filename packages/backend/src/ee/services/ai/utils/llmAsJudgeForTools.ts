@@ -49,6 +49,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     getProjectInfo: 'get_project_info',
     proposeChange: 'propose_change',
     editDbtProject: 'edit_dbt_project',
+    editRepo: 'edit_repo',
     syncDbtProject: 'sync_dbt_project',
     exploreRepo: 'explore_repo',
     discoverRepos: 'discover_repos',

@@ -88,10 +88,10 @@ import type {
     AiWritebackSource,
     AppliedChanges,
     CloneTarget,
+    CodingAgentConfig,
     GitInstallation,
     SetStage,
     TurnContext,
-    WarehouseSkillKey,
 } from './types';
 import {
     classifyToolStep,
@@ -918,14 +918,9 @@ export class AiWritebackService extends BaseService {
 
     private async createSandbox(
         projectUuid: string,
+        templateRef: string,
     ): Promise<{ sandbox: Sandbox; durationMs: number }> {
         const start = performance.now();
-        const { e2bAiWritebackTemplateName, e2bAiWritebackTemplateTag } =
-            this.lightdashConfig.appRuntime;
-        const templateRef = resolveSandboxTemplateRef({
-            name: e2bAiWritebackTemplateName,
-            tag: e2bAiWritebackTemplateTag,
-        });
         const sandbox = await Sandbox.create(templateRef, {
             timeoutMs: SANDBOX_TIMEOUT_MS,
             apiKey: this.getE2bApiKey(),
@@ -1065,6 +1060,21 @@ export class AiWritebackService extends BaseService {
      *   branch (updates the existing PR), pause the sandbox again.
      */
     async run(args: AiWritebackRunArgs): Promise<AiWritebackRunResult> {
+        return this.runCodingAgent(args, this.dbtWritebackConfig());
+    }
+
+    /**
+     * Shared coding-agent core: sandbox lifecycle, network lockdown, the agent
+     * invocation + stream parsing, the signed-commit → PR pipeline, timeouts,
+     * and analytics. The mode-specific half (template, clone options, prompt,
+     * tool allowlist, in-sandbox prep/verification) is supplied by `config`.
+     * {@link run} wires the dbt-writeback config; the general `editRepo` agent
+     * wires its own lean, no-Bash config.
+     */
+    private async runCodingAgent(
+        args: AiWritebackRunArgs,
+        config: CodingAgentConfig,
+    ): Promise<AiWritebackRunResult> {
         const {
             user,
             projectUuid,
@@ -1182,43 +1192,29 @@ export class AiWritebackService extends BaseService {
                 existingRow: turn.existingRow,
                 adoptBranch: adoptedPr?.headRef ?? null,
                 setStage,
+                templateRef: config.resolveTemplateRef(),
+                cloneExtraOptions: config.cloneExtraOptions,
             });
 
             setStage('agent');
-            const repoContext = await this.gatherRepoContext(
+            const setup = await config.buildAgentSetup({
                 sandbox,
-                turn.gitConnection.projectSubPath,
-            );
-            // Stage a credential-free profiles copy host-side so the agent
-            // doesn't burn turns discovering profiles.yml and hand-stripping
-            // Jinja (mkdir + cp + edit). Deterministic string work — no reason
-            // to spend LLM round-trips on it.
-            const profilesStaged = await this.prepareProfiles(
-                sandbox,
-                turn.gitConnection.projectSubPath,
-            );
-            const skillKey = warehouseTypeToSkillKey(turn.warehouseType);
-            const systemPrompt = buildSystemPrompt(
-                turn.gitConnection.projectSubPath,
-                {
-                    projectName: turn.projectName,
-                    repository,
-                    repoContext,
-                    warehouseType: turn.warehouseType,
-                    hasWarehouseSkill: skillKey !== null,
-                    profilesStaged,
-                },
-            );
+                turn,
+                repository,
+            });
             const agent = await this.runAgentInSandbox({
                 sandbox,
-                systemPrompt,
+                systemPrompt: setup.systemPrompt,
                 prompt,
                 isResume: turn.isResume,
                 source,
                 recordStep,
-                skillKey,
+                allowedTools: setup.allowedTools,
+                addDirs: setup.addDirs,
+                model: setup.model,
                 warehouseType: turn.warehouseType,
-                dbtVersion: turn.dbtVersion,
+                beforeAgentRun: () => config.beforeAgentRun(sandbox!, turn),
+                afterAgentRun: () => config.afterAgentRun(sandbox!),
             });
 
             const {
@@ -1530,12 +1526,16 @@ export class AiWritebackService extends BaseService {
         existingRow,
         adoptBranch,
         setStage,
+        templateRef,
+        cloneExtraOptions,
     }: {
         projectUuid: string;
         cloneTarget: CloneTarget;
         existingRow: AiWritebackThreadWithPrUrl | null;
         adoptBranch: string | null;
         setStage: SetStage;
+        templateRef: string;
+        cloneExtraOptions: Record<string, unknown>;
     }): Promise<Sandbox> {
         setStage('sandbox');
 
@@ -1562,7 +1562,7 @@ export class AiWritebackService extends BaseService {
             }
         }
 
-        const { sandbox } = await this.createSandbox(projectUuid);
+        const { sandbox } = await this.createSandbox(projectUuid, templateRef);
 
         setStage('clone');
         // Clone over HTTPS with the access token as the password (provider-
@@ -1576,6 +1576,7 @@ export class AiWritebackService extends BaseService {
             password: cloneTarget.password,
             depth: 1,
             timeoutMs: GIT_TIMEOUT_MS,
+            ...cloneExtraOptions,
             ...(adoptBranch ? { branch: adoptBranch } : {}),
         });
         this.logger.info(
@@ -1706,9 +1707,12 @@ export class AiWritebackService extends BaseService {
         isResume,
         source,
         recordStep,
-        skillKey,
+        allowedTools,
+        addDirs,
+        model,
         warehouseType,
-        dbtVersion,
+        beforeAgentRun,
+        afterAgentRun,
     }: {
         sandbox: Sandbox;
         systemPrompt: string;
@@ -1716,54 +1720,26 @@ export class AiWritebackService extends BaseService {
         isResume: boolean;
         source: AiWritebackSource;
         recordStep: (step: AiWritebackStep) => void;
-        skillKey: WarehouseSkillKey | null;
+        /** Claude Code `--allowedTools` string for this mode. */
+        allowedTools: string;
+        /** Extra `--add-dir` mounts beyond the repo CWD. */
+        addDirs: string[];
+        /** Anthropic model the CLI runs with. */
+        model: string;
+        /** For run-summary logging only; null when no warehouse is connected. */
         warehouseType: WarehouseTypes | null;
-        dbtVersion: SupportedDbtVersions;
+        /** Mode-specific setup run just before the CLI (e.g. dbt compile wrapper). */
+        beforeAgentRun: () => Promise<void>;
+        /** Mode-specific teardown run just after the CLI (e.g. dbt compile timings). */
+        afterAgentRun: () => Promise<void>;
     }): Promise<{ stdout: string; exitCode: number }> {
         await sandbox.files.write(SYSTEM_PROMPT_PATH, systemPrompt);
         await sandbox.files.write(PROMPT_PATH, prompt);
 
-        // Install the compile wrapper. The agent runs ${COMPILE_WRAPPER_PATH}
-        // (allowlisted) instead of `lightdash compile` directly, and the wrapper
-        // drops secrets from the environment before exec'ing the real CLI — so a
-        // malicious dbt model in the checkout cannot read them via Jinja
-        // `env_var(...)` during the compile. `exec` keeps the process tree flat;
-        // the `unset` list is fixed (no interpolation of untrusted input).
-        const unsetFlags = COMPILE_STRIPPED_ENV_VARS.map(
-            (name) => `-u ${name}`,
-        ).join(' ');
-        // Prepend the project's dbt-version venv bin to PATH so the bare `dbt`
-        // the Lightdash CLI invokes resolves to the version the project is
-        // configured to use (the image installs every supported version in its
-        // own venv). `lightdash` still resolves via the inherited PATH. This is
-        // the only place `dbt` runs — the agent is allowlisted to this wrapper.
-        const dbtBin = dbtSandboxVenvBin(dbtVersion);
-        // Time each compile and append `<elapsedMs> <exitCode>` to a log we read
-        // after the run. We drop `exec` (one extra shell frame) so the timing
-        // can be recorded after the child returns; secrets are still stripped via
-        // `env -u` for the compile child, so the security property is unchanged.
-        await sandbox.files.write(
-            COMPILE_WRAPPER_PATH,
-            `#!/usr/bin/env bash\n` +
-                `__ld_start=$(date +%s%3N)\n` +
-                `env ${unsetFlags} PATH="${dbtBin}:$PATH" lightdash compile "$@"\n` +
-                `__ld_code=$?\n` +
-                `echo "$(( $(date +%s%3N) - __ld_start )) $__ld_code" >> ${COMPILE_TIMINGS_PATH}\n` +
-                `exit $__ld_code\n`,
-        );
-        await sandbox.commands.run(`chmod +x ${COMPILE_WRAPPER_PATH}`);
-        // Reset the timings log each turn — the sandbox filesystem persists across
-        // pause/resume, so a resumed turn would otherwise double-count prior runs.
-        await sandbox.files.write(COMPILE_TIMINGS_PATH, '');
-
-        // Push the warehouse skill files alongside the prompts. `shared.md`
-        // always; the dialect file only when one exists for this warehouse.
-        // The system prompt points the agent here before any `type:`/SQL edit.
-        const skills = await loadWarehouseSkills(skillKey);
-        await sandbox.files.write(SHARED_SKILL_PATH, skills.shared);
-        if (skills.warehouse !== null) {
-            await sandbox.files.write(WAREHOUSE_SKILL_PATH, skills.warehouse);
-        }
+        // Mode-specific in-sandbox preparation (dbt: install the secret-stripping
+        // compile wrapper, push warehouse skills, reset the compile-timings log;
+        // general: nothing — no toolchain, no Bash).
+        await beforeAgentRun();
 
         // Run state folded from Claude Code's stream-json output. The final
         // assistant message wins for `assistantText` — it carries the
@@ -1856,22 +1832,19 @@ export class AiWritebackService extends BaseService {
         try {
             result = await sandbox.commands.run(
                 `cat ${PROMPT_PATH} | claude -p ${continueFlag}` +
-                    `--model ${CLAUDE_MODEL} ` +
+                    `--model ${model} ` +
                     `--append-system-prompt-file ${SYSTEM_PROMPT_PATH} ` +
                     // stream-json emits one event per line on stdout (assistant
                     // messages, tool_use blocks, tool_results, final cost summary).
                     // --verbose is required by the CLI when combining -p with
                     // stream-json output.
                     '--output-format stream-json --verbose ' +
-                    // Claude Code confines Write/Edit to the cwd workspace, so the
-                    // agent cannot write the PR metadata to /tmp (it silently falls
-                    // back to the repo root) unless /tmp is an added directory.
-                    // The skills dir is outside the repo too, so it likewise needs
-                    // to be added or the agent's Read of warehouse.md is refused.
-                    // CLAUDE_SKILLS_DIR holds the installed Agent Skills, added for
-                    // the same reason — the agent reads their resource files from there.
-                    `--add-dir /tmp --add-dir ${SKILLS_DIR} --add-dir ${CLAUDE_SKILLS_DIR} ` +
-                    `--allowedTools "${ALLOWED_TOOLS}"`,
+                    // Claude Code confines Write/Edit to the cwd workspace, so any
+                    // path the agent must write/read outside CWD (e.g. /tmp for PR
+                    // metadata, the skills dirs) has to be added explicitly or the
+                    // operation is refused. The mounts differ per mode.
+                    `${addDirs.map((dir) => `--add-dir ${dir}`).join(' ')} ` +
+                    `--allowedTools "${allowedTools}"`,
                 {
                     cwd: CWD,
                     timeoutMs: RUN_TIMEOUT_MS,
@@ -1954,9 +1927,20 @@ export class AiWritebackService extends BaseService {
             isResume,
         });
 
-        // Report how much of the agent stage went to `lightdash compile` (each
-        // invocation timed by the wrapper) — the prime suspect for writeback
-        // latency. Best-effort: never fail the run over a missing timings file.
+        // Mode-specific teardown (dbt: read + report the `lightdash compile`
+        // timings the wrapper accumulated; general: nothing).
+        await afterAgentRun();
+
+        return { stdout: assistantText, exitCode: result.exitCode };
+    }
+
+    /**
+     * Report how much of the agent stage went to `lightdash compile` (each
+     * invocation timed by the dbt compile wrapper) — the prime suspect for
+     * writeback latency. Best-effort: never fail the run over a missing timings
+     * file. dbt-writeback only; the general agent has no compile step.
+     */
+    private async reportCompileTimings(sandbox: Sandbox): Promise<void> {
         try {
             const timings = await sandbox.commands.run(
                 `cat ${COMPILE_TIMINGS_PATH} 2>/dev/null || true`,
@@ -2008,8 +1992,115 @@ export class AiWritebackService extends BaseService {
                 )}`,
             );
         }
+    }
 
-        return { stdout: assistantText, exitCode: result.exitCode };
+    /**
+     * Install the dbt compile wrapper, push the warehouse skill files, and reset
+     * the compile-timings log — the in-sandbox prerequisites for a dbt-writeback
+     * turn. Extracted as the `beforeAgentRun` hook of {@link dbtWritebackConfig}.
+     */
+    private static async prepareDbtAgentRun(
+        sandbox: Sandbox,
+        turn: TurnContext,
+    ): Promise<void> {
+        // Install the compile wrapper. The agent runs ${COMPILE_WRAPPER_PATH}
+        // (allowlisted) instead of `lightdash compile` directly, and the wrapper
+        // drops secrets from the environment before exec'ing the real CLI — so a
+        // malicious dbt model in the checkout cannot read them via Jinja
+        // `env_var(...)` during the compile. The `unset` list is fixed (no
+        // interpolation of untrusted input).
+        const unsetFlags = COMPILE_STRIPPED_ENV_VARS.map(
+            (name) => `-u ${name}`,
+        ).join(' ');
+        // Prepend the project's dbt-version venv bin to PATH so the bare `dbt`
+        // the Lightdash CLI invokes resolves to the version the project is
+        // configured to use (the image installs every supported version in its
+        // own venv). `lightdash` still resolves via the inherited PATH. This is
+        // the only place `dbt` runs — the agent is allowlisted to this wrapper.
+        const dbtBin = dbtSandboxVenvBin(turn.dbtVersion);
+        // Time each compile and append `<elapsedMs> <exitCode>` to a log we read
+        // after the run. We drop `exec` (one extra shell frame) so the timing
+        // can be recorded after the child returns; secrets are still stripped via
+        // `env -u` for the compile child, so the security property is unchanged.
+        await sandbox.files.write(
+            COMPILE_WRAPPER_PATH,
+            `#!/usr/bin/env bash\n` +
+                `__ld_start=$(date +%s%3N)\n` +
+                `env ${unsetFlags} PATH="${dbtBin}:$PATH" lightdash compile "$@"\n` +
+                `__ld_code=$?\n` +
+                `echo "$(( $(date +%s%3N) - __ld_start )) $__ld_code" >> ${COMPILE_TIMINGS_PATH}\n` +
+                `exit $__ld_code\n`,
+        );
+        await sandbox.commands.run(`chmod +x ${COMPILE_WRAPPER_PATH}`);
+        // Reset the timings log each turn — the sandbox filesystem persists across
+        // pause/resume, so a resumed turn would otherwise double-count prior runs.
+        await sandbox.files.write(COMPILE_TIMINGS_PATH, '');
+
+        // Push the warehouse skill files alongside the prompts. `shared.md`
+        // always; the dialect file only when one exists for this warehouse.
+        // The system prompt points the agent here before any `type:`/SQL edit.
+        const skills = await loadWarehouseSkills(
+            warehouseTypeToSkillKey(turn.warehouseType),
+        );
+        await sandbox.files.write(SHARED_SKILL_PATH, skills.shared);
+        if (skills.warehouse !== null) {
+            await sandbox.files.write(WAREHOUSE_SKILL_PATH, skills.warehouse);
+        }
+    }
+
+    /**
+     * Build the dbt-writeback {@link CodingAgentConfig}: the dbt E2B template,
+     * the full {@link ALLOWED_TOOLS} (incl. the compile wrapper), the dbt repo
+     * context + profiles + warehouse-aware system prompt, and the compile
+     * wrapper / timings hooks. This is the specialization {@link run} uses.
+     */
+    private dbtWritebackConfig(): CodingAgentConfig {
+        const { e2bAiWritebackTemplateName, e2bAiWritebackTemplateTag } =
+            this.lightdashConfig.appRuntime;
+        return {
+            mode: 'dbt-writeback',
+            resolveTemplateRef: () =>
+                resolveSandboxTemplateRef({
+                    name: e2bAiWritebackTemplateName,
+                    tag: e2bAiWritebackTemplateTag,
+                }),
+            cloneExtraOptions: {},
+            buildAgentSetup: async ({ sandbox, turn, repository }) => {
+                const repoContext = await this.gatherRepoContext(
+                    sandbox,
+                    turn.gitConnection.projectSubPath,
+                );
+                // Stage a credential-free profiles copy host-side so the agent
+                // doesn't burn turns discovering profiles.yml and hand-stripping
+                // Jinja (mkdir + cp + edit). Deterministic string work — no
+                // reason to spend LLM round-trips on it.
+                const profilesStaged = await this.prepareProfiles(
+                    sandbox,
+                    turn.gitConnection.projectSubPath,
+                );
+                const skillKey = warehouseTypeToSkillKey(turn.warehouseType);
+                const systemPrompt = buildSystemPrompt(
+                    turn.gitConnection.projectSubPath,
+                    {
+                        projectName: turn.projectName,
+                        repository,
+                        repoContext,
+                        warehouseType: turn.warehouseType,
+                        hasWarehouseSkill: skillKey !== null,
+                        profilesStaged,
+                    },
+                );
+                return {
+                    systemPrompt,
+                    allowedTools: ALLOWED_TOOLS,
+                    addDirs: ['/tmp', SKILLS_DIR, CLAUDE_SKILLS_DIR],
+                    model: CLAUDE_MODEL,
+                };
+            },
+            beforeAgentRun: (sandbox, turn) =>
+                AiWritebackService.prepareDbtAgentRun(sandbox, turn),
+            afterAgentRun: (sandbox) => this.reportCompileTimings(sandbox),
+        };
     }
 
     /**
