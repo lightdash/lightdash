@@ -503,7 +503,7 @@ describe('AiAgentReviewClassifierModel', () => {
                     uuid: FINGERPRINT,
                     fingerprint: FINGERPRINT,
                     title: 'Review revenue metric',
-                    status: 'open',
+                    status: 'triage',
                     linkedPrUrl: null,
                     prState: null,
                     remediation: null,

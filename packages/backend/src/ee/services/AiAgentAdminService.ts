@@ -849,7 +849,7 @@ export class AiAgentAdminService extends BaseService {
                     organizationId: organizationUuid,
                     fingerprint,
                     rootCause: reviewItem.primaryRootCause,
-                    previousStatus: previousReviewItem?.status ?? 'open',
+                    previousStatus: previousReviewItem?.status ?? 'triage',
                     newStatus: update.status,
                 },
             });

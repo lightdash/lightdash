@@ -3,7 +3,6 @@ import {
     type AiAgentReviewItemSummary,
     type AiAgentReviewRemediationStatus,
 } from '@lightdash/common';
-import { isTriageReviewItem } from './reviewItemDetails';
 
 export type ReviewLane = 'needs_triage' | 'todo' | 'in_progress' | 'done';
 
@@ -18,6 +17,7 @@ export const REVIEW_LANES: { id: ReviewLane; label: string; color: string }[] =
 
 // ts-unused-exports:disable-next-line
 export const BOARD_STATUSES: AiAgentReviewItemStatus[] = [
+    'triage',
     'open',
     'in_progress',
     'resolved',
@@ -49,7 +49,10 @@ export const getReviewLane = (item: AiAgentReviewItemSummary): ReviewLane => {
     if (item.status === 'in_progress') {
         return 'in_progress';
     }
-    return isTriageReviewItem(item) ? 'needs_triage' : 'todo';
+    if (item.status === 'triage') {
+        return 'needs_triage';
+    }
+    return 'todo';
 };
 
 // ts-unused-exports:disable-next-line
@@ -57,7 +60,7 @@ export const LANE_TARGET_STATUS: Record<
     ReviewLane,
     AiAgentReviewItemStatus | null
 > = {
-    needs_triage: null,
+    needs_triage: 'triage',
     todo: 'open',
     in_progress: 'in_progress',
     done: 'resolved',
@@ -67,6 +70,9 @@ export const LANE_TARGET_STATUS: Record<
 export const getStartWritebackKind = (
     item: AiAgentReviewItemSummary,
 ): 'modal' | 'mutate' | null => {
+    if (item.status === 'triage') {
+        return null;
+    }
     if (
         !item.writebackEligibility.eligible ||
         item.linkedPrUrl ||

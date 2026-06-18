@@ -993,7 +993,7 @@ export class AiAgentReviewClassifierModel {
                             },
                         )
                         .whereRaw(
-                            `COALESCE(${AiAgentReviewItemTableName}.status, 'open') IN (${args.statuses
+                            `COALESCE(${AiAgentReviewItemTableName}.status, 'triage') IN (${args.statuses
                                 .map(() => '?')
                                 .join(', ')})`,
                             args.statuses,
@@ -1085,7 +1085,7 @@ export class AiAgentReviewClassifierModel {
                     title: latest.review_item_title ?? 'Review AI agent issue',
                     description: latest.review_item_description ?? '',
                     primaryRootCause: latest.primary_root_cause ?? 'ambiguous',
-                    status: item?.status ?? 'open',
+                    status: item?.status ?? 'triage',
                     dismissedReason: item?.dismissed_reason ?? null,
                     ownerType: latest.owner_type ?? 'unknown',
                     assignedToUserUuid: item?.assigned_to_user_uuid ?? null,
@@ -1876,7 +1876,7 @@ export class AiAgentReviewClassifierModel {
                 if (orphaned.length > 0) {
                     await trx(AiAgentReviewItemTableName)
                         .whereIn('fingerprint', orphaned)
-                        .where('status', 'open')
+                        .whereIn('status', ['triage', 'open'])
                         .whereNull('assigned_to_user_uuid')
                         .whereNull('linked_issue_url')
                         .whereNull('linked_pr_url')

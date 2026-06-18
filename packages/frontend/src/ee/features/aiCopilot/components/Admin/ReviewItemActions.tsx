@@ -18,6 +18,7 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
     useAiAgentAdminReviewItem,
     useCreateAiAgentReviewItemWriteback,
+    useUpdateAiAgentReviewItemStatus,
 } from '../../hooks/useAiAgentAdmin';
 import { ProjectContextWritebackModal } from './ProjectContextWritebackModal';
 import {
@@ -35,6 +36,7 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
     mode = 'table',
 }) => {
     const createWriteback = useCreateAiAgentReviewItemWriteback();
+    const updateStatus = useUpdateAiAgentReviewItemStatus();
     const [previewOpen, setPreviewOpen] = useState(false);
 
     const propInFlight =
@@ -91,6 +93,43 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                         </Group>
                     </Tooltip>
                 )
+            ) : current.status === 'triage' ? (
+                <Group gap={4} wrap="nowrap">
+                    <Button
+                        size={buttonSize}
+                        radius="md"
+                        variant="filled"
+                        color="indigo"
+                        loading={updateStatus.isLoading}
+                        onClick={(event) => {
+                            stopPropagation(event);
+                            updateStatus.mutate({
+                                fingerprint: current.fingerprint,
+                                body: { status: 'open', dismissedReason: null },
+                            });
+                        }}
+                    >
+                        Accept
+                    </Button>
+                    <Button
+                        size={buttonSize}
+                        radius="md"
+                        variant="default"
+                        loading={updateStatus.isLoading}
+                        onClick={(event) => {
+                            stopPropagation(event);
+                            updateStatus.mutate({
+                                fingerprint: current.fingerprint,
+                                body: {
+                                    status: 'dismissed',
+                                    dismissedReason: 'not_actionable',
+                                },
+                            });
+                        }}
+                    >
+                        Dismiss
+                    </Button>
+                </Group>
             ) : (
                 <Stack gap={mode === 'drawer' ? 'xs' : 6} align="flex-start">
                     <Group gap={4} wrap="wrap">
