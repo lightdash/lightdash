@@ -10,7 +10,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine-8/hooks';
+import { useDebouncedValue, useLocalStorage } from '@mantine-8/hooks';
 import {
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,
@@ -83,11 +83,17 @@ import { TrackPage } from '../providers/Tracking/TrackingProvider';
 import { PageName } from '../types/Events';
 import classes from './Settings.module.css';
 
+const SETTINGS_SIDEBAR_COLLAPSED_STORAGE_KEY = 'settings:sidebar-collapsed';
+
 const Settings: FC = () => {
     const context = useSettingsContext();
     const sections = useSettingsNavigation(context);
 
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] =
+        useLocalStorage<boolean>({
+            key: SETTINGS_SIDEBAR_COLLAPSED_STORAGE_KEY,
+            defaultValue: false,
+        });
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 200);
 
