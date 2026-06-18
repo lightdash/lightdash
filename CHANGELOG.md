@@ -1,3 +1,10 @@
+## [0.3187.2](https://github.com/lightdash/lightdash/compare/0.3187.1...0.3187.2) (2026-06-18)
+
+
+### Bug Fixes
+
+* screenshot size sync for data apps delivery ([#24436](https://github.com/lightdash/lightdash/issues/24436)) ([397baa5](https://github.com/lightdash/lightdash/commit/397baa588f948ddb68eefa3917c3a20ee2c7304e))
+
 ## [0.3187.1](https://github.com/lightdash/lightdash/compare/0.3187.0...0.3187.1) (2026-06-18)
 
 
