@@ -1,3 +1,10 @@
+## [0.3188.2](https://github.com/lightdash/lightdash/compare/0.3188.1...0.3188.2) (2026-06-18)
+
+
+### Bug Fixes
+
+* **explorer:** correct timezone affordance for day-grain timestamp intervals ([#24433](https://github.com/lightdash/lightdash/issues/24433)) ([af03e0e](https://github.com/lightdash/lightdash/commit/af03e0e3d8e7fbff13d403fb1b2efb0688f514d3))
+
 ## [0.3188.1](https://github.com/lightdash/lightdash/compare/0.3188.0...0.3188.1) (2026-06-18)
 
 
