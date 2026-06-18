@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fanouts Deep Dive</title>
+  <link rel="stylesheet" href="../assets/lesson.css" />
+</head>
+<body>
+<main>
+  <p class="kicker">Lesson 0001 · Fanouts</p>
+  <h1>Fanouts are aggregate bugs caused by changing row grain</h1>
+  <p class="subtitle">A fanout is not mysterious. It is a join that makes rows from one table appear multiple times. If you aggregate those repeated rows, some metrics lie.</p>
+
+  <nav class="nav">
+    <a href="./0000-intro-lightdash-query-systems.html">Intro</a>
+    <a href="./0002-ctes-deep-dive.html">Next: CTEs</a>
+    <a href="../reference/lightdash-query-builder-reference.html">Reference</a>
+  </nav>
+
+  <section class="win">
+    <span class="callout-title">What you should be able to do after this lesson</span>
+    Given a base table, a join relationship, and a metric, predict whether the metric can inflate and explain why Lightdash may build <code>cte_keys_*</code> and <code>cte_metrics_*</code>.
+  </section>
+
+  <h2>1. Grain: the unit of one row</h2>
+  <p><span class="term">Grain</span> means what one row represents. A table can have customer grain, order grain, line-item grain, account grain, session grain, and so on. A join changes the result grain when one row on one side matches multiple rows on the other side.</p>
+
+  <div class="two-col">
+    <section class="card">
+      <h3>customers</h3>
+      <table><thead><tr><th>customer_id</th><th>lifetime_value</th><th>plan</th></tr></thead><tbody><tr><td>1</td><td>100</td><td>Pro</td></tr><tr><td>2</td><td>70</td><td>Free</td></tr></tbody></table>
+      <p class="small">Grain: one row per customer.</p>
+    </section>
+    <section class="card">
+      <h3>orders</h3>
+      <table><thead><tr><th>order_id</th><th>customer_id</th><th>amount</th></tr></thead><tbody><tr><td>10</td><td>1</td><td>20</td></tr><tr><td>11</td><td>1</td><td>30</td></tr><tr><td>12</td><td>2</td><td>15</td></tr></tbody></table>
+      <p class="small">Grain: one row per order.</p>
+    </section>
+  </div>
+
+  <p>If the Explore starts from <code>customers</code> and left-joins <code>orders</code>, customer <code>1</code> appears twice:</p>
+
+  <pre><code>SELECT
+  customers.customer_id,
+  customers.lifetime_value,
+  orders.order_id,
+  orders.amount
+FROM customers
+LEFT JOIN orders ON customers.customer_id = orders.customer_id;
+
+-- joined result
+-- customer_id | lifetime_value | order_id | amount
+-- 1           | 100            | 10       | 20
+-- 1           | 100            | 11       | 30
+-- 2           | 70             | 12       | 15</code></pre>
+
+  <p>The joined result is no longer one row per customer. It is closer to order grain, with customer fields repeated.</p>
+
+  <h2>2. Metric inflation: repeated rows enter the aggregate</h2>
+  <p>Now compare two metrics:</p>
+
+  <table>
+    <thead><tr><th>Metric</th><th>SQL after join</th><th>Result</th><th>Correct?</th></tr></thead>
+    <tbody>
+      <tr><td>Total order amount</td><td><code>SUM(orders.amount)</code></td><td><code>20 + 30 + 15 = 65</code></td><td>Yes</td></tr>
+      <tr><td>Total customer LTV</td><td><code>SUM(customers.lifetime_value)</code></td><td><code>100 + 100 + 70 = 270</code></td><td>No; true total is <code>170</code></td></tr>
+    </tbody>
+  </table>
+
+  <p>The customer metric inflates because the join duplicated customer rows. The order metric did not inflate because the join result still has one row per order.</p>
+
+  <div class="mermaid">
+flowchart LR
+  C1[customer 1<br/>ltv 100] --> O10[order 10]
+  C1 --> O11[order 11]
+  C2[customer 2<br/>ltv 70] --> O12[order 12]
+  O10 --> Joined1[customer 1 ltv 100]
+  O11 --> Joined2[customer 1 ltv 100 again]
+  O12 --> Joined3[customer 2 ltv 70]
+  Joined1 --> Sum[SUM ltv = 270]
+  Joined2 --> Sum
+  Joined3 --> Sum
+  </div>
+
+  <h2>3. Relationship names are directional</h2>
+  <p>The Lightdash joins docs emphasize direction: “Accounts joining to Users (one-to-many) is completely different from Users joining to Accounts (many-to-one).” The relationship is from the current/starting table toward the joined table.</p>
+
+  <table>
+    <thead><tr><th>Relationship</th><th>Question to ask</th><th>Fanout intuition</th></tr></thead>
+    <tbody>
+      <tr><td><code>one-to-many</code></td><td>For one starting row, can I find many joined rows?</td><td>Starting-table fields can repeat.</td></tr>
+      <tr><td><code>many-to-one</code></td><td>For many starting rows, do they each find one joined row?</td><td>Joined-table fields can repeat across starting rows; starting rows usually do not multiply.</td></tr>
+      <tr><td><code>one-to-one</code></td><td>Does each side match at most one row?</td><td>No multiplication expected.</td></tr>
+      <tr><td><code>many-to-many</code></td><td>Can multiple rows on each side match multiple rows?</td><td>Assume broad fanout risk.</td></tr>
+    </tbody>
+  </table>
+
+  <p>Lightdash docs recommend defining <code>relationship</code> and <code>primary_key</code> in YAML so Lightdash can understand the intended row-level granularity and prevent metric inflation (<a href="https://docs.lightdash.com/references/joins#handling-fanouts">Handling fanouts</a>).</p>
+
+  <pre><code>type: model
+name: customers
+primary_key: customer_id
+
+joins:
+  - join: orders
+    sql_on: ${customers.customer_id} = ${orders.customer_id}
+    relationship: one-to-many</code></pre>
+
+  <h2>4. Which metric types are vulnerable?</h2>
+  <p>In <a href="../packages/backend/src/utils/QueryBuilder/utils.ts"><code>QueryBuilder/utils.ts</code></a>, Lightdash marks these as inflation-proof: <code>COUNT_DISTINCT</code>, <code>SUM_DISTINCT</code>, <code>AVERAGE_DISTINCT</code>, <code>MIN</code>, and <code>MAX</code>. That does not mean every query is magically easy; it means repeated rows do not affect those metrics the same way plain <code>SUM</code>/<code>AVG</code> are affected.</p>
+
+  <table>
+    <thead><tr><th>Metric type</th><th>Repeated rows effect</th><th>Example</th></tr></thead>
+    <tbody>
+      <tr><td><code>SUM</code></td><td>Usually unsafe if summing repeated one-side rows.</td><td><code>SUM(customers.lifetime_value)</code> becomes <code>270</code>.</td></tr>
+      <tr><td><code>AVG</code></td><td>Can be unsafe because repeated entities get extra weight.</td><td>Customer 1's LTV is counted twice in the average.</td></tr>
+      <tr><td><code>COUNT</code></td><td>Counts joined rows, so may or may not match intent.</td><td><code>COUNT(customers.customer_id)</code> after order join counts order rows with customer IDs.</td></tr>
+      <tr><td><code>COUNT_DISTINCT</code></td><td>Repeated IDs collapse.</td><td><code>COUNT_DISTINCT(customers.customer_id)</code> remains <code>2</code>.</td></tr>
+      <tr><td><code>MIN</code>/<code>MAX</code></td><td>Repeating a value does not change min/max.</td><td><code>MAX(customers.lifetime_value)</code> remains <code>100</code>.</td></tr>
+      <tr><td><code>SUM_DISTINCT</code>/<code>AVERAGE_DISTINCT</code></td><td>Handled by explicit distinct-key deduplication.</td><td>Uses <code>dd_*</code> CTEs, covered in the CTE lesson.</td></tr>
+    </tbody>
+  </table>
+
+  <section class="warning">
+    <span class="callout-title">Important nuance</span>
+    “Inflation-proof” is about repeated identical source rows under join fanout. It does not prove the metric matches business intent. For example, <code>COUNT_DISTINCT(order_id)</code> is mathematically stable under repeated joins, but it may still answer the wrong question if the distinct key is wrong.
+  </section>
+
+  <h2>5. How Lightdash detects tables with possible metric inflation</h2>
+  <p><code>MetricQueryBuilder.getExperimentalMetricsCteSQL</code> calls <code>findTablesWithMetricInflation</code> with tables, joins, base table, and joined tables. That function uses join relationships to identify tables whose metrics may inflate in the current query. If a join lacks a relationship, Lightdash warns because it cannot safely infer the fanout risk.</p>
+
+  <div class="mermaid">
+flowchart TD
+  A[Selected dimensions/metrics/filters] --> B[Which tables are required?]
+  B --> C[Which joins are needed?]
+  C --> D[findTablesWithMetricInflation]
+  D --> E{Table has primary key?}
+  E -- no --> W[Warn: cannot deduplicate safely]
+  E -- yes --> F[Build fanout protection CTEs]
+  </div>
+
+  <h2>6. The Lightdash fanout protection pattern</h2>
+  <p>For each table whose metrics can inflate, Lightdash builds two CTEs:</p>
+
+  <ol>
+    <li><code>cte_keys_&lt;table&gt;</code>: from the full joined query, select distinct output dimensions plus the protected table's primary key.</li>
+    <li><code>cte_metrics_&lt;table&gt;</code>: join those keys back to only the protected table by primary key and aggregate the table's vulnerable metrics.</li>
+  </ol>
+
+  <div class="mermaid">
+flowchart TD
+  J[Full joined world<br/>dimensions, filters, all joins] --> K[cte_keys_customers<br/>DISTINCT dimensions + customers.pk]
+  K --> M[cte_metrics_customers<br/>join keys back to customers by pk]
+  M --> Safe[Safe customer SUM/AVG/etc]
+  J --> U[cte_unaffected<br/>dimensions + safe or unaffected metrics]
+  Safe --> Final[final SELECT]
+  U --> Final
+  </div>
+
+  <pre><code>WITH cte_keys_customers AS (
+  SELECT DISTINCT
+    "orders".status AS "orders_status",
+    "customers".customer_id AS "pk_customer_id"
+  FROM "customers" AS "customers"
+  LEFT JOIN "orders" AS "orders"
+    ON "customers".customer_id = "orders".customer_id
+),
+
+cte_metrics_customers AS (
+  SELECT
+    cte_keys_customers."orders_status",
+    SUM("customers".lifetime_value) AS "customers_total_ltv"
+  FROM cte_keys_customers
+  LEFT JOIN "customers" AS "customers"
+    ON cte_keys_customers."pk_customer_id" = "customers".customer_id
+  GROUP BY 1
+),
+
+cte_unaffected AS (
+  SELECT
+    "orders".status AS "orders_status",
+    SUM("orders".amount) AS "orders_total_amount"
+  FROM "customers" AS "customers"
+  LEFT JOIN "orders" AS "orders"
+    ON "customers".customer_id = "orders".customer_id
+  GROUP BY 1
+)
+
+SELECT
+  cte_unaffected.*,
+  cte_metrics_customers."customers_total_ltv"
+FROM cte_unaffected
+INNER JOIN cte_metrics_customers
+  ON cte_unaffected."orders_status" = cte_metrics_customers."orders_status";</code></pre>
+
+  <h2>7. Why not just <code>SUM(DISTINCT lifetime_value)</code>?</h2>
+  <p>Because distinct values are not distinct entities. If two different customers both have LTV <code>100</code>, <code>SUM(DISTINCT lifetime_value)</code> counts <code>100</code> once, not twice. Fanout protection must deduplicate by entity key, not by metric value.</p>
+
+  <div class="two-col">
+    <section class="danger">
+      <h3>Wrong dedup key: value</h3>
+      <pre><code>SUM(DISTINCT lifetime_value)
+-- customer A = 100
+-- customer B = 100
+-- result: 100 (wrong)</code></pre>
+    </section>
+    <section class="win">
+      <h3>Right dedup key: primary key</h3>
+      <pre><code>SELECT DISTINCT customer_id
+-- A, B
+SUM(lifetime_value)
+-- result: 200</code></pre>
+    </section>
+  </div>
+
+  <h2>8. How dimensions affect the safe grain</h2>
+  <p>If you group by an order dimension like <code>orders.status</code>, <code>cte_keys_customers</code> may contain the same customer primary key under multiple statuses. That is not necessarily wrong: the output question is now “customer LTV by order status”, and the metric is repeated across statuses because each status group has relevant customer keys. Fanout protection prevents duplicate keys within a group; it does not decide whether the analysis itself makes business sense.</p>
+
+  <section class="checkpoint">
+    <span class="callout-title">Mental model</span>
+    Fanout protection deduplicates protected table primary keys <em>within each output dimension group</em>. It does not globally force a customer to appear in only one result row if your selected dimensions intentionally split the result into multiple groups.
+  </section>
+
+  <h2>9. Prediction exercises</h2>
+  <details><summary>Base: customers. Join: customers → orders one-to-many. Metric: <code>SUM(customers.lifetime_value)</code>. Inflates?</summary><p>Yes. Customer rows are repeated by orders; plain sum sees the repeated customer values.</p></details>
+  <details><summary>Base: customers. Join: customers → orders one-to-many. Metric: <code>SUM(orders.amount)</code>. Inflates?</summary><p>Usually no from this join alone. The joined result is at order grain for orders, so each order amount appears once.</p></details>
+  <details><summary>Base: orders. Join: orders → customers many-to-one. Metric: <code>SUM(orders.amount)</code>. Inflates?</summary><p>No from the many-to-one join. Each order finds one customer; order rows are not multiplied.</p></details>
+  <details><summary>Base: orders. Join: orders → order_items one-to-many. Metric: <code>AVG(orders.total_amount)</code>. Inflates?</summary><p>Yes. Orders with more items appear more times and get extra weight in the average.</p></details>
+  <details><summary>Base: orders. Join: orders → order_items one-to-many. Metric: <code>COUNT_DISTINCT(orders.order_id)</code>. Inflates?</summary><p>No. Repeated order IDs collapse under <code>COUNT_DISTINCT</code>.</p></details>
+  <details><summary>Why does Lightdash need <code>primary_key</code> for fanout protection?</summary><p>Because <code>cte_keys_*</code> must select a distinct entity key and then rejoin to the protected table by that key. Without a primary key, Lightdash cannot know which rows represent one entity.</p></details>
+
+  <section class="aside">
+    <span class="callout-title">Primary source to review</span>
+    Lightdash docs: <a href="https://docs.lightdash.com/references/joins#handling-fanouts">Handling fanouts</a>. Code: fanout path in <a href="../packages/backend/src/utils/QueryBuilder/MetricQueryBuilder.ts"><code>MetricQueryBuilder.getExperimentalMetricsCteSQL</code></a> and inflation-proof metric list in <a href="../packages/backend/src/utils/QueryBuilder/utils.ts"><code>isInflationProofMetric</code></a>.
+  </section>
+
+  <p class="small">Next lesson: <a href="./0002-ctes-deep-dive.html">CTEs Deep Dive</a>. Ask the agent to give you five more fanout scenarios and quiz your predictions.</p>
+</main>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+</script>
+</body>
+</html>

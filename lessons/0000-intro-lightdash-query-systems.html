@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Intro: Lightdash Backend Query Systems</title>
+  <link rel="stylesheet" href="../assets/lesson.css" />
+</head>
+<body>
+<main>
+  <p class="kicker">Lesson 0000 · System map</p>
+  <h1>Lightdash query generation is a pipeline, not one query builder</h1>
+  <p class="subtitle">The backend SQL that reaches a warehouse is assembled by several systems. Each system has one job: semantic metrics, fanout protection, distinct deduplication, period comparison, pivot indexing, or result transformation.</p>
+
+  <nav class="nav">
+    <a href="./0001-fanouts-deep-dive.html">1 Fanouts</a>
+    <a href="./0002-ctes-deep-dive.html">2 CTEs</a>
+    <a href="./0003-period-over-period-deep-dive.html">3 PoP</a>
+    <a href="./0004-pivot-queries-deep-dive.html">4 Pivot queries</a>
+    <a href="../reference/lightdash-query-builder-reference.html">Reference</a>
+  </nav>
+
+  <section class="win">
+    <span class="callout-title">What you should be able to do after this lesson</span>
+    Look at a generated query and name the subsystem responsible for each major CTE family: semantic metric SQL, fanout protection, distinct metrics, period-over-period, and pivot indexing.
+  </section>
+
+  <h2>1. The big architecture map</h2>
+  <p>The local query-builder guide says there are three main builders: <code>MetricQueryBuilder</code>, <code>PivotQueryBuilder</code>, and <code>SqlQueryBuilder</code>. For Explore/Chart metric queries, the important path is usually <code>MetricQueryBuilder → optional PivotQueryBuilder → AsyncQueryService</code>.</p>
+
+  <div class="mermaid">
+flowchart TD
+  UI[Saved chart / Explorer request] --> MQ[MetricQuery<br/>dimensions, metrics, filters, sorts]
+  MQ --> Compile[compileMetricQuery<br/>additional metrics, table calcs, custom dims]
+  Compile --> MQB[MetricQueryBuilder]
+
+  subgraph MQBSystems[MetricQueryBuilder systems]
+    Sem[Semantic SELECT<br/>dimensions + metric SQL + joins]
+    Fan[Fanout protection<br/>cte_keys_* + cte_metrics_*]
+    DD[Distinct metric dedup<br/>dd_* + dd_base]
+    POP[Period-over-period<br/>base_metrics / pop_* or cte_pop_*]
+  end
+
+  MQB --> Sem
+  Sem --> Fan
+  Fan --> DD
+  DD --> POP
+  POP --> FlatSQL[Flat semantic SQL result]
+
+  FlatSQL --> MaybePivot{PivotConfiguration?}
+  MaybePivot -- no --> Run[warehouse execute]
+  MaybePivot -- yes --> PQB[PivotQueryBuilder]
+  PQB --> OQ[original_query]
+  OQ --> GB[group_by_query]
+  GB --> PQ[pivot_query<br/>row_index + column_index]
+  PQ --> Run
+  Run --> Transform[AsyncQueryService.runQueryAndTransformRows]
+  Transform --> Result[Rows + columns + pivotDetails]
+  </div>
+
+  <section class="checkpoint">
+    <span class="callout-title">Boundary rule</span>
+    <code>MetricQueryBuilder</code> decides what metrics mean. <code>PivotQueryBuilder</code> decides how pivot rows and columns are indexed. <code>AsyncQueryService.runQueryAndTransformRows</code> turns long pivot rows into the wide shape returned/stored for results.
+  </section>
+
+  <h2>2. Start with a concrete chart</h2>
+  <p>Imagine a user asks for a pivot table:</p>
+
+  <ul>
+    <li>Rows: <code>orders_order_date_month</code></li>
+    <li>Pivot columns: <code>orders_status</code></li>
+    <li>Metric: <code>orders_revenue</code></li>
+    <li>Period comparison: previous month revenue</li>
+    <li>Explore has joins that may fan out some metrics</li>
+  </ul>
+
+  <p>This sounds like “one query”. In Lightdash it becomes a chain of responsibilities:</p>
+
+  <table>
+    <thead><tr><th>Question</th><th>Responsible system</th><th>Typical files</th></tr></thead>
+    <tbody>
+      <tr><td>What does <code>orders_revenue</code> mean?</td><td>Semantic compiler + <code>MetricQueryBuilder</code></td><td><a href="../packages/backend/src/utils/QueryBuilder/MetricQueryBuilder.ts">MetricQueryBuilder.ts</a></td></tr>
+      <tr><td>Which joins are needed?</td><td><code>MetricQueryBuilder.getJoinSQL</code></td><td><a href="../packages/backend/src/utils/QueryBuilder/MetricQueryBuilder.ts">MetricQueryBuilder.ts</a></td></tr>
+      <tr><td>Could the join multiply rows and inflate an aggregate?</td><td>Fanout detection/protection</td><td><a href="../packages/backend/src/utils/QueryBuilder/utils.ts">QueryBuilder utils</a>, <a href="../packages/backend/src/utils/QueryBuilder/MetricQueryBuilder.ts">MetricQueryBuilder.ts</a></td></tr>
+      <tr><td>Is a metric <code>sum_distinct</code> / <code>average_distinct</code>?</td><td>Distinct metric CTE builder</td><td><a href="../packages/backend/src/utils/QueryBuilder/MetricQueryBuilder.ts">buildDistinctMetricCtes</a></td></tr>
+      <tr><td>Is there a generated previous-period metric?</td><td>PoP config and CTE builder</td><td><a href="../packages/common/src/types/periodOverPeriodComparison.ts">periodOverPeriodComparison.ts</a>, <a href="../packages/backend/src/utils/QueryBuilder/MetricQueryBuilder.ts">MetricQueryBuilder.ts</a></td></tr>
+      <tr><td>How do rows become pivot columns?</td><td>Pivot SQL wrapper + streaming transform</td><td><a href="../packages/backend/src/utils/QueryBuilder/PivotQueryBuilder.ts">PivotQueryBuilder.ts</a>, <a href="../packages/backend/src/services/AsyncQueryService/AsyncQueryService.ts">AsyncQueryService.ts</a></td></tr>
+    </tbody>
+  </table>
+
+  <h2>3. Minimum vocabulary</h2>
+  <div class="grid">
+    <section class="card"><h3>Metric query</h3><p>The request shape: explore name, dimensions, metrics, filters, sorts, limit, table calculations, optional additional metrics, and optional pivot dimensions.</p></section>
+    <section class="card"><h3>Compiled metric query</h3><p>The query after custom metrics, custom dimensions, and table calculations are compiled. PoP generated metrics appear in <code>additionalMetrics</code> and compiled metric maps.</p></section>
+    <section class="card"><h3>Explore</h3><p>The semantic model: base table, joined tables, dimensions, metrics, primary keys, and join relationships.</p></section>
+    <section class="card"><h3>Grain</h3><p>What one row represents. Fanout bugs are usually grain mismatch bugs.</p></section>
+    <section class="card"><h3>Fanout</h3><p>A join that multiplies rows from some table. Multiplication can inflate <code>SUM</code> and <code>AVG</code>.</p></section>
+    <section class="card"><h3>CTE</h3><p>A named SQL subquery in a <code>WITH</code> clause. In Lightdash, CTEs are the boundaries between query-builder systems.</p></section>
+    <section class="card"><h3>PoP</h3><p>Period-over-period: a generated metric that reruns a base metric over a shifted time window and joins it back to current rows.</p></section>
+    <section class="card"><h3>Pivot long rows</h3><p>Rows that still have a pivot header value column plus <code>row_index</code> and <code>column_index</code>. They are not yet final wide pivot rows.</p></section>
+  </div>
+
+  <h2>4. The simplest non-pivot query path</h2>
+  <p>If there are no fanouts, no distinct metrics, no PoP, and no pivoting, <code>MetricQueryBuilder</code> can produce familiar SQL:</p>
+
+  <pre><code>SELECT
+  DATE_TRUNC('MONTH', "orders".order_date) AS "orders_order_date_month",
+  SUM("orders".amount) AS "orders_revenue"
+FROM "analytics"."orders" AS "orders"
+WHERE "orders".is_completed = true
+GROUP BY 1
+ORDER BY "orders_order_date_month" ASC
+LIMIT 500</code></pre>
+
+  <p>Most complexity is conditional. Lightdash adds layers only when the query asks for semantics that cannot be expressed safely in that simple shape.</p>
+
+  <h2>5. Why CTE layers appear</h2>
+  <table>
+    <thead><tr><th>If the query needs…</th><th>Lightdash may add…</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>Aggregate on a table duplicated by joins</td><td><code>cte_keys_*</code>, <code>cte_metrics_*</code>, <code>cte_unaffected</code></td><td>Aggregate at the table's safe primary-key grain.</td></tr>
+      <tr><td><code>sum_distinct</code> or <code>average_distinct</code></td><td><code>dd_*</code>, <code>dd_base</code></td><td>Deduplicate by configured distinct keys using <code>ROW_NUMBER()</code>.</td></tr>
+      <tr><td>Generated previous-period metric</td><td><code>base_metrics</code>, <code>pop_min_max_*</code>, <code>pop_metrics_*</code>, or fanout-aware <code>cte_pop_*</code></td><td>Compute current rows and shifted comparison rows separately.</td></tr>
+      <tr><td>Pivot visualization</td><td><code>original_query</code>, <code>group_by_query</code>, <code>pivot_query</code>, ranking/anchor CTEs</td><td>Add row/column indexes and preserve order/limits for streaming transform.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>6. The four deep dives</h2>
+  <p>The rest of this sequence isolates one concept at a time. This matters because bugs often look like “pivot broke”, but the broken SQL alias may have been emitted by fanout protection or distinct-metric handling before pivoting even starts.</p>
+
+  <div class="mermaid">
+flowchart LR
+  F[1 Fanouts<br/>why rows multiply] --> C[2 CTEs<br/>how scopes compose]
+  C --> P[3 PoP<br/>shifted self-join]
+  P --> V[4 Pivot<br/>long rows to wide output]
+  </div>
+
+  <section class="aside">
+    <span class="callout-title">Primary sources used</span>
+    Repo files: <a href="../packages/backend/src/utils/QueryBuilder/CLAUDE.md"><code>QueryBuilder/CLAUDE.md</code></a>, <a href="../packages/backend/src/utils/QueryBuilder/MetricQueryBuilder.ts"><code>MetricQueryBuilder.ts</code></a>, <a href="../packages/backend/src/utils/QueryBuilder/PivotQueryBuilder.ts"><code>PivotQueryBuilder.ts</code></a>, <a href="../packages/backend/src/services/AsyncQueryService/AsyncQueryService.ts"><code>AsyncQueryService.ts</code></a>, <a href="../packages/common/src/types/pivot.ts"><code>types/pivot.ts</code></a>, <a href="../packages/common/src/pivot/derivePivotConfigFromChart.ts"><code>derivePivotConfigFromChart.ts</code></a>, and <a href="../packages/common/src/types/periodOverPeriodComparison.ts"><code>periodOverPeriodComparison.ts</code></a>. Docs: <a href="https://docs.lightdash.com/references/joins">joins/fanouts</a> and <a href="https://docs.lightdash.com/guides/period-over-period">period-over-period</a>.
+  </section>
+
+  <h2>7. Recall checkpoints</h2>
+  <details><summary>Which class owns semantic metric SQL?</summary><p><code>MetricQueryBuilder</code>. It builds dimensions, metric aggregates, joins, filters, and semantic CTEs like fanout, distinct, and PoP CTEs.</p></details>
+  <details><summary>Which class adds <code>row_index</code> and <code>column_index</code>?</summary><p><code>PivotQueryBuilder</code>, specifically through <code>pivot_query</code> and related ranking CTEs.</p></details>
+  <details><summary>Which function widens long pivot rows into output rows?</summary><p><code>AsyncQueryService.runQueryAndTransformRows</code>. It groups streamed rows by <code>row_index</code> and writes pivot-value-suffixed columns.</p></details>
+  <details><summary>What is the best first question when SQL looks scary?</summary><p>“Which subsystem owns this CTE or alias?” Then inspect the nearby scope and only then move outward.</p></details>
+
+  <p class="small">Next lesson: <a href="./0001-fanouts-deep-dive.html">Fanouts Deep Dive</a>. Keep the reference open: <a href="../reference/lightdash-query-builder-reference.html">Lightdash query-builder reference</a>. Ask the agent follow-up questions whenever a CTE or alias boundary feels unclear.</p>
+</main>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+</script>
+</body>
+</html>

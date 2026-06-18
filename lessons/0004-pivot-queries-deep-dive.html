@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pivot Queries Deep Dive</title>
+  <link rel="stylesheet" href="../assets/lesson.css" />
+</head>
+<body>
+<main>
+  <p class="kicker">Lesson 0004 · Pivot queries</p>
+  <h1>Lightdash pivot SQL stays long; the backend transform makes it wide</h1>
+  <p class="subtitle">The pivot query builder usually does not create one SQL column per pivot value. It wraps semantic SQL, assigns row and column indexes, and lets streaming backend code widen the result.</p>
+
+  <nav class="nav">
+    <a href="./0003-period-over-period-deep-dive.html">Previous: PoP</a>
+    <a href="./0000-intro-lightdash-query-systems.html">Intro</a>
+    <a href="../reference/lightdash-query-builder-reference.html">Reference</a>
+  </nav>
+
+  <section class="win">
+    <span class="callout-title">What you should be able to do after this lesson</span>
+    Explain how <code>PivotConfiguration</code> becomes <code>original_query → group_by_query → pivot_query</code>, why <code>row_index</code>/<code>column_index</code> exist, and how <code>AsyncQueryService.runQueryAndTransformRows</code> widens rows.
+  </section>
+
+  <h2>1. Two different meanings of “pivot”</h2>
+  <p>Classic SQL pivot means dynamic values become physical SQL columns:</p>
+
+  <pre><code>-- conceptual warehouse pivot
+status values: completed, pending
+columns: revenue_completed, revenue_pending</code></pre>
+
+  <p>Lightdash's backend pivot path is different. <a href="../packages/backend/src/utils/QueryBuilder/CLAUDE.md"><code>QueryBuilder/CLAUDE.md</code></a> states that <code>PivotQueryBuilder</code> does not perform the final pivot. It generates SQL that tags each row with <code>row_index</code> and <code>column_index</code>; the actual spreading happens downstream in <code>AsyncQueryService.runQueryAndTransformRows</code>.</p>
+
+  <div class="mermaid">
+flowchart LR
+  Flat[Flat semantic SQL] --> PivotSQL[PivotQueryBuilder<br/>long rows + row_index + column_index]
+  PivotSQL --> Warehouse[Warehouse returns ordered long rows]
+  Warehouse --> Transform[AsyncQueryService.runQueryAndTransformRows]
+  Transform --> Wide[Wide pivot result rows]
+  </div>
+
+  <h2>2. The source of truth: <code>PivotConfiguration</code></h2>
+  <p><code>PivotConfiguration</code> lives in <a href="../packages/common/src/types/pivot.ts"><code>packages/common/src/types/pivot.ts</code></a>. It is derived from chart config and metric query in <a href="../packages/common/src/pivot/derivePivotConfigFromChart.ts"><code>derivePivotConfigFromChart.ts</code></a>.</p>
+
+  <pre><code>type PivotConfiguration = {
+  indexColumn: PivotIndexColum | PivotIndexColum[] | undefined;
+  valuesColumns: ValuesColumn[];
+  groupByColumns: GroupByColumn[] | undefined;
+  sortBy: SortBy | undefined;
+  metricsAsRows?: boolean;
+  sortOnlyColumns?: ValuesColumn[];
+  sortOnlyDimensions?: GroupByColumn[];
+  passthroughDimensions?: GroupByColumn[];
+  pivotColumnsOrder?: GroupByColumn[];
+}</code></pre>
+
+  <table>
+    <thead><tr><th>Property</th><th>Backend meaning</th><th>Visual intuition</th></tr></thead>
+    <tbody>
+      <tr><td><code>indexColumn</code></td><td>Fields that identify output rows and drive <code>row_index</code>.</td><td>Rows down the left, e.g. month.</td></tr>
+      <tr><td><code>valuesColumns</code></td><td>Metrics/table calculations that become pivot cell values. Each gets an aggregation suffix such as <code>_any</code>.</td><td>Revenue, orders, margin.</td></tr>
+      <tr><td><code>groupByColumns</code></td><td>Fields whose values become pivot header combinations and drive <code>column_index</code>.</td><td>Status across the top.</td></tr>
+      <tr><td><code>sortBy</code></td><td>Fields and directions used to rank rows/columns. May include pinned pivot values.</td><td>Month asc, revenue desc.</td></tr>
+      <tr><td><code>metricsAsRows</code></td><td>Affects column-limit calculation because metrics render as rows, not separate columns.</td><td>Metric names down the row axis.</td></tr>
+      <tr><td><code>sortOnlyColumns</code></td><td>Values needed for sorting but not displayed.</td><td>Hidden metric sort helper.</td></tr>
+      <tr><td><code>sortOnlyDimensions</code></td><td>Hidden pivot dimensions that drive column order but do not render as headers.</td><td>Sort by month number while showing month name.</td></tr>
+      <tr><td><code>passthroughDimensions</code></td><td>Hidden fields carried through so rich text/image templates can read raw values.</td><td>Hidden image URL used by a visible cell.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>3. Tiny input data</h2>
+  <p>Suppose <code>MetricQueryBuilder</code> already returned correct semantic rows:</p>
+
+  <table>
+    <caption>Flat result from MetricQueryBuilder</caption>
+    <thead><tr><th>month</th><th>status</th><th>revenue</th></tr></thead>
+    <tbody>
+      <tr><td>Jan</td><td>completed</td><td>100</td></tr>
+      <tr><td>Jan</td><td>pending</td><td>30</td></tr>
+      <tr><td>Feb</td><td>completed</td><td>120</td></tr>
+      <tr><td>Feb</td><td>pending</td><td>40</td></tr>
+    </tbody>
+  </table>
+
+  <p>The desired rendered pivot is:</p>
+
+  <table>
+    <caption>Final wide pivot shape</caption>
+    <thead><tr><th>month</th><th>revenue_completed</th><th>revenue_pending</th></tr></thead>
+    <tbody>
+      <tr><td>Jan</td><td>100</td><td>30</td></tr>
+      <tr><td>Feb</td><td>120</td><td>40</td></tr>
+    </tbody>
+  </table>
+
+  <p>Lightdash SQL returns an intermediate long shape instead:</p>
+
+  <table>
+    <caption>SQL-shaped long pivot rows</caption>
+    <thead><tr><th>month</th><th>status</th><th>revenue_any</th><th>row_index</th><th>column_index</th><th>total_columns</th></tr></thead>
+    <tbody>
+      <tr><td>Jan</td><td>completed</td><td>100</td><td>1</td><td>1</td><td>2</td></tr>
+      <tr><td>Jan</td><td>pending</td><td>30</td><td>1</td><td>2</td><td>2</td></tr>
+      <tr><td>Feb</td><td>completed</td><td>120</td><td>2</td><td>1</td><td>2</td></tr>
+      <tr><td>Feb</td><td>pending</td><td>40</td><td>2</td><td>2</td><td>2</td></tr>
+    </tbody>
+  </table>
+
+  <h2>4. The normal full-pivot pipeline</h2>
+  <p><code>PivotQueryBuilder.toSql</code> removes the base query limit, builds <code>group_by_query</code>, then chooses simple or full pivot mode depending on whether <code>groupByColumns</code> exist.</p>
+
+  <div class="mermaid">
+flowchart TD
+  A[Base SQL from MetricQueryBuilder] --> B[original_query]
+  B --> C[group_by_query<br/>group by index + groupBy + hidden helpers<br/>aggregate values]
+  C --> D[pivot_query<br/>select fields + row_index + column_index]
+  D --> E[filtered_rows<br/>row_index <= row limit]
+  E --> F[distinct_groups<br/>distinct pivot header combinations]
+  F --> G[total_columns]
+  D --> H[final SELECT p.*, total_columns<br/>ordered by row_index, column_index]
+  G --> H
+  H --> I[AsyncQueryService transform]
+  </div>
+
+  <pre><code>WITH original_query AS (
+  -- MetricQueryBuilder SQL
+),
+
+group_by_query AS (
+  SELECT
+    "month",
+    "status",
+    ANY_VALUE("revenue") AS "revenue_any"
+  FROM original_query
+  GROUP BY "month", "status"
+),
+
+pivot_query AS (
+  SELECT
+    g."month" AS "month",
+    g."status" AS "status",
+    g."revenue_any" AS "revenue_any",
+    DENSE_RANK() OVER (ORDER BY g."month" ASC) AS "row_index",
+    DENSE_RANK() OVER (ORDER BY g."status" ASC) AS "column_index"
+  FROM group_by_query g
+),
+
+filtered_rows AS (
+  SELECT * FROM pivot_query WHERE "row_index" <= 500
+),
+
+distinct_groups AS (
+  SELECT DISTINCT "status" FROM filtered_rows
+),
+
+total_columns AS (
+  SELECT COUNT(*) AS total_columns FROM distinct_groups
+)
+
+SELECT p.*, t.total_columns
+FROM pivot_query p
+CROSS JOIN total_columns t
+WHERE p."row_index" <= 500
+ORDER BY p."row_index", p."column_index";</code></pre>
+
+  <h2>5. <code>group_by_query</code>: pivot grain</h2>
+  <p><code>group_by_query</code> is where rows are collapsed to the pivot grain:</p>
+
+  <pre><code>one row per (index columns + pivot header columns + needed hidden helper dims)</code></pre>
+
+  <p>For table charts, value columns often use <code>ANY_VALUE</code> because the metric was already semantically aggregated by <code>MetricQueryBuilder</code>. The pivot layer is not redefining revenue; it is regrouping the already-produced result for display.</p>
+
+  <section class="checkpoint">
+    <span class="callout-title">Boundary reminder</span>
+    If revenue is semantically wrong before pivoting, <code>group_by_query</code> will preserve or aggregate a wrong value. Pivot code is not responsible for fanout-safe metric semantics.
+  </section>
+
+  <h2>6. <code>row_index</code> and <code>column_index</code></h2>
+  <p>The final streaming transform needs rows ordered so it can accumulate one output object per rendered row. <code>row_index</code> identifies the rendered row. <code>column_index</code> identifies the pivot header order.</p>
+
+  <div class="two-col">
+    <section class="card">
+      <h3><code>row_index</code></h3>
+      <p>Dense rank over index-column order. Example: Jan = 1, Feb = 2.</p>
+    </section>
+    <section class="card">
+      <h3><code>column_index</code></h3>
+      <p>Dense rank over pivot-column order. Example: completed = 1, pending = 2.</p>
+    </section>
+  </div>
+
+  <p>When there are no index columns, all rows can have <code>row_index = 1</code>; when there are no <code>groupByColumns</code>, PivotQueryBuilder takes a simpler path and does not need the full row/column index machinery.</p>
+
+  <h2>7. Streaming transform: long rows become wide rows</h2>
+  <p><code>AsyncQueryService.runQueryAndTransformRows</code> receives warehouse rows in <code>row_index</code>, <code>column_index</code> order. It holds a current output row. When <code>row_index</code> changes, it flushes the previous output row and starts a new one.</p>
+
+  <div class="mermaid">
+sequenceDiagram
+  participant DB as Warehouse rows
+  participant S as AsyncQueryService
+  participant Out as Output stream/file
+  DB->>S: row_index=1, status=completed, revenue_any=100
+  S->>S: start row { month: Jan }
+  S->>S: set revenue_any_completed = 100
+  DB->>S: row_index=1, status=pending, revenue_any=30
+  S->>S: set revenue_any_pending = 30
+  DB->>S: row_index=2, status=completed, revenue_any=120
+  S->>Out: flush Jan row
+  S->>S: start row { month: Feb }
+  </div>
+
+  <p>The pivoted value column name is built from:</p>
+
+  <pre><code>value column field name + '_' + joined raw pivot values
+
+orders_revenue_any + '_' + completed
+= orders_revenue_any_completed</code></pre>
+
+  <p><code>valuesColumnData</code> records metadata for each generated pivot column, including the original reference field, aggregation, pivot values, and <code>columnIndex</code>.</p>
+
+  <h2>8. What <code>total_columns</code> means</h2>
+  <p>The SQL returns <code>total_columns</code> so the frontend/backend can know how many pivot columns exist before column limiting. <code>distinct_groups</code> counts distinct pivot header combinations after row filtering. If there are multiple value columns and metrics are not displayed as rows, the count is multiplied by value count.</p>
+
+  <pre><code>distinct pivot statuses = completed, pending = 2
+valuesColumns = revenue, order_count = 2
+metricsAsRows = false
+
+total_columns = 2 * 2 = 4</code></pre>
+
+  <h2>9. Sorting by dimensions: relatively simple</h2>
+  <p>If sorting only uses index or group-by dimensions, <code>pivot_query</code> can compute <code>DENSE_RANK()</code> inline:</p>
+
+  <pre><code>DENSE_RANK() OVER (ORDER BY g."month" ASC) AS "row_index",
+DENSE_RANK() OVER (ORDER BY g."status" ASC) AS "column_index"</code></pre>
+
+  <p>Custom bin dimensions may carry an <code>_order</code> helper column through the pipeline when actively sorted.</p>
+
+  <h2>10. Sorting by metrics: the anchor problem</h2>
+  <p>Metric sorting in a pivot is harder because each rendered row has many metric cells. If you sort rows by revenue, which pivot column's revenue should decide the row order?</p>
+
+  <table>
+    <thead><tr><th>month</th><th>revenue_completed</th><th>revenue_pending</th></tr></thead>
+    <tbody><tr><td>Jan</td><td>100</td><td>300</td></tr><tr><td>Feb</td><td>200</td><td>20</td></tr></tbody>
+  </table>
+
+  <p>If sorting descending by revenue, Jan wins if pending is the anchor, but Feb wins if completed is the anchor. Lightdash needs a deterministic anchor column.</p>
+
+  <section class="checkpoint">
+    <span class="callout-title">Anchor column</span>
+    When sorting rows by a value column, Lightdash sorts rows by that metric's value in one selected pivot column. By default this is the first pivot column after column ordering. A pinned sort can specify a particular pivot value.</section>
+
+  <h2>11. Metric sorting CTE pipeline</h2>
+  <p><code>PivotQueryBuilder</code> builds extra CTEs for metric sorting:</p>
+
+  <table>
+    <thead><tr><th>CTE</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td>Column anchors <code>*_ca</code></td><td>Compute first metric values per pivot-column group to support column ordering.</td></tr>
+      <tr><td><code>column_ranking</code></td><td>Assign <code>col_idx</code> to distinct pivot header combinations.</td></tr>
+      <tr><td><code>anchor_column</code></td><td>Pick the pivot header used as row-sort anchor, usually <code>col_idx = 1</code>.</td></tr>
+      <tr><td>Row anchors <code>*_ra</code></td><td>For each rendered row, get the metric value at the anchor column.</td></tr>
+      <tr><td><code>row_ranking</code></td><td>Assign <code>row_index</code> using row anchor values.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="mermaid">
+flowchart TD
+  GB[group_by_query] --> CA[metric column anchors<br/>*_ca]
+  CA --> CR[column_ranking<br/>DENSE_RANK pivot headers]
+  CR --> AC[anchor_column<br/>pick col_idx=1 or pinned value]
+  GB --> RA[row anchors<br/>*_ra metric value at anchor]
+  AC --> RA
+  RA --> RR[row_ranking<br/>DENSE_RANK rows]
+  CR --> PQ[pivot_query]
+  RR --> PQ
+  </div>
+
+  <p>The local <code>QueryBuilder/CLAUDE.md</code> notes that this precomputed ranking path also helps warehouses like Databricks/Spark where inline CTE expansion can make window-function aliases hard to resolve.</p>
+
+  <h2>12. Three pivot modes to recognize</h2>
+  <table>
+    <thead><tr><th>Mode</th><th>Trigger</th><th>CTE shape</th></tr></thead>
+    <tbody>
+      <tr><td>Simple aggregation</td><td>No <code>groupByColumns</code></td><td><code>original_query → group_by_query → SELECT</code>. No row/column indexes.</td></tr>
+      <tr><td>Full pivot, dimension sort</td><td><code>groupByColumns</code> present; no value-column sort requiring anchors</td><td><code>original_query → group_by_query → pivot_query → filtered_rows → distinct_groups → total_columns</code>.</td></tr>
+      <tr><td>Full pivot, metric sort</td><td>Sort by a value column</td><td>Add <code>*_ca</code>, <code>column_ranking</code>, <code>anchor_column</code>, <code>*_ra</code>, and maybe <code>row_ranking</code>.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>13. Hidden sort-only and passthrough fields</h2>
+  <p><code>derivePivotConfigFromChart</code> routes hidden fields carefully:</p>
+
+  <ul>
+    <li><code>sortOnlyColumns</code>: hidden metrics/table calculations needed for sorting but not display.</li>
+    <li><code>sortOnlyDimensions</code>: hidden pivot dimensions that affect column order but do not become visible headers.</li>
+    <li><code>passthroughDimensions</code>: hidden dimensions that do not sort but must flow through for rich text or image templates.</li>
+  </ul>
+
+  <p>These fields explain some “why is this hidden field in the SQL?” surprises. It may be there to preserve sorting or templates, not to render as a pivot header.</p>
+
+  <h2>14. Exercises</h2>
+  <details><summary>Does <code>PivotQueryBuilder</code> usually emit <code>revenue_completed</code> as a SQL column?</summary><p>No. It emits long rows with <code>status = completed</code>, <code>revenue_any</code>, <code>row_index</code>, and <code>column_index</code>. The backend transform creates the wide column name.</p></details>
+  <details><summary>What does <code>group_by_query</code> group by?</summary><p>Visible pivot group-by columns, sort-only dimensions, passthrough dimensions, and index columns. It aggregates values with the configured aggregation.</p></details>
+  <details><summary>Why is <code>row_index</code> needed?</summary><p>It lets the streaming transform know which warehouse rows belong to the same rendered pivot row.</p></details>
+  <details><summary>Why is metric sorting ambiguous in a pivot?</summary><p>A row has multiple metric values across pivot columns. Lightdash must choose an anchor pivot column whose value controls row order.</p></details>
+  <details><summary>What file turns long pivot rows into wide rows?</summary><p><code>packages/backend/src/services/AsyncQueryService/AsyncQueryService.ts</code>, in <code>runQueryAndTransformRows</code>.</p></details>
+
+  <section class="aside">
+    <span class="callout-title">Primary source to review</span>
+    Code: <a href="../packages/backend/src/utils/QueryBuilder/PivotQueryBuilder.ts"><code>PivotQueryBuilder.ts</code></a> for SQL CTEs and anchor logic; <a href="../packages/backend/src/services/AsyncQueryService/AsyncQueryService.ts"><code>AsyncQueryService.ts</code></a> for streaming transformation; <a href="../packages/common/src/types/pivot.ts"><code>types/pivot.ts</code></a> and <a href="../packages/common/src/pivot/derivePivotConfigFromChart.ts"><code>derivePivotConfigFromChart.ts</code></a> for configuration derivation.
+  </section>
+
+  <p class="small">You now have the four core concepts. Review the compact sheet: <a href="../reference/lightdash-query-builder-reference.html">Lightdash query-builder reference</a>. Ask the agent to trace a real chart from <code>MetricQuery</code> to pivoted output when ready.</p>
+</main>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+</script>
+</body>
+</html>

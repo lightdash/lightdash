@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Period-over-period Deep Dive</title>
+  <link rel="stylesheet" href="../assets/lesson.css" />
+</head>
+<body>
+<main>
+  <p class="kicker">Lesson 0003 · Period-over-period</p>
+  <h1>Period-over-period is a shifted self-join of metric results</h1>
+  <p class="subtitle">A PoP metric is not just a label or a table calculation. Backend PoP reruns the base metric over a shifted time window and joins previous-period rows back to current-period rows.</p>
+
+  <nav class="nav">
+    <a href="./0002-ctes-deep-dive.html">Previous: CTEs</a>
+    <a href="./0004-pivot-queries-deep-dive.html">Next: Pivot</a>
+    <a href="../reference/lightdash-query-builder-reference.html">Reference</a>
+  </nav>
+
+  <section class="win">
+    <span class="callout-title">What you should be able to do after this lesson</span>
+    Explain why PoP requires a selected comparison time dimension, why it uses min/max CTEs, why date filters are shifted, and why previous-period rows are left-joined back to current rows.
+  </section>
+
+  <h2>1. User-facing idea</h2>
+  <p>The Lightdash guide describes period-over-period as comparing a metric to a previous time period, like month-over-month or year-over-year (<a href="https://docs.lightdash.com/guides/period-over-period">PoP guide</a>). The beta period comparison flow asks the user to select:</p>
+
+  <ul>
+    <li>a time/date dimension,</li>
+    <li>a metric,</li>
+    <li>an offset such as previous month or previous year,</li>
+    <li>then adds a generated metric to the chart.</li>
+  </ul>
+
+  <p>The backend representation is an <code>AdditionalMetric</code> with PoP metadata, built in <a href="../packages/common/src/types/periodOverPeriodComparison.ts"><code>periodOverPeriodComparison.ts</code></a>.</p>
+
+  <pre><code>{
+  table: 'orders',
+  name: 'revenue__pop__month_1__abc123',
+  label: 'Revenue (Previous month)',
+  type: MetricType.SUM,
+  sql: '${TABLE}.amount',
+  hidden: true,
+  generationType: 'periodOverPeriod',
+  baseMetricId: 'orders_revenue',
+  timeDimensionId: 'orders_order_date_month',
+  granularity: TimeFrames.MONTH,
+  periodOffset: 1
+}</code></pre>
+
+  <h2>2. What the metadata means</h2>
+  <table>
+    <thead><tr><th>Field</th><th>Meaning</th><th>Example</th></tr></thead>
+    <tbody>
+      <tr><td><code>generationType</code></td><td>Marks this additional metric as system-generated PoP.</td><td><code>'periodOverPeriod'</code></td></tr>
+      <tr><td><code>baseMetricId</code></td><td>The current-period metric this compares against.</td><td><code>orders_revenue</code></td></tr>
+      <tr><td><code>timeDimensionId</code></td><td>The selected time dimension used to align current and previous rows.</td><td><code>orders_order_date_month</code></td></tr>
+      <tr><td><code>granularity</code></td><td>The interval unit of comparison.</td><td><code>MONTH</code></td></tr>
+      <tr><td><code>periodOffset</code></td><td>How many granularity units backward.</td><td><code>1</code> for previous month, <code>12</code> for same month last year if granularity is month.</td></tr>
+    </tbody>
+  </table>
+
+  <section class="checkpoint">
+    <span class="callout-title">Compile-time guard</span>
+    <code>MetricQueryBuilder</code> requires the PoP comparison time dimension to be selected in the query. Without it, the final join cannot align current and previous rows.
+  </section>
+
+  <h2>3. A tiny month-over-month example</h2>
+  <p>Suppose the current query asks for monthly revenue from March through May 2026.</p>
+
+  <table>
+    <caption>Current-period metric rows</caption>
+    <thead><tr><th>month</th><th>revenue</th></tr></thead>
+    <tbody><tr><td>2026-03-01</td><td>120</td></tr><tr><td>2026-04-01</td><td>150</td></tr><tr><td>2026-05-01</td><td>90</td></tr></tbody>
+  </table>
+
+  <p>For previous month comparison, the backend needs revenue from February through April:</p>
+
+  <table>
+    <caption>Previous-period metric rows</caption>
+    <thead><tr><th>previous month</th><th>previous revenue</th><th>joins to current month</th></tr></thead>
+    <tbody><tr><td>2026-02-01</td><td>100</td><td>2026-03-01</td></tr><tr><td>2026-03-01</td><td>120</td><td>2026-04-01</td></tr><tr><td>2026-04-01</td><td>150</td><td>2026-05-01</td></tr></tbody>
+  </table>
+
+  <p>The final output is current rows plus matched previous rows:</p>
+
+  <table>
+    <thead><tr><th>current month</th><th>revenue</th><th>revenue previous month</th></tr></thead>
+    <tbody><tr><td>2026-03-01</td><td>120</td><td>100</td></tr><tr><td>2026-04-01</td><td>150</td><td>120</td></tr><tr><td>2026-05-01</td><td>90</td><td>150</td></tr></tbody>
+  </table>
+
+  <div class="mermaid">
+flowchart LR
+  P1[Feb revenue 100] -- +1 month --> C1[Mar current row]
+  P2[Mar revenue 120] -- +1 month --> C2[Apr current row]
+  P3[Apr revenue 150] -- +1 month --> C3[May current row]
+  </div>
+
+  <h2>4. Non-fanout PoP SQL shape</h2>
+  <p>When fanout protection does not take over the metric path, <code>MetricQueryBuilder</code> wraps the normal current query as <code>base_metrics</code>, computes current min/max dates, reruns the base metric over shifted bounds, and left-joins the previous rows back.</p>
+
+  <div class="mermaid">
+flowchart TD
+  A[Current metric SELECT] --> B[base_metrics]
+  B --> C[pop_min_max_month_1<br/>MIN/MAX base month]
+  C --> D[pop_metrics_month_1<br/>same metric SQL, shifted date filter]
+  B --> E[final SELECT]
+  D --> E
+  E --> F[current + previous metric columns]
+  </div>
+
+  <pre><code>WITH base_metrics AS (
+  SELECT
+    DATE_TRUNC('MONTH', "orders".order_date) AS "orders_order_date_month",
+    SUM("orders".amount) AS "orders_revenue"
+  FROM "orders" AS "orders"
+  WHERE DATE_TRUNC('MONTH', "orders".order_date)
+    BETWEEN '2026-03-01' AND '2026-05-01'
+  GROUP BY 1
+),
+
+pop_min_max_month_1 AS (
+  SELECT
+    MIN(base_metrics."orders_order_date_month") AS min_date,
+    MAX(base_metrics."orders_order_date_month") AS max_date
+  FROM base_metrics
+),
+
+pop_metrics_month_1 AS (
+  SELECT
+    DATE_TRUNC('MONTH', "orders".order_date) AS "orders_order_date_month",
+    SUM("orders".amount) AS "orders_revenue__pop__month_1"
+  FROM "orders" AS "orders"
+  LEFT JOIN pop_min_max_month_1 ON TRUE
+  WHERE DATE_TRUNC('MONTH', "orders".order_date) >= pop_min_max_month_1.min_date - INTERVAL '1 MONTH'
+    AND DATE_TRUNC('MONTH', "orders".order_date) <= pop_min_max_month_1.max_date - INTERVAL '1 MONTH'
+  GROUP BY 1
+)
+
+SELECT
+  base_metrics.*,
+  pop_metrics_month_1."orders_revenue__pop__month_1"
+FROM base_metrics
+LEFT JOIN pop_metrics_month_1
+  ON base_metrics."orders_order_date_month"
+   = pop_metrics_month_1."orders_order_date_month" + INTERVAL '1 MONTH';</code></pre>
+
+  <h2>5. Why the min/max CTE exists</h2>
+  <p>PoP compares the currently visible time window to a shifted window. Instead of hard-coding the request filter, Lightdash derives the current time bounds from <code>base_metrics</code>:</p>
+
+  <pre><code>SELECT MIN(base.month), MAX(base.month) FROM base_metrics</code></pre>
+
+  <p>Then it computes the comparison window by shifting those bounds. If current months are March–May and offset is one month, previous months are February–April.</p>
+
+  <div class="mermaid">
+timeline
+  title Month-over-month windows
+  2026-02 : previous window begins
+  2026-03 : current window begins; previous rows join to March/April/May
+  2026-04 : overlap month
+  2026-05 : current window ends
+  </div>
+
+  <h2>6. Filter semantics: reuse non-time filters, shift time filters</h2>
+  <p>The previous-period query should answer the same business question in a different time window. So non-time filters are reused; the comparison time dimension's current date condition is replaced by shifted bounds.</p>
+
+  <table>
+    <thead><tr><th>Filter</th><th>Current query</th><th>Previous-period query</th></tr></thead>
+    <tbody>
+      <tr><td><code>orders_status = 'completed'</code></td><td>Keep</td><td>Keep</td></tr>
+      <tr><td><code>country = 'US'</code></td><td>Keep</td><td>Keep</td></tr>
+      <tr><td><code>month between Mar and May</code></td><td>Keep</td><td>Replace with shifted Feb to Apr bounds</td></tr>
+    </tbody>
+  </table>
+
+  <p>In code, this appears as <code>getPopDimensionsFilterSQL(popFieldId)</code> plus interval syntax built from <code>cfg.periodOffset</code> and <code>cfg.granularity</code>.</p>
+
+  <h2>7. The final join condition</h2>
+  <p>For non-time dimensions, current and previous rows match by null-safe equality. For the comparison time dimension, the previous row is shifted forward to equal the current row.</p>
+
+  <pre><code>LEFT JOIN pop_metrics_month_1 ON
+  base_metrics."orders_status" = pop_metrics_month_1."orders_status"
+  AND base_metrics."orders_order_date_month"
+      = pop_metrics_month_1."orders_order_date_month" + INTERVAL '1 MONTH'</code></pre>
+
+  <section class="checkpoint">
+    <span class="callout-title">PoP invariant</span>
+    The previous-period CTE should produce the same grouping dimensions as the current rows. All dimensions join by equality, except the comparison time dimension joins by interval-shifted equality.
+  </section>
+
+  <h2>8. Why <code>LEFT JOIN</code>?</h2>
+  <p>A current row should not disappear just because the previous period has no matching row. If May has revenue but April has none, the output should show May with <code>NULL</code> previous revenue. That requires <code>LEFT JOIN</code>.</p>
+
+  <div class="two-col">
+    <section class="danger">
+      <h3>Inner join behavior</h3>
+      <p>Current rows without previous rows vanish. That hides real current-period data.</p>
+    </section>
+    <section class="win">
+      <h3>Left join behavior</h3>
+      <p>Current rows remain. Previous metric is null when the shifted row is missing.</p>
+    </section>
+  </div>
+
+  <h2>9. Multiple PoP configs</h2>
+  <p><code>MetricQueryBuilder</code> groups selected/filtered PoP metrics by comparison config: <code>timeDimensionId</code>, <code>granularity</code>, and <code>periodOffset</code>. The config gets a short hashed CTE suffix so multiple comparisons can exist in one query, e.g. previous month and same month last year.</p>
+
+  <pre><code>getPopComparisonConfigKey({
+  timeDimensionId: 'orders_order_date_month',
+  granularity: TimeFrames.MONTH,
+  periodOffset: 1
+})
+
+cte suffix: month_1__00abc123</code></pre>
+
+  <p>Metrics with the same config can share min/max and shifted-date CTEs; metrics with different configs need separate shifted windows.</p>
+
+  <h2>10. Fanout-aware PoP: same shifted idea, safer metric path</h2>
+  <p>If the base metric is in a table that needs fanout protection, Lightdash cannot simply rerun a flat previous-period aggregate. It must use the same protected-key pattern in the shifted period.</p>
+
+  <div class="mermaid">
+flowchart TD
+  K[cte_keys_table<br/>current distinct dimensions + pk] --> M[cte_metrics_table<br/>current protected metric]
+  K --> MM[cte_pop_min_max_table<br/>current min/max comparison time]
+  MM --> PK[cte_pop_keys_table<br/>previous-period distinct dimensions + pk]
+  PK --> PM[cte_pop_metrics_table<br/>previous protected metric]
+  M --> Final[final fanout SELECT]
+  PM --> Final
+  Final --> Out[current metric + previous protected metric]
+  </div>
+
+  <p>The crucial difference is that <code>cte_pop_keys_*</code> is not just a copy of <code>cte_keys_*</code>. It selects keys from the shifted previous-period window, because the relevant primary keys may differ between current and previous periods.</p>
+
+  <h2>11. Month-over-month vs year-over-year examples</h2>
+  <table>
+    <thead><tr><th>User intent</th><th>timeDimensionId</th><th>granularity</th><th>periodOffset</th><th>Join intuition</th></tr></thead>
+    <tbody>
+      <tr><td>Previous day</td><td><code>orders_order_date_day</code></td><td><code>DAY</code></td><td><code>1</code></td><td>previous day + 1 day = current day</td></tr>
+      <tr><td>Previous month</td><td><code>orders_order_date_month</code></td><td><code>MONTH</code></td><td><code>1</code></td><td>previous month + 1 month = current month</td></tr>
+      <tr><td>Same month last year</td><td><code>orders_order_date_month</code></td><td><code>MONTH</code></td><td><code>12</code></td><td>previous month + 12 months = current month</td></tr>
+      <tr><td>Previous year</td><td><code>orders_order_date_year</code></td><td><code>YEAR</code></td><td><code>1</code></td><td>previous year + 1 year = current year</td></tr>
+    </tbody>
+  </table>
+
+  <h2>12. Why not just use <code>LAG()</code>?</h2>
+  <p><code>LAG()</code> is row-position based. It compares to “the previous row in the visible ordered result”. Backend PoP is time-window based. It computes the metric over actual shifted dates, with the same non-time filters and grouping dimensions. That is more robust when rows are missing, filters change, or the offset is not simply one visible row.</p>
+
+  <div class="two-col">
+    <section class="card">
+      <h3><code>LAG()</code></h3>
+      <p>Depends on result row order and presence of rows. Good for some table calculations.</p>
+    </section>
+    <section class="card">
+      <h3>Backend PoP</h3>
+      <p>Reruns metric over shifted time bounds and joins by interval. Better semantic comparison.</p>
+    </section>
+  </div>
+
+  <h2>13. Exercises</h2>
+  <details><summary>Current window: March–May. Granularity: month. Offset: 1. What previous window is queried?</summary><p>February–April. Those previous rows join forward to March–May.</p></details>
+  <details><summary>Current month row is May 2026. Granularity month, offset 12. Which previous row joins?</summary><p>May 2025, because May 2025 + 12 months = May 2026.</p></details>
+  <details><summary>Why must <code>orders_order_date_month</code> be selected for a monthly PoP metric?</summary><p>The final join needs the current row's month to match it to the shifted previous row.</p></details>
+  <details><summary>Why do previous-period CTEs reuse country/status filters?</summary><p>The comparison should answer the same business question in a different time window, not a different segment.</p></details>
+  <details><summary>Why does fanout-aware PoP create <code>cte_pop_keys_*</code>?</summary><p>Previous-period primary keys can differ from current-period primary keys, and protected metrics must be aggregated at a safe key grain in the shifted window.</p></details>
+
+  <section class="aside">
+    <span class="callout-title">Primary source to review</span>
+    User-facing docs: <a href="https://docs.lightdash.com/guides/period-over-period">Period-over-period guide</a>. Code: <a href="../packages/common/src/types/periodOverPeriodComparison.ts"><code>periodOverPeriodComparison.ts</code></a> for generated metric metadata, and <a href="../packages/backend/src/utils/QueryBuilder/MetricQueryBuilder.ts"><code>MetricQueryBuilder.ts</code></a> for <code>base_metrics</code>, <code>pop_min_max_*</code>, <code>pop_metrics_*</code>, and fanout-aware <code>cte_pop_*</code> CTEs.
+  </section>
+
+  <p class="small">Next lesson: <a href="./0004-pivot-queries-deep-dive.html">Pivot Queries Deep Dive</a>. Ask the agent to generate a concrete MoM SQL sketch for a metric you care about.</p>
+</main>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+</script>
+</body>
+</html>

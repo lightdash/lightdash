@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lightdash Query Builder Reference</title>
+  <link rel="stylesheet" href="../assets/lesson.css" />
+</head>
+<body>
+<main>
+  <p class="kicker">Reference</p>
+  <h1>Lightdash backend query-builder cheat sheet</h1>
+  <p class="subtitle">A compact glossary and pipeline map for fanouts, CTEs, period-over-period, and pivot queries.</p>
+
+  <nav class="nav">
+    <a href="../lessons/0000-intro-lightdash-query-systems.html">Intro</a>
+    <a href="../lessons/0001-fanouts-deep-dive.html">Fanouts</a>
+    <a href="../lessons/0002-ctes-deep-dive.html">CTEs</a>
+    <a href="../lessons/0003-period-over-period-deep-dive.html">PoP</a>
+    <a href="../lessons/0004-pivot-queries-deep-dive.html">Pivot</a>
+  </nav>
+
+  <h2>One-screen architecture</h2>
+  <div class="mermaid">
+flowchart TD
+  MQ[MetricQuery] --> Compile[compileMetricQuery]
+  Compile --> MQB[MetricQueryBuilder]
+  MQB --> Fan[optional fanout CTEs<br/>cte_keys_* / cte_metrics_* / cte_unaffected]
+  Fan --> DD[optional distinct CTEs<br/>dd_* / dd_base]
+  DD --> POP[optional PoP CTEs<br/>base_metrics + pop_* or cte_pop_*]
+  POP --> Flat[Flat semantic SQL]
+  Flat --> Pivot{pivotConfiguration?}
+  Pivot -- no --> Execute[warehouse execute]
+  Pivot -- yes --> PQB[PivotQueryBuilder<br/>original_query → group_by_query → pivot_query]
+  PQB --> Execute
+  Execute --> Transform[AsyncQueryService.runQueryAndTransformRows]
+  Transform --> Results[rows, columns, pivotDetails]
+  </div>
+
+  <h2>Glossary</h2>
+  <div class="grid">
+    <section class="card"><h3>Grain</h3><p>What one row represents. Example: one customer, one order, one order item.</p></section>
+    <section class="card"><h3>Fanout</h3><p>A join that makes rows from a table repeat, usually one-to-many or many-to-many.</p></section>
+    <section class="card"><h3>Metric inflation</h3><p>An aggregate changes because repeated rows enter the aggregate. Commonly affects <code>SUM</code> and <code>AVG</code>.</p></section>
+    <section class="card"><h3>Inflation-proof metric</h3><p>Metric type stable under repeated rows in Lightdash's fanout logic: <code>COUNT_DISTINCT</code>, <code>SUM_DISTINCT</code>, <code>AVERAGE_DISTINCT</code>, <code>MIN</code>, <code>MAX</code>.</p></section>
+    <section class="card"><h3>CTE</h3><p>A named SQL scope in a <code>WITH</code> clause. Later scopes can read earlier scopes if they <code>FROM</code>/<code>JOIN</code> them.</p></section>
+    <section class="card"><h3>PoP</h3><p>Period-over-period. A generated comparison metric computed over a shifted time window.</p></section>
+    <section class="card"><h3>Pivot long row</h3><p>A row with pivot header values plus <code>row_index</code> and <code>column_index</code>. Not the final wide pivot row.</p></section>
+    <section class="card"><h3>Anchor column</h3><p>The pivot column whose value controls row ordering when sorting pivot rows by a metric.</p></section>
+  </div>
+
+  <h2>CTE family table</h2>
+  <table>
+    <thead><tr><th>Family</th><th>Subsystem</th><th>Reads from</th><th>Outputs</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>cte_keys_*</code></td><td>Fanout</td><td>Full joined query</td><td>Dimension aliases + <code>pk_*</code></td><td>Find distinct protected table keys per group.</td></tr>
+      <tr><td><code>cte_metrics_*</code></td><td>Fanout</td><td><code>cte_keys_*</code> + protected table</td><td>Dimension aliases + safe metrics</td><td>Aggregate protected metrics without row multiplication.</td></tr>
+      <tr><td><code>cte_unaffected</code></td><td>Fanout</td><td>Full joined query</td><td>Dimensions + unaffected metrics</td><td>Carry the rest of the result grain.</td></tr>
+      <tr><td><code>dd_*</code></td><td>Distinct metrics</td><td>Base tables/joins</td><td>One deduped distinct metric, optional join keys</td><td>Deduplicate by configured distinct keys.</td></tr>
+      <tr><td><code>dd_base</code></td><td>Distinct metrics</td><td>Current final select before dd stitching</td><td>Pre-dd result</td><td>Stable base for joining distinct metrics.</td></tr>
+      <tr><td><code>base_metrics</code></td><td>Non-fanout PoP</td><td>Current metric SELECT</td><td>Current rows</td><td>Freeze current results before comparison.</td></tr>
+      <tr><td><code>pop_min_max_*</code></td><td>PoP</td><td><code>base_metrics</code></td><td><code>min_date</code>, <code>max_date</code></td><td>Derive current window bounds.</td></tr>
+      <tr><td><code>pop_metrics_*</code></td><td>PoP</td><td>Base tables + shifted min/max</td><td>Previous-period metric aliases</td><td>Compute shifted comparison rows.</td></tr>
+      <tr><td><code>cte_pop_keys_*</code></td><td>Fanout PoP</td><td>Full joined query + shifted min/max</td><td>Previous-period dimension aliases + pk</td><td>Fanout-safe shifted keys.</td></tr>
+      <tr><td><code>cte_pop_metrics_*</code></td><td>Fanout PoP</td><td><code>cte_pop_keys_*</code> + protected table</td><td>Previous-period protected metrics</td><td>Fanout-safe shifted metrics.</td></tr>
+      <tr><td><code>original_query</code></td><td>Pivot</td><td>Flat semantic SQL</td><td>Original result fields</td><td>Wrap metric query for pivot pipeline.</td></tr>
+      <tr><td><code>group_by_query</code></td><td>Pivot</td><td><code>original_query</code></td><td>Pivot-grain rows + value aliases</td><td>Group to index + pivot-column grain.</td></tr>
+      <tr><td><code>pivot_query</code></td><td>Pivot</td><td><code>group_by_query</code> + rankings</td><td><code>row_index</code>, <code>column_index</code></td><td>Make long rows streamable as a pivot.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Fanout decision checklist</h2>
+  <ol>
+    <li>What is the starting/base table?</li>
+    <li>What is the join relationship direction?</li>
+    <li>Which table's rows can repeat in the joined result?</li>
+    <li>Is the metric from a repeated table?</li>
+    <li>Is the metric type vulnerable (<code>SUM</code>, <code>AVG</code>, plain <code>COUNT</code>) or inflation-proof/special?</li>
+    <li>Does the repeated table have a primary key so Lightdash can build <code>cte_keys_*</code>?</li>
+  </ol>
+
+  <h2>Alias tracing algorithm</h2>
+  <ol>
+    <li>Pick the final output alias.</li>
+    <li>Search for <code>AS "alias"</code>.</li>
+    <li>If it appears more than once, identify which subsystem emitted each one.</li>
+    <li>For the intended owner, list the source aliases in the expression.</li>
+    <li>Verify the current scope reads from CTEs exposing those source aliases.</li>
+    <li>Repeat until reaching base table columns or compiled metric SQL.</li>
+  </ol>
+
+  <h2>PoP invariant</h2>
+  <pre><code>current rows = base metric over current time window
+previous rows = same base metric over shifted time window
+
+join current to previous:
+  non-time dimensions: null-safe equality
+  comparison time dimension: current_time = previous_time + offset interval
+  join type: LEFT JOIN, so current rows survive missing previous rows</code></pre>
+
+  <h2>Pivot pipeline cheat</h2>
+  <pre><code>original_query
+  = MetricQueryBuilder output, with semantic metrics already decided
+
+group_by_query
+  = SELECT index cols + pivot header cols + aggregated value cols
+    FROM original_query
+    GROUP BY index cols + pivot header cols + helper dims
+
+pivot_query
+  = SELECT group_by_query fields
+    + DENSE_RANK(...) AS row_index
+    + DENSE_RANK(...) AS column_index
+
+AsyncQueryService.runQueryAndTransformRows
+  = stream ordered long rows
+  = when row_index changes, flush current transformed row
+  = value column name = valueField_aggregation + pivot value suffix</code></pre>
+
+  <h2>Metric sort anchor cheat</h2>
+  <div class="mermaid">
+flowchart TD
+  GB[group_by_query] --> CA[*_ca column anchors]
+  CA --> CR[column_ranking]
+  CR --> AC[anchor_column]
+  AC --> RA[*_ra row anchors]
+  GB --> RA
+  RA --> RR[row_ranking]
+  RR --> PQ[pivot_query]
+  CR --> PQ
+  </div>
+
+  <h2>Primary file map</h2>
+  <table>
+    <thead><tr><th>Question</th><th>File/function</th></tr></thead>
+    <tbody>
+      <tr><td>How is high-level query builder architecture described?</td><td><a href="../packages/backend/src/utils/QueryBuilder/CLAUDE.md"><code>packages/backend/src/utils/QueryBuilder/CLAUDE.md</code></a></td></tr>
+      <tr><td>Where are semantic metric SQL, fanouts, distinct metrics, and PoP built?</td><td><a href="../packages/backend/src/utils/QueryBuilder/MetricQueryBuilder.ts"><code>MetricQueryBuilder.ts</code></a></td></tr>
+      <tr><td>Where is pivot SQL built?</td><td><a href="../packages/backend/src/utils/QueryBuilder/PivotQueryBuilder.ts"><code>PivotQueryBuilder.ts</code></a></td></tr>
+      <tr><td>Where are pivot rows widened?</td><td><a href="../packages/backend/src/services/AsyncQueryService/AsyncQueryService.ts"><code>AsyncQueryService.runQueryAndTransformRows</code></a></td></tr>
+      <tr><td>What is <code>PivotConfiguration</code>?</td><td><a href="../packages/common/src/types/pivot.ts"><code>packages/common/src/types/pivot.ts</code></a></td></tr>
+      <tr><td>How is pivot config derived from charts?</td><td><a href="../packages/common/src/pivot/derivePivotConfigFromChart.ts"><code>derivePivotConfigFromChart.ts</code></a></td></tr>
+      <tr><td>How are PoP additional metrics named/built?</td><td><a href="../packages/common/src/types/periodOverPeriodComparison.ts"><code>periodOverPeriodComparison.ts</code></a></td></tr>
+    </tbody>
+  </table>
+
+  <p class="small">Print this page or keep it open while reading generated SQL. For deeper explanations, use the lesson links above.</p>
+</main>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+</script>
+</body>
+</html>

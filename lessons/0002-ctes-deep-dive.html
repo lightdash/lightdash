@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CTEs Deep Dive</title>
+  <link rel="stylesheet" href="../assets/lesson.css" />
+</head>
+<body>
+<main>
+  <p class="kicker">Lesson 0002 · CTE composition</p>
+  <h1>CTEs are named scopes: Lightdash query magic is scope management</h1>
+  <p class="subtitle">Generated Lightdash SQL looks scary because it stacks many CTEs. The way through is to track each CTE's input, output columns, and alias scope.</p>
+
+  <nav class="nav">
+    <a href="./0001-fanouts-deep-dive.html">Previous: Fanouts</a>
+    <a href="./0003-period-over-period-deep-dive.html">Next: PoP</a>
+    <a href="../reference/lightdash-query-builder-reference.html">Reference</a>
+  </nav>
+
+  <section class="win">
+    <span class="callout-title">What you should be able to do after this lesson</span>
+    Trace one output alias through a generated Lightdash query and identify which CTE created it, which CTEs can reference it, and why sibling CTEs cannot see it unless they join or select from it.
+  </section>
+
+  <h2>1. Plain SQL CTEs: the only rule you need</h2>
+  <p>A CTE is a named subquery. Later CTEs can read earlier CTEs. Sibling CTEs do not share columns by magic. A column alias exists only in the result of the CTE that selected it, and in later queries that read from that CTE.</p>
+
+  <pre><code>WITH revenue_by_month AS (
+  SELECT month, SUM(amount) AS revenue
+  FROM orders
+  GROUP BY month
+),
+
+large_months AS (
+  SELECT month
+  FROM revenue_by_month
+  WHERE revenue > 1000
+)
+
+SELECT * FROM large_months;</code></pre>
+
+  <div class="mermaid">
+flowchart TD
+  A[revenue_by_month<br/>columns: month, revenue] --> B[large_months<br/>reads revenue_by_month<br/>columns: month]
+  B --> C[final SELECT]
+  D[Some sibling CTE] -. cannot see revenue unless it FROM/JOINs A .-> A
+  </div>
+
+  <section class="checkpoint">
+    <span class="callout-title">Scope rule</span>
+    If you see <code>some_alias</code> used inside a CTE, ask: “Is the CTE selecting from a source that exposes <code>some_alias</code>?” If not, the alias is out of scope.
+  </section>
+
+  <h2>2. Why Lightdash uses so many CTEs</h2>
+  <p>Lightdash has to take semantic-layer definitions and produce one warehouse query. Each semantic feature wants a different intermediate shape:</p>
+
+  <ul>
+    <li>Fanout protection needs entity keys and safe aggregates.</li>
+    <li>Distinct metrics need row-numbered deduplication by distinct keys.</li>
+    <li>Period-over-period needs current rows and shifted comparison rows.</li>
+    <li>Pivoting needs long rows ranked by row and column order.</li>
+    <li>Table calculations and post-aggregation metrics may need outer selects.</li>
+  </ul>
+
+  <p>CTEs make those shapes explicit and composable.</p>
+
+  <h2>3. The Lightdash CTE families</h2>
+  <table>
+    <thead><tr><th>CTE family</th><th>Owner</th><th>What it outputs</th><th>Core idea</th></tr></thead>
+    <tbody>
+      <tr><td><code>cte_keys_*</code></td><td>Fanout protection</td><td>Dimension aliases + protected table primary keys</td><td>Find relevant entity keys per output group in the full joined world.</td></tr>
+      <tr><td><code>cte_metrics_*</code></td><td>Fanout protection</td><td>Fanout-safe metrics for one protected table</td><td>Join keys back to the protected table and aggregate there.</td></tr>
+      <tr><td><code>cte_unaffected</code></td><td>Fanout protection</td><td>Dimensions + metrics not emitted from protected metric CTEs</td><td>Keep the rest of the query at the regular grouped grain.</td></tr>
+      <tr><td><code>dd_*</code></td><td>Distinct metrics</td><td>One deduplicated <code>sum_distinct</code> or <code>average_distinct</code></td><td>Use <code>ROW_NUMBER()</code> over distinct keys, aggregate only row one.</td></tr>
+      <tr><td><code>dd_base</code></td><td>Distinct metrics</td><td>The query result before distinct metric values are stitched in</td><td>Provide a stable source for outer distinct metric joins/selects.</td></tr>
+      <tr><td><code>base_metrics</code></td><td>Non-fanout PoP</td><td>Current-period result rows</td><td>Freeze the current query so previous-period rows can join back to it.</td></tr>
+      <tr><td><code>pop_min_max_*</code></td><td>PoP</td><td>Min and max selected comparison time dimension</td><td>Derive shifted previous-period bounds from current rows.</td></tr>
+      <tr><td><code>pop_metrics_*</code></td><td>PoP</td><td>Previous-period metric values</td><td>Rerun base metric SQL over shifted dates.</td></tr>
+      <tr><td><code>cte_pop_keys_*</code></td><td>Fanout-aware PoP</td><td>Shifted-period keys for protected table</td><td>Previous-period version of <code>cte_keys_*</code>.</td></tr>
+      <tr><td><code>cte_pop_metrics_*</code></td><td>Fanout-aware PoP</td><td>Previous-period protected metrics</td><td>Previous-period version of <code>cte_metrics_*</code>.</td></tr>
+      <tr><td><code>original_query</code></td><td>Pivot</td><td>Flat SQL from <code>MetricQueryBuilder</code></td><td>Wrap the semantic query before pivot-specific aggregation.</td></tr>
+      <tr><td><code>group_by_query</code></td><td>Pivot</td><td>Rows at pivot grain</td><td>Group by index + pivot columns, aggregate values.</td></tr>
+      <tr><td><code>pivot_query</code></td><td>Pivot</td><td>Pivot grain + <code>row_index</code> + <code>column_index</code></td><td>Make long rows streamable as a pivot table.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>4. Fanout CTEs as scopes</h2>
+  <p>From the fanout lesson, a protected table produces <code>cte_keys_customers</code> and <code>cte_metrics_customers</code>. The important scope point: <code>cte_metrics_customers</code> can read columns from <code>cte_keys_customers</code> because it explicitly has <code>FROM cte_keys_customers</code>.</p>
+
+  <pre><code>cte_keys_customers AS (
+  SELECT DISTINCT
+    orders.status AS "orders_status",
+    customers.customer_id AS "pk_customer_id"
+  FROM customers
+  LEFT JOIN orders ON ...
+),
+
+cte_metrics_customers AS (
+  SELECT
+    cte_keys_customers."orders_status",
+    SUM(customers.lifetime_value) AS "customers_total_ltv"
+  FROM cte_keys_customers
+  LEFT JOIN customers
+    ON cte_keys_customers."pk_customer_id" = customers.customer_id
+  GROUP BY 1
+)</code></pre>
+
+  <p>But <code>cte_metrics_customers</code> cannot read aliases from <code>cte_unaffected</code> unless it joins <code>cte_unaffected</code>. Sibling CTEs are independent.</p>
+
+  <div class="mermaid">
+flowchart TD
+  K[cte_keys_customers<br/>orders_status, pk_customer_id] --> M[cte_metrics_customers<br/>orders_status, customers_total_ltv]
+  U[cte_unaffected<br/>orders_status, orders_total_amount] --> F[final SELECT]
+  M --> F
+  U -. sibling, not visible inside .-> M
+  </div>
+
+  <h2>5. Distinct metric CTEs as scopes</h2>
+  <p><code>sum_distinct</code> and <code>average_distinct</code> get <code>dd_*</code> CTEs through <code>buildDistinctMetricCtes</code>. The code comments describe the semantics:</p>
+  <ol>
+    <li>Inner subquery picks one row per <code>distinct_keys</code> combination with <code>ROW_NUMBER()</code>.</li>
+    <li>Outer CTE aggregates up to the grain of selected dimensions that overlap distinct keys.</li>
+    <li>The result joins back to <code>dd_base</code> by overlapping keys, or cross joins if scalar.</li>
+  </ol>
+
+  <pre><code>dd_orders_deduped_revenue AS (
+  SELECT
+    SUM(CASE WHEN __dd_rn = 1 THEN __dd_val ELSE NULL END)
+      AS "orders_deduped_revenue"
+  FROM (
+    SELECT
+      orders.amount AS __dd_val,
+      ROW_NUMBER() OVER (
+        PARTITION BY orders.order_id
+        ORDER BY orders.amount
+      ) AS __dd_rn
+    FROM ...joined query...
+  ) __dd_sub
+),
+
+dd_base AS (
+  -- whatever the query had before distinct metrics were stitched in
+),
+
+SELECT
+  dd_base.*,
+  dd_orders_deduped_revenue."orders_deduped_revenue"
+FROM dd_base
+CROSS JOIN dd_orders_deduped_revenue</code></pre>
+
+  <section class="checkpoint">
+    <span class="callout-title">Alias lesson</span>
+    A <code>dd_*</code> metric alias is available only after the query reads from the <code>dd_*</code> CTE. If some earlier sibling CTE emits a derived metric that expects the <code>dd_*</code> alias, the alias is not in scope there.
+  </section>
+
+  <h2>6. PoP CTEs as scopes</h2>
+  <p>PoP creates a current scope and a previous-period scope. In the non-fanout path, <code>base_metrics</code> freezes current rows. <code>pop_min_max_*</code> reads <code>base_metrics</code>. <code>pop_metrics_*</code> reads the base tables again, constrained by shifted bounds. The final select reads both <code>base_metrics</code> and <code>pop_metrics_*</code>.</p>
+
+  <div class="mermaid">
+flowchart TD
+  Current[normal current SELECT] --> Base[base_metrics]
+  Base --> MinMax[pop_min_max_*]
+  MinMax --> Pop[pop_metrics_*]
+  Base --> Final[final SELECT]
+  Pop --> Final
+  </div>
+
+  <p>In the fanout path, the same idea appears as <code>cte_pop_min_max_*</code>, <code>cte_pop_keys_*</code>, and <code>cte_pop_metrics_*</code>. The prefix changes because it must respect the fanout-protected key/metric split.</p>
+
+  <h2>7. Pivot CTEs as scopes</h2>
+  <p>Pivot CTEs are added after the semantic SQL is built. <code>original_query</code> exposes the flat result from <code>MetricQueryBuilder</code>. <code>group_by_query</code> groups that output to pivot grain and gives value aliases suffixes like <code>_any</code>. <code>pivot_query</code> reads <code>group_by_query</code> and adds ranks.</p>
+
+  <pre><code>WITH original_query AS (
+  -- MetricQueryBuilder output
+),
+
+group_by_query AS (
+  SELECT
+    "month",
+    "status",
+    ANY_VALUE("revenue") AS "revenue_any"
+  FROM original_query
+  GROUP BY "month", "status"
+),
+
+pivot_query AS (
+  SELECT
+    g."month",
+    g."status",
+    g."revenue_any",
+    DENSE_RANK() OVER (ORDER BY g."month") AS "row_index",
+    DENSE_RANK() OVER (ORDER BY g."status") AS "column_index"
+  FROM group_by_query g
+)</code></pre>
+
+  <h2>8. How to read a generated query top-down</h2>
+  <p>Top-down reading answers: “What intermediate tables are being created?”</p>
+
+  <ol>
+    <li>Scan the CTE names in order.</li>
+    <li>Classify each CTE family: fanout, distinct, PoP, pivot, table calc/post-agg.</li>
+    <li>For each CTE, list its output aliases from the <code>SELECT</code> clause.</li>
+    <li>Note which later CTEs read it with <code>FROM</code> or <code>JOIN</code>.</li>
+  </ol>
+
+  <div class="flowline">Top-down cheat:
+cte_keys_*       → exposes dimension aliases + pk_*
+cte_metrics_*    → exposes dimension aliases + protected metrics
+dd_*             → exposes joinable dimension aliases + one distinct metric
+dd_base          → exposes everything before dd stitching
+base_metrics     → exposes current-period rows
+pop_metrics_*    → exposes previous-period metric aliases
+original_query   → exposes flat semantic result to pivot
+group_by_query   → exposes pivot grain + value aliases
+pivot_query      → exposes pivot grain + row_index + column_index</div>
+
+  <h2>9. How to read a generated query bottom-up</h2>
+  <p>Bottom-up reading answers: “Where did this final output alias come from?” This is usually better for debugging.</p>
+
+  <section class="checkpoint">
+    <span class="callout-title">Alias tracing algorithm</span>
+    <ol>
+      <li>Pick one final output alias, e.g. <code>"orders_revenue__pop__month_1"</code>.</li>
+      <li>Search the SQL for <code>AS "orders_revenue__pop__month_1"</code>.</li>
+      <li>If multiple places emit it, you found a duplication risk.</li>
+      <li>For the intended emission, identify the CTE or final select that owns it.</li>
+      <li>List every source alias used in its expression.</li>
+      <li>For each source alias, ask: is it in scope via <code>FROM</code>/<code>JOIN</code>?</li>
+      <li>Repeat until you reach base table columns or metric compiled SQL.</li>
+    </ol>
+  </section>
+
+  <h2>10. A miniature alias trace</h2>
+  <pre><code>WITH cte_unaffected AS (
+  SELECT
+    "orders".status AS "orders_status",
+    SUM("orders".amount) AS "orders_total_amount"
+  FROM ...
+  GROUP BY 1
+),
+
+cte_metrics_customers AS (
+  SELECT
+    cte_keys_customers."orders_status",
+    SUM("customers".lifetime_value) AS "customers_total_ltv"
+  FROM cte_keys_customers
+  LEFT JOIN "customers" ON ...
+  GROUP BY 1
+)
+
+SELECT
+  cte_unaffected."orders_status",
+  cte_unaffected."orders_total_amount",
+  cte_metrics_customers."customers_total_ltv"
+FROM cte_unaffected
+INNER JOIN cte_metrics_customers
+  ON cte_unaffected."orders_status" = cte_metrics_customers."orders_status"</code></pre>
+
+  <p>Trace <code>customers_total_ltv</code>:</p>
+  <ol>
+    <li>Final select emits <code>cte_metrics_customers."customers_total_ltv"</code>.</li>
+    <li><code>cte_metrics_customers</code> created that alias with <code>SUM(customers.lifetime_value)</code>.</li>
+    <li>It was safe because it read from <code>cte_keys_customers</code> and joined back to customers by primary key.</li>
+  </ol>
+
+  <h2>11. Why Lightdash rewrites metric references</h2>
+  <p>Semantic metrics can reference other metrics, e.g. <code>${orders.profit} / NULLIF(${orders.revenue}, 0)</code>. Once metrics live in CTEs, the raw semantic reference must become a CTE-qualified SQL reference. <code>replaceMetricReferencesWithCteReferences</code> handles this in <code>MetricQueryBuilder</code>.</p>
+
+  <div class="two-col">
+    <section class="danger">
+      <h3>Raw semantic reference</h3>
+      <pre><code>${orders.revenue}</code></pre>
+      <p class="small">Not valid SQL inside an outer CTE unless compiled/replaced.</p>
+    </section>
+    <section class="win">
+      <h3>CTE-qualified reference</h3>
+      <pre><code>cte_unaffected."orders_revenue"</code></pre>
+      <p class="small">Valid if the current scope reads <code>cte_unaffected</code>.</p>
+    </section>
+  </div>
+
+  <h2>12. Practice</h2>
+  <details><summary>Can <code>cte_metrics_customers</code> use an alias created in <code>cte_unaffected</code>?</summary><p>No, unless <code>cte_metrics_customers</code> explicitly selects from or joins <code>cte_unaffected</code>. They are siblings.</p></details>
+  <details><summary>Why does <code>dd_base</code> exist?</summary><p>It freezes the query result before distinct metrics are stitched in, so <code>dd_*</code> outputs can be joined to a stable base scope.</p></details>
+  <details><summary>What does <code>group_by_query</code> read from?</summary><p><code>original_query</code>, which is the flat semantic result from <code>MetricQueryBuilder</code>.</p></details>
+  <details><summary>If an alias appears as <code>AS "x"</code> in two CTEs, what should you ask?</summary><p>Which CTE is supposed to own <code>x</code>? If both are later selected, the final result may have duplicate or ambiguous columns.</p></details>
+  <details><summary>Why do CTE joins often use dimension aliases?</summary><p>Fanout/PoP/metric CTEs produce metric values at the result grain. Dimension aliases are the keys for stitching those metric values back together.</p></details>
+
+  <section class="aside">
+    <span class="callout-title">Primary source to review</span>
+    Code: <a href="../packages/backend/src/utils/QueryBuilder/MetricQueryBuilder.ts"><code>MetricQueryBuilder.ts</code></a>, especially <code>getExperimentalMetricsCteSQL</code>, <code>buildDistinctMetricCtes</code>, the non-fanout PoP block around <code>base_metrics</code>, and <code>replaceMetricReferencesWithCteReferences</code>. Pivot CTEs are in <a href="../packages/backend/src/utils/QueryBuilder/PivotQueryBuilder.ts"><code>PivotQueryBuilder.ts</code></a>.
+  </section>
+
+  <p class="small">Next lesson: <a href="./0003-period-over-period-deep-dive.html">Period-over-period Deep Dive</a>. Ask the agent to trace a real query alias if you want a live walkthrough.</p>
+</main>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+</script>
+</body>
+</html>
