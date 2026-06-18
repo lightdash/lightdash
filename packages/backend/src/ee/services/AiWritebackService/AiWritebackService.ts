@@ -4,17 +4,20 @@ import {
     FeatureFlags,
     ForbiddenError,
     getErrorMessage,
+    isGitProjectType,
     isUserWithOrg,
     MissingConfigError,
     NotFoundError,
     ParameterError,
     PullRequestProvider,
     PullRequestSource,
+    RequestMethod,
     SupportedDbtVersions,
     WarehouseTypes,
     type AiWritebackRunResult,
     type AiWritebackStep,
     type GitRepo,
+    type MergePullRequestResult,
     type PullRequestWritebackAction,
     type SessionUser,
 } from '@lightdash/common';
@@ -39,7 +42,9 @@ import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type { PullRequestsModel } from '../../../models/PullRequestsModel';
 import type PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
 import { BaseService } from '../../../services/BaseService';
+import type { CiService } from '../../../services/CiService/CiService';
 import type { GithubAppService } from '../../../services/GithubAppService/GithubAppService';
+import type { ProjectService } from '../../../services/ProjectService/ProjectService';
 import type {
     AiWritebackThreadModel,
     AiWritebackThreadWithPrUrl,
@@ -130,6 +135,8 @@ type AiWritebackServiceDeps = {
     aiWritebackThreadModel: AiWritebackThreadModel;
     pullRequestsModel: PullRequestsModel;
     prometheusMetrics?: PrometheusMetrics;
+    ciService: CiService;
+    projectService: ProjectService;
 };
 
 /** One repository in the source-code read union, plus the token that reads it. */
@@ -226,6 +233,10 @@ export class AiWritebackService extends BaseService {
 
     private readonly githubAppService: GithubAppService;
 
+    private readonly ciService: CiService;
+
+    private readonly projectService: ProjectService;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -237,6 +248,8 @@ export class AiWritebackService extends BaseService {
         aiWritebackThreadModel,
         pullRequestsModel,
         prometheusMetrics,
+        ciService,
+        projectService,
     }: AiWritebackServiceDeps) {
         super({ serviceName: 'AiWritebackService' });
         this.lightdashConfig = lightdashConfig;
@@ -247,6 +260,8 @@ export class AiWritebackService extends BaseService {
         this.pullRequestsModel = pullRequestsModel;
         this.prometheusMetrics = prometheusMetrics;
         this.githubAppService = githubAppService;
+        this.ciService = ciService;
+        this.projectService = projectService;
         this.githubProvider = new GithubProvider({
             githubAppInstallationsModel,
             githubAppService,
@@ -257,6 +272,64 @@ export class AiWritebackService extends BaseService {
             gitlabConfig: lightdashConfig.gitlab,
             logger: this.logger,
         });
+    }
+
+    /**
+     * Merge a write-back PR, then auto-sync the dbt project so the merged
+     * change goes live without a manual refresh. Delegates the merge itself to
+     * {@link CiService} (which owns the PR write guard), and on a successful
+     * merge schedules a recompile. The agent is told the sync runs
+     * automatically via the post-merge follow-up prompt, so it doesn't need to
+     * call `syncDbtProject` to kick one off.
+     */
+    async mergePullRequest(args: {
+        user: SessionUser;
+        projectUuid: string;
+        prUrl: string;
+        sha?: string;
+    }): Promise<MergePullRequestResult> {
+        const result = await this.ciService.mergePullRequest(args);
+        if (result.merged) {
+            await this.scheduleCompileAfterMerge(args.user, args.projectUuid);
+        }
+        return result;
+    }
+
+    /**
+     * Schedule a dbt recompile after a write-back merge so the new/changed
+     * fields land in the explores. Best-effort: the merge is irreversible, so a
+     * scheduling failure is logged rather than thrown — a successful merge never
+     * turns into an API error. Only git-connected projects re-clone on compile
+     * and thus pick up the merged branch, so non-git projects are skipped.
+     */
+    private async scheduleCompileAfterMerge(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
+        try {
+            const project = await this.projectModel.get(projectUuid);
+            if (!isGitProjectType(project.dbtConnection)) {
+                return;
+            }
+            // skipPermissionCheck: the merge already passed the manage:SourceCode
+            // guard, so this system-initiated recompile shouldn't fail for a user
+            // who lacks the separate compile permission.
+            const { jobUuid } = await this.projectService.scheduleCompileProject(
+                user,
+                projectUuid,
+                RequestMethod.BACKEND,
+                true,
+            );
+            this.logger.info(
+                `Scheduled dbt compile (job ${jobUuid}) after writeback PR merge for project ${projectUuid}`,
+            );
+        } catch (error) {
+            this.logger.error(
+                `Failed to schedule dbt compile after writeback PR merge for project ${projectUuid}: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+        }
     }
 
     /**

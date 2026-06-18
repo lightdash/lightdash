@@ -132,6 +132,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getAiWritebackThreadModel<AiWritebackThreadModel>(),
                     pullRequestsModel: models.getPullRequestsModel(),
                     prometheusMetrics,
+                    ciService: repository.getCiService(),
+                    projectService: repository.getProjectService(),
                 }),
             previewDeploySetupService: ({ context, models }) =>
                 new PreviewDeploySetupService({
