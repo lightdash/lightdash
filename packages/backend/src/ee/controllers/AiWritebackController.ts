@@ -257,7 +257,7 @@ export class AiWritebackController extends BaseController {
             );
         }
         this.setStatus(200);
-        const results = await this.services.getCiService().mergePullRequest({
+        const results = await this.getAiWritebackService().mergePullRequest({
             user: toSessionUser(req.account),
             projectUuid,
             prUrl: parsed.data.prUrl,

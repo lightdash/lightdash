@@ -7,6 +7,7 @@ import {
     ForbiddenError,
     getLatestSupportDbtVersion,
     PullRequestProvider,
+    RequestMethod,
     SupportedDbtVersions,
     WarehouseTypes,
     type MemberAbility,
@@ -84,6 +85,8 @@ const buildService = (overrides: Record<string, AnyType> = {}) =>
         gitlabAppInstallationsModel: {} as AnyType,
         aiWritebackThreadModel: { findByAiThreadUuid: jest.fn() } as AnyType,
         pullRequestsModel: {} as AnyType,
+        ciService: { mergePullRequest: jest.fn() } as AnyType,
+        projectService: { scheduleCompileProject: jest.fn() } as AnyType,
         ...overrides,
     });
 
@@ -911,6 +914,104 @@ describe('AiWritebackService repo read access', () => {
                 branch: 'develop',
                 token: 'install-token',
             });
+        });
+    });
+});
+
+describe('AiWritebackService.mergePullRequest', () => {
+    const gitProject = (): AnyType => ({
+        organizationUuid: ORG,
+        name: 'Analytics',
+        dbtConnection: {
+            type: DbtProjectType.GITHUB,
+            authorization_method: 'installation_id',
+            repository: 'acme/analytics',
+            branch: 'main',
+            project_sub_path: '/',
+        },
+        warehouseConnection: { type: WarehouseTypes.POSTGRES },
+    });
+
+    const nonGitProject = (): AnyType => ({
+        organizationUuid: ORG,
+        name: 'Analytics',
+        dbtConnection: { type: DbtProjectType.NONE },
+        warehouseConnection: { type: WarehouseTypes.POSTGRES },
+    });
+
+    const mergeArgs = {
+        user: { userUuid: 'u1' } as AnyType,
+        projectUuid: 'p1',
+        prUrl: PR_7,
+        sha: 'sha-7',
+    };
+
+    const setup = (overrides: Record<string, AnyType> = {}) => {
+        const mergePullRequest = jest
+            .fn()
+            .mockResolvedValue({ merged: true, sha: 'sha-7' });
+        const scheduleCompileProject = jest
+            .fn()
+            .mockResolvedValue({ jobUuid: 'job-1' });
+        const get = jest.fn().mockResolvedValue(gitProject());
+        const service = buildService({
+            projectModel: { get } as AnyType,
+            ciService: { mergePullRequest } as AnyType,
+            projectService: { scheduleCompileProject } as AnyType,
+            ...overrides,
+        });
+        return { service, mergePullRequest, scheduleCompileProject, get };
+    };
+
+    it('schedules a recompile after a successful merge of a git project', async () => {
+        const { service, scheduleCompileProject } = setup();
+        const result = await service.mergePullRequest(mergeArgs);
+        expect(result).toEqual({ merged: true, sha: 'sha-7' });
+        expect(scheduleCompileProject).toHaveBeenCalledTimes(1);
+        expect(scheduleCompileProject).toHaveBeenCalledWith(
+            mergeArgs.user,
+            'p1',
+            RequestMethod.BACKEND,
+            true,
+        );
+    });
+
+    it('does not schedule a recompile when the PR was not merged', async () => {
+        const { service, scheduleCompileProject, get } = setup({
+            ciService: {
+                mergePullRequest: jest
+                    .fn()
+                    .mockResolvedValue({ merged: false, sha: null }),
+            } as AnyType,
+        });
+        const result = await service.mergePullRequest(mergeArgs);
+        expect(result).toEqual({ merged: false, sha: null });
+        expect(get).not.toHaveBeenCalled();
+        expect(scheduleCompileProject).not.toHaveBeenCalled();
+    });
+
+    it('skips the recompile for a non-git project', async () => {
+        const { service, scheduleCompileProject } = setup({
+            projectModel: {
+                get: jest.fn().mockResolvedValue(nonGitProject()),
+            } as AnyType,
+        });
+        const result = await service.mergePullRequest(mergeArgs);
+        expect(result).toEqual({ merged: true, sha: 'sha-7' });
+        expect(scheduleCompileProject).not.toHaveBeenCalled();
+    });
+
+    it('still returns the merge result when scheduling the recompile fails', async () => {
+        const { service } = setup({
+            projectService: {
+                scheduleCompileProject: jest
+                    .fn()
+                    .mockRejectedValue(new Error('scheduler down')),
+            } as AnyType,
+        });
+        await expect(service.mergePullRequest(mergeArgs)).resolves.toEqual({
+            merged: true,
+            sha: 'sha-7',
         });
     });
 });
