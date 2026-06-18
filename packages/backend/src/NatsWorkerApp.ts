@@ -16,8 +16,12 @@ import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import { STREAM_CONFIGS, type NatsWorkerStream } from './nats/natsConfig';
 import { NatsWorker } from './nats/NatsWorker';
 import PrometheusMetrics from './prometheus/PrometheusMetrics';
-import { IGNORE_ERRORS } from './sentry';
 import { createOrganizationNameResolver } from './sentry/organizationNameResolver';
+import {
+    getAiTracesSampleRate,
+    getSentryAiIntegrations,
+    IGNORE_ERRORS,
+} from './sentry/shared';
 import {
     OperationContext,
     ServiceProviderMap,
@@ -174,9 +178,10 @@ export default class NatsWorkerApp {
                 this.environment === 'development'
                     ? 'development'
                     : this.lightdashConfig.mode,
-            integrations: [],
+            integrations: getSentryAiIntegrations(this.lightdashConfig),
             ignoreErrors: IGNORE_ERRORS,
-            tracesSampleRate:
+            tracesSampler: (context) =>
+                getAiTracesSampleRate(context, this.lightdashConfig) ??
                 this.lightdashConfig.sentry.queryTracesSampleRate ??
                 this.lightdashConfig.sentry.tracesSampleRate,
         });

@@ -394,6 +394,7 @@ export type SentryConfig = {
     environment: string;
     tracesSampleRate: number;
     queryTracesSampleRate: number | null;
+    aiTracesSampleRate: number;
     profilesSampleRate: number;
     anr: {
         enabled: boolean;

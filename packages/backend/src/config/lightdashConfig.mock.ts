@@ -191,6 +191,7 @@ export const lightdashConfigMock: LightdashConfig = {
         environment: '',
         tracesSampleRate: 0,
         queryTracesSampleRate: null,
+        aiTracesSampleRate: 0,
         profilesSampleRate: 0,
         anr: {
             enabled: false,

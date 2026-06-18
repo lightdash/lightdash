@@ -23,8 +23,12 @@ import {
     derivePoolIdFromEnv,
     SchedulerWorkerHealth,
 } from './scheduler/SchedulerWorkerHealth';
-import { IGNORE_ERRORS } from './sentry';
 import { createOrganizationNameResolver } from './sentry/organizationNameResolver';
+import {
+    getAiTracesSampleRate,
+    getSentryAiIntegrations,
+    IGNORE_ERRORS,
+} from './sentry/shared';
 import {
     OperationContext,
     ServiceProviderMap,
@@ -213,8 +217,13 @@ export default class SchedulerApp {
                 this.environment === 'development'
                     ? 'development'
                     : this.lightdashConfig.mode,
-            integrations: [],
+            integrations: getSentryAiIntegrations(this.lightdashConfig),
             ignoreErrors: IGNORE_ERRORS,
+            // The scheduler runs Slack agent responses, writebacks, and
+            // embeddings — trace those AI spans, but leave other scheduled
+            // jobs untraced (default 0) to avoid a volume spike.
+            tracesSampler: (context) =>
+                getAiTracesSampleRate(context, this.lightdashConfig) ?? 0,
         });
     }
 

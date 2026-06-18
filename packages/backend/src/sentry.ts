@@ -1,27 +1,12 @@
 import * as Sentry from '@sentry/node';
 import { nodeProfilingIntegration } from '@sentry/profiling-node';
 import { lightdashConfig } from './config/lightdashConfig';
+import {
+    getAiTracesSampleRate,
+    getSentryAiIntegrations,
+    IGNORE_ERRORS,
+} from './sentry/shared';
 import { VERSION } from './version';
-
-export const IGNORE_ERRORS = [
-    'WarehouseConnectionError',
-    'WarehouseQueryError',
-    'FieldReferenceError',
-    'NotEnoughResults',
-    'CompileError',
-    'NotFoundError',
-    'ForbiddenError',
-    'TokenError',
-    'AuthorizationError',
-    'SshTunnelError',
-    'ReadFileError',
-    'AiAgentValidatorError',
-    'UserInfoError', // Google oauth2 error when using invalid credentials
-    // Invalid user-supplied parameter (e.g. AI writeback requires a GitHub
-    // dbt connection but the project uses "none") — surfaced to the user,
-    // not a server bug.
-    'ParameterError',
-];
 
 const spotlightEnabled =
     process.env.NODE_ENV === 'development' && !!process.env.SENTRY_SPOTLIGHT;
@@ -57,15 +42,7 @@ Sentry.init({
                   }),
               ]
             : []),
-        ...(lightdashConfig.ai.copilot.enabled &&
-        lightdashConfig.ai.copilot.telemetryEnabled
-            ? [
-                  Sentry.vercelAIIntegration({
-                      recordInputs: true,
-                      recordOutputs: true,
-                  }),
-              ]
-            : []),
+        ...getSentryAiIntegrations(lightdashConfig),
     ],
     ignoreErrors: IGNORE_ERRORS,
     tracesSampler: (context) => {
@@ -83,6 +60,13 @@ Sentry.init({
             request?.headers?.['user-agent']?.includes('GoogleHC')
         ) {
             return 0.0;
+        }
+
+        // AI agent traces are low-volume/high-value — sample them at their
+        // own rate (100% by default) so the AI Agents dashboard is complete.
+        const aiSampleRate = getAiTracesSampleRate(context, lightdashConfig);
+        if (aiSampleRate !== null) {
+            return aiSampleRate;
         }
 
         if (context.parentSampled) {

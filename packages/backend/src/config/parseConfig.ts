@@ -1996,6 +1996,10 @@ export const parseConfig = (): LightdashConfig => {
                 getFloatFromEnvironmentVariable(
                     'SENTRY_QUERY_TRACES_SAMPLE_RATE',
                 ) ?? null, // defaults to null (use global tracesSampleRate), set to 1.0 to capture all query traces
+            aiTracesSampleRate:
+                getFloatFromEnvironmentVariable(
+                    'SENTRY_AI_TRACES_SAMPLE_RATE',
+                ) ?? 1.0, // AI agent traces are low-volume/high-value, so default to 100% when copilot telemetry is enabled
             profilesSampleRate:
                 getFloatFromEnvironmentVariable(
                     'SENTRY_PROFILES_SAMPLE_RATE',
