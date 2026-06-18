@@ -8,9 +8,9 @@ import {
     isDimension,
     isField,
     isFilterableField,
+    isItemTimezoneAffected,
     isTimeInterval,
     MetricType,
-    shouldShiftItemTimezone,
     timeFrameConfigs,
     type AdditionalMetric,
     type Dimension,
@@ -80,7 +80,7 @@ const NavItemIcon = ({
         const isTimestamp = item.type === DimensionType.TIMESTAMP;
         if (!isDate && !isTimestamp) return null;
         // TZ-sensitive dims keep the default glyph; only the tooltip flags them.
-        if (shouldShiftItemTimezone(item)) {
+        if (isItemTimezoneAffected(item)) {
             return {
                 pinIcon: null,
                 tooltip: isDate

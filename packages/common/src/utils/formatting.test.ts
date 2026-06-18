@@ -30,6 +30,7 @@ import {
     getEffectiveSeparator,
     getFormatterTimezone,
     isCalendarValueItem,
+    isItemTimezoneAffected,
     isMomentInput,
     isTimestampString,
     shouldShiftItemTimezone,
@@ -1061,6 +1062,71 @@ describe('Formatting', () => {
             } as TableCalculation;
             expect(isCalendarValueItem(dateTableCalc)).toBe(true);
             expect(isCalendarValueItem(timestampTableCalc)).toBe(false);
+        });
+    });
+
+    describe('isItemTimezoneAffected', () => {
+        const timestampBase: Dimension = {
+            ...dimension,
+            type: DimensionType.TIMESTAMP,
+        };
+        const timestampHour: Dimension = {
+            ...dimension,
+            type: DimensionType.TIMESTAMP,
+            timeInterval: TimeFrames.HOUR,
+            timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+        };
+        const dateOverTimestampDay: Dimension = {
+            ...dimension,
+            type: DimensionType.DATE,
+            timeInterval: TimeFrames.DAY,
+            timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+        };
+        const dateBase: Dimension = {
+            ...dimension,
+            type: DimensionType.DATE,
+        };
+        const dateOverDateDay: Dimension = {
+            ...dimension,
+            type: DimensionType.DATE,
+            timeInterval: TimeFrames.DAY,
+            timeIntervalBaseDimensionType: DimensionType.DATE,
+        };
+
+        test('any grain of a TIMESTAMP base is timezone-affected', () => {
+            expect(isItemTimezoneAffected(timestampBase)).toBe(true);
+            expect(isItemTimezoneAffected(timestampHour)).toBe(true);
+            // GLITCH-452: a day-or-coarser trunc of a TIMESTAMP base compiles to
+            // a real DATE but is still shifted server-side, so it IS affected.
+            expect(isItemTimezoneAffected(dateOverTimestampDay)).toBe(true);
+        });
+
+        test('DATE bases are not timezone-affected', () => {
+            expect(isItemTimezoneAffected(dateBase)).toBe(false);
+            expect(isItemTimezoneAffected(dateOverDateDay)).toBe(false);
+        });
+
+        test('skipTimezoneConversion opts out a TIMESTAMP base', () => {
+            const timestampBaseOptOut: Dimension = {
+                ...timestampBase,
+                skipTimezoneConversion: true,
+            };
+            const dateOverTimestampDayOptOut: Dimension = {
+                ...dateOverTimestampDay,
+                skipTimezoneConversion: true,
+            };
+            expect(isItemTimezoneAffected(timestampBaseOptOut)).toBe(false);
+            expect(isItemTimezoneAffected(dateOverTimestampDayOptOut)).toBe(
+                false,
+            );
+        });
+
+        test('non-dimensions classify by their resolved type', () => {
+            const maxMetric: Metric = { ...metric, type: MetricType.MAX };
+            expect(isItemTimezoneAffected(undefined)).toBe(false);
+            expect(isItemTimezoneAffected(dimension)).toBe(false); // STRING
+            expect(isItemTimezoneAffected(metric)).toBe(false); // COUNT
+            expect(isItemTimezoneAffected(maxMetric)).toBe(false);
         });
     });
 

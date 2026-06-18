@@ -227,17 +227,37 @@ export const toIsoWithProjectOffset = (
     return m.tz(timezone).toISOString(true);
 };
 
-// Only TIMESTAMP instants shift; calendar DATEs (incl. day-or-coarser truncs,
-// which now compile to a real DATE — GLITCH-452) and dims with
-// `skipTimezoneConversion` stay put. Keyed off getItemType so it classifies
-// non-field items (table calcs, custom dims) by their resolved type too. Used by
-// spreadsheet exports.
+// Use this when deciding whether to re-shift a fetched VALUE in the client
+// (chart rendering, spreadsheet exports). Only TIMESTAMP instants shift; calendar
+// DATEs (incl. day-or-coarser truncs, which now compile to a real DATE —
+// GLITCH-452) and `skipTimezoneConversion` dims stay put. Keyed off getItemType
+// (resolved type) so it also classifies non-field items (table calcs, custom dims).
+// NOT for "is this field timezone-sensitive" UI — use isItemTimezoneAffected.
 export const shouldShiftItemTimezone = (
     item: Item | AdditionalMetric | undefined,
 ): boolean => {
     if (!item) return false;
     if (isDimension(item) && item.skipTimezoneConversion) return false;
     return getItemType(item) === DimensionType.TIMESTAMP;
+};
+
+// Use this for "is this field timezone-sensitive" UI affordances (icons,
+// tooltips). Whether a field's value depends on the chart's timezone at all —
+// server-side or client-side. Differs from shouldShiftItemTimezone ("does the
+// client re-shift the value"): a day-or-coarser trunc of a TIMESTAMP base
+// compiles to a real DATE, so it isn't re-shifted client-side, yet the backend
+// shifts to project tz before truncating — so it IS timezone-affected. Keyed
+// off the base column type, mirroring MetricQueryBuilder.
+export const isItemTimezoneAffected = (
+    item: Item | AdditionalMetric | undefined,
+): boolean => {
+    if (!item) return false;
+    if (isDimension(item) && item.skipTimezoneConversion) return false;
+    const baseType =
+        isDimension(item) && item.timeIntervalBaseDimensionType
+            ? item.timeIntervalBaseDimensionType
+            : getItemType(item);
+    return baseType === DimensionType.TIMESTAMP;
 };
 
 // A calendar value is a bare wall-clock date (year/month/day, no instant) that
