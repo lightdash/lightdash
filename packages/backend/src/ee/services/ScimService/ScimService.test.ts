@@ -1,6 +1,10 @@
 import {
+    GroupWithMembers,
     LightdashUser,
+    NotFoundError,
     OrganizationMemberRole,
+    ParameterError,
+    ScimError,
     ScimSchemaType,
     ScimUserRole,
 } from '@lightdash/common';
@@ -678,6 +682,101 @@ describe('ScimService', () => {
                     }),
                 }),
             );
+        });
+    });
+
+    describe('updateGroup', () => {
+        const mockGroup: GroupWithMembers = {
+            uuid: 'group-uuid',
+            name: 'Data Platform',
+            createdAt: new Date('2024-01-01'),
+            createdByUserUuid: null,
+            updatedAt: new Date('2024-01-01'),
+            updatedByUserUuid: null,
+            organizationUuid: mockUser.organizationUuid,
+            members: [],
+            memberUuids: [],
+        };
+
+        const patchOp: ScimPatch = {
+            schemas: [ScimSchemaType.PATCH],
+            Operations: [
+                {
+                    op: 'Replace',
+                    path: 'displayName',
+                    value: 'Data Platform - BI - Explorer',
+                },
+            ],
+        };
+
+        const createServiceWithGroupError = (error: Error) =>
+            new ScimService({
+                ...ScimServiceArgumentsMock,
+                groupsModel: {
+                    getGroupWithMembers: jest.fn().mockResolvedValue(mockGroup),
+                    updateGroup: jest.fn().mockRejectedValue(error),
+                } as never,
+            });
+
+        test('should return 400 invalidValue when group update rejects invalid members', async () => {
+            const groupService = createServiceWithGroupError(
+                new ParameterError('Some provided user UUIDs are invalid'),
+            );
+
+            await expect(
+                groupService.updateGroup(
+                    mockScimAccount,
+                    mockUser.organizationUuid,
+                    mockGroup.uuid,
+                    patchOp,
+                ),
+            ).rejects.toMatchObject({
+                detail: 'Some provided user UUIDs are invalid',
+                status: '400',
+                scimType: 'invalidValue',
+            });
+        });
+
+        test('should return 404 noTarget when model cannot find the group', async () => {
+            const groupService = createServiceWithGroupError(
+                new NotFoundError('No group found'),
+            );
+
+            await expect(
+                groupService.updateGroup(
+                    mockScimAccount,
+                    mockUser.organizationUuid,
+                    mockGroup.uuid,
+                    patchOp,
+                ),
+            ).rejects.toMatchObject({
+                detail: `Group with UUID ${mockGroup.uuid} not found`,
+                status: '404',
+                scimType: 'noTarget',
+            });
+        });
+
+        test('should preserve SCIM errors', async () => {
+            const groupService = createServiceWithGroupError(
+                new ScimError({
+                    detail: 'displayName is required',
+                    status: 400,
+                    scimType: 'invalidValue',
+                }),
+            );
+
+            await expect(
+                groupService.updateGroup(
+                    mockScimAccount,
+                    mockUser.organizationUuid,
+                    mockGroup.uuid,
+                    patchOp,
+                ),
+            ).rejects.toMatchObject({
+                detail: 'displayName is required',
+                status: '400',
+                scimType: 'invalidValue',
+            });
         });
     });
 
