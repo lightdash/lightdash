@@ -1,5 +1,13 @@
-import { Button, Drawer, Group, Stack, Text } from '@mantine-8/core';
-import { IconRoute } from '@tabler/icons-react';
+import {
+    Button,
+    Drawer,
+    Group,
+    SegmentedControl,
+    Stack,
+    Text,
+} from '@mantine-8/core';
+import { useLocalStorage } from '@mantine-8/hooks';
+import { IconLayoutKanban, IconRoute, IconTable } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 import { GuidedTour } from '../../../../../../components/common/GuidedTour';
@@ -12,6 +20,7 @@ import AiAgentAdminReviewItemsTable, {
     type AiAgentAdminReviewItemPreviewTarget,
 } from '../AiAgentAdminReviewItemsTable';
 import { REVIEWS_TOUR_STEPS } from '../onboarding';
+import { ReviewKanbanBoard } from '../ReviewKanbanBoard';
 import { ThreadPreviewSidebar } from '../ThreadPreviewSidebar';
 import { AiFeaturesDisabledAlert } from './AiFeaturesDisabledAlert';
 import drawerClasses from './ThreadPreviewDrawer.module.css';
@@ -50,6 +59,11 @@ export const AiReviewsSettingsPage = () => {
         startTour,
         closeTour,
     } = useGuidedTour({ storageKey: 'ld.aiReviews.tour.v1' });
+
+    const [view, setView] = useLocalStorage<'board' | 'table'>({
+        key: 'ld.aiReviews.view',
+        defaultValue: 'board',
+    });
 
     const updateReviewSearchParams = (
         reviewItem: AiAgentAdminReviewItemPreviewTarget | null,
@@ -96,15 +110,46 @@ export const AiReviewsSettingsPage = () => {
                             { title: 'Reviews', active: true },
                         ]}
                     />
-                    <Button
-                        variant="subtle"
-                        color="gray"
-                        size="compact-xs"
-                        leftSection={<MantineIcon icon={IconRoute} />}
-                        onClick={startTour}
-                    >
-                        Take the tour
-                    </Button>
+                    <Group gap="xs">
+                        <SegmentedControl
+                            size="xs"
+                            value={view}
+                            onChange={(value) =>
+                                setView(value as 'board' | 'table')
+                            }
+                            data={[
+                                {
+                                    value: 'board',
+                                    label: (
+                                        <Group gap={6} wrap="nowrap">
+                                            <MantineIcon
+                                                icon={IconLayoutKanban}
+                                            />
+                                            Board
+                                        </Group>
+                                    ),
+                                },
+                                {
+                                    value: 'table',
+                                    label: (
+                                        <Group gap={6} wrap="nowrap">
+                                            <MantineIcon icon={IconTable} />
+                                            Table
+                                        </Group>
+                                    ),
+                                },
+                            ]}
+                        />
+                        <Button
+                            variant="subtle"
+                            color="gray"
+                            size="compact-xs"
+                            leftSection={<MantineIcon icon={IconRoute} />}
+                            onClick={startTour}
+                        >
+                            Take the tour
+                        </Button>
+                    </Group>
                 </Group>
 
                 <Text c="dimmed" fz="sm" maw={760}>
@@ -124,11 +169,19 @@ export const AiReviewsSettingsPage = () => {
 
             {settings?.aiAgentsVisible === false && <AiFeaturesDisabledAlert />}
 
-            <AiAgentAdminReviewItemsTable
-                selectedReviewItemUuid={selectedReviewItem?.reviewItemUuid}
-                onReviewItemSelect={handleReviewItemSelect}
-                showOnboardingExamples={isTourOpen}
-            />
+            {view === 'board' ? (
+                <ReviewKanbanBoard
+                    selectedReviewItemUuid={selectedReviewItem?.reviewItemUuid}
+                    onReviewItemSelect={handleReviewItemSelect}
+                    showOnboardingExamples={isTourOpen}
+                />
+            ) : (
+                <AiAgentAdminReviewItemsTable
+                    selectedReviewItemUuid={selectedReviewItem?.reviewItemUuid}
+                    onReviewItemSelect={handleReviewItemSelect}
+                    showOnboardingExamples={isTourOpen}
+                />
+            )}
 
             <GuidedTour
                 steps={REVIEWS_TOUR_STEPS}

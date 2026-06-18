@@ -65,6 +65,7 @@ import styles from './AiAgentAdminReviewItemsTable.module.css';
 import { EXAMPLE_REVIEW_ITEMS, isExampleReviewItem } from './onboarding';
 import { ReviewItemActions } from './ReviewItemActions';
 import {
+    DEFAULT_VISIBLE_ROOT_CAUSES,
     formatReviewDate,
     getActionLabel,
     getIssueTitle,
@@ -275,15 +276,6 @@ const rootCauseHelpOrder: AiAgentRootCause[] = [
     'not_a_failure',
     'ambiguous',
 ];
-
-const DEFAULT_HIDDEN_ROOT_CAUSES: AiAgentRootCause[] = [
-    'agent_configuration',
-    'runtime_reliability',
-];
-
-const DEFAULT_VISIBLE_ROOT_CAUSES = (
-    Object.keys(reviewRootCauseLabels) as AiAgentRootCause[]
-).filter((rootCause) => !DEFAULT_HIDDEN_ROOT_CAUSES.includes(rootCause));
 
 const ReviewConceptHelp = () => (
     <HoverCard
