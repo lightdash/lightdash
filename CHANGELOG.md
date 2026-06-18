@@ -1,3 +1,10 @@
+## [0.3192.2](https://github.com/lightdash/lightdash/compare/0.3192.1...0.3192.2) (2026-06-18)
+
+
+### Bug Fixes
+
+* **scheduler:** resolve dashboard slug to uuid in scheduler methods ([#24477](https://github.com/lightdash/lightdash/issues/24477)) ([35d35bb](https://github.com/lightdash/lightdash/commit/35d35bb2ba6a41d3af431182b1536824f346b3f2))
+
 ## [0.3192.1](https://github.com/lightdash/lightdash/compare/0.3192.0...0.3192.1) (2026-06-18)
 
 
