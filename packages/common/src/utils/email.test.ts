@@ -105,8 +105,6 @@ describe('isPublicEmailProviderDomain', () => {
         expect(isPublicEmailProviderDomain('google.com')).toBe(true);
         expect(isPublicEmailProviderDomain('microsoft.com')).toBe(true);
         expect(isPublicEmailProviderDomain('onmicrosoft.com')).toBe(true);
-        // sfr.fr is absent from free-email-domains; kept via the additional
-        // list so the swap doesn't regress the old hand-maintained coverage.
         expect(isPublicEmailProviderDomain('sfr.fr')).toBe(true);
     });
 
