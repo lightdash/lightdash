@@ -1,3 +1,10 @@
+## [0.3190.3](https://github.com/lightdash/lightdash/compare/0.3190.2...0.3190.3) (2026-06-18)
+
+
+### Bug Fixes
+
+* **timezone:** tz-aware SQL for MIN/MAX over interval DATE dimensions ([#24446](https://github.com/lightdash/lightdash/issues/24446)) ([b3bc4cb](https://github.com/lightdash/lightdash/commit/b3bc4cb92b28c2c78e41e381e9f6ee727d22adb6))
+
 ## [0.3190.2](https://github.com/lightdash/lightdash/compare/0.3190.1...0.3190.2) (2026-06-18)
 
 
