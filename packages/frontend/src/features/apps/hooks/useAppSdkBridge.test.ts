@@ -25,8 +25,12 @@ vi.mock('../../../providers/App/useApp', () => ({
     }),
 }));
 
-vi.mock('../../../hooks/useProjectUuid', () => ({
-    useProjectUuid: () => undefined,
+const mockUseServerFeatureFlag = vi.fn((_featureFlagId: string) => ({
+    data: { enabled: true },
+}));
+vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: (featureFlagId: string) =>
+        mockUseServerFeatureFlag(featureFlagId),
 }));
 
 const PROJECT_UUID = 'project-uuid';

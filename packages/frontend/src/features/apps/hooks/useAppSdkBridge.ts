@@ -1,4 +1,8 @@
-import { JWT_HEADER_NAME, type DashboardFilters } from '@lightdash/common';
+import {
+    FeatureFlags,
+    JWT_HEADER_NAME,
+    type DashboardFilters,
+} from '@lightdash/common';
 import { useCallback, useEffect, useRef, type RefObject } from 'react';
 import { lightdashApi } from '../../../api';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
@@ -12,6 +16,7 @@ import {
     type GsheetExportColumn,
     type GsheetExportRow,
 } from './handleGsheetExport';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 
 // Same key the SDK persists `instanceUrl` under (sdk/index.tsx, api.ts).
 // Duplicated rather than imported to avoid threading a shared export through
@@ -193,6 +198,11 @@ export function useAppSdkBridge(
     const { embedToken, projectUuid: embedProjectUuid } = useEmbed();
     const { health, user } = useApp();
 
+    const { data: externalAccessFlag } = useServerFeatureFlag(
+        FeatureFlags.EnableDataAppExternalAccess,
+    );
+    const externalAccessEnabled = externalAccessFlag?.enabled ?? false;
+
     // Maps queryUuid → POST request id. The SDK transport assigns a fresh
     // request id to the POST (`/metric-query`) and again to each GET poll
     // (`/query/{uuid}`), so terminal events emitted from the GET handler
@@ -323,6 +333,13 @@ export function useAppSdkBridge(
                         '*',
                     );
                 };
+
+                if (!externalAccessEnabled) {
+                    respondExternal({
+                        error: 'External data access is disabled for this organization',
+                    });
+                    return;
+                }
 
                 // Build the EE request body from app-supplied fields ONLY.
                 // No URL, no headers, no connection UUID — the backend resolves
@@ -651,6 +668,7 @@ export function useAppSdkBridge(
             health.data,
             user.data,
             projectUuid,
+            externalAccessEnabled,
         ],
     );
 
