@@ -26,8 +26,8 @@ import { LightdashAnalytics } from '../analytics/analytics';
 import { getDbtContext } from '../dbt/context';
 import {
     combineManifests,
+    loadCombineManifest,
     loadManifest,
-    loadManifestFromFile,
 } from '../dbt/manifest';
 import { validateDbtModel } from '../dbt/validation';
 import GlobalState from '../globalState';
@@ -233,9 +233,9 @@ export const compile = async (options: CompileHandlerOptions) => {
         let manifest = await loadManifest({ targetDir: context.targetDir });
         let effectiveCompiledModelIds = compiledModelIds;
         if (options.combineManifest) {
-            const externalManifestPath = path.resolve(options.combineManifest);
-            const externalManifest =
-                await loadManifestFromFile(externalManifestPath);
+            const externalManifest = await loadCombineManifest(
+                options.combineManifest,
+            );
             const { manifest: merged, addedModelIds } = combineManifests(
                 manifest,
                 externalManifest,
@@ -252,7 +252,7 @@ export const compile = async (options: CompileHandlerOptions) => {
             }
             console.info(
                 styles.info(
-                    `Combined external manifest from ${externalManifestPath}: added ${addedModelIds.length} model(s) not present in the preview manifest`,
+                    `Combined external manifest from ${options.combineManifest}: added ${addedModelIds.length} model(s) not present in the preview manifest`,
                 ),
             );
         }
