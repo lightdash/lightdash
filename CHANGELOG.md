@@ -1,3 +1,10 @@
+# [0.3192.0](https://github.com/lightdash/lightdash/compare/0.3191.1...0.3192.0) (2026-06-18)
+
+
+### Features
+
+* support default credentials for Bedrock ([#20317](https://github.com/lightdash/lightdash/issues/20317)) ([92ba7e5](https://github.com/lightdash/lightdash/commit/92ba7e5a46eff14731d262092c7dcbb8b60f3e99))
+
 ## [0.3191.1](https://github.com/lightdash/lightdash/compare/0.3191.0...0.3191.1) (2026-06-18)
 
 
