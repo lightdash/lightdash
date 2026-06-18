@@ -1,3 +1,10 @@
+# [0.3188.0](https://github.com/lightdash/lightdash/compare/0.3187.2...0.3188.0) (2026-06-18)
+
+
+### Features
+
+* **embed:** stable public CSS classnames for embedded dashboards ([#24434](https://github.com/lightdash/lightdash/issues/24434)) ([b538161](https://github.com/lightdash/lightdash/commit/b538161fbc851b715b15cef1cd1e394246ede045))
+
 ## [0.3187.2](https://github.com/lightdash/lightdash/compare/0.3187.1...0.3187.2) (2026-06-18)
 
 
