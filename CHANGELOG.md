@@ -1,3 +1,11 @@
+## [0.3190.1](https://github.com/lightdash/lightdash/compare/0.3190.0...0.3190.1) (2026-06-18)
+
+
+### Bug Fixes
+
+* handle scim group patch errors ([#24455](https://github.com/lightdash/lightdash/issues/24455)) ([e5e0109](https://github.com/lightdash/lightdash/commit/e5e0109be637dd925038c527a5367a90fa33115c)), closes [#24404](https://github.com/lightdash/lightdash/issues/24404)
+* show string custom dimensions in conditional formatting ([#19984](https://github.com/lightdash/lightdash/issues/19984)) ([9e750fc](https://github.com/lightdash/lightdash/commit/9e750fc2360b01eef941a438f8f40533126ed8cf))
+
 # [0.3190.0](https://github.com/lightdash/lightdash/compare/0.3189.1...0.3190.0) (2026-06-18)
 
 
