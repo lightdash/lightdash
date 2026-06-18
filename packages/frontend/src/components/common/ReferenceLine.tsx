@@ -1,7 +1,8 @@
-import { type MarkLineData } from '@lightdash/common';
+import { type MarkLineData, type PivotReference } from '@lightdash/common';
 
 export type ReferenceLineField = {
     fieldId?: string;
+    fieldRef?: PivotReference;
     data: MarkLineData;
 };
 
