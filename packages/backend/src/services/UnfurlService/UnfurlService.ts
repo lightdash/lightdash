@@ -1397,6 +1397,17 @@ export class UnfurlService extends BaseService {
                             timeout: 150000,
                         });
 
+                        if (lightdashPage === LightdashPage.APP) {
+                            // Browserless connects over CDP; setViewportSize
+                            // before navigation silently no-ops because the
+                            // emulation override doesn't survive the commit.
+                            // Apply it now that the page is live. The iframe
+                            // inside MinimalApp only mounts after the app
+                            // metadata + preview token fetches resolve, so
+                            // we're still well ahead of any iframe paint.
+                            await page.setViewportSize(initialViewport);
+                        }
+
                         const blockingElementChecks = [
                             {
                                 selector: SCREENSHOT_SELECTORS.ERROR_BOUNDARY,
