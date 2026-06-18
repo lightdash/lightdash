@@ -57,6 +57,19 @@ const getExpiresInDays = (expiresAt: Date | null): number | null => {
     return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
 };
 
+const CurrentBadge: FC = () => (
+    <Badge
+        color="blue"
+        variant="filled"
+        size="xs"
+        radius="sm"
+        fw={600}
+        className={classes.badge}
+    >
+        current
+    </Badge>
+);
+
 const ExpiryBadge: FC<{ expiresAt: Date | null }> = ({ expiresAt }) => {
     const expiresInDays = getExpiresInDays(expiresAt);
     if (expiresInDays === null) return null;
@@ -147,7 +160,7 @@ const ProjectRow: FC<{
     return (
         <Menu.Item
             onClick={() => !isActive && onNavigate(item.projectUuid)}
-            disabled={isActive}
+            className={isActive ? classes.activePreviewItem : undefined}
         >
             <Group gap="sm" justify="space-between" wrap="nowrap">
                 <Tooltip
@@ -171,18 +184,7 @@ const ProjectRow: FC<{
                 </Tooltip>
 
                 <Group gap="xs" wrap="nowrap">
-                    {isActive && (
-                        <Badge
-                            color="green"
-                            variant="light"
-                            size="sm"
-                            radius="sm"
-                            fw={450}
-                            className={classes.badge}
-                        >
-                            Active
-                        </Badge>
-                    )}
+                    {isActive && <CurrentBadge />}
                     {previewCount > 0 && (
                         <Box
                             component="span"
@@ -253,18 +255,7 @@ const PreviewRow: FC<{
                 </Group>
 
                 <Group gap="xs" wrap="nowrap">
-                    {isActive && (
-                        <Badge
-                            color="blue"
-                            variant="filled"
-                            size="xs"
-                            radius="sm"
-                            fw={600}
-                            className={classes.badge}
-                        >
-                            current
-                        </Badge>
-                    )}
+                    {isActive && <CurrentBadge />}
                     <ExpiryBadge expiresAt={item.expiresAt} />
                 </Group>
             </Group>
@@ -575,7 +566,15 @@ const ProjectSwitcher = () => {
                 closeOnItemClick={false}
                 onChange={(opened) => {
                     setIsMenuOpen(opened);
-                    if (!opened) resetMenuState();
+                    if (opened) {
+                        // When inside a preview, open straight into its
+                        // upstream project's preview list so the current
+                        // preview is visible.
+                        setSearchQuery('');
+                        setDrilledProjectUuid(upstreamProjectUuid ?? null);
+                    } else {
+                        resetMenuState();
+                    }
                 }}
                 classNames={{ dropdown: classes.dropdown }}
                 zIndex={getDefaultZIndex('max')}
