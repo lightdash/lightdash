@@ -1,3 +1,12 @@
+# [0.3193.0](https://github.com/lightdash/lightdash/compare/0.3192.2...0.3193.0) (2026-06-18)
+
+
+### Features
+
+* **ai:** tag GitLab repositories as @-mention context ([#24472](https://github.com/lightdash/lightdash/issues/24472)) ([ea4e866](https://github.com/lightdash/lightdash/commit/ea4e866cbd1e420cf7c29ac46a662425b4020eb1))
+* **backend:** shared SSRF-safe fetch utility (secureFetch) + geoJSON refactor ([#24463](https://github.com/lightdash/lightdash/issues/24463)) ([087be9e](https://github.com/lightdash/lightdash/commit/087be9e3c985d092c4c93d9aad1e27264a68657c))
+* **reviews:** Kanban board view for Ask AI Reviews ([#24482](https://github.com/lightdash/lightdash/issues/24482)) ([8fdf1a7](https://github.com/lightdash/lightdash/commit/8fdf1a7c7afffd2c4db157ba4d49d5ea4642cedc))
+
 ## [0.3192.2](https://github.com/lightdash/lightdash/compare/0.3192.1...0.3192.2) (2026-06-18)
 
 
