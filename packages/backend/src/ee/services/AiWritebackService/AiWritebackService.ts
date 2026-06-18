@@ -102,6 +102,7 @@ import {
     parseGithubConnection,
     parseGitlabConnection,
     parsePullNumber,
+    parsePullRequestUrl,
     progressTextForStage,
     resolvePrMetadataValue,
     resolveSandboxDbtVersion,
@@ -278,9 +279,9 @@ export class AiWritebackService extends BaseService {
      * Merge a write-back PR, then auto-sync the dbt project so the merged
      * change goes live without a manual refresh. Delegates the merge itself to
      * {@link CiService} (which owns the PR write guard), and on a successful
-     * merge schedules a recompile. The agent is told the sync runs
-     * automatically via the post-merge follow-up prompt, so it doesn't need to
-     * call `syncDbtProject` to kick one off.
+     * merge schedules a recompile and fires the `ai_writeback.merged` event. The
+     * agent is told the sync runs automatically via the post-merge follow-up
+     * prompt, so it doesn't need to call `syncDbtProject` to kick one off.
      */
     async mergePullRequest(args: {
         user: SessionUser;
@@ -290,9 +291,58 @@ export class AiWritebackService extends BaseService {
     }): Promise<MergePullRequestResult> {
         const result = await this.ciService.mergePullRequest(args);
         if (result.merged) {
-            await this.scheduleCompileAfterMerge(args.user, args.projectUuid);
+            const compileScheduled = await this.scheduleCompileAfterMerge(
+                args.user,
+                args.projectUuid,
+            );
+            this.trackMerged(args.user, args.projectUuid, {
+                prUrl: args.prUrl,
+                mergeCommitSha: result.sha,
+                compileScheduled,
+            });
         }
         return result;
+    }
+
+    /**
+     * Fire the `ai_writeback.merged` event after a successful merge. Best-effort
+     * and self-contained: a successful merge is irreversible, so analytics never
+     * throws back into the merge flow. Owner/repo/pullNumber are parsed from the
+     * PR URL where possible (github.com links), and left null otherwise.
+     */
+    private trackMerged(
+        user: SessionUser,
+        projectUuid: string,
+        properties: {
+            prUrl: string;
+            mergeCommitSha: string | null;
+            compileScheduled: boolean;
+        },
+    ): void {
+        let parsed: {
+            owner: string;
+            repo: string;
+            pullNumber: number;
+        } | null = null;
+        try {
+            parsed = parsePullRequestUrl(properties.prUrl);
+        } catch {
+            parsed = null;
+        }
+        this.analytics.track({
+            event: 'ai_writeback.merged',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid ?? '',
+                projectId: projectUuid,
+                prUrl: properties.prUrl,
+                owner: parsed?.owner ?? null,
+                repo: parsed?.repo ?? null,
+                pullNumber: parsed?.pullNumber ?? null,
+                mergeCommitSha: properties.mergeCommitSha,
+                compileScheduled: properties.compileScheduled,
+            },
+        });
     }
 
     /**
@@ -305,11 +355,11 @@ export class AiWritebackService extends BaseService {
     private async scheduleCompileAfterMerge(
         user: SessionUser,
         projectUuid: string,
-    ): Promise<void> {
+    ): Promise<boolean> {
         try {
             const project = await this.projectModel.get(projectUuid);
             if (!isGitProjectType(project.dbtConnection)) {
-                return;
+                return false;
             }
             // skipPermissionCheck: the merge already passed the manage:SourceCode
             // guard, so this system-initiated recompile shouldn't fail for a user
@@ -324,12 +374,14 @@ export class AiWritebackService extends BaseService {
             this.logger.info(
                 `Scheduled dbt compile (job ${jobUuid}) after writeback PR merge for project ${projectUuid}`,
             );
+            return true;
         } catch (error) {
             this.logger.error(
                 `Failed to schedule dbt compile after writeback PR merge for project ${projectUuid}: ${getErrorMessage(
                     error,
                 )}`,
             );
+            return false;
         }
     }
 

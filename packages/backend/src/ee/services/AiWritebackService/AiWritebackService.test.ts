@@ -1014,6 +1014,83 @@ describe('AiWritebackService.mergePullRequest', () => {
             sha: 'sha-7',
         });
     });
+
+    const userWithOrg = { userUuid: 'u1', organizationUuid: ORG } as AnyType;
+
+    it('tracks ai_writeback.merged with the parsed PR context on a successful git merge', async () => {
+        const track = jest.fn();
+        const { service } = setup({ analytics: { track } as AnyType });
+        await service.mergePullRequest({ ...mergeArgs, user: userWithOrg });
+        expect(track).toHaveBeenCalledTimes(1);
+        expect(track).toHaveBeenCalledWith({
+            event: 'ai_writeback.merged',
+            userId: 'u1',
+            properties: {
+                organizationId: ORG,
+                projectId: 'p1',
+                prUrl: PR_7,
+                owner: 'acme',
+                repo: 'analytics',
+                pullNumber: 7,
+                mergeCommitSha: 'sha-7',
+                compileScheduled: true,
+            },
+        });
+    });
+
+    it('tracks the merge with compileScheduled=false for a non-git project', async () => {
+        const track = jest.fn();
+        const { service } = setup({
+            analytics: { track } as AnyType,
+            projectModel: {
+                get: jest.fn().mockResolvedValue(nonGitProject()),
+            } as AnyType,
+        });
+        await service.mergePullRequest({ ...mergeArgs, user: userWithOrg });
+        expect(track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'ai_writeback.merged',
+                properties: expect.objectContaining({
+                    compileScheduled: false,
+                }),
+            }),
+        );
+    });
+
+    it('does not track ai_writeback.merged when the PR was not merged', async () => {
+        const track = jest.fn();
+        const { service } = setup({
+            analytics: { track } as AnyType,
+            ciService: {
+                mergePullRequest: jest
+                    .fn()
+                    .mockResolvedValue({ merged: false, sha: null }),
+            } as AnyType,
+        });
+        await service.mergePullRequest({ ...mergeArgs, user: userWithOrg });
+        expect(track).not.toHaveBeenCalled();
+    });
+
+    it('leaves owner/repo/pullNumber null when the PR URL is not a github.com link', async () => {
+        const track = jest.fn();
+        const { service } = setup({ analytics: { track } as AnyType });
+        await service.mergePullRequest({
+            ...mergeArgs,
+            user: userWithOrg,
+            prUrl: 'https://gitlab.com/acme/analytics/-/merge_requests/3',
+        });
+        expect(track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'ai_writeback.merged',
+                properties: expect.objectContaining({
+                    owner: null,
+                    repo: null,
+                    pullNumber: null,
+                    prUrl: 'https://gitlab.com/acme/analytics/-/merge_requests/3',
+                }),
+            }),
+        );
+    });
 });
 
 describe('mergeSourceCodeRepoAccess', () => {
