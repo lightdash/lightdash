@@ -2080,7 +2080,7 @@ export class DashboardService
             searchQuery,
             filters: {
                 resourceType: 'dashboard',
-                resourceUuids: [dashboardUuid],
+                resourceUuids: [dashboard.uuid],
                 ...(canManageAll
                     ? {}
                     : { createdByUserUuids: [user.userUuid] }),
@@ -2129,7 +2129,7 @@ export class DashboardService
         ) {
             throw new ForbiddenError();
         }
-        if (scheduler.dashboardUuid !== dashboardUuid) {
+        if (scheduler.dashboardUuid !== dashboard.uuid) {
             throw new NotFoundError('Scheduler not found');
         }
         return this.schedulerModel.getProjectSchedulerRuns({
@@ -2170,8 +2170,11 @@ export class DashboardService
             );
         }
 
-        const { projectUuid, organizationUuid } =
-            await this.checkCreateScheduledDeliveryAccess(user, dashboardUuid);
+        const dashboard = await this.checkCreateScheduledDeliveryAccess(
+            user,
+            dashboardUuid,
+        );
+        const { projectUuid, organizationUuid } = dashboard;
 
         if (newScheduler.format === SchedulerFormat.GSHEETS) {
             const auditedAbility = this.createAuditedAbility(user);
@@ -2191,7 +2194,7 @@ export class DashboardService
         const scheduler = await this.schedulerModel.createScheduler({
             ...newScheduler,
             createdBy: user.userUuid,
-            dashboardUuid,
+            dashboardUuid: dashboard.uuid,
             savedChartUuid: null,
             savedSqlUuid: null,
         });
