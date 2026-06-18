@@ -1,3 +1,10 @@
+## [0.3191.1](https://github.com/lightdash/lightdash/compare/0.3191.0...0.3191.1) (2026-06-18)
+
+
+### Bug Fixes
+
+* **formatting:** render DATE-based MIN/MAX as unshifted calendar dates ([#24447](https://github.com/lightdash/lightdash/issues/24447)) ([9417de9](https://github.com/lightdash/lightdash/commit/9417de9c6c187ec8a5a18541b9ab9205fef96c14))
+
 # [0.3191.0](https://github.com/lightdash/lightdash/compare/0.3190.3...0.3191.0) (2026-06-18)
 
 
