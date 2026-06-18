@@ -609,6 +609,12 @@ export class AiWritebackService extends BaseService {
         }
         const { token } = installation;
         const { hostDomain } = parseGitlabConnection(project.dbtConnection);
+        // The GitLab client is split on host format: makeGitlabRequest-based
+        // reads (createGitlabRepoSource) take a BARE domain and prepend https,
+        // while getGitlabProjects takes a FULL instance URL. Derive both from
+        // the connection's host_domain so gitlab.com and self-hosted both work.
+        const bareHost = hostDomain.replace(/^https?:\/\//, '');
+        const instanceUrl = `https://${bareHost}`;
 
         // Build the repo map once and memoise it — listRepos and
         // resolveRepoAccess share it, so the GitLab listing happens at most once.
@@ -616,7 +622,10 @@ export class AiWritebackService extends BaseService {
         const loadRepoMap = () => {
             if (!repoMapPromise) {
                 repoMapPromise = (async () => {
-                    const projects = await getGitlabProjects(token, hostDomain);
+                    const projects = await getGitlabProjects(
+                        token,
+                        instanceUrl,
+                    );
                     const map = new Map<string, RepoListing>();
                     projects.forEach(
                         (p: {
@@ -648,7 +657,7 @@ export class AiWritebackService extends BaseService {
 
         return {
             token,
-            hostDomain,
+            hostDomain: bareHost,
             listRepos: async () => [...(await loadRepoMap()).values()],
             resolveRepoAccess: async (owner, repo) => {
                 const entry = (await loadRepoMap()).get(`${owner}/${repo}`);
