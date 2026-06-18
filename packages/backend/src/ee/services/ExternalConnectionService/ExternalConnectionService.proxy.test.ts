@@ -4,6 +4,7 @@ import {
     type ExternalConnection,
     type SessionUser,
 } from '@lightdash/common';
+import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { SecureFetchError } from '../../../utils/secureFetch/secureFetch';
 import * as secureFetchModule from '../../../utils/secureFetch/secureFetch';
 import { ExternalConnectionService } from './ExternalConnectionService';
@@ -57,7 +58,14 @@ function buildService(opts: {
     secret?: string | null;
     canView?: boolean;
     rateCount?: number;
+    flagEnabled?: boolean;
 }) {
+    const featureFlagModel = {
+        get: jest.fn().mockResolvedValue({
+            id: 'enable-data-app-external-access',
+            enabled: opts.flagEnabled ?? true,
+        }),
+    } as unknown as FeatureFlagModel;
     const externalConnectionModel = {
         resolveAppAlias: jest.fn().mockResolvedValue(opts.connection),
         getDecryptedSecret: jest.fn().mockResolvedValue(opts.secret ?? null),
@@ -76,6 +84,7 @@ function buildService(opts: {
 
     const service = new ExternalConnectionService({
         externalConnectionModel,
+        featureFlagModel,
         appModel,
         projectModel,
         spacePermissionService,
@@ -91,7 +100,13 @@ function buildService(opts: {
         cannot: () => !(opts.canView ?? true),
     });
 
-    return { service, externalConnectionModel, appModel, analytics };
+    return {
+        service,
+        featureFlagModel,
+        externalConnectionModel,
+        appModel,
+        analytics,
+    };
 }
 
 beforeEach(() => {
@@ -438,5 +453,23 @@ describe('ExternalConnectionService.proxyFetch', () => {
         const tracked = JSON.stringify(analytics.track.mock.calls);
         expect(tracked).not.toContain('tok_secret');
         expect(tracked).not.toContain('do-not-log');
+    });
+
+    it('rejects with ForbiddenError when the feature flag is disabled', async () => {
+        const { service, externalConnectionModel } = buildService({
+            connection: baseConnection(),
+            flagEnabled: false,
+        });
+        await expect(
+            service.proxyFetch(user, 'proj-1', 'app-1', {
+                connectionAlias: 'weather',
+                path: '/v1/x',
+            }),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(mockSecureFetch).not.toHaveBeenCalled();
+        expect(externalConnectionModel.resolveAppAlias).not.toHaveBeenCalled();
+        expect(
+            externalConnectionModel.getDecryptedSecret,
+        ).not.toHaveBeenCalled();
     });
 });

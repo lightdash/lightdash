@@ -11,14 +11,15 @@ import {
     type ExternalConnectionMethod,
     type ExternalFetchRequest,
     type ExternalFetchResponse,
+    type LightdashUser,
     type RegisteredAccount,
     type SessionUser,
     type UpdateExternalConnection,
 } from '@lightdash/common';
 import { performance } from 'node:perf_hooks';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
-import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { type AppModel } from '../../../models/AppModel';
+import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { BaseService } from '../../../services/BaseService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import {
@@ -65,15 +66,14 @@ export class ExternalConnectionService extends BaseService {
         this.spacePermissionService = args.spacePermissionService;
     }
 
-    private async assertExternalAccessEnabled(
-        account: RegisteredAccount,
+    private async assertExternalAccessEnabledForUser(
+        user: Pick<
+            LightdashUser,
+            'userUuid' | 'organizationUuid' | 'organizationName'
+        >,
     ): Promise<void> {
         const { enabled } = await this.featureFlagModel.get({
-            user: {
-                userUuid: account.user.userUuid,
-                organizationUuid: account.organization.organizationUuid,
-                organizationName: account.organization.name,
-            },
+            user,
             featureFlagId: FeatureFlags.EnableDataAppExternalAccess,
         });
         if (!enabled) {
@@ -81,6 +81,16 @@ export class ExternalConnectionService extends BaseService {
                 'Data app external access is not enabled for this organization',
             );
         }
+    }
+
+    private async assertExternalAccessEnabled(
+        account: RegisteredAccount,
+    ): Promise<void> {
+        return this.assertExternalAccessEnabledForUser({
+            userUuid: account.user.userUuid,
+            organizationUuid: account.organization.organizationUuid,
+            organizationName: account.organization.name,
+        });
     }
 
     private assertCanManage(
@@ -429,6 +439,8 @@ export class ExternalConnectionService extends BaseService {
         appUuid: string,
         req: ExternalFetchRequest,
     ): Promise<ExternalFetchResponse> {
+        await this.assertExternalAccessEnabledForUser(user);
+
         const start = performance.now();
 
         // 1. Load app + authorize VIEW (same authz as reading the app).

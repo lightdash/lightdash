@@ -97,15 +97,22 @@ const makeAnalytics = () =>
         track: jest.fn(),
     }) as unknown as LightdashAnalytics;
 
+const makeAppModel = () =>
+    ({
+        getApp: jest.fn(),
+    }) as unknown as import('../../../models/AppModel').AppModel;
+
 const buildService = (enabled: boolean) => {
     const featureFlagModel = makeFeatureFlagModel(enabled);
     const externalConnectionModel = makeExternalConnectionModel();
     const spacePermissionService = makeSpacePermissionService();
     const analytics = makeAnalytics();
+    const appModel = makeAppModel();
     const service = new ExternalConnectionService({
         analytics,
         externalConnectionModel,
         featureFlagModel,
+        appModel,
         spacePermissionService,
     });
     return { service, featureFlagModel, externalConnectionModel };
