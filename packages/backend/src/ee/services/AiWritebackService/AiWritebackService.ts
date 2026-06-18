@@ -314,12 +314,13 @@ export class AiWritebackService extends BaseService {
             // skipPermissionCheck: the merge already passed the manage:SourceCode
             // guard, so this system-initiated recompile shouldn't fail for a user
             // who lacks the separate compile permission.
-            const { jobUuid } = await this.projectService.scheduleCompileProject(
-                user,
-                projectUuid,
-                RequestMethod.BACKEND,
-                true,
-            );
+            const { jobUuid } =
+                await this.projectService.scheduleCompileProject(
+                    user,
+                    projectUuid,
+                    RequestMethod.BACKEND,
+                    true,
+                );
             this.logger.info(
                 `Scheduled dbt compile (job ${jobUuid}) after writeback PR merge for project ${projectUuid}`,
             );
