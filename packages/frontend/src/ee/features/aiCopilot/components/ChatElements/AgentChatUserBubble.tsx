@@ -1,5 +1,13 @@
 import { type AiAgentMessageUser, type AiAgentUser } from '@lightdash/common';
-import { Anchor, Card, Group, Stack, Text, Tooltip } from '@mantine-8/core';
+import {
+    Anchor,
+    Box,
+    Card,
+    Group,
+    Stack,
+    Text,
+    Tooltip,
+} from '@mantine-8/core';
 import MDEditor from '@uiw/react-md-editor';
 import { format, parseISO } from 'date-fns';
 import { type FC } from 'react';
@@ -102,7 +110,7 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
                 className={styles.messageCard}
             >
                 {hasInlineReferences && projectUuid ? (
-                    <div className={`${styles.markdown} ${styles.messageText}`}>
+                    <Box className={`${styles.markdown} ${styles.messageText}`}>
                         {segments.map((segment, idx) => {
                             if (segment.type === 'text') {
                                 return (
@@ -139,7 +147,7 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
                                 </ContentReferenceLink>
                             );
                         })}
-                    </div>
+                    </Box>
                 ) : (
                     <MDEditor.Markdown
                         source={message.message}
