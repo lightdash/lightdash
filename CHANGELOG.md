@@ -1,3 +1,12 @@
+# [0.3194.0](https://github.com/lightdash/lightdash/compare/0.3193.0...0.3194.0) (2026-06-18)
+
+
+### Features
+
+* persist settings sidebar collapse state ([#24489](https://github.com/lightdash/lightdash/issues/24489)) ([849dbe2](https://github.com/lightdash/lightdash/commit/849dbe2493eea68a63f6b9d254740a56db05a136))
+* remove merge PR button from agentic writeback diff viewer ([#24487](https://github.com/lightdash/lightdash/issues/24487)) ([ac66f37](https://github.com/lightdash/lightdash/commit/ac66f375ee5c668e6b59171c8d7f6f6d03525f7e))
+* **reviews:** assign users to review items ([#24485](https://github.com/lightdash/lightdash/issues/24485)) ([a70bb9f](https://github.com/lightdash/lightdash/commit/a70bb9f310a3c43c147789f852c184bf37127849))
+
 # [0.3193.0](https://github.com/lightdash/lightdash/compare/0.3192.2...0.3193.0) (2026-06-18)
 
 
