@@ -257,6 +257,7 @@ function buildFieldReferenceGuide(
 export async function generateTableCalculation(
     modelOptions: GeneratorModelOptions,
     context: TableCalculationContext,
+    metadata: Record<string, string> = {},
 ): Promise<GeneratedTableCalculation> {
     const fieldReferenceGuide = buildFieldReferenceGuide(context.fieldsContext);
 
@@ -265,6 +266,13 @@ export async function generateTableCalculation(
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
         schema: TableCalculationSchema,
+        experimental_telemetry: {
+            functionId: 'generateTableCalculation',
+            isEnabled: true,
+            recordInputs: false,
+            recordOutputs: false,
+            metadata,
+        },
         messages: [
             {
                 role: 'system',

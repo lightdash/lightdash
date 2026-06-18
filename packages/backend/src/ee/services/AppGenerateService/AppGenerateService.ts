@@ -3034,6 +3034,17 @@ export class AppGenerateService extends BaseService {
                 providerOptions: modelOptions.providerOptions,
                 schema: clarifySchema,
                 abortSignal: AbortSignal.timeout(CLARIFY_TIMEOUT_MS),
+                experimental_telemetry: {
+                    functionId: 'clarifyApp',
+                    isEnabled: true,
+                    recordInputs: false,
+                    recordOutputs: false,
+                    metadata: {
+                        organizationId: organizationUuid,
+                        projectId: projectUuid,
+                        userId: user.userUuid,
+                    },
+                },
                 messages: [
                     {
                         role: 'system',

@@ -990,6 +990,17 @@ export class AiAgentReviewClassifierService extends BaseService {
             ...model.callOptions,
             providerOptions: model.providerOptions,
             schema: aiAgentReviewClassifierJudgeOutputSchema,
+            experimental_telemetry: {
+                functionId: 'classifyReviewTurn',
+                isEnabled: true,
+                recordInputs: false,
+                recordOutputs: false,
+                metadata: {
+                    projectId: candidate.subject.projectUuid,
+                    threadId: candidate.subject.threadUuid,
+                    promptUuid: candidate.subject.assistantPromptUuid,
+                },
+            },
             messages: [
                 {
                     role: 'system',

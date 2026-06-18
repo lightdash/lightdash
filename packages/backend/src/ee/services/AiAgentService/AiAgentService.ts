@@ -3829,10 +3829,17 @@ export class AiAgentService extends BaseService {
         const serializedInput =
             Compaction.serializeConversation(messagesToCompact);
 
-        const summary = await generateCompactionSummary(compactionModel, {
-            previousSummary: latestCompaction?.summary,
-            conversation: serializedInput,
-        });
+        const summary = await generateCompactionSummary(
+            compactionModel,
+            {
+                previousSummary: latestCompaction?.summary,
+                conversation: serializedInput,
+            },
+            {
+                threadId: threadUuid,
+                promptUuid: prompt.promptUuid,
+            },
+        );
 
         const createdCompaction =
             await this.aiAgentModel.createThreadCompaction({
@@ -4314,6 +4321,11 @@ export class AiAgentService extends BaseService {
             const title = await generateTitleFromMessages(
                 modelOptions,
                 chatHistoryMessages,
+                {
+                    organizationId: user.organizationUuid!,
+                    agentId: agentUuid,
+                    threadId: threadUuid,
+                },
             );
 
             // Save the title to the database
@@ -9432,6 +9444,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         name: project.name,
                     })),
                     promptText,
+                    { organizationId: organizationUuid },
                 );
                 if (routedProjectUuid) {
                     return await resolveAgentForProject(routedProjectUuid);
@@ -9543,6 +9556,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             model,
             candidates: availableAgents,
             prompt: messageText,
+            metadata: {
+                organizationId: organizationUuid,
+                userId: userUuid,
+            },
         });
 
         const selectedAgent =

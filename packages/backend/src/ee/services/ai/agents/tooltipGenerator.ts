@@ -32,6 +32,7 @@ function buildFieldReferenceGuide(
 export async function generateTooltip(
     modelOptions: GeneratorModelOptions,
     context: TooltipContext,
+    metadata: Record<string, string> = {},
 ): Promise<GeneratedTooltip> {
     const fieldReferenceGuide = buildFieldReferenceGuide(context.fieldsContext);
 
@@ -40,6 +41,13 @@ export async function generateTooltip(
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
         schema: TooltipSchema,
+        experimental_telemetry: {
+            functionId: 'generateTooltip',
+            isEnabled: true,
+            recordInputs: false,
+            recordOutputs: false,
+            metadata,
+        },
         messages: [
             {
                 role: 'system',

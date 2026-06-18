@@ -262,11 +262,18 @@ export class AiAgentDocumentService extends BaseService {
             enableReasoning: false,
             useFastModel: true,
         });
-        const summary = await generateDocumentSummary(modelOptions, {
-            name: body.name,
-            content: body.content,
-            projectExplores,
-        });
+        const summary = await generateDocumentSummary(
+            modelOptions,
+            {
+                name: body.name,
+                content: body.content,
+                projectExplores,
+            },
+            {
+                organizationId: organizationUuid,
+                ...(body.projectUuid ? { projectId: body.projectUuid } : {}),
+            },
+        );
 
         const storageKey = `org/${organizationUuid}/doc/${uuidv4()}.${
             mimeType === 'text/markdown' ? 'md' : 'txt'

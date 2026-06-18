@@ -118,11 +118,13 @@ export async function selectAgent({
     candidates,
     prompt,
     instructions = null,
+    metadata = {},
 }: {
     model: LanguageModel;
     candidates: AiAgentWithContext[];
     prompt: string;
     instructions?: string | null;
+    metadata?: Record<string, string>;
 }): Promise<RouterDecision> {
     if (candidates.length === 0) {
         throw new Error('No agents available for selection');
@@ -148,6 +150,13 @@ export async function selectAgent({
     const result = await generateObject({
         model,
         schema: AgentSelectionSchema,
+        experimental_telemetry: {
+            functionId: 'selectAgent',
+            isEnabled: true,
+            recordInputs: false,
+            recordOutputs: false,
+            metadata,
+        },
         messages: [
             { role: 'system', content: systemPrompt },
             {

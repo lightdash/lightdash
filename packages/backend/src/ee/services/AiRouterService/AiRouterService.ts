@@ -170,6 +170,10 @@ export class AiRouterService extends BaseService {
             candidates,
             prompt,
             instructions: instruction?.instruction ?? null,
+            metadata: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+            },
         });
 
         const suggestedAgent =

@@ -27,6 +27,7 @@ export async function routeProjectForSlack(
     model: LanguageModel,
     projects: { projectUuid: string; name: string }[],
     userQuery: string,
+    metadata: Record<string, string> = {},
 ): Promise<string | null> {
     if (projects.length === 0) {
         return null;
@@ -42,6 +43,13 @@ export async function routeProjectForSlack(
     const result = await generateObject({
         model,
         schema: ProjectRoutingSchema,
+        experimental_telemetry: {
+            functionId: 'routeProjectForSlack',
+            isEnabled: true,
+            recordInputs: false,
+            recordOutputs: false,
+            metadata,
+        },
         messages: [
             {
                 role: 'system',

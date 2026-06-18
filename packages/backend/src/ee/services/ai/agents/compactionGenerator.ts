@@ -10,11 +10,19 @@ export async function generateCompactionSummary(
         previousSummary?: string | null;
         conversation: string;
     },
+    metadata: Record<string, string> = {},
 ): Promise<string> {
     const result = await generateText({
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
+        experimental_telemetry: {
+            functionId: 'generateCompactionSummary',
+            isEnabled: true,
+            recordInputs: false,
+            recordOutputs: false,
+            metadata,
+        },
         messages: [
             {
                 role: 'system',

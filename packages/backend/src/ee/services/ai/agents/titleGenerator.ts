@@ -19,12 +19,20 @@ export type GeneratedTitle = z.infer<typeof TitleSchema>;
 export async function generateThreadTitle(
     modelOptions: GeneratorModelOptions,
     messages: ModelMessage[],
+    metadata: Record<string, string> = {},
 ): Promise<string> {
     const result = await generateObject({
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
         schema: TitleSchema,
+        experimental_telemetry: {
+            functionId: 'generateThreadTitle',
+            isEnabled: true,
+            recordInputs: false,
+            recordOutputs: false,
+            metadata,
+        },
         messages: [
             {
                 role: 'system',

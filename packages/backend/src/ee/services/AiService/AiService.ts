@@ -467,15 +467,23 @@ export class AiService {
     ): Promise<GeneratedChartMetadata> {
         const modelOptions = await this.getAmbientAiModel(user);
 
-        const result = await generateChartMetadataFromContext(modelOptions, {
-            tableName: payload.tableName,
-            chartType: payload.chartType,
-            dimensions: payload.dimensions,
-            metrics: payload.metrics,
-            filters: payload.filters,
-            fieldsContext: payload.fieldsContext,
-            chartConfigJson: payload.chartConfigJson,
-        });
+        const result = await generateChartMetadataFromContext(
+            modelOptions,
+            {
+                tableName: payload.tableName,
+                chartType: payload.chartType,
+                dimensions: payload.dimensions,
+                metrics: payload.metrics,
+                filters: payload.filters,
+                fieldsContext: payload.fieldsContext,
+                chartConfigJson: payload.chartConfigJson,
+            },
+            {
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                userId: user.userUuid,
+            },
+        );
 
         this.analytics.track<GenerateChartMetadataGenerated>({
             userId: user.userUuid,
@@ -506,14 +514,22 @@ export class AiService {
             throw new ForbiddenError('Warehouse type is not available');
         }
 
-        const result = await generateTableCalculationFromContext(modelOptions, {
-            prompt: payload.prompt,
-            tableName: payload.tableName,
-            warehouseType,
-            fieldsContext: payload.fieldsContext,
-            existingTableCalculations: payload.existingTableCalculations,
-            currentSql: payload.currentSql,
-        });
+        const result = await generateTableCalculationFromContext(
+            modelOptions,
+            {
+                prompt: payload.prompt,
+                tableName: payload.tableName,
+                warehouseType,
+                fieldsContext: payload.fieldsContext,
+                existingTableCalculations: payload.existingTableCalculations,
+                currentSql: payload.currentSql,
+            },
+            {
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                userId: user.userUuid,
+            },
+        );
 
         this.analytics.track<GenerateTableCalculationGenerated>({
             userId: user.userUuid,
@@ -543,6 +559,12 @@ export class AiService {
         const result = await generateFormulaTableCalculationFromContext(
             modelOptions,
             payload,
+            {
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                userId: user.userUuid,
+                mode: payload.mode,
+            },
         );
 
         if (payload.mode === 'convert-sql') {
@@ -582,11 +604,19 @@ export class AiService {
     ): Promise<GeneratedTooltip> {
         const modelOptions = await this.getAmbientAiModel(user);
 
-        const result = await generateTooltipFromContext(modelOptions, {
-            prompt: payload.prompt,
-            fieldsContext: payload.fieldsContext,
-            currentHtml: payload.currentHtml,
-        });
+        const result = await generateTooltipFromContext(
+            modelOptions,
+            {
+                prompt: payload.prompt,
+                fieldsContext: payload.fieldsContext,
+                currentHtml: payload.currentHtml,
+            },
+            {
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                userId: user.userUuid,
+            },
+        );
 
         this.analytics.track<GenerateTooltipGenerated>({
             userId: user.userUuid,

@@ -65,12 +65,20 @@ export async function generateDocumentSummary(
         content: string;
         projectExplores: Explore[];
     },
+    metadata: Record<string, string> = {},
 ): Promise<AiAgentDocumentStructuredSummary> {
     const result = await generateObject({
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
         schema: DocumentSummarySchema,
+        experimental_telemetry: {
+            functionId: 'generateDocumentSummary',
+            isEnabled: true,
+            recordInputs: false,
+            recordOutputs: false,
+            metadata,
+        },
         messages: [
             {
                 role: 'system',

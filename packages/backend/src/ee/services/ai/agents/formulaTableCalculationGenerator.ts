@@ -327,6 +327,7 @@ function buildUserContent(
 export async function generateFormulaTableCalculation(
     modelOptions: GeneratorModelOptions,
     context: FormulaTableCalculationContext,
+    metadata: Record<string, string> = {},
 ): Promise<GeneratedFormulaTableCalculation> {
     const fieldReferenceGuide = buildFieldReferenceGuide(context.fieldsContext);
     const systemPrompt = buildSystemPrompt();
@@ -344,6 +345,13 @@ export async function generateFormulaTableCalculation(
             ...modelOptions.callOptions,
             providerOptions: modelOptions.providerOptions,
             schema: FormulaTableCalculationSchema,
+            experimental_telemetry: {
+                functionId: 'generateFormulaTableCalculation',
+                isEnabled: true,
+                recordInputs: false,
+                recordOutputs: false,
+                metadata,
+            },
             messages: [
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userContent },

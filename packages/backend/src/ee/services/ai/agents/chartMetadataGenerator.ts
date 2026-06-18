@@ -59,6 +59,7 @@ function buildFieldLabelMap(fieldsContext: FieldInfo[]): string {
 export async function generateChartMetadata(
     modelOptions: GeneratorModelOptions,
     context: ChartMetadataContext,
+    metadata: Record<string, string> = {},
 ): Promise<GeneratedChartMetadata> {
     const fieldLabelMap = buildFieldLabelMap(context.fieldsContext);
 
@@ -67,6 +68,13 @@ export async function generateChartMetadata(
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
         schema: ChartMetadataSchema,
+        experimental_telemetry: {
+            functionId: 'generateChartMetadata',
+            isEnabled: true,
+            recordInputs: false,
+            recordOutputs: false,
+            metadata,
+        },
         messages: [
             {
                 role: 'system',

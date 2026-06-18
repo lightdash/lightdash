@@ -165,6 +165,10 @@ describe('AiRouterService', () => {
             candidates,
             prompt: 'show revenue by month',
             instructions: 'Route finance questions to @[Finance](agent-2)',
+            metadata: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+            },
         });
         expect(result.candidates).toEqual(candidates);
         expect(result.suggestedAgent.uuid).toBe('agent-2');
