@@ -59,6 +59,7 @@ import {
     DbtProjectType,
     DbtRawModelNode,
     deepEqual,
+    DEFAULT_SPOTLIGHT_CONFIG,
     DefaultSupportedDbtVersion,
     DimensionType,
     DownloadFileType,
@@ -5738,6 +5739,42 @@ export class ProjectService extends BaseService {
     }> {
         // Checks that project exists
         const project = await this.projectModel.get(projectUuid);
+
+        // A preview of a CLI/NONE project has no dbt files to compile from.
+        // Reuse the upstream project's already-compiled explores and config
+        // so the preview mirrors the main project.
+        if (
+            project.dbtConnection.type === DbtProjectType.NONE &&
+            project.upstreamProjectUuid
+        ) {
+            const { upstreamProjectUuid } = project;
+            const [
+                upstreamExplores,
+                upstreamProject,
+                upstreamParameters,
+                upstreamTableGroups,
+            ] = await Promise.all([
+                this.projectModel.getAllExploresFromCache(upstreamProjectUuid),
+                this.projectModel.get(upstreamProjectUuid),
+                this.projectParametersModel.find(upstreamProjectUuid),
+                this.projectModel.getTableGroups(upstreamProjectUuid),
+            ]);
+            return {
+                explores: Object.values(upstreamExplores),
+                lightdashProjectConfig: {
+                    spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+                    parameters: Object.fromEntries(
+                        upstreamParameters.map(({ name, config }) => [
+                            name,
+                            config,
+                        ]),
+                    ),
+                    table_groups: upstreamTableGroups,
+                    defaults: upstreamProject.projectDefaults,
+                },
+                projectContext: undefined,
+            };
+        }
 
         // Force refresh adapter (refetch git repos, check for changed credentials, etc.)
         // Might want to cache parts of this in future if slow
