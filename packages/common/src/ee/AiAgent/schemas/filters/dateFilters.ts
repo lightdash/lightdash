@@ -8,9 +8,9 @@ import {
 import { getFieldIdSchema } from '../fieldId';
 import {
     datePresenceOperatorDescription,
-    filterJsonExamples,
     filterOperatorList,
 } from './filterDescriptionUtils';
+import { filterJsonExamplesForOperators } from './filterExamples';
 
 const dateOrDateTimeSchema = z
     .union([z.string().date(), z.string().datetime()])
@@ -40,18 +40,12 @@ const dateFilterSchema = z.union([
                 .describe(datePresenceOperatorDescription),
         })
         .describe(
-            `Use for date/timestamp fields when checking if a value is missing or present. Do not include values. ${filterJsonExamples(
+            `Use for date/timestamp fields when checking if a value is missing or present. Do not include values. ${filterJsonExamplesForOperators(
                 {
                     fieldId: 'orders_order_date',
                     fieldType: DimensionType.DATE,
                     fieldFilterType: FilterType.DATE,
-                    operator: FilterOperator.NULL,
-                },
-                {
-                    fieldId: 'orders_created_at',
-                    fieldType: DimensionType.TIMESTAMP,
-                    fieldFilterType: FilterType.DATE,
-                    operator: FilterOperator.NOT_NULL,
+                    operators: [FilterOperator.NULL, FilterOperator.NOT_NULL],
                 },
             )}`,
         ),
@@ -70,20 +64,15 @@ const dateFilterSchema = z.union([
                 .describe('One or more explicit ISO dates/datetimes.'),
         })
         .describe(
-            `Use for specific dates like 2024-01-01. For relative periods like "last 2 weeks", use ${FilterOperator.IN_THE_PAST}. ${filterJsonExamples(
+            `Use for specific dates like 2024-01-01. For relative periods like "last 2 weeks", use ${FilterOperator.IN_THE_PAST}. ${filterJsonExamplesForOperators(
                 {
                     fieldId: 'orders_order_date',
                     fieldType: DimensionType.DATE,
                     fieldFilterType: FilterType.DATE,
-                    operator: FilterOperator.EQUALS,
-                    values: ['2024-01-01'],
-                },
-                {
-                    fieldId: 'orders_created_at',
-                    fieldType: DimensionType.TIMESTAMP,
-                    fieldFilterType: FilterType.DATE,
-                    operator: FilterOperator.NOT_EQUALS,
-                    values: ['2024-01-01T00:00:00Z'],
+                    operators: [
+                        FilterOperator.EQUALS,
+                        FilterOperator.NOT_EQUALS,
+                    ],
                 },
             )}`,
         ),
@@ -123,50 +112,16 @@ const dateFilterSchema = z.union([
                 .describe('Relative period settings.'),
         })
         .describe(
-            `Use for relative date requests such as "last 2 weeks" or "next 3 months". ${filterJsonExamples(
+            `Use for relative date requests such as "last 2 weeks" or "next 3 months". ${filterJsonExamplesForOperators(
                 {
                     fieldId: 'orders_order_date',
                     fieldType: DimensionType.DATE,
                     fieldFilterType: FilterType.DATE,
-                    operator: FilterOperator.IN_THE_PAST,
-                    values: [2],
-                    settings: {
-                        completed: false,
-                        unitOfTime: UnitOfTime.weeks,
-                    },
-                },
-                {
-                    fieldId: 'orders_order_date',
-                    fieldType: DimensionType.DATE,
-                    fieldFilterType: FilterType.DATE,
-                    operator: FilterOperator.IN_THE_PAST,
-                    values: [3],
-                    settings: {
-                        completed: true,
-                        unitOfTime: UnitOfTime.months,
-                    },
-                },
-                {
-                    fieldId: 'orders_ship_date',
-                    fieldType: DimensionType.DATE,
-                    fieldFilterType: FilterType.DATE,
-                    operator: FilterOperator.IN_THE_NEXT,
-                    values: [14],
-                    settings: {
-                        completed: false,
-                        unitOfTime: UnitOfTime.days,
-                    },
-                },
-                {
-                    fieldId: 'orders_order_date',
-                    fieldType: DimensionType.DATE,
-                    fieldFilterType: FilterType.DATE,
-                    operator: FilterOperator.NOT_IN_THE_PAST,
-                    values: [7],
-                    settings: {
-                        completed: false,
-                        unitOfTime: UnitOfTime.days,
-                    },
+                    operators: [
+                        FilterOperator.IN_THE_PAST,
+                        FilterOperator.NOT_IN_THE_PAST,
+                        FilterOperator.IN_THE_NEXT,
+                    ],
                 },
             )}`,
         ),
@@ -204,28 +159,15 @@ const dateFilterSchema = z.union([
                 .describe('Current-period settings.'),
         })
         .describe(
-            `Use for current date requests such as "today", "this week", "this month", or "this year". ${filterJsonExamples(
+            `Use for current date requests such as "today", "this week", "this month", or "this year". ${filterJsonExamplesForOperators(
                 {
                     fieldId: 'orders_order_date',
                     fieldType: DimensionType.DATE,
                     fieldFilterType: FilterType.DATE,
-                    operator: FilterOperator.IN_THE_CURRENT,
-                    values: [1],
-                    settings: {
-                        completed: false,
-                        unitOfTime: UnitOfTime.days,
-                    },
-                },
-                {
-                    fieldId: 'orders_order_date',
-                    fieldType: DimensionType.DATE,
-                    fieldFilterType: FilterType.DATE,
-                    operator: FilterOperator.NOT_IN_THE_CURRENT,
-                    values: [1],
-                    settings: {
-                        completed: false,
-                        unitOfTime: UnitOfTime.months,
-                    },
+                    operators: [
+                        FilterOperator.IN_THE_CURRENT,
+                        FilterOperator.NOT_IN_THE_CURRENT,
+                    ],
                 },
             )}`,
         ),
@@ -247,20 +189,17 @@ const dateFilterSchema = z.union([
                 .describe('Exactly one explicit ISO date/datetime threshold.'),
         })
         .describe(
-            `Use for date/timestamp fields before, on-or-before, after, or on-or-after a specific date. ${filterJsonExamples(
+            `Use for date/timestamp fields before, on-or-before, after, or on-or-after a specific date. ${filterJsonExamplesForOperators(
                 {
                     fieldId: 'orders_order_date',
                     fieldType: DimensionType.DATE,
                     fieldFilterType: FilterType.DATE,
-                    operator: FilterOperator.GREATER_THAN_OR_EQUAL,
-                    values: ['2024-01-01'],
-                },
-                {
-                    fieldId: 'orders_created_at',
-                    fieldType: DimensionType.TIMESTAMP,
-                    fieldFilterType: FilterType.DATE,
-                    operator: FilterOperator.LESS_THAN,
-                    values: ['2024-02-01T00:00:00Z'],
+                    operators: [
+                        FilterOperator.LESS_THAN,
+                        FilterOperator.LESS_THAN_OR_EQUAL,
+                        FilterOperator.GREATER_THAN,
+                        FilterOperator.GREATER_THAN_OR_EQUAL,
+                    ],
                 },
             )}`,
         ),
@@ -279,20 +218,12 @@ const dateFilterSchema = z.union([
                 ),
         })
         .describe(
-            `Use for explicit date ranges such as from 2024-01-01 to 2024-01-31. ${filterJsonExamples(
+            `Use for explicit date ranges such as from 2024-01-01 to 2024-01-31. ${filterJsonExamplesForOperators(
                 {
                     fieldId: 'orders_order_date',
                     fieldType: DimensionType.DATE,
                     fieldFilterType: FilterType.DATE,
-                    operator: FilterOperator.IN_BETWEEN,
-                    values: ['2024-01-01', '2024-01-31'],
-                },
-                {
-                    fieldId: 'orders_created_at',
-                    fieldType: DimensionType.TIMESTAMP,
-                    fieldFilterType: FilterType.DATE,
-                    operator: FilterOperator.IN_BETWEEN,
-                    values: ['2024-01-01T00:00:00Z', '2024-01-31T23:59:59Z'],
+                    operators: [FilterOperator.IN_BETWEEN],
                 },
             )}`,
         ),

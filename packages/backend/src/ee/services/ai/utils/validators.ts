@@ -12,12 +12,15 @@ import {
     DependencyNode,
     detectCircularDependencies,
     Explore,
+    FilterOperator,
     FilterRule,
     Filters,
     FilterType,
+    formatFilterExamplesAsJsonLines,
     getCustomMetricType,
     getErrorMessage,
     getFields,
+    getFilterExamples,
     getFilterRulesFromGroup,
     getFilterTypeFromItemType,
     getItemId,
@@ -162,6 +165,204 @@ export function validateCustomMetricsDefinition(
     }
 }
 
+const getAvailableFilterOperators = (
+    filterType: FilterType,
+): FilterOperator[] =>
+    getFilterExamples({
+        fieldId: 'field_id',
+        fieldType: filterType,
+        fieldFilterType: filterType,
+    }).map((example) => example.operator);
+
+const stringifyReceivedValue = (value: unknown): string => {
+    try {
+        return JSON.stringify(value) ?? String(value);
+    } catch {
+        return String(value);
+    }
+};
+
+const getFieldLabel = (
+    field: CompiledField | AdditionalMetric | TableCalculation,
+): string => {
+    if ('label' in field && field.label) {
+        return field.label;
+    }
+
+    if ('displayName' in field && field.displayName) {
+        return field.displayName;
+    }
+
+    return getItemId(field);
+};
+
+const valuesDescription = (values: unknown): string =>
+    stringifyReceivedValue(values ?? []);
+
+const hasOnlyValuesOfType = (
+    values: unknown,
+    valueType: 'boolean' | 'number' | 'string',
+): boolean =>
+    Array.isArray(values) &&
+    values.every((value) => typeof value === valueType);
+
+const hasLength = (values: unknown, length: number): boolean =>
+    Array.isArray(values) && values.length === length;
+
+const hasDateSettings = (settings: unknown): boolean =>
+    typeof settings === 'object' && settings !== null;
+
+const isIsoDateOrDateTime = (value: unknown): value is string =>
+    typeof value === 'string' &&
+    /^\d{4}-\d{2}-\d{2}(T.*)?$/.test(value) &&
+    !Number.isNaN(Date.parse(value));
+
+const hasOnlyIsoDateValues = (values: unknown): boolean =>
+    Array.isArray(values) && values.every(isIsoDateOrDateTime);
+
+const getFilterRuleProblem = (
+    filterRule: FilterRule,
+    filterType: FilterType,
+): string => {
+    const availableOperators = getAvailableFilterOperators(filterType);
+
+    if (!availableOperators.includes(filterRule.operator)) {
+        return `"${filterRule.operator}" is not available for ${filterType} fields. Available operators: ${availableOperators.join(', ')}.`;
+    }
+
+    switch (filterType) {
+        case FilterType.BOOLEAN:
+            if (
+                [FilterOperator.EQUALS, FilterOperator.NOT_EQUALS].includes(
+                    filterRule.operator,
+                ) &&
+                (!hasLength(filterRule.values, 1) ||
+                    !hasOnlyValuesOfType(filterRule.values, 'boolean'))
+            ) {
+                return `"${filterRule.operator}" is a valid boolean operator, but values must be an array with exactly one boolean. Received ${valuesDescription(filterRule.values)}.`;
+            }
+            break;
+        case FilterType.STRING:
+            if (
+                ![FilterOperator.NULL, FilterOperator.NOT_NULL].includes(
+                    filterRule.operator,
+                ) &&
+                !hasOnlyValuesOfType(filterRule.values, 'string')
+            ) {
+                return `"${filterRule.operator}" is a valid string operator, but values must be an array of strings. Received ${valuesDescription(filterRule.values)}.`;
+            }
+            break;
+        case FilterType.NUMBER:
+            if (
+                [
+                    FilterOperator.LESS_THAN,
+                    FilterOperator.LESS_THAN_OR_EQUAL,
+                    FilterOperator.GREATER_THAN,
+                    FilterOperator.GREATER_THAN_OR_EQUAL,
+                ].includes(filterRule.operator) &&
+                (!hasLength(filterRule.values, 1) ||
+                    !hasOnlyValuesOfType(filterRule.values, 'number'))
+            ) {
+                return `"${filterRule.operator}" is a valid number operator, but values must be an array with exactly one number. Received ${valuesDescription(filterRule.values)}.`;
+            }
+
+            if (
+                [
+                    FilterOperator.IN_BETWEEN,
+                    FilterOperator.NOT_IN_BETWEEN,
+                ].includes(filterRule.operator) &&
+                (!hasLength(filterRule.values, 2) ||
+                    !hasOnlyValuesOfType(filterRule.values, 'number'))
+            ) {
+                return `"${filterRule.operator}" is a valid number operator, but values must be an array with exactly two numbers. Received ${valuesDescription(filterRule.values)}.`;
+            }
+
+            if (
+                [FilterOperator.EQUALS, FilterOperator.NOT_EQUALS].includes(
+                    filterRule.operator,
+                ) &&
+                !hasOnlyValuesOfType(filterRule.values, 'number')
+            ) {
+                return `"${filterRule.operator}" is a valid number operator, but values must be an array of numbers. Received ${valuesDescription(filterRule.values)}.`;
+            }
+            break;
+        case FilterType.DATE:
+            if (
+                [FilterOperator.EQUALS, FilterOperator.NOT_EQUALS].includes(
+                    filterRule.operator,
+                ) &&
+                !hasOnlyIsoDateValues(filterRule.values)
+            ) {
+                return `"${filterRule.operator}" is a valid date operator, but values must be ISO date/datetime strings. Received ${valuesDescription(filterRule.values)}.`;
+            }
+
+            if (
+                [
+                    FilterOperator.LESS_THAN,
+                    FilterOperator.LESS_THAN_OR_EQUAL,
+                    FilterOperator.GREATER_THAN,
+                    FilterOperator.GREATER_THAN_OR_EQUAL,
+                ].includes(filterRule.operator) &&
+                (!hasLength(filterRule.values, 1) ||
+                    !hasOnlyIsoDateValues(filterRule.values))
+            ) {
+                return `"${filterRule.operator}" is a valid date operator, but values must be an array with exactly one ISO date/datetime string. Received ${valuesDescription(filterRule.values)}.`;
+            }
+
+            if (
+                filterRule.operator === FilterOperator.IN_BETWEEN &&
+                (!hasLength(filterRule.values, 2) ||
+                    !hasOnlyIsoDateValues(filterRule.values))
+            ) {
+                return `"${filterRule.operator}" is a valid date operator, but values must be an array with exactly two ISO date/datetime strings. Received ${valuesDescription(filterRule.values)}.`;
+            }
+
+            if (
+                [
+                    FilterOperator.IN_THE_PAST,
+                    FilterOperator.NOT_IN_THE_PAST,
+                    FilterOperator.IN_THE_NEXT,
+                    FilterOperator.IN_THE_CURRENT,
+                    FilterOperator.NOT_IN_THE_CURRENT,
+                ].includes(filterRule.operator) &&
+                (!hasLength(filterRule.values, 1) ||
+                    !hasOnlyValuesOfType(filterRule.values, 'number') ||
+                    !hasDateSettings(filterRule.settings))
+            ) {
+                return `"${filterRule.operator}" is a valid date operator, but values must be one number and settings must include completed and unitOfTime. Received values=${valuesDescription(filterRule.values)} settings=${valuesDescription(filterRule.settings)}.`;
+            }
+            break;
+        default:
+            return assertUnreachable(
+                filterType,
+                `Invalid field type: ${filterType}`,
+            );
+    }
+
+    return `The filter JSON does not match any supported ${filterType} filter combination.`;
+};
+
+const formatFilterRuleValidationError = (
+    filterRule: FilterRule,
+    field: CompiledField | AdditionalMetric | TableCalculation,
+    filterType: FilterType,
+): string => {
+    const examples = formatFilterExamplesAsJsonLines(
+        getFilterExamples({
+            fieldId: filterRule.target.fieldId,
+            fieldType: field.type ?? filterType,
+            fieldFilterType: filterType,
+        }),
+    );
+
+    return `Invalid filter for field "${filterRule.target.fieldId}" (${getFieldLabel(field)}).
+
+Problem: ${getFilterRuleProblem(filterRule, filterType)}
+
+For ${filterType} fields, these are all available filter combinations:
+${examples}`;
+};
+
 function validateFilterRule(
     filterRule: FilterRule,
     field: CompiledField | AdditionalMetric | TableCalculation,
@@ -184,7 +385,11 @@ function validateFilterRule(
 
             if (!parsedBooleanFilterRule.success) {
                 throw new AiAgentValidatorError(
-                    `Expected boolean filter rule for field ${filterRule.target.fieldId}. Error: ${parsedBooleanFilterRule.error.message}`,
+                    formatFilterRuleValidationError(
+                        filterRule,
+                        field,
+                        FilterType.BOOLEAN,
+                    ),
                 );
             }
 
@@ -201,7 +406,11 @@ function validateFilterRule(
 
             if (!parsedDateFilterRule.success) {
                 throw new AiAgentValidatorError(
-                    `Expected date filter rule for field ${filterRule.target.fieldId}. Error: ${parsedDateFilterRule.error.message}`,
+                    formatFilterRuleValidationError(
+                        filterRule,
+                        field,
+                        FilterType.DATE,
+                    ),
                 );
             }
 
@@ -217,7 +426,11 @@ function validateFilterRule(
 
             if (!parsedNumberFilterRule.success) {
                 throw new AiAgentValidatorError(
-                    `Expected number filter rule for field ${filterRule.target.fieldId}. Error: ${parsedNumberFilterRule.error.message}`,
+                    formatFilterRuleValidationError(
+                        filterRule,
+                        field,
+                        FilterType.NUMBER,
+                    ),
                 );
             }
 
@@ -233,7 +446,11 @@ function validateFilterRule(
 
             if (!parsedStringFilterRule.success) {
                 throw new AiAgentValidatorError(
-                    `Expected string filter rule for field ${filterRule.target.fieldId}. Error: ${parsedStringFilterRule.error.message}`,
+                    formatFilterRuleValidationError(
+                        filterRule,
+                        field,
+                        FilterType.STRING,
+                    ),
                 );
             }
 
