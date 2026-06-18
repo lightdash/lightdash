@@ -1,3 +1,10 @@
+## [0.3189.1](https://github.com/lightdash/lightdash/compare/0.3189.0...0.3189.1) (2026-06-18)
+
+
+### Bug Fixes
+
+* **excel:** use inline strings for streaming export to avoid RangeError ([#24457](https://github.com/lightdash/lightdash/issues/24457)) ([5a805a2](https://github.com/lightdash/lightdash/commit/5a805a267ed2076e2593a1c08c9b79d66ffd231f))
+
 # [0.3189.0](https://github.com/lightdash/lightdash/compare/0.3188.2...0.3189.0) (2026-06-18)
 
 
