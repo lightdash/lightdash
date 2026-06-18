@@ -1,5 +1,13 @@
 import { type AiAgentMessageUser, type AiAgentUser } from '@lightdash/common';
-import { Anchor, Card, Group, Stack, Text, Tooltip } from '@mantine-8/core';
+import {
+    Anchor,
+    Box,
+    Card,
+    Group,
+    Stack,
+    Text,
+    Tooltip,
+} from '@mantine-8/core';
 import MDEditor from '@uiw/react-md-editor';
 import { format, parseISO } from 'date-fns';
 import { type FC } from 'react';
@@ -102,15 +110,25 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
                 className={styles.messageCard}
             >
                 {hasInlineReferences && projectUuid ? (
-                    <div className={`${styles.markdown} ${styles.messageText}`}>
-                        {segments.map((segment, idx) =>
-                            segment.type === 'text' ? (
-                                <MDEditor.Markdown
-                                    key={`text-${idx}`}
-                                    source={segment.text}
-                                    className={`${styles.markdown} ${styles.inlineMarkdown}`}
-                                />
-                            ) : (
+                    <Box className={`${styles.markdown} ${styles.messageText}`}>
+                        {segments.map((segment, idx) => {
+                            if (segment.type === 'text') {
+                                return (
+                                    <MDEditor.Markdown
+                                        key={`text-${idx}`}
+                                        source={segment.text}
+                                        className={`${styles.markdown} ${styles.inlineMarkdown}`}
+                                    />
+                                );
+                            }
+                            // File/repository (and thread) references have no
+                            // in-app destination — only show the arrow and link
+                            // affordance when there is somewhere to navigate to.
+                            const href = getPromptContextItemHref(
+                                segment.item,
+                                projectUuid,
+                            );
+                            return (
                                 <ContentReferenceLink
                                     key={`${segment.key}-${idx}`}
                                     chartKind={
@@ -120,20 +138,16 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
                                             : undefined
                                     }
                                     kind={segment.item.type}
-                                    rel="noreferrer"
-                                    target="_blank"
-                                    to={
-                                        getPromptContextItemHref(
-                                            segment.item,
-                                            projectUuid,
-                                        ) ?? undefined
-                                    }
+                                    rel={href ? 'noreferrer' : undefined}
+                                    target={href ? '_blank' : undefined}
+                                    to={href ?? undefined}
+                                    showArrow={href !== null}
                                 >
                                     {segment.label}
                                 </ContentReferenceLink>
-                            ),
-                        )}
-                    </div>
+                            );
+                        })}
+                    </Box>
                 ) : (
                     <MDEditor.Markdown
                         source={message.message}

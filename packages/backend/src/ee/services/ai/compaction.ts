@@ -193,6 +193,13 @@ export class Compaction {
                 return `dashboard ${item.displayName ?? item.dashboardUuid} (${item.dashboardUuid})`;
             case 'thread':
                 return `conversation ${item.displayName ?? item.threadUuid} (${item.threadUuid})`;
+            // Spell out the repo-filesystem mount path so the agent reads the
+            // exact file/repo with exploreRepo and never confuses a file path
+            // with an `owner/repo` repository.
+            case 'file':
+                return `file /dbt/${item.path} (a source file in the dbt project; read it with exploreRepo)`;
+            case 'repository':
+                return `repository ${item.fullName} (mounted at /${item.fullName}; explore it with exploreRepo)`;
             default:
                 return assertUnreachable(
                     item,

@@ -150,6 +150,11 @@ export const AgentChatInput = ({
     projectUuidRef.current = projectUuid;
     const contentMentionPriorityItemsRef = useRef(contentMentionPriorityItems);
     contentMentionPriorityItemsRef.current = contentMentionPriorityItems;
+    // Tracks whether the @-mention dropdown is open, sourced from the suggestion
+    // render lifecycle. Enter must select from the dropdown (or be a no-op while
+    // it loads), never submit, so we guard on this in addition to the plugin's
+    // `active` flag — which can read stale in the keydown vs async-items race.
+    const contentMentionPopupOpenRef = useRef(false);
 
     // Hide the chip strip while the user is scrolled away from the input.
     // Reappears as they scroll back toward the bottom of the thread — chips
@@ -262,6 +267,9 @@ export const AgentChatInput = ({
             createContentMentionExtension({
                 getProjectUuid: () => projectUuidRef.current,
                 getPriorityItems: () => contentMentionPriorityItemsRef.current,
+                onPopupOpenChange: (open) => {
+                    contentMentionPopupOpenRef.current = open;
+                },
             }),
         ],
         editable: !disabled,
@@ -280,7 +288,10 @@ export const AgentChatInput = ({
                     !event.isComposing
                 ) {
                     const ed = editorRef.current;
-                    if (isContentMentionSuggestionActive(ed)) {
+                    if (
+                        isContentMentionSuggestionActive(ed) ||
+                        contentMentionPopupOpenRef.current
+                    ) {
                         return false;
                     }
                     if (loadingRef.current || disabledRef.current) {

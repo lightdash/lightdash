@@ -652,10 +652,9 @@ export class AiAgentService extends BaseService {
             context?.filter((item) => item.type === 'chart').length ?? 0;
         const pinnedDashboardCount =
             context?.filter((item) => item.type === 'dashboard').length ?? 0;
-        const pinnedThreadCount =
-            context?.filter((item) => item.type === 'thread').length ?? 0;
-        const pinnedContextCount =
-            pinnedChartCount + pinnedDashboardCount + pinnedThreadCount;
+        // Count every attached item (chart/dashboard/thread/file/repository) so
+        // the total stays accurate as new context types are added.
+        const pinnedContextCount = context?.length ?? 0;
 
         return {
             hasPinnedContext: pinnedContextCount > 0,
@@ -685,6 +684,12 @@ export class AiAgentService extends BaseService {
                     break;
                 case 'thread':
                     key = `thread:${item.threadUuid}`;
+                    break;
+                case 'file':
+                    key = `file:${item.path}`;
+                    break;
+                case 'repository':
+                    key = `repository:${item.fullName}`;
                     break;
                 default:
                     return assertUnreachable(
@@ -738,6 +743,32 @@ export class AiAgentService extends BaseService {
                         );
                     }
                     await this.validateThreadContextAccess(user, item);
+                    return;
+                }
+
+                if (item.type === 'file' || item.type === 'repository') {
+                    // Embedded AI never exposes source code.
+                    if (allowedSpaces) {
+                        throw new ForbiddenError(
+                            'Source files are not available in embedded AI',
+                        );
+                    }
+                    // The agent's exploreRepo tool is the real access boundary;
+                    // gate attaching a source reference on the same
+                    // view:SourceCode ability the file/repo listing uses.
+                    if (
+                        this.createAuditedAbility(user).cannot(
+                            'view',
+                            subject('SourceCode', {
+                                organizationUuid: agent.organizationUuid,
+                                projectUuid: agent.projectUuid,
+                            }),
+                        )
+                    ) {
+                        throw new ForbiddenError(
+                            'You do not have permission to view this project source code',
+                        );
+                    }
                     return;
                 }
 
@@ -5438,9 +5469,9 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         if (context.length === 0) return null;
 
         const lines = context.map((item) => {
-            const name = item.displayName ?? '(name unavailable)';
             switch (item.type) {
                 case 'chart': {
+                    const name = item.displayName ?? '(name unavailable)';
                     const slugText = item.chartSlug ?? '(slug unavailable)';
                     const headline = `- Chart "${name}" (chartSlug: ${slugText})`;
                     const overrides = item.runtimeOverrides;
@@ -5464,14 +5495,25 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     if (overrideLines.length === 0) return headline;
                     return `${headline}\n  Runtime overrides applied when the chart was pinned:\n${overrideLines.join('\n')}`;
                 }
-                case 'dashboard':
+                case 'dashboard': {
+                    const name = item.displayName ?? '(name unavailable)';
                     return `- Dashboard "${name}" (dashboardSlug: ${item.dashboardSlug ?? '(slug unavailable)'})`;
-                case 'thread':
+                }
+                case 'thread': {
+                    const name = item.displayName ?? '(name unavailable)';
                     return `- Conversation "${name}" (threadUuid: ${item.threadUuid}${
                         item.promptUuid
                             ? `, the referenced turn is promptUuid: ${item.promptUuid}`
                             : ''
                     }) — a previous conversation attached as reference. Read it with the readPinnedThread tool. It may predate recent project changes, so verify any claims it contains against the current project instead of trusting them.`;
+                }
+                // Name the exact repo-filesystem mount path so the agent reads
+                // the right file/repo with exploreRepo and never mistakes a file
+                // path for an `owner/repo` repository.
+                case 'file':
+                    return `- File \`/dbt/${item.path}\` — a source file in this project's dbt repository. Read it with the exploreRepo tool.`;
+                case 'repository':
+                    return `- Repository \`${item.fullName}\` (mounted at \`/${item.fullName}\`) — explore it with the exploreRepo tool.`;
                 default:
                     return assertUnreachable(
                         item,

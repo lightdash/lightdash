@@ -1,8 +1,10 @@
 import { ChartKind } from '@lightdash/common';
-import { Anchor, Text, type AnchorProps } from '@mantine-8/core';
+import { Anchor, Box, Text, type AnchorProps } from '@mantine-8/core';
 import {
     IconArrowRight,
+    IconBrandGithub,
     IconChartBar,
+    IconFile,
     IconLayoutDashboard,
     IconMessages,
     type Icon,
@@ -13,7 +15,13 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../../../components/common/ResourceIcon/utils';
 import styles from './ContentLink.module.css';
 
-type ContentReferenceKind = 'artifact' | 'chart' | 'dashboard' | 'thread';
+type ContentReferenceKind =
+    | 'artifact'
+    | 'chart'
+    | 'dashboard'
+    | 'thread'
+    | 'file'
+    | 'repository';
 
 type Props = {
     chartKind?: ChartKind;
@@ -55,6 +63,18 @@ const getIconMeta = ({
                 color: 'violet.7',
                 fill: 'violet.4',
                 icon: IconMessages,
+            };
+        case 'file':
+            return {
+                color: 'ldGray.7',
+                fill: 'ldGray.4',
+                icon: IconFile,
+            };
+        case 'repository':
+            return {
+                color: 'ldGray.7',
+                fill: 'ldGray.4',
+                icon: IconBrandGithub,
             };
         case 'chart':
         default:
@@ -111,17 +131,30 @@ export const ContentReferenceLink = ({
         classNames: { root: styles.contentLink },
     };
 
-    return to ? (
+    // With no destination, render a plain span — no link semantics, no pointer,
+    // no hover — so the chip reads as a static reference, not a clickable link.
+    if (!to) {
+        return (
+            <Box
+                component="span"
+                fz="xs"
+                fw={500}
+                c="ldGray.8"
+                className={`${styles.contentLink} ${styles.static}`}
+                data-content-link="true"
+            >
+                {content}
+            </Box>
+        );
+    }
+
+    return (
         <Anchor
             {...anchorProps}
             component={Link}
             data-content-link="true"
             to={to}
         >
-            {content}
-        </Anchor>
-    ) : (
-        <Anchor {...anchorProps} data-content-link="true">
             {content}
         </Anchor>
     );

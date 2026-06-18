@@ -59,6 +59,37 @@ describe('contentMentions', () => {
         ]);
     });
 
+    it('dedupes file and repository context by their natural key, first wins', () => {
+        expect(
+            mergeAiPromptContextInput(
+                [
+                    { type: 'file', path: 'models/orders.sql' },
+                    { type: 'repository', fullName: 'acme/dbt' },
+                ],
+                [
+                    { type: 'file', path: 'models/orders.sql' },
+                    { type: 'repository', fullName: 'acme/other' },
+                ],
+            ),
+        ).toEqual([
+            { type: 'file', path: 'models/orders.sql' },
+            { type: 'repository', fullName: 'acme/dbt' },
+            { type: 'repository', fullName: 'acme/other' },
+        ]);
+    });
+
+    it('keeps a file and a repository with the same name as distinct items', () => {
+        expect(
+            mergeAiPromptContextInput([
+                { type: 'file', path: 'hello/world' },
+                { type: 'repository', fullName: 'hello/world' },
+            ]),
+        ).toEqual([
+            { type: 'file', path: 'hello/world' },
+            { type: 'repository', fullName: 'hello/world' },
+        ]);
+    });
+
     it('merges mention suggestions deduping charts by uuid, first wins', () => {
         const threadChart: ContentMentionSuggestionItem = {
             id: 'thread:chart:chart-1',

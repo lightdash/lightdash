@@ -630,6 +630,10 @@ const toOptimisticContextItem = (
                 promptUuid: item.promptUuid ?? null,
                 displayName: null,
             };
+        case 'file':
+            return { type: 'file', path: item.path };
+        case 'repository':
+            return { type: 'repository', fullName: item.fullName };
         default:
             return assertUnreachable(
                 item,
