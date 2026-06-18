@@ -10,6 +10,7 @@ export * from './toolLoadProjectContextArgs';
 export * from './toolLoadSkillArgs';
 export * from './toolMcpQueryResultDescription';
 export * from './toolEditDbtProjectArgs';
+export * from './toolEditRepoArgs';
 export * from './toolSyncDbtProjectArgs';
 export * from './toolExploreRepoArgs';
 export * from './toolDiscoverReposArgs';

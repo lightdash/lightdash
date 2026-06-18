@@ -5,6 +5,7 @@ import {
     type ToolDiscoverFieldsOutput,
     type ToolEditContentOutput,
     type ToolEditDbtProjectOutput,
+    type ToolEditRepoOutput,
     type ToolFindChartsOutput,
     type ToolFindContentOutput,
     type ToolFindDashboardsOutput,
@@ -59,6 +60,7 @@ export type AgentToolOutput =
     | ToolLoadSkillOutput
     | ToolProposeChangeOutput
     | ToolEditDbtProjectOutput
+    | ToolEditRepoOutput
     | ToolSyncDbtProjectOutput
     | ToolReadContentOutput
     | ToolRunQueryOutput
