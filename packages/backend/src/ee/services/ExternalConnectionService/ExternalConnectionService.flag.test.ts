@@ -2,6 +2,7 @@ import { Ability } from '@casl/ability';
 import {
     FeatureFlags,
     ForbiddenError,
+    NotFoundError,
     OrganizationMemberRole,
     PossibleAbilities,
     type CreateExternalConnection,
@@ -75,6 +76,7 @@ const makeExternalConnectionModel = () =>
     ({
         create: jest.fn(),
         list: jest.fn().mockResolvedValue([]),
+        getProjectOrganizationUuid: jest.fn().mockResolvedValue(ORG_UUID),
         findByUuid: jest.fn(),
         update: jest.fn(),
         softDelete: jest.fn(),
@@ -135,12 +137,7 @@ describe('ExternalConnectionService feature flag gate', () => {
             const { service, externalConnectionModel } = buildService(false);
 
             await expect(
-                service.create(
-                    mockAccount,
-                    PROJECT_UUID,
-                    ORG_UUID,
-                    minimalCreate,
-                ),
+                service.create(mockAccount, PROJECT_UUID, minimalCreate),
             ).rejects.toThrow(ForbiddenError);
 
             expect(externalConnectionModel.create).not.toHaveBeenCalled();
@@ -200,7 +197,78 @@ describe('ExternalConnectionService feature flag gate', () => {
             expect(result).toEqual([]);
             expect(externalConnectionModel.list).toHaveBeenCalledWith(
                 PROJECT_UUID,
+                ORG_UUID,
             );
         });
+    });
+});
+
+describe('ExternalConnectionService — org is derived from the project', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('create rejects with NotFoundError when the project has no org', async () => {
+        const { service, externalConnectionModel } = buildService(true);
+        (
+            externalConnectionModel.getProjectOrganizationUuid as jest.Mock
+        ).mockResolvedValue(null);
+
+        await expect(
+            service.create(mockAccount, PROJECT_UUID, minimalCreate),
+        ).rejects.toThrow(NotFoundError);
+
+        expect(externalConnectionModel.create).not.toHaveBeenCalled();
+    });
+
+    it('list derives the org from the project and filters by it', async () => {
+        const { service, externalConnectionModel } = buildService(true);
+
+        await service.list(mockAccount, PROJECT_UUID);
+
+        expect(
+            externalConnectionModel.getProjectOrganizationUuid,
+        ).toHaveBeenCalledWith(PROJECT_UUID);
+        expect(externalConnectionModel.list).toHaveBeenCalledWith(
+            PROJECT_UUID,
+            ORG_UUID,
+        );
+    });
+});
+
+describe('ExternalConnectionService — cross-project link is rejected', () => {
+    const OTHER_PROJECT_UUID = 'bbbbbbbb-0000-0000-0000-000000000099';
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('linkToApp rejects when the connection belongs to a different project', async () => {
+        const { service, externalConnectionModel } = buildService(true);
+        (externalConnectionModel.findApp as jest.Mock).mockResolvedValue({
+            app_id: APP_UUID,
+            project_uuid: PROJECT_UUID,
+            space_uuid: null,
+            created_by_user_uuid: USER_UUID,
+            organization_uuid: ORG_UUID,
+        });
+        // Connection lives in another project → getOwnedConnection must reject.
+        (externalConnectionModel.findByUuid as jest.Mock).mockResolvedValue({
+            externalConnectionUuid: 'conn-uuid',
+            projectUuid: OTHER_PROJECT_UUID,
+            organizationUuid: ORG_UUID,
+        });
+
+        await expect(
+            service.linkToApp(
+                mockAccount,
+                PROJECT_UUID,
+                APP_UUID,
+                'conn-uuid',
+                'my-alias',
+            ),
+        ).rejects.toThrow(NotFoundError);
+
+        expect(externalConnectionModel.linkToApp).not.toHaveBeenCalled();
     });
 });

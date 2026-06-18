@@ -66,17 +66,12 @@ export class ExternalConnectionController extends BaseController {
         @Body() body: CreateExternalConnection,
     ): Promise<ApiExternalConnectionResponse> {
         assertRegisteredAccount(req.account);
-        const { organizationUuid } = req.account.organization;
-        if (!organizationUuid) {
-            throw new Error('User must be in an organization');
-        }
         this.setStatus(201);
         return {
             status: 'ok',
             results: await this.getService().create(
                 req.account,
                 projectUuid,
-                organizationUuid,
                 body,
             ),
         };

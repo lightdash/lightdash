@@ -111,7 +111,9 @@ export class ExternalConnectionModel {
                 })
                 .returning('*');
 
-            const secret = data.secret ?? null;
+            // Never store a secret for a no-auth connection, even if one is
+            // supplied — it could only ever be dead weight or a leak risk.
+            const secret = data.type === 'none' ? null : (data.secret ?? null);
             if (secret) {
                 await trx(ExternalConnectionSecretsTableName).insert({
                     external_connection_uuid: row.external_connection_uuid,
@@ -126,7 +128,10 @@ export class ExternalConnectionModel {
         });
     }
 
-    async list(projectUuid: string): Promise<ExternalConnection[]> {
+    async list(
+        projectUuid: string,
+        organizationUuid: string,
+    ): Promise<ExternalConnection[]> {
         const rows = await this.database(ExternalConnectionsTableName)
             .leftJoin(
                 ExternalConnectionSecretsTableName,
@@ -134,6 +139,10 @@ export class ExternalConnectionModel {
                 `${ExternalConnectionsTableName}.external_connection_uuid`,
             )
             .where(`${ExternalConnectionsTableName}.project_uuid`, projectUuid)
+            .where(
+                `${ExternalConnectionsTableName}.organization_uuid`,
+                organizationUuid,
+            )
             .whereNull(`${ExternalConnectionsTableName}.deleted_at`)
             .orderBy(`${ExternalConnectionsTableName}.created_at`, 'desc')
             .select<
@@ -151,6 +160,27 @@ export class ExternalConnectionModel {
                 row.encrypted_payload !== null,
             ),
         );
+    }
+
+    /**
+     * Resolve a project's organization from the DB. Used to derive (not trust
+     * the caller for) the org when authorizing and creating connections, so an
+     * org admin cannot operate on another org's project by passing its UUID.
+     */
+    async getProjectOrganizationUuid(
+        projectUuid: string,
+    ): Promise<string | null> {
+        const row = await this.database('projects')
+            .innerJoin(
+                'organizations',
+                'organizations.organization_id',
+                'projects.organization_id',
+            )
+            .where('projects.project_uuid', projectUuid)
+            .first<{ organization_uuid: string } | undefined>(
+                'organizations.organization_uuid',
+            );
+        return row?.organization_uuid ?? null;
     }
 
     /** Strips the secret — returns the READ shape only. */
@@ -259,8 +289,13 @@ export class ExternalConnectionModel {
                 .where('external_connection_uuid', uuid)
                 .update(updatePayload);
 
-            // Blank / omitted secret = leave the stored secret unchanged.
-            if (data.secret !== undefined && data.secret) {
+            // Secret tri-state: `null` clears it, a non-empty string sets it,
+            // and undefined/blank leaves it unchanged. Switching to type
+            // 'none' also clears any stored secret so it can never be used.
+            const resultingType = data.type ?? existing.type;
+            if (resultingType === 'none' || data.secret === null) {
+                await ExternalConnectionModel.deleteSecret(trx, uuid);
+            } else if (data.secret) {
                 await ExternalConnectionModel.upsertSecret(
                     trx,
                     uuid,
@@ -312,6 +347,12 @@ export class ExternalConnectionModel {
                 encrypted_payload: encryptedPayload,
                 ...(markRotated ? { rotated_at: db.fn.now() } : {}),
             });
+    }
+
+    private static async deleteSecret(db: Knex, uuid: string): Promise<void> {
+        await db(ExternalConnectionSecretsTableName)
+            .where('external_connection_uuid', uuid)
+            .delete();
     }
 
     async linkToApp(

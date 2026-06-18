@@ -14,6 +14,7 @@ import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagMo
 import { BaseService } from '../../../services/BaseService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
+import { validateExternalConnectionConfig } from './externalConnectionConfigValidation';
 
 type ExternalConnectionServiceArguments = {
     analytics: LightdashAnalytics;
@@ -127,11 +128,20 @@ export class ExternalConnectionService extends BaseService {
     async create(
         account: RegisteredAccount,
         projectUuid: string,
-        organizationUuid: string,
         data: CreateExternalConnection,
     ): Promise<ExternalConnection> {
         await this.assertExternalAccessEnabled(account);
+        // Derive the org from the project — never trust the caller's org — so an
+        // org admin cannot create a connection against another org's project.
+        const organizationUuid =
+            await this.externalConnectionModel.getProjectOrganizationUuid(
+                projectUuid,
+            );
+        if (!organizationUuid) {
+            throw new NotFoundError('Project not found');
+        }
         this.assertCanManage(account, projectUuid, organizationUuid);
+        validateExternalConnectionConfig(data, Boolean(data.secret));
         const connection = await this.externalConnectionModel.create(
             projectUuid,
             organizationUuid,
@@ -156,12 +166,17 @@ export class ExternalConnectionService extends BaseService {
         projectUuid: string,
     ): Promise<ExternalConnection[]> {
         await this.assertExternalAccessEnabled(account);
-        const { organizationUuid } = account.organization;
+        // Derive the org from the project, not the caller, and filter by both,
+        // so an org admin cannot list another org's project's connections.
+        const organizationUuid =
+            await this.externalConnectionModel.getProjectOrganizationUuid(
+                projectUuid,
+            );
         if (!organizationUuid) {
-            throw new ForbiddenError('User must be in an organization');
+            throw new NotFoundError('Project not found');
         }
         this.assertCanManage(account, projectUuid, organizationUuid);
-        return this.externalConnectionModel.list(projectUuid);
+        return this.externalConnectionModel.list(projectUuid, organizationUuid);
     }
 
     private async getOwnedConnection(
@@ -202,6 +217,41 @@ export class ExternalConnectionService extends BaseService {
             account,
             projectUuid,
             connectionUuid,
+        );
+        // Validate the resulting (merged) config so a partial update can't
+        // leave the connection in an invalid or unsafe state.
+        const hasSecretAfter =
+            data.secret === null
+                ? false
+                : Boolean(data.secret) || existing.hasSecret;
+        validateExternalConnectionConfig(
+            {
+                type: data.type ?? existing.type,
+                origin: data.origin ?? existing.origin,
+                allowedPathPrefixes:
+                    data.allowedPathPrefixes ?? existing.allowedPathPrefixes,
+                allowedMethods: data.allowedMethods ?? existing.allowedMethods,
+                allowedContentTypes:
+                    data.allowedContentTypes ?? existing.allowedContentTypes,
+                responseMaxBytes:
+                    data.responseMaxBytes ?? existing.responseMaxBytes,
+                requestMaxBytes:
+                    data.requestMaxBytes ?? existing.requestMaxBytes,
+                timeoutMs: data.timeoutMs ?? existing.timeoutMs,
+                rateLimitPerMinute:
+                    data.rateLimitPerMinute !== undefined
+                        ? data.rateLimitPerMinute
+                        : existing.rateLimitPerMinute,
+                apiKeyName:
+                    data.apiKeyName !== undefined
+                        ? data.apiKeyName
+                        : existing.apiKeyName,
+                apiKeyLocation:
+                    data.apiKeyLocation !== undefined
+                        ? data.apiKeyLocation
+                        : existing.apiKeyLocation,
+            },
+            hasSecretAfter,
         );
         const updated = await this.externalConnectionModel.update(
             connectionUuid,
