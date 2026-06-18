@@ -1,3 +1,10 @@
+## [0.3187.1](https://github.com/lightdash/lightdash/compare/0.3187.0...0.3187.1) (2026-06-18)
+
+
+### Bug Fixes
+
+* **ai:** emit proper agent schemas ([#24385](https://github.com/lightdash/lightdash/issues/24385)) ([75aeb31](https://github.com/lightdash/lightdash/commit/75aeb31722a5b57a45552afaa4b3365c8ad2f691))
+
 # [0.3187.0](https://github.com/lightdash/lightdash/compare/0.3186.0...0.3187.0) (2026-06-17)
 
 
