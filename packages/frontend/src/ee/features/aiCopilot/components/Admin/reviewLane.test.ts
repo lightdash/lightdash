@@ -22,14 +22,17 @@ const base = (
     }) as unknown as AiAgentReviewItemSummary;
 
 describe('getReviewLane', () => {
-    it('open + ambiguous → needs_triage', () => {
+    it('triage status → needs_triage', () => {
+        expect(getReviewLane(base({ status: 'triage' }))).toBe('needs_triage');
+    });
+    it('open + ambiguous → todo (lane is status-based)', () => {
         expect(
             getReviewLane(
                 base({ status: 'open', primaryRootCause: 'ambiguous' }),
             ),
-        ).toBe('needs_triage');
+        ).toBe('todo');
     });
-    it('open + feedback_needed fixTarget → needs_triage', () => {
+    it('open + feedback_needed fixTarget → todo (lane is status-based)', () => {
         expect(
             getReviewLane(
                 base({
@@ -37,7 +40,7 @@ describe('getReviewLane', () => {
                     latestFinding: { fixTargets: ['feedback_needed'] } as never,
                 }),
             ),
-        ).toBe('needs_triage');
+        ).toBe('todo');
     });
     it('open + actionable → todo', () => {
         expect(getReviewLane(base({ status: 'open' }))).toBe('todo');
@@ -95,7 +98,7 @@ describe('partitionInProgress', () => {
 
 describe('LANE_TARGET_STATUS', () => {
     it('maps each lane to the expected status', () => {
-        expect(LANE_TARGET_STATUS.needs_triage).toBeNull();
+        expect(LANE_TARGET_STATUS.needs_triage).toBe('triage');
         expect(LANE_TARGET_STATUS.todo).toBe('open');
         expect(LANE_TARGET_STATUS.in_progress).toBe('in_progress');
         expect(LANE_TARGET_STATUS.done).toBe('resolved');
@@ -152,6 +155,16 @@ describe('getStartWritebackKind', () => {
                         eligible: false,
                         reason: 'no_fix_targets',
                     } as never,
+                }),
+            ),
+        ).toBeNull();
+    });
+    it('returns null for a triage-status item that would otherwise be eligible', () => {
+        expect(
+            getStartWritebackKind(
+                eligible({
+                    status: 'triage',
+                    primaryRootCause: 'semantic_layer',
                 }),
             ),
         ).toBeNull();

@@ -79,6 +79,7 @@ import {
 import { SearchFilter } from './SearchFilter';
 
 const ACTIVE_REVIEW_ITEM_STATUSES: AiAgentReviewItemStatus[] = [
+    'triage',
     'open',
     'in_progress',
 ];

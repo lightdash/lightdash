@@ -120,9 +120,7 @@ const getTargetLabel = (targetRefs: AiAgentTargetRef[]): string | null => {
     }
 };
 
-export const isTriageReviewItem = (
-    reviewItem: AiAgentReviewItemSummary,
-): boolean =>
+const isTriageReviewItem = (reviewItem: AiAgentReviewItemSummary): boolean =>
     reviewItem.primaryRootCause === 'ambiguous' ||
     reviewItem.latestFinding?.fixTargets.includes('feedback_needed') === true;
 

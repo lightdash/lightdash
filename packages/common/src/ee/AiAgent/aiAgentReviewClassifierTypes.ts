@@ -292,6 +292,7 @@ export type AiAgentFindingReviewStatus =
     | 'needs_more_evidence';
 
 export type AiAgentReviewItemStatus =
+    | 'triage'
     | 'open'
     | 'in_progress'
     | 'resolved'

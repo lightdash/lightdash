@@ -10,6 +10,10 @@ vi.mock('../../hooks/useAiAgentAdmin', () => ({
         isLoading: false,
         mutate: vi.fn(),
     }),
+    useUpdateAiAgentReviewItemStatus: () => ({
+        isLoading: false,
+        mutate: vi.fn(),
+    }),
 }));
 
 vi.mock('./ProjectContextWritebackModal', () => ({
