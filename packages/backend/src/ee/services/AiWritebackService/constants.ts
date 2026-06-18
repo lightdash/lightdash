@@ -143,6 +143,32 @@ export const ALLOWED_TOOLS = [
 // Claude Code releases.
 export const CLAUDE_MODEL = 'claude-sonnet-4-6';
 
+// Host-curated Agent Skills directory for the GENERAL coding agent, distinct
+// from the dbt warehouse skills (SKILLS_DIR) and the baked-in Claude skills
+// (CLAUDE_SKILLS_DIR). Shipped near-empty for v1; lives OUTSIDE the cloned repo
+// (CWD) so `git add` can never sweep its contents into a PR. Safe to expose
+// read-only because the general agent has no Bash — skills can't execute.
+export const GENERAL_SKILLS_DIR = '/home/user/.lightdash-coding-skills';
+
+// Fine-grained tool permissions for the GENERAL coding agent (editRepo). The
+// security-critical difference from ALLOWED_TOOLS: there are ZERO Bash entries.
+// With no Bash and no per-language toolchain, "no in-sandbox build" is
+// enforceable rather than convention — the agent can only read/edit files in
+// the cloned repo, write PR metadata to /tmp, and invoke read-only Skills.
+export const GENERAL_ALLOWED_TOOLS = [
+    `Read(/${CWD}/**)`,
+    `Glob(/${CWD}/**)`,
+    `Grep(/${CWD}/**)`,
+    `Edit(/${CWD}/**)`,
+    `Write(/${CWD}/**)`,
+    // PR metadata files live directly in /tmp (also passed via --add-dir).
+    `Write(//tmp/**)`,
+    // Invoke host-curated Skills and read their resource files. The dir is
+    // outside CWD so it must also be passed via --add-dir (see addDirs).
+    'Skill',
+    `Read(/${GENERAL_SKILLS_DIR}/**)`,
+].join(',');
+
 // Ceiling on the gather pass itself. The shell pipeline is sub-second on
 // typical repos; this guards against an unusually large checkout taking long
 // enough to eat into the agent budget.

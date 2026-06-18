@@ -1,3 +1,4 @@
+import { type FeatureFlags } from '@lightdash/common';
 import type {
     PullRequestProvider,
     SessionUser,
@@ -133,6 +134,12 @@ export type CodingAgentSetup = {
 export type CodingAgentConfig = {
     /** Tags logs/analytics and selects the few remaining mode branches. */
     mode: 'dbt-writeback' | 'general';
+    /**
+     * The rollout feature flag this mode is gated behind (AiWriteback for dbt,
+     * CodingAgent for the general agent). Asserted in `prepareTurn` for non
+     * admin/changeset sources.
+     */
+    featureFlag: FeatureFlags;
     /** E2B template a fresh sandbox is created from (dbt vs lean image). */
     resolveTemplateRef: () => string;
     /** Extra options merged into `sandbox.git.clone` (e.g. a blob filter). */
@@ -256,6 +263,13 @@ export type GithubIdentity = {
 export type AiWritebackRunArgs = {
     user: SessionUser;
     projectUuid: string;
+    /**
+     * For the general coding agent (`editRepo`): the `owner/repo` the user asked
+     * to edit. Slice 1 records it for logging but resolves the project's already
+     * connected repo; arbitrary-repo targeting + per-repo write authz arrive in a
+     * later slice. Ignored by the dbt-writeback path.
+     */
+    repoTarget?: string;
     prompt: string;
     // Honoured only when the thread has no writeback PR yet; the PR must live
     // in the project's own repo (validated before adoption).

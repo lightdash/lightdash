@@ -75,6 +75,8 @@ export const summarizeToolCall = (toolName: string, input: AnyType) => {
         case 'editDbtProject':
         case 'proposeChange':
             return 'Preparing change proposal';
+        case 'editRepo':
+            return 'Editing repository';
         default:
             return quoted(
                 readString(input, ['query', 'searchQuery', 'name', 'path']),
@@ -125,7 +127,7 @@ export const summarizeToolResult = (toolName: string, output: AnyType) => {
         }
         return 'Query ran';
     }
-    if (toolName === 'editDbtProject') {
+    if (toolName === 'editDbtProject' || toolName === 'editRepo') {
         const metadata =
             typeof output.metadata === 'object' && output.metadata
                 ? output.metadata
@@ -133,7 +135,9 @@ export const summarizeToolResult = (toolName: string, output: AnyType) => {
         const action = (metadata as { prAction?: string | null }).prAction;
         if (action === 'updated') return 'Pull request updated';
         if (action === 'opened') return 'Pull request opened';
-        return 'Writeback complete';
+        return toolName === 'editRepo'
+            ? 'Coding agent complete'
+            : 'Writeback complete';
     }
     if (typeof output.rowCount === 'number') {
         return `Returned ${output.rowCount} rows`;

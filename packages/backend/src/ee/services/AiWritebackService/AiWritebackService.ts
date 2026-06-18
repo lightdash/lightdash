@@ -58,6 +58,8 @@ import {
     COMPILE_WRAPPER_PATH,
     CWD,
     GATHER_REPO_CONTEXT_SANDBOX_PATH,
+    GENERAL_ALLOWED_TOOLS,
+    GENERAL_SKILLS_DIR,
     GIT_TIMEOUT_MS,
     PR_DESCRIPTION_PATH,
     PR_TITLE_PATH,
@@ -81,7 +83,7 @@ import { GitlabProvider } from './providers/GitlabProvider';
 import type { GitProvider } from './providers/GitProvider';
 import { buildGatherRepoContextScript } from './scripts';
 import { loadWarehouseSkills, warehouseTypeToSkillKey } from './skills';
-import { buildSystemPrompt } from './templates';
+import { buildGeneralSystemPrompt, buildSystemPrompt } from './templates';
 import type {
     AdoptedPullRequest,
     AiWritebackRunArgs,
@@ -879,16 +881,21 @@ export class AiWritebackService extends BaseService {
     private async assertEnabled(
         user: SessionUser,
         source: AiWritebackSource,
+        featureFlag: FeatureFlags,
     ): Promise<void> {
         if (source === 'admin_review') {
             return;
         }
         const { enabled } = await this.featureFlagModel.get({
             user,
-            featureFlagId: FeatureFlags.AiWriteback,
+            featureFlagId: featureFlag,
         });
         if (!enabled) {
-            throw new ForbiddenError('AI writeback is not enabled');
+            throw new ForbiddenError(
+                featureFlag === FeatureFlags.CodingAgent
+                    ? 'AI coding agent is not enabled'
+                    : 'AI writeback is not enabled',
+            );
         }
     }
 
@@ -1118,6 +1125,7 @@ export class AiWritebackService extends BaseService {
             projectUuid,
             aiThreadUuid,
             source,
+            featureFlag: config.featureFlag,
         });
 
         this.logger.info('AI writeback run started', {
@@ -1375,13 +1383,15 @@ export class AiWritebackService extends BaseService {
         projectUuid,
         aiThreadUuid,
         source,
+        featureFlag,
     }: {
         user: SessionUser;
         projectUuid: string;
         aiThreadUuid: string | undefined;
         source: AiWritebackSource;
+        featureFlag: FeatureFlags;
     }): Promise<TurnContext> {
-        await this.assertEnabled(user, source);
+        await this.assertEnabled(user, source, featureFlag);
 
         const project = await this.projectModel.get(projectUuid);
         // Writeback opens a PR from a freshly created feature branch
@@ -2059,6 +2069,7 @@ export class AiWritebackService extends BaseService {
             this.lightdashConfig.appRuntime;
         return {
             mode: 'dbt-writeback',
+            featureFlag: FeatureFlags.AiWriteback,
             resolveTemplateRef: () =>
                 resolveSandboxTemplateRef({
                     name: e2bAiWritebackTemplateName,
@@ -2101,6 +2112,98 @@ export class AiWritebackService extends BaseService {
                 AiWritebackService.prepareDbtAgentRun(sandbox, turn),
             afterAgentRun: (sandbox) => this.reportCompileTimings(sandbox),
         };
+    }
+
+    /**
+     * Run one turn of the general-purpose coding agent (`editRepo`): edit a repo
+     * and open/update a pull request, with no dbt/compile step — verification
+     * lives in the PR's own CI. Slice 1 targets the project's already-connected
+     * repo (reusing the dbt-connection auth/resolution); arbitrary-repo targeting
+     * + per-repo write authz arrive in a later slice. Gated by the CodingAgent
+     * flag (asserted in `prepareTurn`) and the same `manage:SourceCode` check as
+     * writeback.
+     */
+    async runEditRepo(args: AiWritebackRunArgs): Promise<AiWritebackRunResult> {
+        this.logger.info('AI coding agent run requested', {
+            event: 'ai_coding_agent.run.requested',
+            projectUuid: args.projectUuid,
+            // Slice 1 resolves the connected repo regardless; logged so the
+            // requested-vs-resolved gap is visible until targeting lands.
+            requestedRepoTarget: args.repoTarget ?? null,
+            source: args.source,
+        });
+        return this.runCodingAgent(args, this.generalCodingAgentConfig());
+    }
+
+    /**
+     * Build the general coding-agent {@link CodingAgentConfig}: the lean E2B
+     * template, the no-Bash {@link GENERAL_ALLOWED_TOOLS}, a repo-generic system
+     * prompt with a light host-computed file listing, and no compile hooks. The
+     * security-critical difference from {@link dbtWritebackConfig} is the absence
+     * of Bash + any toolchain, so "no in-sandbox build" is enforceable.
+     */
+    private generalCodingAgentConfig(): CodingAgentConfig {
+        const { e2bCodingAgentTemplateName, e2bCodingAgentTemplateTag } =
+            this.lightdashConfig.appRuntime;
+        return {
+            mode: 'general',
+            featureFlag: FeatureFlags.CodingAgent,
+            resolveTemplateRef: () =>
+                resolveSandboxTemplateRef({
+                    name: e2bCodingAgentTemplateName,
+                    tag: e2bCodingAgentTemplateTag,
+                }),
+            // depth:1 is applied in acquireSandbox; blob:none + size guard land
+            // with the security slice. No extra clone options for now.
+            cloneExtraOptions: {},
+            buildAgentSetup: async ({ sandbox, repository }) => {
+                const repoContext =
+                    await this.gatherGeneralRepoContext(sandbox);
+                return {
+                    systemPrompt: buildGeneralSystemPrompt({
+                        repository,
+                        repoContext,
+                    }),
+                    allowedTools: GENERAL_ALLOWED_TOOLS,
+                    addDirs: ['/tmp', GENERAL_SKILLS_DIR],
+                    model: CLAUDE_MODEL,
+                };
+            },
+            // No in-sandbox prep/teardown: no compile wrapper, no skills push.
+            beforeAgentRun: () => Promise.resolve(),
+            afterAgentRun: () => Promise.resolve(),
+        };
+    }
+
+    /**
+     * Host-side, best-effort listing of the cloned repo's tracked files to seed
+     * the general agent's prompt (so it doesn't burn turns rediscovering the
+     * tree). Runs `git ls-files` on the host — not the agent — so it needs no
+     * Bash allowlist. Capped and null-on-failure: the agent can always fall back
+     * to Glob/Grep.
+     */
+    private async gatherGeneralRepoContext(
+        sandbox: Sandbox,
+    ): Promise<string | null> {
+        const MAX_FILES = 600;
+        try {
+            const result = await sandbox.commands.run(
+                `git -C ${CWD} ls-files | head -n ${MAX_FILES}`,
+                { cwd: CWD, timeoutMs: REPO_CONTEXT_TIMEOUT_MS },
+            );
+            const listing = result.stdout.trim();
+            if (!listing) {
+                return null;
+            }
+            return listing;
+        } catch (error) {
+            this.logger.warn(
+                `AiCodingAgent: gatherGeneralRepoContext failed — running without context: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+            return null;
+        }
     }
 
     /**

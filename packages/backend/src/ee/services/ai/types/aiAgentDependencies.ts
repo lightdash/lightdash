@@ -456,6 +456,19 @@ export type EditDbtProjectFn = (args: {
     }
 >;
 
+/**
+ * Make a code change to a writable repository and open/update a pull request,
+ * via the general coding agent. The counterpart to {@link EditDbtProjectFn} for
+ * non-dbt repos: no compile/preview step (verification lives in the PR's CI), so
+ * it returns the base writeback result without the preview fields.
+ */
+export type EditRepoFn = (args: {
+    repoTarget: string;
+    prompt: string | null;
+    prUrl: string | null;
+    progressId?: string;
+}) => Promise<AiWritebackRunResult>;
+
 export type SetupPreviewDeployFn = () => Promise<PreviewDeploySetupResult>;
 
 /**

@@ -119,6 +119,7 @@ const TOOL_TASK_TITLES: Record<string, string> = {
     editContent: 'Updating content',
     proposeChange: 'Drafting semantic-layer change',
     editDbtProject: 'Opening dbt project PR',
+    editRepo: 'Opening repository PR',
     setupPreviewDeploy: 'Preparing preview deploy',
     listKnowledgeDocuments: 'Checking project knowledge',
     getKnowledgeDocumentContent: 'Reading project knowledge',
@@ -146,6 +147,9 @@ const normalizeTaskCopy = (text: string) =>
 export const getSlackToolTitle = (toolName: string): string => {
     if (toolName.startsWith('editDbtProject:')) {
         return toolName.replace('editDbtProject:', '');
+    }
+    if (toolName.startsWith('editRepo:')) {
+        return toolName.replace('editRepo:', '');
     }
     return (
         TOOL_TASK_TITLES[toolName] ??
@@ -651,6 +655,7 @@ const ANSWER_PRODUCING_TOOLS = new Set([
     'runSavedChart',
     'generateDashboard',
     'editDbtProject',
+    'editRepo',
 ]);
 
 // One compact footer: small "How did I do?" header + a single row with

@@ -372,6 +372,8 @@ export const lightdashConfigMock: LightdashConfig = {
         e2bTemplateTag: '',
         e2bAiWritebackTemplateName: 'lightdash-ai-writeback',
         e2bAiWritebackTemplateTag: '',
+        e2bCodingAgentTemplateName: 'lightdash-ai-writeback',
+        e2bCodingAgentTemplateTag: '',
     },
     enabledFeatureFlags: new Set<string>(),
     disabledFeatureFlags: new Set<string>(),

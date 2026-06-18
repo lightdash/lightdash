@@ -23,6 +23,7 @@ import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
 import { getDiscoverRepos } from '../tools/discoverRepos';
 import { getEditContent } from '../tools/editContent';
 import { getEditDbtProject } from '../tools/editDbtProject';
+import { getEditRepo } from '../tools/editRepo';
 import { getExploreRepo } from '../tools/exploreRepo';
 import { getFindContent } from '../tools/findContent';
 import { getGenerateDashboardV2 } from '../tools/generateDashboardV2';
@@ -291,6 +292,12 @@ const getAgentTools = (
           })
         : null;
 
+    const editRepo = args.enableCodingAgent
+        ? getEditRepo({
+              editRepo: dependencies.editRepo,
+          })
+        : null;
+
     const syncDbtProject = args.enableAiWriteback
         ? getSyncDbtProject({
               syncDbtProject: dependencies.syncDbtProject,
@@ -402,6 +409,7 @@ const getAgentTools = (
         generateUuids,
         ...(args.canManageAgent ? { improveContext } : {}),
         ...(editDbtProject ? { editDbtProject } : {}),
+        ...(editRepo ? { editRepo } : {}),
         ...(syncDbtProject ? { syncDbtProject } : {}),
         ...(setupPreviewDeploy ? { setupPreviewDeploy } : {}),
         ...(exploreRepo ? { exploreRepo } : {}),
@@ -486,6 +494,7 @@ const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
             enableSearchSemanticLayer: args.enableSearchSemanticLayer,
             enableAiWriteback: args.enableAiWriteback,
             writebackAttribution: args.writebackAttribution,
+            enableCodingAgent: args.enableCodingAgent,
             siteUrl: args.siteUrl,
             enableRepoDiscovery: args.enableRepoDiscovery,
             repoFsRoot: args.repoFsRoot,

@@ -1571,6 +1571,15 @@ export type AppRuntimeConfig = {
      */
     e2bAiWritebackTemplateName: string;
     e2bAiWritebackTemplateTag: string;
+    /**
+     * Lean template name+tag for the general-purpose coding agent (`editRepo`):
+     * git + Claude CLI + the generic skill only — no dbt venvs, no compile
+     * wrapper, no profiles. Falls back to the AI-writeback template+tag when
+     * unset so the feature can be dogfooded before the lean image is published;
+     * the agent's tool allowlist (no Bash) makes the heavier image harmless.
+     */
+    e2bCodingAgentTemplateName: string;
+    e2bCodingAgentTemplateTag: string;
 };
 
 export type IntercomConfig = {
@@ -1795,6 +1804,16 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             'lightdash-ai-writeback',
         e2bAiWritebackTemplateTag:
             process.env.E2B_AI_WRITEBACK_TEMPLATE_TAG ?? (VERSION as string),
+        // Fall back to the writeback template+tag when the lean coding-agent
+        // image isn't configured, so editRepo works before that image ships.
+        e2bCodingAgentTemplateName:
+            process.env.E2B_CODING_AGENT_TEMPLATE_NAME ||
+            process.env.E2B_AI_WRITEBACK_TEMPLATE_NAME ||
+            'lightdash-ai-writeback',
+        e2bCodingAgentTemplateTag:
+            process.env.E2B_CODING_AGENT_TEMPLATE_TAG ??
+            process.env.E2B_AI_WRITEBACK_TEMPLATE_TAG ??
+            (VERSION as string),
     };
 };
 

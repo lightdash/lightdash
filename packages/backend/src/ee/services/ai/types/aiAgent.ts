@@ -21,6 +21,7 @@ import {
     DiscoverReposFn,
     EditContentFn,
     EditDbtProjectFn,
+    EditRepoFn,
     ExploreRepoFn,
     FindContentFn,
     FindExploresFn,
@@ -100,6 +101,10 @@ export type AiAgentArgs = AnyAiModel & {
     writebackAttribution: AiWritebackAttribution | null;
     enablePreviewDeploySetup: boolean;
     enableRepoDiscovery: boolean;
+    // Whether the general-purpose coding agent (`editRepo`) is available — the
+    // CodingAgent flag, the org has a writable Git installation, and (in Slack)
+    // a trusted prompt identity. Independent of enableAiWriteback.
+    enableCodingAgent: boolean;
     // dbt project root within the repo (from project_sub_path); '.' = repo root,
     // null when repo discovery is off or the project is not git-backed.
     repoFsRoot: string | null;
@@ -176,6 +181,7 @@ export type AiAgentDependencies = {
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     editDbtProject: EditDbtProjectFn;
+    editRepo: EditRepoFn;
     syncDbtProject: SyncDbtProjectFn;
     setupPreviewDeploy: SetupPreviewDeployFn;
     exploreRepo: ExploreRepoFn;

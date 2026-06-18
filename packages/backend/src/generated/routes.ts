@@ -13005,6 +13005,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['loadSkill'] },
                 { dataType: 'enum', enums: ['loadProjectContext'] },
                 { dataType: 'enum', enums: ['editDbtProject'] },
+                { dataType: 'enum', enums: ['editRepo'] },
                 { dataType: 'enum', enums: ['syncDbtProject'] },
                 { dataType: 'enum', enums: ['exploreRepo'] },
                 { dataType: 'enum', enums: ['discoverRepos'] },
@@ -14407,6 +14408,258 @@ const models: TsoaRoute.Models = {
                                                             dataType: 'enum',
                                                             enums: [
                                                                 'git_write_permission',
+                                                            ],
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [null],
+                                                        },
+                                                        {
+                                                            dataType:
+                                                                'undefined',
+                                                        },
+                                                    ],
+                                                },
+                                                status: {
+                                                    dataType: 'enum',
+                                                    enums: ['error'],
+                                                    required: true,
+                                                },
+                                            },
+                                        },
+                                        {
+                                            dataType: 'nestedObjectLiteral',
+                                            nestedProperties: {
+                                                steps: {
+                                                    dataType: 'union',
+                                                    subSchemas: [
+                                                        {
+                                                            dataType: 'array',
+                                                            array: {
+                                                                dataType:
+                                                                    'nestedObjectLiteral',
+                                                                nestedProperties:
+                                                                    {
+                                                                        label: {
+                                                                            dataType:
+                                                                                'string',
+                                                                            required: true,
+                                                                        },
+                                                                        kind: {
+                                                                            dataType:
+                                                                                'union',
+                                                                            subSchemas:
+                                                                                [
+                                                                                    {
+                                                                                        dataType:
+                                                                                            'enum',
+                                                                                        enums: [
+                                                                                            'read',
+                                                                                        ],
+                                                                                    },
+                                                                                    {
+                                                                                        dataType:
+                                                                                            'enum',
+                                                                                        enums: [
+                                                                                            'edit',
+                                                                                        ],
+                                                                                    },
+                                                                                    {
+                                                                                        dataType:
+                                                                                            'enum',
+                                                                                        enums: [
+                                                                                            'search',
+                                                                                        ],
+                                                                                    },
+                                                                                    {
+                                                                                        dataType:
+                                                                                            'enum',
+                                                                                        enums: [
+                                                                                            'compile',
+                                                                                        ],
+                                                                                    },
+                                                                                    {
+                                                                                        dataType:
+                                                                                            'enum',
+                                                                                        enums: [
+                                                                                            'stage',
+                                                                                        ],
+                                                                                    },
+                                                                                ],
+                                                                            required: true,
+                                                                        },
+                                                                    },
+                                                            },
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [null],
+                                                        },
+                                                        {
+                                                            dataType:
+                                                                'undefined',
+                                                        },
+                                                    ],
+                                                },
+                                                deletions: {
+                                                    dataType: 'union',
+                                                    subSchemas: [
+                                                        { dataType: 'double' },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [null],
+                                                        },
+                                                        {
+                                                            dataType:
+                                                                'undefined',
+                                                        },
+                                                    ],
+                                                },
+                                                additions: {
+                                                    dataType: 'union',
+                                                    subSchemas: [
+                                                        { dataType: 'double' },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [null],
+                                                        },
+                                                        {
+                                                            dataType:
+                                                                'undefined',
+                                                        },
+                                                    ],
+                                                },
+                                                commitSha: {
+                                                    dataType: 'union',
+                                                    subSchemas: [
+                                                        { dataType: 'string' },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [null],
+                                                        },
+                                                        {
+                                                            dataType:
+                                                                'undefined',
+                                                        },
+                                                    ],
+                                                },
+                                                prAction: {
+                                                    dataType: 'union',
+                                                    subSchemas: [
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: ['opened'],
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: ['updated'],
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [null],
+                                                        },
+                                                        {
+                                                            dataType:
+                                                                'undefined',
+                                                        },
+                                                    ],
+                                                },
+                                                repository: {
+                                                    dataType: 'union',
+                                                    subSchemas: [
+                                                        { dataType: 'string' },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [null],
+                                                        },
+                                                        {
+                                                            dataType:
+                                                                'undefined',
+                                                        },
+                                                    ],
+                                                },
+                                                status: {
+                                                    dataType: 'enum',
+                                                    enums: ['success'],
+                                                    required: true,
+                                                },
+                                                prUrl: {
+                                                    dataType: 'union',
+                                                    subSchemas: [
+                                                        { dataType: 'string' },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [null],
+                                                        },
+                                                    ],
+                                                    required: true,
+                                                },
+                                            },
+                                        },
+                                        {
+                                            dataType: 'nestedObjectLiteral',
+                                            nestedProperties: {
+                                                reason: {
+                                                    dataType: 'union',
+                                                    subSchemas: [
+                                                        { dataType: 'string' },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [null],
+                                                        },
+                                                        {
+                                                            dataType:
+                                                                'undefined',
+                                                        },
+                                                    ],
+                                                },
+                                                errorCode: {
+                                                    dataType: 'union',
+                                                    subSchemas: [
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: ['unknown'],
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [
+                                                                'repo_write_forbidden',
+                                                            ],
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [
+                                                                'github_not_installed',
+                                                            ],
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [
+                                                                'gitlab_not_installed',
+                                                            ],
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [
+                                                                'pull_request_not_open',
+                                                            ],
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [
+                                                                'git_write_permission',
+                                                            ],
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [
+                                                                'repo_too_large',
+                                                            ],
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [
+                                                                'denied_path',
                                                             ],
                                                         },
                                                         {
@@ -29783,7 +30036,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__':
+    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -29793,7 +30046,7 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__':
+    'PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -29803,7 +30056,7 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             {
-                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__',
+                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__',
                             },
                             { dataType: 'undefined' },
                         ],
@@ -29816,7 +30069,7 @@ const models: TsoaRoute.Models = {
     'PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__': {
         dataType: 'refAlias',
         type: {
-            ref: 'PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__',
+            ref: 'PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__',
             validators: {},
         },
     },
@@ -30471,7 +30724,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__':
+    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -30481,7 +30734,7 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__':
+    'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -30491,7 +30744,7 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             {
-                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__',
+                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__',
                             },
                             { dataType: 'undefined' },
                         ],
@@ -30504,7 +30757,7 @@ const models: TsoaRoute.Models = {
     'PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__': {
         dataType: 'refAlias',
         type: {
-            ref: 'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__',
+            ref: 'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__',
             validators: {},
         },
     },

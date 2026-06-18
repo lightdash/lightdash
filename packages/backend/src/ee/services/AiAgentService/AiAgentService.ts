@@ -248,6 +248,7 @@ import { AiAgentArgs, AiAgentDependencies } from '../ai/types/aiAgent';
 import {
     DiscoverReposFn,
     EditDbtProjectFn,
+    EditRepoFn,
     ExploreRepoFn,
     GetPromptFn,
     SendFileFn,
@@ -6095,6 +6096,68 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             return { ...result, previewDeployConfigured, previewUrl };
         };
 
+        // General-purpose coding agent: edit any writable repo and open a PR,
+        // with no dbt compile / preview step (verification lives in the PR's
+        // CI). Mirrors editDbtProject's progress streaming + Slack reaction but
+        // returns the base writeback result directly.
+        const editRepo: EditRepoFn = async (args) => {
+            const editRepoProgressCallback = (message: string) => {
+                void updateProgress(
+                    message,
+                    `editRepo:${message}`,
+                    args.progressId
+                        ? `${args.progressId}:${message}`
+                        : undefined,
+                    'complete',
+                ).catch((err) => {
+                    Logger.debug(
+                        `Failed to update progress for coding agent (${message}):`,
+                        err,
+                    );
+                });
+            };
+
+            if (!args.prompt) {
+                throw new ParameterError(
+                    'A prompt is required for the coding agent',
+                );
+            }
+
+            const result = await wrapSentryTransaction(
+                'AiAgent.editRepo',
+                {},
+                () =>
+                    this.aiWritebackService.runEditRepo({
+                        user,
+                        projectUuid,
+                        repoTarget: args.repoTarget,
+                        prompt: args.prompt!,
+                        prUrl: args.prUrl,
+                        aiThreadUuid: prompt.threadUuid,
+                        source: isSlackPrompt(prompt) ? 'slack' : 'web',
+                        onProgress: editRepoProgressCallback,
+                    }),
+            );
+
+            if (result.prUrl && isSlackPrompt(prompt)) {
+                void this.slackClient
+                    .addReaction({
+                        organizationUuid,
+                        channel: prompt.slackChannelId,
+                        timestamp: prompt.promptSlackTs,
+                        name: 'white_check_mark',
+                    })
+                    .catch((err) => {
+                        Logger.debug(
+                            'Failed to add :white_check_mark: reaction to coding-agent mention:',
+                            err,
+                        );
+                    });
+            }
+
+            return result;
+        };
+
         // Read-only repo access for the exploreRepo tool, exposed as ONE virtual
         // filesystem (a MountingRepoFileSystem): the dbt project mounted
         // subPath-scoped at /dbt, and every installation-accessible repo mounted
@@ -6386,6 +6449,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             storeReasoning,
             searchFieldValues: toolsRuntime.searchFieldValues,
             editDbtProject,
+            editRepo,
             setupPreviewDeploy: toolsRuntime.setupPreviewDeploy,
             exploreRepo,
             discoverRepos,
@@ -6538,6 +6602,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             storeReasoning,
             searchFieldValues,
             editDbtProject,
+            editRepo,
             setupPreviewDeploy,
             exploreRepo,
             discoverRepos,
@@ -6688,6 +6753,27 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             aiWritebackEnabled = false;
         }
 
+        // General coding agent (editRepo): gated by the CodingAgent flag,
+        // independent of AiWriteback, with the same Slack trusted-identity guard.
+        // Slice 1 targets the project's connected repo, so it likewise requires a
+        // GitHub/GitLab connection; arbitrary-repo targeting lands in a later
+        // slice. The per-repo write authz is enforced in AiWritebackService.
+        let { enabled: codingAgentEnabled } = await this.featureFlagService.get(
+            {
+                user,
+                featureFlagId: FeatureFlags.CodingAgent,
+            },
+        );
+        if (codingAgentEnabled && !hasTrustedPromptUserIdentity) {
+            this.logger.info(
+                `Disabling editRepo for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
+            );
+            codingAgentEnabled = false;
+        }
+        if (codingAgentEnabled && !writebackSupportedConnection) {
+            codingAgentEnabled = false;
+        }
+
         // Advisory signal of which GitHub identity a writeback PR would be
         // attributed to, so the prompt can tell the user and nudge unlinked
         // users to link their personal GitHub. GitHub-only (GitLab uses a
@@ -6828,6 +6914,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableSearchSemanticLayer: searchSemanticLayerEnabled,
             enableAiWriteback: aiWritebackEnabled,
             writebackAttribution,
+            enableCodingAgent: codingAgentEnabled,
             enablePreviewDeploySetup: aiPreviewDeploySetupEnabled,
             enableRepoDiscovery: repoDiscoveryEnabled,
             repoFsRoot,
@@ -6916,6 +7003,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             storeReasoning,
             searchFieldValues,
             editDbtProject,
+            editRepo,
             setupPreviewDeploy,
             exploreRepo,
             discoverRepos,
