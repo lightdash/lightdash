@@ -261,6 +261,7 @@ export * from './types/queryHistory';
 export * from './types/rename';
 export * from './types/resourceViewItem';
 export * from './types/results';
+export * from './types/roadmap';
 export * from './types/roles';
 export * from './types/savedCharts';
 export * from './types/scheduler';
