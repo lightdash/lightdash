@@ -3,6 +3,7 @@ import {
     type ApiGenerateAppResponse,
     type AppChartReference,
     type AppDashboardReference,
+    type AppExternalConnectionReference,
     type DataAppClaudeModel,
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
@@ -16,6 +17,7 @@ type IterateAppParams = {
     charts?: AppChartReference[];
     dashboard?: AppDashboardReference;
     claudeModel?: DataAppClaudeModel;
+    externalConnections?: AppExternalConnectionReference[];
 };
 
 type IterateAppResult = ApiGenerateAppResponse['results'];
@@ -28,6 +30,7 @@ const iterateApp = async ({
     charts,
     dashboard,
     claudeModel,
+    externalConnections,
 }: IterateAppParams): Promise<IterateAppResult> => {
     const data = await lightdashApi<IterateAppResult>({
         method: 'POST',
@@ -38,6 +41,7 @@ const iterateApp = async ({
             charts,
             dashboard,
             claudeModel,
+            externalConnections,
         }),
     });
     return data;

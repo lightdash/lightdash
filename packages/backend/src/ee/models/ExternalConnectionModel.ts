@@ -460,11 +460,15 @@ export class ExternalConnectionModel {
         externalConnectionUuid: string,
         alias: string,
     ): Promise<void> {
-        await this.database(AppExternalConnectionsTableName).insert({
-            app_id: appId,
-            external_connection_uuid: externalConnectionUuid,
-            alias,
-        });
+        // Idempotent: re-linking the same alias (e.g. on iteration) is a no-op.
+        await this.database(AppExternalConnectionsTableName)
+            .insert({
+                app_id: appId,
+                external_connection_uuid: externalConnectionUuid,
+                alias,
+            })
+            .onConflict(['app_id', 'alias'])
+            .ignore();
     }
 
     async unlinkFromApp(appId: string, alias: string): Promise<void> {

@@ -1674,12 +1674,6 @@
             },
             "ExternalConnection": {
                 "properties": {
-                    "lastTestedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true,
-                        "description": "Timestamp of the last successful admin \"Test connection\" run."
-                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
@@ -1766,7 +1760,6 @@
                     }
                 },
                 "required": [
-                    "lastTestedAt",
                     "updatedAt",
                     "createdAt",
                     "updatedByUserUuid",
@@ -2081,23 +2074,98 @@
                 "required": ["path"],
                 "type": "object"
             },
+            "ExternalConnectionSampleRequest": {
+                "properties": {
+                    "body": {},
+                    "query": {
+                        "$ref": "#/components/schemas/Record_string.string_"
+                    },
+                    "path": {
+                        "type": "string"
+                    },
+                    "method": {
+                        "$ref": "#/components/schemas/ExternalConnectionMethod"
+                    }
+                },
+                "required": ["path", "method"],
+                "type": "object",
+                "description": "The request that produced a sample (stored alongside the response)."
+            },
+            "ExternalConnectionSample": {
+                "properties": {
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "response": {},
+                    "request": {
+                        "$ref": "#/components/schemas/ExternalConnectionSampleRequest"
+                    },
+                    "label": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "externalConnectionUuid": {
+                        "type": "string"
+                    },
+                    "sampleUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "createdAt",
+                    "response",
+                    "request",
+                    "label",
+                    "externalConnectionUuid",
+                    "sampleUuid"
+                ],
+                "type": "object",
+                "description": "READ shape for a persisted sample row."
+            },
             "ApiSaveExternalConnectionSampleResponse": {
                 "properties": {
-                    "results": {},
+                    "results": {
+                        "$ref": "#/components/schemas/ExternalConnectionSample"
+                    },
                     "status": {
                         "type": "string",
                         "enum": ["ok"],
                         "nullable": false
                     }
                 },
-                "required": ["status"],
+                "required": ["results", "status"],
                 "type": "object"
             },
             "ApiSaveExternalConnectionSampleRequest": {
                 "properties": {
-                    "sample": {}
+                    "response": {},
+                    "request": {
+                        "$ref": "#/components/schemas/ExternalConnectionSampleRequest"
+                    },
+                    "label": {
+                        "type": "string",
+                        "nullable": true
+                    }
                 },
-                "required": ["sample"],
+                "required": ["response", "request"],
+                "type": "object"
+            },
+            "ApiListExternalConnectionSamplesResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/ExternalConnectionSample"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
                 "type": "object"
             },
             "Pick_Organization.name-or-createdAt-or-organizationUuid_": {
@@ -10233,8 +10301,27 @@
                 "type": "string",
                 "enum": ["opus", "sonnet", "haiku"]
             },
+            "AppExternalConnectionReference": {
+                "properties": {
+                    "alias": {
+                        "type": "string"
+                    },
+                    "externalConnectionUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["alias", "externalConnectionUuid"],
+                "type": "object",
+                "description": "An external connection attached to a generation request. Linked to the app\n(under `alias`) server-side at creation — before the catalog stage — so the\ngenerated app can call it via `client.externalFetch(alias, …)`. Validated\n(must belong to the app's project) and gated on the external-access flag."
+            },
             "GenerateAppRequestBody": {
                 "properties": {
+                    "externalConnections": {
+                        "items": {
+                            "$ref": "#/components/schemas/AppExternalConnectionReference"
+                        },
+                        "type": "array"
+                    },
                     "designUuid": {
                         "type": "string",
                         "nullable": true
@@ -15404,19 +15491,6 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
