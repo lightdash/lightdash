@@ -108,4 +108,54 @@ describe('contentReferenceUtils', () => {
             'repository:hello/world',
         ]);
     });
+
+    it('does not match a label inside a larger word', () => {
+        const result = buildContentReferenceSegments(
+            'please reorders the list',
+            [{ type: 'file', path: 'orders' }],
+        );
+
+        // `orders` lives inside `reorders` — it is not a real reference, so no
+        // chip should be rendered and the key should not be recorded.
+        const references = result.segments.filter(
+            (segment) => segment.type === 'reference',
+        );
+        expect(references).toHaveLength(0);
+        expect([...result.matchedKeys]).toEqual([]);
+    });
+
+    it('still matches a path-like label next to sentence punctuation', () => {
+        const result = buildContentReferenceSegments(
+            'see (acme/dbt) and models/orders.sql, then stop',
+            [
+                { type: 'repository', fullName: 'acme/dbt' },
+                { type: 'file', path: 'models/orders.sql' },
+            ],
+        );
+
+        // Brackets and a trailing comma are token boundaries, not word
+        // characters, so the references are still recognised.
+        const references = result.segments.filter(
+            (segment) => segment.type === 'reference',
+        );
+        expect(references.map((s) => s.type === 'reference' && s.key)).toEqual([
+            'repository:acme/dbt',
+            'file:models/orders.sql',
+        ]);
+    });
+
+    it('matches a standalone whole-word label (the irreducible text-match case)', () => {
+        const result = buildContentReferenceSegments(
+            'the orders table tracks orders by day',
+            [{ type: 'file', path: 'orders' }],
+        );
+
+        // Documents a known limitation: a coincidental standalone word equal to
+        // a label still matches, because the stored message carries no mention
+        // offsets. Mitigated in practice by labels being path-like.
+        const references = result.segments.filter(
+            (segment) => segment.type === 'reference',
+        );
+        expect(references).toHaveLength(2);
+    });
 });

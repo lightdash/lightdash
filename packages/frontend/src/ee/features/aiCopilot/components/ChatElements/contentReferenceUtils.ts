@@ -69,6 +69,36 @@ export const getPromptContextItemHref = (
     }
 };
 
+// A label matches only when it sits on token boundaries — the characters on
+// either side must not be word characters. This stops a path/slug label from
+// matching inside a larger word (e.g. `orders` inside `reorders`). It does NOT
+// try to tell a real inline mention from a coincidental standalone word equal to
+// the label: the stored message is plain text with no mention offsets, so that
+// residual ambiguity is unavoidable here, mitigated by labels being path-like.
+const WORD_CHARACTER = /[\p{L}\p{N}_]/u;
+
+const isTokenBoundary = (character: string | undefined): boolean =>
+    character === undefined || !WORD_CHARACTER.test(character);
+
+const indexOfBoundedLabel = (
+    message: string,
+    label: string,
+    fromIndex: number,
+): number => {
+    let from = fromIndex;
+    while (from <= message.length) {
+        const start = message.indexOf(label, from);
+        if (start < 0) return -1;
+        const before = start > 0 ? message[start - 1] : undefined;
+        const after = message[start + label.length];
+        if (isTokenBoundary(before) && isTokenBoundary(after)) {
+            return start;
+        }
+        from = start + 1;
+    }
+    return -1;
+};
+
 export const buildContentReferenceSegments = (
     message: string,
     context: AiPromptContextItem[],
@@ -94,7 +124,7 @@ export const buildContentReferenceSegments = (
         const nextMatch = candidates
             .map((candidate) => ({
                 ...candidate,
-                start: message.indexOf(candidate.label, cursor),
+                start: indexOfBoundedLabel(message, candidate.label, cursor),
             }))
             .filter(({ start }) => start >= 0)
             .sort((a, b) => {
