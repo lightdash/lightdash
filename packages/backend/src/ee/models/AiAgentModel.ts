@@ -2562,10 +2562,15 @@ export class AiAgentModel {
             )
             .where(`${AiPromptTableName}.ai_thread_uuid`, threadUuid)
             .where(`${AiPromptContextTableName}.entity_type`, 'thread')
-            .distinct<{ entity_uuid: string }[]>(
+            .distinct<{ entity_uuid: string | null }[]>(
                 `${AiPromptContextTableName}.entity_uuid`,
             );
-        return rows.map((row) => row.entity_uuid);
+        // entity_uuid is nullable at the column level (file/repository rows use
+        // entity_ref); thread rows always carry it, but honor the type rather
+        // than asserting non-null.
+        return rows
+            .map((row) => row.entity_uuid)
+            .filter((u): u is string => u !== null);
     }
 
     async findThreadOwnership({
