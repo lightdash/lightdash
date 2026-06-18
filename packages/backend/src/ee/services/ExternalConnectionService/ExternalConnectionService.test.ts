@@ -3,6 +3,7 @@ import {
     NotFoundError,
     ParameterError,
     type ExternalConnection,
+    type ExternalConnectionSample,
     type ExternalFetchResponse,
     type RegisteredAccount,
 } from '@lightdash/common';
@@ -15,6 +16,7 @@ import { ExternalConnectionService } from './ExternalConnectionService';
 const projectUuid = 'project-uuid-1';
 const connectionUuid = 'conn-uuid-1';
 const orgUuid = 'org-uuid-1';
+const sampleUuid = 'sample-uuid-1';
 
 const connection: ExternalConnection = {
     externalConnectionUuid: connectionUuid,
@@ -37,7 +39,23 @@ const connection: ExternalConnection = {
     updatedByUserUuid: 'user-1',
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-01T00:00:00Z'),
-    lastTestedAt: null,
+};
+
+const sampleRequest = {
+    method: 'GET' as const,
+    path: '/v1/weather',
+    query: { city: 'Berlin' },
+};
+
+const sampleResponse = { temp: 21, city: 'Berlin' };
+
+const fakeSample: ExternalConnectionSample = {
+    sampleUuid,
+    externalConnectionUuid: connectionUuid,
+    label: 'Berlin weather',
+    request: sampleRequest,
+    response: sampleResponse,
+    createdAt: new Date('2026-01-01T00:00:00Z'),
 };
 
 const fetchResponse: ExternalFetchResponse = {
@@ -48,7 +66,7 @@ const fetchResponse: ExternalFetchResponse = {
 };
 
 // A minimal RegisteredAccount with admin abilities
-const makeAccount = (canManage: boolean): RegisteredAccount => {
+const makeAccount = (_canManage: boolean): RegisteredAccount => {
     const account = {
         user: { id: 'user-1', userUuid: 'user-1' },
         organization: { organizationUuid: orgUuid },
@@ -60,6 +78,9 @@ function buildService(opts: {
     connection?: ExternalConnection | null;
     secret?: string | null;
     saveSampleFn?: jest.Mock;
+    listSamplesFn?: jest.Mock;
+    deleteSampleFn?: jest.Mock;
+    getSampleConnectionUuidFn?: jest.Mock;
     linkToAppFn?: jest.Mock;
     findAppFn?: jest.Mock;
     featureFlagEnabled?: boolean;
@@ -73,7 +94,15 @@ function buildService(opts: {
         getDecryptedSecret: jest
             .fn()
             .mockResolvedValue(opts.secret ?? 's3cr3t'),
-        saveSample: opts.saveSampleFn ?? jest.fn().mockResolvedValue(undefined),
+        saveSample:
+            opts.saveSampleFn ?? jest.fn().mockResolvedValue(fakeSample),
+        listSamples:
+            opts.listSamplesFn ?? jest.fn().mockResolvedValue([fakeSample]),
+        deleteSample:
+            opts.deleteSampleFn ?? jest.fn().mockResolvedValue(undefined),
+        getSampleConnectionUuid:
+            opts.getSampleConnectionUuidFn ??
+            jest.fn().mockResolvedValue(connectionUuid),
         linkToApp: opts.linkToAppFn ?? jest.fn().mockResolvedValue(undefined),
         findApp:
             opts.findAppFn ??
@@ -251,7 +280,8 @@ describe('ExternalConnectionService.saveSample', () => {
 
         await expect(
             service.saveSample(viewerAccount, projectUuid, connectionUuid, {
-                temp: 21,
+                request: sampleRequest,
+                response: { temp: 21 },
             }),
         ).rejects.toThrow(ForbiddenError);
         expect(saveSampleFn).not.toHaveBeenCalled();
@@ -266,85 +296,100 @@ describe('ExternalConnectionService.saveSample', () => {
         mockAbility(service, true);
 
         await expect(
-            service.saveSample(adminAccount, projectUuid, connectionUuid, {}),
+            service.saveSample(adminAccount, projectUuid, connectionUuid, {
+                request: sampleRequest,
+                response: {},
+            }),
         ).rejects.toThrow(NotFoundError);
         expect(saveSampleFn).not.toHaveBeenCalled();
     });
 
-    it('persists the sanitized sample for an admin', async () => {
-        const saveSampleFn = jest.fn().mockResolvedValue(undefined);
+    it('persists the sanitized sample and returns the saved sample', async () => {
+        const saveSampleFn = jest.fn().mockResolvedValue(fakeSample);
         const { service } = buildService({ saveSampleFn });
         mockAbility(service, true);
 
-        await service.saveSample(adminAccount, projectUuid, connectionUuid, {
-            temp: 21,
-            city: 'Berlin',
-        });
+        const result = await service.saveSample(
+            adminAccount,
+            projectUuid,
+            connectionUuid,
+            {
+                label: 'Berlin weather',
+                request: sampleRequest,
+                response: sampleResponse,
+            },
+        );
 
-        expect(saveSampleFn).toHaveBeenCalledWith(connectionUuid, {
-            temp: 21,
-            city: 'Berlin',
-        });
+        expect(result).toEqual(fakeSample);
+        // Model receives (connectionUuid, userUuid, { label, request, response })
+        expect(saveSampleFn).toHaveBeenCalledWith(
+            connectionUuid,
+            'user-1',
+            expect.objectContaining({
+                label: 'Berlin weather',
+                request: sampleRequest,
+                response: sampleResponse,
+            }),
+        );
     });
 
-    it('truncates a sample larger than the byte cap before persisting', async () => {
-        const saveSampleFn = jest.fn().mockResolvedValue(undefined);
+    it('truncates a response larger than the byte cap before persisting', async () => {
+        const saveSampleFn = jest.fn().mockResolvedValue(fakeSample);
         const { service } = buildService({ saveSampleFn });
         mockAbility(service, true);
 
         const huge = { blob: 'x'.repeat(200 * 1024) }; // ~200 KB
-        await service.saveSample(
-            adminAccount,
-            projectUuid,
-            connectionUuid,
-            huge,
-        );
+        await service.saveSample(adminAccount, projectUuid, connectionUuid, {
+            request: sampleRequest,
+            response: huge,
+        });
 
-        const [, persisted] = saveSampleFn.mock.calls[0];
-        const persistedBytes = Buffer.byteLength(JSON.stringify(persisted));
+        const persistedResponse = saveSampleFn.mock.calls[0][2].response;
+        const persistedBytes = Buffer.byteLength(
+            JSON.stringify(persistedResponse),
+        );
         expect(persistedBytes).toBeLessThanOrEqual(
             ExternalConnectionService.MAX_SAMPLE_BYTES,
         );
     });
 
-    it('truncates a long array of rows to the row cap', async () => {
-        const saveSampleFn = jest.fn().mockResolvedValue(undefined);
+    it('truncates a long array of rows in the response to the row cap', async () => {
+        const saveSampleFn = jest.fn().mockResolvedValue(fakeSample);
         const { service } = buildService({ saveSampleFn });
         mockAbility(service, true);
 
         const rows = Array.from({ length: 500 }, (_, i) => ({ id: i }));
-        await service.saveSample(
-            adminAccount,
-            projectUuid,
-            connectionUuid,
-            rows,
-        );
+        await service.saveSample(adminAccount, projectUuid, connectionUuid, {
+            request: sampleRequest,
+            response: rows,
+        });
 
-        const [, persisted] = saveSampleFn.mock.calls[0];
-        expect(Array.isArray(persisted)).toBe(true);
-        expect((persisted as unknown[]).length).toBeLessThanOrEqual(
+        const persistedResponse = saveSampleFn.mock.calls[0][2].response;
+        expect(Array.isArray(persistedResponse)).toBe(true);
+        expect((persistedResponse as unknown[]).length).toBeLessThanOrEqual(
             ExternalConnectionService.MAX_SAMPLE_ROWS,
         );
     });
 
     it('never persists the decrypted secret even if the response body echoes it', async () => {
-        const saveSampleFn = jest.fn().mockResolvedValue(undefined);
-        // Use a distinctive sentinel so any leak is unambiguous
+        const saveSampleFn = jest.fn().mockResolvedValue(fakeSample);
         const { service, model } = buildService({
             saveSampleFn,
             secret: 'SENTINEL_SECRET_abc123',
         });
         mockAbility(service, true);
 
-        // The response body contains the sentinel under a normal (non-redacted) key
-        // and also under the known-secret key 'authorization' — both must not appear.
         await service.saveSample(adminAccount, projectUuid, connectionUuid, {
-            note: 'some data',
-            data_value: 'SENTINEL_SECRET_abc123',
-            authorization: `Bearer SENTINEL_SECRET_abc123`,
+            request: sampleRequest,
+            response: {
+                note: 'some data',
+                data_value: 'SENTINEL_SECRET_abc123',
+                authorization: `Bearer SENTINEL_SECRET_abc123`,
+            },
         });
 
-        const persistedJson = JSON.stringify(saveSampleFn.mock.calls[0][1]);
+        const persistedResponse = saveSampleFn.mock.calls[0][2].response;
+        const persistedJson = JSON.stringify(persistedResponse);
         // The 'authorization' key is in the redact list; its value must be replaced.
         expect(persistedJson).not.toContain('Bearer SENTINEL_SECRET_abc123');
         expect(persistedJson).toContain('[redacted]');
@@ -353,12 +398,13 @@ describe('ExternalConnectionService.saveSample', () => {
     });
 
     it('does not call getDecryptedSecret — saveSample never reads the connection secret', async () => {
-        const saveSampleFn = jest.fn().mockResolvedValue(undefined);
+        const saveSampleFn = jest.fn().mockResolvedValue(fakeSample);
         const { service, model } = buildService({ saveSampleFn });
         mockAbility(service, true);
 
         await service.saveSample(adminAccount, projectUuid, connectionUuid, {
-            ok: true,
+            request: sampleRequest,
+            response: { ok: true },
         });
 
         expect(model.getDecryptedSecret).not.toHaveBeenCalled();
@@ -366,9 +412,159 @@ describe('ExternalConnectionService.saveSample', () => {
 });
 
 // -------------------------------------------------------------------
+// listSamples
+// -------------------------------------------------------------------
+describe('ExternalConnectionService.listSamples', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('rejects a non-admin with ForbiddenError', async () => {
+        const listSamplesFn = jest.fn();
+        const { service } = buildService({ listSamplesFn });
+        mockAbility(service, false);
+
+        await expect(
+            service.listSamples(viewerAccount, projectUuid, connectionUuid),
+        ).rejects.toThrow(ForbiddenError);
+        expect(listSamplesFn).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundError for a cross-project connection', async () => {
+        const listSamplesFn = jest.fn();
+        const { service } = buildService({
+            connection: { ...connection, projectUuid: 'other-project' },
+            listSamplesFn,
+        });
+        mockAbility(service, true);
+
+        await expect(
+            service.listSamples(adminAccount, projectUuid, connectionUuid),
+        ).rejects.toThrow(NotFoundError);
+        expect(listSamplesFn).not.toHaveBeenCalled();
+    });
+
+    it('returns samples for an admin on the right project', async () => {
+        const listSamplesFn = jest.fn().mockResolvedValue([fakeSample]);
+        const { service } = buildService({ listSamplesFn });
+        mockAbility(service, true);
+
+        const result = await service.listSamples(
+            adminAccount,
+            projectUuid,
+            connectionUuid,
+        );
+
+        expect(result).toEqual([fakeSample]);
+        expect(listSamplesFn).toHaveBeenCalledWith(connectionUuid);
+    });
+});
+
+// -------------------------------------------------------------------
+// deleteSample
+// -------------------------------------------------------------------
+describe('ExternalConnectionService.deleteSample', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('rejects a non-admin with ForbiddenError', async () => {
+        const deleteSampleFn = jest.fn();
+        const { service } = buildService({ deleteSampleFn });
+        mockAbility(service, false);
+
+        await expect(
+            service.deleteSample(
+                viewerAccount,
+                projectUuid,
+                connectionUuid,
+                sampleUuid,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(deleteSampleFn).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundError for a cross-project connection', async () => {
+        const deleteSampleFn = jest.fn();
+        const { service } = buildService({
+            connection: { ...connection, projectUuid: 'other-project' },
+            deleteSampleFn,
+        });
+        mockAbility(service, true);
+
+        await expect(
+            service.deleteSample(
+                adminAccount,
+                projectUuid,
+                connectionUuid,
+                sampleUuid,
+            ),
+        ).rejects.toThrow(NotFoundError);
+        expect(deleteSampleFn).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundError when the sample belongs to a different connection', async () => {
+        const deleteSampleFn = jest.fn();
+        const { service } = buildService({
+            deleteSampleFn,
+            getSampleConnectionUuidFn: jest
+                .fn()
+                .mockResolvedValue('different-connection-uuid'),
+        });
+        mockAbility(service, true);
+
+        await expect(
+            service.deleteSample(
+                adminAccount,
+                projectUuid,
+                connectionUuid,
+                sampleUuid,
+            ),
+        ).rejects.toThrow(NotFoundError);
+        expect(deleteSampleFn).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundError when the sample does not exist', async () => {
+        const deleteSampleFn = jest.fn();
+        const { service } = buildService({
+            deleteSampleFn,
+            getSampleConnectionUuidFn: jest.fn().mockResolvedValue(undefined),
+        });
+        mockAbility(service, true);
+
+        await expect(
+            service.deleteSample(
+                adminAccount,
+                projectUuid,
+                connectionUuid,
+                sampleUuid,
+            ),
+        ).rejects.toThrow(NotFoundError);
+        expect(deleteSampleFn).not.toHaveBeenCalled();
+    });
+
+    it('deletes the sample when the connection and sample UUID match', async () => {
+        const deleteSampleFn = jest.fn().mockResolvedValue(undefined);
+        const { service } = buildService({ deleteSampleFn });
+        mockAbility(service, true);
+
+        await expect(
+            service.deleteSample(
+                adminAccount,
+                projectUuid,
+                connectionUuid,
+                sampleUuid,
+            ),
+        ).resolves.toBeUndefined();
+
+        expect(deleteSampleFn).toHaveBeenCalledWith(sampleUuid);
+    });
+});
+
+// -------------------------------------------------------------------
 // Feature flag OFF — testConnection and saveSample are gated
 // -------------------------------------------------------------------
-describe('ExternalConnectionService flag gate — testConnection / saveSample', () => {
+describe('ExternalConnectionService flag gate — testConnection / saveSample / listSamples / deleteSample', () => {
     beforeEach(() => {
         jest.clearAllMocks();
     });
@@ -405,11 +601,47 @@ describe('ExternalConnectionService flag gate — testConnection / saveSample', 
 
         await expect(
             service.saveSample(adminAccount, projectUuid, connectionUuid, {
-                temp: 21,
+                request: sampleRequest,
+                response: { temp: 21 },
             }),
         ).rejects.toThrow(ForbiddenError);
 
         expect(saveSampleFn).not.toHaveBeenCalled();
+    });
+
+    it('listSamples rejects with ForbiddenError when the flag is OFF', async () => {
+        const listSamplesFn = jest.fn();
+        const { service } = buildService({
+            featureFlagEnabled: false,
+            listSamplesFn,
+        });
+        mockAbility(service, true);
+
+        await expect(
+            service.listSamples(adminAccount, projectUuid, connectionUuid),
+        ).rejects.toThrow(ForbiddenError);
+
+        expect(listSamplesFn).not.toHaveBeenCalled();
+    });
+
+    it('deleteSample rejects with ForbiddenError when the flag is OFF', async () => {
+        const deleteSampleFn = jest.fn();
+        const { service } = buildService({
+            featureFlagEnabled: false,
+            deleteSampleFn,
+        });
+        mockAbility(service, true);
+
+        await expect(
+            service.deleteSample(
+                adminAccount,
+                projectUuid,
+                connectionUuid,
+                sampleUuid,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+
+        expect(deleteSampleFn).not.toHaveBeenCalled();
     });
 });
 

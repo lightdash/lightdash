@@ -5,9 +5,11 @@ import {
     NotFoundError,
     ParameterError,
     TooManyRequestsError,
+    type ApiSaveExternalConnectionSampleRequest,
     type CreateExternalConnection,
     type ExternalConnection,
     type ExternalConnectionMethod,
+    type ExternalConnectionSample,
     type ExternalFetchRequest,
     type ExternalFetchResponse,
     type LightdashUser,
@@ -893,15 +895,63 @@ export class ExternalConnectionService extends BaseService {
     }
 
     /**
-     * Admin-only. Persist a sanitized, truncated sample of the connection's
-     * response onto the row so the generate pipeline can ground Claude in the
-     * API's shape. Stores NO secret material — never calls getDecryptedSecret.
+     * Admin-only. Persist a named, sanitized sample (request + response) in
+     * the samples collection. Stores NO secret material — never calls
+     * getDecryptedSecret.
      */
     async saveSample(
         account: RegisteredAccount,
         projectUuid: string,
         connectionUuid: string,
-        sample: unknown,
+        data: ApiSaveExternalConnectionSampleRequest,
+    ): Promise<ExternalConnectionSample> {
+        await this.assertExternalAccessEnabled(account);
+        const conn = await this.loadConnectionForProject(
+            connectionUuid,
+            projectUuid,
+        );
+        this.assertCanManage(account, conn.projectUuid, conn.organizationUuid);
+
+        const sanitizedResponse = ExternalConnectionService.sanitizeSample(
+            data.response,
+        );
+        return this.externalConnectionModel.saveSample(
+            connectionUuid,
+            account.user.id,
+            {
+                label: data.label ?? null,
+                request: data.request,
+                response: sanitizedResponse,
+            },
+        );
+    }
+
+    /**
+     * Admin-only. List all samples saved for a connection, most recent first.
+     */
+    async listSamples(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<ExternalConnectionSample[]> {
+        await this.assertExternalAccessEnabled(account);
+        const conn = await this.loadConnectionForProject(
+            connectionUuid,
+            projectUuid,
+        );
+        this.assertCanManage(account, conn.projectUuid, conn.organizationUuid);
+        return this.externalConnectionModel.listSamples(connectionUuid);
+    }
+
+    /**
+     * Admin-only. Delete a single sample by UUID. Verifies the sample belongs
+     * to the given connection (which must be in the given project).
+     */
+    async deleteSample(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+        sampleUuid: string,
     ): Promise<void> {
         await this.assertExternalAccessEnabled(account);
         const conn = await this.loadConnectionForProject(
@@ -910,10 +960,13 @@ export class ExternalConnectionService extends BaseService {
         );
         this.assertCanManage(account, conn.projectUuid, conn.organizationUuid);
 
-        const sanitized = ExternalConnectionService.sanitizeSample(sample);
-        await this.externalConnectionModel.saveSample(
-            connectionUuid,
-            sanitized,
-        );
+        const ownerConnectionUuid =
+            await this.externalConnectionModel.getSampleConnectionUuid(
+                sampleUuid,
+            );
+        if (ownerConnectionUuid !== connectionUuid) {
+            throw new NotFoundError('Sample not found');
+        }
+        await this.externalConnectionModel.deleteSample(sampleUuid);
     }
 }

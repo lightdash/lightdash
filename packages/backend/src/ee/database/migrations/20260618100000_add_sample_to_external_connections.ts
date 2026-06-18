@@ -1,44 +1,42 @@
 import { Knex } from 'knex';
 
-const ExternalConnectionsTableName = 'external_connections';
+const ExternalConnectionSamplesTableName = 'external_connection_samples';
 
 export async function up(knex: Knex): Promise<void> {
-    const hasTestSample = await knex.schema.hasColumn(
-        ExternalConnectionsTableName,
-        'last_test_sample',
+    await knex.schema.createTable(
+        ExternalConnectionSamplesTableName,
+        (table) => {
+            table
+                .uuid('sample_uuid')
+                .primary()
+                .defaultTo(knex.raw('uuid_generate_v4()'));
+            table
+                .uuid('external_connection_uuid')
+                .notNullable()
+                .references('external_connection_uuid')
+                .inTable('external_connections')
+                .onDelete('CASCADE');
+            table.text('label').nullable();
+            table.jsonb('request').notNullable();
+            table.jsonb('response').notNullable();
+            table
+                .uuid('created_by_user_uuid')
+                .nullable()
+                .references('user_uuid')
+                .inTable('users')
+                .onDelete('SET NULL');
+            table
+                .timestamp('created_at', { useTz: false })
+                .notNullable()
+                .defaultTo(knex.fn.now());
+            table.index(
+                'external_connection_uuid',
+                'external_connection_samples_connection_uuid_idx',
+            );
+        },
     );
-    const hasTestedAt = await knex.schema.hasColumn(
-        ExternalConnectionsTableName,
-        'last_tested_at',
-    );
-    await knex.schema.alterTable(ExternalConnectionsTableName, (table) => {
-        if (!hasTestSample) {
-            // Sanitized, truncated response body captured by the last admin
-            // "Test connection". Never holds secret material — saveSample
-            // strips it before persisting.
-            table.jsonb('last_test_sample').nullable();
-        }
-        if (!hasTestedAt) {
-            table.timestamp('last_tested_at', { useTz: false }).nullable();
-        }
-    });
 }
 
 export async function down(knex: Knex): Promise<void> {
-    const hasTestSample = await knex.schema.hasColumn(
-        ExternalConnectionsTableName,
-        'last_test_sample',
-    );
-    const hasTestedAt = await knex.schema.hasColumn(
-        ExternalConnectionsTableName,
-        'last_tested_at',
-    );
-    await knex.schema.alterTable(ExternalConnectionsTableName, (table) => {
-        if (hasTestSample) {
-            table.dropColumn('last_test_sample');
-        }
-        if (hasTestedAt) {
-            table.dropColumn('last_tested_at');
-        }
-    });
+    await knex.schema.dropTableIfExists(ExternalConnectionSamplesTableName);
 }

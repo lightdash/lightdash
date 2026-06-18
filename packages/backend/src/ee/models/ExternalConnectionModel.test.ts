@@ -4,6 +4,7 @@ import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     AppExternalConnectionsTableName,
     ExternalConnectionRateCountersTableName,
+    ExternalConnectionSamplesTableName,
     ExternalConnectionSecretsTableName,
     ExternalConnectionsTableName,
 } from '../database/entities/externalConnections';
@@ -13,6 +14,7 @@ const PROJECT_UUID = '00000000-0000-0000-0000-000000000001';
 const ORG_UUID = '00000000-0000-0000-0000-000000000002';
 const USER_UUID = '00000000-0000-0000-0000-000000000003';
 const CONNECTION_UUID = '00000000-0000-0000-0000-000000000010';
+const SAMPLE_UUID = '00000000-0000-0000-0000-000000000030';
 const APP_ID = '00000000-0000-0000-0000-000000000020';
 
 // Reversible fake so tests can assert "the value that hit the DB is NOT the
@@ -43,8 +45,17 @@ const makeDbConnection = (overrides: Record<string, unknown> = {}) => ({
     created_at: new Date('2026-01-01T00:00:00Z'),
     updated_at: new Date('2026-01-01T00:00:00Z'),
     deleted_at: null,
-    last_test_sample: null,
-    last_tested_at: null,
+    ...overrides,
+});
+
+const makeDbSample = (overrides: Record<string, unknown> = {}) => ({
+    sample_uuid: SAMPLE_UUID,
+    external_connection_uuid: CONNECTION_UUID,
+    label: 'Berlin weather',
+    request: { method: 'GET', path: '/v1/weather', query: { city: 'Berlin' } },
+    response: { temp: 21, city: 'Berlin' },
+    created_by_user_uuid: USER_UUID,
+    created_at: new Date('2026-01-01T00:00:00Z'),
     ...overrides,
 });
 
@@ -357,52 +368,151 @@ describe('ExternalConnectionModel', () => {
         });
     });
 
-    describe('sample storage', () => {
-        it('saveSample issues an update to the connections table', async () => {
-            tracker.on.update(ExternalConnectionsTableName).responseOnce(1);
+    describe('samples collection', () => {
+        it('saveSample inserts a row with JSON-stringified request and response', async () => {
+            tracker.on
+                .insert(ExternalConnectionSamplesTableName)
+                .responseOnce([makeDbSample()]);
 
-            await model.saveSample(CONNECTION_UUID, {
-                temp: 21,
-                city: 'Berlin',
+            const result = await model.saveSample(CONNECTION_UUID, USER_UUID, {
+                label: 'Berlin weather',
+                request: {
+                    method: 'GET',
+                    path: '/v1/weather',
+                    query: { city: 'Berlin' },
+                },
+                response: { temp: 21, city: 'Berlin' },
             });
 
-            const updates = tracker.history.update.filter((q) =>
-                q.sql.includes(ExternalConnectionsTableName),
+            expect(result.sampleUuid).toBe(SAMPLE_UUID);
+            expect(result.label).toBe('Berlin weather');
+            expect(result.request).toEqual({
+                method: 'GET',
+                path: '/v1/weather',
+                query: { city: 'Berlin' },
+            });
+            expect(result.response).toEqual({ temp: 21, city: 'Berlin' });
+
+            const inserts = tracker.history.insert.filter((q) =>
+                q.sql.includes(ExternalConnectionSamplesTableName),
             );
-            expect(updates).toHaveLength(1);
-            // Should serialize the sample as JSON string for the jsonb column
-            expect(updates[0].bindings).toEqual(
-                expect.arrayContaining([
-                    JSON.stringify({ temp: 21, city: 'Berlin' }),
-                ]),
+            expect(inserts).toHaveLength(1);
+            // jsonb columns MUST be serialized JSON strings on INSERT
+            const { bindings } = inserts[0];
+            expect(bindings).toContain(
+                JSON.stringify({
+                    method: 'GET',
+                    path: '/v1/weather',
+                    query: { city: 'Berlin' },
+                }),
+            );
+            expect(bindings).toContain(
+                JSON.stringify({ temp: 21, city: 'Berlin' }),
+            );
+            expect(
+                bindings.some(
+                    (b) =>
+                        typeof b === 'object' &&
+                        !Buffer.isBuffer(b) &&
+                        b !== null,
+                ),
+            ).toBe(false);
+        });
+
+        it('saveSample stores the createdByUserUuid when provided', async () => {
+            tracker.on
+                .insert(ExternalConnectionSamplesTableName)
+                .responseOnce([makeDbSample()]);
+
+            await model.saveSample(CONNECTION_UUID, USER_UUID, {
+                label: null,
+                request: { method: 'GET', path: '/v1/weather' },
+                response: { ok: true },
+            });
+
+            const { bindings } = tracker.history.insert[0];
+            expect(bindings).toContain(USER_UUID);
+        });
+
+        it('listSamples returns mapped samples ordered by created_at desc', async () => {
+            const sample1 = makeDbSample({ sample_uuid: SAMPLE_UUID });
+            const sample2 = makeDbSample({
+                sample_uuid: '00000000-0000-0000-0000-000000000031',
+                label: 'London weather',
+                created_at: new Date('2026-01-02T00:00:00Z'),
+            });
+            tracker.on
+                .select(ExternalConnectionSamplesTableName)
+                .responseOnce([sample2, sample1]);
+
+            const results = await model.listSamples(CONNECTION_UUID);
+
+            expect(results).toHaveLength(2);
+            expect(results[0].label).toBe('London weather');
+            expect(results[1].label).toBe('Berlin weather');
+        });
+
+        it('listSamples returns empty array when no samples exist', async () => {
+            tracker.on
+                .select(ExternalConnectionSamplesTableName)
+                .responseOnce([]);
+
+            const results = await model.listSamples(CONNECTION_UUID);
+            expect(results).toEqual([]);
+        });
+
+        it('deleteSample issues a delete and returns undefined on success', async () => {
+            tracker.on
+                .delete(ExternalConnectionSamplesTableName)
+                .responseOnce(1);
+
+            await expect(
+                model.deleteSample(SAMPLE_UUID),
+            ).resolves.toBeUndefined();
+
+            expect(tracker.history.delete).toHaveLength(1);
+        });
+
+        it('deleteSample throws NotFoundError when the row is not found', async () => {
+            tracker.on
+                .delete(ExternalConnectionSamplesTableName)
+                .responseOnce(0);
+
+            await expect(model.deleteSample(SAMPLE_UUID)).rejects.toThrow(
+                'Sample not found',
             );
         });
 
-        it('getSampleForPipeline returns the parsed sample', async () => {
+        it('getSamplesForPipeline returns the most-recent N samples', async () => {
             tracker.on
-                .select(ExternalConnectionsTableName)
-                .responseOnce([
-                    { last_test_sample: { temp: 21, city: 'Berlin' } },
-                ]);
+                .select(ExternalConnectionSamplesTableName)
+                .responseOnce([makeDbSample()]);
 
-            const sample = await model.getSampleForPipeline(CONNECTION_UUID);
-            expect(sample).toEqual({ temp: 21, city: 'Berlin' });
+            const results = await model.getSamplesForPipeline(
+                CONNECTION_UUID,
+                5,
+            );
+
+            expect(results).toHaveLength(1);
+            expect(results[0].response).toEqual({ temp: 21, city: 'Berlin' });
         });
 
-        it('getSampleForPipeline returns null when no sample saved', async () => {
+        it('getSampleConnectionUuid returns the connection UUID for a known sample', async () => {
             tracker.on
-                .select(ExternalConnectionsTableName)
-                .responseOnce([{ last_test_sample: null }]);
+                .select(ExternalConnectionSamplesTableName)
+                .responseOnce([{ external_connection_uuid: CONNECTION_UUID }]);
 
-            const sample = await model.getSampleForPipeline(CONNECTION_UUID);
-            expect(sample).toBeNull();
+            const result = await model.getSampleConnectionUuid(SAMPLE_UUID);
+            expect(result).toBe(CONNECTION_UUID);
         });
 
-        it('getSampleForPipeline returns null when row not found', async () => {
-            tracker.on.select(ExternalConnectionsTableName).responseOnce([]);
+        it('getSampleConnectionUuid returns undefined for an unknown sample', async () => {
+            tracker.on
+                .select(ExternalConnectionSamplesTableName)
+                .responseOnce([]);
 
-            const sample = await model.getSampleForPipeline(CONNECTION_UUID);
-            expect(sample).toBeNull();
+            const result = await model.getSampleConnectionUuid(SAMPLE_UUID);
+            expect(result).toBeUndefined();
         });
     });
 });

@@ -1,6 +1,7 @@
 import {
     assertRegisteredAccount,
     type ApiErrorPayload,
+    type ApiListExternalConnectionSamplesResponse,
     type ApiSaveExternalConnectionSampleRequest,
     type ApiSaveExternalConnectionSampleResponse,
     type ApiTestExternalConnectionRequest,
@@ -373,8 +374,7 @@ export class ExternalConnectionController extends BaseController {
     }
 
     /**
-     * Save a sanitized, truncated sample of the connection's response so the
-     * data-app generate pipeline can ground Claude in the API's shape.
+     * Save a named sample (request + sanitized response) for a connection.
      * Admin-only. Stores no secrets.
      * @summary Save an external connection sample
      */
@@ -383,8 +383,8 @@ export class ExternalConnectionController extends BaseController {
         isAuthenticated,
         unauthorisedInDemo,
     ])
-    @SuccessResponse('200', 'Success')
-    @Post('external-connections/{connectionUuid}/sample')
+    @SuccessResponse('201', 'Created')
+    @Post('external-connections/{connectionUuid}/samples')
     @OperationId('saveExternalConnectionSample')
     async saveExternalConnectionSample(
         @Request() req: express.Request,
@@ -393,13 +393,67 @@ export class ExternalConnectionController extends BaseController {
         @Body() body: ApiSaveExternalConnectionSampleRequest,
     ): Promise<ApiSaveExternalConnectionSampleResponse> {
         assertRegisteredAccount(req.account);
-        this.setStatus(200);
-        await this.getService().saveSample(
+        this.setStatus(201);
+        const results = await this.getService().saveSample(
             req.account,
             projectUuid,
             connectionUuid,
-            body.sample,
+            body,
         );
+        return { status: 'ok', results };
+    }
+
+    /**
+     * List all samples for a connection, most recent first.
+     * Admin-only.
+     * @summary List external connection samples
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('external-connections/{connectionUuid}/samples')
+    @OperationId('listExternalConnectionSamples')
+    async listExternalConnectionSamples(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() connectionUuid: string,
+    ): Promise<ApiListExternalConnectionSamplesResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.getService().listSamples(
+            req.account,
+            projectUuid,
+            connectionUuid,
+        );
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Delete a single sample by UUID.
+     * Admin-only.
+     * @summary Delete an external connection sample
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Delete('external-connections/{connectionUuid}/samples/{sampleUuid}')
+    @OperationId('deleteExternalConnectionSample')
+    async deleteExternalConnectionSample(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() connectionUuid: string,
+        @Path() sampleUuid: string,
+    ): Promise<{ status: 'ok'; results: undefined }> {
+        assertRegisteredAccount(req.account);
+        await this.getService().deleteSample(
+            req.account,
+            projectUuid,
+            connectionUuid,
+            sampleUuid,
+        );
+        this.setStatus(200);
         return { status: 'ok', results: undefined };
     }
 

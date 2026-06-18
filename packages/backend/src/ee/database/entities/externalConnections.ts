@@ -10,6 +10,7 @@ export const ExternalConnectionSecretsTableName = 'external_connection_secrets';
 export const AppExternalConnectionsTableName = 'app_external_connections';
 export const ExternalConnectionRateCountersTableName =
     'external_connection_rate_counters';
+export const ExternalConnectionSamplesTableName = 'external_connection_samples';
 
 export type DbExternalConnection = {
     external_connection_uuid: string;
@@ -32,13 +33,6 @@ export type DbExternalConnection = {
     created_at: Date;
     updated_at: Date;
     deleted_at: Date | null;
-    last_test_sample: unknown | null; // jsonb; sanitized, never secrets
-    last_tested_at: Date | null;
-};
-
-type DbSaveExternalConnectionSample = {
-    last_test_sample: unknown | null;
-    last_tested_at: Date;
 };
 
 export type ExternalConnectionsTable = Knex.CompositeTableType<
@@ -65,29 +59,28 @@ export type ExternalConnectionsTable = Knex.CompositeTableType<
                 | 'updated_by_user_uuid'
             >
         >,
-    | Partial<
-          Pick<
-              DbExternalConnection,
-              | 'name'
-              | 'type'
-              | 'origin'
-              | 'response_max_bytes'
-              | 'request_max_bytes'
-              | 'timeout_ms'
-              | 'rate_limit_per_minute'
-              | 'api_key_name'
-              | 'api_key_location'
-              | 'updated_by_user_uuid'
-              | 'updated_at'
-              | 'deleted_at'
-          > & {
-              // jsonb columns written as serialized JSON strings
-              allowed_path_prefixes: string;
-              allowed_methods: string;
-              allowed_content_types: string;
-          }
-      >
-    | DbSaveExternalConnectionSample
+    Partial<
+        Pick<
+            DbExternalConnection,
+            | 'name'
+            | 'type'
+            | 'origin'
+            | 'response_max_bytes'
+            | 'request_max_bytes'
+            | 'timeout_ms'
+            | 'rate_limit_per_minute'
+            | 'api_key_name'
+            | 'api_key_location'
+            | 'updated_by_user_uuid'
+            | 'updated_at'
+            | 'deleted_at'
+        > & {
+            // jsonb columns written as serialized JSON strings
+            allowed_path_prefixes: string;
+            allowed_methods: string;
+            allowed_content_types: string;
+        }
+    >
 >;
 
 export type DbExternalConnectionSecret = {
@@ -138,4 +131,31 @@ export type ExternalConnectionRateCountersTable = Knex.CompositeTableType<
     > &
         Partial<Pick<DbExternalConnectionRateCounter, 'request_count'>>,
     Partial<Pick<DbExternalConnectionRateCounter, 'request_count'>>
+>;
+
+export type DbExternalConnectionSample = {
+    sample_uuid: string;
+    external_connection_uuid: string;
+    label: string | null;
+    // jsonb columns come back as parsed objects on read
+    request: unknown;
+    response: unknown;
+    created_by_user_uuid: string | null;
+    created_at: Date;
+};
+
+export type ExternalConnectionSamplesTable = Knex.CompositeTableType<
+    DbExternalConnectionSample,
+    // INSERT shape — jsonb columns written as serialized JSON strings
+    Pick<DbExternalConnectionSample, 'external_connection_uuid'> & {
+        request: string;
+        response: string;
+    } & Partial<
+            Pick<
+                DbExternalConnectionSample,
+                'sample_uuid' | 'label' | 'created_by_user_uuid'
+            >
+        >,
+    // UPDATE shape — not used
+    never
 >;
