@@ -9,7 +9,6 @@ import {
     Badge,
     Box,
     Button,
-    Collapse,
     getDefaultZIndex,
     Group,
     Highlight,
@@ -24,6 +23,7 @@ import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconArrowRight,
     IconChevronDown,
+    IconChevronLeft,
     IconChevronRight,
     IconPlus,
     IconSearch,
@@ -41,7 +41,6 @@ import { useProject } from '../../hooks/useProject';
 import { useProjects } from '../../hooks/useProjects';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
-import { PolymorphicGroupButton } from '../common/PolymorphicGroupButton';
 import { CreatePreviewModal } from './CreatePreviewProjectModal';
 import classes from './ProjectSwitcher.module.css';
 
@@ -51,56 +50,6 @@ const MENU_TEXT_PROPS = {
     fw: 500,
 };
 
-type GroupState = 'expanded' | 'collapsed';
-
-interface GroupStates {
-    base: GroupState;
-    preview: GroupState;
-}
-
-const GroupHeader: FC<{
-    title: string;
-    count: number;
-    state: GroupState;
-    onToggle: () => void;
-    badgeColor: string;
-    isVisible: boolean;
-}> = ({ title, count, onToggle, badgeColor, isVisible }) => {
-    // Show as expanded if group is visible (either naturally expanded or auto-expanded by search)
-    const isExpanded = isVisible;
-
-    return (
-        <PolymorphicGroupButton
-            onClick={onToggle}
-            className={classes.groupHeader}
-            gap="xs"
-            justify="space-between"
-            wrap="nowrap"
-        >
-            <Group gap="xs" wrap="nowrap">
-                <Text {...MENU_TEXT_PROPS} fw={600} c="ldDark.9">
-                    {title}
-                </Text>
-                <Badge
-                    color={badgeColor}
-                    variant="light"
-                    size="xs"
-                    radius="sm"
-                    fw={700}
-                    className={classes.badge}
-                >
-                    {count}
-                </Badge>
-            </Group>
-            <MantineIcon
-                icon={isExpanded ? IconChevronDown : IconChevronRight}
-                size="sm"
-                color="ldGray.5"
-            />
-        </PolymorphicGroupButton>
-    );
-};
-
 const getExpiresInDays = (expiresAt: Date | null): number | null => {
     if (!expiresAt) return null;
     const now = new Date();
@@ -108,20 +57,96 @@ const getExpiresInDays = (expiresAt: Date | null): number | null => {
     return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
 };
 
-const ProjectItem: FC<{
-    item: OrganizationProject;
-    handleProjectChange: (newUuid: string) => void;
-    searchQuery?: string;
-    isActive?: boolean;
-}> = ({ item, handleProjectChange, searchQuery, isActive = false }) => {
+const ExpiryBadge: FC<{ expiresAt: Date | null }> = ({ expiresAt }) => {
+    const expiresInDays = getExpiresInDays(expiresAt);
+    if (expiresInDays === null) return null;
+    return (
+        <Badge
+            color="orange"
+            variant="light"
+            size="xs"
+            radius="sm"
+            fw={450}
+            className={classes.badge}
+        >
+            {expiresInDays === 0
+                ? 'Expires today'
+                : `Expires in ${expiresInDays}d`}
+        </Badge>
+    );
+};
+
+/**
+ * Trigger button label: plain project name for main projects, or an
+ * `upstream › preview` breadcrumb when the active project is a preview.
+ */
+const SwitcherLabel: FC<{
+    activeProjectName: string;
+    upstreamProjectName: string | null;
+}> = ({ activeProjectName, upstreamProjectName }) => {
     const { ref: truncatedRef, isTruncated } = useIsTruncated<HTMLDivElement>();
-    const isPreview = item.type === ProjectType.PREVIEW;
-    const expiresInDays = isPreview ? getExpiresInDays(item.expiresAt) : null;
+
+    if (!upstreamProjectName) {
+        return (
+            <Group gap={6} wrap="nowrap">
+                <Text truncate fw={500} fz="xs">
+                    {activeProjectName}
+                </Text>
+                <MantineIcon icon={IconChevronDown} size="sm" color="ldGray.6" />
+            </Group>
+        );
+    }
+
+    return (
+        <Group gap={4} wrap="nowrap">
+            <Text fw={500} fz="xs" c="ldGray.6" className={classes.upstreamName}>
+                {upstreamProjectName}
+            </Text>
+            <MantineIcon
+                icon={IconChevronRight}
+                size="xs"
+                color="ldGray.5"
+                className={classes.breadcrumbSeparator}
+            />
+            <Tooltip
+                withinPortal
+                label={activeProjectName}
+                disabled={!isTruncated}
+            >
+                <Text
+                    ref={truncatedRef}
+                    truncate
+                    fw={600}
+                    fz="xs"
+                    c="blue.4"
+                    className={classes.previewName}
+                >
+                    {activeProjectName}
+                </Text>
+            </Tooltip>
+            <MantineIcon
+                icon={IconChevronDown}
+                size="sm"
+                color="ldGray.6"
+                className={classes.breadcrumbSeparator}
+            />
+        </Group>
+    );
+};
+
+const ProjectRow: FC<{
+    item: OrganizationProject;
+    previewCount: number;
+    isActive: boolean;
+    searchQuery: string;
+    onNavigate: (projectUuid: string) => void;
+    onDrill: (projectUuid: string) => void;
+}> = ({ item, previewCount, isActive, searchQuery, onNavigate, onDrill }) => {
+    const { ref: truncatedRef, isTruncated } = useIsTruncated<HTMLDivElement>();
 
     return (
         <Menu.Item
-            key={item.projectUuid}
-            onClick={() => !isActive && handleProjectChange(item.projectUuid)}
+            onClick={() => !isActive && onNavigate(item.projectUuid)}
             disabled={isActive}
         >
             <Group gap="sm" justify="space-between" wrap="nowrap">
@@ -134,14 +159,10 @@ const ProjectItem: FC<{
                 >
                     <Highlight
                         ref={truncatedRef}
-                        highlight={
-                            searchQuery && searchQuery.length >= 2
-                                ? searchQuery
-                                : ''
-                        }
+                        highlight={searchQuery.length >= 2 ? searchQuery : ''}
                         {...MENU_TEXT_PROPS}
                         truncate="end"
-                        maw={350}
+                        maw={260}
                         fw={isActive ? 600 : 500}
                         c={isActive ? 'ldGray.9' : 'inherit'}
                     >
@@ -162,20 +183,89 @@ const ProjectItem: FC<{
                             Active
                         </Badge>
                     )}
-                    {isPreview && expiresInDays !== null && (
+                    {previewCount > 0 && (
+                        <Box
+                            component="span"
+                            role="button"
+                            tabIndex={-1}
+                            className={classes.previewCountChip}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onDrill(item.projectUuid);
+                            }}
+                        >
+                            <Text fz="xs" fw={500} c="inherit">
+                                {previewCount}{' '}
+                                {previewCount === 1 ? 'preview' : 'previews'}
+                            </Text>
+                            <MantineIcon icon={IconChevronRight} size="xs" />
+                        </Box>
+                    )}
+                </Group>
+            </Group>
+        </Menu.Item>
+    );
+};
+
+const PreviewRow: FC<{
+    item: OrganizationProject;
+    isActive: boolean;
+    searchQuery: string;
+    upstreamName: string | null;
+    onSelect: (projectUuid: string) => void;
+}> = ({ item, isActive, searchQuery, upstreamName, onSelect }) => {
+    const { ref: truncatedRef, isTruncated } = useIsTruncated<HTMLDivElement>();
+
+    return (
+        <Menu.Item
+            onClick={() => !isActive && onSelect(item.projectUuid)}
+            disabled={isActive}
+            className={isActive ? classes.activePreviewItem : undefined}
+        >
+            <Group gap="sm" justify="space-between" wrap="nowrap">
+                <Group gap={6} wrap="nowrap" miw={0}>
+                    <Tooltip
+                        withinPortal
+                        label={item.name}
+                        maw={300}
+                        disabled={!isTruncated}
+                        multiline
+                    >
+                        <Highlight
+                            ref={truncatedRef}
+                            highlight={
+                                searchQuery.length >= 2 ? searchQuery : ''
+                            }
+                            {...MENU_TEXT_PROPS}
+                            truncate="end"
+                            maw={220}
+                            fw={isActive ? 600 : 500}
+                            c={isActive ? 'ldGray.9' : 'inherit'}
+                        >
+                            {item.name}
+                        </Highlight>
+                    </Tooltip>
+                    {upstreamName && (
+                        <Text fz={10} c="ldGray.5" truncate maw={120}>
+                            {upstreamName}
+                        </Text>
+                    )}
+                </Group>
+
+                <Group gap="xs" wrap="nowrap">
+                    {isActive && (
                         <Badge
-                            color="orange"
-                            variant="light"
+                            color="blue"
+                            variant="filled"
                             size="xs"
                             radius="sm"
-                            fw={450}
+                            fw={600}
                             className={classes.badge}
                         >
-                            {expiresInDays === 0
-                                ? 'Expires today'
-                                : `Expires in ${expiresInDays}d`}
+                            current
                         </Badge>
                     )}
+                    <ExpiryBadge expiresAt={item.expiresAt} />
                 </Group>
             </Group>
         </Menu.Item>
@@ -228,24 +318,28 @@ const ProjectSwitcher = () => {
         useActiveProjectUuid();
     // Fetch only the active project for the button label (lightweight)
     const { data: activeProject } = useProject(activeProjectUuid);
+    // When inside a preview, fetch its upstream project to show in the breadcrumb
+    const upstreamProjectUuid =
+        activeProject?.type === ProjectType.PREVIEW
+            ? activeProject.upstreamProjectUuid
+            : undefined;
+    const { data: upstreamProject } = useProject(upstreamProjectUuid);
+
     const { mutate: setLastProjectMutation } = useUpdateActiveProjectMutation();
     const location = useLocation();
     const isHomePage = !!useMatch(`/projects/${activeProjectUuid}/home`);
 
     const [isCreatePreviewOpen, setIsCreatePreview] = useState(false);
-    const [groupStates, setGroupStates] = useState<GroupStates>({
-        base: 'expanded',
-        preview: 'expanded',
-    });
+    // Project drilled into to view its previews; null = top-level project list
+    const [drilledProjectUuid, setDrilledProjectUuid] = useState<string | null>(
+        null,
+    );
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 300);
 
-    const handleGroupToggle = useCallback((groupType: 'base' | 'preview') => {
-        setGroupStates((prev) => ({
-            ...prev,
-            [groupType]:
-                prev[groupType] === 'collapsed' ? 'expanded' : 'collapsed',
-        }));
+    const resetMenuState = useCallback(() => {
+        setSearchQuery('');
+        setDrilledProjectUuid(null);
     }, []);
 
     const routeMatches =
@@ -268,6 +362,7 @@ const ProjectSwitcher = () => {
             const project = projects?.find((p) => p.projectUuid === newUuid);
             if (!project) return;
 
+            setIsMenuOpen(false);
             setLastProjectMutation(project.projectUuid);
 
             showToastSuccess({
@@ -320,110 +415,153 @@ const ProjectSwitcher = () => {
         );
     }, [user.data]);
 
-    const {
-        baseProjects,
-        previewProjects,
-        shouldShowBase,
-        shouldShowPreview,
-        showSearchInput,
-    } = useMemo(() => {
-        if (!activeProjectUuid || !projects)
-            return {
-                baseProjects: [],
-                previewProjects: [],
-                shouldShowBase: false,
-                shouldShowPreview: false,
-            };
-
-        const availableProjects = projects.filter((project) => {
-            switch (project.type) {
-                case ProjectType.DEFAULT:
-                    return true;
-                case ProjectType.PREVIEW:
-                    // check if user has permission to create preview project on an organization level (developer, admin)
-                    // or check if user has permission to create preview project on a project level
-                    // - they should have permission (developer, admin) to the upstream project
-                    return (
-                        orgRoleCanCreatePreviews ||
-                        user.data?.ability.can(
-                            'create',
-                            subject('Project', {
-                                upstreamProjectUuid: project.projectUuid,
-                                type: ProjectType.PREVIEW,
-                            }),
-                        )
-                    );
-                default:
-                    return assertUnreachable(
-                        project.type,
-                        `Unknown project type: ${project.type}`,
-                    );
-            }
-        });
-
-        // Apply search filter if query exists
-        const searchFiltered =
-            debouncedSearchQuery.length >= 2
-                ? availableProjects.filter((project) =>
-                      project.name
-                          .toLowerCase()
-                          .includes(debouncedSearchQuery.toLowerCase()),
-                  )
-                : availableProjects;
-
-        const base = searchFiltered.filter(
-            (p) => p.type === ProjectType.DEFAULT,
-        );
-        const preview = searchFiltered.filter(
-            (p) => p.type === ProjectType.PREVIEW,
-        );
-
-        // Determine visibility based on group states and search
-        const hasSearchResults = debouncedSearchQuery.length >= 2;
-        const showBase =
-            groupStates.base !== 'collapsed' ||
-            (hasSearchResults && base.length > 0);
-        const showPreview =
-            groupStates.preview !== 'collapsed' ||
-            (hasSearchResults && preview.length > 0);
-
-        return {
-            baseProjects: base,
-            previewProjects: preview,
-            shouldShowBase: showBase && base.length > 0,
-            shouldShowPreview: showPreview && preview.length > 0,
-            showSearchInput: availableProjects.length > 2,
-        };
-    }, [
-        activeProjectUuid,
-        projects,
-        orgRoleCanCreatePreviews,
-        user.data,
-        groupStates,
-        debouncedSearchQuery,
-    ]);
-
-    const userCanCreatePreview = useMemo(() => {
-        if (isLoadingProjects || !projects || !user.data) return false;
-
-        return projects
-            .filter((p) => p.type === ProjectType.DEFAULT)
-            .some((project) =>
+    const canCreatePreviewForProject = useCallback(
+        (projectUuid: string) => {
+            if (!user.data) return false;
+            return (
+                orgRoleCanCreatePreviews ||
                 user.data.ability.can(
                     'create',
                     subject('Project', {
                         organizationUuid: user.data.organizationUuid,
-                        upstreamProjectUuid: project.projectUuid,
+                        upstreamProjectUuid: projectUuid,
                         type: ProjectType.PREVIEW,
                     }),
-                ),
+                )
             );
-    }, [isLoadingProjects, projects, user.data]);
+        },
+        [user.data, orgRoleCanCreatePreviews],
+    );
+
+    const { baseProjects, previewsByUpstream, baseProjectsByUuid } =
+        useMemo(() => {
+            const base = (projects ?? []).filter(
+                (p) => p.type === ProjectType.DEFAULT,
+            );
+
+            // Only show previews the user is allowed to access. Visibility is
+            // unchanged from before: org-level preview creators, or developers
+            // of the preview project itself.
+            const visiblePreviews = (projects ?? []).filter((project) => {
+                switch (project.type) {
+                    case ProjectType.DEFAULT:
+                        return false;
+                    case ProjectType.PREVIEW:
+                        return (
+                            orgRoleCanCreatePreviews ||
+                            !!user.data?.ability.can(
+                                'create',
+                                subject('Project', {
+                                    upstreamProjectUuid: project.projectUuid,
+                                    type: ProjectType.PREVIEW,
+                                }),
+                            )
+                        );
+                    default:
+                        return assertUnreachable(
+                            project.type,
+                            `Unknown project type: ${project.type}`,
+                        );
+                }
+            });
+
+            const byUpstream = new Map<string, OrganizationProject[]>();
+            visiblePreviews.forEach((preview) => {
+                if (!preview.upstreamProjectUuid) return;
+                const existing =
+                    byUpstream.get(preview.upstreamProjectUuid) ?? [];
+                existing.push(preview);
+                byUpstream.set(preview.upstreamProjectUuid, existing);
+            });
+
+            return {
+                baseProjects: base,
+                previewsByUpstream: byUpstream,
+                baseProjectsByUuid: new Map(
+                    base.map((p) => [p.projectUuid, p] as const),
+                ),
+            };
+        }, [projects, orgRoleCanCreatePreviews, user.data]);
+
+    const userCanCreatePreview = useMemo(
+        () => baseProjects.some((p) => canCreatePreviewForProject(p.projectUuid)),
+        [baseProjects, canCreatePreviewForProject],
+    );
+
+    const totalPreviewCount = useMemo(
+        () =>
+            Array.from(previewsByUpstream.values()).reduce(
+                (sum, list) => sum + list.length,
+                0,
+            ),
+        [previewsByUpstream],
+    );
+
+    const search = debouncedSearchQuery.trim().toLowerCase();
+    const isSearching = search.length >= 2;
+
+    const drilledProject = drilledProjectUuid
+        ? baseProjectsByUuid.get(drilledProjectUuid) ?? null
+        : null;
+
+    // Level 1 search results: matching projects + flattened matching previews
+    const { matchingProjects, matchingPreviews } = useMemo(() => {
+        if (!isSearching) {
+            return { matchingProjects: baseProjects, matchingPreviews: [] };
+        }
+        const projectMatches = baseProjects.filter((p) =>
+            p.name.toLowerCase().includes(search),
+        );
+        const previewMatches = Array.from(previewsByUpstream.values())
+            .flat()
+            .filter((p) => p.name.toLowerCase().includes(search));
+        return {
+            matchingProjects: projectMatches,
+            matchingPreviews: previewMatches,
+        };
+    }, [isSearching, search, baseProjects, previewsByUpstream]);
+
+    // Level 2: previews of the drilled project, scoped by search
+    const drilledPreviews = useMemo(() => {
+        if (!drilledProjectUuid) return [];
+        const all = previewsByUpstream.get(drilledProjectUuid) ?? [];
+        if (!isSearching) return all;
+        return all.filter((p) => p.name.toLowerCase().includes(search));
+    }, [drilledProjectUuid, previewsByUpstream, isSearching, search]);
+
+    const handleOpenCreatePreview = useCallback(() => {
+        setIsMenuOpen(false);
+        setIsCreatePreview(true);
+    }, []);
 
     // Don't render if we're still loading the active project UUID
     if (isLoadingActiveProjectUuid || !activeProjectUuid) {
         return null;
     }
+
+    const renderSearchInput = (placeholder: string) => (
+        <Box className={classes.searchHeader}>
+            <TextInput
+                placeholder={placeholder}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.currentTarget.value)}
+                leftSection={<MantineIcon icon={IconSearch} size="sm" />}
+                rightSection={
+                    searchQuery ? (
+                        <ActionIcon
+                            size="sm"
+                            variant="transparent"
+                            onClick={() => setSearchQuery('')}
+                        >
+                            <MantineIcon icon={IconX} size="xs" />
+                        </ActionIcon>
+                    ) : null
+                }
+                size="xs"
+                classNames={{ input: classes.searchInput }}
+            />
+        </Box>
+    );
 
     return (
         <>
@@ -434,7 +572,11 @@ const ProjectSwitcher = () => {
                 arrowOffset={16}
                 offset={-2}
                 opened={isMenuOpen}
-                onChange={setIsMenuOpen}
+                closeOnItemClick={false}
+                onChange={(opened) => {
+                    setIsMenuOpen(opened);
+                    if (!opened) resetMenuState();
+                }}
                 classNames={{ dropdown: classes.dropdown }}
                 zIndex={getDefaultZIndex('max')}
                 portalProps={{ target: '#navbar-header' }}
@@ -445,166 +587,241 @@ const ProjectSwitcher = () => {
                         size="xs"
                         className={classes.targetButton}
                     >
-                        <Text truncate fw={500} fz="xs">
-                            {activeProject?.name ?? 'Select a project'}
-                        </Text>
+                        <SwitcherLabel
+                            activeProjectName={
+                                activeProject?.name ?? 'Select a project'
+                            }
+                            upstreamProjectName={upstreamProject?.name ?? null}
+                        />
                     </Button>
                 </Menu.Target>
 
                 <Menu.Dropdown w={400}>
-                    {/* Search Header */}
-                    <Box
-                        className={classes.searchHeader}
-                        display={showSearchInput ? 'block' : 'none'}
-                    >
-                        <TextInput
-                            placeholder="Search projects..."
-                            value={searchQuery}
-                            onChange={(e) =>
-                                setSearchQuery(e.currentTarget.value)
-                            }
-                            leftSection={
-                                <MantineIcon icon={IconSearch} size="sm" />
-                            }
-                            rightSection={
-                                searchQuery ? (
-                                    <ActionIcon
+                    {isLoadingProjects ? (
+                        <Box p="lg" ta="center">
+                            <Text {...MENU_TEXT_PROPS}>Loading projects...</Text>
+                        </Box>
+                    ) : drilledProject ? (
+                        <>
+                            {renderSearchInput(
+                                `Search previews in ${drilledProject.name}...`,
+                            )}
+                            <Box
+                                component="button"
+                                className={classes.drillHeader}
+                                onClick={() => {
+                                    setDrilledProjectUuid(null);
+                                    setSearchQuery('');
+                                }}
+                            >
+                                <Group gap="xs" wrap="nowrap">
+                                    <MantineIcon
+                                        icon={IconChevronLeft}
                                         size="sm"
-                                        variant="transparent"
-                                        onClick={() => setSearchQuery('')}
+                                        color="ldGray.6"
+                                    />
+                                    <Text fz="xs" fw={500} c="ldGray.5">
+                                        Projects
+                                    </Text>
+                                    <Text fz="xs" c="ldGray.4">
+                                        /
+                                    </Text>
+                                    <Text fz="xs" fw={600} c="ldDark.9">
+                                        {drilledProject.name}
+                                    </Text>
+                                </Group>
+                            </Box>
+                            <ScrollArea.Autosize mah={260}>
+                                <Stack gap={0}>
+                                    {drilledPreviews.length > 0 ? (
+                                        drilledPreviews.map((item) => (
+                                            <PreviewRow
+                                                key={item.projectUuid}
+                                                item={item}
+                                                searchQuery={
+                                                    debouncedSearchQuery
+                                                }
+                                                upstreamName={null}
+                                                isActive={
+                                                    item.projectUuid ===
+                                                    activeProjectUuid
+                                                }
+                                                onSelect={handleProjectChange}
+                                            />
+                                        ))
+                                    ) : (
+                                        <Box p="lg" ta="center">
+                                            <Text {...MENU_TEXT_PROPS}>
+                                                {isSearching
+                                                    ? `No previews match "${debouncedSearchQuery}"`
+                                                    : 'No previews available'}
+                                            </Text>
+                                        </Box>
+                                    )}
+                                </Stack>
+                            </ScrollArea.Autosize>
+                            {canCreatePreviewForProject(
+                                drilledProject.projectUuid,
+                            ) && (
+                                <Box className={classes.stickyFooter}>
+                                    <Menu.Item
+                                        onClick={handleOpenCreatePreview}
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconPlus}
+                                                size="md"
+                                            />
+                                        }
                                     >
-                                        <MantineIcon icon={IconX} size="xs" />
-                                    </ActionIcon>
-                                ) : null
-                            }
-                            size="xs"
-                            classNames={{ input: classes.searchInput }}
-                        />
-                    </Box>
-
-                    <Stack gap={0}>
-                        {/* Loading State */}
-                        {isLoadingProjects && (
-                            <Box p="lg" ta="center">
-                                <Text {...MENU_TEXT_PROPS}>
-                                    Loading projects...
-                                </Text>
-                            </Box>
-                        )}
-
-                        {/* Base Projects Group */}
-                        {!isLoadingProjects && baseProjects.length > 0 && (
-                            <Box>
-                                <GroupHeader
-                                    title="Projects"
-                                    count={baseProjects.length}
-                                    state={groupStates.base}
-                                    onToggle={() => handleGroupToggle('base')}
-                                    badgeColor="blue"
-                                    isVisible={shouldShowBase}
-                                />
-                                <Collapse in={shouldShowBase}>
-                                    <ScrollArea.Autosize mah={200}>
-                                        <Stack gap={0}>
-                                            {baseProjects.map((item) => (
-                                                <ProjectItem
-                                                    key={item.projectUuid}
-                                                    item={item}
-                                                    handleProjectChange={
-                                                        handleProjectChange
-                                                    }
-                                                    searchQuery={
-                                                        debouncedSearchQuery
-                                                    }
-                                                    isActive={
-                                                        item.projectUuid ===
-                                                        activeProjectUuid
-                                                    }
-                                                />
-                                            ))}
-                                        </Stack>
-                                    </ScrollArea.Autosize>
-                                </Collapse>
-                            </Box>
-                        )}
-                        {}
-
-                        {/* Preview Projects Group */}
-                        {!isLoadingProjects && previewProjects.length > 0 && (
-                            <Box>
-                                <Menu.Divider />
-                                <GroupHeader
-                                    title="Preview"
-                                    count={previewProjects.length}
-                                    state={groupStates.preview}
-                                    onToggle={() =>
-                                        handleGroupToggle('preview')
-                                    }
-                                    badgeColor="yellow"
-                                    isVisible={shouldShowPreview}
-                                />
-                                <Collapse in={shouldShowPreview}>
-                                    <ScrollArea.Autosize mah={200}>
-                                        <Stack gap={0}>
-                                            {previewProjects.map((item) => (
-                                                <ProjectItem
-                                                    key={item.projectUuid}
-                                                    item={item}
-                                                    handleProjectChange={
-                                                        handleProjectChange
-                                                    }
-                                                    searchQuery={
-                                                        debouncedSearchQuery
-                                                    }
-                                                    isActive={
-                                                        item.projectUuid ===
-                                                        activeProjectUuid
-                                                    }
-                                                />
-                                            ))}
-                                        </Stack>
-                                    </ScrollArea.Autosize>
-                                </Collapse>
-                            </Box>
-                        )}
-
-                        {/* Empty State */}
-                        {!isLoadingProjects &&
-                            baseProjects.length === 0 &&
-                            previewProjects.length === 0 && (
-                                <Box p="lg" ta="center">
-                                    <Stack gap="xs" align="center">
-                                        <MantineIcon
-                                            icon={IconSearch}
-                                            size="lg"
-                                            color="ldGray.5"
-                                        />
                                         <Text {...MENU_TEXT_PROPS}>
-                                            {debouncedSearchQuery.length >= 2
-                                                ? `No projects found for "${debouncedSearchQuery}"`
-                                                : 'No projects available'}
+                                            Create Preview in{' '}
+                                            {drilledProject.name}
                                         </Text>
-                                    </Stack>
+                                    </Menu.Item>
                                 </Box>
                             )}
-                    </Stack>
-
-                    {userCanCreatePreview && (
-                        <Box className={classes.stickyFooter}>
-                            <Menu.Item
-                                onClick={(
-                                    e: React.MouseEvent<HTMLButtonElement>,
-                                ) => {
-                                    setIsCreatePreview(!isCreatePreviewOpen);
-                                    e.stopPropagation();
-                                }}
-                                leftSection={
-                                    <MantineIcon icon={IconPlus} size="md" />
+                        </>
+                    ) : (
+                        <>
+                            {baseProjects.length + totalPreviewCount > 2 &&
+                                renderSearchInput('Search projects...')}
+                            <Box
+                                className={classes.sectionHeader}
+                                display={
+                                    matchingProjects.length > 0
+                                        ? 'block'
+                                        : 'none'
                                 }
                             >
-                                <Text {...MENU_TEXT_PROPS}>Create Preview</Text>
-                            </Menu.Item>
-                        </Box>
+                                <Group gap="xs" wrap="nowrap">
+                                    <Text fz="xs" fw={600} c="ldDark.9">
+                                        Projects
+                                    </Text>
+                                    <Badge
+                                        color="blue"
+                                        variant="light"
+                                        size="xs"
+                                        radius="sm"
+                                        fw={700}
+                                        className={classes.badge}
+                                    >
+                                        {matchingProjects.length}
+                                    </Badge>
+                                </Group>
+                            </Box>
+                            <ScrollArea.Autosize mah={260}>
+                                <Stack gap={0}>
+                                    {matchingProjects.map((item) => (
+                                        <ProjectRow
+                                            key={item.projectUuid}
+                                            item={item}
+                                            previewCount={
+                                                previewsByUpstream.get(
+                                                    item.projectUuid,
+                                                )?.length ?? 0
+                                            }
+                                            searchQuery={debouncedSearchQuery}
+                                            isActive={
+                                                item.projectUuid ===
+                                                activeProjectUuid
+                                            }
+                                            onNavigate={handleProjectChange}
+                                            onDrill={(projectUuid) => {
+                                                setDrilledProjectUuid(
+                                                    projectUuid,
+                                                );
+                                                setSearchQuery('');
+                                            }}
+                                        />
+                                    ))}
+
+                                    {isSearching &&
+                                        matchingPreviews.length > 0 && (
+                                            <>
+                                                <Box
+                                                    className={
+                                                        classes.sectionHeader
+                                                    }
+                                                >
+                                                    <Text
+                                                        fz={10}
+                                                        fw={600}
+                                                        c="ldGray.5"
+                                                        tt="uppercase"
+                                                    >
+                                                        Matching previews ·{' '}
+                                                        {matchingPreviews.length}
+                                                    </Text>
+                                                </Box>
+                                                {matchingPreviews.map(
+                                                    (item) => (
+                                                        <PreviewRow
+                                                            key={
+                                                                item.projectUuid
+                                                            }
+                                                            item={item}
+                                                            searchQuery={
+                                                                debouncedSearchQuery
+                                                            }
+                                                            upstreamName={
+                                                                item.upstreamProjectUuid
+                                                                    ? baseProjectsByUuid.get(
+                                                                          item.upstreamProjectUuid,
+                                                                      )?.name ??
+                                                                      null
+                                                                    : null
+                                                            }
+                                                            isActive={
+                                                                item.projectUuid ===
+                                                                activeProjectUuid
+                                                            }
+                                                            onSelect={
+                                                                handleProjectChange
+                                                            }
+                                                        />
+                                                    ),
+                                                )}
+                                            </>
+                                        )}
+
+                                    {matchingProjects.length === 0 &&
+                                        matchingPreviews.length === 0 && (
+                                            <Box p="lg" ta="center">
+                                                <Stack gap="xs" align="center">
+                                                    <MantineIcon
+                                                        icon={IconSearch}
+                                                        size="lg"
+                                                        color="ldGray.5"
+                                                    />
+                                                    <Text {...MENU_TEXT_PROPS}>
+                                                        {isSearching
+                                                            ? `No projects or previews match "${debouncedSearchQuery}"`
+                                                            : 'No projects available'}
+                                                    </Text>
+                                                </Stack>
+                                            </Box>
+                                        )}
+                                </Stack>
+                            </ScrollArea.Autosize>
+
+                            {userCanCreatePreview && (
+                                <Box className={classes.stickyFooter}>
+                                    <Menu.Item
+                                        onClick={handleOpenCreatePreview}
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconPlus}
+                                                size="md"
+                                            />
+                                        }
+                                    >
+                                        <Text {...MENU_TEXT_PROPS}>
+                                            Create Preview
+                                        </Text>
+                                    </Menu.Item>
+                                </Box>
+                            )}
+                        </>
                     )}
                 </Menu.Dropdown>
             </Menu>
@@ -613,6 +830,7 @@ const ProjectSwitcher = () => {
                 <CreatePreviewModal
                     isOpened={isCreatePreviewOpen}
                     onClose={() => setIsCreatePreview(false)}
+                    preselectedProjectUuid={drilledProjectUuid ?? undefined}
                 />
             )}
         </>
