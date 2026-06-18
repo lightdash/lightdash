@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    FeatureFlags,
     ForbiddenError,
     NotFoundError,
     NotImplementedError,
@@ -9,6 +10,7 @@ import {
     type UpdateExternalConnection,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
+import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { BaseService } from '../../../services/BaseService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
@@ -16,6 +18,7 @@ import { type ExternalConnectionModel } from '../../models/ExternalConnectionMod
 type ExternalConnectionServiceArguments = {
     analytics: LightdashAnalytics;
     externalConnectionModel: ExternalConnectionModel;
+    featureFlagModel: FeatureFlagModel;
     spacePermissionService: SpacePermissionService;
 };
 
@@ -24,13 +27,34 @@ export class ExternalConnectionService extends BaseService {
 
     private readonly externalConnectionModel: ExternalConnectionModel;
 
+    private readonly featureFlagModel: FeatureFlagModel;
+
     private readonly spacePermissionService: SpacePermissionService;
 
     constructor(args: ExternalConnectionServiceArguments) {
         super();
         this.analytics = args.analytics;
         this.externalConnectionModel = args.externalConnectionModel;
+        this.featureFlagModel = args.featureFlagModel;
         this.spacePermissionService = args.spacePermissionService;
+    }
+
+    private async assertExternalAccessEnabled(
+        account: RegisteredAccount,
+    ): Promise<void> {
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: account.user.userUuid,
+                organizationUuid: account.organization.organizationUuid,
+                organizationName: account.organization.name,
+            },
+            featureFlagId: FeatureFlags.EnableDataAppExternalAccess,
+        });
+        if (!enabled) {
+            throw new ForbiddenError(
+                'Data app external access is not enabled for this organization',
+            );
+        }
     }
 
     private assertCanManage(
@@ -106,6 +130,7 @@ export class ExternalConnectionService extends BaseService {
         organizationUuid: string,
         data: CreateExternalConnection,
     ): Promise<ExternalConnection> {
+        await this.assertExternalAccessEnabled(account);
         this.assertCanManage(account, projectUuid, organizationUuid);
         const connection = await this.externalConnectionModel.create(
             projectUuid,
@@ -130,6 +155,7 @@ export class ExternalConnectionService extends BaseService {
         account: RegisteredAccount,
         projectUuid: string,
     ): Promise<ExternalConnection[]> {
+        await this.assertExternalAccessEnabled(account);
         const { organizationUuid } = account.organization;
         if (!organizationUuid) {
             throw new ForbiddenError('User must be in an organization');
@@ -161,6 +187,7 @@ export class ExternalConnectionService extends BaseService {
         projectUuid: string,
         connectionUuid: string,
     ): Promise<ExternalConnection> {
+        await this.assertExternalAccessEnabled(account);
         return this.getOwnedConnection(account, projectUuid, connectionUuid);
     }
 
@@ -170,6 +197,7 @@ export class ExternalConnectionService extends BaseService {
         connectionUuid: string,
         data: UpdateExternalConnection,
     ): Promise<ExternalConnection> {
+        await this.assertExternalAccessEnabled(account);
         const existing = await this.getOwnedConnection(
             account,
             projectUuid,
@@ -197,6 +225,7 @@ export class ExternalConnectionService extends BaseService {
         projectUuid: string,
         connectionUuid: string,
     ): Promise<void> {
+        await this.assertExternalAccessEnabled(account);
         const existing = await this.getOwnedConnection(
             account,
             projectUuid,
@@ -220,6 +249,7 @@ export class ExternalConnectionService extends BaseService {
         connectionUuid: string,
         secret: string,
     ): Promise<ExternalConnection> {
+        await this.assertExternalAccessEnabled(account);
         const existing = await this.getOwnedConnection(
             account,
             projectUuid,
@@ -243,6 +273,7 @@ export class ExternalConnectionService extends BaseService {
         projectUuid: string,
         appUuid: string,
     ): Promise<Array<{ alias: string; connection: ExternalConnection }>> {
+        await this.assertExternalAccessEnabled(account);
         const app = await this.assertCanManageApp(account, appUuid);
         if (app.project_uuid !== projectUuid) {
             throw new NotFoundError('Data app not found');
@@ -257,6 +288,7 @@ export class ExternalConnectionService extends BaseService {
         externalConnectionUuid: string,
         alias: string,
     ): Promise<void> {
+        await this.assertExternalAccessEnabled(account);
         const app = await this.assertCanManageApp(account, appUuid);
         if (app.project_uuid !== projectUuid) {
             throw new NotFoundError('Data app not found');
@@ -290,6 +322,7 @@ export class ExternalConnectionService extends BaseService {
         appUuid: string,
         alias: string,
     ): Promise<void> {
+        await this.assertExternalAccessEnabled(account);
         const app = await this.assertCanManageApp(account, appUuid);
         if (app.project_uuid !== projectUuid) {
             throw new NotFoundError('Data app not found');

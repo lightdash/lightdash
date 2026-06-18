@@ -421,6 +421,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     analytics: context.lightdashAnalytics,
                     externalConnectionModel:
                         models.getExternalConnectionModel(),
+                    featureFlagModel: models.getFeatureFlagModel(),
                     spacePermissionService:
                         repository.getSpacePermissionService(),
                 }),
