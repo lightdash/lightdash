@@ -133,6 +133,36 @@ describe('ExternalConnectionModel', () => {
             );
             expect(secretInserts).toHaveLength(0);
         });
+
+        it('serializes jsonb array columns to JSON strings on insert', async () => {
+            tracker.on
+                .insert(ExternalConnectionsTableName)
+                .responseOnce([makeDbConnection({ type: 'none' })]);
+
+            await model.create(PROJECT_UUID, ORG_UUID, USER_UUID, {
+                name: 'Open API',
+                type: 'none',
+                origin: 'https://api.acme.com',
+                allowedPathPrefixes: ['/v1/'],
+                allowedMethods: ['GET'],
+                allowedContentTypes: ['application/json'],
+                secret: null,
+            });
+
+            const connInsert = tracker.history.insert.find((q) =>
+                q.sql.includes(ExternalConnectionsTableName),
+            );
+            // jsonb columns MUST be serialized JSON strings — a raw JS array
+            // binding makes Postgres throw "invalid input syntax for type json".
+            expect(connInsert?.bindings).toContain(JSON.stringify(['GET']));
+            expect(connInsert?.bindings).toContain(JSON.stringify(['/v1/']));
+            expect(connInsert?.bindings).toContain(
+                JSON.stringify(['application/json']),
+            );
+            expect(connInsert?.bindings.some((b) => Array.isArray(b))).toBe(
+                false,
+            );
+        });
     });
 
     describe('findByUuid', () => {

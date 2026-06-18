@@ -87,9 +87,13 @@ export class ExternalConnectionModel {
                     name: data.name,
                     type: data.type,
                     origin: data.origin,
-                    allowed_path_prefixes: data.allowedPathPrefixes,
-                    allowed_methods: data.allowedMethods,
-                    allowed_content_types: data.allowedContentTypes,
+                    allowed_path_prefixes: JSON.stringify(
+                        data.allowedPathPrefixes,
+                    ),
+                    allowed_methods: JSON.stringify(data.allowedMethods),
+                    allowed_content_types: JSON.stringify(
+                        data.allowedContentTypes,
+                    ),
                     response_max_bytes:
                         data.responseMaxBytes ??
                         EXTERNAL_CONNECTION_DEFAULTS.responseMaxBytes,
@@ -227,11 +231,17 @@ export class ExternalConnectionModel {
             if (data.type !== undefined) updatePayload.type = data.type;
             if (data.origin !== undefined) updatePayload.origin = data.origin;
             if (data.allowedPathPrefixes !== undefined)
-                updatePayload.allowed_path_prefixes = data.allowedPathPrefixes;
+                updatePayload.allowed_path_prefixes = JSON.stringify(
+                    data.allowedPathPrefixes,
+                );
             if (data.allowedMethods !== undefined)
-                updatePayload.allowed_methods = data.allowedMethods;
+                updatePayload.allowed_methods = JSON.stringify(
+                    data.allowedMethods,
+                );
             if (data.allowedContentTypes !== undefined)
-                updatePayload.allowed_content_types = data.allowedContentTypes;
+                updatePayload.allowed_content_types = JSON.stringify(
+                    data.allowedContentTypes,
+                );
             if (data.responseMaxBytes !== undefined)
                 updatePayload.response_max_bytes = data.responseMaxBytes;
             if (data.requestMaxBytes !== undefined)

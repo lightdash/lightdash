@@ -38,16 +38,13 @@ export type ExternalConnectionsTable = Knex.CompositeTableType<
     DbExternalConnection,
     Pick<
         DbExternalConnection,
-        | 'project_uuid'
-        | 'organization_uuid'
-        | 'name'
-        | 'type'
-        | 'origin'
-        | 'allowed_path_prefixes'
-        | 'allowed_methods'
-        | 'allowed_content_types'
-    > &
-        Partial<
+        'project_uuid' | 'organization_uuid' | 'name' | 'type' | 'origin'
+    > & {
+        // jsonb columns are written as serialized JSON strings (read back as arrays)
+        allowed_path_prefixes: string;
+        allowed_methods: string;
+        allowed_content_types: string;
+    } & Partial<
             Pick<
                 DbExternalConnection,
                 | 'external_connection_uuid'
@@ -67,9 +64,6 @@ export type ExternalConnectionsTable = Knex.CompositeTableType<
             | 'name'
             | 'type'
             | 'origin'
-            | 'allowed_path_prefixes'
-            | 'allowed_methods'
-            | 'allowed_content_types'
             | 'response_max_bytes'
             | 'request_max_bytes'
             | 'timeout_ms'
@@ -79,7 +73,12 @@ export type ExternalConnectionsTable = Knex.CompositeTableType<
             | 'updated_by_user_uuid'
             | 'updated_at'
             | 'deleted_at'
-        >
+        > & {
+            // jsonb columns written as serialized JSON strings
+            allowed_path_prefixes: string;
+            allowed_methods: string;
+            allowed_content_types: string;
+        }
     >
 >;
 
