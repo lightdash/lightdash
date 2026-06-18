@@ -1697,12 +1697,24 @@ export class ScimService extends BaseService {
             return this.convertLightdashGroupToScimGroup(updatedGroup);
         } catch (error) {
             if (error instanceof ScimError) {
+                this.logger.error('SCIM: Group patch failed with SCIM error', {
+                    organizationUuid,
+                    groupUuid,
+                    detail: error.message,
+                    status: error.status,
+                    scimType: error.scimType,
+                });
                 throw error;
             }
             if (
                 error instanceof ParameterError ||
                 error instanceof InvalidScimPatchRequest
             ) {
+                this.logger.error('SCIM: Invalid group patch request', {
+                    organizationUuid,
+                    groupUuid,
+                    detail: error.message,
+                });
                 throw new ScimError({
                     detail: error.message,
                     status: 400,
@@ -1710,6 +1722,14 @@ export class ScimService extends BaseService {
                 });
             }
             if (error instanceof NotFoundError) {
+                this.logger.error(
+                    'SCIM: Group not found while patching group',
+                    {
+                        organizationUuid,
+                        groupUuid,
+                        detail: error.message,
+                    },
+                );
                 throw new ScimError({
                     detail: `Group with UUID ${groupUuid} not found`,
                     status: 404,
@@ -1717,6 +1737,14 @@ export class ScimService extends BaseService {
                 });
             }
             if (error instanceof AlreadyExistsError) {
+                this.logger.error(
+                    'SCIM: Group patch conflicts with existing group',
+                    {
+                        organizationUuid,
+                        groupUuid,
+                        detail: error.message,
+                    },
+                );
                 throw new ScimError({
                     detail: error.message,
                     status: 409,
