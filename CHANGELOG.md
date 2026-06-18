@@ -1,3 +1,10 @@
+## [0.3188.1](https://github.com/lightdash/lightdash/compare/0.3188.0...0.3188.1) (2026-06-18)
+
+
+### Bug Fixes
+
+* **promote:** stop hiding promote button from developers when upstream exists ([#24444](https://github.com/lightdash/lightdash/issues/24444)) ([3bcd915](https://github.com/lightdash/lightdash/commit/3bcd915dfe1fa9a877f093cab1124bc7d0cdafe6))
+
 # [0.3188.0](https://github.com/lightdash/lightdash/compare/0.3187.2...0.3188.0) (2026-06-18)
 
 
