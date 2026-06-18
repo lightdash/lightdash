@@ -195,7 +195,7 @@ If we used `CURRENT_DATE` on the warehouse instead, the answer would depend on t
 
 ### Plans for a `wall_clock_timezone` annotation?
 
-**Not on the roadmap that I can find.** Worth doing — flagged as a "real gap" in the review (section E). The implementation surface is small: a new column-level meta key like `meta.dimension.wall_clock_timezone: 'America/Los_Angeles'` that overrides `dataTimezone` per-dimension. Wires into `getColumnTimezone(credentials, dimension)` and threads through the existing `sourceTimezone` parameter chain in `timeFrames.ts`. Two engineering days at most.
+**Now tracked for v3 (GLITCH-463), not yet built.** Flagged as a "real gap" in the review (section E). The implementation surface is small: a new column-level meta key like `meta.dimension.wall_clock_timezone: 'America/Los_Angeles'` that overrides `dataTimezone` per-dimension. Wires into `getColumnTimezone(credentials, dimension)` and threads through the existing `sourceTimezone` parameter chain in `timeFrames.ts`. Two engineering days at most.
 
 ---
 
@@ -304,13 +304,15 @@ The companion filter parity is also implemented ([`timezone-handling.md:149`](./
 
 2. **Frontend ECharts shift** (`packages/frontend/src/hooks/echarts/timezoneShift.ts`): **broken at DST boundaries.** The shift offset is computed *per row* (`getTimezoneOffsetMs(rawMs, timezone)`) but applied as a constant adjustment when ECharts renders. For an hour-grain chart spanning a DST transition, the bars before and after the transition use different offsets — visually correct in position but the gap between them looks like a 1-hour jump.
 
-The internal doc does not mention DST. Flagged in [`timezone-review.md` section B](./timezone-review.md#b-the-echarts-shifted-column-workaround). The frontend half is now fixed (GLITCH-449): sub-day buckets are positioned by raw UTC instant, so the two folded hours render at distinct x. (GLITCH-502 later restored ECharts' native adaptive ticks on that axis; only bar placement carried the DST correctness, so dropping the tick pinning was safe.) The fall-back bucketing question below is separate and still open.
+The internal doc does not mention DST. Flagged in [`timezone-review.md` section B](./timezone-review.md#b-the-echarts-shifted-column-workaround). The frontend half is now fixed: sub-day and DAY+ grains both shift onto the project wall-clock timeline via the companion column (GLITCH-449 → GLITCH-509), so the two folded hours render correctly and ECharts places native adaptive ticks on real day boundaries. The fall-back bucketing question below is now resolved (merge, GLITCH-509) — see that section.
 
 ### DST fall-back — do the two 1 AM hours merge into one bucket or split into two?
 
-At a fall-back the local clock hits 1 AM twice. The two hours are wall-clock-identical but are genuinely distinct instants an hour apart (New York 2024-11-03: `01:00 EDT` = `05:00Z` and `01:00 EST` = `06:00Z`). Whether an HOUR `DATE_TRUNC` produces one bucket or two **diverges by warehouse**.
+> **Resolved — standardized on merge (GLITCH-504 decision + GLITCH-509 fix).** All warehouses now collapse the fold into one `count=2` bucket. The analysis below documents the pre-fix divergence and why merge was chosen; the "verified 2026-06-12" table is the *before* state. BigQuery and ClickHouse were moved off instant-domain truncation to merge like the rest.
 
-Verified 2026-06-12 by querying the fold pair at HOUR + count, project TZ `America/New_York` (via `POST /api/v2/projects/{uuid}/query/metric-query`):
+At a fall-back the local clock hits 1 AM twice. The two hours are wall-clock-identical but are genuinely distinct instants an hour apart (New York 2024-11-03: `01:00 EDT` = `05:00Z` and `01:00 EST` = `06:00Z`). Whether an HOUR `DATE_TRUNC` produces one bucket or two **used to diverge by warehouse** (now unified on merge):
+
+Verified 2026-06-12 (pre-GLITCH-509) by querying the fold pair at HOUR + count, project TZ `America/New_York` (via `POST /api/v2/projects/{uuid}/query/metric-query`):
 
 | Warehouse | Result | Buckets |
 | --- | --- | --- |
@@ -327,11 +329,11 @@ So a 25-hour fall-back day renders as 25 distinct hourly buckets on BigQuery/Cli
 
 The same warehouse can do either. Postgres merges with our `AT TIME ZONE` route but **splits** with 3-arg `date_trunc(unit, ts, 'tz')` (available since PG12), confirmed locally. So the divergence is an artifact of our conversion map, not intrinsic warehouse behavior on identical SQL.
 
-**Which is "correct"?** Under Lightdash's wall-clock contract (group by the local wall-clock hour), **merge is the contract-consistent answer**: both folds are "1 AM" locally, so they belong in one bucket. By that reading the merge warehouses honor the contract and BigQuery/ClickHouse leak instant-domain semantics. The opposite reading (a fall-back day really has 25 hours, so splitting is the truthful representation) is defensible for precise time-series. The codebase has not made a deliberate call either way, and the seed comment (`timezone_test.yml:18`) only notes the divergence descriptively.
+**Which is "correct"? — decided: merge.** Under Lightdash's wall-clock contract (group by the local wall-clock hour), **merge is the contract-consistent answer**: both folds are "1 AM" locally, so they belong in one bucket. By that reading the merge warehouses honored the contract and BigQuery/ClickHouse leaked instant-domain semantics. The opposite reading (a fall-back day really has 25 hours, so splitting is the truthful representation) is defensible for precise time-series, but Lightdash made the deliberate call to **merge everywhere** (GLITCH-504) and moved BigQuery/ClickHouse onto the naive-domain route (GLITCH-509).
 
 **Fixability is asymmetric, but split is not blocked.** Unifying on **merge** is cheap and convergent: the naive route is always expressible, and only BigQuery/ClickHouse change. Unifying on **split** is costlier, not impossible: BigQuery/ClickHouse are native and Postgres 12+ has the 3-arg `date_trunc`, but Redshift and Spark/Databricks have no native zone-aware truncation (session-zone-naive timestamps), so a portable split needs hand-rolled offset arithmetic (verified working on Databricks). It also rewrites bucketing SQL on 8 adapters plus a display-label disambiguation, versus 2 adapters for merge. Either direction invalidates cache keys and historical results for every hour/day query.
 
-Tracked as `gap-dst-fold-bucketing` in [`timezones-v2-design.md`](./timezones-v2-design.md) (decision pending).
+Tracked as `gap-dst-fold-bucketing` in [`timezones-v2-design.md`](./timezones-v2-design.md) — **resolved (merge)**, shipped in GLITCH-509. The merge route was chosen precisely because it is convergent across all 8+ adapters; the costlier split route (blocked on Redshift/Spark native support) was rejected.
 
 ### Half-hour / 45-minute timezones (India, Nepal, Australia)?
 
@@ -427,14 +429,14 @@ So the architectural intent is "support both, default to consistent." **This is 
 
 | Issue | Severity | Effort | Location |
 |---|---|---|---|
-| ECharts DST shift bug | Correctness | 1d test + 2d fix | `packages/frontend/src/hooks/echarts/timezoneShift.ts` |
+| ~~ECharts DST shift bug~~ ✅ fixed (GLITCH-449 → 509: all grains shift via companion column) | Correctness | 1d test + 2d fix | `packages/frontend/src/hooks/echarts/timezoneShift.ts` |
 | ~~`EnableTimezoneSupport=off` doesn't gate stored profile TZs~~ ✅ fixed | Correctness | 1d | `resolveQueryTimezone.ts` |
-| Scheduled deliveries TZ interaction undocumented | Docs | 0.5d | `timezone-handling.md` |
-| Per-column wall-clock TZ annotation | Feature | 2d | `translator.ts` + `getColumnTimezone` |
+| Scheduled deliveries TZ interaction undocumented (GLITCH-465, v3; drafted in `draft-user-documentation.md`) | Docs | 0.5d | `timezone-handling.md` |
+| Per-column wall-clock TZ annotation (GLITCH-463, v3) | Feature | 2d | `translator.ts` + `getColumnTimezone` |
 | ~~BigQuery half-hour offset bare-literal hole~~ ✅ not a bug (literal is a pre-converted UTC instant) | Correctness | 1d | `filtersCompiler.ts` |
-| Pre-agg TZ-frozen-after-project-TZ-change behavior | Correctness | 1d test | materialization path |
-| `${ldQueryTimezone}` SQL templating | Feature | 1w | `MetricQueryBuilder.ts` |
-| Customer-facing "how Lightdash handles TZ" doc | Docs | 2d | new file in docs site |
+| Pre-agg TZ-frozen-after-project-TZ-change behavior (**untracked — no ticket**) | Correctness | 1d test | materialization path |
+| `${ldQueryTimezone}` SQL templating (GLITCH-462, v3) | Feature | 1w | `MetricQueryBuilder.ts` |
+| Customer-facing "how Lightdash handles TZ" doc (GLITCH-457, Phase 3; drafted in `draft-user-documentation.md`) | Docs | 2d | new file in docs site |
 | SQL Runner output is raw UTC ISO by design; conversion is user-driven via `${ldQueryTimezone}`. In-SQL `CONVERT_TIMEZONE` only shows once cast to string | Feature | v3 | GLITCH-462 (`${ldQueryTimezone}` var) |
 | ~~Half-hour TZ test coverage~~ ✅ added (Postgres + BigQuery) | Testing | 0.5d | `queryTimezone.test.ts` |
-| moment-timezone version pinning policy | Hygiene | 0.5d | `package.json` |
+| moment-timezone version pinning policy (**untracked — no ticket**) | Hygiene | 0.5d | `package.json` |
