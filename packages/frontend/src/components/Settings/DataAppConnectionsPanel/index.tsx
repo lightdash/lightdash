@@ -12,11 +12,11 @@ import { type FC, useState } from 'react';
 import { useExternalConnections } from '../../../features/externalConnections/hooks/useExternalConnections';
 import { EmptyState } from '../../common/EmptyState';
 import MantineIcon from '../../common/MantineIcon';
+import { ConnectionDrawer } from './ConnectionDrawer';
 import { ConnectionsTable } from './ConnectionsTable';
 import { CreateConnectionModal } from './CreateConnectionModal';
 import { DeleteConnectionModal } from './DeleteConnectionModal';
 import { EditConnectionModal } from './EditConnectionModal';
-import { TestConnectionPanel } from './TestConnectionPanel';
 
 type Props = {
     projectUuid: string;
@@ -32,6 +32,8 @@ const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
     const [connectionToDelete, setConnectionToDelete] = useState<
         ExternalConnection | undefined
     >(undefined);
+    const [drawerConnection, setDrawerConnection] =
+        useState<ExternalConnection | null>(null);
 
     if (isLoading) {
         return <LoadingOverlay visible={isLoading} />;
@@ -63,6 +65,7 @@ const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
                             connections={connections}
                             setConnectionToEdit={setConnectionToEdit}
                             setConnectionToDelete={setConnectionToDelete}
+                            onSelectConnection={setDrawerConnection}
                         />
                     </>
                 ) : (
@@ -85,12 +88,11 @@ const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
                 )}
             </Stack>
 
-            {connections && connections.length > 0 && (
-                <TestConnectionPanel
-                    projectUuid={projectUuid}
-                    connections={connections}
-                />
-            )}
+            <ConnectionDrawer
+                projectUuid={projectUuid}
+                connection={drawerConnection}
+                onClose={() => setDrawerConnection(null)}
+            />
 
             {isCreating && (
                 <CreateConnectionModal
