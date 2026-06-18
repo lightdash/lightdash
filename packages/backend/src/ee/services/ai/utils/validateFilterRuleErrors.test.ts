@@ -1,0 +1,215 @@
+import { FilterOperator, type FilterRule } from '@lightdash/common';
+import { vi } from 'vitest';
+import Logger from '../../../../logging/logger';
+import { mockOrdersExplore } from './validationExplore.mock';
+import { validateFilterRules } from './validators';
+
+const rule = (args: {
+    id: string;
+    fieldId: string;
+    operator: FilterOperator;
+    values?: unknown[];
+    settings?: unknown;
+}): FilterRule => ({
+    id: args.id,
+    target: { fieldId: args.fieldId },
+    operator: args.operator,
+    ...(args.values !== undefined ? { values: args.values } : {}),
+    ...(args.settings !== undefined
+        ? { settings: args.settings as FilterRule['settings'] }
+        : {}),
+});
+
+const getValidationMessage = (filterRule: FilterRule): string => {
+    try {
+        validateFilterRules(mockOrdersExplore, [filterRule]);
+    } catch (error) {
+        if (error instanceof Error) {
+            return error.message;
+        }
+        return String(error);
+    }
+
+    throw new Error('Expected filter validation to fail');
+};
+
+describe('validateFilterRules error messages', () => {
+    beforeEach(() => {
+        vi.spyOn(Logger, 'error').mockImplementation(() => Logger);
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it('explains invalid boolean filters with available combinations', () => {
+        const message = getValidationMessage(
+            rule({
+                id: 'filter-boolean',
+                fieldId: 'orders_is_active',
+                operator: FilterOperator.GREATER_THAN,
+                values: [true],
+            }),
+        );
+
+        expect(message).toContain(
+            'Invalid filter for field "orders_is_active" (Is Active).',
+        );
+        expect(message).toContain(
+            '"greaterThan" is not available for boolean fields.',
+        );
+        expect(message).toContain(
+            'For boolean fields, these are all available filter combinations:',
+        );
+        expect(message).toContain(
+            '{"fieldId":"orders_is_active","fieldType":"boolean","fieldFilterType":"boolean","operator":"equals","values":[true]}',
+        );
+        expect(message).not.toContain('invalid_union');
+        expect(message).not.toContain('ZodError');
+    });
+
+    it('explains invalid string filters with available combinations', () => {
+        const message = getValidationMessage(
+            rule({
+                id: 'filter-string',
+                fieldId: 'orders_customer_name',
+                operator: FilterOperator.GREATER_THAN,
+                values: ['Alice'],
+            }),
+        );
+
+        expect(message).toContain(
+            'Invalid filter for field "orders_customer_name" (Customer Name).',
+        );
+        expect(message).toContain(
+            '"greaterThan" is not available for string fields.',
+        );
+        expect(message).toContain(
+            'For string fields, these are all available filter combinations:',
+        );
+        expect(message).toContain(
+            '{"fieldId":"orders_customer_name","fieldType":"string","fieldFilterType":"string","operator":"include","values":["contains"]}',
+        );
+        expect(message).not.toContain('invalid_union');
+        expect(message).not.toContain('ZodError');
+    });
+
+    it('explains presence filters that include values', () => {
+        const message = getValidationMessage(
+            rule({
+                id: 'filter-presence',
+                fieldId: 'orders_is_active',
+                operator: FilterOperator.NULL,
+                values: [true],
+            }),
+        );
+
+        expect(message).toContain(
+            '"isNull" is a presence operator and must not include values or settings. Received values=[true] settings=undefined.',
+        );
+        expect(message).not.toContain('invalid_union');
+        expect(message).not.toContain('ZodError');
+    });
+
+    it('explains settings on non-date filters', () => {
+        const message = getValidationMessage(
+            rule({
+                id: 'filter-settings',
+                fieldId: 'orders_amount',
+                operator: FilterOperator.GREATER_THAN,
+                values: [100],
+                settings: { completed: false, unitOfTime: 'weeks' },
+            }),
+        );
+
+        expect(message).toContain(
+            '"settings" is only valid for relative or current date filters. Remove settings from this number filter.',
+        );
+        expect(message).not.toContain('invalid_union');
+        expect(message).not.toContain('ZodError');
+    });
+
+    it('explains settings on explicit date filters', () => {
+        const message = getValidationMessage(
+            rule({
+                id: 'filter-date-settings',
+                fieldId: 'orders_order_date',
+                operator: FilterOperator.EQUALS,
+                values: ['2024-01-01'],
+                settings: { completed: false, unitOfTime: 'weeks' },
+            }),
+        );
+
+        expect(message).toContain(
+            '"settings" is only valid for relative or current date filters. Remove settings when using "equals".',
+        );
+        expect(message).not.toContain('invalid_union');
+        expect(message).not.toContain('ZodError');
+    });
+
+    it('preserves explicit null values in the problem description', () => {
+        const message = getValidationMessage(
+            rule({
+                id: 'filter-null-value',
+                fieldId: 'orders_amount',
+                operator: FilterOperator.GREATER_THAN,
+                values: null as unknown as unknown[],
+            }),
+        );
+
+        expect(message).toContain('Received null.');
+        expect(message).not.toContain('Received [].');
+    });
+
+    it('explains invalid number filters with available combinations', () => {
+        const message = getValidationMessage(
+            rule({
+                id: 'filter-number',
+                fieldId: 'orders_amount',
+                operator: FilterOperator.GREATER_THAN,
+                values: ['100'],
+            }),
+        );
+
+        expect(message).toContain(
+            'Invalid filter for field "orders_amount" (Amount).',
+        );
+        expect(message).toContain(
+            '"greaterThan" is a valid number operator, but values must be an array with exactly one number. Received ["100"].',
+        );
+        expect(message).toContain(
+            'For number fields, these are all available filter combinations:',
+        );
+        expect(message).toContain(
+            '{"fieldId":"orders_amount","fieldType":"number","fieldFilterType":"number","operator":"greaterThan","values":[100]}',
+        );
+        expect(message).not.toContain('invalid_union');
+        expect(message).not.toContain('ZodError');
+    });
+
+    it('explains invalid date filters with available combinations', () => {
+        const message = getValidationMessage(
+            rule({
+                id: 'filter-date',
+                fieldId: 'orders_order_date',
+                operator: FilterOperator.EQUALS,
+                values: ['last 2 weeks'],
+            }),
+        );
+
+        expect(message).toContain(
+            'Invalid filter for field "orders_order_date" (Order Date).',
+        );
+        expect(message).toContain(
+            '"equals" is a valid date operator, but values must be ISO date/datetime strings. Received ["last 2 weeks"].',
+        );
+        expect(message).toContain(
+            'For date fields, these are all available filter combinations:',
+        );
+        expect(message).toContain(
+            '{"fieldId":"orders_order_date","fieldType":"date","fieldFilterType":"date","operator":"inThePast","values":[2],"settings":{"completed":false,"unitOfTime":"weeks"}}',
+        );
+        expect(message).not.toContain('invalid_union');
+        expect(message).not.toContain('ZodError');
+    });
+});
