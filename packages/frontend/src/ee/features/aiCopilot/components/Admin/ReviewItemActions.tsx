@@ -111,7 +111,7 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                             </Button>
                         )}
 
-                        {workThreadUrl && (
+                        {workThreadUrl && mode !== 'drawer' && (
                             <Button
                                 component="a"
                                 href={workThreadUrl}

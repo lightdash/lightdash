@@ -3,10 +3,12 @@ import {
     type AiAgentReviewRemediationEvent,
     type AiAgentReviewRemediationLiveState,
 } from '@lightdash/common';
-import { Anchor, Box } from '@mantine-8/core';
+import { Anchor, Box, Button } from '@mantine-8/core';
+import { IconMessages } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useMemo, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
+import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useAiAgentReviewItemActivity } from '../../hooks/useAiAgentAdmin';
 import styles from './RemediationActivityTimeline.module.css';
 
@@ -185,6 +187,18 @@ export const RemediationActivityTimeline: FC<Props> = ({ reviewItem }) => {
                   : false,
     });
 
+    const workThreadUrl = useMemo(() => {
+        const r = reviewItem.remediation;
+        if (
+            r?.previewProjectUuid &&
+            r.previewAgentUuid &&
+            r.previewThreadUuid
+        ) {
+            return `/projects/${r.previewProjectUuid}/ai-agents/${r.previewAgentUuid}/threads/${r.previewThreadUuid}`;
+        }
+        return null;
+    }, [reviewItem.remediation]);
+
     const rows = useMemo<TimelineRow[]>(() => {
         if (!data || data.events.length === 0) {
             return [];
@@ -200,10 +214,33 @@ export const RemediationActivityTimeline: FC<Props> = ({ reviewItem }) => {
                 ...eventRow(event, reviewItem),
             };
         });
-        return data.liveState
+        const liveRows = data.liveState
             ? [...eventRows, liveRow(data.liveState, data.liveMessage)]
             : eventRows;
-    }, [data, reviewItem]);
+        if (!workThreadUrl) return liveRows;
+        return [
+            ...liveRows,
+            {
+                key: 'test-fix-action',
+                label: 'Test fix',
+                when: '',
+                state: 'done' as const,
+                meta: (
+                    <Button
+                        component="a"
+                        href={workThreadUrl}
+                        size="compact-xs"
+                        variant="default"
+                        leftSection={
+                            <MantineIcon icon={IconMessages} size="xs" />
+                        }
+                    >
+                        Test fix
+                    </Button>
+                ),
+            },
+        ];
+    }, [data, reviewItem, workThreadUrl]);
 
     if (rows.length === 0) {
         return null;

@@ -53,6 +53,10 @@ vi.mock('../AiAgentAdminReviewItemsTable', () => ({
     },
 }));
 
+vi.mock('../ReviewKanbanBoard', () => ({
+    ReviewKanbanBoard: () => <div>Board view</div>,
+}));
+
 vi.mock('../ThreadPreviewSidebar', () => ({
     ThreadPreviewSidebar: (props: {
         threadUuid: string;
@@ -67,6 +71,7 @@ vi.mock('../ThreadPreviewSidebar', () => ({
 describe('AiReviewsSettingsPage', () => {
     beforeEach(() => {
         mockTable.mockReset();
+        localStorage.clear();
     });
 
     it('opens the drawer after selecting a finding from the table', async () => {
@@ -83,6 +88,8 @@ describe('AiReviewsSettingsPage', () => {
             </MemoryRouter>,
         );
 
+        // Board is the default view; switch to the table for this flow.
+        await user.click(screen.getByText('Table'));
         await user.click(screen.getByRole('button', { name: 'Open review' }));
 
         expect(
