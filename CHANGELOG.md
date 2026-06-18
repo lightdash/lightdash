@@ -1,3 +1,10 @@
+# [0.3189.0](https://github.com/lightdash/lightdash/compare/0.3188.2...0.3189.0) (2026-06-18)
+
+
+### Features
+
+* **common:** carry temporal base type onto MIN/MAX metrics ([#24445](https://github.com/lightdash/lightdash/issues/24445)) ([2745038](https://github.com/lightdash/lightdash/commit/27450382351be3b7d17935b4f5a2cce1abeb3938))
+
 ## [0.3188.2](https://github.com/lightdash/lightdash/compare/0.3188.1...0.3188.2) (2026-06-18)
 
 
