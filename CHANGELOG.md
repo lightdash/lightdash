@@ -1,3 +1,11 @@
+## [0.3192.1](https://github.com/lightdash/lightdash/compare/0.3192.0...0.3192.1) (2026-06-18)
+
+
+### Bug Fixes
+
+* improve SCIM group patch error logging and invalid user reporting ([#24473](https://github.com/lightdash/lightdash/issues/24473)) ([98a1064](https://github.com/lightdash/lightdash/commit/98a1064c8418c63ae6a0a205d20470c29b1b6755))
+* keep pivot reference lines on matching series ([#24326](https://github.com/lightdash/lightdash/issues/24326)) ([faf8f7a](https://github.com/lightdash/lightdash/commit/faf8f7aeb4ecdeb6108b8a13e2aeafa0431d0557))
+
 # [0.3192.0](https://github.com/lightdash/lightdash/compare/0.3191.1...0.3192.0) (2026-06-18)
 
 
