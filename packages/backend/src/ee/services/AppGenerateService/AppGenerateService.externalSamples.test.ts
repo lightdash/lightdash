@@ -1,5 +1,6 @@
 // e2b and ai are ESM-only packages that cannot be required by Jest/CJS.
 // Mock them before importing AppGenerateService.
+import { FeatureFlags } from '@lightdash/common';
 import { AppGenerateService } from './AppGenerateService';
 
 jest.mock('e2b', () => ({
@@ -17,32 +18,57 @@ type PrivateWithSamples = {
         appUuid: string,
         links: unknown[],
     ) => Promise<string>;
+    resolveExternalConnectionSamples: (appId: string) => Promise<unknown[]>;
     logger: { info: jest.Mock };
 };
 
-function buildService() {
+function buildService(flagEnabled = true) {
     // Build a minimal AppGenerateService with only the deps needed for the
     // private writeExternalConnectionSamples method (which uses only
     // this.logger and the sandbox argument). All other deps are stubbed out.
-    return new AppGenerateService({
-        lightdashConfig: {} as never,
-        analytics: {} as never,
-        analyticsModel: {} as never,
-        catalogModel: {} as never,
-        appModel: {} as never,
-        featureFlagModel: {} as never,
-        organizationDesignModel: {} as never,
-        pinnedListModel: {} as never,
-        projectModel: {} as never,
-        spaceModel: {} as never,
-        schedulerClient: {} as never,
-        savedChartService: {} as never,
-        spacePermissionService: {} as never,
-        dashboardService: {} as never,
-        projectService: {} as never,
-        promoteService: {} as never,
-        externalConnectionModel: {} as never,
-    }) as unknown as PrivateWithSamples;
+    const featureFlagModel = {
+        get: jest
+            .fn()
+            .mockImplementation(
+                ({ featureFlagId }: { featureFlagId: string }) => {
+                    if (
+                        featureFlagId ===
+                        FeatureFlags.EnableDataAppExternalAccess
+                    ) {
+                        return Promise.resolve({
+                            id: featureFlagId,
+                            enabled: flagEnabled,
+                        });
+                    }
+                    return Promise.resolve({
+                        id: featureFlagId,
+                        enabled: true,
+                    });
+                },
+            ),
+    };
+    return {
+        service: new AppGenerateService({
+            lightdashConfig: {} as never,
+            analytics: {} as never,
+            analyticsModel: {} as never,
+            catalogModel: {} as never,
+            appModel: {} as never,
+            featureFlagModel: featureFlagModel as never,
+            organizationDesignModel: {} as never,
+            pinnedListModel: {} as never,
+            projectModel: {} as never,
+            spaceModel: {} as never,
+            schedulerClient: {} as never,
+            savedChartService: {} as never,
+            spacePermissionService: {} as never,
+            dashboardService: {} as never,
+            projectService: {} as never,
+            promoteService: {} as never,
+            externalConnectionModel: {} as never,
+        }) as unknown as PrivateWithSamples,
+        featureFlagModel,
+    };
 }
 
 const makeSandbox = () => ({
@@ -69,7 +95,7 @@ describe('AppGenerateService.writeExternalConnectionSamples', () => {
                 sample: [{ id: 1 }, { id: 2 }],
             },
         ];
-        const service = buildService();
+        const { service } = buildService();
 
         const block = await service.writeExternalConnectionSamples(
             sandbox,
@@ -97,7 +123,7 @@ describe('AppGenerateService.writeExternalConnectionSamples', () => {
             { alias: 'weather', connectionUuid: 'c1', sample: null },
             { alias: 'crm', connectionUuid: 'c2', sample: undefined },
         ];
-        const service = buildService();
+        const { service } = buildService();
 
         const block = await service.writeExternalConnectionSamples(
             sandbox,
@@ -111,7 +137,7 @@ describe('AppGenerateService.writeExternalConnectionSamples', () => {
 
     it('does not mkdir or write when there are no linked connections', async () => {
         const sandbox = makeSandbox();
-        const service = buildService();
+        const { service } = buildService();
 
         const block = await service.writeExternalConnectionSamples(
             sandbox,
@@ -122,5 +148,120 @@ describe('AppGenerateService.writeExternalConnectionSamples', () => {
         expect(sandbox.commands.run).not.toHaveBeenCalled();
         expect(sandbox.files.write).not.toHaveBeenCalled();
         expect(block).toBe('');
+    });
+});
+
+describe('AppGenerateService pipeline external-access flag gate', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('skips resolveExternalConnectionSamples and writeExternalConnectionSamples when the flag is OFF', async () => {
+        const sandbox = makeSandbox();
+        const { service } = buildService(false);
+
+        const resolveSpy = jest
+            .spyOn(
+                service as unknown as PrivateWithSamples,
+                'resolveExternalConnectionSamples',
+            )
+            .mockResolvedValue([
+                {
+                    alias: 'weather',
+                    connectionUuid: 'c1',
+                    sample: { temp: 21 },
+                },
+            ]);
+        const writeSpy = jest.spyOn(
+            service as unknown as PrivateWithSamples,
+            'writeExternalConnectionSamples',
+        );
+
+        // Call writeCatalogAndPrompt via a cast — it checks the flag before resolving/writing.
+        // We stub catalog and prompt-file writes to avoid real I/O.
+        const privateService = service as unknown as {
+            writeCatalogAndPrompt: (
+                sandbox: unknown,
+                appUuid: string,
+                projectUuid: string,
+                prompt: string,
+                imageIds: undefined,
+                s3Client: unknown,
+                bucket: string,
+                chartReferences: undefined,
+                template: undefined,
+                user: { userUuid: string; organizationUuid: string },
+            ) => Promise<unknown>;
+            catalogModel: { getCatalogItemsSummary: jest.Mock };
+        };
+        privateService.catalogModel = {
+            getCatalogItemsSummary: jest.fn().mockResolvedValue([]),
+        };
+
+        await privateService.writeCatalogAndPrompt(
+            sandbox,
+            'app-1',
+            'project-1',
+            'build me an app',
+            undefined,
+            {} as never,
+            'bucket',
+            undefined,
+            undefined,
+            { userUuid: 'user-1', organizationUuid: 'org-1' },
+        );
+
+        expect(resolveSpy).not.toHaveBeenCalled();
+        expect(writeSpy).not.toHaveBeenCalled();
+        expect(sandbox.files.write).not.toHaveBeenCalledWith(
+            expect.stringContaining('/tmp/external-data/'),
+            expect.anything(),
+        );
+    });
+
+    it('calls resolveExternalConnectionSamples when the flag is ON', async () => {
+        const sandbox = makeSandbox();
+        const { service } = buildService(true);
+
+        const resolveSpy = jest
+            .spyOn(
+                service as unknown as PrivateWithSamples,
+                'resolveExternalConnectionSamples',
+            )
+            .mockResolvedValue([]);
+
+        const privateService = service as unknown as {
+            writeCatalogAndPrompt: (
+                sandbox: unknown,
+                appUuid: string,
+                projectUuid: string,
+                prompt: string,
+                imageIds: undefined,
+                s3Client: unknown,
+                bucket: string,
+                chartReferences: undefined,
+                template: undefined,
+                user: { userUuid: string; organizationUuid: string },
+            ) => Promise<unknown>;
+            catalogModel: { getCatalogItemsSummary: jest.Mock };
+        };
+        privateService.catalogModel = {
+            getCatalogItemsSummary: jest.fn().mockResolvedValue([]),
+        };
+
+        await privateService.writeCatalogAndPrompt(
+            sandbox,
+            'app-1',
+            'project-1',
+            'build me an app',
+            undefined,
+            {} as never,
+            'bucket',
+            undefined,
+            undefined,
+            { userUuid: 'user-1', organizationUuid: 'org-1' },
+        );
+
+        expect(resolveSpy).toHaveBeenCalledWith('app-1');
     });
 });

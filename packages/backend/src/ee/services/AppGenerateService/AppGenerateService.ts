@@ -394,6 +394,21 @@ export class AppGenerateService extends BaseService {
         return enabled;
     }
 
+    private async externalAccessEnabledFor(user: {
+        userUuid: string;
+        organizationUuid: string | undefined;
+    }): Promise<boolean> {
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+                organizationName: undefined,
+            },
+            featureFlagId: FeatureFlags.EnableDataAppExternalAccess,
+        });
+        return enabled;
+    }
+
     /**
      * Boolean variant of `assertCanViewApp` — does not throw on denial.
      * Use for filtering lists where unauthorized items should be silently
@@ -1178,6 +1193,7 @@ export class AppGenerateService extends BaseService {
         bucket: string,
         chartReferences: ChartReference[] | undefined,
         template: DataAppTemplate | undefined,
+        user: { userUuid: string; organizationUuid: string | undefined },
     ): Promise<{
         durationMs: number;
         tableCount: number;
@@ -1214,16 +1230,20 @@ export class AppGenerateService extends BaseService {
 
         // Linked external connections: write each saved sample into the sandbox
         // and prepend a one-line reference so Claude knows the API shape.
-        const externalLinks =
-            await this.resolveExternalConnectionSamples(appUuid);
-        if (externalLinks.length > 0) {
-            const externalBlock = await this.writeExternalConnectionSamples(
-                sandbox,
-                appUuid,
-                externalLinks,
-            );
-            if (externalBlock) {
-                finalPrompt = externalBlock + finalPrompt;
+        // Skip entirely when the external-access feature flag is off for this org.
+        const externalAccessEnabled = await this.externalAccessEnabledFor(user);
+        if (externalAccessEnabled) {
+            const externalLinks =
+                await this.resolveExternalConnectionSamples(appUuid);
+            if (externalLinks.length > 0) {
+                const externalBlock = await this.writeExternalConnectionSamples(
+                    sandbox,
+                    appUuid,
+                    externalLinks,
+                );
+                if (externalBlock) {
+                    finalPrompt = externalBlock + finalPrompt;
+                }
             }
         }
 
@@ -2479,6 +2499,10 @@ export class AppGenerateService extends BaseService {
                     bucket,
                     chartReferences,
                     template,
+                    {
+                        userUuid: payload.userUuid,
+                        organizationUuid: payload.organizationUuid,
+                    },
                 );
                 durations.catalogMs = catalogResult.durationMs;
                 catalogStats = {

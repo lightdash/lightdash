@@ -6,6 +6,7 @@ import {
     type ExternalFetchResponse,
     type RegisteredAccount,
 } from '@lightdash/common';
+import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { ExternalConnectionService } from './ExternalConnectionService';
 
 // -------------------------------------------------------------------
@@ -61,6 +62,7 @@ function buildService(opts: {
     saveSampleFn?: jest.Mock;
     linkToAppFn?: jest.Mock;
     findAppFn?: jest.Mock;
+    featureFlagEnabled?: boolean;
 }) {
     const model = {
         findByUuid: jest
@@ -83,15 +85,22 @@ function buildService(opts: {
                 organization_uuid: orgUuid,
             }),
     };
+    const featureFlagModel = {
+        get: jest.fn().mockResolvedValue({
+            id: 'enable-data-app-external-access',
+            enabled: opts.featureFlagEnabled ?? true,
+        }),
+    } as unknown as FeatureFlagModel;
     const service = new ExternalConnectionService({
         externalConnectionModel: model as never,
+        featureFlagModel,
         appModel: {} as never,
         spacePermissionService: {
             getSpaceAccessContext: jest.fn().mockResolvedValue({}),
         } as never,
         analytics: { track: jest.fn() } as never,
     });
-    return { service, model };
+    return { service, model, featureFlagModel };
 }
 
 // Spy on createAuditedAbility to control the CASL decision
@@ -353,6 +362,54 @@ describe('ExternalConnectionService.saveSample', () => {
         });
 
         expect(model.getDecryptedSecret).not.toHaveBeenCalled();
+    });
+});
+
+// -------------------------------------------------------------------
+// Feature flag OFF — testConnection and saveSample are gated
+// -------------------------------------------------------------------
+describe('ExternalConnectionService flag gate — testConnection / saveSample', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('testConnection rejects with ForbiddenError when the flag is OFF', async () => {
+        const { service, model } = buildService({ featureFlagEnabled: false });
+        mockAbility(service, true);
+
+        const executeSpy = jest.spyOn(
+            service as unknown as {
+                executeExternalFetch: (...a: unknown[]) => Promise<unknown>;
+            },
+            'executeExternalFetch',
+        );
+
+        await expect(
+            service.testConnection(adminAccount, projectUuid, connectionUuid, {
+                method: 'GET',
+                path: '/v1/current',
+            }),
+        ).rejects.toThrow(ForbiddenError);
+
+        expect(executeSpy).not.toHaveBeenCalled();
+        expect(model.getDecryptedSecret).not.toHaveBeenCalled();
+    });
+
+    it('saveSample rejects with ForbiddenError when the flag is OFF', async () => {
+        const saveSampleFn = jest.fn();
+        const { service } = buildService({
+            featureFlagEnabled: false,
+            saveSampleFn,
+        });
+        mockAbility(service, true);
+
+        await expect(
+            service.saveSample(adminAccount, projectUuid, connectionUuid, {
+                temp: 21,
+            }),
+        ).rejects.toThrow(ForbiddenError);
+
+        expect(saveSampleFn).not.toHaveBeenCalled();
     });
 });
 

@@ -869,6 +869,7 @@ export class ExternalConnectionService extends BaseService {
             body?: unknown;
         },
     ): Promise<ExternalFetchResponse> {
+        await this.assertExternalAccessEnabled(account);
         const conn = await this.loadConnectionForProject(
             connectionUuid,
             projectUuid,
@@ -902,6 +903,7 @@ export class ExternalConnectionService extends BaseService {
         connectionUuid: string,
         sample: unknown,
     ): Promise<void> {
+        await this.assertExternalAccessEnabled(account);
         const conn = await this.loadConnectionForProject(
             connectionUuid,
             projectUuid,
