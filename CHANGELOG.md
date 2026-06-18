@@ -1,3 +1,16 @@
+# [0.3190.0](https://github.com/lightdash/lightdash/compare/0.3189.1...0.3190.0) (2026-06-18)
+
+
+### Bug Fixes
+
+* initial viewport size for data apps ([#24459](https://github.com/lightdash/lightdash/issues/24459)) ([cc8a2ac](https://github.com/lightdash/lightdash/commit/cc8a2ac0dade6a107e1488c87b46f61688d8538d))
+* **preview:** reuse upstream explores when previewing a CLI/none project ([#24448](https://github.com/lightdash/lightdash/issues/24448)) ([d1b75a2](https://github.com/lightdash/lightdash/commit/d1b75a2deb02bc8b4d39165c02dd42e1c2c04d78))
+
+
+### Features
+
+* **cli:** support http(s) URLs for --combine-manifest ([#24454](https://github.com/lightdash/lightdash/issues/24454)) ([3bb4d43](https://github.com/lightdash/lightdash/commit/3bb4d434d819ca19e9ba6d7622831aceb07855e9))
+
 ## [0.3189.1](https://github.com/lightdash/lightdash/compare/0.3189.0...0.3189.1) (2026-06-18)
 
 
