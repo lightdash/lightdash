@@ -158,10 +158,7 @@ const ProjectRow: FC<{
     const { ref: truncatedRef, isTruncated } = useIsTruncated<HTMLDivElement>();
 
     return (
-        <Menu.Item
-            onClick={() => !isActive && onNavigate(item.projectUuid)}
-            className={isActive ? classes.activePreviewItem : undefined}
-        >
+        <Menu.Item onClick={() => !isActive && onNavigate(item.projectUuid)}>
             <Group gap="sm" justify="space-between" wrap="nowrap">
                 <Tooltip
                     withinPortal
