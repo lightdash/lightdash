@@ -105,14 +105,23 @@ const SwitcherLabel: FC<{
                 <Text truncate fw={500} fz="xs">
                     {activeProjectName}
                 </Text>
-                <MantineIcon icon={IconChevronDown} size="sm" color="ldGray.6" />
+                <MantineIcon
+                    icon={IconChevronDown}
+                    size="sm"
+                    color="ldGray.6"
+                />
             </Group>
         );
     }
 
     return (
         <Group gap={4} wrap="nowrap">
-            <Text fw={500} fz="xs" c="ldGray.6" className={classes.upstreamName}>
+            <Text
+                fw={500}
+                fz="xs"
+                c="ldGray.6"
+                className={classes.upstreamName}
+            >
                 {upstreamProjectName}
             </Text>
             <MantineIcon
@@ -472,7 +481,8 @@ const ProjectSwitcher = () => {
         }, [projects, orgRoleCanCreatePreviews, user.data]);
 
     const userCanCreatePreview = useMemo(
-        () => baseProjects.some((p) => canCreatePreviewForProject(p.projectUuid)),
+        () =>
+            baseProjects.some((p) => canCreatePreviewForProject(p.projectUuid)),
         [baseProjects, canCreatePreviewForProject],
     );
 
@@ -489,7 +499,7 @@ const ProjectSwitcher = () => {
     const isSearching = search.length >= 2;
 
     const drilledProject = drilledProjectUuid
-        ? baseProjectsByUuid.get(drilledProjectUuid) ?? null
+        ? (baseProjectsByUuid.get(drilledProjectUuid) ?? null)
         : null;
 
     // Level 1 search results: matching projects + flattened matching previews
@@ -595,7 +605,9 @@ const ProjectSwitcher = () => {
                 <Menu.Dropdown w={400}>
                     {isLoadingProjects ? (
                         <Box p="lg" ta="center">
-                            <Text {...MENU_TEXT_PROPS}>Loading projects...</Text>
+                            <Text {...MENU_TEXT_PROPS}>
+                                Loading projects...
+                            </Text>
                         </Box>
                     ) : drilledProject ? (
                         <>
@@ -746,7 +758,9 @@ const ProjectSwitcher = () => {
                                                         tt="uppercase"
                                                     >
                                                         Matching previews ·{' '}
-                                                        {matchingPreviews.length}
+                                                        {
+                                                            matchingPreviews.length
+                                                        }
                                                     </Text>
                                                 </Box>
                                                 {matchingPreviews.map(
@@ -761,10 +775,10 @@ const ProjectSwitcher = () => {
                                                             }
                                                             upstreamName={
                                                                 item.upstreamProjectUuid
-                                                                    ? baseProjectsByUuid.get(
+                                                                    ? (baseProjectsByUuid.get(
                                                                           item.upstreamProjectUuid,
                                                                       )?.name ??
-                                                                      null
+                                                                      null)
                                                                     : null
                                                             }
                                                             isActive={
