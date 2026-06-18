@@ -1,7 +1,7 @@
 import { Transition } from '@mantine-8/core';
 import { useMediaQuery } from '@mantine-8/hooks';
 import { useEffect, useRef, type FC } from 'react';
-import { useLocation, useMatches } from 'react-router';
+import { useMatches } from 'react-router';
 import { useActiveProjectUuid } from '../../../../../hooks/useActiveProject';
 import { useAiAgentButtonVisibility } from '../../hooks/useAiAgentsButtonVisibility';
 import { resetActivePanel } from '../../store/aiAgentLauncherSlice';
@@ -12,7 +12,6 @@ import {
 import styles from './AiAgentsLauncher.module.css';
 import { LauncherDock } from './LauncherDock';
 import { LauncherPanel } from './LauncherPanel';
-import { launcherSession } from './launcherSession';
 import { useDefaultAiAgent } from './useDefaultAiAgent';
 import { useLauncherDock } from './useLauncherDock';
 
@@ -28,17 +27,8 @@ const useIsLauncherHidden = () => {
 };
 
 export const AiAgentsLauncher: FC = () => {
-    const { pathname, search } = useLocation();
     const isMobile = useMediaQuery('(max-width: 768px)');
     const isHidden = useIsLauncherHidden();
-
-    useEffect(() => {
-        if (isHidden) return;
-        launcherSession.rememberLastNonAgentUrl(`${pathname}${search}`);
-        // Non-agent routes are the restore target. Clear the expanded marker
-        // so direct fullscreen visits don't show Minimize.
-        launcherSession.clearExpandedFromBubble();
-    }, [isHidden, pathname, search]);
 
     if (isMobile || isHidden) return null;
     return <AiAgentsLauncherInner />;

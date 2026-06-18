@@ -1,11 +1,10 @@
 import { ActionIcon, Box, Button, Group } from '@mantine-8/core';
-import { type FC } from 'react';
+import { lazy, Suspense, type FC } from 'react';
 import { Link } from 'react-router';
 import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
 import Omnibar from '../../features/omnibar';
 import useApp from '../../providers/App/useApp';
 import Logo from '../../svgs/logo-icon.svg?react';
-import { AiAgentsButton } from './AiAgentsButton';
 import BrowseMenu from './BrowseMenu';
 import ExploreMenu from './ExploreMenu';
 import HeadwayMenuItem from './HeadwayMenuItem';
@@ -18,6 +17,12 @@ import SettingsMenu from './SettingsMenu';
 import { ThemeSwitcher } from './ThemeSwitcher';
 import UserCredentialsSwitcher from './UserCredentialsSwitcher';
 import UserMenu from './UserMenu';
+
+const AiAgentsButton = lazy(() =>
+    import('./AiAgentsButton').then((module) => ({
+        default: module.AiAgentsButton,
+    })),
+);
 
 type Props = {
     activeProjectUuid: string | undefined;
@@ -57,7 +62,9 @@ export const MainNavBarContent: FC<Props> = ({
                             {hasMetrics && (
                                 <MetricsLink projectUuid={activeProjectUuid} />
                             )}
-                            <AiAgentsButton />
+                            <Suspense fallback={null}>
+                                <AiAgentsButton />
+                            </Suspense>
                         </Button.Group>
                         <Omnibar projectUuid={activeProjectUuid} />
                     </>

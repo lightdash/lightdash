@@ -5,7 +5,7 @@ import { useSearchParams } from 'react-router';
 import { EmptyState } from '../../components/common/EmptyState';
 import MantineIcon from '../../components/common/MantineIcon';
 
-export const SlackAuthSuccess = () => {
+const SlackAuthSuccess = () => {
     const [searchParams] = useSearchParams();
 
     const slackUrl = useMemo(() => {
@@ -48,3 +48,5 @@ export const SlackAuthSuccess = () => {
         </EmptyState>
     );
 };
+
+export default SlackAuthSuccess;
