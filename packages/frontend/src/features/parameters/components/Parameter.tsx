@@ -144,12 +144,13 @@ const Parameter: FC<Props> = ({
                         }
                         classNames={{
                             label: styles.label,
+                            root: triggerClassName,
                         }}
-                        className={`${triggerClassName ?? ''} ${
+                        className={
                             hasUnsetRequiredParameter
                                 ? styles.unsetRequired
                                 : ''
-                        }`}
+                        }
                         leftSection={
                             isDraggable && (
                                 <MantineIcon

@@ -327,10 +327,9 @@ const Filter: FC<Props> = ({
                                 }
                                 classNames={{
                                     label: classes.label,
+                                    root: triggerClassName,
                                 }}
-                                className={`${triggerClassName ?? ''} ${
-                                    classes.button
-                                } ${
+                                className={`${classes.button} ${
                                     hasUnsetRequiredFilter
                                         ? classes.unsetRequiredFilter
                                         : ''
