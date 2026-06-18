@@ -33,6 +33,30 @@ describe('getSystemPromptV2 project context', () => {
     });
 });
 
+describe('getSystemPromptV2 coding agent section', () => {
+    test('omits the coding-agent section when the coding agent is disabled', () => {
+        const content = promptText({
+            availableExplores: [],
+            enableCodingAgent: false,
+        });
+        expect(content).not.toContain(
+            'Editing source code in connected repositories',
+        );
+        expect(content).not.toContain('`editRepo`');
+    });
+
+    test('includes the coding-agent section when enabled', () => {
+        const content = promptText({
+            availableExplores: [],
+            enableCodingAgent: true,
+        });
+        expect(content).toContain(
+            'Editing source code in connected repositories',
+        );
+        expect(content).toContain('`editRepo`');
+    });
+});
+
 describe('getSystemPromptV2 writeback attribution', () => {
     test('omits the writeback section entirely when writeback is disabled', () => {
         const content = promptText({
