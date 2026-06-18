@@ -93,6 +93,7 @@ const Settings: FC = () => {
         useLocalStorage<boolean>({
             key: SETTINGS_SIDEBAR_COLLAPSED_STORAGE_KEY,
             defaultValue: false,
+            getInitialValueInEffect: false,
         });
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 200);
@@ -788,9 +789,7 @@ const Settings: FC = () => {
                                 color="gray"
                                 size="lg"
                                 onClick={() =>
-                                    setIsSidebarCollapsed(
-                                        (collapsed) => !collapsed,
-                                    )
+                                    setIsSidebarCollapsed(!isSidebarCollapsed)
                                 }
                                 aria-label={
                                     isSidebarCollapsed
