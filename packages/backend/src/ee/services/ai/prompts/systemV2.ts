@@ -14,7 +14,11 @@ import { getAiWritebackSection } from './systemV2AiWriteback';
 import { CONTENT_TOOLS_SECTION } from './systemV2ContentTools';
 import { DATA_ACCESS_DISABLED_SECTION } from './systemV2DataAccessDisabled';
 import { DATA_ACCESS_ENABLED_SECTION } from './systemV2DataAccessEnabled';
-import { REPO_FS_SECTION, repoFsRootHint } from './systemV2RepoFs';
+import {
+    REPO_FS_SECTION,
+    repoFsRootHint,
+    repoFsSearchCaveat,
+} from './systemV2RepoFs';
 import { getRunSqlSection } from './systemV2RunSql';
 import { SEARCH_SEMANTIC_LAYER_SECTION } from './systemV2SearchSemanticLayer';
 import { renderAvailableSkills } from './systemV2Skills';
@@ -35,6 +39,9 @@ export const getSystemPromptV2 = (args: {
     siteUrl?: string;
     enableRepoDiscovery?: boolean;
     repoFsRoot?: string | null;
+    // Whether the repo host supports server-side code search (GitHub yes,
+    // GitLab no). Defaults true; when false the prompt steers off `search`.
+    repoFsSupportsCodeSearch?: boolean;
     enableContentTools?: boolean;
     canRunSql?: boolean;
     warehouseType?: WarehouseTypes | null;
@@ -51,6 +58,7 @@ export const getSystemPromptV2 = (args: {
         siteUrl = '',
         enableRepoDiscovery = false,
         repoFsRoot = null,
+        repoFsSupportsCodeSearch = true,
         enableContentTools = false,
         canRunSql = false,
         warehouseType = null,
@@ -143,7 +151,9 @@ export const getSystemPromptV2 = (args: {
         .replace(
             '{{repo_fs_section}}',
             enableRepoDiscovery
-                ? REPO_FS_SECTION + repoFsRootHint(repoFsRoot)
+                ? REPO_FS_SECTION +
+                      repoFsRootHint(repoFsRoot) +
+                      repoFsSearchCaveat(repoFsSupportsCodeSearch)
                 : '',
         )
         .replace(

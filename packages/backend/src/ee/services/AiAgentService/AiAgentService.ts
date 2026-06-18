@@ -6772,6 +6772,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 .replace(/\/+$/, '');
             repoFsRoot = raw === '' ? '.' : raw;
         }
+        // GitLab's repo source has no server-side code search, so the prompt
+        // must steer the agent off `search` (it returns nothing) toward a
+        // scoped single-repo grep. GitHub supports it.
+        const repoFsSupportsCodeSearch =
+            promptProject.dbtConnection.type !== DbtProjectType.GITLAB;
 
         const canUseContentTools =
             agentRevampEnabled &&
@@ -6826,6 +6831,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enablePreviewDeploySetup: aiPreviewDeploySetupEnabled,
             enableRepoDiscovery: repoDiscoveryEnabled,
             repoFsRoot,
+            repoFsSupportsCodeSearch,
             canRunSql,
             autoApproveSql: options.autoApproveSql ?? false,
             autoApproveSqlUserUuid: options.autoApproveSql
