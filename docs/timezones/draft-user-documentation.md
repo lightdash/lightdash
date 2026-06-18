@@ -205,6 +205,17 @@ A chart grouped by **hour, minute, or smaller** buckets data by instants. The bo
 
 **Implication:** sub-day grouping is naturally consistent across viewers. The only exception is half-hour and 45-minute offset zones (India, Nepal, parts of Australia), where bucket boundaries don't align with whole-hour zones. Hour-grain charts plot on the project wall-clock timeline, so a daylight-saving transition shows directly: at a fall-back the repeated 1 AM hour is one taller bar (both hours merged, `count` doubled), and at a spring-forward the skipped `02:00` hour is simply absent. *— [GLITCH-453](https://linear.app/lightdash/issue/GLITCH-453), [GLITCH-449](https://linear.app/lightdash/issue/GLITCH-449), [GLITCH-509](https://linear.app/lightdash/issue/GLITCH-509)*
 
+## Min/max of a date or timestamp
+
+A metric that takes the **earliest** or **latest** of a temporal column — "first order date," "last seen at" — follows the same rule as the column it aggregates:
+
+- **Min/max of a** `DATE` **column** (or a day-or-coarser date grouping) renders as a plain calendar date and never shifts. "Earliest signup date" shows `2026-05-19` for every viewer, in every timezone — exactly like a `DATE` dimension.
+- **Min/max of a** `TIMESTAMP` **column** renders in the chart's resolved timezone, just like a timestamp dimension. "Last seen at" moves with the badge: a viewer in Tokyo sees the same instant in Tokyo time.
+
+You don't configure anything extra — a min/max metric inherits the temporal behaviour of its underlying column.
+
+> **For dbt modelers:** if you define a min/max metric over a date column in your YAML, refresh (recompile) your project once after upgrading so Lightdash picks up the column's type. Min/max metrics you build ad-hoc in the Explore UI work right away. *— [GLITCH-499](https://linear.app/lightdash/issue/GLITCH-499)*
+
 ## Sharing charts: pinning vs viewer timezone
 
 When you save a chart, Lightdash asks how you want viewers to see it:
@@ -306,6 +317,7 @@ A few common symptoms and where to look:
 | Times in a CSV export differ from times in the Lightdash UI | Export was taken at a different chart-mode setting | Re-export from a chart with the desired pin | [GLITCH-456](https://linear.app/lightdash/issue/GLITCH-456) |
 | "Yesterday" filter returns no data, but yesterday clearly has data | Project timezone is set to a zone where "yesterday" hasn't started yet | Project settings → Timezone | — |
 | Hourly chart looks like it skipped or doubled an hour | Daylight-saving transition in the rendered period | Switch to UTC pin to confirm | [GLITCH-449](https://linear.app/lightdash/issue/GLITCH-449) |
+| A min/max date metric shows a timestamp or lands a day off | A YAML-defined metric on a project that hasn't been refreshed since the upgrade | Refresh (recompile) the project; confirm the column is typed `DATE` | [GLITCH-499](https://linear.app/lightdash/issue/GLITCH-499) |
 
 If you're stuck, the badge on the chart card and the data-timezone preview on the connection page are the two fastest checks. They tell you exactly what Lightdash is using.
 
