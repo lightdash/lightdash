@@ -61,6 +61,13 @@
 .card:hover .startAction {
     opacity: 1;
 }
+.assigneeUnassigned {
+    opacity: 0.4;
+    transition: opacity 120ms ease;
+}
+.card:hover .assigneeUnassigned {
+    opacity: 1;
+}
 .pulse {
     animation: ldReviewPing 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
@@ -149,4 +156,7 @@
         var(--mantine-color-indigo-0),
         var(--mantine-color-dark-5)
     );
+}
+.assigneeTrigger {
+    cursor: pointer;
 }

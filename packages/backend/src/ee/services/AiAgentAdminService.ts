@@ -888,6 +888,26 @@ export class AiAgentAdminService extends BaseService {
         return this.getReviewItem(user, fingerprint);
     }
 
+    async updateReviewItemAssignee(
+        user: SessionUser,
+        fingerprint: string,
+        assignedToUserUuid: string | null,
+    ): Promise<AiAgentReviewItemSummary> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkOrganizationAdminAccess(user);
+
+        await this.aiAgentReviewClassifierModel.updateReviewItemAssignee({
+            fingerprint,
+            organizationUuid,
+            assignedToUserUuid,
+        });
+
+        return this.getReviewItem(user, fingerprint);
+    }
+
     async createReviewItemWriteback(
         user: SessionUser,
         fingerprint: string,

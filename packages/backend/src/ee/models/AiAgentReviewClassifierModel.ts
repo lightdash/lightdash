@@ -1573,6 +1573,20 @@ export class AiAgentReviewClassifierModel {
             });
     }
 
+    async updateReviewItemAssignee(args: {
+        fingerprint: string;
+        organizationUuid: string;
+        assignedToUserUuid: string | null;
+    }): Promise<void> {
+        await this.database<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
+            .where('fingerprint', args.fingerprint)
+            .where('organization_uuid', args.organizationUuid)
+            .update({
+                assigned_to_user_uuid: args.assignedToUserUuid,
+                updated_at: this.database.fn.now() as never,
+            });
+    }
+
     async setReviewItemPrLink(args: {
         fingerprint: string;
         organizationUuid: string;
