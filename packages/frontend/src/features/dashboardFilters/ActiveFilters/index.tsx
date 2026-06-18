@@ -28,6 +28,9 @@ interface ActiveFiltersProps {
     openPopoverId: string | undefined;
     onPopoverOpen: (popoverId: string) => void;
     onPopoverClose: () => void;
+    /** Public embed styling-contract class for each filter pill. Set only by the embed path; see ee/features/embed/CLAUDE.md. */
+    triggerClassName?: string;
+    /** Public embed styling-contract class for the portalled filter dropdown. Set only by the embed path; see ee/features/embed/CLAUDE.md. */
     dropdownClassName?: string;
 }
 
@@ -94,6 +97,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
     openPopoverId,
     onPopoverOpen,
     onPopoverClose,
+    triggerClassName,
     dropdownClassName,
 }) => {
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
@@ -290,6 +294,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                                         )}
                                         field={field}
                                         filterRule={item}
+                                        triggerClassName={triggerClassName}
                                         dropdownClassName={dropdownClassName}
                                         openPopoverId={openPopoverId}
                                         onPopoverOpen={onPopoverOpen}
@@ -350,6 +355,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                                     {...getOrphanedState(item, appliesToTabs)}
                                     field={metricField}
                                     filterRule={item}
+                                    triggerClassName={triggerClassName}
                                     dropdownClassName={dropdownClassName}
                                     openPopoverId={openPopoverId}
                                     onPopoverOpen={onPopoverOpen}
@@ -398,6 +404,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                         {...getOrphanedState(item, appliesToTabs)}
                         field={metricField}
                         filterRule={item}
+                        triggerClassName={triggerClassName}
                         dropdownClassName={dropdownClassName}
                         openPopoverId={openPopoverId}
                         onPopoverOpen={onPopoverOpen}
@@ -448,6 +455,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                         isEditMode={isEditMode}
                         field={field}
                         filterRule={item}
+                        triggerClassName={triggerClassName}
                         dropdownClassName={dropdownClassName}
                         openPopoverId={openPopoverId}
                         onPopoverOpen={onPopoverOpen}

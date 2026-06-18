@@ -45,6 +45,7 @@ const EmbedDashboardParameters: FC = () => {
                 parameters={referencedParameters}
                 isLoading={!areAllChartsLoaded}
                 missingRequiredParameters={missingRequiredParameters}
+                triggerClassName={embedContractClass('ld-dashboard-parameter')}
                 dropdownClassName={embedContractClass(
                     'ld-dashboard-parameter-dropdown',
                 )}

@@ -18,11 +18,13 @@ type EmbedSurface = 'dashboard';
  * `classNames={{ dropdown }}`. Never apply inside a shared component
  * unconditionally, or the class leaks outside embeds.
  */
-const EMBED_CLASS_CONTRACT = [
+export const EMBED_CLASS_CONTRACT = [
     'ld-dashboard-header',
     'ld-dashboard-filters',
+    'ld-dashboard-filter', // each filter pill
     'ld-dashboard-date-zoom',
     'ld-dashboard-parameters',
+    'ld-dashboard-parameter', // each parameter pill
     'ld-dashboard-filter-dropdown', // portalled
     'ld-dashboard-date-zoom-dropdown', // portalled
     'ld-dashboard-parameter-dropdown', // portalled

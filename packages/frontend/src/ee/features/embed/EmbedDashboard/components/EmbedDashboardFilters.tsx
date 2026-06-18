@@ -79,6 +79,7 @@ const EmbedDashboardFilters: FC = () => {
                     onPopoverClose={handlePopoverClose}
                     openPopoverId={openPopoverId}
                     activeTabUuid={activeTab?.uuid}
+                    triggerClassName={embedContractClass('ld-dashboard-filter')}
                     dropdownClassName={embedContractClass(
                         'ld-dashboard-filter-dropdown',
                     )}

@@ -34,6 +34,9 @@ type Props = {
     isRequired?: boolean;
     isEditMode?: boolean;
     isDraggable?: boolean;
+    /** Public embed styling-contract class for the parameter pill. Set only by the embed path; see ee/features/embed/CLAUDE.md. */
+    triggerClassName?: string;
+    /** Public embed styling-contract class for the portalled dropdown. Set only by the embed path; see ee/features/embed/CLAUDE.md. */
     dropdownClassName?: string;
 };
 
@@ -49,6 +52,7 @@ const Parameter: FC<Props> = ({
     projectUuid,
     isRequired = false,
     isDraggable = false,
+    triggerClassName,
     dropdownClassName,
 }) => {
     const popoverId = useId();
@@ -141,11 +145,11 @@ const Parameter: FC<Props> = ({
                         classNames={{
                             label: styles.label,
                         }}
-                        className={
+                        className={`${triggerClassName ?? ''} ${
                             hasUnsetRequiredParameter
                                 ? styles.unsetRequired
                                 : ''
-                        }
+                        }`}
                         leftSection={
                             isDraggable && (
                                 <MantineIcon

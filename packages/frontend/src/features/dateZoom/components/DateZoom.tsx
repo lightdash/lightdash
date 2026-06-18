@@ -114,6 +114,7 @@ const ViewModeGranularityItem: FC<ViewModeGranularityItemProps> = ({
 
 type Props = {
     isEditMode: boolean;
+    /** Public embed styling-contract class for the portalled dropdown. Set only by the embed path; see ee/features/embed/CLAUDE.md. */
     dropdownClassName?: string;
 };
 
