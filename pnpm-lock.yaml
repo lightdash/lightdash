@@ -816,6 +816,9 @@ importers:
       colorjs.io:
         specifier: 0.5.2
         version: 0.5.2
+      company-email-validator:
+        specifier: 1.2.4
+        version: 1.2.4
       cronstrue:
         specifier: 2.23.0
         version: 2.23.0
@@ -831,9 +834,6 @@ importers:
       fast-json-patch:
         specifier: 3.1.1
         version: 3.1.1
-      free-email-domains:
-        specifier: 1.9.16
-        version: 1.9.16
       handlebars:
         specifier: 4.7.9
         version: 4.7.9
@@ -8615,6 +8615,9 @@ packages:
   compare-versions@6.1.1:
     resolution: {integrity: sha512-4hm4VPpIecmlg59CHXnRDnqGplJFrbLG4aFEl5vl6cK1u76ws3LLvX7ikFnTDl5vo39sjWD6AaDPYodJp/NNHg==}
 
+  company-email-validator@1.2.4:
+    resolution: {integrity: sha512-gx/2mXm+5ugNyoVXJ5StP3dqKDHxlU1aVwL6mRj7/e2voc7jSDUu1VzNIydAv8vennhbSHjp9ZH478Fc35KFWQ==}
+
   component-type@2.0.0:
     resolution: {integrity: sha512-/1+d/k0Al0uzg4rFAz9fbYOTnT20JYgN7SoaRr5x2cz7kH4Mtj+GQPh7W9UocpzFtxSL8flv6qAOOfJvQGqUjg==}
     engines: {node: '>=18'}
@@ -9518,6 +9521,10 @@ packages:
   emoji-regex@10.6.0:
     resolution: {integrity: sha512-toUI84YS5YmxW219erniWD0CIVOo46xGKColeNQRgOzDorgBi1v4D71/OFzgD9GO2UGKIv1C3Sp8DAn0+j5w7A==}
 
+  email-validator@2.0.4:
+    resolution: {integrity: sha512-gYCwo7kh5S3IDyZPLZf6hSS0MnZT8QmJFqYvbqlDZSbwdZlY6QZWxJ4i/6UhITOJ4XzyI647Bm2MXKCLqnJ4nQ==}
+    engines: {node: '>4.0'}
+
   emoji-regex@7.0.3:
     resolution: {integrity: sha512-CwBLREIQ7LvYFB0WyRvwhq5N5qPhc6PMjD6bYggFlI5YyDgl+0vxq5VHbMOFqLg7hfWzmu8T5Z1QofhmTIhItA==}
 
@@ -10263,10 +10270,6 @@ packages:
   forwarded@0.2.0:
     resolution: {integrity: sha512-buRG0fpBtRHSTCOASe6hD258tEubFoRLb4ZNA6NxMVHNw2gOcwHo9wyablzMzOA5z9xA9L1KNjk/Nt6MT9aYow==}
     engines: {node: '>= 0.6'}
-
-  free-email-domains@1.9.16:
-    resolution: {integrity: sha512-xRt7nY5gEbb5m0co3hx2gLrIrxFTThUi1rjbDeGvtrBNA/8ktXAJ4t7AAdHpIdEhMFGWWSYmgokwRbwwH4AWWA==}
-    engines: {node: '>= 18'}
 
   fresh@0.5.2:
     resolution: {integrity: sha512-zJ2mQYM18rEFOudeV4GShTGIQ7RbzA7ozbU9I/XBpm7kqgMywgmylMwXHxZJmkVoYkna9d2pVXVXPdYTP9ej8Q==}
@@ -25319,6 +25322,10 @@ snapshots:
 
   compare-versions@6.1.1: {}
 
+  company-email-validator@1.2.4:
+    dependencies:
+      email-validator: 2.0.4
+
   component-type@2.0.0: {}
 
   compress-commons@4.1.2:
@@ -26405,6 +26412,8 @@ snapshots:
 
   electron-to-chromium@1.5.340: {}
 
+  email-validator@2.0.4: {}
+
   emittery@0.13.1: {}
 
   emoji-picker-react@4.12.0(react@19.2.0):
@@ -27466,8 +27475,6 @@ snapshots:
   forwarded-parse@2.1.2: {}
 
   forwarded@0.2.0: {}
-
-  free-email-domains@1.9.16: {}
 
   fresh@0.5.2: {}
 
