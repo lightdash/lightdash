@@ -1,4 +1,12 @@
-import { getModelsFromManifest, patchPathParts, type DbtManifest } from './dbt';
+import {
+    convertColumnMetric,
+    convertModelMetric,
+    getModelsFromManifest,
+    patchPathParts,
+    type DbtManifest,
+} from './dbt';
+import { DimensionType, MetricType } from './field';
+import { TimeFrames } from './timeFrames';
 
 const makeManifest = (nodes: Record<string, object>): DbtManifest =>
     ({
@@ -186,6 +194,105 @@ describe('getModelsFromManifest', () => {
         expect(models).toHaveLength(2);
         const ids = models.map((m) => m.unique_id).sort();
         expect(ids).toEqual(['model.test.my_model', 'seed.test.raw_plan']);
+    });
+});
+
+describe('convertColumnMetric — baseDimensionType plumbing', () => {
+    const base = {
+        modelName: 'orders',
+        dimensionName: 'order_date',
+        dimensionSql: '${TABLE}.order_date',
+        tableLabel: 'Orders',
+    };
+
+    it('sets baseDimensionType/Interval for a MIN/MAX that aggregates its own DATE column', () => {
+        const metric = convertColumnMetric({
+            ...base,
+            name: 'max_order_date',
+            metric: { type: MetricType.MAX },
+            dimensionType: DimensionType.DATE,
+            dimensionTimeInterval: TimeFrames.DAY,
+        });
+        expect(metric.baseDimensionType).toEqual(DimensionType.DATE);
+        expect(metric.baseDimensionTimeInterval).toEqual(TimeFrames.DAY);
+    });
+
+    it('sets it when an explicit sql equals the column it is declared under', () => {
+        // A `sql` equal to the column it aggregates is still a calendar DATE base.
+        const metric = convertColumnMetric({
+            ...base,
+            name: 'max_order_date_explicit',
+            metric: { type: MetricType.MAX, sql: '${TABLE}.order_date' },
+            dimensionType: DimensionType.DATE,
+            dimensionTimeInterval: TimeFrames.DAY,
+        });
+        expect(metric.baseDimensionType).toEqual(DimensionType.DATE);
+        expect(metric.baseDimensionTimeInterval).toEqual(TimeFrames.DAY);
+    });
+
+    it('does NOT set it when the metric overrides sql to aggregate a different column', () => {
+        // Declared under order_date (DATE) but actually MAX(id), so the column
+        // type must not be inferred as the base.
+        const metric = convertColumnMetric({
+            ...base,
+            name: 'max_id',
+            metric: { type: MetricType.MAX, sql: '${TABLE}.id' },
+            dimensionType: DimensionType.DATE,
+            dimensionTimeInterval: TimeFrames.DAY,
+        });
+        expect(metric.baseDimensionType).toBeUndefined();
+        expect(metric.baseDimensionTimeInterval).toBeUndefined();
+    });
+
+    it('does NOT set it for a non MIN/MAX metric', () => {
+        const metric = convertColumnMetric({
+            ...base,
+            name: 'count_order_date',
+            metric: { type: MetricType.COUNT },
+            dimensionType: DimensionType.DATE,
+            dimensionTimeInterval: TimeFrames.DAY,
+        });
+        expect(metric.baseDimensionType).toBeUndefined();
+    });
+
+    it('does NOT set it for a non-temporal base (e.g. MAX over a number)', () => {
+        const metric = convertColumnMetric({
+            ...base,
+            dimensionName: 'amount',
+            dimensionSql: '${TABLE}.amount',
+            name: 'max_amount',
+            metric: { type: MetricType.MAX },
+            dimensionType: DimensionType.NUMBER,
+        });
+        expect(metric.baseDimensionType).toBeUndefined();
+    });
+
+    it('records a TIMESTAMP base for a MIN/MAX over its own TIMESTAMP column', () => {
+        const metric = convertColumnMetric({
+            ...base,
+            dimensionName: 'created_at',
+            dimensionSql: '${TABLE}.created_at',
+            name: 'min_created_at',
+            metric: { type: MetricType.MIN },
+            dimensionType: DimensionType.TIMESTAMP,
+        });
+        expect(metric.baseDimensionType).toEqual(DimensionType.TIMESTAMP);
+        expect(metric.baseDimensionTimeInterval).toBeUndefined();
+    });
+});
+
+describe('convertModelMetric — base type plumbing', () => {
+    it('leaves the base type undefined for a model-level metric (translator never passes one)', () => {
+        // Model-level metrics call convertModelMetric directly with no base
+        // dimension argument, so they never carry a base type.
+        const metric = convertModelMetric({
+            modelName: 'orders',
+            name: 'max_created_at',
+            metric: { type: MetricType.MAX, sql: '${TABLE}.created_at' },
+            tableLabel: 'Orders',
+        });
+        expect(metric.baseDimensionType).toBeUndefined();
+        expect(metric.baseDimensionTimeInterval).toBeUndefined();
     });
 });
 

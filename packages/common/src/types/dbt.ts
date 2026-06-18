@@ -16,6 +16,7 @@ import { type JoinRelationship } from './explore';
 import {
     FieldType,
     friendlyName,
+    getMinMaxBaseDimensionMetadata,
     type CompactOrAlias,
     type DimensionType,
     type FieldUrl,
@@ -603,6 +604,8 @@ type ConvertModelMetricArgs = {
     modelCategories?: string[];
     modelOwner?: string;
     defaultShowUnderlyingValues?: string[];
+    baseDimensionType?: DimensionType;
+    baseDimensionTimeInterval?: TimeFrames;
 };
 export const convertModelMetric = ({
     modelName,
@@ -617,6 +620,8 @@ export const convertModelMetric = ({
     modelCategories = [],
     modelOwner,
     defaultShowUnderlyingValues,
+    baseDimensionType,
+    baseDimensionTimeInterval,
 }: ConvertModelMetricArgs): Metric => {
     const groups = convertToGroups(metric.groups, metric.group_label);
     const spotlightVisibility =
@@ -672,6 +677,15 @@ export const convertModelMetric = ({
               }
             : {}),
         dimensionReference,
+        ...getMinMaxBaseDimensionMetadata(
+            metric.type,
+            baseDimensionType
+                ? {
+                      type: baseDimensionType,
+                      timeInterval: baseDimensionTimeInterval,
+                  }
+                : undefined,
+        ),
         requiredAttributes,
         anyAttributes,
         ...(metric.urls ? { urls: metric.urls } : null),
@@ -705,10 +719,18 @@ export const convertModelMetric = ({
     };
 };
 
-type ConvertColumnMetricArgs = Omit<ConvertModelMetricArgs, 'metric'> & {
+type ConvertColumnMetricArgs = Omit<
+    ConvertModelMetricArgs,
+    'metric' | 'baseDimensionType' | 'baseDimensionTimeInterval'
+> & {
     metric: DbtColumnLightdashMetric;
     dimensionName?: string;
     dimensionSql: string;
+    // Type/interval of the column this metric is declared under. Only trusted as
+    // the metric's base when the metric does not override `sql` — see
+    // convertColumnMetric.
+    dimensionType?: DimensionType;
+    dimensionTimeInterval?: TimeFrames;
     requiredAttributes?: Record<string, string | string[]>;
     anyAttributes?: Record<string, string | string[]>;
     modelCategories?: string[];
@@ -718,6 +740,8 @@ export const convertColumnMetric = ({
     modelName,
     dimensionName,
     dimensionSql,
+    dimensionType,
+    dimensionTimeInterval,
     name,
     metric,
     source,
@@ -728,8 +752,12 @@ export const convertColumnMetric = ({
     modelCategories = [],
     modelOwner,
     defaultShowUnderlyingValues,
-}: ConvertColumnMetricArgs): Metric =>
-    convertModelMetric({
+}: ConvertColumnMetricArgs): Metric => {
+    // The column's type is only a reliable base when the metric actually
+    // aggregates it: no `sql`, or a `sql` equal to dimensionSql. A `sql` pointing
+    // elsewhere (e.g. MAX(id) under a DATE column) must not inherit the type.
+    const aggregatesOwnColumn = !metric.sql || metric.sql === dimensionSql;
+    return convertModelMetric({
         modelName,
         name,
         metric: {
@@ -748,6 +776,10 @@ export const convertColumnMetric = ({
         dimensionReference: dimensionName
             ? getItemId({ table: modelName, name: dimensionName })
             : undefined,
+        baseDimensionType: aggregatesOwnColumn ? dimensionType : undefined,
+        baseDimensionTimeInterval: aggregatesOwnColumn
+            ? dimensionTimeInterval
+            : undefined,
         requiredAttributes,
         anyAttributes,
         ...(metric.default_time_dimension
@@ -763,6 +795,7 @@ export const convertColumnMetric = ({
         modelOwner,
         defaultShowUnderlyingValues,
     });
+};
 
 export enum DbtManifestVersion {
     V7 = 'v7',

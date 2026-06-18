@@ -868,6 +868,8 @@ export const convertTable = (
                             modelName: model.name,
                             dimensionName: dimension.name,
                             dimensionSql: dimension.sql,
+                            dimensionType: dimension.type,
+                            dimensionTimeInterval: dimension.timeInterval,
                             name,
                             metric,
                             tableLabel,

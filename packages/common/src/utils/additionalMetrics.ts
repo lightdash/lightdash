@@ -1,6 +1,11 @@
 import { convertColumnMetric } from '../types/dbt';
 import { type CompiledTable } from '../types/explore';
-import { DimensionType, MetricType, type Metric } from '../types/field';
+import {
+    DimensionType,
+    getMinMaxBaseDimensionMetadata,
+    MetricType,
+    type Metric,
+} from '../types/field';
 import {
     isPeriodOverPeriodAdditionalMetric,
     type AdditionalMetric,
@@ -27,8 +32,22 @@ export const convertAdditionalMetric = ({
         ? additionalMetric
         : undefined;
 
+    // A MIN/MAX custom metric carries its base dimension's temporal type,
+    // resolved from baseDimensionName (the UI builds `sql` from that dimension).
+    const baseDimension = additionalMetric.baseDimensionName
+        ? table.dimensions[additionalMetric.baseDimensionName]
+        : undefined;
+    const baseDimensionMetadata = getMinMaxBaseDimensionMetadata(
+        additionalMetric.type,
+        baseDimension && {
+            type: baseDimension.type,
+            timeInterval: baseDimension.timeInterval,
+        },
+    );
+
     return {
         ...metric,
+        ...baseDimensionMetadata,
         ...(additionalMetric.filters && {
             filters: additionalMetric.filters,
         }),
