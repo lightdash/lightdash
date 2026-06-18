@@ -6,6 +6,7 @@ import {
     getErrorMessage,
     isUserWithOrg,
     MissingConfigError,
+    NotFoundError,
     ParameterError,
     PullRequestProvider,
     PullRequestSource,
@@ -29,6 +30,7 @@ import {
     listReposAccessibleToInstallation,
     listReposAccessibleToUser,
 } from '../../../clients/github/Github';
+import { getGitlabProjects } from '../../../clients/gitlab/Gitlab';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import type { GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
@@ -562,6 +564,114 @@ export class AiWritebackService extends BaseService {
     }
 
     /**
+     * GitLab analog of {@link getInstallationRepoReadAccess}: the repositories
+     * the org's GitLab app install can read, for the `@`-mention picker and the
+     * agent's repo VFS. GitLab has no per-user account linking yet (the install
+     * acts as a single identity), so there's one token and no user/installation
+     * union. Only two-segment `namespace/project` paths are listed — the mount
+     * layer keys on `owner/repo` (as does the existing dbt-connection parsing),
+     * so deeper subgroups are skipped until the mount model is generalised.
+     */
+    async getGitlabInstallationRepoReadAccess({
+        user,
+        projectUuid,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+    }): Promise<{
+        token: string;
+        hostDomain: string;
+        listRepos: () => Promise<RepoListing[]>;
+        resolveRepoAccess: (
+            owner: string,
+            repo: string,
+        ) => Promise<{ branch: string; token: string }>;
+    }> {
+        const { project, organizationUuid } = await this.assertSourceCodeAccess(
+            {
+                user,
+                projectUuid,
+            },
+        );
+        if (project.dbtConnection.type !== DbtProjectType.GITLAB) {
+            throw new WritebackGitNotConnectedError(
+                PullRequestProvider.GITLAB,
+                'Project is not connected to GitLab',
+            );
+        }
+        const installation =
+            await this.gitlabProvider.resolveInstallation(organizationUuid);
+        if (installation.provider !== PullRequestProvider.GITLAB) {
+            throw new WritebackGitNotConnectedError(
+                PullRequestProvider.GITLAB,
+                'GitLab App is not installed for this organization',
+            );
+        }
+        const { token } = installation;
+        const { hostDomain } = parseGitlabConnection(project.dbtConnection);
+        // The GitLab client is split on host format: makeGitlabRequest-based
+        // reads (createGitlabRepoSource) take a BARE domain and prepend https,
+        // while getGitlabProjects takes a FULL instance URL. Derive both from
+        // the connection's host_domain so gitlab.com and self-hosted both work.
+        const bareHost = hostDomain.replace(/^https?:\/\//, '');
+        const instanceUrl = `https://${bareHost}`;
+
+        // Build the repo map once and memoise it — listRepos and
+        // resolveRepoAccess share it, so the GitLab listing happens at most once.
+        let repoMapPromise: Promise<Map<string, RepoListing>> | null = null;
+        const loadRepoMap = () => {
+            if (!repoMapPromise) {
+                repoMapPromise = (async () => {
+                    const projects = await getGitlabProjects(
+                        token,
+                        instanceUrl,
+                    );
+                    const map = new Map<string, RepoListing>();
+                    projects.forEach(
+                        (p: {
+                            pathWithNamespace: string;
+                            defaultBranch: string | null;
+                            visibility: string;
+                        }) => {
+                            // The agent reads via the API path (path_with_namespace),
+                            // not the display name. Only two-segment paths fit the
+                            // owner/repo mount model; a project with no default
+                            // branch (empty repo) can't be read.
+                            const segments = p.pathWithNamespace.split('/');
+                            if (segments.length !== 2 || !p.defaultBranch)
+                                return;
+                            const [owner, repo] = segments;
+                            map.set(`${owner}/${repo}`, {
+                                owner,
+                                repo,
+                                defaultBranch: p.defaultBranch,
+                                private: p.visibility !== 'public',
+                            });
+                        },
+                    );
+                    return map;
+                })();
+            }
+            return repoMapPromise;
+        };
+
+        return {
+            token,
+            hostDomain: bareHost,
+            listRepos: async () => [...(await loadRepoMap()).values()],
+            resolveRepoAccess: async (owner, repo) => {
+                const entry = (await loadRepoMap()).get(`${owner}/${repo}`);
+                if (!entry) {
+                    throw new NotFoundError(
+                        `GitLab repository ${owner}/${repo} is not accessible to this project's GitLab installation`,
+                    );
+                }
+                return { branch: entry.defaultBranch, token };
+            },
+        };
+    }
+
+    /**
      * List the project's source files for the chat input's `@`-mention file
      * picker. Reuses the same gated, GitHub-only read access as repoShell, and
      * returns paths relative to the dbt sub-folder — the same root the agent's
@@ -619,16 +729,24 @@ export class AiWritebackService extends BaseService {
         user: SessionUser;
         projectUuid: string;
     }): Promise<GitRepo[]> {
-        const access = await this.getInstallationRepoReadAccess({
+        const { project } = await this.assertSourceCodeAccess({
             user,
             projectUuid,
         });
+        const isGitlab = project.dbtConnection.type === DbtProjectType.GITLAB;
+        const access = isGitlab
+            ? await this.getGitlabInstallationRepoReadAccess({
+                  user,
+                  projectUuid,
+              })
+            : await this.getInstallationRepoReadAccess({ user, projectUuid });
         const repos = await access.listRepos();
         return repos.map(({ owner, repo, defaultBranch }) => ({
             name: repo,
             ownerLogin: owner,
             fullName: `${owner}/${repo}`,
             defaultBranch,
+            provider: isGitlab ? 'gitlab' : 'github',
         }));
     }
 

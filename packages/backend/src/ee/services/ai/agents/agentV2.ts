@@ -489,6 +489,7 @@ const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
             siteUrl: args.siteUrl,
             enableRepoDiscovery: args.enableRepoDiscovery,
             repoFsRoot: args.repoFsRoot,
+            repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
             enableContentTools:
                 args.enableAgentRevamp &&
                 args.enableDataAccess &&
