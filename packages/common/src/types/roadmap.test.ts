@@ -10,35 +10,47 @@ import {
 
 describe('mapLinearStateToRoadmapStatus', () => {
     it.each([
-        ['Triage', RoadmapItemStatus.BACKLOG],
-        ['Backlog', RoadmapItemStatus.BACKLOG],
-        ['Todo', RoadmapItemStatus.PLANNED],
-        ['Planned', RoadmapItemStatus.PLANNED],
-        ['In Progress', RoadmapItemStatus.BUILDING],
-        ['Done', RoadmapItemStatus.SHIPPED],
-        ['Canceled', RoadmapItemStatus.NOT_PLANNED],
-    ])('maps state name "%s" to %s', (name, expected) => {
+        ['triage', RoadmapItemStatus.BACKLOG],
+        ['backlog', RoadmapItemStatus.BACKLOG],
+        ['unstarted', RoadmapItemStatus.PLANNED],
+        ['started', RoadmapItemStatus.BUILDING],
+        ['completed', RoadmapItemStatus.SHIPPED],
+        ['canceled', RoadmapItemStatus.NOT_PLANNED],
+    ])('maps canonical state type "%s" to %s', (type, expected) => {
         expect(
-            mapLinearStateToRoadmapStatus({ name, type: 'ignored' }),
+            mapLinearStateToRoadmapStatus({ name: 'ignored', type }),
         ).toBe(expected);
     });
 
-    it('matches state names case-insensitively', () => {
+    it('prefers the canonical type over a renamed state name', () => {
+        // a started state renamed to "Done" must still map to Building
+        expect(
+            mapLinearStateToRoadmapStatus({ name: 'Done', type: 'started' }),
+        ).toBe(RoadmapItemStatus.BUILDING);
+    });
+
+    it('falls back to the state name when the type is missing', () => {
+        expect(
+            mapLinearStateToRoadmapStatus({ name: 'In Progress', type: '' }),
+        ).toBe(RoadmapItemStatus.BUILDING);
+    });
+
+    it('falls back to the state name when the type is unrecognised', () => {
+        expect(
+            mapLinearStateToRoadmapStatus({
+                name: 'Canceled',
+                type: 'custom',
+            }),
+        ).toBe(RoadmapItemStatus.NOT_PLANNED);
+    });
+
+    it('matches the name fallback case-insensitively', () => {
         expect(
             mapLinearStateToRoadmapStatus({ name: 'IN PROGRESS', type: '' }),
         ).toBe(RoadmapItemStatus.BUILDING);
     });
 
-    it('falls back to canonical state type when the name is renamed', () => {
-        expect(
-            mapLinearStateToRoadmapStatus({
-                name: 'In dev review',
-                type: 'started',
-            }),
-        ).toBe(RoadmapItemStatus.BUILDING);
-    });
-
-    it('returns null when neither name nor type is recognised', () => {
+    it('returns null when neither type nor name is recognised', () => {
         expect(
             mapLinearStateToRoadmapStatus({ name: 'Wishlist', type: 'custom' }),
         ).toBeNull();
@@ -49,13 +61,11 @@ describe('buildRoadmapItem', () => {
     it('builds a curated item with the mapped status', () => {
         expect(
             buildRoadmapItem({
-                id: 'abc',
                 title: 'Dark mode',
                 description: 'Please add dark mode',
                 state: { name: 'In Progress', type: 'started' },
             }),
         ).toEqual<RoadmapItem>({
-            id: 'abc',
             title: 'Dark mode',
             description: 'Please add dark mode',
             status: RoadmapItemStatus.BUILDING,
@@ -65,7 +75,6 @@ describe('buildRoadmapItem', () => {
     it('throws when the Linear state cannot be mapped', () => {
         expect(() =>
             buildRoadmapItem({
-                id: 'abc',
                 title: 'Dark mode',
                 description: null,
                 state: { name: 'Wishlist', type: 'custom' },
@@ -88,7 +97,6 @@ describe('findForbiddenRoadmapFields', () => {
     it('returns an empty array for a clean item', () => {
         expect(
             findForbiddenRoadmapFields({
-                id: '1',
                 title: 'x',
                 description: null,
                 status: RoadmapItemStatus.BACKLOG,
@@ -108,13 +116,11 @@ describe('redactRoadmapItem', () => {
             sortOrder: 3,
         });
         expect(result).toEqual<RoadmapItem>({
-            id: '1',
             title: 'Dark mode',
             description: 'body',
             status: RoadmapItemStatus.SHIPPED,
         });
         expect(Object.keys(result)).toEqual([
-            'id',
             'title',
             'description',
             'status',
@@ -124,7 +130,6 @@ describe('redactRoadmapItem', () => {
     it('rejects payloads containing a forbidden field', () => {
         expect(() =>
             redactRoadmapItem({
-                id: '1',
                 title: 'Dark mode',
                 description: null,
                 status: RoadmapItemStatus.BACKLOG,
@@ -136,7 +141,6 @@ describe('redactRoadmapItem', () => {
     it('allows a null description', () => {
         expect(
             redactRoadmapItem({
-                id: '1',
                 title: 'Dark mode',
                 description: null,
                 status: RoadmapItemStatus.BACKLOG,
@@ -145,13 +149,12 @@ describe('redactRoadmapItem', () => {
     });
 
     it.each([
-        ['missing id', { title: 't', description: null, status: RoadmapItemStatus.BACKLOG }],
-        ['missing title', { id: '1', description: null, status: RoadmapItemStatus.BACKLOG }],
+        ['missing title', { description: null, status: RoadmapItemStatus.BACKLOG }],
         [
             'invalid description',
-            { id: '1', title: 't', description: 5, status: RoadmapItemStatus.BACKLOG },
+            { title: 't', description: 5, status: RoadmapItemStatus.BACKLOG },
         ],
-        ['invalid status', { id: '1', title: 't', description: null, status: 'Whenever' }],
+        ['invalid status', { title: 't', description: null, status: 'Whenever' }],
     ])('rejects %s', (_label, raw) => {
         expect(() =>
             redactRoadmapItem(raw as Record<string, unknown>),

@@ -33,14 +33,12 @@ export const isRoadmapItemStatus = (
     ROADMAP_ITEM_STATUSES.includes(value as RoadmapItemStatus);
 
 /**
- * A single curated roadmap item, exactly as exposed to customers.
- *
- * `id` is an opaque, stable identifier used for list keys and detail lookup;
- * it carries no internal data. `description` is nullable because a Linear
+ * A single curated roadmap item, exactly as exposed to customers. These are
+ * the only fields allowed across the curation boundary — the subset already
+ * synced to the public GitHub issue. `description` is nullable because a Linear
  * issue may have an empty body.
  */
 export type RoadmapItem = {
-    id: string;
     title: string;
     description: string | null;
     status: RoadmapItemStatus;
@@ -52,23 +50,10 @@ export type RoadmapItem = {
  * else — this is the allowlist that defines the public surface.
  */
 export const ROADMAP_ITEM_ALLOWED_FIELDS = [
-    'id',
     'title',
     'description',
     'status',
 ] as const satisfies ReadonlyArray<keyof RoadmapItem>;
-
-/**
- * The public content fields, i.e. the subset already synced to the public
- * GitHub issue. Kept separate from {@link ROADMAP_ITEM_ALLOWED_FIELDS} (which
- * additionally includes the opaque `id`) so callers can reason about "content"
- * vs "metadata" explicitly.
- */
-export const ROADMAP_PUBLIC_CONTENT_FIELDS = [
-    'title',
-    'description',
-    'status',
-] as const;
 
 /**
  * Known internal/sensitive field names that must never appear on a curated
@@ -154,24 +139,26 @@ export const LINEAR_STATE_TYPE_TO_ROADMAP_STATUS: Record<
 };
 
 /**
- * Map a Linear workflow state to a customer-facing status. Matches on state
- * name first, then falls back to the canonical state type. Returns `null` when
- * neither is recognised so the caller can decide whether to exclude the item
- * rather than mislabelling it.
+ * Map a Linear workflow state to a customer-facing status. Matches on the
+ * canonical state type first, since that's fixed by Linear, and only falls
+ * back to the (team-customisable) state name when the type is missing or
+ * unrecognised — this avoids mislabelling a renamed state (e.g. a `started`
+ * state renamed to "Done"). Returns `null` when neither is recognised so the
+ * caller can exclude the item rather than mislabelling it.
  */
 export const mapLinearStateToRoadmapStatus = (
     state: LinearWorkflowState,
 ): RoadmapItemStatus | null => {
-    const byName =
-        LINEAR_STATE_NAME_TO_ROADMAP_STATUS[state.name.trim().toLowerCase()];
-    if (byName) {
-        return byName;
-    }
     const byType =
         LINEAR_STATE_TYPE_TO_ROADMAP_STATUS[
             state.type.trim().toLowerCase() as LinearWorkflowStateType
         ];
-    return byType ?? null;
+    if (byType) {
+        return byType;
+    }
+    const byName =
+        LINEAR_STATE_NAME_TO_ROADMAP_STATUS[state.name.trim().toLowerCase()];
+    return byName ?? null;
 };
 
 /**
@@ -183,7 +170,6 @@ export const mapLinearStateToRoadmapStatus = (
  * with a wrong status.
  */
 export const buildRoadmapItem = (input: {
-    id: string;
     title: string;
     description: string | null;
     state: LinearWorkflowState;
@@ -195,7 +181,6 @@ export const buildRoadmapItem = (input: {
         );
     }
     return {
-        id: input.id,
         title: input.title,
         description: input.description,
         status,
@@ -235,11 +220,8 @@ export const redactRoadmapItem = (
         );
     }
 
-    const { id, title, description, status } = raw;
+    const { title, description, status } = raw;
 
-    if (typeof id !== 'string' || id.length === 0) {
-        throw new ParameterError('Roadmap item is missing a valid "id"');
-    }
     if (typeof title !== 'string') {
         throw new ParameterError('Roadmap item is missing a valid "title"');
     }
@@ -255,7 +237,7 @@ export const redactRoadmapItem = (
     }
 
     // Reconstruct from the allowlist only — no other key can leak through.
-    return { id, title, description, status };
+    return { title, description, status };
 };
 
 export type ApiRoadmapResponse = {
