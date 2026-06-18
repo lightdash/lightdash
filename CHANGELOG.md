@@ -1,3 +1,11 @@
+# [0.3196.0](https://github.com/lightdash/lightdash/compare/0.3195.0...0.3196.0) (2026-06-18)
+
+
+### Features
+
+* **ai-writeback:** auto-recompile dbt project after merging a write-… ([#24488](https://github.com/lightdash/lightdash/issues/24488)) ([8571ef2](https://github.com/lightdash/lightdash/commit/8571ef2d8bd3010ce1d9edd0d653a6540559a292))
+* **reviews:** skeleton loading state for the kanban board ([#24490](https://github.com/lightdash/lightdash/issues/24490)) ([d23f466](https://github.com/lightdash/lightdash/commit/d23f466c0a69a58a51cd92676b9522805f4ec30e))
+
 # [0.3195.0](https://github.com/lightdash/lightdash/compare/0.3194.0...0.3195.0) (2026-06-18)
 
 
