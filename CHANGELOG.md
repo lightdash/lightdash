@@ -1,3 +1,10 @@
+# [0.3197.0](https://github.com/lightdash/lightdash/compare/0.3196.1...0.3197.0) (2026-06-18)
+
+
+### Features
+
+* **ai-writeback:** add ai_writeback.merged analytics event ([#24492](https://github.com/lightdash/lightdash/issues/24492)) ([7093add](https://github.com/lightdash/lightdash/commit/7093add483996483a2cc334854ae258a0391b899))
+
 ## [0.3196.1](https://github.com/lightdash/lightdash/compare/0.3196.0...0.3196.1) (2026-06-18)
 
 
