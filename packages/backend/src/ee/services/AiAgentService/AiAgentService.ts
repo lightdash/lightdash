@@ -5437,6 +5437,13 @@ export class AiAgentService extends BaseService {
         return { relevantVerifiedAnswers: verifiedArtifacts };
     }
 
+    static stripSlackMentions(text: string): string {
+        return text.replaceAll(/<@U\d+\w*?>/g, '').trim();
+    }
+
+    private static readonly EMPTY_PROMPT_WELCOME =
+        "Hi! 👋 What would you like to know? Ask me a question about your data and I'll take a look.";
+
     static createRelevantArtifactsMessage(
         artifacts: {
             chartConfig: Record<string, unknown>;
@@ -5654,12 +5661,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const messagesWithToolCalls = await Promise.all(
             threadMessages.map(async (message, index) => {
-                const messages: ModelMessage[] = [
-                    {
-                        role: 'user',
-                        content: message.prompt,
-                    } satisfies UserModelMessage,
-                ];
+                const messages: ModelMessage[] =
+                    message.prompt.trim().length > 0
+                        ? [
+                              {
+                                  role: 'user',
+                                  content: message.prompt,
+                              } satisfies UserModelMessage,
+                          ]
+                        : [];
 
                 const pinnedContextMessage =
                     AiAgentService.createPinnedContextMessage(
@@ -5750,6 +5760,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const history = messagesWithToolCalls.flat();
 
         if (!options.compaction) {
+            if (history.length === 0) {
+                return [
+                    {
+                        role: 'user',
+                        content:
+                            "The user hasn't asked anything yet. Greet them and ask what they'd like to know about their data.",
+                    } satisfies UserModelMessage,
+                ];
+            }
             return history;
         }
 
@@ -7267,12 +7286,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             );
         }
 
-        const slackTagRegex = /<@U\d+\w*?>/g;
-
         const uuid = await this.aiAgentModel.createSlackPrompt({
             threadUuid,
             createdByUserUuid: data.userUuid,
-            prompt: data.prompt.replaceAll(slackTagRegex, '').trim(),
+            prompt: AiAgentService.stripSlackMentions(data.prompt),
             slackUserId: data.slackUserId,
             slackChannelId: data.slackChannelId,
             promptSlackTs: data.promptSlackTs,
@@ -8259,6 +8276,18 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         let agent: AiAgent | undefined;
         if (thread.agentUuid) {
             agent = await this.getAgent(user, thread.agentUuid);
+        }
+
+        if (slackPrompt.prompt.trim().length === 0) {
+            const welcomeText = AiAgentService.EMPTY_PROMPT_WELCOME;
+            await this.slackClient.updateMessage({
+                organizationUuid: slackPrompt.organizationUuid,
+                text: welcomeText,
+                blocks: getMarkdownBlocks(welcomeText),
+                channelId: slackPrompt.slackChannelId,
+                messageTs: slackPrompt.response_slack_ts,
+            });
+            return;
         }
 
         let response: string | undefined;
@@ -11302,6 +11331,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         botId: context.botId,
                     });
                 }
+            }
+
+            if (
+                AiAgentService.stripSlackMentions(event.text ?? '').length === 0
+            ) {
+                const welcomeText = AiAgentService.EMPTY_PROMPT_WELCOME;
+                await say({
+                    username: agentConfig.name,
+                    thread_ts: event.thread_ts ?? event.ts,
+                    text: welcomeText,
+                    blocks: getMarkdownBlocks(welcomeText),
+                });
+                return;
             }
 
             [slackPromptUuid, createdThread] = await this.createSlackPrompt({

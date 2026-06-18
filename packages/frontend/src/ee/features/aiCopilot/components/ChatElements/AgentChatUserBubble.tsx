@@ -44,6 +44,7 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
     const app = useApp();
     const showUserName =
         !!name && app.user?.data?.userUuid !== message.user.uuid;
+    const isEmptyMessage = message.message.trim().length === 0;
     const { matchedKeys, segments } = buildContentReferenceSegments(
         message.message,
         message.context,
@@ -107,9 +108,15 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
                 px="sm"
                 withBorder
                 color="white"
-                className={styles.messageCard}
+                className={`${styles.messageCard} ${
+                    isEmptyMessage ? styles.emptyMessageCard : ''
+                }`}
             >
-                {hasInlineReferences && projectUuid ? (
+                {isEmptyMessage ? (
+                    <Text size="xs" fs="italic" c="dimmed">
+                        No message
+                    </Text>
+                ) : hasInlineReferences && projectUuid ? (
                     <Box className={`${styles.markdown} ${styles.messageText}`}>
                         {segments.map((segment, idx) => {
                             if (segment.type === 'text') {
