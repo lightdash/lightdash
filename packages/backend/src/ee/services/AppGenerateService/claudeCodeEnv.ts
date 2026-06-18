@@ -13,7 +13,8 @@ export type ClaudeCodeBedrockConfig =
           accessKeyId: string;
           secretAccessKey: string;
           sessionToken?: string;
-      };
+      }
+    | { region: string; useDefaultCredentials: true };
 
 /**
  * The slice of the AI copilot config the Claude CLI env depends on: the active
@@ -44,7 +45,7 @@ const resolveBedrockConfig = (
     const { bedrock } = copilot.providers;
     if (!bedrock) {
         throw new MissingConfigError(
-            'AI_DEFAULT_PROVIDER is set to "bedrock" but no Bedrock credentials are configured. Set BEDROCK_API_KEY, or BEDROCK_ACCESS_KEY_ID and BEDROCK_SECRET_ACCESS_KEY (with BEDROCK_REGION).',
+            'AI_DEFAULT_PROVIDER is set to "bedrock" but no Bedrock credentials are configured. Set BEDROCK_API_KEY, BEDROCK_ACCESS_KEY_ID and BEDROCK_SECRET_ACCESS_KEY, or BEDROCK_USE_DEFAULT_CREDENTIALS (with BEDROCK_REGION).',
         );
     }
     if (!bedrock.region) {
@@ -84,14 +85,18 @@ export const buildClaudeCodeEnv = (
         return { ...base, AWS_BEARER_TOKEN_BEDROCK: bedrock.apiKey };
     }
 
-    return {
-        ...base,
-        AWS_ACCESS_KEY_ID: bedrock.accessKeyId,
-        AWS_SECRET_ACCESS_KEY: bedrock.secretAccessKey,
-        ...(bedrock.sessionToken
-            ? { AWS_SESSION_TOKEN: bedrock.sessionToken }
-            : {}),
-    };
+    if ('accessKeyId' in bedrock) {
+        return {
+            ...base,
+            AWS_ACCESS_KEY_ID: bedrock.accessKeyId,
+            AWS_SECRET_ACCESS_KEY: bedrock.secretAccessKey,
+            ...(bedrock.sessionToken
+                ? { AWS_SESSION_TOKEN: bedrock.sessionToken }
+                : {}),
+        };
+    }
+
+    return base;
 };
 
 /**
