@@ -99,6 +99,13 @@ export const buildContentReferenceSegments = (
             .filter(({ start }) => start >= 0)
             .sort((a, b) => {
                 if (a.start !== b.start) return a.start - b.start;
+                // When two references share a label and position (e.g. a file
+                // and a repository both named "owner/name"), prefer the one not
+                // yet matched so each distinct reference claims an occurrence,
+                // rather than the first reference claiming them all.
+                const aMatched = matchedKeys.has(a.key) ? 1 : 0;
+                const bMatched = matchedKeys.has(b.key) ? 1 : 0;
+                if (aMatched !== bMatched) return aMatched - bMatched;
                 if (a.label.length !== b.label.length) {
                     return b.label.length - a.label.length;
                 }

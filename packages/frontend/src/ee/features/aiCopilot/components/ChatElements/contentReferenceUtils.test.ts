@@ -84,4 +84,28 @@ describe('contentReferenceUtils', () => {
             'repository:charliedowler/Slugger',
         ]);
     });
+
+    it('matches a same-named file and repository to separate occurrences', () => {
+        const result = buildContentReferenceSegments(
+            'compare file hello/world with repo hello/world',
+            [
+                { type: 'file', path: 'hello/world' },
+                { type: 'repository', fullName: 'hello/world' },
+            ],
+        );
+
+        const references = result.segments.filter(
+            (segment) => segment.type === 'reference',
+        );
+        // Two occurrences, two distinct references — the first goes to the file,
+        // the second to the repository (not the file twice).
+        expect(references.map((s) => s.type === 'reference' && s.key)).toEqual([
+            'file:hello/world',
+            'repository:hello/world',
+        ]);
+        expect([...result.matchedKeys]).toEqual([
+            'file:hello/world',
+            'repository:hello/world',
+        ]);
+    });
 });
