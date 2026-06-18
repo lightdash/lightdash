@@ -1,3 +1,10 @@
+## [0.3190.2](https://github.com/lightdash/lightdash/compare/0.3190.1...0.3190.2) (2026-06-18)
+
+
+### Bug Fixes
+
+* replace email domain package ([#24461](https://github.com/lightdash/lightdash/issues/24461)) ([81b27f1](https://github.com/lightdash/lightdash/commit/81b27f14247f675d75dfc51159f6eeb96a68ab3f)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.3190.1](https://github.com/lightdash/lightdash/compare/0.3190.0...0.3190.1) (2026-06-18)
 
 
