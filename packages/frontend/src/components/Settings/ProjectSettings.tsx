@@ -52,8 +52,13 @@ const ProjectSettings: FC = () => {
         FeatureFlags.EnableDataApps,
     );
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
+    const { data: dataAppExternalAccessFlag } = useServerFeatureFlag(
+        FeatureFlags.EnableDataAppExternalAccess,
+    );
+    const isExternalAccessEnabled = dataAppExternalAccessFlag?.enabled ?? false;
     const canManageExternalConnections =
         isDataAppsEnabled &&
+        isExternalAccessEnabled &&
         !!project &&
         (user.data?.ability.can(
             'manage',

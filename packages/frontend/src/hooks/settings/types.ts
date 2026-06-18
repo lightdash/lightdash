@@ -50,6 +50,7 @@ export type SettingsContext = {
     isAiCopilotEnabledOrTrial: boolean;
     shouldShowAiAgentReviews: boolean;
     dataAppsFlag: FeatureFlag | undefined;
+    dataAppExternalAccessFlag: FeatureFlag | undefined;
     embeddingEnabled: FeatureFlag | undefined;
     allowPasswordAuthentication: boolean;
     hasSocialLogin: boolean | undefined;

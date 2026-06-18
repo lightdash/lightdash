@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { FeatureFlags } from '@lightdash/common';
 import {
     ActionIcon,
     Button,
@@ -12,6 +13,7 @@ import {
 import { IconPlugConnected, IconTrash } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import useApp from '../../../providers/App/useApp';
 import { ExfilWarningCallout } from '../../externalConnections/components/ExfilWarningCallout';
@@ -37,13 +39,19 @@ export const AppExternalConnectionsSection: FC<Props> = ({
 }) => {
     const ability = useAbilityContext();
     const { user } = useApp();
-    const canManage = ability.can(
-        'manage',
-        subject('ExternalConnection', {
-            organizationUuid: user.data?.organizationUuid,
-            projectUuid,
-        }),
+    const { data: externalAccessFlag } = useServerFeatureFlag(
+        FeatureFlags.EnableDataAppExternalAccess,
     );
+    const isExternalAccessEnabled = externalAccessFlag?.enabled ?? false;
+    const canManage =
+        isExternalAccessEnabled &&
+        ability.can(
+            'manage',
+            subject('ExternalConnection', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid,
+            }),
+        );
 
     const { data: connections = [] } = useExternalConnections(
         canManage ? projectUuid : undefined,
