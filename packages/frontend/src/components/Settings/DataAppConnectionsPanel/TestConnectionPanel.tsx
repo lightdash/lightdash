@@ -39,6 +39,7 @@ export const TestConnectionPanel: FC<Props> = ({
     );
     const [method, setMethod] = useState<'GET' | 'POST'>('GET');
     const [path, setPath] = useState('/');
+    const [queryParams, setQueryParams] = useState('');
     const [requestBody, setRequestBody] = useState('');
 
     const { showToastError } = useToaster();
@@ -51,6 +52,16 @@ export const TestConnectionPanel: FC<Props> = ({
 
     const handleTest = () => {
         if (!selectedConnection) return;
+
+        let parsedQuery: Record<string, string> | undefined;
+        if (queryParams.trim()) {
+            try {
+                parsedQuery = JSON.parse(queryParams);
+            } catch {
+                showToastError({ title: 'Query params are not valid JSON' });
+                return;
+            }
+        }
 
         let parsedBody: unknown;
         if (method === 'POST' && requestBody.trim()) {
@@ -67,6 +78,7 @@ export const TestConnectionPanel: FC<Props> = ({
             connectionUuid: selectedConnection.externalConnectionUuid,
             method,
             path,
+            query: parsedQuery,
             body: parsedBody,
         });
     };
@@ -123,6 +135,16 @@ export const TestConnectionPanel: FC<Props> = ({
                     style={{ flexGrow: 1 }}
                 />
             </Group>
+
+            <Textarea
+                label="Query params (JSON)"
+                description="Sent as URL query params. Values must be strings."
+                value={queryParams}
+                onChange={(e) => setQueryParams(e.currentTarget.value)}
+                placeholder='{"latitude": "52.52", "longitude": "13.41"}'
+                rows={3}
+                ff="monospace"
+            />
 
             {method === 'POST' && (
                 <Textarea
