@@ -28,9 +28,7 @@ interface ActiveFiltersProps {
     openPopoverId: string | undefined;
     onPopoverOpen: (popoverId: string) => void;
     onPopoverClose: () => void;
-    /** Public embed styling-contract class for each filter pill. Set only by the embed path; see ee/features/embed/CLAUDE.md. */
     triggerClassName?: string;
-    /** Public embed styling-contract class for the portalled filter dropdown. Set only by the embed path; see ee/features/embed/CLAUDE.md. */
     dropdownClassName?: string;
 }
 

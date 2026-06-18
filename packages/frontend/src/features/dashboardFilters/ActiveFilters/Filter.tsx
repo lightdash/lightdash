@@ -51,9 +51,7 @@ type Props = {
     isTemporary?: boolean;
     field: DashboardFilterableField | undefined;
     filterRule: DashboardFilterRule;
-    /** Public embed styling-contract class for the filter pill. Set only by the embed path; see ee/features/embed/CLAUDE.md. */
     triggerClassName?: string;
-    /** Public embed styling-contract class for the portalled dropdown. Set only by the embed path; see ee/features/embed/CLAUDE.md. */
     dropdownClassName?: string;
     openPopoverId: string | undefined;
     onPopoverOpen: (popoverId: string) => void;

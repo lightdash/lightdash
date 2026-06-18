@@ -4,9 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { EMBED_CLASS_CONTRACT, embedContractClass } from './embedClassContract';
 
-// Raw source of the embed wrappers that apply the contract classes. Every
-// `embedContractClass(...)` call site lives in this directory, so scanning it
-// tells us which classes are actually wired onto an element.
+// Every `embedContractClass(...)` call site lives in the embed wrappers.
 const componentsDir = join(
     dirname(fileURLToPath(import.meta.url)),
     '../EmbedDashboard/components',
@@ -17,9 +15,7 @@ const componentSource = readdirSync(componentsDir)
     .join('\n');
 
 describe('embed class contract', () => {
-    // The public class vocabulary is FROZEN: renaming or removing an entry
-    // breaks embedding customers' stylesheets. Change this list only with a
-    // deliberate deprecation — never to make a failing test pass.
+    // Frozen public vocabulary: renaming/removing a class breaks customer CSS.
     it('exposes exactly the published classnames', () => {
         expect([...EMBED_CLASS_CONTRACT]).toEqual([
             'ld-dashboard-header',
@@ -34,9 +30,7 @@ describe('embed class contract', () => {
         ]);
     });
 
-    // A registered class that is never applied is a hook customers are told
-    // exists but that never renders. Guard against adding to the registry
-    // without wiring it onto a component.
+    // Every registered class must actually be applied to an element.
     it.each([...EMBED_CLASS_CONTRACT])(
         'applies "%s" in an embed component',
         (className) => {

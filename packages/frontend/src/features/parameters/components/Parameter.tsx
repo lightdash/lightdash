@@ -34,9 +34,7 @@ type Props = {
     isRequired?: boolean;
     isEditMode?: boolean;
     isDraggable?: boolean;
-    /** Public embed styling-contract class for the parameter pill. Set only by the embed path; see ee/features/embed/CLAUDE.md. */
     triggerClassName?: string;
-    /** Public embed styling-contract class for the portalled dropdown. Set only by the embed path; see ee/features/embed/CLAUDE.md. */
     dropdownClassName?: string;
 };
 

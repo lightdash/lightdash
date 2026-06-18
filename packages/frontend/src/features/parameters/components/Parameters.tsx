@@ -30,9 +30,7 @@ type Props = {
     onParameterReorder?: (order: string[]) => void;
     /** Separator element to render with the first parameter (so they wrap together) */
     separator?: ReactNode;
-    /** Public embed styling-contract class for each parameter pill. Set only by the embed path; see ee/features/embed/CLAUDE.md. */
     triggerClassName?: string;
-    /** Public embed styling-contract class for the portalled parameter dropdown. Set only by the embed path; see ee/features/embed/CLAUDE.md. */
     dropdownClassName?: string;
 };
 
