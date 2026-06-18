@@ -27,7 +27,9 @@ import {
 } from '../../../clients/github/Github';
 import {
     AiWritebackService,
+    computeWritableRepoKeys,
     mergeSourceCodeRepoAccess,
+    parseOwnerRepo,
 } from './AiWritebackService';
 import {
     COMPILE_WRAPPER_PATH,
@@ -1126,5 +1128,70 @@ describe('mergeSourceCodeRepoAccess', () => {
         ]);
         expect(map.get('me/personal')?.token).toBe('user-token');
         expect(map.get('acme/shared')?.token).toBe('inst-token'); // org wins
+    });
+});
+
+describe('parseOwnerRepo', () => {
+    it('parses a valid owner/repo', () => {
+        expect(parseOwnerRepo('acme/web-app')).toEqual({
+            owner: 'acme',
+            repo: 'web-app',
+        });
+    });
+
+    it('trims whitespace and a trailing .git', () => {
+        expect(parseOwnerRepo('  acme/web-app.git ')).toEqual({
+            owner: 'acme',
+            repo: 'web-app',
+        });
+    });
+
+    it.each([undefined, '', 'noslash', 'a/b/c', 'owner/', '/repo'])(
+        'throws ParameterError on malformed input %p',
+        (input) => {
+            expect(() => parseOwnerRepo(input as string)).toThrow();
+        },
+    );
+});
+
+describe('computeWritableRepoKeys', () => {
+    const r = (owner: string, repo: string) => ({ owner, repo });
+
+    it('without user intersection, every installation repo is writable', () => {
+        const keys = computeWritableRepoKeys(
+            [r('acme', 'a'), r('acme', 'b')],
+            [],
+            false,
+        );
+        expect([...keys].sort()).toEqual(['acme/a', 'acme/b']);
+    });
+
+    it('with user intersection, only repos in BOTH sets are writable', () => {
+        const keys = computeWritableRepoKeys(
+            [r('acme', 'a'), r('acme', 'b'), r('acme', 'c')],
+            [r('acme', 'b'), r('acme', 'c'), r('me', 'x')],
+            true,
+        );
+        // acme/a is install-only (excluded); me/x is user-only (not installable)
+        expect([...keys].sort()).toEqual(['acme/b', 'acme/c']);
+    });
+
+    it('never marks the denylisted lightdash/lightdash writable', () => {
+        const keys = computeWritableRepoKeys(
+            [r('lightdash', 'lightdash'), r('acme', 'a')],
+            [],
+            false,
+        );
+        expect(keys.has('lightdash/lightdash')).toBe(false);
+        expect(keys.has('acme/a')).toBe(true);
+    });
+
+    it('denylist is case-insensitive', () => {
+        const keys = computeWritableRepoKeys(
+            [r('Lightdash', 'Lightdash')],
+            [],
+            false,
+        );
+        expect(keys.size).toBe(0);
     });
 });

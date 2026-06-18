@@ -15322,104 +15322,6 @@
                                             },
                                             {
                                                 "properties": {
-                                                    "steps": {
-                                                        "items": {
-                                                            "properties": {
-                                                                "label": {
-                                                                    "type": "string"
-                                                                },
-                                                                "kind": {
-                                                                    "type": "string",
-                                                                    "enum": [
-                                                                        "read",
-                                                                        "edit",
-                                                                        "search",
-                                                                        "compile",
-                                                                        "stage"
-                                                                    ]
-                                                                }
-                                                            },
-                                                            "required": [
-                                                                "label",
-                                                                "kind"
-                                                            ],
-                                                            "type": "object"
-                                                        },
-                                                        "type": "array",
-                                                        "nullable": true
-                                                    },
-                                                    "deletions": {
-                                                        "type": "number",
-                                                        "format": "double",
-                                                        "nullable": true
-                                                    },
-                                                    "additions": {
-                                                        "type": "number",
-                                                        "format": "double",
-                                                        "nullable": true
-                                                    },
-                                                    "commitSha": {
-                                                        "type": "string",
-                                                        "nullable": true
-                                                    },
-                                                    "prAction": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "opened",
-                                                            "updated",
-                                                            null
-                                                        ],
-                                                        "nullable": true
-                                                    },
-                                                    "repository": {
-                                                        "type": "string",
-                                                        "nullable": true
-                                                    },
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": ["success"],
-                                                        "nullable": false
-                                                    },
-                                                    "prUrl": {
-                                                        "type": "string",
-                                                        "nullable": true
-                                                    }
-                                                },
-                                                "required": ["status", "prUrl"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "reason": {
-                                                        "type": "string",
-                                                        "nullable": true
-                                                    },
-                                                    "errorCode": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "unknown",
-                                                            "repo_write_forbidden",
-                                                            "github_not_installed",
-                                                            "gitlab_not_installed",
-                                                            "pull_request_not_open",
-                                                            "git_write_permission",
-                                                            "repo_too_large",
-                                                            "denied_path",
-                                                            null
-                                                        ],
-                                                        "nullable": true
-                                                    },
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": ["error"],
-                                                        "nullable": false
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
                                                     "href": {
                                                         "type": "string"
                                                     },
@@ -21069,6 +20971,9 @@
             },
             "GitRepo": {
                 "properties": {
+                    "writable": {
+                        "type": "boolean"
+                    },
                     "provider": {
                         "type": "string",
                         "enum": ["github", "gitlab"]

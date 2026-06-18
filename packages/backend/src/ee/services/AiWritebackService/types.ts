@@ -167,6 +167,24 @@ export type CodingAgentConfig = {
     afterAgentRun: (sandbox: Sandbox) => Promise<void>;
 };
 
+/**
+ * The git-target half of a {@link TurnContext}, resolved per mode before the
+ * shared resume/edit-state logic runs: dbt writeback resolves it from the
+ * project's dbt connection; the general agent resolves an arbitrary writable
+ * repo via the authz chokepoint.
+ */
+export type ResolvedTurnTarget = {
+    organizationUuid: string;
+    projectName: string;
+    /** Resolved once from the target; the service never re-branches the host. */
+    provider: GitProvider;
+    gitConnection: GitConnection;
+    /** Warehouse dialect for the skill file; null for the general agent. */
+    warehouseType: WarehouseTypes | null;
+    /** Resolved dbt version (compile-wrapper PATH); a default for the general agent. */
+    dbtVersion: SupportedDbtVersions;
+};
+
 export type TurnContext = {
     organizationUuid: string;
     projectName: string;
@@ -264,10 +282,9 @@ export type AiWritebackRunArgs = {
     user: SessionUser;
     projectUuid: string;
     /**
-     * For the general coding agent (`editRepo`): the `owner/repo` the user asked
-     * to edit. Slice 1 records it for logging but resolves the project's already
-     * connected repo; arbitrary-repo targeting + per-repo write authz arrive in a
-     * later slice. Ignored by the dbt-writeback path.
+     * For the general coding agent (`editRepo`): the `owner/repo` to edit,
+     * resolved + authorized via `resolveWritableRepoTarget` (user ∩ installation,
+     * denylist, manage:SourceCode). Ignored by the dbt-writeback path.
      */
     repoTarget?: string;
     prompt: string;

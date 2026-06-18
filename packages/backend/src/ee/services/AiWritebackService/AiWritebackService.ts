@@ -92,6 +92,7 @@ import type {
     CloneTarget,
     CodingAgentConfig,
     GitInstallation,
+    ResolvedTurnTarget,
     SetStage,
     TurnContext,
 } from './types';
@@ -213,6 +214,51 @@ export const mergeSourceCodeRepoAccess = (
         });
     }
     return map;
+};
+
+/**
+ * Repositories the coding agent must NEVER write, regardless of installation or
+ * user access (kept lowercase; compared case-insensitively). Lightdash's own
+ * repo is hard-denied so the org installation can't be turned against it.
+ */
+export const DENYLISTED_WRITE_REPOS = new Set(['lightdash/lightdash']);
+
+/** Parse a `owner/repo` target; throws {@link ParameterError} if malformed. */
+export const parseOwnerRepo = (
+    repoTarget: string | undefined,
+): { owner: string; repo: string } => {
+    const trimmed = (repoTarget ?? '').trim().replace(/\.git$/, '');
+    const match = /^([^/\s]+)\/([^/\s]+)$/.exec(trimmed);
+    if (!match) {
+        throw new ParameterError(
+            `Invalid repository target "${repoTarget ?? ''}". Expected "owner/repo".`,
+        );
+    }
+    return { owner: match[1], repo: match[2] };
+};
+
+/**
+ * The single predicate behind both the writable-repo list flag and the
+ * {@link AiWritebackService.resolveWritableRepoTarget} chokepoint — they MUST
+ * agree or the picker offers repos the backend then 403s (R5). A repo is
+ * writable when the org installation can reach it (the app holds contents:write)
+ * AND — when the user has linked a personal GitHub — they can reach it too
+ * (user-intersection, R1). Unlinked users fall back to the installation scope,
+ * gated by manage:SourceCode on the project. Denylisted repos are never
+ * writable.
+ */
+export const computeWritableRepoKeys = (
+    installationRepos: { owner: string; repo: string }[],
+    userRepos: { owner: string; repo: string }[],
+    intersectWithUser: boolean,
+): Set<string> => {
+    const userKeys = new Set(userRepos.map((r) => `${r.owner}/${r.repo}`));
+    return new Set(
+        installationRepos
+            .map((r) => `${r.owner}/${r.repo}`)
+            .filter((key) => !DENYLISTED_WRITE_REPOS.has(key.toLowerCase()))
+            .filter((key) => !intersectWithUser || userKeys.has(key)),
+    );
 };
 
 export class AiWritebackService extends BaseService {
@@ -849,6 +895,11 @@ export class AiWritebackService extends BaseService {
      * {@link getInstallationRepoReadAccess} — so a user without source-code
      * access can't enumerate repo names (unlike the org-wide
      * `/github/repos/list` endpoint).
+     *
+     * Each repo carries a `writable` flag from the SAME predicate the editRepo
+     * authz chokepoint uses ({@link computeWritableRepoKeys}), so the picker can
+     * disable repos the backend would 403 (R5). GitLab repos are read-only for
+     * now (write support is a later slice).
      */
     async listProjectRepositories({
         user,
@@ -861,20 +912,87 @@ export class AiWritebackService extends BaseService {
             user,
             projectUuid,
         });
-        const isGitlab = project.dbtConnection.type === DbtProjectType.GITLAB;
-        const access = isGitlab
-            ? await this.getGitlabInstallationRepoReadAccess({
-                  user,
-                  projectUuid,
-              })
-            : await this.getInstallationRepoReadAccess({ user, projectUuid });
-        const repos = await access.listRepos();
-        return repos.map(({ owner, repo, defaultBranch }) => ({
+
+        if (project.dbtConnection.type === DbtProjectType.GITLAB) {
+            const access = await this.getGitlabInstallationRepoReadAccess({
+                user,
+                projectUuid,
+            });
+            const repos = await access.listRepos();
+            return repos.map(({ owner, repo, defaultBranch }) => ({
+                name: repo,
+                ownerLogin: owner,
+                fullName: `${owner}/${repo}`,
+                defaultBranch,
+                provider: 'gitlab',
+                // GitLab write targeting is a later slice.
+                writable: false,
+            }));
+        }
+
+        // GitHub: list installation + user repos once, build the read union for
+        // display and the writable set (installation ∩ user) from the same data.
+        const { installationId } = await this.resolveSourceCodeInstallation({
+            user,
+            projectUuid,
+        });
+        const userToken = isUserWithOrg(user)
+            ? await this.githubAppService.getValidUserToken(
+                  user.userUuid,
+                  user.organizationUuid,
+              )
+            : undefined;
+        const installationRepos = await listReposAccessibleToInstallation({
+            installationId,
+        });
+        let intersectWithUser = Boolean(userToken);
+        let userRepos: {
+            owner: string;
+            repo: string;
+            defaultBranch: string;
+            private: boolean;
+        }[] = [];
+        if (userToken) {
+            try {
+                userRepos = await listReposAccessibleToUser({
+                    token: userToken,
+                });
+            } catch (error) {
+                intersectWithUser = false;
+                this.logger.warn(
+                    `AiCodingAgent: user repo listing failed in picker — degrading writable flags to installation scope: ${getErrorMessage(
+                        error,
+                    )}`,
+                );
+            }
+        }
+
+        const writableKeys = computeWritableRepoKeys(
+            installationRepos,
+            userRepos,
+            intersectWithUser,
+        );
+
+        // Read union for display (installation ∪ user), deduped by owner/repo.
+        const union = new Map<
+            string,
+            { owner: string; repo: string; defaultBranch: string }
+        >();
+        for (const r of [...installationRepos, ...userRepos]) {
+            union.set(`${r.owner}/${r.repo}`, {
+                owner: r.owner,
+                repo: r.repo,
+                defaultBranch: r.defaultBranch,
+            });
+        }
+
+        return [...union.values()].map(({ owner, repo, defaultBranch }) => ({
             name: repo,
             ownerLogin: owner,
             fullName: `${owner}/${repo}`,
             defaultBranch,
-            provider: isGitlab ? 'gitlab' : 'github',
+            provider: 'github',
+            writable: writableKeys.has(`${owner}/${repo}`),
         }));
     }
 
@@ -1126,6 +1244,8 @@ export class AiWritebackService extends BaseService {
             aiThreadUuid,
             source,
             featureFlag: config.featureFlag,
+            mode: config.mode,
+            repoTarget: args.repoTarget,
         });
 
         this.logger.info('AI writeback run started', {
@@ -1388,38 +1508,38 @@ export class AiWritebackService extends BaseService {
         aiThreadUuid,
         source,
         featureFlag,
+        mode,
+        repoTarget,
     }: {
         user: SessionUser;
         projectUuid: string;
         aiThreadUuid: string | undefined;
         source: AiWritebackSource;
         featureFlag: FeatureFlags;
+        mode: CodingAgentConfig['mode'];
+        /** The general agent's `owner/repo` target; ignored for dbt writeback. */
+        repoTarget: string | undefined;
     }): Promise<TurnContext> {
         await this.assertEnabled(user, source, featureFlag);
-
-        const project = await this.projectModel.get(projectUuid);
-        // Writeback opens a PR from a freshly created feature branch
-        // (`lightdash-ai-writeback/<uuid>`), so `isProtectedBranch: false`
-        // mirrors the gate on GitIntegrationService's PR-creating paths.
-        const canWriteback = this.createAuditedAbility(user).can(
-            'manage',
-            subject('SourceCode', {
-                organizationUuid: project.organizationUuid,
-                projectUuid,
-                isProtectedBranch: false,
-            }),
-        );
-        if (!canWriteback) {
-            throw new ForbiddenError();
-        }
 
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
 
-        // Resolve the git host once; the rest of the run stays host-agnostic.
-        const provider = this.getGitProvider(project.dbtConnection.type);
-        const gitConnection = provider.resolveConnection(project.dbtConnection);
+        const project = await this.projectModel.get(projectUuid);
+
+        // Resolve the run's git target. dbt writeback targets the project's
+        // dbt-connection repo; the general agent resolves an arbitrary writable
+        // repo through the authz chokepoint. Each resolver enforces
+        // manage:SourceCode (isProtectedBranch:false) itself.
+        const target =
+            mode === 'general'
+                ? await this.resolveWritableRepoTarget({
+                      user,
+                      project,
+                      repoTarget,
+                  })
+                : this.resolveDbtTurnTarget({ user, project });
 
         // Resume only when both the caller supplied a thread uuid AND we
         // have a stored sandbox for it. Otherwise we start fresh.
@@ -1433,13 +1553,13 @@ export class AiWritebackService extends BaseService {
         // before spinning up the sandbox and tell the user to start a new
         // thread. (Pasted-link turns are validated separately in adoptPullRequest.)
         if (existingRow?.pr_url) {
-            const installation = await provider.resolveInstallation(
+            const installation = await target.provider.resolveInstallation(
                 user.organizationUuid,
-                { user, connection: gitConnection },
+                { user, connection: target.gitConnection },
             );
-            const editState = await provider.getPullRequestEditState({
+            const editState = await target.provider.getPullRequestEditState({
                 prUrl: existingRow.pr_url,
-                connection: gitConnection,
+                connection: target.gitConnection,
                 installation,
             });
             if (!editState.editable && editState.reason) {
@@ -1447,26 +1567,186 @@ export class AiWritebackService extends BaseService {
             }
         }
 
+        return {
+            ...target,
+            existingRow,
+            isResume: existingRow !== null,
+        };
+    }
+
+    /**
+     * The shared `manage:SourceCode` gate for any coding-agent write. Mirrors
+     * GitIntegrationService's PR-creating paths: writes open a PR from a fresh
+     * feature branch, so `isProtectedBranch: false`.
+     */
+    private assertCanManageSourceCode(
+        user: SessionUser,
+        project: Awaited<ReturnType<ProjectModel['get']>>,
+        projectUuid: string,
+    ): void {
+        const canManage = this.createAuditedAbility(user).can(
+            'manage',
+            subject('SourceCode', {
+                organizationUuid: project.organizationUuid,
+                projectUuid,
+                isProtectedBranch: false,
+            }),
+        );
+        if (!canManage) {
+            throw new ForbiddenError();
+        }
+    }
+
+    /**
+     * Resolve the dbt-writeback target: the project's own dbt-connection repo,
+     * its warehouse dialect, and resolved dbt version. Gated by
+     * manage:SourceCode.
+     */
+    private resolveDbtTurnTarget({
+        user,
+        project,
+    }: {
+        user: SessionUser;
+        project: Awaited<ReturnType<ProjectModel['get']>>;
+    }): ResolvedTurnTarget {
+        this.assertCanManageSourceCode(user, project, project.projectUuid);
+
+        // Resolve the git host once; the rest of the run stays host-agnostic.
+        const provider = this.getGitProvider(project.dbtConnection.type);
+        const gitConnection = provider.resolveConnection(project.dbtConnection);
+
         // `get()` returns the (de-sensitised) warehouse credentials with the
         // discriminant `type` intact. Null when the project has no warehouse
         // connection — the agent then gets `shared.md` only.
         const warehouseType = project.warehouseConnection?.type ?? null;
 
-        // Resolve to a concrete, sandbox-installed version here so downstream
-        // (the compile wrapper's PATH prefix) always maps to an installed venv:
-        // `latest` becomes the newest version and pins older than the supported
-        // range clamp up. Never re-resolved downstream.
+        // Resolve to a concrete, sandbox-installed version so the compile
+        // wrapper's PATH prefix always maps to an installed venv.
         const dbtVersion = resolveSandboxDbtVersion(project.dbtVersion);
+
+        return {
+            organizationUuid: project.organizationUuid,
+            projectName: project.name,
+            provider,
+            gitConnection,
+            warehouseType,
+            dbtVersion,
+        };
+    }
+
+    /**
+     * The general coding agent's authz chokepoint and the ONLY place an
+     * arbitrary-repo {@link CloneTarget} is produced. Enforces, in order:
+     *   1. `manage:SourceCode` on the project (`isProtectedBranch: false`);
+     *   2. a hard denylist (`lightdash/lightdash`);
+     *   3. target ∈ (installation-accessible ∩ user-accessible) via the shared
+     *      {@link computeWritableRepoKeys} predicate (R5).
+     * Returns the GitHub target at repo root (`projectSubPath: '.'`). GitLab
+     * targets are a later slice; the per-repo scoped clone token is Slice 3.
+     */
+    async resolveWritableRepoTarget({
+        user,
+        project,
+        repoTarget,
+    }: {
+        user: SessionUser;
+        project: Awaited<ReturnType<ProjectModel['get']>>;
+        repoTarget: string | undefined;
+    }): Promise<ResolvedTurnTarget> {
+        this.assertCanManageSourceCode(user, project, project.projectUuid);
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
+        const { owner, repo } = parseOwnerRepo(repoTarget);
+        const key = `${owner}/${repo}`;
+        if (DENYLISTED_WRITE_REPOS.has(key.toLowerCase())) {
+            throw new ForbiddenError(`The repository ${key} cannot be edited`);
+        }
+
+        const installation = await this.githubProvider.resolveInstallation(
+            user.organizationUuid,
+        );
+        if (installation.provider !== PullRequestProvider.GITHUB) {
+            throw new WritebackGitNotConnectedError(
+                PullRequestProvider.GITHUB,
+                'GitHub App is not installed for this organization',
+            );
+        }
+        const { installationId } = installation;
+
+        const [installationRepos, userToken] = await Promise.all([
+            listReposAccessibleToInstallation({ installationId }),
+            this.githubAppService.getValidUserToken(
+                user.userUuid,
+                user.organizationUuid,
+            ),
+        ]);
+
+        // Intersect with the user's own GitHub access (R1) when they've linked.
+        // A failed user listing degrades to the installation scope rather than
+        // blocking all writes on a transient GitHub error (logged).
+        let intersectWithUser = Boolean(userToken);
+        let userRepos: { owner: string; repo: string }[] = [];
+        if (userToken) {
+            try {
+                userRepos = await listReposAccessibleToUser({
+                    token: userToken,
+                });
+            } catch (error) {
+                intersectWithUser = false;
+                this.logger.warn(
+                    `AiCodingAgent: user repo listing failed — degrading to installation scope for write authz: ${getErrorMessage(
+                        error,
+                    )}`,
+                );
+            }
+        }
+
+        const writable = computeWritableRepoKeys(
+            installationRepos,
+            userRepos,
+            intersectWithUser,
+        );
+        if (!writable.has(key)) {
+            const inInstallation = installationRepos.some(
+                (r) => `${r.owner}/${r.repo}` === key,
+            );
+            const reason = inInstallation
+                ? `${key} is not accessible to your linked GitHub account`
+                : `${key} is not accessible to your organization's GitHub App installation`;
+            this.logger.info('AI coding agent write denied', {
+                event: 'ai_coding_agent.write.denied',
+                projectUuid: project.projectUuid,
+                target: key,
+                reason,
+                intersectWithUser,
+            });
+            throw new ForbiddenError(reason);
+        }
+
+        const branch = await getRepoDefaultBranch({
+            owner,
+            repo,
+            installationId,
+        });
 
         return {
             organizationUuid: user.organizationUuid,
             projectName: project.name,
-            provider,
-            gitConnection,
-            existingRow,
-            isResume: existingRow !== null,
-            warehouseType,
-            dbtVersion,
+            provider: this.githubProvider,
+            gitConnection: {
+                provider: PullRequestProvider.GITHUB,
+                owner,
+                repo,
+                // General edits target the whole repo, not a dbt sub-folder.
+                projectSubPath: '.',
+                branch,
+            },
+            // No warehouse/dbt context for a general edit; a default dbt version
+            // keeps the type satisfied (the general path never compiles).
+            warehouseType: null,
+            dbtVersion: resolveSandboxDbtVersion(project.dbtVersion),
         };
     }
 
@@ -2149,9 +2429,7 @@ export class AiWritebackService extends BaseService {
         this.logger.info('AI coding agent run requested', {
             event: 'ai_coding_agent.run.requested',
             projectUuid: args.projectUuid,
-            // Slice 1 resolves the connected repo regardless; logged so the
-            // requested-vs-resolved gap is visible until targeting lands.
-            requestedRepoTarget: args.repoTarget ?? null,
+            repoTarget: args.repoTarget ?? null,
             source: args.source,
         });
         return this.runCodingAgent(args, this.generalCodingAgentConfig());
