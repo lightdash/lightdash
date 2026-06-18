@@ -468,6 +468,7 @@ export class ServiceRepository
                         getPullRequestDiff,
                         getCommitDiff,
                     },
+                    projectService: this.getProjectService(),
                 }),
         );
     }

@@ -4,7 +4,9 @@ import {
     DbtProjectType,
     ForbiddenError,
     getErrorMessage,
+    isGitProjectType,
     ParameterError,
+    RequestMethod,
     type CiCheck,
     type CiChecks,
     type ClosePullRequestResult,
@@ -16,6 +18,7 @@ import type * as GithubClient from '../../clients/github/Github';
 import type { GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../BaseService';
+import type { ProjectService } from '../ProjectService/ProjectService';
 import type { CiProvider } from './CiProvider';
 import { GithubCiProvider, mapGithubMergeState } from './GithubCiProvider';
 
@@ -35,6 +38,7 @@ type CiServiceDeps = {
     projectModel: ProjectModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
     githubClient: CiServiceGithubClient;
+    projectService: ProjectService;
 };
 
 const parseGithubPullRequestUrl = (
@@ -82,6 +86,8 @@ export class CiService extends BaseService {
 
     private readonly githubClient: CiServiceGithubClient;
 
+    private readonly projectService: ProjectService;
+
     private readonly githubCiProvider: CiProvider;
 
     constructor(deps: CiServiceDeps) {
@@ -89,6 +95,7 @@ export class CiService extends BaseService {
         this.projectModel = deps.projectModel;
         this.githubAppInstallationsModel = deps.githubAppInstallationsModel;
         this.githubClient = deps.githubClient;
+        this.projectService = deps.projectService;
         this.githubCiProvider = new GithubCiProvider({
             githubClient: deps.githubClient,
         });
@@ -411,13 +418,63 @@ export class CiService extends BaseService {
         const { owner, repo, pullNumber, token } =
             await this.resolveWritePrContext({ user, projectUuid, prUrl });
 
-        return this.githubClient.mergePullRequest({
+        const result = await this.githubClient.mergePullRequest({
             owner,
             repo,
             pullNumber,
             sha,
             token,
         });
+
+        // The write-back PR is opened against the project's tracked branch, so
+        // once it merges the cached explores are stale. Recompile the project so
+        // the newly merged fields go live without a manual refresh.
+        if (result.merged) {
+            await this.syncProjectAfterMerge({ user, projectUuid });
+        }
+
+        return result;
+    }
+
+    /**
+     * Recompile the project after a write-back merge so the merged dbt changes
+     * become live. Best-effort: the merge has already landed and is
+     * irreversible, so a sync failure is logged rather than surfaced — it must
+     * not turn a successful merge into an error for the caller. Only
+     * git-connected projects re-clone on compile, so non-git projects (which
+     * can't reach this path today) are skipped.
+     */
+    private async syncProjectAfterMerge({
+        user,
+        projectUuid,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+    }): Promise<void> {
+        try {
+            const { dbtConnection } = await this.projectModel.get(projectUuid);
+            if (!isGitProjectType(dbtConnection)) {
+                return;
+            }
+            const { jobUuid } = await this.projectService.scheduleCompileProject(
+                user,
+                projectUuid,
+                RequestMethod.WEB_APP,
+            );
+            this.logger.info(
+                'Scheduled dbt project sync after write-back merge',
+                { projectUuid, jobUuid, userUuid: user.userUuid },
+            );
+        } catch (error) {
+            this.logger.warn(
+                'Failed to schedule dbt project sync after write-back merge',
+                {
+                    projectUuid,
+                    userUuid: user.userUuid,
+                    error: getErrorMessage(error),
+                },
+            );
+        }
     }
 
     /**

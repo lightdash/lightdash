@@ -2,12 +2,18 @@ import { Ability } from '@casl/ability';
 import {
     DbtProjectType,
     OrganizationMemberRole,
+    RequestMethod,
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
 import type { GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import type { ProjectService } from '../ProjectService/ProjectService';
 import { CiService, type CiServiceGithubClient } from './CiService';
+
+const noopProjectService = {
+    scheduleCompileProject: jest.fn().mockResolvedValue({ jobUuid: 'job-uuid' }),
+} as unknown as ProjectService;
 
 const organizationUuid = 'org-uuid';
 const projectUuid = 'project-uuid';
@@ -65,6 +71,7 @@ describe('CiService.getPullRequestChecks', () => {
                 getPullRequest,
                 listCheckRunsForRef,
             } as unknown as CiServiceGithubClient,
+            projectService: noopProjectService,
         });
 
     afterEach(() => {
@@ -127,6 +134,9 @@ describe('CiService.mergePullRequest', () => {
         .fn()
         .mockResolvedValue('installation-token');
     const getInstallationId = jest.fn().mockResolvedValue('installation-id');
+    const scheduleCompileProject = jest
+        .fn()
+        .mockResolvedValue({ jobUuid: 'job-uuid' });
 
     const buildService = (repository: string) =>
         new CiService({
@@ -142,6 +152,9 @@ describe('CiService.mergePullRequest', () => {
                 getInstallationToken,
                 mergePullRequest,
             } as unknown as CiServiceGithubClient,
+            projectService: {
+                scheduleCompileProject,
+            } as unknown as ProjectService,
         });
 
     afterEach(() => {
@@ -195,6 +208,50 @@ describe('CiService.mergePullRequest', () => {
         );
         expect(result).toEqual({ merged: true, sha: 'merge-sha' });
     });
+
+    it('schedules a project sync after a successful merge', async () => {
+        const service = buildService('lightdash/lightdash');
+
+        await service.mergePullRequest({
+            user: userWithManageSourceCode,
+            projectUuid,
+            prUrl: 'https://github.com/lightdash/lightdash/pull/42',
+        });
+
+        expect(scheduleCompileProject).toHaveBeenCalledWith(
+            userWithManageSourceCode,
+            projectUuid,
+            RequestMethod.WEB_APP,
+        );
+    });
+
+    it('does not schedule a project sync when the merge did not happen', async () => {
+        mergePullRequest.mockResolvedValueOnce({ merged: false, sha: null });
+        const service = buildService('lightdash/lightdash');
+
+        await service.mergePullRequest({
+            user: userWithManageSourceCode,
+            projectUuid,
+            prUrl: 'https://github.com/lightdash/lightdash/pull/42',
+        });
+
+        expect(scheduleCompileProject).not.toHaveBeenCalled();
+    });
+
+    it('still returns the merge result when scheduling the sync fails', async () => {
+        scheduleCompileProject.mockRejectedValueOnce(
+            new Error('compile boom'),
+        );
+        const service = buildService('lightdash/lightdash');
+
+        const result = await service.mergePullRequest({
+            user: userWithManageSourceCode,
+            projectUuid,
+            prUrl: 'https://github.com/lightdash/lightdash/pull/42',
+        });
+
+        expect(result).toEqual({ merged: true, sha: 'merge-sha' });
+    });
 });
 
 describe('CiService.getPullRequestDiff', () => {
@@ -220,6 +277,7 @@ describe('CiService.getPullRequestDiff', () => {
                 getPullRequestDiff,
                 getCommitDiff,
             } as unknown as CiServiceGithubClient,
+            projectService: noopProjectService,
         });
 
     afterEach(() => {
@@ -295,6 +353,7 @@ describe('CiService.closePullRequest', () => {
                 getInstallationToken,
                 closePullRequest,
             } as unknown as CiServiceGithubClient,
+            projectService: noopProjectService,
         });
 
     afterEach(() => {
