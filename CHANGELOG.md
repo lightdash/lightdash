@@ -1,3 +1,10 @@
+# [0.3195.0](https://github.com/lightdash/lightdash/compare/0.3194.0...0.3195.0) (2026-06-18)
+
+
+### Features
+
+* **reviews:** real triage status with inbox-first workflow ([#24486](https://github.com/lightdash/lightdash/issues/24486)) ([411fd3c](https://github.com/lightdash/lightdash/commit/411fd3c9283cb9a025a1b174509921e6cf4b32ae))
+
 # [0.3194.0](https://github.com/lightdash/lightdash/compare/0.3193.0...0.3194.0) (2026-06-18)
 
 
