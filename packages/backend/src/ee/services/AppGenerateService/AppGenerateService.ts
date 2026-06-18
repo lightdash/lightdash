@@ -36,6 +36,8 @@ import {
     type DataAppClaudeModel,
     type DataAppTemplate,
     type EmbedProjectApp,
+    type ExternalConnectionMethod,
+    type ExternalConnectionSample,
     type PromoteAppAction,
     type PromoteAppDiff,
     type SessionUser,
@@ -100,10 +102,11 @@ import {
 } from './designSandboxCopy';
 import { getTemplateInstructions } from './templates';
 
-type AppExternalConnectionSample = {
-    connectionUuid: string;
+type AppExternalConnectionDoc = {
     alias: string;
-    sample: unknown; // null when no sample saved
+    allowedMethods: ExternalConnectionMethod[];
+    allowedPathPrefixes: string[];
+    samples: ExternalConnectionSample[];
 };
 
 type AppGenerateServiceDeps = {
@@ -1115,70 +1118,83 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
-     * For each linked external connection that has a saved sample, write the
-     * sample JSON to /tmp/external-data/{alias}.json in the sandbox and return
-     * a one-line-per-connection block to prepend to the prompt. Connections
-     * without a sample are skipped. Returns '' when nothing was written.
-     *
-     * Mirrors writeChartReferences: individual files + a discoverable listing
-     * prepended to /tmp/prompt.txt so Claude knows the file exists and what
-     * API it describes.
+     * For each linked external connection, write a self-contained API-doc JSON
+     * to /tmp/external-data/{alias}.json in the sandbox and return a prompt
+     * block listing each file. Writes a file for every connection — the
+     * contract (allowedMethods/allowedPathPrefixes) is useful even when no
+     * samples have been saved. Returns '' only when there are zero linked
+     * connections.
      */
     private async writeExternalConnectionSamples(
         sandbox: Sandbox,
         appUuid: string,
-        links: AppExternalConnectionSample[],
+        docs: AppExternalConnectionDoc[],
     ): Promise<string> {
-        const withSample = links.filter(
-            (l) => l.sample !== null && l.sample !== undefined,
-        );
-        if (withSample.length === 0) return '';
+        if (docs.length === 0) return '';
 
         await sandbox.commands.run('mkdir -p /tmp/external-data', {
             timeoutMs: 10_000,
         });
 
         const fileEntries: string[] = [];
-        for (const link of withSample) {
-            const json = JSON.stringify(link.sample, null, 2);
+        for (const doc of docs) {
+            const fileContent = JSON.stringify(
+                {
+                    alias: doc.alias,
+                    usage: `Call from the data app SDK: client.externalFetch('${doc.alias}', { method, path, query }). Auth is injected by Lightdash — never include credentials or API keys.`,
+                    allowedMethods: doc.allowedMethods,
+                    allowedPathPrefixes: doc.allowedPathPrefixes,
+                    samples: doc.samples.map((s) => ({
+                        label: s.label,
+                        request: s.request,
+                        response: s.response,
+                    })),
+                },
+                null,
+                2,
+            );
             // eslint-disable-next-line no-await-in-loop
             await sandbox.files.write(
-                `/tmp/external-data/${link.alias}.json`,
-                json,
+                `/tmp/external-data/${doc.alias}.json`,
+                fileContent,
             );
             fileEntries.push(
-                `- /tmp/external-data/${link.alias}.json — saved response sample for the "${link.alias}" external connection`,
+                `- /tmp/external-data/${doc.alias}.json — connection "${doc.alias}" (${doc.allowedMethods.join('/')}; ${doc.samples.length} example(s))`,
             );
         }
 
         this.logger.info(
-            `App ${appUuid}: wrote ${withSample.length} external connection sample(s) to /tmp/external-data/`,
+            `App ${appUuid}: wrote ${docs.length} external connection doc(s) to /tmp/external-data/`,
         );
 
         return (
-            `[Linked external connections — saved response samples available at /tmp/external-data/. ` +
-            `These show the shape of each external API's responses; the app fetches live data at runtime via the SDK's external-fetch bridge. ` +
-            `Treat samples as illustrative of structure, not exhaustive of values.]\n` +
+            `[Linked external connections — each file in /tmp/external-data/ documents one API the app can call via client.externalFetch(alias, { method, path, query }). ` +
+            `The file lists allowedMethods/allowedPathPrefixes and example request/response pairs. ` +
+            `Auth is handled by Lightdash — never send credentials. ` +
+            `Treat sample values as illustrative of shape, not exhaustive.]\n` +
             `${fileEntries.join('\n')}\n\n`
         );
     }
 
     /**
-     * Resolve the app's linked external connections to { alias, sample }
-     * pairs. Connections with no saved sample carry sample: null and are
-     * skipped by the writer.
+     * Resolve the app's linked external connections to API-doc descriptors.
+     * Fetches the contract from the connection and up to 5 saved samples.
      */
     private async resolveExternalConnectionSamples(
         appId: string,
-    ): Promise<AppExternalConnectionSample[]> {
+    ): Promise<AppExternalConnectionDoc[]> {
         const links = await this.externalConnectionModel.listAppLinks(appId);
         return Promise.all(
             links.map(async (link) => ({
-                connectionUuid: link.connection.externalConnectionUuid,
                 alias: link.alias,
-                sample: await this.externalConnectionModel.getSampleForPipeline(
-                    link.connection.externalConnectionUuid,
-                ),
+                allowedMethods: link.connection.allowedMethods,
+                allowedPathPrefixes: link.connection.allowedPathPrefixes,
+                // Cap at 5 samples — enough to illustrate the API shape without bloating the prompt
+                samples:
+                    await this.externalConnectionModel.getSamplesForPipeline(
+                        link.connection.externalConnectionUuid,
+                        5,
+                    ),
             })),
         );
     }
@@ -1228,9 +1244,9 @@ export class AppGenerateService extends BaseService {
             finalPrompt = referenceBlock + finalPrompt;
         }
 
-        // Linked external connections: write each saved sample into the sandbox
-        // and prepend a one-line reference so Claude knows the API shape.
-        // Skip entirely when the external-access feature flag is off for this org.
+        // Linked external connections: write an API-doc file per connection into
+        // the sandbox and prepend a listing to the prompt so Claude knows what
+        // APIs the app can call. Skipped when the external-access flag is off.
         const externalAccessEnabled = await this.externalAccessEnabledFor(user);
         if (externalAccessEnabled) {
             const externalLinks =

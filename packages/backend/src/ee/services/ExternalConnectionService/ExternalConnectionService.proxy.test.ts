@@ -36,7 +36,6 @@ const baseConnection = (
     updatedByUserUuid: 'user-1',
     createdAt: new Date(),
     updatedAt: new Date(),
-    lastTestedAt: null,
     ...overrides,
 });
 

@@ -1,6 +1,6 @@
 // e2b and ai are ESM-only packages that cannot be required by Jest/CJS.
 // Mock them before importing AppGenerateService.
-import { FeatureFlags } from '@lightdash/common';
+import { FeatureFlags, type ExternalConnectionSample } from '@lightdash/common';
 import { AppGenerateService } from './AppGenerateService';
 
 jest.mock('e2b', () => ({
@@ -12,13 +12,22 @@ jest.mock('ai', () => ({
     generateObject: jest.fn(),
 }));
 
+type AppExternalConnectionDoc = {
+    alias: string;
+    allowedMethods: string[];
+    allowedPathPrefixes: string[];
+    samples: ExternalConnectionSample[];
+};
+
 type PrivateWithSamples = {
     writeExternalConnectionSamples: (
         sandbox: unknown,
         appUuid: string,
-        links: unknown[],
+        docs: AppExternalConnectionDoc[],
     ) => Promise<string>;
-    resolveExternalConnectionSamples: (appId: string) => Promise<unknown[]>;
+    resolveExternalConnectionSamples: (
+        appId: string,
+    ) => Promise<AppExternalConnectionDoc[]>;
     logger: { info: jest.Mock };
 };
 
@@ -80,19 +89,30 @@ const makeSandbox = () => ({
     },
 });
 
+const makeSample = (alias: string, n: number): ExternalConnectionSample => ({
+    sampleUuid: `${alias}-sample-${n}`,
+    externalConnectionUuid: `conn-${alias}`,
+    label: `${alias} example ${n}`,
+    request: { method: 'GET', path: `/v1/${alias}` },
+    response: { result: alias, n },
+    createdAt: new Date('2024-01-01'),
+});
+
 describe('AppGenerateService.writeExternalConnectionSamples', () => {
-    it('writes a json file + one prompt line per connection with a sample', async () => {
+    it('writes a JSON API-doc per connection and builds a prompt block', async () => {
         const sandbox = makeSandbox();
-        const links = [
+        const docs: AppExternalConnectionDoc[] = [
             {
                 alias: 'weather',
-                connectionUuid: 'c1',
-                sample: { temp: 21, city: 'Berlin' },
+                allowedMethods: ['GET'],
+                allowedPathPrefixes: ['/v1/'],
+                samples: [makeSample('weather', 1)],
             },
             {
                 alias: 'crm',
-                connectionUuid: 'c2',
-                sample: [{ id: 1 }, { id: 2 }],
+                allowedMethods: ['GET', 'POST'],
+                allowedPathPrefixes: ['/api/'],
+                samples: [makeSample('crm', 1), makeSample('crm', 2)],
             },
         ];
         const { service } = buildService();
@@ -100,39 +120,75 @@ describe('AppGenerateService.writeExternalConnectionSamples', () => {
         const block = await service.writeExternalConnectionSamples(
             sandbox,
             'app-1',
-            links,
+            docs,
         );
 
+        // Both files written
         expect(sandbox.files.write).toHaveBeenCalledWith(
             '/tmp/external-data/weather.json',
-            JSON.stringify({ temp: 21, city: 'Berlin' }, null, 2),
+            expect.any(String),
         );
         expect(sandbox.files.write).toHaveBeenCalledWith(
             '/tmp/external-data/crm.json',
-            JSON.stringify([{ id: 1 }, { id: 2 }], null, 2),
+            expect.any(String),
         );
+
+        // Weather file contains expected fields
+        const weatherCall = (sandbox.files.write as jest.Mock).mock.calls.find(
+            ([path]: [string]) => path === '/tmp/external-data/weather.json',
+        );
+        const weatherDoc = JSON.parse(weatherCall[1]);
+        expect(weatherDoc.usage).toContain('weather');
+        expect(weatherDoc.usage).toContain('externalFetch');
+        expect(weatherDoc.allowedMethods).toEqual(['GET']);
+        expect(weatherDoc.allowedPathPrefixes).toEqual(['/v1/']);
+        expect(weatherDoc.samples).toHaveLength(1);
+        expect(weatherDoc.samples[0].request.method).toBe('GET');
+
+        // CRM file has 2 samples
+        const crmCall = (sandbox.files.write as jest.Mock).mock.calls.find(
+            ([path]: [string]) => path === '/tmp/external-data/crm.json',
+        );
+        const crmDoc = JSON.parse(crmCall[1]);
+        expect(crmDoc.allowedMethods).toEqual(['GET', 'POST']);
+        expect(crmDoc.samples).toHaveLength(2);
+
+        // Prompt block mentions both aliases and method info
         expect(block).toContain('/tmp/external-data/weather.json');
         expect(block).toContain('/tmp/external-data/crm.json');
         expect(block).toContain('weather');
         expect(block).toContain('crm');
+        expect(block).toContain('GET');
     });
 
-    it('skips connections that have no sample and returns empty string when none have samples', async () => {
+    it('writes a file even for connections with no samples', async () => {
         const sandbox = makeSandbox();
-        const links = [
-            { alias: 'weather', connectionUuid: 'c1', sample: null },
-            { alias: 'crm', connectionUuid: 'c2', sample: undefined },
+        const docs: AppExternalConnectionDoc[] = [
+            {
+                alias: 'weather',
+                allowedMethods: ['GET'],
+                allowedPathPrefixes: ['/v1/'],
+                samples: [],
+            },
         ];
         const { service } = buildService();
 
         const block = await service.writeExternalConnectionSamples(
             sandbox,
             'app-1',
-            links,
+            docs,
         );
 
-        expect(sandbox.files.write).not.toHaveBeenCalled();
-        expect(block).toBe('');
+        expect(sandbox.files.write).toHaveBeenCalledWith(
+            '/tmp/external-data/weather.json',
+            expect.any(String),
+        );
+        const call = (sandbox.files.write as jest.Mock).mock.calls[0];
+        const written = JSON.parse(call[1]);
+        expect(written.usage).toContain('externalFetch');
+        expect(written.allowedMethods).toEqual(['GET']);
+        expect(written.samples).toEqual([]);
+        expect(block).toContain('/tmp/external-data/weather.json');
     });
 
     it('does not mkdir or write when there are no linked connections', async () => {
@@ -168,8 +224,9 @@ describe('AppGenerateService pipeline external-access flag gate', () => {
             .mockResolvedValue([
                 {
                     alias: 'weather',
-                    connectionUuid: 'c1',
-                    sample: { temp: 21 },
+                    allowedMethods: ['GET'],
+                    allowedPathPrefixes: ['/v1/'],
+                    samples: [makeSample('weather', 1)],
                 },
             ]);
         const writeSpy = jest.spyOn(

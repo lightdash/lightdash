@@ -164,12 +164,14 @@ Each file contains:
 
 ## Linked external connections
 
-If the app is linked to one or more **external connections** (third-party HTTP APIs the project admin configured), you'll see a `[Linked external connections — saved response samples ...]` block at the top of this prompt and one JSON file per connection at **`/tmp/external-data/{alias}.json`**.
+If the app is linked to one or more **external connections** (third-party HTTP APIs the project admin configured), you'll see a `[Linked external connections — each file in /tmp/external-data/ ...]` block at the top of this prompt and one JSON file per connection at **`/tmp/external-data/{alias}.json`**.
 
-- Each file is a **saved sample of that API's response** — use it to learn the response shape (field names, nesting, value formats) so your fetch/render code matches reality. Never guess field names.
-- Samples are **illustrative of structure, not exhaustive of values** and may be truncated. Don't hardcode sample values into the app.
-- At runtime the app fetches **live** data through the SDK's external-fetch bridge (`useLightdash().externalFetch(alias, { path, query?, method?, body? })`) — it does **not** read these files. The files exist only to ground your code generation. See the SDK Reference section for the external-fetch call signature.
-- A connection with no saved sample has no file; build defensively against the documented/known shape in that case.
+Each file documents one connection:
+- `usage` — the exact SDK call: `client.externalFetch('<alias>', { method, path, query })`. Auth is injected by Lightdash — never include credentials or API keys.
+- `allowedMethods` / `allowedPathPrefixes` — the methods and path prefixes the admin has permitted; only call within these bounds.
+- `samples` — example `{ request, response }` pairs. Copy the request shape (path + query) when building your `externalFetch` calls. Treat response values as illustrative of shape, not exhaustive.
+
+A connection with no saved samples still has a file (with an empty `samples` array) — use `allowedMethods` and `allowedPathPrefixes` to infer what the API supports.
 
 ## Attached images
 
