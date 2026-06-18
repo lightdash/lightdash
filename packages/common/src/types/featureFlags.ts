@@ -89,6 +89,14 @@ export enum FeatureFlags {
     EnableDataApps = 'enable-data-apps',
 
     /**
+     * Enable the data-app external-fetch proxy: external connections, the proxy
+     * endpoint, the admin settings page, and the iframe bridge path. Disabled by
+     * default; must be turned on per organization. When off, every external-access
+     * code path is locked down.
+     */
+    EnableDataAppExternalAccess = 'enable-data-app-external-access',
+
+    /**
      * Enable AI Dashboard Summary feature (generates summaries of dashboard
      * contents using the AI Copilot).
      */
