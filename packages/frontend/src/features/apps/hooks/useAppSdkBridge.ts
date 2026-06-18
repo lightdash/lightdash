@@ -10,13 +10,13 @@ import {
     getGdriveAccessToken,
     triggerGdriveLogin,
 } from '../../../hooks/gdrive/useGdrive';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import {
     handleGsheetExport,
     type GsheetExportColumn,
     type GsheetExportRow,
 } from './handleGsheetExport';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 
 // Same key the SDK persists `instanceUrl` under (sdk/index.tsx, api.ts).
 // Duplicated rather than imported to avoid threading a shared export through
@@ -201,7 +201,10 @@ export function useAppSdkBridge(
     const { data: externalAccessFlag } = useServerFeatureFlag(
         FeatureFlags.EnableDataAppExternalAccess,
     );
-    const externalAccessEnabled = externalAccessFlag?.enabled ?? false;
+    // Only short-circuit external fetch when the flag has *resolved* to
+    // disabled. While the query is still in flight, defer to the backend (which
+    // is authoritative) so an on-mount externalFetch is not falsely rejected.
+    const externalAccessDisabled = externalAccessFlag?.enabled === false;
 
     // Maps queryUuid → POST request id. The SDK transport assigns a fresh
     // request id to the POST (`/metric-query`) and again to each GET poll
@@ -334,9 +337,19 @@ export function useAppSdkBridge(
                     );
                 };
 
-                if (!externalAccessEnabled) {
+                if (externalAccessDisabled) {
                     respondExternal({
                         error: 'External data access is disabled for this organization',
+                    });
+                    return;
+                }
+
+                // External fetch is not available to embedded apps: the proxy
+                // endpoint requires a registered session, not an embed JWT.
+                // Fail clearly rather than make a doomed authenticated call.
+                if (embedToken) {
+                    respondExternal({
+                        error: 'External data access is not available in embedded apps',
                     });
                     return;
                 }
@@ -362,9 +375,6 @@ export function useAppSdkBridge(
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                ...(embedToken
-                                    ? { [JWT_HEADER_NAME]: embedToken }
-                                    : {}),
                             },
                             body: JSON.stringify(externalFetchBody),
                         },
@@ -667,8 +677,7 @@ export function useAppSdkBridge(
             capabilities,
             health.data,
             user.data,
-            projectUuid,
-            externalAccessEnabled,
+            externalAccessDisabled,
         ],
     );
 

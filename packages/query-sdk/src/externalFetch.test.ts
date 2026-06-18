@@ -54,8 +54,12 @@ function installParentStub(
     ) => ExternalFetchResult | { error: string },
 ) {
     const original = window.parent;
+    // The transport accepts responses only from `targetWindow` (window.parent),
+    // so the simulated parent must stamp itself as the message source.
     const post = (msg: unknown) =>
-        window.dispatchEvent(new MessageEvent('message', { data: msg }));
+        window.dispatchEvent(
+            new MessageEvent('message', { data: msg, source: window.parent }),
+        );
     Object.defineProperty(window, 'parent', {
         configurable: true,
         value: {
@@ -174,6 +178,71 @@ describe('postMessageTransport.externalFetch', () => {
             ).rejects.toThrow('Connection alias not found');
         } finally {
             restore();
+        }
+    });
+
+    it('ignores an external-fetch-response from a source other than the parent', async () => {
+        const original = window.parent;
+        let capturedId: string | undefined;
+        Object.defineProperty(window, 'parent', {
+            configurable: true,
+            value: {
+                postMessage: (msg: SdkExternalFetchRequest) => {
+                    if (msg?.type === 'lightdash:sdk:external-fetch') {
+                        capturedId = msg.id;
+                    }
+                },
+            },
+        });
+        const dispatch = (data: unknown, source: MessageEventSource | null) =>
+            window.dispatchEvent(new MessageEvent('message', { data, source }));
+        try {
+            const transport = createPostMessageTransport({
+                targetWindow: window.parent,
+                projectUuid: 'proj-1',
+            });
+            dispatch({ type: 'lightdash:sdk:ready' }, window.parent);
+            const promise = transport.externalFetch('stripe', { path: '/x' });
+            // Let the request post so we can capture its id.
+            await new Promise((resolve) => {
+                setTimeout(resolve, 0);
+            });
+            expect(capturedId).toBeDefined();
+            // Spoofed response: correct id, WRONG source → must be ignored.
+            dispatch(
+                {
+                    type: 'lightdash:sdk:external-fetch-response',
+                    id: capturedId,
+                    result: {
+                        status: 999,
+                        contentType: 'application/json',
+                        body: { spoofed: true },
+                        truncated: false,
+                    },
+                },
+                { postMessage() {} } as unknown as MessageEventSource,
+            );
+            // Genuine response from the parent resolves the call.
+            dispatch(
+                {
+                    type: 'lightdash:sdk:external-fetch-response',
+                    id: capturedId,
+                    result: {
+                        status: 200,
+                        contentType: 'application/json',
+                        body: { real: true },
+                        truncated: false,
+                    },
+                },
+                window.parent,
+            );
+            const out = await promise;
+            expect(out.status).toBe(200);
+        } finally {
+            Object.defineProperty(window, 'parent', {
+                configurable: true,
+                value: original,
+            });
         }
     });
 });

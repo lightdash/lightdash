@@ -11,11 +11,12 @@ import {
 } from 'vitest';
 import { useAppSdkBridge, type QueryEvent } from './useAppSdkBridge';
 
+const mockUseEmbed = vi.fn(() => ({
+    embedToken: undefined as string | undefined,
+    projectUuid: undefined as string | undefined,
+}));
 vi.mock('../../../ee/providers/Embed/useEmbed', () => ({
-    default: () => ({
-        embedToken: undefined,
-        projectUuid: undefined,
-    }),
+    default: () => mockUseEmbed(),
 }));
 
 vi.mock('../../../providers/App/useApp', () => ({
@@ -25,9 +26,11 @@ vi.mock('../../../providers/App/useApp', () => ({
     }),
 }));
 
-const mockUseServerFeatureFlag = vi.fn((_featureFlagId: string) => ({
-    data: { enabled: true },
-}));
+const mockUseServerFeatureFlag = vi.fn(
+    (_featureFlagId: string): { data: { enabled: boolean } | undefined } => ({
+        data: { enabled: true },
+    }),
+);
 vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: (featureFlagId: string) =>
         mockUseServerFeatureFlag(featureFlagId),
@@ -384,6 +387,11 @@ describe('useAppSdkBridge', () => {
 describe('external-fetch branch', () => {
     beforeEach(() => {
         vi.stubGlobal('fetch', vi.fn());
+        mockUseServerFeatureFlag.mockReturnValue({ data: { enabled: true } });
+        mockUseEmbed.mockReturnValue({
+            embedToken: undefined,
+            projectUuid: undefined,
+        });
     });
 
     afterEach(() => {
@@ -443,8 +451,53 @@ describe('external-fetch branch', () => {
             query: { limit: '10' },
             body: { amount: 500 },
         });
-        // No app-supplied headers leak through — only Content-Type (+ embed JWT when present).
+        // No app-supplied headers leak through; external fetch never sends the
+        // embed JWT (it is not supported in embed mode).
         expect(Object.keys(init.headers)).toEqual(['Content-Type']);
+    });
+
+    it('proceeds while the external-access flag query is still loading', async () => {
+        mockUseServerFeatureFlag.mockReturnValue({ data: undefined });
+        renderBridge(() => undefined);
+        mockFetchOk({
+            status: 'ok',
+            results: {
+                status: 200,
+                contentType: 'application/json',
+                body: { ok: true },
+                truncated: false,
+            },
+        });
+
+        postExternalFetch({ alias: 'weather', path: '/today' });
+
+        // Must defer to the backend (authoritative) rather than be falsely
+        // rejected while the flag query is still resolving.
+        await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
+    });
+
+    it('rejects external fetch in embed mode without calling the backend', async () => {
+        mockUseEmbed.mockReturnValue({
+            embedToken: 'embed-jwt',
+            projectUuid: undefined,
+        });
+        renderBridge(() => undefined);
+        const { responses } = captureResponses();
+
+        postExternalFetch({ alias: 'weather', path: '/today' });
+
+        await vi.waitFor(() =>
+            expect(
+                responses.find(
+                    (r) =>
+                        r['type'] === 'lightdash:sdk:external-fetch-response',
+                ),
+            ).toMatchObject({
+                id: POST_ID,
+                error: 'External data access is not available in embedded apps',
+            }),
+        );
+        expect(fetch).not.toHaveBeenCalled();
     });
 
     it('posts back the result on success', async () => {

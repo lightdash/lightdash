@@ -160,6 +160,9 @@ function createPostMessageFetchAdapter(config: {
     }, READY_TIMEOUT_MS);
 
     window.addEventListener('message', (event: MessageEvent) => {
+        // Only accept messages from the window we post to (the parent host).
+        // The UUID ids already make spoofing hard — this closes the gap cheaply.
+        if (event.source !== targetWindow) return;
         const { data } = event;
         if (!data || typeof data !== 'object' || typeof data.type !== 'string') {
             return;
@@ -263,6 +266,9 @@ function createPostMessageExternalFetch(config: {
     }, READY_TIMEOUT_MS);
 
     window.addEventListener('message', (event: MessageEvent) => {
+        // Only accept messages from the window we post to (the parent host).
+        // The UUID ids already make spoofing hard — this closes the gap cheaply.
+        if (event.source !== targetWindow) return;
         const { data } = event;
         if (!data || typeof data !== 'object' || typeof data.type !== 'string') {
             return;
