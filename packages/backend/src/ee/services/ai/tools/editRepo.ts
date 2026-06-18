@@ -5,6 +5,7 @@ import {
     PullRequestProvider,
 } from '@lightdash/common';
 import { tool } from 'ai';
+import { DeniedPathError } from '../../AiWritebackService/deniedPaths';
 import {
     WritebackGitNotConnectedError,
     WritebackThreadPrClosedError,
@@ -31,6 +32,9 @@ type EditRepoErrorCode =
 // error carries the expected git host so the card can offer the matching install
 // action; a ForbiddenError means the user/installation can't write the target.
 const classifyEditRepoError = (error: unknown): EditRepoErrorCode => {
+    if (error instanceof DeniedPathError) {
+        return 'denied_path';
+    }
     if (error instanceof ForbiddenError) {
         return 'repo_write_forbidden';
     }
@@ -103,6 +107,18 @@ export const getEditRepo = ({ editRepo }: Dependencies) =>
                         metadata: {
                             status: 'error' as const,
                             errorCode: 'pull_request_not_open' as const,
+                        },
+                    };
+                }
+                // A commit touching a CI/workflow or secret path was rejected
+                // host-side — terminal, do not retry. Relay the reason verbatim.
+                if (error instanceof DeniedPathError) {
+                    return {
+                        result: `${error.message} Do not retry this — tell the user the agent will not edit CI/workflow or secret files. If they need that change, they must make it themselves.`,
+                        metadata: {
+                            status: 'error' as const,
+                            errorCode: 'denied_path' as const,
+                            reason: error.paths.join(', '),
                         },
                     };
                 }

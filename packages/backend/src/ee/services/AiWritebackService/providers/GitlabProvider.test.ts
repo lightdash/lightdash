@@ -101,6 +101,7 @@ describe('GitlabProvider.openPullRequest', () => {
             description: 'Adds revenue.',
             user: { userUuid: 'u1' } as never,
             setStage: jest.fn(),
+            denyCiPaths: false,
         });
 
         expect(result.prUrl).toBe(
@@ -146,6 +147,7 @@ describe('GitlabProvider.openPullRequest', () => {
                 email: 'jane@acme.com',
             } as never,
             setStage: jest.fn(),
+            denyCiPaths: false,
         });
 
         expect(sandbox.git.commit).toHaveBeenCalledWith(

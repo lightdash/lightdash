@@ -276,6 +276,7 @@ export class GithubProvider implements GitProvider {
             description,
             user,
             setStage,
+            denyCiPaths: args.denyCiPaths,
         });
 
         setStage('pull_request');
@@ -325,6 +326,7 @@ export class GithubProvider implements GitProvider {
             description,
             user,
             setStage,
+            denyCiPaths: args.denyCiPaths,
         });
 
         setStage('pull_request');
@@ -436,6 +438,7 @@ export class GithubProvider implements GitProvider {
         description,
         user,
         setStage,
+        denyCiPaths,
     }: {
         sandbox: Sandbox;
         connection: GithubConnection;
@@ -446,10 +449,11 @@ export class GithubProvider implements GitProvider {
         description: string;
         user: SessionUser;
         setStage: SetStage;
+        denyCiPaths: boolean;
     }): Promise<LandedCommit> {
         setStage('commit');
         await stageChanges(sandbox, connection.projectSubPath, this.logger);
-        const fileChanges = await collectFileChanges(sandbox);
+        const fileChanges = await collectFileChanges(sandbox, { denyCiPaths });
         // Read the line stat while the change is still staged — the local commit
         // below clears the index.
         const diffStat = await collectDiffStat(sandbox);

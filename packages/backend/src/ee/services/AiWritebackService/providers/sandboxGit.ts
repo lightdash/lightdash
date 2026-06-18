@@ -2,6 +2,7 @@ import type { Sandbox } from 'e2b';
 import type { Logger } from 'winston';
 import type { GithubFileChanges } from '../../../../clients/github/Github';
 import { CWD } from '../constants';
+import { DeniedPathError, findDeniedCommitPaths } from '../deniedPaths';
 import type { GitCommitAuthor } from '../types';
 import { parseGitNameStatus } from '../utils';
 
@@ -51,11 +52,23 @@ export const stageChanges = async (
  */
 export const collectFileChanges = async (
     sandbox: Sandbox,
+    { denyCiPaths }: { denyCiPaths: boolean } = { denyCiPaths: false },
 ): Promise<GithubFileChanges> => {
     const { stdout } = await sandbox.commands.run(
         `git -C ${CWD} diff --cached --name-status --no-renames -z`,
     );
     const { addPaths, deletions } = parseGitNameStatus(stdout);
+    // Host-side denied-path gate: reject the whole commit (no PR) if any staged
+    // path is a secret file (always) or a CI/workflow file (general agent). The
+    // agent has no Bash and commits via the host, so this is the enforceable
+    // chokepoint — not just a prompt instruction.
+    const denied = findDeniedCommitPaths(
+        [...addPaths, ...deletions.map((d) => d.path)],
+        { denyCiPaths },
+    );
+    if (denied.length > 0) {
+        throw new DeniedPathError(denied);
+    }
     const additions = await Promise.all(
         addPaths.map(async (path) => ({
             path,
@@ -66,6 +79,30 @@ export const collectFileChanges = async (
         })),
     );
     return { additions, deletions };
+};
+
+/**
+ * Reject the staged commit (throwing {@link DeniedPathError}) if it touches a
+ * denied path. For providers that push via git (GitLab) rather than committing
+ * through {@link collectFileChanges} (GitHub), so the same denied-path guard
+ * still applies. Secrets are always denied; CI/workflow paths only when
+ * `denyCiPaths` is set.
+ */
+export const assertStagedPathsAllowed = async (
+    sandbox: Sandbox,
+    { denyCiPaths }: { denyCiPaths: boolean },
+): Promise<void> => {
+    const { stdout } = await sandbox.commands.run(
+        `git -C ${CWD} diff --cached --name-status --no-renames -z`,
+    );
+    const { addPaths, deletions } = parseGitNameStatus(stdout);
+    const denied = findDeniedCommitPaths(
+        [...addPaths, ...deletions.map((d) => d.path)],
+        { denyCiPaths },
+    );
+    if (denied.length > 0) {
+        throw new DeniedPathError(denied);
+    }
 };
 
 /** Total line additions/deletions in a turn's staged change. */
