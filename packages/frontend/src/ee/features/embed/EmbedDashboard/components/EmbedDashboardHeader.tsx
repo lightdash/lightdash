@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { Box } from '@mantine-8/core';
 import { type FC, type ReactNode } from 'react';
+import { embedContractClass } from '../../styles/embedClassContract';
 import EmbedDashboardExportPdf from './EmbedDashboardExportPdf';
 import EmbedDashboardFilterBar from './EmbedDashboardFilterBar';
 import styles from './EmbedDashboardHeader.module.css';
@@ -44,7 +45,10 @@ const EmbedDashboardHeader: FC<Props> = ({ dashboard, projectUuid, tabs }) => {
 
     return (
         <Box
-            className={styles.headerBar}
+            className={embedContractClass(
+                'ld-dashboard-header',
+                styles.headerBar,
+            )}
             data-sticky={isSticky}
             data-has-tabs={Boolean(tabs)}
         >

@@ -34,6 +34,8 @@ type Props = {
     isRequired?: boolean;
     isEditMode?: boolean;
     isDraggable?: boolean;
+    triggerClassName?: string;
+    dropdownClassName?: string;
 };
 
 const Parameter: FC<Props> = ({
@@ -48,6 +50,8 @@ const Parameter: FC<Props> = ({
     projectUuid,
     isRequired = false,
     isDraggable = false,
+    triggerClassName,
+    dropdownClassName,
 }) => {
     const popoverId = useId();
     const isPopoverOpen = openPopoverId === popoverId;
@@ -119,6 +123,7 @@ const Parameter: FC<Props> = ({
             offset={1}
             arrowOffset={14}
             withinPortal
+            classNames={{ dropdown: dropdownClassName }}
         >
             <Popover.Target>
                 <Tooltip
@@ -137,6 +142,7 @@ const Parameter: FC<Props> = ({
                         }
                         classNames={{
                             label: styles.label,
+                            root: triggerClassName,
                         }}
                         className={
                             hasUnsetRequiredParameter

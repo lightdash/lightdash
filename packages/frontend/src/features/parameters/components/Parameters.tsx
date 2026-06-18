@@ -30,6 +30,8 @@ type Props = {
     onParameterReorder?: (order: string[]) => void;
     /** Separator element to render with the first parameter (so they wrap together) */
     separator?: ReactNode;
+    triggerClassName?: string;
+    dropdownClassName?: string;
 };
 
 export const Parameters: FC<Props> = ({
@@ -42,6 +44,8 @@ export const Parameters: FC<Props> = ({
     separator,
     parameterOrder = [],
     onParameterReorder,
+    triggerClassName,
+    dropdownClassName,
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [openPopoverId, setOpenPopoverId] = useState<string | undefined>();
@@ -131,6 +135,8 @@ export const Parameters: FC<Props> = ({
                                 parameter={parameter}
                                 value={parameterValues[paramKey] ?? null}
                                 parameterValues={parameterValues}
+                                triggerClassName={triggerClassName}
+                                dropdownClassName={dropdownClassName}
                                 openPopoverId={openPopoverId}
                                 onPopoverOpen={handlePopoverOpen}
                                 onPopoverClose={handlePopoverClose}

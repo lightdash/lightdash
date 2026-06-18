@@ -5,6 +5,7 @@ import FiltersProvider from '../../../../../components/common/Filters/FiltersPro
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import ActiveFilters from '../../../../../features/dashboardFilters/ActiveFilters';
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
+import { embedContractClass } from '../../styles/embedClassContract';
 
 const EmbedDashboardFilters: FC = () => {
     const [openPopoverId, setPopoverId] = useState<string>();
@@ -78,6 +79,10 @@ const EmbedDashboardFilters: FC = () => {
                     onPopoverClose={handlePopoverClose}
                     openPopoverId={openPopoverId}
                     activeTabUuid={activeTab?.uuid}
+                    triggerClassName={embedContractClass('ld-dashboard-filter')}
+                    dropdownClassName={embedContractClass(
+                        'ld-dashboard-filter-dropdown',
+                    )}
                 />
             </Flex>
         </FiltersProvider>

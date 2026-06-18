@@ -10,6 +10,7 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import { DashboardFiltersBarSummary } from '../../../../../features/dashboardFilters/DashboardFiltersBarSummary';
 import { DateZoom } from '../../../../../features/dateZoom';
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
+import { embedContractClass } from '../../styles/embedClassContract';
 import EmbedDashboardFilters from './EmbedDashboardFilters';
 import EmbedDashboardParameters from './EmbedDashboardParameters';
 
@@ -82,6 +83,7 @@ const EmbedDashboardFilterBar: FC<Props> = ({
 
     return (
         <Group
+            className={embedContractClass('ld-dashboard-filters')}
             justify="space-between"
             align="flex-start"
             wrap="nowrap"
@@ -101,8 +103,15 @@ const EmbedDashboardFilterBar: FC<Props> = ({
 
             <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
                 {dashboard.canDateZoom && (
-                    <Box>
-                        <DateZoom isEditMode={false} />
+                    <Box
+                        className={embedContractClass('ld-dashboard-date-zoom')}
+                    >
+                        <DateZoom
+                            isEditMode={false}
+                            dropdownClassName={embedContractClass(
+                                'ld-dashboard-date-zoom-dropdown',
+                            )}
+                        />
                     </Box>
                 )}
                 {isCollapsible && (

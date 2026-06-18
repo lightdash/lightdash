@@ -3,6 +3,7 @@ import { useMemo, type FC } from 'react';
 import { Parameters } from '../../../../../features/parameters';
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../../../../providers/Dashboard/useDashboardTileStatusContext';
+import { embedContractClass } from '../../styles/embedClassContract';
 
 const EmbedDashboardParameters: FC = () => {
     const parameterValues = useDashboardContext((c) => c.parameterValues);
@@ -30,7 +31,12 @@ const EmbedDashboardParameters: FC = () => {
     }, [parameterDefinitions, parameterReferences]);
 
     return (
-        <Group gap="xs" wrap="wrap" style={{ flexShrink: 0 }}>
+        <Group
+            className={embedContractClass('ld-dashboard-parameters')}
+            gap="xs"
+            wrap="wrap"
+            style={{ flexShrink: 0 }}
+        >
             <Parameters
                 isEditMode={false}
                 parameterValues={parameterValues}
@@ -39,6 +45,10 @@ const EmbedDashboardParameters: FC = () => {
                 parameters={referencedParameters}
                 isLoading={!areAllChartsLoaded}
                 missingRequiredParameters={missingRequiredParameters}
+                triggerClassName={embedContractClass('ld-dashboard-parameter')}
+                dropdownClassName={embedContractClass(
+                    'ld-dashboard-parameter-dropdown',
+                )}
             />
         </Group>
     );

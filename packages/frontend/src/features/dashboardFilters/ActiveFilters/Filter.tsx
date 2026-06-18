@@ -51,6 +51,8 @@ type Props = {
     isTemporary?: boolean;
     field: DashboardFilterableField | undefined;
     filterRule: DashboardFilterRule;
+    triggerClassName?: string;
+    dropdownClassName?: string;
     openPopoverId: string | undefined;
     onPopoverOpen: (popoverId: string) => void;
     onPopoverClose: () => void;
@@ -65,6 +67,8 @@ const Filter: FC<Props> = ({
     isTemporary,
     field,
     filterRule,
+    triggerClassName,
+    dropdownClassName,
     openPopoverId,
     onPopoverOpen,
     onPopoverClose,
@@ -278,6 +282,7 @@ const Filter: FC<Props> = ({
                 offset={1}
                 arrowOffset={14}
                 withinPortal
+                classNames={{ dropdown: dropdownClassName }}
             >
                 <Popover.Target>
                     <Indicator
@@ -320,6 +325,7 @@ const Filter: FC<Props> = ({
                                 }
                                 classNames={{
                                     label: classes.label,
+                                    root: triggerClassName,
                                 }}
                                 className={`${classes.button} ${
                                     hasUnsetRequiredFilter
