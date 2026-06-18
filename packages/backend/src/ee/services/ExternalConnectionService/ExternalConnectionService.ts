@@ -30,6 +30,7 @@ import { type ExternalConnectionModel } from '../../models/ExternalConnectionMod
 import { assertCanViewApp } from '../AppGenerateService/appAuthz';
 import { validateExternalConnectionConfig } from './externalConnectionConfigValidation';
 import {
+    assertSafeApiKeyHeaderName,
     buildOutboundUrl,
     computeMinuteWindow,
     normalizeAndValidatePath,
@@ -477,37 +478,36 @@ export class ExternalConnectionService extends BaseService {
             );
         }
 
-        // 4. Rate limit — non-GET only. Window math is injected/testable.
-        if (method !== 'GET') {
-            const limit =
-                connection.rateLimitPerMinute ??
-                ExternalConnectionService.DEFAULT_RATE_LIMIT_PER_MINUTE;
-            const window = computeMinuteWindow(new Date());
-            const count =
-                await this.externalConnectionModel.incrementRateCounter(
-                    connection.externalConnectionUuid,
-                    app.app_id,
-                    window,
-                );
-            if (count > limit) {
-                this.trackFetch({
-                    user,
-                    projectUuid,
-                    appUuid: app.app_id,
-                    connectionAlias: req.connectionAlias,
-                    connection,
-                    method,
-                    path: req.path,
-                    status: null,
-                    outcome: 'rate_limited',
-                    start,
-                    requestBytes: 0,
-                    responseBytes: 0,
-                });
-                throw new TooManyRequestsError(
-                    'Rate limit exceeded for this connection',
-                );
-            }
+        // 4. Rate limit — all methods, including GET. Reads still spend
+        //    Lightdash egress and upstream quota under the injected auth, so an
+        //    app viewer must not be able to drive unlimited GETs.
+        const limit =
+            connection.rateLimitPerMinute ??
+            ExternalConnectionService.DEFAULT_RATE_LIMIT_PER_MINUTE;
+        const window = computeMinuteWindow(new Date());
+        const count = await this.externalConnectionModel.incrementRateCounter(
+            connection.externalConnectionUuid,
+            app.app_id,
+            window,
+        );
+        if (count > limit) {
+            this.trackFetch({
+                user,
+                projectUuid,
+                appUuid: app.app_id,
+                connectionAlias: req.connectionAlias,
+                connection,
+                method,
+                path: req.path,
+                status: null,
+                outcome: 'rate_limited',
+                start,
+                requestBytes: 0,
+                responseBytes: 0,
+            });
+            throw new TooManyRequestsError(
+                'Rate limit exceeded for this connection',
+            );
         }
 
         // 5. Resolve the secret (only what the auth type needs).
@@ -609,14 +609,32 @@ export class ExternalConnectionService extends BaseService {
         const headers: Record<string, string> = {};
 
         if (connection.type === 'bearer_token') {
-            if (secret) headers.Authorization = `Bearer ${secret}`;
+            // Fail closed: an authenticated connection must never fall through
+            // to an unauthenticated upstream call.
+            if (!secret) {
+                throw new ParameterError(
+                    'Connection is missing its bearer token',
+                );
+            }
+            headers.Authorization = `Bearer ${secret}`;
         } else if (connection.type === 'api_key') {
-            if (secret && connection.apiKeyName) {
-                if (connection.apiKeyLocation === 'header') {
-                    headers[connection.apiKeyName] = secret;
-                } else if (connection.apiKeyLocation === 'query') {
-                    query[connection.apiKeyName] = secret;
-                }
+            if (!secret || !connection.apiKeyName) {
+                throw new ParameterError(
+                    'Connection is missing its api key configuration',
+                );
+            }
+            if (connection.apiKeyLocation === 'header') {
+                // Stored config controls this header name, and the proxy is
+                // where it becomes an outbound request — reject sensitive and
+                // hop-by-hop headers (Host, Cookie, Content-Length, ...).
+                assertSafeApiKeyHeaderName(connection.apiKeyName);
+                headers[connection.apiKeyName] = secret;
+            } else if (connection.apiKeyLocation === 'query') {
+                query[connection.apiKeyName] = secret;
+            } else {
+                throw new ParameterError(
+                    'Connection has an invalid api key location',
+                );
             }
         }
         // type === 'none' → no auth injected.
@@ -634,7 +652,10 @@ export class ExternalConnectionService extends BaseService {
 
         // Cap the serialized query string length for all methods (incl. GET).
         const urlObj = new URL(url);
-        if (urlObj.search.length > connection.requestMaxBytes) {
+        if (
+            Buffer.byteLength(urlObj.search, 'utf8') >
+            connection.requestMaxBytes
+        ) {
             throw new ParameterError(
                 `Query string exceeds the maximum of ${connection.requestMaxBytes} bytes`,
             );

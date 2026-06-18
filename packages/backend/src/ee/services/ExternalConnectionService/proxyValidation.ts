@@ -159,3 +159,38 @@ export function serializeRequestBody(body: unknown): {
     }
     return { json, bytes: Buffer.byteLength(json, 'utf8') };
 }
+
+// Header names an api_key must never be injected under: they let stored config
+// control request routing/framing or overwrite the proxy's own security
+// headers (host pinning, content-type, auth). The api_key header name is
+// admin-supplied config, and the proxy is where it becomes an outbound
+// request — so reject sensitive and hop-by-hop headers here, even though
+// write-time validation also runs.
+const FORBIDDEN_API_KEY_HEADERS = new Set([
+    'host',
+    'authorization',
+    'cookie',
+    'content-length',
+    'content-type',
+    'connection',
+    'transfer-encoding',
+    'te',
+    'trailer',
+    'upgrade',
+    'keep-alive',
+    'expect',
+    'proxy-authorization',
+    'proxy-connection',
+]);
+
+// RFC 7230 token chars.
+const HTTP_HEADER_TOKEN = /^[A-Za-z0-9!#$%&'*+.^_`|~-]+$/;
+
+export function assertSafeApiKeyHeaderName(name: string): void {
+    if (!HTTP_HEADER_TOKEN.test(name)) {
+        throw new ParameterError('api key header name is not a valid token');
+    }
+    if (FORBIDDEN_API_KEY_HEADERS.has(name.toLowerCase())) {
+        throw new ParameterError(`api key header "${name}" is not allowed`);
+    }
+}

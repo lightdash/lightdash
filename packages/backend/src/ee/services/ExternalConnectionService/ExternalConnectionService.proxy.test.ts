@@ -221,18 +221,30 @@ describe('ExternalConnectionService.proxyFetch', () => {
         });
     });
 
-    it('GET is never rate-limited even when a limit is set', async () => {
+    it('GET is rate-limited like every other method', async () => {
         const { service, externalConnectionModel } = buildService({
-            connection: baseConnection({ rateLimitPerMinute: 1 }),
-            rateCount: 99,
+            connection: baseConnection({ rateLimitPerMinute: 5 }),
+            rateCount: 1,
         });
         await service.proxyFetch(user, 'proj-1', 'app-1', {
             connectionAlias: 'weather',
             path: '/v1/x',
         });
-        expect(
-            externalConnectionModel.incrementRateCounter,
-        ).not.toHaveBeenCalled();
+        expect(externalConnectionModel.incrementRateCounter).toHaveBeenCalled();
+    });
+
+    it('rejects a GET over the rate limit with a 429-class error', async () => {
+        const { service } = buildService({
+            connection: baseConnection({ rateLimitPerMinute: 1 }),
+            rateCount: 2,
+        });
+        await expect(
+            service.proxyFetch(user, 'proj-1', 'app-1', {
+                connectionAlias: 'weather',
+                path: '/v1/x',
+            }),
+        ).rejects.toMatchObject({ statusCode: 429 });
+        expect(mockSecureFetch).not.toHaveBeenCalled();
     });
 
     it('happy POST: server sets Content-Type and serializes the body', async () => {
@@ -312,6 +324,56 @@ describe('ExternalConnectionService.proxyFetch', () => {
         const [url, opts] = mockSecureFetch.mock.calls[0];
         expect(new URL(url).searchParams.get('apikey')).toBe('sec_q');
         expect(opts.headers!.Authorization).toBeUndefined();
+    });
+
+    it('fails closed when a bearer_token connection has no stored secret', async () => {
+        const { service } = buildService({
+            connection: baseConnection({ type: 'bearer_token' }),
+            secret: null,
+        });
+        await expect(
+            service.proxyFetch(user, 'proj-1', 'app-1', {
+                connectionAlias: 'weather',
+                path: '/v1/x',
+            }),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(mockSecureFetch).not.toHaveBeenCalled();
+    });
+
+    it('fails closed when an api_key connection has no stored secret', async () => {
+        const { service } = buildService({
+            connection: baseConnection({
+                type: 'api_key',
+                apiKeyName: 'X-Api-Key',
+                apiKeyLocation: 'header',
+            }),
+            secret: null,
+        });
+        await expect(
+            service.proxyFetch(user, 'proj-1', 'app-1', {
+                connectionAlias: 'weather',
+                path: '/v1/x',
+            }),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(mockSecureFetch).not.toHaveBeenCalled();
+    });
+
+    it('rejects an api_key configured to inject a forbidden header (Host)', async () => {
+        const { service } = buildService({
+            connection: baseConnection({
+                type: 'api_key',
+                apiKeyName: 'Host',
+                apiKeyLocation: 'header',
+            }),
+            secret: 'sec',
+        });
+        await expect(
+            service.proxyFetch(user, 'proj-1', 'app-1', {
+                connectionAlias: 'weather',
+                path: '/v1/x',
+            }),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(mockSecureFetch).not.toHaveBeenCalled();
     });
 
     it.each([['blocked_ip'], ['redirect'], ['too_large'], ['timeout']])(

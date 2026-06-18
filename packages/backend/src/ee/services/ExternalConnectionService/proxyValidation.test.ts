@@ -1,5 +1,6 @@
 import { ParameterError } from '@lightdash/common';
 import {
+    assertSafeApiKeyHeaderName,
     buildOutboundUrl,
     computeMinuteWindow,
     normalizeAndValidatePath,
@@ -267,4 +268,31 @@ describe('serializeRequestBody', () => {
         circular.self = circular;
         expect(() => serializeRequestBody(circular)).toThrow(ParameterError);
     });
+});
+
+describe('assertSafeApiKeyHeaderName', () => {
+    it('accepts a normal api key header', () => {
+        expect(() => assertSafeApiKeyHeaderName('X-Api-Key')).not.toThrow();
+    });
+
+    it.each([
+        ['Host'],
+        ['host'],
+        ['Cookie'],
+        ['Authorization'],
+        ['Content-Length'],
+        ['Transfer-Encoding'],
+        ['Connection'],
+    ])('rejects the sensitive/hop-by-hop header %s', (name) => {
+        expect(() => assertSafeApiKeyHeaderName(name)).toThrow(ParameterError);
+    });
+
+    it.each([['Bad Header'], ['x:y'], ['has\nnewline'], ['']])(
+        'rejects the invalid token %j',
+        (name) => {
+            expect(() => assertSafeApiKeyHeaderName(name)).toThrow(
+                ParameterError,
+            );
+        },
+    );
 });
