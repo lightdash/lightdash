@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    DbtProjectType,
     defineUserAbility,
     FeatureFlags,
     FilterOperator,
@@ -10,6 +11,7 @@ import {
     ParameterError,
     PreAggregateMissReason,
     ProjectType,
+    RequestMethod,
     SessionUser,
     SupportedDbtAdapter,
     WarehouseTypes,
@@ -163,6 +165,7 @@ const projectModel = {
     })),
     findExploreByTableName: jest.fn(async () => validExplore),
     getAllExploresFromCache: jest.fn(async () => ({})),
+    getTableGroups: jest.fn(async () => ({})),
     getCachedExploreNames: jest.fn(async () => []),
     saveExploresToCache: jest.fn(async () => ({ cachedExploreUuids: [] })),
     updateDefaultUserSpaces: jest.fn(async () => undefined),
@@ -319,6 +322,98 @@ describe('ProjectService', () => {
     afterEach(() => {
         jest.clearAllMocks();
     });
+
+    describe('refreshTablesAndProjectConfig for a CLI/NONE preview', () => {
+        const upstreamProjectUuid = 'upstream-project-uuid';
+        const previewProjectUuid = 'preview-project-uuid';
+        const upstreamParameter = {
+            name: 'status',
+            config: { label: 'Status', type: 'string' as const },
+        };
+        const upstreamTableGroups = { sales: { label: 'Sales' } };
+        const upstreamDefaults = { showUnderlyingValues: ['a'] };
+
+        const nonePreviewProject = {
+            ...projectWithSensitiveFields,
+            projectUuid: previewProjectUuid,
+            type: ProjectType.PREVIEW,
+            dbtConnection: { type: DbtProjectType.NONE },
+            upstreamProjectUuid,
+        };
+        const upstreamProject = {
+            ...projectWithSensitiveFields,
+            projectUuid: upstreamProjectUuid,
+            dbtConnection: { type: DbtProjectType.NONE },
+            projectDefaults: upstreamDefaults,
+        };
+
+        const callRefresh = () =>
+            (
+                service as unknown as {
+                    refreshTablesAndProjectConfig: (
+                        user: { userUuid: string },
+                        projectUuid: string,
+                        requestMethod: RequestMethod,
+                    ) => Promise<{
+                        explores: unknown[];
+                        lightdashProjectConfig: {
+                            parameters?: Record<string, unknown>;
+                            table_groups?: Record<string, unknown>;
+                            defaults?: unknown;
+                        };
+                    }>;
+                }
+            ).refreshTablesAndProjectConfig(
+                { userUuid: user.userUuid },
+                previewProjectUuid,
+                RequestMethod.WEB_APP,
+            );
+
+        test('reuses the upstream explores and config instead of compiling from dbt', async () => {
+            const buildAdapterSpy = jest.spyOn(
+                service as unknown as { buildAdapter: () => unknown },
+                'buildAdapter',
+            );
+
+            (projectModel.get as jest.Mock)
+                .mockResolvedValueOnce(nonePreviewProject) // preview
+                .mockResolvedValueOnce(upstreamProject); // upstream
+            (
+                projectModel.getAllExploresFromCache as jest.Mock
+            ).mockResolvedValueOnce({ 'explore-uuid': validExplore });
+            (projectModel.getTableGroups as jest.Mock).mockResolvedValueOnce(
+                upstreamTableGroups,
+            );
+            (
+                service as unknown as {
+                    projectParametersModel: { find: jest.Mock };
+                }
+            ).projectParametersModel.find.mockResolvedValueOnce([
+                upstreamParameter,
+            ]);
+
+            const result = await callRefresh();
+
+            // Explores + config come from the upstream cache, never a dbt compile
+            expect(buildAdapterSpy).not.toHaveBeenCalled();
+            expect(projectModel.getAllExploresFromCache).toHaveBeenCalledWith(
+                upstreamProjectUuid,
+            );
+            expect(result.explores).toEqual([validExplore]);
+            expect(result.lightdashProjectConfig.parameters).toEqual({
+                status: upstreamParameter.config,
+            });
+            expect(result.lightdashProjectConfig.table_groups).toEqual(
+                upstreamTableGroups,
+            );
+            expect(result.lightdashProjectConfig.defaults).toEqual(
+                upstreamDefaults,
+            );
+
+            buildAdapterSpy.mockRestore();
+        });
+    });
+
     test('should run sql query', async () => {
         jest.spyOn(analyticsMock, 'track');
         const result = await service.runSqlQuery(user, projectUuid, 'fake sql');
