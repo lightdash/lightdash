@@ -44,6 +44,7 @@ import {
 } from './reviewItemDetails';
 import styles from './ReviewKanbanBoard.module.css';
 import { ReviewKanbanCard } from './ReviewKanbanCard';
+import { ReviewKanbanCardSkeleton } from './ReviewKanbanCardSkeleton';
 import {
     BOARD_STATUSES,
     getReviewLane,
@@ -56,6 +57,9 @@ import {
 import { SearchFilter } from './SearchFilter';
 
 const VISIBLE_PER_LANE = 10;
+
+// Staggered skeleton counts per lane so the loading board reads naturally.
+const SKELETON_COUNTS = [3, 2, 2, 1];
 
 const LANE_IDS = new Set<string>(REVIEW_LANES.map((l) => l.id));
 
@@ -146,7 +150,9 @@ export const ReviewKanbanBoard: FC<Props> = ({
     const [selectedRootCauses, setSelectedRootCauses] = useState<
         AiAgentRootCause[]
     >(DEFAULT_VISIBLE_ROOT_CAUSES);
-    const { data } = useAiAgentAdminReviewItems({ statuses: BOARD_STATUSES });
+    const { data, isLoading } = useAiAgentAdminReviewItems({
+        statuses: BOARD_STATUSES,
+    });
     const { data: projects } = useProjects();
     const [expandedLanes, setExpandedLanes] = useState<
         Partial<Record<ReviewLane, boolean>>
@@ -175,6 +181,9 @@ export const ReviewKanbanBoard: FC<Props> = ({
         }
         return data ?? [];
     }, [data, showOnboardingExamples]);
+
+    // Skeletons only on the genuine first load (keepPreviousData keeps refetches silent).
+    const showSkeletons = isLoading && allItems.length === 0;
 
     const searchFilteredItems = useMemo<AiAgentReviewItemSummary[]>(() => {
         const q = deferredSearch?.trim().toLowerCase();
@@ -347,7 +356,7 @@ export const ReviewKanbanBoard: FC<Props> = ({
                     onDragCancel={handleDragCancel}
                 >
                     <Box className={styles.board}>
-                        {REVIEW_LANES.map((lane) => {
+                        {REVIEW_LANES.map((lane, laneIndex) => {
                             const all = lanes[lane.id];
                             const isExpanded = expandedLanes[lane.id] ?? false;
                             const displayed =
@@ -391,7 +400,18 @@ export const ReviewKanbanBoard: FC<Props> = ({
                                             lane.id,
                                         )}
                                     >
-                                        {cards.length === 0 ? (
+                                        {showSkeletons ? (
+                                            Array.from({
+                                                length:
+                                                    SKELETON_COUNTS[
+                                                        laneIndex
+                                                    ] ?? 2,
+                                            }).map((_, i) => (
+                                                <ReviewKanbanCardSkeleton
+                                                    key={i}
+                                                />
+                                            ))
+                                        ) : cards.length === 0 ? (
                                             <Box className={styles.emptyLane}>
                                                 <Text fz="xs" c="dimmed">
                                                     No issues
