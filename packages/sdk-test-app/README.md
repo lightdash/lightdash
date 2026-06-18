@@ -51,9 +51,16 @@ Once the app is running in your browser:
 The examples currently include:
 
 - `AI agent demo`
+- `Content catalog hooks demo`
+- `Dashboard builder demo`
 - `I18n demo`
 - `Filters demo`
 - `Palette UUID demo`
+
+The content catalog example calls `useLightdashContent`. In local development,
+the app proxies `/sdk-test-app-api/lightdash/*` to the Lightdash instance from
+`VITE_EMBED_URL` so browser CORS does not hide SDK hook behavior. Set
+`LIGHTDASH_PROXY_TARGET` to override that target.
 
 The palette demo uses a select with three stable options:
 
