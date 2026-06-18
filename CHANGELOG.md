@@ -1,3 +1,10 @@
+# [0.3191.0](https://github.com/lightdash/lightdash/compare/0.3190.3...0.3191.0) (2026-06-18)
+
+
+### Features
+
+* **ai:** make @-mentioned files and repositories typed context, not ambiguous text ([#24437](https://github.com/lightdash/lightdash/issues/24437)) ([bf7ad4a](https://github.com/lightdash/lightdash/commit/bf7ad4ae82e3d3f00698f091befe1448eeb1e9bb))
+
 ## [0.3190.3](https://github.com/lightdash/lightdash/compare/0.3190.2...0.3190.3) (2026-06-18)
 
 
