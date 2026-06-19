@@ -1,3 +1,10 @@
+## [0.3201.1](https://github.com/lightdash/lightdash/compare/0.3201.0...0.3201.1) (2026-06-19)
+
+
+### Bug Fixes
+
+* scope custom HTTP headers to internal requests only to prevent CORS failures ([#21949](https://github.com/lightdash/lightdash/issues/21949)) ([36e254a](https://github.com/lightdash/lightdash/commit/36e254a742369c2dea6e8c3fdfd56be78035c558)), closes [#17452](https://github.com/lightdash/lightdash/issues/17452)
+
 # [0.3201.0](https://github.com/lightdash/lightdash/compare/0.3200.0...0.3201.0) (2026-06-19)
 
 
