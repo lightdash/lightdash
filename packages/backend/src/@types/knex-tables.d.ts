@@ -422,6 +422,16 @@ import {
     DashboardSummariesTableName,
 } from '../ee/database/entities/dashboardSummaries';
 import {
+    AppExternalConnectionsTable,
+    AppExternalConnectionsTableName,
+    ExternalConnectionRateCountersTable,
+    ExternalConnectionRateCountersTableName,
+    ExternalConnectionSecretsTable,
+    ExternalConnectionSecretsTableName,
+    ExternalConnectionsTable,
+    ExternalConnectionsTableName,
+} from '../ee/database/entities/externalConnections';
+import {
     ManagedAgentActionsTable,
     ManagedAgentActionsTableName,
     ManagedAgentRunsTable,
@@ -612,5 +622,9 @@ declare module 'knex/types/tables' {
         [AppVersionsTableName]: AppVersionsTable;
         [AiRouterTableName]: AiRouterTable;
         [AiRouterDecisionTableName]: AiRouterDecisionTable;
+        [ExternalConnectionsTableName]: ExternalConnectionsTable;
+        [ExternalConnectionSecretsTableName]: ExternalConnectionSecretsTable;
+        [AppExternalConnectionsTableName]: AppExternalConnectionsTable;
+        [ExternalConnectionRateCountersTableName]: ExternalConnectionRateCountersTable;
     }
 }

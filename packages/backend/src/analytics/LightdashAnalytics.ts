@@ -42,6 +42,7 @@ import { EventEmitter } from 'events';
 import { Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../config/parseConfig';
+import { type ExternalConnectionEvent } from '../ee/analytics';
 import { VERSION } from '../version';
 
 type Identify = {
@@ -2425,6 +2426,7 @@ type TypedEvent =
     | SchedulerJobEvent
     | SchedulerNotificationJobEvent
     | DataAppEvent
+    | ExternalConnectionEvent
     | AiWritebackEvent
     | PinnedListUpdated
     | FavoriteToggled
