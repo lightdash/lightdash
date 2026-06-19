@@ -22,6 +22,7 @@ import { Streamdown } from 'streamdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { type StepProgressMessage } from '../../../store/aiAgentThreadStreamSlice';
 import bubbleStyles from '../AgentChatAssistantBubble.module.css';
+import { AiMarkdownErrorBoundary } from '../AiMarkdownErrorBoundary';
 import { AgentStepGroups } from './AgentStepGroups';
 import { ToolCallDescription } from './descriptions/ToolCallDescription';
 import { DiscoverFieldsTrace, type TraceEntry } from './DiscoverFieldsTrace';
@@ -255,14 +256,16 @@ export const ReasoningHistoryRow: FC<{
                         color: 'var(--mantine-color-ldGray-7)',
                     }}
                 >
-                    <Streamdown
-                        parseIncompleteMarkdown
-                        controls={false}
-                        mode="static"
-                        remarkPlugins={[remarkGfm, remarkEmoji]}
-                    >
-                        {combined}
-                    </Streamdown>
+                    <AiMarkdownErrorBoundary>
+                        <Streamdown
+                            parseIncompleteMarkdown
+                            controls={false}
+                            mode="static"
+                            remarkPlugins={[remarkGfm, remarkEmoji]}
+                        >
+                            {combined}
+                        </Streamdown>
+                    </AiMarkdownErrorBoundary>
                 </Box>
             </Collapse>
         </Box>
