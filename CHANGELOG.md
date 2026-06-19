@@ -1,3 +1,10 @@
+## [0.3201.3](https://github.com/lightdash/lightdash/compare/0.3201.2...0.3201.3) (2026-06-19)
+
+
+### Bug Fixes
+
+* **reviews:** exclude remediation build-fix threads from review classifier ([#24517](https://github.com/lightdash/lightdash/issues/24517)) ([76bf3a1](https://github.com/lightdash/lightdash/commit/76bf3a18ed5c83a78acb3a8ca6af12eca2c55b28))
+
 ## [0.3201.2](https://github.com/lightdash/lightdash/compare/0.3201.1...0.3201.2) (2026-06-19)
 
 
