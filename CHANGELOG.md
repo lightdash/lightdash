@@ -1,3 +1,12 @@
+## [0.3203.2](https://github.com/lightdash/lightdash/compare/0.3203.1...0.3203.2) (2026-06-19)
+
+
+### Bug Fixes
+
+* handle malformed URI errors ([#24525](https://github.com/lightdash/lightdash/issues/24525)) ([4adf359](https://github.com/lightdash/lightdash/commit/4adf3592dafc32ace3819df782d619b44cd14830)), closes [#24524](https://github.com/lightdash/lightdash/issues/24524)
+* mark forbidden preview compile jobs failed ([#24526](https://github.com/lightdash/lightdash/issues/24526)) ([aa2ff4a](https://github.com/lightdash/lightdash/commit/aa2ff4a21b289684644bcc2dc3e42fb63064a835)), closes [#24515](https://github.com/lightdash/lightdash/issues/24515)
+* preserve preview copy content flag ([#24514](https://github.com/lightdash/lightdash/issues/24514)) ([397715e](https://github.com/lightdash/lightdash/commit/397715e7e595eb4869011c33ef9d9d605f824a07)), closes [#24513](https://github.com/lightdash/lightdash/issues/24513)
+
 ## [0.3203.1](https://github.com/lightdash/lightdash/compare/0.3203.0...0.3203.1) (2026-06-19)
 
 
