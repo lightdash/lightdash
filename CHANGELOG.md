@@ -1,3 +1,10 @@
+## [0.3201.2](https://github.com/lightdash/lightdash/compare/0.3201.1...0.3201.2) (2026-06-19)
+
+
+### Bug Fixes
+
+* gracefully handle empty AI agent prompts (PROD-8361) ([#24479](https://github.com/lightdash/lightdash/issues/24479)) ([61edf32](https://github.com/lightdash/lightdash/commit/61edf32d4345e24e77c9128c261d64c1fdf728e4))
+
 ## [0.3201.1](https://github.com/lightdash/lightdash/compare/0.3201.0...0.3201.1) (2026-06-19)
 
 
