@@ -1,3 +1,10 @@
+# [0.3199.0](https://github.com/lightdash/lightdash/compare/0.3198.0...0.3199.0) (2026-06-19)
+
+
+### Features
+
+* **data-apps:** external connection data model, manage:ExternalConnection scope, and CRUD ([#24464](https://github.com/lightdash/lightdash/issues/24464)) ([6fe35f0](https://github.com/lightdash/lightdash/commit/6fe35f0f10b54217d3cf2d3d4e1847b9c8711c47))
+
 # [0.3198.0](https://github.com/lightdash/lightdash/compare/0.3197.0...0.3198.0) (2026-06-19)
 
 
