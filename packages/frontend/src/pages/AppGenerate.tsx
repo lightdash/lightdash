@@ -99,6 +99,7 @@ import {
 import AppTemplatePicker from '../features/apps/AppTemplatePicker';
 import ChatBubbleMeta from '../features/apps/ChatBubbleMeta';
 import ChatMessageContent from '../features/apps/ChatMessageContent';
+import { AppExternalConnectionsSection } from '../features/apps/components/AppExternalConnectionsSection';
 import { PromoteAppModal } from '../features/apps/components/PromoteAppModal';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppImageUpload } from '../features/apps/hooks/useAppImageUpload';
@@ -2013,6 +2014,15 @@ const AppGenerate: FC = () => {
                                 </Callout>
                             </Box>
                         )}
+                        {activeAppUuid && projectUuid && (
+                            <Box p="sm">
+                                <AppExternalConnectionsSection
+                                    projectUuid={projectUuid}
+                                    appUuid={activeAppUuid}
+                                />
+                            </Box>
+                        )}
+
                         {!wizardCoversInput && !isViewingOlderVersion && (
                             <Box className={classes.chatInputArea}>
                                 <input
