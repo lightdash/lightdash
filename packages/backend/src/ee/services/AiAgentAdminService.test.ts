@@ -32,6 +32,7 @@ const PREVIEW_PROJECT_UUID = '00000000-0000-0000-0000-000000000008';
 const PREVIEW_AGENT_UUID = '00000000-0000-0000-0000-000000000009';
 const PREVIEW_THREAD_UUID = '00000000-0000-0000-0000-000000000010';
 const COMPILE_JOB_UUID = '00000000-0000-0000-0000-000000000011';
+const WORK_THREAD_UUID = '00000000-0000-0000-0000-000000000012';
 const SITE_URL = 'https://app.lightdash.cloud';
 const PR_URL = 'https://github.com/acme/dbt/pull/42';
 
@@ -85,6 +86,7 @@ const makeRemediation = (
     sourceThreadUuid: THREAD_UUID,
     sourceProjectUuid: PROJECT_UUID,
     sourceAgentUuid: AGENT_UUID,
+    workThreadUuid: WORK_THREAD_UUID,
     pullRequestUuid: 'pull-request-1',
     linkedPrUrl: 'https://github.com/acme/dbt/pull/42',
     previewProjectUuid: null,
@@ -130,10 +132,11 @@ const makeService = ({
     featureFlagService = {},
     aiOrganizationSettingsService = {},
     projectModel = {},
+    projectService = {},
     schedulerClient = {},
     githubAppInstallationsModel = {},
     gitlabAppInstallationsModel = {},
-    aiWritebackService = {},
+    aiAgentService = {},
     pullRequestsModel = {},
     writebackPreviewService = {},
     jobModel = {},
@@ -144,10 +147,11 @@ const makeService = ({
     featureFlagService?: Record<string, unknown>;
     aiOrganizationSettingsService?: Record<string, unknown>;
     projectModel?: Record<string, unknown>;
+    projectService?: Record<string, unknown>;
     schedulerClient?: Record<string, unknown>;
     githubAppInstallationsModel?: Record<string, unknown>;
     gitlabAppInstallationsModel?: Record<string, unknown>;
-    aiWritebackService?: Record<string, unknown>;
+    aiAgentService?: Record<string, unknown>;
     pullRequestsModel?: Record<string, unknown>;
     writebackPreviewService?: Record<string, unknown>;
     jobModel?: Record<string, unknown>;
@@ -191,6 +195,17 @@ const makeService = ({
                 .fn()
                 .mockResolvedValue(undefined),
             createRemediationEvent: jest.fn().mockResolvedValue(undefined),
+            listRemediationEvents: jest.fn().mockResolvedValue([]),
+            getThreadWritebackPullRequests: jest
+                .fn()
+                .mockResolvedValue(
+                    new Map([
+                        [WORK_THREAD_UUID, [{ prUrl: PR_URL, createdAt: NOW }]],
+                    ]),
+                ),
+            findReviewRemediationByWorkThread: jest
+                .fn()
+                .mockResolvedValue(null),
             ...aiAgentReviewClassifierModel,
         },
         featureFlagService: {
@@ -209,9 +224,17 @@ const makeService = ({
             findExploresFromCache: jest.fn().mockResolvedValue({}),
             ...projectModel,
         },
-        aiWritebackService: {
-            run: jest.fn().mockResolvedValue({ prUrl: PR_URL }),
-            ...aiWritebackService,
+        aiAgentService: {
+            generateAgentThreadResponse: jest
+                .fn()
+                .mockResolvedValue('Opened a pull request.'),
+            ...aiAgentService,
+        },
+        projectService: {
+            scheduleCompileProject: jest
+                .fn()
+                .mockResolvedValue({ jobUuid: COMPILE_JOB_UUID }),
+            ...projectService,
         },
         projectContextService: {},
         pullRequestsModel: {
@@ -385,6 +408,7 @@ describe('getAiAgentReviewItemWritebackEligibility', () => {
                         sourceThreadUuid: 'thread-1',
                         sourceProjectUuid: 'project-1',
                         sourceAgentUuid: 'agent-1',
+                        workThreadUuid: null,
                         pullRequestUuid: null,
                         linkedPrUrl: null,
                         previewProjectUuid: null,
@@ -907,6 +931,7 @@ describe('AiAgentAdminService.getReviewItemActivity', () => {
             events: [],
             liveState: null,
             liveMessage: null,
+            verdictStale: false,
         });
         expect(
             aiAgentReviewClassifierModel.listRemediationEvents,
@@ -966,44 +991,36 @@ describe('AiAgentAdminService.runReviewItemWritebackJob', () => {
         ).not.toHaveBeenCalled();
     });
 
-    it('records writeback_completed and pr_opened activity events', async () => {
+    it('runs the build-fix thread and records a pr_opened activity event', async () => {
         const aiAgentReviewClassifierModel = {
             createRemediationEvent: jest.fn().mockResolvedValue(undefined),
         };
-        const aiWritebackService = {
-            run: jest.fn().mockResolvedValue({
-                prUrl: PR_URL,
-                additions: 9,
-                deletions: 1,
-                steps: [
-                    { kind: 'read', label: 'schema.yml' },
-                    { kind: 'edit', label: 'accounts.yml' },
-                ],
-            }),
+        const aiAgentService = {
+            generateAgentThreadResponse: jest
+                .fn()
+                .mockResolvedValue('Opened a pull request.'),
         };
         const service = makeService({
             aiAgentReviewClassifierModel,
-            aiWritebackService,
+            aiAgentService,
         });
 
         await service.runReviewItemWritebackJob(payload);
 
-        expect(
-            aiAgentReviewClassifierModel.createRemediationEvent,
-        ).toHaveBeenCalledWith(
+        // The build-fix thread (not the headless sandbox) opens the PR, pinning
+        // the editDbtProject tool on the opening turn.
+        expect(aiAgentService.generateAgentThreadResponse).toHaveBeenCalledWith(
+            expect.anything(),
             expect.objectContaining({
-                remediationUuid: REMEDIATION_UUID,
-                organizationUuid: ORGANIZATION_UUID,
-                event: {
-                    eventType: 'writeback_completed',
-                    payload: {
-                        files: ['accounts.yml'],
-                        additions: 9,
-                        deletions: 1,
-                    },
-                },
+                threadUuid: WORK_THREAD_UUID,
+                autoApproveSql: true,
+                toolHints: ['editDbtProject'],
+                forceToolHints: true,
+                suppressWritebackPreview: true,
             }),
         );
+        // writeback_completed is emitted by the shared editDbtProject seam, not
+        // the job; the job records pr_opened once it resolves the opened PR.
         expect(
             aiAgentReviewClassifierModel.createRemediationEvent,
         ).toHaveBeenCalledWith(
@@ -1012,6 +1029,58 @@ describe('AiAgentAdminService.runReviewItemWritebackJob', () => {
                     eventType: 'pr_opened',
                     payload: { prUrl: PR_URL, prNumber: 42 },
                 },
+            }),
+        );
+    });
+
+    it('re-verifies a remediation in place on retest', async () => {
+        const schedulerClient = {
+            aiAgentReviewRemediationCompile: jest
+                .fn()
+                .mockResolvedValue({ jobId: 'job-1' }),
+        };
+        const projectService = {
+            scheduleCompileProject: jest
+                .fn()
+                .mockResolvedValue({ jobUuid: COMPILE_JOB_UUID }),
+        };
+        const aiAgentReviewClassifierModel = {
+            getReviewItem: jest.fn().mockResolvedValue(
+                makeReviewItem({
+                    remediation: makeRemediation({
+                        previewProjectUuid: PREVIEW_PROJECT_UUID,
+                        previewThreadUuid: PREVIEW_THREAD_UUID,
+                    }),
+                }),
+            ),
+            updateReviewRemediationStatus: jest
+                .fn()
+                .mockResolvedValue(undefined),
+        };
+        const service = makeService({
+            schedulerClient,
+            projectService,
+            aiAgentReviewClassifierModel,
+        });
+
+        await service.retestReviewRemediation(makeAdminUser(), 'fingerprint-1');
+
+        // Recompiles the existing preview in place (no new clone) ...
+        expect(projectService.scheduleCompileProject).toHaveBeenCalledWith(
+            expect.anything(),
+            PREVIEW_PROJECT_UUID,
+            expect.anything(),
+            true,
+            true,
+        );
+        // ... then reuses the compile poll to re-run verification.
+        expect(
+            schedulerClient.aiAgentReviewRemediationCompile,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({
+                remediationUuid: REMEDIATION_UUID,
+                previewProjectUuid: PREVIEW_PROJECT_UUID,
+                compileJobUuid: COMPILE_JOB_UUID,
             }),
         );
     });

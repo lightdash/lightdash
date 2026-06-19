@@ -346,6 +346,35 @@ export class AiAgentAdminController extends BaseController {
     }
 
     /**
+     * Re-verify a remediation after its PR changed: recompiles the existing
+     * preview and re-runs the Test-fix verification thread.
+     * @summary Retest an AI agent review remediation
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/review-items/{fingerprint}/retest')
+    @OperationId('retestAiAgentReviewRemediation')
+    async retestReviewRemediation(
+        @Request() req: express.Request,
+        @Path() fingerprint: string,
+    ): Promise<ApiAiAgentReviewItemActivityResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getAiAgentAdminService().retestReviewRemediation(
+                    toSessionUser(req.account),
+                    fingerprint,
+                ),
+        };
+    }
+
+    /**
      * Preview the file change a writeback PR would make, without opening it.
      * Only project_context findings have a deterministic diff.
      * @summary Preview AI agent review item writeback diff

@@ -126,6 +126,7 @@ const mapReviewRemediation = (
         sourceThreadUuid: row.source_thread_uuid,
         sourceProjectUuid: row.source_project_uuid,
         sourceAgentUuid: row.source_agent_uuid,
+        workThreadUuid: row.work_thread_uuid,
         pullRequestUuid: row.pull_request_uuid,
         linkedPrUrl: row.linked_pr_url,
         previewProjectUuid: row.preview_project_uuid,
@@ -204,6 +205,7 @@ type CreateReviewRemediationArgs = {
     sourceThreadUuid: string;
     sourceProjectUuid: string;
     sourceAgentUuid: string;
+    workThreadUuid: string | null;
     retryPrompt: string | null;
     createdByUserUuid: string | null;
 };
@@ -1308,6 +1310,35 @@ export class AiAgentReviewClassifierModel {
         return row ? mapReviewRemediation(row) : null;
     }
 
+    async findReviewRemediationByWorkThread(args: {
+        organizationUuid: string;
+        workThreadUuid: string;
+    }): Promise<AiAgentReviewRemediation | null> {
+        const row = (await this.database<AiAgentReviewRemediationTable>(
+            `${AiAgentReviewRemediationTableName} as remediation`,
+        )
+            .leftJoin(
+                `${PullRequestsTableName} as pull_request`,
+                'pull_request.pull_request_uuid',
+                'remediation.pull_request_uuid',
+            )
+            .where('remediation.organization_uuid', args.organizationUuid)
+            .where('remediation.work_thread_uuid', args.workThreadUuid)
+            .orderBy('remediation.updated_at', 'desc')
+            .select<ReviewRemediationRow>(
+                'remediation.*',
+                {
+                    linked_pr_url: 'pull_request.pr_url',
+                },
+                this.database.raw(
+                    '(extract(epoch from (now() - remediation.updated_at)) * 1000)::float8 as updated_at_age_ms',
+                ),
+            )
+            .first()) as ReviewRemediationRow | undefined;
+
+        return row ? mapReviewRemediation(row) : null;
+    }
+
     async createReviewRemediation(
         args: CreateReviewRemediationArgs,
     ): Promise<AiAgentReviewRemediation> {
@@ -1322,6 +1353,7 @@ export class AiAgentReviewClassifierModel {
                 source_thread_uuid: args.sourceThreadUuid,
                 source_project_uuid: args.sourceProjectUuid,
                 source_agent_uuid: args.sourceAgentUuid,
+                work_thread_uuid: args.workThreadUuid,
                 retry_prompt: args.retryPrompt,
                 created_by_user_uuid: args.createdByUserUuid,
             })
@@ -1332,6 +1364,22 @@ export class AiAgentReviewClassifierModel {
             linked_pr_url: null,
             updated_at_age_ms: 0,
         });
+    }
+
+    async setReviewRemediationWorkThread(args: {
+        remediationUuid: string;
+        organizationUuid: string;
+        workThreadUuid: string;
+    }): Promise<void> {
+        await this.database<AiAgentReviewRemediationTable>(
+            AiAgentReviewRemediationTableName,
+        )
+            .where('ai_agent_review_remediation_uuid', args.remediationUuid)
+            .where('organization_uuid', args.organizationUuid)
+            .update({
+                work_thread_uuid: args.workThreadUuid,
+                updated_at: this.database.fn.now() as never,
+            });
     }
 
     async updateReviewRemediationStatus(

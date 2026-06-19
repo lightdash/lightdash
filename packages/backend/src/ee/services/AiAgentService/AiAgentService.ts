@@ -381,7 +381,9 @@ type AiAgentServiceDependencies = {
     pullRequestsModel: Pick<PullRequestsModel, 'findByAiThreadUuid' | 'find'>;
     aiAgentReviewClassifierModel: Pick<
         AiAgentReviewClassifierModel,
-        'findReviewRemediationByPreviewThread'
+        | 'findReviewRemediationByPreviewThread'
+        | 'findReviewRemediationByWorkThread'
+        | 'createRemediationEvent'
     >;
     prometheusMetrics?: PrometheusMetrics;
 };
@@ -634,7 +636,9 @@ export class AiAgentService extends BaseService {
 
     private readonly aiAgentReviewClassifierModel: Pick<
         AiAgentReviewClassifierModel,
-        'findReviewRemediationByPreviewThread'
+        | 'findReviewRemediationByPreviewThread'
+        | 'findReviewRemediationByWorkThread'
+        | 'createRemediationEvent'
     >;
 
     private readonly aiAgentMcpRuntimeClient: AiAgentMcpRuntimeClient;
@@ -3983,12 +3987,14 @@ export class AiAgentService extends BaseService {
             agentUuid,
             threadUuid,
             enableSqlMode,
+            autoApproveSql,
             toolHints,
             runtimeOptions,
         }: {
             agentUuid: string;
             threadUuid: string;
             enableSqlMode: boolean;
+            autoApproveSql?: boolean;
             toolHints: string[];
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
         },
@@ -4040,6 +4046,7 @@ export class AiAgentService extends BaseService {
                     stream: true,
                     canManageAgent,
                     enableSqlMode,
+                    autoApproveSql,
                     toolHints,
                     runtimeOptions,
                 },
@@ -4266,10 +4273,23 @@ export class AiAgentService extends BaseService {
             agentUuid,
             threadUuid,
             autoApproveSql = false,
+            toolHints,
+            forceToolHints,
+            onStepProgress,
+            suppressWritebackPreview,
         }: {
             agentUuid: string;
             threadUuid: string;
             autoApproveSql?: boolean;
+            toolHints?: string[];
+            forceToolHints?: boolean;
+            onStepProgress?: (
+                progress: string,
+                toolName?: string,
+                progressId?: string,
+                progressStatus?: 'in_progress' | 'complete' | 'error',
+            ) => void;
+            suppressWritebackPreview?: boolean;
         },
     ): Promise<string> {
         try {
@@ -4307,6 +4327,10 @@ export class AiAgentService extends BaseService {
                     // Non-stream callers (eval, etc.) preserve flag-only gating.
                     enableSqlMode: true,
                     autoApproveSql,
+                    toolHints,
+                    forceToolHints,
+                    onSlackStepProgress: onStepProgress,
+                    suppressWritebackPreview,
                 },
             );
             return response;
@@ -5781,6 +5805,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 progressStatus?: 'in_progress' | 'complete' | 'error',
             ) => void;
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
+            suppressWritebackPreview?: boolean;
         },
     ) {
         const { projectUuid, organizationUuid } = prompt;
@@ -6021,6 +6046,31 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         onProgress: writebackProgressCallback,
                     }),
             );
+
+            // Build-fix seam: if this thread is a review remediation's work
+            // thread, every commit it lands (the initial run and each Continue
+            // PR turn) must be reflected on the remediation so the Test-fix
+            // verdict is marked stale (verdict staleness is derived from event
+            // ordering). null for ordinary writeback threads — a no-op.
+            const reviewRemediation = organizationUuid
+                ? await this.aiAgentReviewClassifierModel.findReviewRemediationByWorkThread(
+                      {
+                          organizationUuid,
+                          workThreadUuid: prompt.threadUuid,
+                      },
+                  )
+                : null;
+            if (reviewRemediation && result.prUrl) {
+                await this.aiAgentReviewClassifierModel.createRemediationEvent({
+                    remediationUuid: reviewRemediation.uuid,
+                    organizationUuid: reviewRemediation.organizationUuid,
+                    event: {
+                        eventType: 'pr_updated',
+                        payload: { prUrl: result.prUrl },
+                    },
+                });
+            }
+
             // On a successful PR open/update, add a green-tick reaction to the
             // user's original Slack mention so they see the outcome at a
             // glance without scrolling through the agent's reply. Best-effort
@@ -6080,7 +6130,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             // CI-posted URL. Returns null for unsupported projects (e.g.
             // CLI-deployed) or on any failure — those surface no preview.
             let previewUrl: string | null = null;
-            if (result.prUrl) {
+            if (
+                result.prUrl &&
+                !options?.suppressWritebackPreview &&
+                !reviewRemediation
+            ) {
                 const preview =
                     await this.writebackPreviewService.createPreviewForPullRequest(
                         {
@@ -6423,6 +6477,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             canManageAgent: boolean;
             enableSqlMode?: boolean;
             autoApproveSql?: boolean;
+            // Set by the review Build-fix flow, which owns preview compilation
+            // and verification itself — the editDbtProject tool must not also
+            // spin up its own preview project.
+            suppressWritebackPreview?: boolean;
+            // Forces the first tool hint on the opening step instead of merely
+            // suggesting it (review Build-fix guarantees editDbtProject runs).
+            forceToolHints?: boolean;
             toolHints?: string[];
             onSlackStepProgress?: (
                 progress: string,
@@ -6460,6 +6521,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             canManageAgent: boolean;
             enableSqlMode?: boolean;
             autoApproveSql?: boolean;
+            suppressWritebackPreview?: boolean;
+            forceToolHints?: boolean;
             toolHints?: string[];
             onSlackStepProgress?: (
                 progress: string,
@@ -6556,6 +6619,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                           })
                     : undefined),
             runtimeOptions: options.runtimeOptions,
+            suppressWritebackPreview: options.suppressWritebackPreview,
         });
 
         const enableSqlMode = options.enableSqlMode ?? false;
@@ -6851,6 +6915,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             siteUrl: this.lightdashConfig.siteUrl,
             canManageAgent: options.canManageAgent,
             toolHints: options.toolHints ?? [],
+            forceToolHints: options.forceToolHints ?? false,
         };
 
         const mcpToolSetup: AgentMcpToolSetup =
