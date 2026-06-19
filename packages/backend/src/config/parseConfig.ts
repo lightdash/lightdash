@@ -1804,16 +1804,16 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             'lightdash-ai-writeback',
         e2bAiWritebackTemplateTag:
             process.env.E2B_AI_WRITEBACK_TEMPLATE_TAG ?? (VERSION as string),
-        // Fall back to the writeback template+tag when the lean coding-agent
-        // image isn't configured, so editRepo works before that image ships.
+        // The lean coding-agent image (sandboxes/ai-coding-agent), published per
+        // release by the post-release workflow at the running version's tag —
+        // same pattern as the other templates. Operators can override the
+        // name/tag (e.g. to pin, roll back, or point at the writeback image for
+        // local dev before the lean image is built).
         e2bCodingAgentTemplateName:
             process.env.E2B_CODING_AGENT_TEMPLATE_NAME ||
-            process.env.E2B_AI_WRITEBACK_TEMPLATE_NAME ||
-            'lightdash-ai-writeback',
+            'lightdash-ai-coding-agent',
         e2bCodingAgentTemplateTag:
-            process.env.E2B_CODING_AGENT_TEMPLATE_TAG ??
-            process.env.E2B_AI_WRITEBACK_TEMPLATE_TAG ??
-            (VERSION as string),
+            process.env.E2B_CODING_AGENT_TEMPLATE_TAG ?? (VERSION as string),
     };
 };
 
