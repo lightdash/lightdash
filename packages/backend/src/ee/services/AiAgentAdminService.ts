@@ -29,6 +29,7 @@ import {
     ParameterError,
     PullRequestProvider,
     PullRequestSource,
+    RequestMethod,
     UpdateAiAgentReviewItemStatus,
     type AiAgentReviewItemWritebackBlockedReason,
     type AiAgentReviewItemWritebackEligibility,
@@ -60,6 +61,7 @@ import { type PullRequestsModel } from '../../models/PullRequestsModel';
 import { type UserModel } from '../../models/UserModel';
 import { BaseService } from '../../services/BaseService';
 import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
+import { type ProjectService } from '../../services/ProjectService/ProjectService';
 import { AiAgentModel } from '../models/AiAgentModel';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type CommercialSchedulerClient } from '../scheduler/SchedulerClient';
@@ -67,8 +69,8 @@ import {
     buildYmlPathByModel,
     planReviewWriteback,
 } from './ai/reviewWriteback/buildReviewWritebackPrompt';
+import { type AiAgentService } from './AiAgentService/AiAgentService';
 import { type AiOrganizationSettingsService } from './AiOrganizationSettingsService';
-import { type AiWritebackService } from './AiWritebackService/AiWritebackService';
 import { type WritebackPreviewService } from './AiWritebackService/WritebackPreviewService';
 import { type ProjectContextService } from './ProjectContextService/ProjectContextService';
 
@@ -76,10 +78,11 @@ type AiAgentAdminServiceDependencies = {
     analytics: LightdashAnalytics;
     aiAgentModel: AiAgentModel;
     aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
+    aiAgentService: AiAgentService;
     featureFlagService: FeatureFlagService;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
     projectModel: ProjectModel;
-    aiWritebackService: AiWritebackService;
+    projectService: ProjectService;
     projectContextService: ProjectContextService;
     pullRequestsModel: PullRequestsModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
@@ -285,13 +288,15 @@ export class AiAgentAdminService extends BaseService {
 
     private readonly aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
 
+    private readonly aiAgentService: AiAgentService;
+
     private readonly featureFlagService: FeatureFlagService;
 
     private readonly aiOrganizationSettingsService: AiOrganizationSettingsService;
 
     private readonly projectModel: ProjectModel;
 
-    private readonly aiWritebackService: AiWritebackService;
+    private readonly projectService: ProjectService;
 
     private readonly projectContextService: ProjectContextService;
 
@@ -315,11 +320,12 @@ export class AiAgentAdminService extends BaseService {
         this.aiAgentModel = dependencies.aiAgentModel;
         this.aiAgentReviewClassifierModel =
             dependencies.aiAgentReviewClassifierModel;
+        this.aiAgentService = dependencies.aiAgentService;
         this.featureFlagService = dependencies.featureFlagService;
         this.aiOrganizationSettingsService =
             dependencies.aiOrganizationSettingsService;
         this.projectModel = dependencies.projectModel;
-        this.aiWritebackService = dependencies.aiWritebackService;
+        this.projectService = dependencies.projectService;
         this.projectContextService = dependencies.projectContextService;
         this.pullRequestsModel = dependencies.pullRequestsModel;
         this.githubAppInstallationsModel =
@@ -849,7 +855,7 @@ export class AiAgentAdminService extends BaseService {
                     organizationId: organizationUuid,
                     fingerprint,
                     rootCause: reviewItem.primaryRootCause,
-                    previousStatus: previousReviewItem?.status ?? 'open',
+                    previousStatus: previousReviewItem?.status ?? 'triage',
                     newStatus: update.status,
                 },
             });
@@ -885,6 +891,26 @@ export class AiAgentAdminService extends BaseService {
                 },
             );
         }
+        return this.getReviewItem(user, fingerprint);
+    }
+
+    async updateReviewItemAssignee(
+        user: SessionUser,
+        fingerprint: string,
+        assignedToUserUuid: string | null,
+    ): Promise<AiAgentReviewItemSummary> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkOrganizationAdminAccess(user);
+
+        await this.aiAgentReviewClassifierModel.updateReviewItemAssignee({
+            fingerprint,
+            organizationUuid,
+            assignedToUserUuid,
+        });
+
         return this.getReviewItem(user, fingerprint);
     }
 
@@ -951,6 +977,19 @@ export class AiAgentAdminService extends BaseService {
             throw new NotFoundError('Review item not found');
         }
 
+        // Plan the writeback up front: for semantic_layer we seed a real
+        // Build-fix thread with the writeback prompt so the workspace can show
+        // it the moment Create PR is clicked; project_context stays a
+        // deterministic, threadless writeback.
+        const explores = await this.projectModel.findExploresFromCache(
+            scope.projectUuid,
+            'name',
+        );
+        const plan = planReviewWriteback(
+            reviewItem,
+            buildYmlPathByModel(Object.values(explores)),
+        );
+
         // The model presents a stale remediation as failed, which relaxes the
         // eligibility check above — but the partial unique index still sees
         // the row as active, so it must be persisted as failed (the model
@@ -967,6 +1006,42 @@ export class AiAgentAdminService extends BaseService {
                 organizationUuid,
                 promptUuid: finding.promptUuid,
             });
+
+        // Create the Build-fix thread before the remediation row so a failed
+        // unique-index insert leaves only a harmless orphan thread, never a
+        // remediation pointing at a thread that doesn't exist. The source
+        // project/agent were validated above (eligibility + scope), so the
+        // auth-bypassing model call is safe.
+        let workThreadUuid: string | null = null;
+        if (plan.strategy === 'prompt') {
+            const created =
+                await this.aiAgentModel.createWebAppThreadWithPrompt({
+                    thread: {
+                        organizationUuid,
+                        projectUuid: scope.projectUuid,
+                        userUuid: user.userUuid,
+                        createdFrom: 'web_app' as const,
+                        agentUuid: scope.agentUuid,
+                    },
+                    prompt: {
+                        createdByUserUuid: user.userUuid,
+                        prompt: plan.promptText,
+                        context: [
+                            {
+                                type: 'thread',
+                                threadUuid: finding.threadUuid,
+                                promptUuid: finding.promptUuid,
+                            },
+                        ],
+                    },
+                });
+            workThreadUuid = created.threadUuid;
+            await this.aiAgentModel.updateThreadTitle({
+                threadUuid: workThreadUuid,
+                title: `Fix review: ${reviewItem.title}`,
+            });
+        }
+
         // The one-active-per-fingerprint index can still reject the insert in
         // a race (concurrent retry, or a worker reviving the row between the
         // read and the stale update) — surface that as a conflict, not a 500.
@@ -982,6 +1057,7 @@ export class AiAgentAdminService extends BaseService {
                         sourceThreadUuid: finding.threadUuid,
                         sourceProjectUuid: finding.projectUuid,
                         sourceAgentUuid: finding.agentUuid,
+                        workThreadUuid,
                         retryPrompt,
                         createdByUserUuid: user.userUuid,
                     },
@@ -1166,34 +1242,42 @@ export class AiAgentAdminService extends BaseService {
                     prUrl: writeback.prUrl,
                 });
             } else {
-                const result = await this.aiWritebackService.run({
-                    user,
-                    projectUuid,
-                    prompt: plan.promptText,
-                    source: 'admin_review',
-                    onProgress: (message) => {
+                // Run the Build-fix thread: the conversational agent calls
+                // editDbtProject, which opens the PR and links it to this
+                // thread via ai_writeback_thread. The writeback_completed event
+                // is emitted by the shared editDbtProject seam so that
+                // user-driven Continue PR turns record it too.
+                const remediation = remediationUuid
+                    ? await this.aiAgentReviewClassifierModel.getReviewRemediation(
+                          { organizationUuid, remediationUuid },
+                      )
+                    : null;
+                const workThreadUuid = remediation?.workThreadUuid ?? null;
+                if (!workThreadUuid) {
+                    throw new ParameterError(
+                        'Build-fix thread was not created for this remediation',
+                    );
+                }
+                await this.aiAgentService.generateAgentThreadResponse(user, {
+                    agentUuid,
+                    threadUuid: workThreadUuid,
+                    autoApproveSql: true,
+                    // Force the writeback tool on the opening turn so the run
+                    // always opens a PR rather than just discussing the fix.
+                    toolHints: ['editDbtProject'],
+                    forceToolHints: true,
+                    // The review flow owns preview + verification (below), so the
+                    // tool must not also create its own preview project.
+                    suppressWritebackPreview: true,
+                    onStepProgress: (message) => {
                         void setProgress(message);
                     },
                 });
-                prUrl = result.prUrl;
-                if (remediationUuid) {
-                    await this.aiAgentReviewClassifierModel.createRemediationEvent(
-                        {
-                            remediationUuid,
-                            organizationUuid,
-                            event: {
-                                eventType: 'writeback_completed',
-                                payload: {
-                                    files: (result.steps ?? [])
-                                        .filter((step) => step.kind === 'edit')
-                                        .map((step) => step.label),
-                                    additions: result.additions ?? null,
-                                    deletions: result.deletions ?? null,
-                                },
-                            },
-                        },
+                const writebackPrs =
+                    await this.aiAgentReviewClassifierModel.getThreadWritebackPullRequests(
+                        [workThreadUuid],
                     );
-                }
+                prUrl = writebackPrs.get(workThreadUuid)?.[0]?.prUrl ?? null;
                 pullRequest = prUrl
                     ? await this.pullRequestsModel.findByProjectAndUrl(
                           projectUuid,
@@ -1407,7 +1491,12 @@ export class AiAgentAdminService extends BaseService {
                 fingerprint,
             );
         if (!reviewItem?.remediation) {
-            return { events: [], liveState: null, liveMessage: null };
+            return {
+                events: [],
+                liveState: null,
+                liveMessage: null,
+                verdictStale: false,
+            };
         }
 
         const events =
@@ -1427,7 +1516,97 @@ export class AiAgentAdminService extends BaseService {
                 liveState === 'writeback'
                     ? reviewItem.prWritebackMessage
                     : null,
+            verdictStale: AiAgentAdminService.deriveVerdictStale(events),
         };
+    }
+
+    /**
+     * A verdict is stale when the PR moved on after it was produced: the latest
+     * commit-landing event (pr_opened / pr_updated / writeback_completed)
+     * occurred after the latest verification_completed. No verdict yet → never
+     * stale (the in-flight states cover that).
+     */
+    private static deriveVerdictStale(
+        events: AiAgentReviewRemediationEvent[],
+    ): boolean {
+        const latestOccurredAt = (
+            eventTypes: AiAgentReviewRemediationEventType[],
+        ): number => {
+            const times = events
+                .filter((event) => eventTypes.includes(event.eventType))
+                .map((event) => new Date(event.occurredAt).getTime());
+            return times.length > 0 ? Math.max(...times) : -Infinity;
+        };
+        const latestVerification = latestOccurredAt(['verification_completed']);
+        if (latestVerification === -Infinity) {
+            return false;
+        }
+        const latestCommit = latestOccurredAt([
+            'pr_opened',
+            'pr_updated',
+            'writeback_completed',
+        ]);
+        return latestCommit > latestVerification;
+    }
+
+    /**
+     * Re-verify a remediation after the PR changed (a Continue PR commit). The
+     * preview project tracks the PR head branch, so a fresh compile picks up the
+     * new commits in place — no new clone. Resets the remediation to pr_open so
+     * the existing compile poll runs, which on completion seeds a fresh Test-fix
+     * thread and re-runs verification (clearing the stale verdict).
+     */
+    async retestReviewRemediation(
+        user: SessionUser,
+        fingerprint: string,
+    ): Promise<AiAgentReviewItemActivity> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkOrganizationAdminAccess(user);
+
+        const reviewItem =
+            await this.aiAgentReviewClassifierModel.getReviewItem(
+                organizationUuid,
+                fingerprint,
+            );
+        const remediation = reviewItem?.remediation ?? null;
+        if (!remediation) {
+            throw new NotFoundError('No remediation to retest');
+        }
+        if (!remediation.previewProjectUuid) {
+            throw new ParameterError(
+                'This remediation has no preview to retest',
+            );
+        }
+
+        await this.aiAgentReviewClassifierModel.updateReviewRemediationStatus({
+            remediationUuid: remediation.uuid,
+            organizationUuid,
+            status: 'pr_open',
+        });
+
+        const { jobUuid } = await this.projectService.scheduleCompileProject(
+            user,
+            remediation.previewProjectUuid,
+            RequestMethod.BACKEND,
+            true,
+            true,
+        );
+
+        await this.schedulerClient.aiAgentReviewRemediationCompile({
+            organizationUuid,
+            projectUuid: remediation.sourceProjectUuid,
+            userUuid: user.userUuid,
+            fingerprint,
+            remediationUuid: remediation.uuid,
+            previewProjectUuid: remediation.previewProjectUuid,
+            compileJobUuid: jobUuid,
+            startedAt: Date.now(),
+        });
+
+        return this.getReviewItemActivity(user, fingerprint);
     }
 
     private static deriveRemediationLiveState(

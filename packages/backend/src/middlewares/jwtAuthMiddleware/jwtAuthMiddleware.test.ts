@@ -211,6 +211,27 @@ describe('Embed Auth Middleware', () => {
             },
         );
 
+        it('should extract project UUID from projectUuids query param', async () => {
+            mockRequest.path = '/api/v2/content';
+            mockRequest.query = { projectUuids: [mockProjectUuid] };
+            mockRequest.headers = { [JWT_HEADER_NAME]: mockEmbedToken };
+
+            await jwtAuthMiddleware(
+                mockRequest as express.Request,
+                mockResponse as express.Response,
+                mockNext,
+            );
+
+            expect(mockEmbedService.getAccountFromJwt).toHaveBeenCalledWith(
+                mockProjectUuid,
+                mockEmbedToken,
+            );
+            expect(mockRequest.project).toEqual({
+                projectUuid: mockProjectUuid,
+            });
+            expect(mockRequest.account).toBe(mockAccount);
+        });
+
         it('should handle paths without embed segment', async () => {
             mockRequest.path = '/api/v1/some-other-path';
 

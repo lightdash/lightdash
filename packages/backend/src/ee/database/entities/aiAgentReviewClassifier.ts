@@ -261,6 +261,7 @@ export type DbAiAgentReviewRemediation = {
     source_thread_uuid: string;
     source_project_uuid: string;
     source_agent_uuid: string;
+    work_thread_uuid: string | null;
     pull_request_uuid: string | null;
     preview_project_uuid: string | null;
     preview_agent_uuid: string | null;

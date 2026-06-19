@@ -170,3 +170,44 @@ describe('getSystemPromptV2 change-validation policy', () => {
         );
     });
 });
+
+describe('getSystemPromptV2 repo-fs code search caveat', () => {
+    const repoFsArgs = {
+        availableExplores: [],
+        enableRepoDiscovery: true,
+        repoFsRoot: '.',
+    };
+
+    test('appends the no-search caveat when code search is unsupported (GitLab)', () => {
+        const content = promptText({
+            ...repoFsArgs,
+            repoFsSupportsCodeSearch: false,
+        });
+        expect(content).toContain(
+            "`search` is unavailable for this project's repositories",
+        );
+    });
+
+    test('omits the caveat when code search is supported (GitHub / default)', () => {
+        expect(
+            promptText({ ...repoFsArgs, repoFsSupportsCodeSearch: true }),
+        ).not.toContain(
+            "`search` is unavailable for this project's repositories",
+        );
+        // Default (arg omitted) is "supported", so no caveat either.
+        expect(promptText(repoFsArgs)).not.toContain(
+            "`search` is unavailable for this project's repositories",
+        );
+    });
+
+    test('never adds the caveat when repo discovery is off', () => {
+        const content = promptText({
+            availableExplores: [],
+            enableRepoDiscovery: false,
+            repoFsSupportsCodeSearch: false,
+        });
+        expect(content).not.toContain(
+            "`search` is unavailable for this project's repositories",
+        );
+    });
+});

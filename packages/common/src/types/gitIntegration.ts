@@ -139,6 +139,9 @@ export type GitRepo = {
     fullName: string;
     ownerLogin: string;
     defaultBranch: string;
+    // Which provider the repo lives on, so the UI can pick the right icon.
+    // Optional for back-compat with existing GitRepo producers (setup endpoints).
+    provider?: 'github' | 'gitlab';
 };
 
 export type GitFileEntry = {

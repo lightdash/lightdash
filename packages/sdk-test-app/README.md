@@ -51,9 +51,22 @@ Once the app is running in your browser:
 The examples currently include:
 
 - `AI agent demo`
+- `Content catalog hooks demo`
+- `Dashboard builder demo`
 - `I18n demo`
 - `Filters demo`
 - `Palette UUID demo`
+
+The content catalog example calls `useLightdashContent`. It uses the configured
+embed token against the SDK-supported content endpoint. Prefer an `apiAccess`
+embed token with `content.serviceAccountUserUuid`; existing service-account
+write-action tokens are also compatible. Do not expose service account API
+tokens in browser apps. `apiAccess` tokens are catalog/read API tokens; use an
+embedded write-action JWT for save/create flows. The local
+`generate-embed-token` helper creates a compatible URL.
+In local development, the app proxies `/sdk-test-app-api/lightdash/*` to the
+Lightdash instance from `VITE_EMBED_URL` so browser CORS does not hide SDK hook
+behavior. Set `LIGHTDASH_PROXY_TARGET` to override that target.
 
 The palette demo uses a select with three stable options:
 

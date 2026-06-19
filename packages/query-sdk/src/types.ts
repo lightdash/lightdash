@@ -256,9 +256,44 @@ export type LightdashUser = {
     attributes: Record<string, string>;
 };
 
+// --- External API fetch (warehouse-proxied external connections) ---
+
+/**
+ * Result of an external API call proxied through Lightdash.
+ *
+ * Structural copy of `@lightdash/common`'s `ExternalFetchResponse`. The SDK
+ * is published standalone and intentionally has no `@lightdash/common`
+ * dependency, so this shape is duplicated here. Keep the two in sync.
+ */
+export type ExternalFetchResult = {
+    /** HTTP status returned by the upstream external API. */
+    status: number;
+    /** Upstream `Content-Type` (e.g. `application/json`). */
+    contentType: string;
+    /** Parsed JSON body when JSON, otherwise the raw text. */
+    body: unknown;
+    /** True when Lightdash truncated an oversized response body. */
+    truncated: boolean;
+};
+
+export type ExternalFetchOptions = {
+    /** HTTP method. Defaults to `'GET'`. */
+    method?: 'GET' | 'POST';
+    /** Relative path appended to the connection's configured base URL. */
+    path: string;
+    /** Query-string params, merged into the request URL by the backend. */
+    query?: Record<string, string>;
+    /** JSON request body (POST only). */
+    body?: unknown;
+};
+
 // --- Transport ---
 
 export type Transport = {
     executeQuery: (query: QueryDefinition) => Promise<QueryResult>;
     getUser: () => Promise<LightdashUser>;
+    externalFetch: (
+        alias: string,
+        opts: ExternalFetchOptions,
+    ) => Promise<ExternalFetchResult>;
 };

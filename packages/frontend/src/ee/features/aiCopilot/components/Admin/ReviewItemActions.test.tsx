@@ -1,5 +1,6 @@
 import { type AiAgentReviewItemSummary } from '@lightdash/common';
 import { screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { ReviewItemActions } from './ReviewItemActions';
@@ -7,6 +8,10 @@ import { ReviewItemActions } from './ReviewItemActions';
 vi.mock('../../hooks/useAiAgentAdmin', () => ({
     useAiAgentAdminReviewItem: () => ({ data: undefined }),
     useCreateAiAgentReviewItemWriteback: () => ({
+        isLoading: false,
+        mutate: vi.fn(),
+    }),
+    useUpdateAiAgentReviewItemStatus: () => ({
         isLoading: false,
         mutate: vi.fn(),
     }),
@@ -72,7 +77,12 @@ const makeReviewItem = (
 describe('ReviewItemActions', () => {
     it('does not render the unsupported root cause blocked reason', () => {
         renderWithProviders(
-            <ReviewItemActions reviewItem={makeReviewItem()} mode="drawer" />,
+            <MemoryRouter>
+                <ReviewItemActions
+                    reviewItem={makeReviewItem()}
+                    mode="drawer"
+                />
+            </MemoryRouter>,
         );
 
         expect(
@@ -82,17 +92,19 @@ describe('ReviewItemActions', () => {
 
     it('still renders other blocked reasons', () => {
         renderWithProviders(
-            <ReviewItemActions
-                reviewItem={makeReviewItem({
-                    writebackEligibility: {
-                        eligible: false,
-                        reason: 'missing_project',
-                        strategy: null,
-                        provider: null,
-                    },
-                })}
-                mode="drawer"
-            />,
+            <MemoryRouter>
+                <ReviewItemActions
+                    reviewItem={makeReviewItem({
+                        writebackEligibility: {
+                            eligible: false,
+                            reason: 'missing_project',
+                            strategy: null,
+                            provider: null,
+                        },
+                    })}
+                    mode="drawer"
+                />
+            </MemoryRouter>,
         );
 
         expect(

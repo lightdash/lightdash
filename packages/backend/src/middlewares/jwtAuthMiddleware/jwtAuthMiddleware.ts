@@ -18,9 +18,29 @@ import { logAuditEvent } from '../../logging/winston';
  * We don't have the parsed routes yet, so we get the path params in a
  * cheap and dirty way. Long-term, we'll use org-level JWTs rather than project-level.
  */
+const getSingleQueryValue = (value: unknown): string | undefined => {
+    if (typeof value === 'string') {
+        return value;
+    }
+
+    if (
+        Array.isArray(value) &&
+        value.length === 1 &&
+        typeof value[0] === 'string'
+    ) {
+        return value[0];
+    }
+
+    return undefined;
+};
+
 const parseProjectUuid = (req: Pick<Request, 'query' | 'path'>) => {
-    if (req.query.projectUuid) {
-        return req.query.projectUuid as string;
+    const queryProjectUuid =
+        getSingleQueryValue(req.query.projectUuid) ??
+        getSingleQueryValue(req.query.projectUuids);
+
+    if (queryProjectUuid) {
+        return queryProjectUuid;
     }
 
     const pathParts = req.path.split('/');

@@ -97,6 +97,7 @@ const buildSemanticLayerWritebackPrompt = (
 
     const sections = [
         'You are improving the dbt/Lightdash semantic layer YAML to fix a recurring issue surfaced by AI agent review. Make the smallest change that resolves it.',
+        'The original conversation where the agent gave a wrong or insufficient answer is attached to this thread as pinned context. Read it first to understand exactly what was missing, then open a pull request that closes that gap.',
         `Issue: ${item.title}`,
         item.description ? item.description : null,
         recommendation

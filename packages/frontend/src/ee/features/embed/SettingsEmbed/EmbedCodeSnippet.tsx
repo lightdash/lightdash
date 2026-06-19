@@ -1131,6 +1131,8 @@ const getBackendCodeSnippet = (
                     : '<APP_UUID>',
             );
             break;
+        case 'apiAccess':
+            break;
         default:
             assertUnreachable(
                 contentType,
@@ -1226,6 +1228,7 @@ export const EmbeddedChart = ({ embedJwt }: EmbeddedChartProps) => (
 `;
         case 'dataApp':
         case 'aiAgent':
+        case 'apiAccess':
             return '';
         default:
             return assertUnreachable(

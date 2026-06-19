@@ -11,13 +11,15 @@ import {
 import {
     IconAlertCircle,
     IconInfoCircle,
-    IconMessages,
+    IconLayoutColumns,
 } from '@tabler/icons-react';
 import { type FC, type SyntheticEvent, useState } from 'react';
+import { Link, useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
     useAiAgentAdminReviewItem,
     useCreateAiAgentReviewItemWriteback,
+    useUpdateAiAgentReviewItemStatus,
 } from '../../hooks/useAiAgentAdmin';
 import { ProjectContextWritebackModal } from './ProjectContextWritebackModal';
 import {
@@ -35,7 +37,13 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
     mode = 'table',
 }) => {
     const createWriteback = useCreateAiAgentReviewItemWriteback();
+    const updateStatus = useUpdateAiAgentReviewItemStatus();
+    const navigate = useNavigate();
     const [previewOpen, setPreviewOpen] = useState(false);
+
+    const workspaceUrl = `/generalSettings/ai/reviews/${encodeURIComponent(
+        reviewItem.fingerprint,
+    )}`;
 
     const propInFlight =
         reviewItem.prWritebackStatus === 'queued' ||
@@ -61,12 +69,6 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
     const previewsDiff = current.primaryRootCause === 'project_context';
 
     const phase = current.prWritebackMessage ?? 'Opening pull request…';
-    const workThreadUrl =
-        current.remediation?.previewProjectUuid &&
-        current.remediation.previewAgentUuid &&
-        current.remediation.previewThreadUuid
-            ? `/projects/${current.remediation.previewProjectUuid}/ai-agents/${current.remediation.previewAgentUuid}/threads/${current.remediation.previewThreadUuid}`
-            : null;
     const remediationError =
         current.remediation?.status === 'failed'
             ? current.remediation.errorMessage
@@ -91,43 +93,84 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                         </Group>
                     </Tooltip>
                 )
+            ) : current.status === 'triage' ? (
+                <Group gap={4} wrap="nowrap">
+                    <Button
+                        size={buttonSize}
+                        radius="md"
+                        variant="filled"
+                        color="indigo"
+                        loading={updateStatus.isLoading}
+                        onClick={(event) => {
+                            stopPropagation(event);
+                            updateStatus.mutate({
+                                fingerprint: current.fingerprint,
+                                body: { status: 'open', dismissedReason: null },
+                            });
+                        }}
+                    >
+                        Accept
+                    </Button>
+                    <Button
+                        size={buttonSize}
+                        radius="md"
+                        variant="default"
+                        loading={updateStatus.isLoading}
+                        onClick={(event) => {
+                            stopPropagation(event);
+                            updateStatus.mutate({
+                                fingerprint: current.fingerprint,
+                                body: {
+                                    status: 'dismissed',
+                                    dismissedReason: 'not_actionable',
+                                },
+                            });
+                        }}
+                    >
+                        Dismiss
+                    </Button>
+                </Group>
             ) : (
                 <Stack gap={mode === 'drawer' ? 'xs' : 6} align="flex-start">
                     <Group gap={4} wrap="wrap">
-                        {current.linkedPrUrl && (
+                        {/* Once a remediation exists, the workspace is the one
+                            place to view the PR and the verification — collapse
+                            to a single entry point. */}
+                        {current.remediation ? (
                             <Button
-                                component="a"
-                                href={current.linkedPrUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                                component={Link}
+                                to={workspaceUrl}
                                 onClick={stopPropagation}
                                 size={buttonSize}
                                 fz="xs"
-                                loading={createWriteback.isLoading}
-                                variant="subtle"
-                                color="gray"
-                            >
-                                View PR
-                            </Button>
-                        )}
-
-                        {workThreadUrl && (
-                            <Button
-                                component="a"
-                                href={workThreadUrl}
-                                onClick={stopPropagation}
-                                size={buttonSize}
-                                fz="xs"
-                                variant="default"
+                                variant="light"
+                                color="indigo"
                                 leftSection={
                                     <MantineIcon
-                                        icon={IconMessages}
-                                        size="xs"
+                                        size="sm"
+                                        icon={IconLayoutColumns}
                                     />
                                 }
                             >
-                                Test fix
+                                Open workspace
                             </Button>
+                        ) : (
+                            current.linkedPrUrl && (
+                                <Button
+                                    component="a"
+                                    href={current.linkedPrUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={stopPropagation}
+                                    size={buttonSize}
+                                    fz="xs"
+                                    loading={createWriteback.isLoading}
+                                    variant="subtle"
+                                    color="gray"
+                                >
+                                    View PR
+                                </Button>
+                            )
                         )}
 
                         {canCreatePr && !current.linkedPrUrl && (
@@ -148,9 +191,13 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                                         if (previewsDiff) {
                                             setPreviewOpen(true);
                                         } else {
-                                            createWriteback.mutate(
-                                                current.fingerprint,
-                                            );
+                                            void createWriteback
+                                                .mutateAsync(
+                                                    current.fingerprint,
+                                                )
+                                                .then(() =>
+                                                    navigate(workspaceUrl),
+                                                );
                                         }
                                     }}
                                 >

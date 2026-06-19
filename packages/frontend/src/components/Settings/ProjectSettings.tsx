@@ -1,3 +1,5 @@
+import { subject } from '@casl/ability';
+import { FeatureFlags } from '@lightdash/common';
 import { Anchor, Stack, Text, Title } from '@mantine-8/core';
 import { useMemo, type FC } from 'react';
 import { Navigate, useParams, useRoutes, type RouteObject } from 'react-router';
@@ -6,6 +8,7 @@ import { ProjectChangesets } from '../../features/changesets/components/ProjectC
 import PullRequestsPage from '../../features/pullRequests/components/PullRequestsPage';
 import RecentlyDeletedPage from '../../features/recentlyDeleted/components/RecentlyDeletedPage';
 import { useProject } from '../../hooks/useProject';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import { DocumentTitle } from '../common/DocumentTitle';
 import ErrorState from '../common/ErrorState';
@@ -30,6 +33,7 @@ import SettingsUsageAnalytics from '../SettingsUsageAnalytics';
 import { SettingsValidator } from '../SettingsValidator';
 import CorsSettingsPanel from '../UserSettings/CorsSettingsPanel';
 import VerifiedContentPanel from '../VerifiedContent/VerifiedContentPanel';
+import DataAppConnectionsPanel from './DataAppConnectionsPanel';
 
 const ProjectSettings: FC = () => {
     const { projectUuid } = useParams<{
@@ -43,6 +47,27 @@ const ProjectSettings: FC = () => {
     // Only relevant when the project's code lives in a Git provider, since the
     // section lists PRs opened against that repo.
     const isGitProject = useIsGitProject(projectUuid ?? '');
+
+    const { data: dataAppsFlag } = useServerFeatureFlag(
+        FeatureFlags.EnableDataApps,
+    );
+    const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
+    const { data: dataAppExternalAccessFlag } = useServerFeatureFlag(
+        FeatureFlags.EnableDataAppExternalAccess,
+    );
+    const isExternalAccessEnabled = dataAppExternalAccessFlag?.enabled ?? false;
+    const canManageExternalConnections =
+        isDataAppsEnabled &&
+        isExternalAccessEnabled &&
+        !!project &&
+        (user.data?.ability.can(
+            'manage',
+            subject('ExternalConnection', {
+                organizationUuid: project.organizationUuid,
+                projectUuid: project.projectUuid,
+            }),
+        ) ??
+            false);
 
     const routes = useMemo<RouteObject[]>(() => {
         if (!projectUuid) {
@@ -207,8 +232,26 @@ const ProjectSettings: FC = () => {
                       },
                   ]
                 : []),
+            ...(canManageExternalConnections
+                ? [
+                      {
+                          path: `/dataAppConnections`,
+                          element: (
+                              <DataAppConnectionsPanel
+                                  projectUuid={projectUuid}
+                              />
+                          ),
+                      },
+                  ]
+                : []),
         ];
-    }, [projectUuid, isSoftDeleteEnabled, isGitProject, user.data?.ability]);
+    }, [
+        projectUuid,
+        isSoftDeleteEnabled,
+        isGitProject,
+        user.data?.ability,
+        canManageExternalConnections,
+    ]);
     const routesElements = useRoutes(routes);
 
     if (error) {

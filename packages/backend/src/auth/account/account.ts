@@ -210,6 +210,12 @@ export const getAccountWriteContext = (
         return { user: toSessionUser(account) };
     }
 
+    if (account.authentication.data.content?.type === 'apiAccess') {
+        throw new ForbiddenError(
+            'API access embeds cannot perform write actions',
+        );
+    }
+
     const { embedWriteUser } = account;
     const { spaceUuid } = account.authentication.data.writeActions ?? {};
 
@@ -223,6 +229,29 @@ export const getAccountWriteContext = (
             spaceUuid,
         },
     };
+};
+
+export const getAccountApiAccessContext = (
+    account: Account,
+): Pick<AccountWriteContext, 'user'> => {
+    if (!isJwtUser(account)) {
+        assertRegisteredAccount(account);
+        return { user: toSessionUser(account) };
+    }
+
+    if (
+        account.authentication.data.content.type !== 'apiAccess' &&
+        account.authentication.data.writeActions?.serviceAccountUserUuid ===
+            undefined
+    ) {
+        throw new ForbiddenError('Embed token does not allow API access');
+    }
+
+    if (!account.embedWriteUser) {
+        throw new ForbiddenError('Embed token does not allow API access');
+    }
+
+    return { user: account.embedWriteUser };
 };
 
 export const fromSession = (

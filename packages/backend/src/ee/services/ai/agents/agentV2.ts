@@ -139,6 +139,22 @@ export const defaultAgentOptions = {
     maxRetries: 6, // Increased for Bedrock rate limits
 };
 
+/**
+ * When forceToolHints is set, force the first hinted tool on the opening step
+ * (toolChoice) and release to auto afterwards. Used by the review Build-fix run
+ * to guarantee the agent opens a PR via editDbtProject rather than just
+ * discussing the fix. No-op if the forced tool isn't in the registered set.
+ */
+const buildForcedFirstStep = (args: AiAgentArgs, tools: ToolSet) => {
+    if (!args.forceToolHints) return undefined;
+    const forcedTool = args.toolHints[0];
+    if (!forcedTool || !(forcedTool in tools)) return undefined;
+    return ({ stepNumber }: { stepNumber: number }) =>
+        stepNumber === 0
+            ? { toolChoice: { type: 'tool' as const, toolName: forcedTool } }
+            : {};
+};
+
 const getAgentTools = (
     args: AiAgentArgs,
     dependencies: AiAgentDependencies,
@@ -489,6 +505,7 @@ const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
             siteUrl: args.siteUrl,
             enableRepoDiscovery: args.enableRepoDiscovery,
             repoFsRoot: args.repoFsRoot,
+            repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
             enableContentTools:
                 args.enableAgentRevamp &&
                 args.enableDataAccess &&
@@ -559,9 +576,11 @@ export const generateAgentResponse = async ({
             'Generate Agent Response',
             `Calling generateText with model: ${modelName}`,
         );
+        const forcedFirstStep = buildForcedFirstStep(args, tools);
         const result = await generateText({
             ...defaultAgentOptions,
             ...args.callOptions,
+            ...(forcedFirstStep ? { prepareStep: forcedFirstStep } : {}),
             providerOptions: args.providerOptions,
             model: args.model,
             tools,
@@ -789,9 +808,11 @@ export const streamAgentResponse = async ({
             'Stream Agent Response',
             `Calling streamText with model: ${modelName}`,
         );
+        const forcedFirstStep = buildForcedFirstStep(args, tools);
         const result = streamText({
             ...defaultAgentOptions,
             ...args.callOptions,
+            ...(forcedFirstStep ? { prepareStep: forcedFirstStep } : {}),
             providerOptions: args.providerOptions,
             model: args.model,
             tools,

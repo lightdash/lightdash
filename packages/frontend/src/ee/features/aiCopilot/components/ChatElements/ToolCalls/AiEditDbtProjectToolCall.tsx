@@ -133,8 +133,7 @@ const PullRequestViewMenu: FC<{
     prUrl: string;
     previewUrl: string | null;
     commitSha: string | null;
-    ciChecks: CiChecks | null;
-}> = ({ projectUuid, prUrl, previewUrl, commitSha, ciChecks }) => {
+}> = ({ projectUuid, prUrl, previewUrl, commitSha }) => {
     const [diffOpened, setDiffOpened] = useState(false);
 
     return (
@@ -191,7 +190,6 @@ const PullRequestViewMenu: FC<{
                 projectUuid={projectUuid}
                 prUrl={prUrl}
                 commitSha={commitSha}
-                ciChecks={ciChecks}
                 opened={diffOpened}
                 onClose={() => setDiffOpened(false)}
             />
@@ -619,7 +617,6 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                                     : (metadata.previewUrl ?? null)
                             }
                             commitSha={metadata.commitSha ?? null}
-                            ciChecks={ciChecks ?? null}
                         />
                         <PullRequestActionButtons
                             ciChecks={ciChecks ?? null}
