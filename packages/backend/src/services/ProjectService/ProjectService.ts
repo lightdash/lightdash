@@ -7974,7 +7974,8 @@ export class ProjectService extends BaseService {
                 project.dbtConnection,
                 data.dbtConnectionOverrides ?? {},
             ),
-            upstreamProjectUuid: data.copyContent ? projectUuid : undefined,
+            upstreamProjectUuid: projectUuid,
+            copyContent: data.copyContent,
             organizationWarehouseCredentialsUuid:
                 project.organizationWarehouseCredentialsUuid,
             dbtVersion: project.dbtVersion,
