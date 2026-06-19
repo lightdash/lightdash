@@ -175,9 +175,9 @@ export const previewHandler = async (
 
     const config = await getConfig();
 
-    // Validate upstream project before attempting to copy content
+    // Validate upstream project before attempting to copy permissions or content
     let upstreamProjectValid = false;
-    if (config.context?.project && !options.skipCopyContent) {
+    if (config.context?.project) {
         try {
             GlobalState.debug(
                 `> Validating upstream project: ${config.context.project}`,
@@ -245,7 +245,7 @@ export const previewHandler = async (
             name,
             type: ProjectType.PREVIEW,
             upstreamProjectUuid:
-                upstreamProjectValid && config.context?.project
+                config.context?.project && upstreamProjectValid
                     ? config.context.project
                     : undefined,
             copyContent: !options.skipCopyContent && upstreamProjectValid,
