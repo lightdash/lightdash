@@ -290,8 +290,9 @@ export function ContentCatalogExamplePage({
                         Use this as the host-app pattern: fetch content with{' '}
                         <code>useLightdashContent</code>, let the customer
                         choose a space, then render its catalog in your own UI.
-                        This API path uses the configured embed token as auth,
-                        so the token must include <code>writeActions.spaceUuid</code>.
+                        The SDK only sends the configured embed token to the
+                        reviewed content endpoint, so the token must include{' '}
+                        <code>writeActions.spaceUuid</code>.
                     </p>
 
                     <div style={toolbarStyle}>

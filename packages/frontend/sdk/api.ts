@@ -6,19 +6,10 @@ export type LightdashSdkContentType =
     | 'space'
     | 'data_app';
 
-export type LightdashSdkApiAuth =
-    | {
-          type: 'apiKey';
-          apiKey: string;
-      }
-    | {
-          type: 'embedToken';
-          token: string;
-      }
-    | {
-          type: 'headers';
-          headers: Record<string, string>;
-      };
+export type LightdashSdkApiAuth = {
+    type: 'embedToken';
+    token: string;
+};
 
 export type LightdashApiClientConfig = {
     instanceUrl: string;
@@ -27,11 +18,10 @@ export type LightdashApiClientConfig = {
     fetch?: typeof fetch;
 };
 
-export type LightdashApiRequestOptions = {
+type LightdashApiRequestOptions = {
     method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
     path: string;
     body?: unknown;
-    auth?: LightdashSdkApiAuth;
     signal?: AbortSignal;
 };
 
@@ -67,19 +57,12 @@ const EMBED_TOKEN_HEADER = 'lightdash-embed-token';
 
 const normalizeBaseUrl = (instanceUrl: string) => instanceUrl.replace(/\/$/, '');
 
-const authHeaders = (auth: LightdashSdkApiAuth | undefined) => {
+const authHeaders = (
+    auth: LightdashSdkApiAuth | undefined,
+): Record<string, string> => {
     if (!auth) return {};
 
-    switch (auth.type) {
-        case 'apiKey':
-            return { Authorization: `ApiKey ${auth.apiKey}` };
-        case 'embedToken':
-            return { [EMBED_TOKEN_HEADER]: auth.token };
-        case 'headers':
-            return auth.headers;
-        default:
-            return {};
-    }
+    return { [EMBED_TOKEN_HEADER]: auth.token };
 };
 
 const createQueryString = (params: Record<string, unknown>) => {
@@ -139,7 +122,7 @@ export const createLightdashApiClient = (config: LightdashApiClientConfig) => {
             method: options.method ?? 'GET',
             headers: {
                 'Content-Type': 'application/json',
-                ...authHeaders(options.auth ?? config.auth),
+                ...authHeaders(config.auth),
             },
             body:
                 options.body === undefined
@@ -184,7 +167,6 @@ export const createLightdashApiClient = (config: LightdashApiClientConfig) => {
     };
 
     return {
-        request,
         listContent,
     };
 };
