@@ -34648,6 +34648,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    UuidOrSlug: {
+        dataType: 'refAlias',
+        type: { dataType: 'string', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_UpdatedByUser.userUuid-or-firstName-or-lastName_': {
         dataType: 'refAlias',
         type: {
@@ -69734,16 +69739,16 @@ export function RegisterRoutes(app: Router) {
         string,
         TsoaRoute.ParameterSchema
     > = {
-        dashboardUuid: {
+        dashboardUuidOrSlug: {
             in: 'path',
-            name: 'dashboardUuid',
+            name: 'dashboardUuidOrSlug',
             required: true,
-            dataType: 'string',
+            ref: 'UuidOrSlug',
         },
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
     };
     app.post(
-        '/api/v1/dashboards/:dashboardUuid/promote',
+        '/api/v1/dashboards/:dashboardUuidOrSlug/promote',
         ...fetchMiddlewares<RequestHandler>(DashboardController),
         ...fetchMiddlewares<RequestHandler>(
             DashboardController.prototype.promoteDashboard,
@@ -69795,16 +69800,16 @@ export function RegisterRoutes(app: Router) {
         string,
         TsoaRoute.ParameterSchema
     > = {
-        dashboardUuid: {
+        dashboardUuidOrSlug: {
             in: 'path',
-            name: 'dashboardUuid',
+            name: 'dashboardUuidOrSlug',
             required: true,
-            dataType: 'string',
+            ref: 'UuidOrSlug',
         },
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
     };
     app.get(
-        '/api/v1/dashboards/:dashboardUuid/promoteDiff',
+        '/api/v1/dashboards/:dashboardUuidOrSlug/promoteDiff',
         ...fetchMiddlewares<RequestHandler>(DashboardController),
         ...fetchMiddlewares<RequestHandler>(
             DashboardController.prototype.promoteDashboardDiff,
@@ -69856,16 +69861,16 @@ export function RegisterRoutes(app: Router) {
         string,
         TsoaRoute.ParameterSchema
     > = {
-        dashboardUuid: {
+        dashboardUuidOrSlug: {
             in: 'path',
-            name: 'dashboardUuid',
+            name: 'dashboardUuidOrSlug',
             required: true,
-            dataType: 'string',
+            ref: 'UuidOrSlug',
         },
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
     };
     app.get(
-        '/api/v1/dashboards/:dashboardUuid/history',
+        '/api/v1/dashboards/:dashboardUuidOrSlug/history',
         ...fetchMiddlewares<RequestHandler>(DashboardController),
         ...fetchMiddlewares<RequestHandler>(
             DashboardController.prototype.getDashboardHistory,
@@ -69917,22 +69922,22 @@ export function RegisterRoutes(app: Router) {
         string,
         TsoaRoute.ParameterSchema
     > = {
-        dashboardUuid: {
+        dashboardUuidOrSlug: {
             in: 'path',
-            name: 'dashboardUuid',
+            name: 'dashboardUuidOrSlug',
             required: true,
-            dataType: 'string',
+            ref: 'UuidOrSlug',
         },
         versionUuid: {
             in: 'path',
             name: 'versionUuid',
             required: true,
-            dataType: 'string',
+            ref: 'UUID',
         },
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
     };
     app.get(
-        '/api/v1/dashboards/:dashboardUuid/version/:versionUuid',
+        '/api/v1/dashboards/:dashboardUuidOrSlug/version/:versionUuid',
         ...fetchMiddlewares<RequestHandler>(DashboardController),
         ...fetchMiddlewares<RequestHandler>(
             DashboardController.prototype.getDashboardVersion,
@@ -69984,22 +69989,22 @@ export function RegisterRoutes(app: Router) {
         string,
         TsoaRoute.ParameterSchema
     > = {
-        dashboardUuid: {
+        dashboardUuidOrSlug: {
             in: 'path',
-            name: 'dashboardUuid',
+            name: 'dashboardUuidOrSlug',
             required: true,
-            dataType: 'string',
+            ref: 'UuidOrSlug',
         },
         versionUuid: {
             in: 'path',
             name: 'versionUuid',
             required: true,
-            dataType: 'string',
+            ref: 'UUID',
         },
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
     };
     app.post(
-        '/api/v1/dashboards/:dashboardUuid/rollback/:versionUuid',
+        '/api/v1/dashboards/:dashboardUuidOrSlug/rollback/:versionUuid',
         ...fetchMiddlewares<RequestHandler>(DashboardController),
         ...fetchMiddlewares<RequestHandler>(
             DashboardController.prototype.postDashboardVersionRollback,
@@ -70051,16 +70056,16 @@ export function RegisterRoutes(app: Router) {
         string,
         TsoaRoute.ParameterSchema
     > = {
-        dashboardUuid: {
+        dashboardUuidOrSlug: {
             in: 'path',
-            name: 'dashboardUuid',
+            name: 'dashboardUuidOrSlug',
             required: true,
-            dataType: 'string',
+            ref: 'UuidOrSlug',
         },
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
     };
     app.get(
-        '/api/v1/dashboards/:dashboardUuid/schedulers',
+        '/api/v1/dashboards/:dashboardUuidOrSlug/schedulers',
         ...fetchMiddlewares<RequestHandler>(DashboardController),
         ...fetchMiddlewares<RequestHandler>(
             DashboardController.prototype.getDashboardSchedulers,
@@ -70112,16 +70117,16 @@ export function RegisterRoutes(app: Router) {
         string,
         TsoaRoute.ParameterSchema
     > = {
-        dashboardUuid: {
+        dashboardUuidOrSlug: {
             in: 'path',
-            name: 'dashboardUuid',
+            name: 'dashboardUuidOrSlug',
             required: true,
-            dataType: 'string',
+            ref: 'UuidOrSlug',
         },
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
     };
     app.post(
-        '/api/v1/dashboards/:dashboardUuid/schedulers',
+        '/api/v1/dashboards/:dashboardUuidOrSlug/schedulers',
         ...fetchMiddlewares<RequestHandler>(DashboardController),
         ...fetchMiddlewares<RequestHandler>(
             DashboardController.prototype.createDashboardScheduler,
@@ -70173,16 +70178,16 @@ export function RegisterRoutes(app: Router) {
         string,
         TsoaRoute.ParameterSchema
     > = {
-        dashboardUuid: {
+        dashboardUuidOrSlug: {
             in: 'path',
-            name: 'dashboardUuid',
+            name: 'dashboardUuidOrSlug',
             required: true,
-            dataType: 'string',
+            ref: 'UuidOrSlug',
         },
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
     };
     app.post(
-        '/api/v1/dashboards/:dashboardUuid/verification',
+        '/api/v1/dashboards/:dashboardUuidOrSlug/verification',
         ...fetchMiddlewares<RequestHandler>(DashboardController),
         ...fetchMiddlewares<RequestHandler>(
             DashboardController.prototype.verifyDashboard,
@@ -70234,16 +70239,16 @@ export function RegisterRoutes(app: Router) {
         string,
         TsoaRoute.ParameterSchema
     > = {
-        dashboardUuid: {
+        dashboardUuidOrSlug: {
             in: 'path',
-            name: 'dashboardUuid',
+            name: 'dashboardUuidOrSlug',
             required: true,
-            dataType: 'string',
+            ref: 'UuidOrSlug',
         },
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
     };
     app.delete(
-        '/api/v1/dashboards/:dashboardUuid/verification',
+        '/api/v1/dashboards/:dashboardUuidOrSlug/verification',
         ...fetchMiddlewares<RequestHandler>(DashboardController),
         ...fetchMiddlewares<RequestHandler>(
             DashboardController.prototype.unverifyDashboard,

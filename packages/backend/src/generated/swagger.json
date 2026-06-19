@@ -35169,6 +35169,10 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "UuidOrSlug": {
+                "type": "string",
+                "description": "A resource UUID or its URL slug. Resolve to a real UUID before using as a key."
+            },
             "Pick_UpdatedByUser.userUuid-or-firstName-or-lastName_": {
                 "properties": {
                     "userUuid": {
@@ -39814,7 +39818,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3189.0",
+        "version": "0.3192.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -60315,7 +60319,7 @@
                 ]
             }
         },
-        "/api/v1/dashboards/{dashboardUuid}/promote": {
+        "/api/v1/dashboards/{dashboardUuidOrSlug}/promote": {
             "post": {
                 "operationId": "promoteDashboard",
                 "responses": {
@@ -60346,18 +60350,18 @@
                 "security": [],
                 "parameters": [
                     {
-                        "description": "dashboardUuid for the dashboard to run",
+                        "description": "uuid or slug for the dashboard to run",
                         "in": "path",
-                        "name": "dashboardUuid",
+                        "name": "dashboardUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     }
                 ]
             }
         },
-        "/api/v1/dashboards/{dashboardUuid}/promoteDiff": {
+        "/api/v1/dashboards/{dashboardUuidOrSlug}/promoteDiff": {
             "get": {
                 "operationId": "promoteDashboardDiff",
                 "responses": {
@@ -60388,18 +60392,18 @@
                 "security": [],
                 "parameters": [
                     {
-                        "description": "dashboardUuid for the dashboard to check diff",
+                        "description": "uuid or slug for the dashboard to check diff",
                         "in": "path",
-                        "name": "dashboardUuid",
+                        "name": "dashboardUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     }
                 ]
             }
         },
-        "/api/v1/dashboards/{dashboardUuid}/history": {
+        "/api/v1/dashboards/{dashboardUuidOrSlug}/history": {
             "get": {
                 "operationId": "getDashboardHistory",
                 "responses": {
@@ -60430,18 +60434,18 @@
                 "security": [],
                 "parameters": [
                     {
-                        "description": "dashboardUuid for the dashboard",
+                        "description": "uuid or slug for the dashboard",
                         "in": "path",
-                        "name": "dashboardUuid",
+                        "name": "dashboardUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     }
                 ]
             }
         },
-        "/api/v1/dashboards/{dashboardUuid}/version/{versionUuid}": {
+        "/api/v1/dashboards/{dashboardUuidOrSlug}/version/{versionUuid}": {
             "get": {
                 "operationId": "getDashboardVersion",
                 "responses": {
@@ -60472,12 +60476,12 @@
                 "security": [],
                 "parameters": [
                     {
-                        "description": "dashboardUuid for the dashboard",
+                        "description": "uuid or slug for the dashboard",
                         "in": "path",
-                        "name": "dashboardUuid",
+                        "name": "dashboardUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     },
                     {
@@ -60486,13 +60490,13 @@
                         "name": "versionUuid",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]
             }
         },
-        "/api/v1/dashboards/{dashboardUuid}/rollback/{versionUuid}": {
+        "/api/v1/dashboards/{dashboardUuidOrSlug}/rollback/{versionUuid}": {
             "post": {
                 "operationId": "postDashboardVersionRollback",
                 "responses": {
@@ -60523,12 +60527,12 @@
                 "security": [],
                 "parameters": [
                     {
-                        "description": "dashboardUuid for the dashboard",
+                        "description": "uuid or slug for the dashboard",
                         "in": "path",
-                        "name": "dashboardUuid",
+                        "name": "dashboardUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     },
                     {
@@ -60537,13 +60541,13 @@
                         "name": "versionUuid",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]
             }
         },
-        "/api/v1/dashboards/{dashboardUuid}/schedulers": {
+        "/api/v1/dashboards/{dashboardUuidOrSlug}/schedulers": {
             "get": {
                 "operationId": "getDashboardSchedulers",
                 "responses": {
@@ -60576,10 +60580,10 @@
                 "parameters": [
                     {
                         "in": "path",
-                        "name": "dashboardUuid",
+                        "name": "dashboardUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     }
                 ]
@@ -60615,16 +60619,16 @@
                 "parameters": [
                     {
                         "in": "path",
-                        "name": "dashboardUuid",
+                        "name": "dashboardUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     }
                 ]
             }
         },
-        "/api/v1/dashboards/{dashboardUuid}/verification": {
+        "/api/v1/dashboards/{dashboardUuidOrSlug}/verification": {
             "post": {
                 "operationId": "verifyDashboard",
                 "responses": {
@@ -60655,12 +60659,12 @@
                 "security": [],
                 "parameters": [
                     {
-                        "description": "The uuid of the dashboard to verify",
+                        "description": "uuid or slug of the dashboard to verify",
                         "in": "path",
-                        "name": "dashboardUuid",
+                        "name": "dashboardUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     }
                 ]
@@ -60695,12 +60699,12 @@
                 "security": [],
                 "parameters": [
                     {
-                        "description": "The uuid of the dashboard to unverify",
+                        "description": "uuid or slug of the dashboard to unverify",
                         "in": "path",
-                        "name": "dashboardUuid",
+                        "name": "dashboardUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     }
                 ]

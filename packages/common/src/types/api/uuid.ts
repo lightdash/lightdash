@@ -5,3 +5,8 @@
  * @format uuid
  */
 export type UUID = string;
+
+/**
+ * A resource UUID or its URL slug. Resolve to a real UUID before using as a key.
+ */
+export type UuidOrSlug = string;
