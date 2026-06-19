@@ -5,6 +5,7 @@ import {
     createConditionalFormattingConfigWithSingleColor,
     createConditionalFormattingRuleWithValues,
     getConditionalFormattingConfig,
+    getConditionalFormattingTextStyle,
     getPivotRowContextKey,
     getRowConditionalFormattingColor,
     hasMatchingConditionalRules,
@@ -350,5 +351,50 @@ describe('getRowConditionalFormattingColor', () => {
             minMaxMap: {},
         });
         expect(result).toBe('#aaaaaa');
+    });
+});
+
+describe('getConditionalFormattingTextStyle', () => {
+    it('returns undefined when no configs have text styling', () => {
+        const config =
+            createConditionalFormattingConfigWithSingleColor('#ff0000');
+        expect(
+            getConditionalFormattingTextStyle([config, undefined]),
+        ).toBeUndefined();
+    });
+
+    it('returns the text style of a single matching config', () => {
+        const config =
+            createConditionalFormattingConfigWithSingleColor('#ff0000');
+        config.textStyle = { bold: true };
+        expect(getConditionalFormattingTextStyle([config])).toEqual({
+            bold: true,
+            italic: false,
+            underline: false,
+        });
+    });
+
+    it('unions text styles across multiple matching configs', () => {
+        const boldConfig =
+            createConditionalFormattingConfigWithSingleColor('#ff0000');
+        boldConfig.textStyle = { bold: true };
+        const underlineConfig =
+            createConditionalFormattingConfigWithSingleColor('#00ff00');
+        underlineConfig.textStyle = { underline: true };
+
+        expect(
+            getConditionalFormattingTextStyle([
+                boldConfig,
+                undefined,
+                underlineConfig,
+            ]),
+        ).toEqual({ bold: true, italic: false, underline: true });
+    });
+
+    it('ignores a config whose text style has all toggles off', () => {
+        const config =
+            createConditionalFormattingConfigWithSingleColor('#ff0000');
+        config.textStyle = { bold: false, italic: false, underline: false };
+        expect(getConditionalFormattingTextStyle([config])).toBeUndefined();
     });
 });

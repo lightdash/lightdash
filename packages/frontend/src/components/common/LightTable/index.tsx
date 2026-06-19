@@ -1,4 +1,7 @@
-import { assertUnreachable } from '@lightdash/common';
+import {
+    assertUnreachable,
+    type ConditionalFormattingTextStyle,
+} from '@lightdash/common';
 import {
     Box,
     Text,
@@ -58,6 +61,7 @@ type TableCellProps = PolymorphicComponentProps<'th' | 'td', BoxProps> & {
     withInteractions?: boolean;
     withColor?: false | string;
     withBackground?: false | string;
+    withTextStyle?: false | ConditionalFormattingTextStyle;
     withTooltip?: false | string;
     withMenu?:
         | false
@@ -374,6 +378,7 @@ const BaseCell = (
                 withInteractions = false,
                 withColor = false,
                 withBackground = false,
+                withTextStyle = false,
                 withMenu = false,
                 withValue = undefined,
                 ...rest
@@ -413,6 +418,7 @@ const BaseCell = (
                 index,
                 withColor,
                 withBackground,
+                withTextStyle,
             });
 
             const cellHasLargeContent = useMemo(() => {
@@ -453,6 +459,7 @@ const BaseCell = (
                             [classes.withAlignRight]: withAlignRight,
                             [classes.withBoldFont]: withBoldFont,
                             [classes.withColor]: withColor,
+                            [classes.withTextStyle]: !!withTextStyle,
                             [classes.withInteractions]: withInteractions,
                             [classes.withBackground]: withBackground,
                             [classes.withCopying]: clipboard.copied,
@@ -496,6 +503,7 @@ const BaseCell = (
                     classes.withAlignRight,
                     classes.withBoldFont,
                     classes.withColor,
+                    classes.withTextStyle,
                     classes.withInteractions,
                     classes.withBackground,
                     classes.withCopying,
@@ -506,6 +514,7 @@ const BaseCell = (
                     withAlignRight,
                     withBoldFont,
                     withColor,
+                    withTextStyle,
                     withInteractions,
                     withBackground,
                     clipboard.copied,

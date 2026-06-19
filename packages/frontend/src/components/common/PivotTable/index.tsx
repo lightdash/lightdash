@@ -5,7 +5,9 @@ import {
     getConditionalFormattingColor,
     getConditionalFormattingConfig,
     getConditionalFormattingDescription,
+    getConditionalFormattingTextStyle,
     getRowConditionalFormattingColor,
+    getRowConditionalFormattingConfig,
     getItemId,
     getPivotRowContextKey,
     isDimension,
@@ -1587,6 +1589,13 @@ const PivotTable: FC<PivotTableProps> = ({
                         },
                     );
 
+                    const rowConditionalFormattingConfig =
+                        getRowConditionalFormattingConfig({
+                            conditionalFormattings,
+                            rowFields: rowLevelFields,
+                            minMaxMap,
+                        });
+
                     return (
                         <Table.Row
                             key={`row-${rowIndex}-${data.pivotConfig.metricsAsRows}`}
@@ -1848,6 +1857,13 @@ const PivotTable: FC<PivotTableProps> = ({
                                 // Font color is set by conditionalFormatting above
                                 const fontColor = conditionalFormatting?.color;
 
+                                const textStyle =
+                                    getConditionalFormattingTextStyle([
+                                        cellConditionalFormattingConfig,
+                                        textConditionalFormattingConfig,
+                                        rowConditionalFormattingConfig,
+                                    ]);
+
                                 // Get field description for label cells (metric labels when metricsAsRows is enabled)
                                 const labelFieldDescription = (() => {
                                     if (meta?.type !== 'label')
@@ -1915,6 +1931,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                         miw={cellWidth}
                                         maw={cellWidth}
                                         withColor={conditionalFormatting?.color}
+                                        withTextStyle={textStyle ?? false}
                                         withBoldFont={meta?.type === 'label'}
                                         withBackground={
                                             conditionalFormatting?.backgroundColor
