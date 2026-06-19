@@ -756,6 +756,16 @@ export class AiAgentReviewClassifierModel {
             // Preview projects host writeback verification threads — reviewing
             // them would feed the reviewer's own output back into itself.
             .whereNot('project.project_type', ProjectType.PREVIEW)
+            // Remediation build-fix threads are the reviewer's own output;
+            // reviewing them would open a review item on the fix it just made.
+            .whereNotExists((builder) => {
+                void builder
+                    .select(this.database.raw('1'))
+                    .from(`${AiAgentReviewRemediationTableName} as remediation`)
+                    .whereRaw(
+                        'remediation.work_thread_uuid = thread.ai_thread_uuid',
+                    );
+            })
             .whereIn('thread.created_from', ['web_app', 'slack'])
             .where((builder) => {
                 void builder
