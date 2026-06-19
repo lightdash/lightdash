@@ -57,10 +57,12 @@ The examples currently include:
 - `Filters demo`
 - `Palette UUID demo`
 
-The content catalog example calls `useLightdashContent`. In local development,
-the app proxies `/sdk-test-app-api/lightdash/*` to the Lightdash instance from
-`VITE_EMBED_URL` so browser CORS does not hide SDK hook behavior. Set
-`LIGHTDASH_PROXY_TARGET` to override that target.
+The content catalog example calls `useLightdashContent`. It uses the configured
+embed token as API auth, so the token must include `writeActions.spaceUuid`.
+The local `generate-embed-token` helper creates a compatible URL. In local
+development, the app proxies `/sdk-test-app-api/lightdash/*` to the Lightdash
+instance from `VITE_EMBED_URL` so browser CORS does not hide SDK hook behavior.
+Set `LIGHTDASH_PROXY_TARGET` to override that target.
 
 The palette demo uses a select with three stable options:
 

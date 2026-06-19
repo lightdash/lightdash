@@ -32,7 +32,7 @@ export const examples: ExampleDefinition[] = [
         path: '/examples/content-catalog',
         title: 'Content catalog hooks demo',
         description:
-            'List spaces, dashboards, and charts with useLightdashContent, then show SDK embed code for a selected chart.',
+            'List spaces, dashboards, and charts with useLightdashContent.',
         sourcePath:
             'packages/sdk-test-app/src/examples/ContentCatalogExamplePage.tsx',
         component: ContentCatalogExamplePage,
