@@ -1,3 +1,13 @@
+# [0.3201.0](https://github.com/lightdash/lightdash/compare/0.3200.0...0.3201.0) (2026-06-19)
+
+
+### Features
+
+* **data-apps:** SDK externalFetch + postMessage bridge + sandbox wiring ([#24466](https://github.com/lightdash/lightdash/issues/24466)) ([4e922e8](https://github.com/lightdash/lightdash/commit/4e922e89c99f086e222a9eacfcee4fb0be70c49b))
+* **reviews:** build-fix thread + verification backend for remediation workspace ([#24499](https://github.com/lightdash/lightdash/issues/24499)) ([bc296e4](https://github.com/lightdash/lightdash/commit/bc296e48aad26dc2279b9ccbaa2dd270cfd18a37)), closes [#24500](https://github.com/lightdash/lightdash/issues/24500) [#24501](https://github.com/lightdash/lightdash/issues/24501)
+* **reviews:** paired remediation workspace UI ([#24500](https://github.com/lightdash/lightdash/issues/24500)) ([bec1a86](https://github.com/lightdash/lightdash/commit/bec1a862bed0cd1e4246b67a84d875c5e113a06a)), closes [#24499](https://github.com/lightdash/lightdash/issues/24499)
+* **reviews:** workspace entry points on the board & drawer ([#24501](https://github.com/lightdash/lightdash/issues/24501)) ([1457b50](https://github.com/lightdash/lightdash/commit/1457b501e70aeb8335cf5d80ac6d4e1226019534)), closes [#24500](https://github.com/lightdash/lightdash/issues/24500)
+
 # [0.3200.0](https://github.com/lightdash/lightdash/compare/0.3199.0...0.3200.0) (2026-06-19)
 
 
