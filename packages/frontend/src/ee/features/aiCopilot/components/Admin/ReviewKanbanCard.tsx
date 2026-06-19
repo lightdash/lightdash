@@ -12,8 +12,10 @@ import {
     IconArrowUpRight,
     IconBox,
     IconGitPullRequest,
+    IconLayoutColumns,
 } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
+import { Link } from 'react-router';
 import { CategoryBadge } from '../../../../../components/common/CategoryBadge';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
@@ -53,6 +55,10 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
     const startKind = getStartWritebackKind(item);
 
     const remediation = item.remediation;
+    const hasWorkspace = Boolean(remediation);
+    const workspaceHref = `/generalSettings/ai/reviews/${encodeURIComponent(
+        item.fingerprint,
+    )}`;
     const hasPreview = Boolean(remediation?.previewProjectUuid);
 
     const isPreviewBuilding =
@@ -175,23 +181,26 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                 </Stack>
             </Box>
 
-            {hasPreview && !isPreviewBuilding && previewHref && (
-                <Box
-                    component="a"
-                    href={previewHref}
-                    onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
-                        e.stopPropagation()
-                    }
-                    className={styles.cardFooter}
-                >
-                    <Group gap={6} align="center">
-                        <MantineIcon icon={IconBox} size={13} />
-                        <Text fz="xs">Preview project</Text>
-                    </Group>
-                    <MantineIcon icon={IconArrowUpRight} size={14} />
-                </Box>
-            )}
-            {hasPreview && isPreviewBuilding && (
+            {!hasWorkspace &&
+                hasPreview &&
+                !isPreviewBuilding &&
+                previewHref && (
+                    <Box
+                        component="a"
+                        href={previewHref}
+                        onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
+                            e.stopPropagation()
+                        }
+                        className={styles.cardFooter}
+                    >
+                        <Group gap={6} align="center">
+                            <MantineIcon icon={IconBox} size={13} />
+                            <Text fz="xs">Preview project</Text>
+                        </Group>
+                        <MantineIcon icon={IconArrowUpRight} size={14} />
+                    </Box>
+                )}
+            {!hasWorkspace && hasPreview && isPreviewBuilding && (
                 <Box className={styles.cardFooter}>
                     <Group gap={6} align="center">
                         <MantineIcon icon={IconBox} size={13} />
@@ -210,6 +219,23 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                             Building…
                         </Text>
                     </Group>
+                </Box>
+            )}
+
+            {hasWorkspace && (
+                <Box
+                    component={Link}
+                    to={workspaceHref}
+                    onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
+                        e.stopPropagation()
+                    }
+                    className={styles.cardFooter}
+                >
+                    <Group gap={6} align="center">
+                        <MantineIcon icon={IconLayoutColumns} size={13} />
+                        <Text fz="xs">Open workspace</Text>
+                    </Group>
+                    <MantineIcon icon={IconArrowUpRight} size={14} />
                 </Box>
             )}
 

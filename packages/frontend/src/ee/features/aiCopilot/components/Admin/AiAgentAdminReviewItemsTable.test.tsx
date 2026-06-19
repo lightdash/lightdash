@@ -1,6 +1,7 @@
 import { type AiAgentReviewItemSummary } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import AiAgentAdminReviewItemsTable from './AiAgentAdminReviewItemsTable';
@@ -169,9 +170,11 @@ describe('AiAgentAdminReviewItemsTable', () => {
         const onReviewItemSelect = vi.fn();
 
         renderWithProviders(
-            <AiAgentAdminReviewItemsTable
-                onReviewItemSelect={onReviewItemSelect}
-            />,
+            <MemoryRouter>
+                <AiAgentAdminReviewItemsTable
+                    onReviewItemSelect={onReviewItemSelect}
+                />
+            </MemoryRouter>,
         );
 
         expect(screen.queryByText('View thread')).not.toBeInTheDocument();
