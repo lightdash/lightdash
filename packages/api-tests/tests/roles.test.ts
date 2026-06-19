@@ -769,9 +769,10 @@ describe('Roles API Tests', () => {
             const me = await member.get<Body<{ userUuid: string }>>(
                 `${apiUrl}/user`,
             );
+            const memberUserUuid = me.body.results.userUuid;
 
             await admin.post<Body<AssignmentResult>>(
-                `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/user/${me.body.results.userUuid}`,
+                `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/user/${memberUserUuid}`,
                 { roleId: roleUuid },
             );
 
@@ -823,6 +824,12 @@ describe('Roles API Tests', () => {
                 if (previewProjectUuid) {
                     await admin.delete(
                         `/api/v1/org/projects/${previewProjectUuid}`,
+                        { failOnStatusCode: false },
+                    );
+                }
+                if (memberUserUuid) {
+                    await admin.delete(
+                        `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/user/${memberUserUuid}`,
                         { failOnStatusCode: false },
                     );
                 }
