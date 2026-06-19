@@ -5,6 +5,8 @@ import {
     FeatureFlags,
     FilterOperator,
     ForbiddenError,
+    JobStatusType,
+    JobStepType,
     MetricType,
     NotFoundError,
     OrganizationMemberRole,
@@ -168,7 +170,13 @@ const projectModel = {
     getTableGroups: jest.fn(async () => ({})),
     getCachedExploreNames: jest.fn(async () => []),
     saveExploresToCache: jest.fn(async () => ({ cachedExploreUuids: [] })),
+    setTableGroups: jest.fn(async () => undefined),
+    updateProjectDefaults: jest.fn(async () => undefined),
     updateDefaultUserSpaces: jest.fn(async () => undefined),
+    tryAcquireProjectLock: jest.fn(
+        async (_projectUuid: string, onLockAcquired: () => Promise<void>) =>
+            onLockAcquired(),
+    ),
 };
 const preAggregateModel = {
     upsertPreAggregateDefinitions: jest.fn(),
@@ -188,6 +196,16 @@ const savedChartModel = {
 };
 const jobModel = {
     get: jest.fn(async () => job),
+    update: jest.fn(async () => undefined),
+    updateJobStep: jest.fn(async () => undefined),
+    setPendingJobsToSkipped: jest.fn(async () => undefined),
+    tryJobStep: jest.fn(
+        async <T>(
+            _jobUuid: string,
+            _stepType: JobStepType,
+            callback: () => Promise<T>,
+        ) => callback(),
+    ),
 };
 const spaceModel = {
     getAllSpaces: jest.fn(async () => spacesWithSavedCharts),
@@ -1484,7 +1502,6 @@ describe('ProjectService', () => {
                 service.getJobStatus('jobUuid', anotherUser),
             ).rejects.toThrowError(NotFoundError);
         });
-
         test('should limit CSV results', async () => {
             const csvCellsLimit = 100000;
             const maxLimit = 5000;
@@ -1553,6 +1570,36 @@ describe('ProjectService', () => {
             ).toEqual(50000);
         });
     });
+
+    describe('compileProject', () => {
+        test('marks the job as failed when the user cannot compile', async () => {
+            const compileJobUuid = 'compile-job-uuid';
+            const noCompileUser: SessionUser = {
+                ...user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: ['view'] },
+                ]),
+            };
+
+            await expect(
+                service.compileProject(
+                    noCompileUser,
+                    projectUuid,
+                    RequestMethod.WEB_APP,
+                    compileJobUuid,
+                ),
+            ).rejects.toThrowError(ForbiddenError);
+
+            expect(jobModel.setPendingJobsToSkipped).toHaveBeenCalledWith(
+                compileJobUuid,
+            );
+            expect(jobModel.update).toHaveBeenCalledWith(compileJobUuid, {
+                jobStatus: JobStatusType.ERROR,
+            });
+            expect(projectModel.tryAcquireProjectLock).not.toHaveBeenCalled();
+        });
+    });
+
     describe('searchFieldUniqueValues', () => {
         const replaceWhitespace = (str: string) =>
             str.replace(/\s+/g, ' ').trim();
