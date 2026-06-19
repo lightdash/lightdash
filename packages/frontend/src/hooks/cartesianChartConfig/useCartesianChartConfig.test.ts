@@ -1028,6 +1028,40 @@ describe('useCartesianChartConfig', () => {
         expect(result.current.validConfig.conditionalFormattings).toEqual([]);
     });
 
+    test('should set and clear y-axis minInterval', () => {
+        const params = getSingleSeriesParams();
+        const { result } = renderHook(() => useCartesianChartConfig(params));
+
+        act(() => {
+            result.current.setYMinInterval(0, 1);
+        });
+
+        expect(result.current.dirtyEchartsConfig?.yAxis?.[0]?.minInterval).toBe(
+            1,
+        );
+
+        act(() => {
+            result.current.setYMinInterval(0, undefined);
+        });
+
+        expect(
+            result.current.dirtyEchartsConfig?.yAxis?.[0]?.minInterval,
+        ).toBeUndefined();
+    });
+
+    test('should set x-axis minInterval', () => {
+        const params = getSingleSeriesParams();
+        const { result } = renderHook(() => useCartesianChartConfig(params));
+
+        act(() => {
+            result.current.setXMinInterval(0, 1);
+        });
+
+        expect(result.current.dirtyEchartsConfig?.xAxis?.[0]?.minInterval).toBe(
+            1,
+        );
+    });
+
     test('should clear custom colors when stacking is enabled', () => {
         const initialParams = getSingleSeriesParams();
         const conditionalFormattings = [
