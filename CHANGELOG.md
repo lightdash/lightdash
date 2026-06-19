@@ -1,3 +1,10 @@
+# [0.3202.0](https://github.com/lightdash/lightdash/compare/0.3201.3...0.3202.0) (2026-06-19)
+
+
+### Features
+
+* add SDK API client and React hooks for content/chart queries ([#24449](https://github.com/lightdash/lightdash/issues/24449)) ([d008599](https://github.com/lightdash/lightdash/commit/d008599b5de38b542e38c2c34477e63b3c37f904))
+
 ## [0.3201.3](https://github.com/lightdash/lightdash/compare/0.3201.2...0.3201.3) (2026-06-19)
 
 
