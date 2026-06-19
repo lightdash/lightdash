@@ -3,12 +3,14 @@ import {
     FeatureFlags,
     ForbiddenError,
     NotFoundError,
-    NotImplementedError,
     ParameterError,
     TooManyRequestsError,
+    type ApiSaveExternalConnectionSampleRequest,
     type CreateExternalConnection,
     type ExternalConnection,
     type ExternalConnectionMethod,
+    type ExternalConnectionSample,
+    type ExternalConnectionSampleRequest,
     type ExternalFetchRequest,
     type ExternalFetchResponse,
     type LightdashUser,
@@ -378,6 +380,11 @@ export class ExternalConnectionService extends BaseService {
         const app = await this.assertCanManageApp(account, appUuid);
         if (app.project_uuid !== projectUuid) {
             throw new NotFoundError('Data app not found');
+        }
+        if (!/^[a-z0-9_-]+$/i.test(alias) || alias.length > 64) {
+            throw new ParameterError(
+                'Alias must contain only letters, numbers, hyphens, and underscores (max 64 chars)',
+            );
         }
         const connection = await this.getOwnedConnection(
             account,
@@ -758,15 +765,315 @@ export class ExternalConnectionService extends BaseService {
         });
     }
 
+    // Bound the persisted sample so a large response can't bloat the row or
+    // the sandbox file. JSON-byte cap + a row cap for array bodies.
+    static readonly MAX_SAMPLE_BYTES = 16 * 1024; // 16 KB
+
+    static readonly MAX_SAMPLE_ROWS = 50;
+
+    // Bound storage: a connection keeps a small, human-curated set of samples,
+    // and labels are short. The endpoint accepts client-supplied samples, so cap
+    // both to keep the table (and the generation prompt) from being abused.
+    static readonly MAX_SAMPLES_PER_CONNECTION = 20;
+
+    static readonly MAX_SAMPLE_LABEL_CHARS = 200;
+
     /**
-     * EXTENSION POINT (M5): a "test connection" dry-run that exercises
-     * proxyFetch against the connection's origin without persisting.
-     * Intentionally unimplemented in M1/M2.
+     * Redaction keys whose values are blanked before persisting a sample.
+     * Belt-and-braces guard: executeExternalFetch never returns request
+     * headers in the body, but a sample could still echo an auth field.
      */
-    // eslint-disable-next-line class-methods-use-this
-    async testConnection(): Promise<never> {
-        throw new NotImplementedError(
-            'testConnection is implemented in milestone M5',
+    private static readonly SAMPLE_REDACT_KEYS = new Set([
+        'authorization',
+        'api_key',
+        'apikey',
+        'token',
+        'access_token',
+        'secret',
+        'password',
+        'x-api-key',
+    ]);
+
+    /**
+     * Recursively redact known secret keys and cap array length. Shared by the
+     * request and response sanitizers below.
+     */
+    private static redactSecretKeys(value: unknown): unknown {
+        if (Array.isArray(value)) {
+            return value
+                .slice(0, ExternalConnectionService.MAX_SAMPLE_ROWS)
+                .map((v) => ExternalConnectionService.redactSecretKeys(v));
+        }
+        if (value && typeof value === 'object') {
+            return Object.fromEntries(
+                Object.entries(value as Record<string, unknown>).map(([k, v]) =>
+                    ExternalConnectionService.SAMPLE_REDACT_KEYS.has(
+                        k.toLowerCase(),
+                    )
+                        ? [k, '[redacted]']
+                        : [k, ExternalConnectionService.redactSecretKeys(v)],
+                ),
+            );
+        }
+        return value;
+    }
+
+    /**
+     * Validate a client-supplied sample request against the connection's own
+     * contract — the SAME method/path/query/body rules the runtime proxy
+     * enforces — so a stored sample is always replayable and its size is bounded
+     * by the connection's requestMaxBytes.
+     */
+    private static validateSampleRequest(
+        conn: ExternalConnection,
+        request: ExternalConnectionSampleRequest,
+    ): void {
+        if (!conn.allowedMethods.includes(request.method)) {
+            throw new ParameterError(
+                `Sample method ${request.method} is not allowed by this connection`,
+            );
+        }
+        // Throws on a malformed path or one outside the allowed prefixes.
+        normalizeAndValidatePath(request.path, conn.allowedPathPrefixes);
+        if (request.query) {
+            for (const [k, v] of Object.entries(request.query)) {
+                if (typeof v !== 'string') {
+                    throw new ParameterError(
+                        `Sample query value for "${k}" must be a string`,
+                    );
+                }
+            }
+            if (
+                Buffer.byteLength(JSON.stringify(request.query), 'utf8') >
+                conn.requestMaxBytes
+            ) {
+                throw new ParameterError(
+                    'Sample query exceeds the connection request size limit',
+                );
+            }
+        }
+        if (request.body !== undefined) {
+            if (request.method === 'GET') {
+                throw new ParameterError(
+                    'A GET sample must not include a body',
+                );
+            }
+            const { bytes } = serializeRequestBody(request.body);
+            if (bytes > conn.requestMaxBytes) {
+                throw new ParameterError(
+                    'Sample body exceeds the connection request size limit',
+                );
+            }
+        }
+    }
+
+    /**
+     * Redact secret-ish keys from a sample request's query/body before
+     * persisting. method/path are kept verbatim (already validated).
+     */
+    private static sanitizeSampleRequest(
+        request: ExternalConnectionSampleRequest,
+    ): ExternalConnectionSampleRequest {
+        return {
+            method: request.method,
+            path: request.path,
+            query: request.query
+                ? (ExternalConnectionService.redactSecretKeys(
+                      request.query,
+                  ) as Record<string, string>)
+                : undefined,
+            body:
+                request.body !== undefined
+                    ? ExternalConnectionService.redactSecretKeys(request.body)
+                    : undefined,
+        };
+    }
+
+    /**
+     * Sanitize an admin-supplied sample value: cap array length, redact known
+     * secret keys, then hard-truncate by JSON byte size. Pure + secret-free
+     * — never touches the connection's decrypted credential.
+     */
+    private static sanitizeSample(sample: unknown): unknown {
+        let result = ExternalConnectionService.redactSecretKeys(sample);
+        // Hard byte cap: if still over budget, wrap in a truncated note so
+        // the persisted blob is always bounded regardless of shape.
+        const json = JSON.stringify(result) ?? 'null';
+        if (
+            Buffer.byteLength(json) > ExternalConnectionService.MAX_SAMPLE_BYTES
+        ) {
+            const truncated = json.slice(
+                0,
+                ExternalConnectionService.MAX_SAMPLE_BYTES,
+            );
+            result = {
+                truncated: true,
+                preview: truncated.slice(
+                    0,
+                    ExternalConnectionService.MAX_SAMPLE_BYTES - 64,
+                ),
+            };
+        }
+        return result;
+    }
+
+    /**
+     * Loads a connection and verifies it belongs to the given project.
+     * A cross-project or missing UUID is treated as 404 to avoid leaking
+     * existence information.
+     */
+    private async loadConnectionForProject(
+        connectionUuid: string,
+        projectUuid: string,
+    ): Promise<ExternalConnection> {
+        const conn =
+            await this.externalConnectionModel.findByUuid(connectionUuid);
+        if (!conn || conn.projectUuid !== projectUuid) {
+            throw new NotFoundError(
+                `External connection ${connectionUuid} not found`,
+            );
+        }
+        return conn;
+    }
+
+    /**
+     * Admin-only "Test connection". Loads the connection, decrypts its
+     * secret, and runs a single request through the SAME validation +
+     * SSRF-guarded fetch core the runtime proxy uses (`executeExternalFetch`).
+     * Returns the bounded response. Does not involve an app.
+     */
+    async testConnection(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+        req: {
+            method?: ExternalConnectionMethod;
+            path: string;
+            query?: Record<string, string>;
+            body?: unknown;
+        },
+    ): Promise<ExternalFetchResponse> {
+        await this.assertExternalAccessEnabled(account);
+        const conn = await this.loadConnectionForProject(
+            connectionUuid,
+            projectUuid,
         );
+        this.assertCanManage(account, conn.projectUuid, conn.organizationUuid);
+
+        const secret =
+            conn.type === 'none'
+                ? null
+                : await this.externalConnectionModel.getDecryptedSecret(
+                      connectionUuid,
+                  );
+
+        const result = await this.executeExternalFetch(conn, secret, {
+            method: req.method ?? 'GET',
+            path: req.path,
+            query: req.query,
+            body: req.body,
+        });
+        return result.response;
+    }
+
+    /**
+     * Admin-only. Persist a named, sanitized sample (request + response) in
+     * the samples collection. Stores NO secret material — never calls
+     * getDecryptedSecret.
+     */
+    async saveSample(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+        data: ApiSaveExternalConnectionSampleRequest,
+    ): Promise<ExternalConnectionSample> {
+        await this.assertExternalAccessEnabled(account);
+        const conn = await this.loadConnectionForProject(
+            connectionUuid,
+            projectUuid,
+        );
+        this.assertCanManage(account, conn.projectUuid, conn.organizationUuid);
+
+        // Validate the client-supplied request against the connection contract
+        // before persisting, so a stored sample is always replayable + bounded.
+        ExternalConnectionService.validateSampleRequest(conn, data.request);
+
+        // Cap the number of stored samples per connection.
+        const existingCount =
+            await this.externalConnectionModel.countSamples(connectionUuid);
+        if (
+            existingCount >=
+            ExternalConnectionService.MAX_SAMPLES_PER_CONNECTION
+        ) {
+            throw new ParameterError(
+                `This connection already has the maximum of ${ExternalConnectionService.MAX_SAMPLES_PER_CONNECTION} saved samples. Delete one before saving another.`,
+            );
+        }
+
+        const label =
+            data.label != null
+                ? data.label.slice(
+                      0,
+                      ExternalConnectionService.MAX_SAMPLE_LABEL_CHARS,
+                  )
+                : null;
+
+        return this.externalConnectionModel.saveSample(
+            connectionUuid,
+            account.user.id,
+            {
+                label,
+                request: ExternalConnectionService.sanitizeSampleRequest(
+                    data.request,
+                ),
+                response: ExternalConnectionService.sanitizeSample(
+                    data.response,
+                ),
+            },
+        );
+    }
+
+    /**
+     * Admin-only. List all samples saved for a connection, most recent first.
+     */
+    async listSamples(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<ExternalConnectionSample[]> {
+        await this.assertExternalAccessEnabled(account);
+        const conn = await this.loadConnectionForProject(
+            connectionUuid,
+            projectUuid,
+        );
+        this.assertCanManage(account, conn.projectUuid, conn.organizationUuid);
+        return this.externalConnectionModel.listSamples(connectionUuid);
+    }
+
+    /**
+     * Admin-only. Delete a single sample by UUID. Verifies the sample belongs
+     * to the given connection (which must be in the given project).
+     */
+    async deleteSample(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+        sampleUuid: string,
+    ): Promise<void> {
+        await this.assertExternalAccessEnabled(account);
+        const conn = await this.loadConnectionForProject(
+            connectionUuid,
+            projectUuid,
+        );
+        this.assertCanManage(account, conn.projectUuid, conn.organizationUuid);
+
+        const ownerConnectionUuid =
+            await this.externalConnectionModel.getSampleConnectionUuid(
+                sampleUuid,
+            );
+        if (ownerConnectionUuid !== connectionUuid) {
+            throw new NotFoundError('Sample not found');
+        }
+        await this.externalConnectionModel.deleteSample(sampleUuid);
     }
 }

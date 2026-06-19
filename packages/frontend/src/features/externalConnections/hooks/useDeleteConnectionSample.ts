@@ -3,43 +3,41 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
-type UnlinkParams = {
+type DeleteSampleParams = {
     projectUuid: string;
-    appUuid: string;
-    alias: string;
+    connectionUuid: string;
+    sampleUuid: string;
 };
 
-const unlinkExternalConnection = async ({
+const deleteConnectionSample = async ({
     projectUuid,
-    appUuid,
-    alias,
-}: UnlinkParams) =>
+    connectionUuid,
+    sampleUuid,
+}: DeleteSampleParams): Promise<undefined> =>
     lightdashApi<undefined>({
-        url: `/ee/projects/${projectUuid}/apps/${appUuid}/external-connections/${encodeURIComponent(
-            alias,
-        )}`,
+        url: `/ee/projects/${projectUuid}/external-connections/${connectionUuid}/samples/${sampleUuid}`,
         method: 'DELETE',
         body: undefined,
     });
 
-export const useUnlinkExternalConnection = () => {
+export const useDeleteConnectionSample = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
-    return useMutation<undefined, ApiError, UnlinkParams>({
-        mutationFn: unlinkExternalConnection,
+    return useMutation<undefined, ApiError, DeleteSampleParams>({
+        mutationFn: deleteConnectionSample,
         onSuccess: async (_data, variables) => {
             await queryClient.invalidateQueries({
                 queryKey: [
-                    'app-external-connections',
+                    'external-connection-samples',
                     variables.projectUuid,
-                    variables.appUuid,
+                    variables.connectionUuid,
                 ],
             });
-            showToastSuccess({ title: 'Connection unlinked' });
+            showToastSuccess({ title: 'Sample deleted' });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to unlink connection',
+                title: 'Failed to delete sample',
                 apiError: error,
             });
         },

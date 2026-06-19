@@ -10,6 +10,7 @@ export const ExternalConnectionSecretsTableName = 'external_connection_secrets';
 export const AppExternalConnectionsTableName = 'app_external_connections';
 export const ExternalConnectionRateCountersTableName =
     'external_connection_rate_counters';
+export const ExternalConnectionSamplesTableName = 'external_connection_samples';
 
 export type DbExternalConnection = {
     external_connection_uuid: string;
@@ -130,4 +131,31 @@ export type ExternalConnectionRateCountersTable = Knex.CompositeTableType<
     > &
         Partial<Pick<DbExternalConnectionRateCounter, 'request_count'>>,
     Partial<Pick<DbExternalConnectionRateCounter, 'request_count'>>
+>;
+
+export type DbExternalConnectionSample = {
+    sample_uuid: string;
+    external_connection_uuid: string;
+    label: string | null;
+    // jsonb columns come back as parsed objects on read
+    request: unknown;
+    response: unknown;
+    created_by_user_uuid: string | null;
+    created_at: Date;
+};
+
+export type ExternalConnectionSamplesTable = Knex.CompositeTableType<
+    DbExternalConnectionSample,
+    // INSERT shape — jsonb columns written as serialized JSON strings
+    Pick<DbExternalConnectionSample, 'external_connection_uuid'> & {
+        request: string;
+        response: string;
+    } & Partial<
+            Pick<
+                DbExternalConnectionSample,
+                'sample_uuid' | 'label' | 'created_by_user_uuid'
+            >
+        >,
+    // UPDATE shape — not used
+    never
 >;

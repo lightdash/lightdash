@@ -189,6 +189,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     dashboardService: repository.getDashboardService(),
                     projectService: repository.getProjectService(),
                     promoteService: repository.getPromoteService(),
+                    externalConnectionModel:
+                        models.getExternalConnectionModel(),
                 }),
             embedService: ({ repository, context, models }) =>
                 new EmbedService({

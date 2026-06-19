@@ -78,6 +78,7 @@ export class AppGenerateController extends BaseController {
             body.spaceUuid,
             body.claudeModel,
             body.designUuid,
+            body.externalConnections,
         );
         return {
             status: 'ok',
@@ -242,6 +243,7 @@ export class AppGenerateController extends BaseController {
             body.charts,
             body.dashboard,
             body.claudeModel,
+            body.externalConnections,
         );
         return {
             status: 'ok',

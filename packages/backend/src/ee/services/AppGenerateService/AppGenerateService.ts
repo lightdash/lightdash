@@ -27,6 +27,7 @@ import {
     type AppChartReference,
     type AppClarification,
     type AppDashboardReference,
+    type AppExternalConnectionReference,
     type AppGeneratePipelineJobPayload,
     type AppVersionChartResource,
     type AppVersionResources,
@@ -36,6 +37,8 @@ import {
     type DataAppClaudeModel,
     type DataAppTemplate,
     type EmbedProjectApp,
+    type ExternalConnectionMethod,
+    type ExternalConnectionSample,
     type PromoteAppAction,
     type PromoteAppDiff,
     type SessionUser,
@@ -75,6 +78,7 @@ import type { ProjectService } from '../../../services/ProjectService/ProjectSer
 import type { PromoteService } from '../../../services/PromoteService/PromoteService';
 import type { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
+import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { getModel } from '../ai/models';
 import { assertCanViewApp as assertUserCanViewApp } from './appAuthz';
@@ -99,6 +103,13 @@ import {
 } from './designSandboxCopy';
 import { getTemplateInstructions } from './templates';
 
+type AppExternalConnectionDoc = {
+    alias: string;
+    allowedMethods: ExternalConnectionMethod[];
+    allowedPathPrefixes: string[];
+    samples: ExternalConnectionSample[];
+};
+
 type AppGenerateServiceDeps = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
@@ -116,6 +127,7 @@ type AppGenerateServiceDeps = {
     dashboardService: DashboardService;
     projectService: ProjectService;
     promoteService: PromoteService;
+    externalConnectionModel: ExternalConnectionModel;
 };
 
 type GenerateAppResult = {
@@ -161,6 +173,8 @@ export class AppGenerateService extends BaseService {
 
     private readonly promoteService: PromoteService;
 
+    private readonly externalConnectionModel: ExternalConnectionModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -178,6 +192,7 @@ export class AppGenerateService extends BaseService {
         dashboardService,
         projectService,
         promoteService,
+        externalConnectionModel,
     }: AppGenerateServiceDeps) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -196,6 +211,7 @@ export class AppGenerateService extends BaseService {
         this.dashboardService = dashboardService;
         this.projectService = projectService;
         this.promoteService = promoteService;
+        this.externalConnectionModel = externalConnectionModel;
     }
 
     /**
@@ -380,6 +396,87 @@ export class AppGenerateService extends BaseService {
             featureFlagId: FeatureFlags.EnableDataApps,
         });
         return enabled;
+    }
+
+    private async externalAccessEnabledFor(user: {
+        userUuid: string;
+        organizationUuid: string | undefined;
+    }): Promise<boolean> {
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+                organizationName: undefined,
+            },
+            featureFlagId: FeatureFlags.EnableDataAppExternalAccess,
+        });
+        return enabled;
+    }
+
+    /**
+     * Link the given external connections to the app before its catalog stage,
+     * so the generated app can call them via client.externalFetch. Gated on the
+     * external-access flag and validated: a connection from another project is
+     * never linked (that would expose its credentialed proxy to a foreign app).
+     * Linking is idempotent, so re-sending an already-linked connection is fine.
+     */
+    private async linkExternalConnections(
+        user: SessionUser,
+        projectUuid: string,
+        appId: string,
+        externalConnections: AppExternalConnectionReference[] | undefined,
+    ): Promise<void> {
+        if (!externalConnections || externalConnections.length === 0) return;
+        if (
+            !(await this.externalAccessEnabledFor({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+            }))
+        )
+            return;
+        // Authorize against the connection resource the same way the admin API
+        // (ExternalConnectionService.linkToApp) does — generation must not be a
+        // weaker door to attaching a credentialed connection to an app.
+        const ability = this.createAuditedAbility(user);
+        for (const conn of externalConnections) {
+            // eslint-disable-next-line no-await-in-loop
+            const connection = await this.externalConnectionModel.findByUuid(
+                conn.externalConnectionUuid,
+            );
+            if (!connection || connection.projectUuid !== projectUuid) {
+                this.logger.warn(
+                    `App ${appId}: skipping external connection ${conn.externalConnectionUuid} — not found or not in project ${projectUuid}`,
+                );
+                // eslint-disable-next-line no-continue
+                continue;
+            }
+            // The alias becomes a sandbox file path (/tmp/external-data/{alias}.json),
+            // so reject anything outside the safe charset — mirrors linkToApp.
+            if (!/^[a-z0-9_-]+$/i.test(conn.alias) || conn.alias.length > 64) {
+                throw new ParameterError(
+                    'Alias must contain only letters, numbers, hyphens, and underscores (max 64 chars)',
+                );
+            }
+            if (
+                ability.cannot(
+                    'manage',
+                    subject('ExternalConnection', {
+                        organizationUuid: connection.organizationUuid,
+                        projectUuid: connection.projectUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    'You do not have permission to link this external connection',
+                );
+            }
+            // eslint-disable-next-line no-await-in-loop
+            await this.externalConnectionModel.linkToApp(
+                appId,
+                conn.externalConnectionUuid,
+                conn.alias,
+            );
+        }
     }
 
     /**
@@ -1087,6 +1184,96 @@ export class AppGenerateService extends BaseService {
         );
     }
 
+    /**
+     * For each linked external connection, write a self-contained API-doc JSON
+     * to /tmp/external-data/{alias}.json in the sandbox and return a prompt
+     * block listing each file. Writes a file for every connection — the
+     * contract (allowedMethods/allowedPathPrefixes) is useful even when no
+     * samples have been saved. Returns '' only when there are zero linked
+     * connections.
+     */
+    private async writeExternalConnectionSamples(
+        sandbox: Sandbox,
+        appUuid: string,
+        docs: AppExternalConnectionDoc[],
+    ): Promise<string> {
+        if (docs.length === 0) return '';
+
+        await sandbox.commands.run('mkdir -p /tmp/external-data', {
+            timeoutMs: 10_000,
+        });
+
+        const fileEntries: string[] = [];
+        for (const doc of docs) {
+            const fileContent = JSON.stringify(
+                {
+                    alias: doc.alias,
+                    signature:
+                        "externalFetch(alias: string, opts: { method?: 'GET' | 'POST'; path: string; query?: Record<string, string>; body?: unknown }): Promise<{ status: number; contentType: string; body: unknown; truncated: boolean }>",
+                    howToCall: `const result = await client.externalFetch('${doc.alias}', { method: 'GET', path: '<a path under allowedPathPrefixes>', query: { /* string values only */ } });\nconst data = result.body;`,
+                    rules: [
+                        "query is Record<string, string> — EVERY value must be a string. Write { latitude: '52.52' }, never { latitude: 52.52 }. Numbers and booleans are rejected with a 422.",
+                        'method must be one of allowedMethods; path must start with one of allowedPathPrefixes.',
+                        'Read the response from result.body. result.status is the upstream HTTP status; result.truncated is true if the response was capped.',
+                        'Auth is injected by Lightdash — never include credentials, API keys, or headers.',
+                    ],
+                    allowedMethods: doc.allowedMethods,
+                    allowedPathPrefixes: doc.allowedPathPrefixes,
+                    samples: doc.samples.map((s) => ({
+                        label: s.label,
+                        request: s.request,
+                        response: s.response,
+                    })),
+                },
+                null,
+                2,
+            );
+            // eslint-disable-next-line no-await-in-loop
+            await sandbox.files.write(
+                `/tmp/external-data/${doc.alias}.json`,
+                fileContent,
+            );
+            fileEntries.push(
+                `- /tmp/external-data/${doc.alias}.json — connection "${doc.alias}" (${doc.allowedMethods.join('/')}; ${doc.samples.length} example(s))`,
+            );
+        }
+
+        this.logger.info(
+            `App ${appUuid}: wrote ${docs.length} external connection doc(s) to /tmp/external-data/`,
+        );
+
+        return (
+            `[Linked external connections — the app can call these external APIs via client.externalFetch(alias, opts). ` +
+            `Each /tmp/external-data/{alias}.json documents one connection: its signature, allowedMethods/allowedPathPrefixes, rules, and example request/response pairs. ` +
+            `IMPORTANT: query is Record<string, string> — every query value must be a string (e.g. { latitude: '52.52' }, not 52.52); numbers are rejected with a 422. Read the response from result.body. ` +
+            `Auth is handled by Lightdash — never send credentials. Treat sample values as illustrative of shape, not exhaustive.]\n` +
+            `${fileEntries.join('\n')}\n\n`
+        );
+    }
+
+    /**
+     * Resolve the app's linked external connections to API-doc descriptors.
+     * Fetches the contract from the connection and up to 5 saved samples.
+     */
+    private async resolveExternalConnectionSamples(
+        appId: string,
+    ): Promise<AppExternalConnectionDoc[]> {
+        const links = await this.externalConnectionModel.listAppLinks(appId);
+        return Promise.all(
+            links.map(async (link) => ({
+                alias: link.alias,
+                allowedMethods: link.connection.allowedMethods,
+                allowedPathPrefixes: link.connection.allowedPathPrefixes,
+                // Cap at 5 samples — enough to illustrate the API shape without bloating the prompt
+                samples:
+                    await this.externalConnectionModel.getSamplesForPipeline(
+                        link.connection.externalConnectionUuid,
+                        5,
+                    ),
+            })),
+        );
+    }
+
     private async writeCatalogAndPrompt(
         sandbox: Sandbox,
         appUuid: string,
@@ -1097,6 +1284,7 @@ export class AppGenerateService extends BaseService {
         bucket: string,
         chartReferences: ChartReference[] | undefined,
         template: DataAppTemplate | undefined,
+        user: { userUuid: string; organizationUuid: string | undefined },
     ): Promise<{
         durationMs: number;
         tableCount: number;
@@ -1114,7 +1302,7 @@ export class AppGenerateService extends BaseService {
         // different ownership (e.g. root-owned after Claude CLI execution),
         // which would cause a permission error on write.
         await sandbox.commands.run(
-            'rm -f /tmp/dbt-repo/models/schema.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/metric-queries 2>/dev/null; true',
+            'rm -f /tmp/dbt-repo/models/schema.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/metric-queries /tmp/external-data 2>/dev/null; true',
             { timeoutMs: 10_000 },
         );
 
@@ -1129,6 +1317,25 @@ export class AppGenerateService extends BaseService {
                 chartReferences,
             );
             finalPrompt = referenceBlock + finalPrompt;
+        }
+
+        // Linked external connections: write an API-doc file per connection into
+        // the sandbox and prepend a listing to the prompt so Claude knows what
+        // APIs the app can call. Skipped when the external-access flag is off.
+        const externalAccessEnabled = await this.externalAccessEnabledFor(user);
+        if (externalAccessEnabled) {
+            const externalLinks =
+                await this.resolveExternalConnectionSamples(appUuid);
+            if (externalLinks.length > 0) {
+                const externalBlock = await this.writeExternalConnectionSamples(
+                    sandbox,
+                    appUuid,
+                    externalLinks,
+                );
+                if (externalBlock) {
+                    finalPrompt = externalBlock + finalPrompt;
+                }
+            }
         }
 
         // Prepend starter-template instructions, when one was selected on creation
@@ -2383,6 +2590,10 @@ export class AppGenerateService extends BaseService {
                     bucket,
                     chartReferences,
                     template,
+                    {
+                        userUuid: payload.userUuid,
+                        organizationUuid: payload.organizationUuid,
+                    },
                 );
                 durations.catalogMs = catalogResult.durationMs;
                 catalogStats = {
@@ -3255,6 +3466,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         spaceUuid?: string,
         claudeModelInput?: DataAppClaudeModel,
         designUuidInput?: string | null,
+        externalConnections?: AppExternalConnectionReference[],
     ): Promise<GenerateAppResult> {
         await this.assertDataAppsEnabled(user);
         const organizationUuid = await this.getProjectOrgUuid(projectUuid);
@@ -3389,6 +3601,13 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             throw error;
         }
 
+        await this.linkExternalConnections(
+            user,
+            projectUuid,
+            appUuid,
+            externalConnections,
+        );
+
         this.analytics.track({
             event: 'data_app.created',
             userId: user.userUuid,
@@ -3435,6 +3654,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         charts?: AppChartReference[],
         dashboard?: AppDashboardReference,
         claudeModelInput?: DataAppClaudeModel,
+        externalConnections?: AppExternalConnectionReference[],
     ): Promise<GenerateAppResult> {
         await this.assertDataAppsEnabled(user);
 
@@ -3447,6 +3667,13 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             user,
             app,
             'Insufficient permissions to modify data apps',
+        );
+
+        await this.linkExternalConnections(
+            user,
+            projectUuid,
+            appUuid,
+            externalConnections,
         );
 
         const latestVersion = await this.appModel.getLatestVersion(appUuid);

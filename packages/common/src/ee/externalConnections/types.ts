@@ -72,3 +72,49 @@ export type ExternalFetchResponse = {
     body: unknown;
     truncated: boolean;
 };
+
+export type ApiTestExternalConnectionRequest = {
+    method?: 'GET' | 'POST';
+    path: string;
+    query?: Record<string, string>;
+    body?: unknown;
+};
+
+export type ApiTestExternalConnectionResponse = {
+    status: 'ok';
+    results: ExternalFetchResponse;
+};
+
+/** The request that produced a sample (stored alongside the response). */
+export type ExternalConnectionSampleRequest = {
+    method: ExternalConnectionMethod;
+    path: string;
+    query?: Record<string, string>;
+    body?: unknown;
+};
+
+/** READ shape for a persisted sample row. */
+export type ExternalConnectionSample = {
+    sampleUuid: string;
+    externalConnectionUuid: string;
+    label: string | null;
+    request: ExternalConnectionSampleRequest;
+    response: unknown;
+    createdAt: Date;
+};
+
+export type ApiSaveExternalConnectionSampleRequest = {
+    label?: string | null;
+    request: ExternalConnectionSampleRequest;
+    response: unknown;
+};
+
+export type ApiSaveExternalConnectionSampleResponse = {
+    status: 'ok';
+    results: ExternalConnectionSample;
+};
+
+export type ApiListExternalConnectionSamplesResponse = {
+    status: 'ok';
+    results: ExternalConnectionSample[];
+};

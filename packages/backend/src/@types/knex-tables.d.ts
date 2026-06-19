@@ -426,6 +426,8 @@ import {
     AppExternalConnectionsTableName,
     ExternalConnectionRateCountersTable,
     ExternalConnectionRateCountersTableName,
+    ExternalConnectionSamplesTable,
+    ExternalConnectionSamplesTableName,
     ExternalConnectionSecretsTable,
     ExternalConnectionSecretsTableName,
     ExternalConnectionsTable,
@@ -626,5 +628,6 @@ declare module 'knex/types/tables' {
         [ExternalConnectionSecretsTableName]: ExternalConnectionSecretsTable;
         [AppExternalConnectionsTableName]: AppExternalConnectionsTable;
         [ExternalConnectionRateCountersTableName]: ExternalConnectionRateCountersTable;
+        [ExternalConnectionSamplesTableName]: ExternalConnectionSamplesTable;
     }
 }

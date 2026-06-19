@@ -1,6 +1,6 @@
 import { assertUnreachable, type ExternalConnection } from '@lightdash/common';
 import { ActionIcon, Group, Paper, Table, Text } from '@mantine-8/core';
-import { IconEdit, IconTrash } from '@tabler/icons-react';
+import { IconEdit, IconFlask, IconTrash } from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import MantineIcon from '../../common/MantineIcon';
@@ -13,6 +13,7 @@ type Props = {
     setConnectionToDelete: Dispatch<
         SetStateAction<ExternalConnection | undefined>
     >;
+    onSelectConnection: (connection: ExternalConnection) => void;
 };
 
 const authLabel = (type: ExternalConnection['type']): string => {
@@ -31,9 +32,14 @@ const authLabel = (type: ExternalConnection['type']): string => {
 const ConnectionRow: FC<
     { connection: ExternalConnection } & Pick<
         Props,
-        'setConnectionToEdit' | 'setConnectionToDelete'
+        'setConnectionToEdit' | 'setConnectionToDelete' | 'onSelectConnection'
     >
-> = ({ connection, setConnectionToEdit, setConnectionToDelete }) => (
+> = ({
+    connection,
+    setConnectionToEdit,
+    setConnectionToDelete,
+    onSelectConnection,
+}) => (
     <Table.Tr>
         <Table.Td>
             <Text fw={500}>{connection.name}</Text>
@@ -43,6 +49,12 @@ const ConnectionRow: FC<
         <Table.Td>{connection.allowedMethods.join(', ')}</Table.Td>
         <Table.Td>
             <Group justify="flex-end">
+                <ActionIcon
+                    title="Test / samples"
+                    onClick={() => onSelectConnection(connection)}
+                >
+                    <MantineIcon icon={IconFlask} />
+                </ActionIcon>
                 <ActionIcon onClick={() => setConnectionToEdit(connection)}>
                     <MantineIcon icon={IconEdit} />
                 </ActionIcon>
@@ -58,6 +70,7 @@ export const ConnectionsTable: FC<Props> = ({
     connections,
     setConnectionToEdit,
     setConnectionToDelete,
+    onSelectConnection,
 }) => {
     const { cx, classes } = useTableStyles();
     return (
@@ -82,6 +95,7 @@ export const ConnectionsTable: FC<Props> = ({
                             connection={connection}
                             setConnectionToEdit={setConnectionToEdit}
                             setConnectionToDelete={setConnectionToDelete}
+                            onSelectConnection={onSelectConnection}
                         />
                     ))}
                 </Table.Tbody>

@@ -17,7 +17,7 @@ export type AppViewAuthzDeps = {
     ) => Promise<Record<string, unknown>>;
 };
 
-export async function userCanViewApp(
+async function userCanViewApp(
     deps: AppViewAuthzDeps,
     user: SessionUser,
     app: AppViewAuthzApp,

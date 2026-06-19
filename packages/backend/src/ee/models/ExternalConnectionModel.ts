@@ -3,6 +3,8 @@ import {
     NotFoundError,
     type CreateExternalConnection,
     type ExternalConnection,
+    type ExternalConnectionSample,
+    type ExternalConnectionSampleRequest,
     type UpdateExternalConnection,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
@@ -11,9 +13,11 @@ import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     AppExternalConnectionsTableName,
     ExternalConnectionRateCountersTableName,
+    ExternalConnectionSamplesTableName,
     ExternalConnectionSecretsTableName,
     ExternalConnectionsTableName,
     type DbExternalConnection,
+    type DbExternalConnectionSample,
 } from '../database/entities/externalConnections';
 
 type ExternalConnectionModelArguments = {
@@ -32,7 +36,8 @@ type DbApp = {
 /**
  * Owns all DB access for external connections, their secrets (kept in a
  * separate table and never returned in the read shape), app↔connection
- * links, and the per-minute rate counters consumed by the M2 proxy.
+ * links, the per-minute rate counters consumed by the M2 proxy, and the
+ * named samples collection used by the generate pipeline.
  */
 export class ExternalConnectionModel {
     private readonly database: Knex;
@@ -70,6 +75,21 @@ export class ExternalConnectionModel {
             updatedByUserUuid: row.updated_by_user_uuid,
             createdAt: row.created_at,
             updatedAt: row.updated_at,
+        };
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    private static mapToExternalConnectionSample(
+        row: DbExternalConnectionSample,
+    ): ExternalConnectionSample {
+        return {
+            sampleUuid: row.sample_uuid,
+            externalConnectionUuid: row.external_connection_uuid,
+            label: row.label,
+            // Postgres returns jsonb columns as parsed objects at runtime.
+            request: row.request as ExternalConnectionSampleRequest,
+            response: row.response,
+            createdAt: row.created_at,
         };
     }
 
@@ -312,13 +332,22 @@ export class ExternalConnectionModel {
     }
 
     async softDelete(uuid: string): Promise<void> {
-        const count = await this.database(ExternalConnectionsTableName)
-            .where('external_connection_uuid', uuid)
-            .whereNull('deleted_at')
-            .update({ deleted_at: this.database.fn.now() as unknown as Date });
-        if (count === 0) {
-            throw new NotFoundError('External connection not found');
-        }
+        await this.database.transaction(async (trx) => {
+            const count = await trx(ExternalConnectionsTableName)
+                .where('external_connection_uuid', uuid)
+                .whereNull('deleted_at')
+                .update({ deleted_at: trx.fn.now() as unknown as Date });
+            if (count === 0) {
+                throw new NotFoundError('External connection not found');
+            }
+            // Remove app links so the freed (app_id, alias) slots can be
+            // relinked. Otherwise the rows linger but are hidden by the
+            // deleted_at filter in listAppLinks/resolveAppAlias, while
+            // linkToApp's onConflict(...).ignore() silently no-ops a re-link.
+            await trx(AppExternalConnectionsTableName)
+                .where('external_connection_uuid', uuid)
+                .delete();
+        });
     }
 
     async rotateSecret(uuid: string, secret: string): Promise<void> {
@@ -355,16 +384,109 @@ export class ExternalConnectionModel {
             .delete();
     }
 
+    // -----------------------------------------------------------------------
+    // Samples collection
+    // -----------------------------------------------------------------------
+
+    async saveSample(
+        connectionUuid: string,
+        userUuid: string | null,
+        data: {
+            label: string | null;
+            request: ExternalConnectionSampleRequest;
+            response: unknown;
+        },
+    ): Promise<ExternalConnectionSample> {
+        const [row] = await this.database(ExternalConnectionSamplesTableName)
+            .insert({
+                external_connection_uuid: connectionUuid,
+                label: data.label ?? null,
+                request: JSON.stringify(data.request),
+                response: JSON.stringify(data.response),
+                created_by_user_uuid: userUuid ?? null,
+            })
+            .returning('*');
+        return ExternalConnectionModel.mapToExternalConnectionSample(row);
+    }
+
+    async listSamples(
+        connectionUuid: string,
+    ): Promise<ExternalConnectionSample[]> {
+        const rows = await this.database(ExternalConnectionSamplesTableName)
+            .where('external_connection_uuid', connectionUuid)
+            .orderBy('created_at', 'desc')
+            .select<DbExternalConnectionSample[]>('*');
+        return rows.map(ExternalConnectionModel.mapToExternalConnectionSample);
+    }
+
+    async countSamples(connectionUuid: string): Promise<number> {
+        const [{ count }] = await this.database(
+            ExternalConnectionSamplesTableName,
+        )
+            .where('external_connection_uuid', connectionUuid)
+            .count<[{ count: string }]>('* as count');
+        return Number(count);
+    }
+
+    async deleteSample(sampleUuid: string): Promise<void> {
+        const count = await this.database(ExternalConnectionSamplesTableName)
+            .where('sample_uuid', sampleUuid)
+            .delete();
+        if (count === 0) {
+            throw new NotFoundError('Sample not found');
+        }
+    }
+
+    /**
+     * Returns the most-recent `limit` samples for a connection, for the
+     * generate pipeline to ground Claude in the API's shape.
+     */
+    async getSamplesForPipeline(
+        connectionUuid: string,
+        limit: number,
+    ): Promise<ExternalConnectionSample[]> {
+        const rows = await this.database(ExternalConnectionSamplesTableName)
+            .where('external_connection_uuid', connectionUuid)
+            .orderBy('created_at', 'desc')
+            .limit(limit)
+            .select<DbExternalConnectionSample[]>('*');
+        return rows.map(ExternalConnectionModel.mapToExternalConnectionSample);
+    }
+
+    /**
+     * Returns the connection UUID that owns the given sample, or undefined if
+     * the sample does not exist. Used by the service to verify cross-project
+     * access before deletion.
+     */
+    async getSampleConnectionUuid(
+        sampleUuid: string,
+    ): Promise<string | undefined> {
+        const row = await this.database(ExternalConnectionSamplesTableName)
+            .where('sample_uuid', sampleUuid)
+            .first<{ external_connection_uuid: string } | undefined>(
+                'external_connection_uuid',
+            );
+        return row?.external_connection_uuid;
+    }
+
+    // -----------------------------------------------------------------------
+    // App links
+    // -----------------------------------------------------------------------
+
     async linkToApp(
         appId: string,
         externalConnectionUuid: string,
         alias: string,
     ): Promise<void> {
-        await this.database(AppExternalConnectionsTableName).insert({
-            app_id: appId,
-            external_connection_uuid: externalConnectionUuid,
-            alias,
-        });
+        // Idempotent: re-linking the same alias (e.g. on iteration) is a no-op.
+        await this.database(AppExternalConnectionsTableName)
+            .insert({
+                app_id: appId,
+                external_connection_uuid: externalConnectionUuid,
+                alias,
+            })
+            .onConflict(['app_id', 'alias'])
+            .ignore();
     }
 
     async unlinkFromApp(appId: string, alias: string): Promise<void> {

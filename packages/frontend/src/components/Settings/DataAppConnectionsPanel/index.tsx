@@ -12,6 +12,7 @@ import { type FC, useState } from 'react';
 import { useExternalConnections } from '../../../features/externalConnections/hooks/useExternalConnections';
 import { EmptyState } from '../../common/EmptyState';
 import MantineIcon from '../../common/MantineIcon';
+import { ConnectionDrawer } from './ConnectionDrawer';
 import { ConnectionsTable } from './ConnectionsTable';
 import { CreateConnectionModal } from './CreateConnectionModal';
 import { DeleteConnectionModal } from './DeleteConnectionModal';
@@ -31,6 +32,8 @@ const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
     const [connectionToDelete, setConnectionToDelete] = useState<
         ExternalConnection | undefined
     >(undefined);
+    const [drawerConnection, setDrawerConnection] =
+        useState<ExternalConnection | null>(null);
 
     if (isLoading) {
         return <LoadingOverlay visible={isLoading} />;
@@ -62,6 +65,7 @@ const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
                             connections={connections}
                             setConnectionToEdit={setConnectionToEdit}
                             setConnectionToDelete={setConnectionToDelete}
+                            onSelectConnection={setDrawerConnection}
                         />
                     </>
                 ) : (
@@ -84,13 +88,11 @@ const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
                 )}
             </Stack>
 
-            {/*
-              M5 SLOT — Test connection panel + saved samples
-              ------------------------------------------------
-              M5 fills this region with its "Test connection" panel and the
-              saved-sample UI. It will likely take `connections` + a selected
-              connection here. Leave this comment in place until M5 lands.
-            */}
+            <ConnectionDrawer
+                projectUuid={projectUuid}
+                connection={drawerConnection}
+                onClose={() => setDrawerConnection(null)}
+            />
 
             {isCreating && (
                 <CreateConnectionModal

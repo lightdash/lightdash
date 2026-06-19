@@ -10,6 +10,7 @@ import {
     type AppChartReference,
     type AppClarification,
     type AppDashboardReference,
+    type AppExternalConnectionReference,
     type DataAppClaudeModel,
     type DataAppTemplate,
 } from '@lightdash/common';
@@ -49,6 +50,8 @@ import {
     IconRestore,
     IconSparkles,
     IconTrash,
+    IconPlugConnected,
+    IconX,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import ReactMarkdownPreview from '@uiw/react-markdown-preview';
@@ -94,12 +97,12 @@ import {
     SelectedImageSection,
     SelectedQuerySection,
     type SelectedChart,
+    type SelectedConnection,
     type SelectedDashboard,
 } from '../features/apps/AppResourcePicker';
 import AppTemplatePicker from '../features/apps/AppTemplatePicker';
 import ChatBubbleMeta from '../features/apps/ChatBubbleMeta';
 import ChatMessageContent from '../features/apps/ChatMessageContent';
-import { AppExternalConnectionsSection } from '../features/apps/components/AppExternalConnectionsSection';
 import { PromoteAppModal } from '../features/apps/components/PromoteAppModal';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppImageUpload } from '../features/apps/hooks/useAppImageUpload';
@@ -123,6 +126,7 @@ import {
     type ChatChart,
     type ChatMessage,
 } from '../features/apps/utils/mergeChatMessages';
+import { useAppExternalConnections } from '../features/externalConnections/hooks/useAppExternalConnections';
 import { useOrganizationDesigns } from '../features/organizationDesigns/hooks/useOrganizationDesigns';
 import useToaster from '../hooks/toaster/useToaster';
 import { useContentAction } from '../hooks/useContent';
@@ -292,6 +296,61 @@ const ThemeChip: FC<{ themeName: string }> = ({ themeName }) => (
     </Badge>
 );
 
+/** A removable pill for a connection selected for this prompt. */
+const ConnectionChip: FC<{ name: string; onRemove: () => void }> = ({
+    name,
+    onRemove,
+}) => (
+    <Badge
+        variant="light"
+        color="gray"
+        size="md"
+        leftSection={<MantineIcon icon={IconPlugConnected} size={12} />}
+        rightSection={
+            <ActionIcon
+                size="xs"
+                variant="transparent"
+                color="gray"
+                onClick={onRemove}
+                aria-label={`Remove ${name}`}
+            >
+                <MantineIcon icon={IconX} size={10} />
+            </ActionIcon>
+        }
+    >
+        {name}
+    </Badge>
+);
+
+/** A status pill (theme-pill style) listing the connections this app can call. */
+const AvailableConnectionsChip: FC<{ aliases: string[] }> = ({ aliases }) => (
+    <Tooltip
+        withArrow
+        position="top"
+        label={
+            <Stack gap={2}>
+                <Text size="xs" fw={600}>
+                    Available to this app
+                </Text>
+                {aliases.map((alias) => (
+                    <Text key={alias} size="xs">
+                        {alias}
+                    </Text>
+                ))}
+            </Stack>
+        }
+    >
+        <Badge
+            variant="light"
+            color="gray"
+            size="md"
+            leftSection={<MantineIcon icon={IconPlugConnected} size={12} />}
+        >
+            {aliases.length} connection{aliases.length === 1 ? '' : 's'}
+        </Badge>
+    </Tooltip>
+);
+
 const AppGenerate: FC = () => {
     const { projectUuid, appUuid: urlAppUuid } = useParams<{
         projectUuid: string;
@@ -356,6 +415,9 @@ const AppGenerate: FC = () => {
     const [selectedCharts, setSelectedCharts] = useState<SelectedChart[]>([]);
     const [selectedDashboard, setSelectedDashboard] =
         useState<SelectedDashboard | null>(null);
+    const [selectedConnections, setSelectedConnections] = useState<
+        SelectedConnection[]
+    >([]);
     // Click-to-edit ("Inspect") mode. While on, the iframe overlays a hover
     // outline and intercepts clicks; each click inserts an element-reference
     // pill at the editor cursor so the user can compose targeted edits.
@@ -413,6 +475,7 @@ const AppGenerate: FC = () => {
         appUuid: string;
         charts: AppChartReference[] | undefined;
         dashboard: AppDashboardReference | undefined;
+        externalConnections: AppExternalConnectionReference[] | undefined;
         spaceUuid: string | undefined;
         // Snapshot of `selectedModel` at submit time so a mid-clarification
         // model switch doesn't change which model the build kicks off with —
@@ -439,6 +502,15 @@ const AppGenerate: FC = () => {
     const [activeAppUuid, setActiveAppUuid] = useState<string | undefined>(
         urlAppUuid,
     );
+    // Connections already linked to this app — shown as an "available" pill so
+    // the user knows what the generated app can call via client.externalFetch.
+    const { data: availableConnectionLinks = [] } = useAppExternalConnections(
+        projectUuid,
+        activeAppUuid,
+    );
+    const availableConnectionAliases = availableConnectionLinks.map(
+        (l) => l.alias,
+    );
     // Track the previous app UUID so we can detect intentional navigation
     // vs. the post-submit URL update (undefined → newUuid).
     const prevUrlAppUuid = useRef(urlAppUuid);
@@ -447,6 +519,7 @@ const AppGenerate: FC = () => {
         setIsPromptEmpty(true);
         setSelectedCharts([]);
         setSelectedDashboard(null);
+        setSelectedConnections([]);
         setImageAttachments([]);
         setLocalMessages([]);
         setPin(null);
@@ -1178,6 +1251,15 @@ const AppGenerate: FC = () => {
                           includeSampleData: c.includeSampleData,
                       }))
                     : undefined;
+            const externalConnections:
+                | AppExternalConnectionReference[]
+                | undefined =
+                selectedConnections.length > 0
+                    ? selectedConnections.map((c) => ({
+                          externalConnectionUuid: c.externalConnectionUuid,
+                          alias: c.alias,
+                      }))
+                    : undefined;
 
             // For new apps, pre-generate the UUID so the image upload and
             // the generate request both use the same app-scoped S3 path.
@@ -1276,6 +1358,7 @@ const AppGenerate: FC = () => {
             setIsCapturingScreenshot(false);
             setSelectedCharts([]);
             setSelectedDashboard(null);
+            setSelectedConnections([]);
             resetGenerate();
             resetIterate();
 
@@ -1304,6 +1387,7 @@ const AppGenerate: FC = () => {
                             appUuid: newAppUuid,
                             charts,
                             dashboard,
+                            externalConnections,
                             spaceUuid: targetSpaceUuid,
                             claudeModel: selectedModel,
                             designUuid: selectedThemeUuid,
@@ -1338,6 +1422,7 @@ const AppGenerate: FC = () => {
                         charts,
                         dashboard,
                         claudeModel: selectedModel,
+                        externalConnections,
                     },
                     callbacks,
                 );
@@ -1354,6 +1439,7 @@ const AppGenerate: FC = () => {
                         spaceUuid: targetSpaceUuid,
                         claudeModel: selectedModel,
                         designUuid: selectedThemeUuid,
+                        externalConnections,
                     },
                     callbacks,
                 );
@@ -1418,6 +1504,7 @@ const AppGenerate: FC = () => {
                 appUuid: captured.appUuid,
                 charts: captured.charts,
                 dashboard: captured.dashboard,
+                externalConnections: captured.externalConnections,
                 clarifications:
                     clarifications.length > 0 ? clarifications : undefined,
                 spaceUuid: captured.spaceUuid,
@@ -2014,14 +2101,6 @@ const AppGenerate: FC = () => {
                                 </Callout>
                             </Box>
                         )}
-                        {activeAppUuid && projectUuid && (
-                            <Box p="sm">
-                                <AppExternalConnectionsSection
-                                    projectUuid={projectUuid}
-                                    appUuid={activeAppUuid}
-                                />
-                            </Box>
-                        )}
 
                         {!wizardCoversInput && !isViewingOlderVersion && (
                             <Box className={classes.chatInputArea}>
@@ -2033,7 +2112,9 @@ const AppGenerate: FC = () => {
                                     onChange={handleFileInputChange}
                                     hidden
                                 />
-                                {(displayTemplate || displayThemeName) && (
+                                {(displayTemplate ||
+                                    displayThemeName ||
+                                    availableConnectionAliases.length > 0) && (
                                     <Group gap="xs" pb="xs">
                                         {displayTemplate && (
                                             <TemplateChip
@@ -2043,6 +2124,14 @@ const AppGenerate: FC = () => {
                                         {displayThemeName && (
                                             <ThemeChip
                                                 themeName={displayThemeName}
+                                            />
+                                        )}
+                                        {availableConnectionAliases.length >
+                                            0 && (
+                                            <AvailableConnectionsChip
+                                                aliases={
+                                                    availableConnectionAliases
+                                                }
                                             />
                                         )}
                                     </Group>
@@ -2063,12 +2152,41 @@ const AppGenerate: FC = () => {
                                     />
                                     {(selectedCharts.length > 0 ||
                                         selectedDashboard ||
+                                        selectedConnections.length > 0 ||
                                         imageAttachments.length > 0) && (
                                         <Box
                                             className={
                                                 classes.attachedResources
                                             }
                                         >
+                                            {selectedConnections.length > 0 && (
+                                                <Group gap="xs">
+                                                    {selectedConnections.map(
+                                                        (c) => (
+                                                            <ConnectionChip
+                                                                key={
+                                                                    c.externalConnectionUuid
+                                                                }
+                                                                name={c.name}
+                                                                onRemove={() =>
+                                                                    setSelectedConnections(
+                                                                        (
+                                                                            prev,
+                                                                        ) =>
+                                                                            prev.filter(
+                                                                                (
+                                                                                    x,
+                                                                                ) =>
+                                                                                    x.externalConnectionUuid !==
+                                                                                    c.externalConnectionUuid,
+                                                                            ),
+                                                                    )
+                                                                }
+                                                            />
+                                                        ),
+                                                    )}
+                                                </Group>
+                                            )}
                                             {selectedCharts.length > 0 && (
                                                 <SelectedQuerySection
                                                     charts={selectedCharts}
@@ -2172,6 +2290,26 @@ const AppGenerate: FC = () => {
                                             }
                                             onDeselectDashboard={() =>
                                                 setSelectedDashboard(null)
+                                            }
+                                            selectedConnections={
+                                                selectedConnections
+                                            }
+                                            onSelectConnection={(connection) =>
+                                                setSelectedConnections(
+                                                    (prev) => [
+                                                        ...prev,
+                                                        connection,
+                                                    ],
+                                                )
+                                            }
+                                            onDeselectConnection={(uuid) =>
+                                                setSelectedConnections((prev) =>
+                                                    prev.filter(
+                                                        (c) =>
+                                                            c.externalConnectionUuid !==
+                                                            uuid,
+                                                    ),
+                                                )
                                             }
                                             onAddImages={() =>
                                                 fileInputRef.current?.click()
