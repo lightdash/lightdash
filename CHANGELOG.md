@@ -1,3 +1,10 @@
+## [0.3203.1](https://github.com/lightdash/lightdash/compare/0.3203.0...0.3203.1) (2026-06-19)
+
+
+### Bug Fixes
+
+* make browserless launch Chrome with the right window size ([#24522](https://github.com/lightdash/lightdash/issues/24522)) ([b24a11b](https://github.com/lightdash/lightdash/commit/b24a11b0138c8a7ffcf9af5e8c59f4bdf3d3ab36))
+
 # [0.3203.0](https://github.com/lightdash/lightdash/compare/0.3202.0...0.3203.0) (2026-06-19)
 
 
