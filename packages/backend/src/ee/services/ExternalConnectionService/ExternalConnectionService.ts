@@ -704,10 +704,14 @@ export class ExternalConnectionService extends BaseService {
             throw new ParameterError('Upstream request failed');
         }
 
-        // Parse body by content type.
-        const isJson = fetched.contentType
-            .toLowerCase()
-            .includes('application/json');
+        // Parse body by content type. Recognize application/json and any
+        // structured-syntax "+json" suffix (RFC 6839), e.g. application/geo+json.
+        const mediaType = fetched.contentType
+            .split(';')[0]
+            .trim()
+            .toLowerCase();
+        const isJson =
+            mediaType === 'application/json' || mediaType.endsWith('+json');
         let parsedBody: unknown = fetched.bodyText;
         if (isJson) {
             try {
