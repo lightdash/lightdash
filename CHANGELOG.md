@@ -1,3 +1,10 @@
+# [0.3198.0](https://github.com/lightdash/lightdash/compare/0.3197.0...0.3198.0) (2026-06-19)
+
+
+### Features
+
+* **charts:** add min tick interval axis option ([#24387](https://github.com/lightdash/lightdash/issues/24387)) ([2932468](https://github.com/lightdash/lightdash/commit/2932468c64c125c7b29bbc2ae35a98ae84a3b433))
+
 # [0.3197.0](https://github.com/lightdash/lightdash/compare/0.3196.1...0.3197.0) (2026-06-18)
 
 
