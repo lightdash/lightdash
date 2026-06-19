@@ -219,6 +219,18 @@ describe('AiAgentReviewClassifierModel', () => {
             expect(query.sql).toContain('project_type');
             expect(query.bindings).toContain(ProjectType.PREVIEW);
         });
+
+        it('excludes remediation build-fix work threads', async () => {
+            tracker.on.select(AiPromptTableName).responseOnce([]);
+
+            await model.listTurnReviewCandidates({
+                organizationUuid: ORGANIZATION_UUID,
+            });
+
+            const [query] = tracker.history.select;
+            expect(query.sql).toContain(AiAgentReviewRemediationTableName);
+            expect(query.sql).toContain('work_thread_uuid');
+        });
     });
 
     describe('remediation events', () => {
