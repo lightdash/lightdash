@@ -88,6 +88,7 @@ import {
     getMetrics,
     getParameterReferences,
     getPreAggregateExploreName,
+    getReservedParameterDefinitions,
     getTimeDimensionsMap,
     getTimezoneLabel,
     GroupType,
@@ -149,6 +150,7 @@ import {
     RequestMethod,
     ResolvedProjectColorPalette,
     resolveQueryTimezone,
+    resolveReservedParameterValues,
     resolveToBaseTimeDimension,
     ResultRow,
     SavedChartDAO,
@@ -3850,7 +3852,16 @@ export class ProjectService extends BaseService {
          */
         applyDateZoomToFilters?: boolean;
     }): Promise<CompiledQuery> {
-        const availableParameters = Object.keys(availableParameterDefinitions);
+        // Reserved (system-owned) parameters share the user-parameter pipeline. Fold
+        // their definitions in so ad-hoc custom SQL referencing them compiles, and key
+        // availability off the combined map.
+        const parameterDefinitionsWithReserved: ParameterDefinitions = {
+            ...availableParameterDefinitions,
+            ...getReservedParameterDefinitions(),
+        };
+        const availableParameters = Object.keys(
+            parameterDefinitionsWithReserved,
+        );
 
         const {
             explore: exploreWithOverride,
@@ -3863,6 +3874,13 @@ export class ProjectService extends BaseService {
             availableParameters,
             dateZoom,
         );
+
+        // Resolve reserved parameter values from the query context. Reserved values win
+        // over any same-named user value.
+        const parametersWithReserved: ParametersValuesMap = {
+            ...(parameters ?? {}),
+            ...resolveReservedParameterValues({ dateZoom, dateZoomApplied }),
+        };
 
         const compiledMetricQuery = compileMetricQuery({
             explore: exploreWithOverride,
@@ -3878,8 +3896,8 @@ export class ProjectService extends BaseService {
             intrinsicUserAttributes,
             userAttributes,
             timezone,
-            parameters,
-            parameterDefinitions: availableParameterDefinitions,
+            parameters: parametersWithReserved,
+            parameterDefinitions: parameterDefinitionsWithReserved,
             pivotConfiguration,
             pivotDimensions,
             continueOnError,
