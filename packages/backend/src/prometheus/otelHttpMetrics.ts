@@ -3,12 +3,7 @@ import {
     PrometheusExporter,
     PrometheusSerializer,
 } from '@opentelemetry/exporter-prometheus';
-import {
-    DropAggregation,
-    ExplicitBucketHistogramAggregation,
-    MeterProvider,
-    View,
-} from '@opentelemetry/sdk-metrics';
+import { AggregationType, MeterProvider } from '@opentelemetry/sdk-metrics';
 import type { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
 
@@ -42,22 +37,23 @@ export function initOtelHttpMetrics(config: LightdashConfig['prometheus']) {
         provider = new MeterProvider({
             readers: [reader],
             views: [
-                // Rename to the canonical Prometheus name (the 0.57.2 serializer
-                // does not append the `s` unit suffix) and set our bucket layout.
-                new View({
+                // Rename to the canonical Prometheus name (the serializer does
+                // not append the `s` unit suffix) and set our bucket layout.
+                {
                     instrumentName: 'http.server.request.duration',
                     name: 'http_server_request_duration_seconds',
-                    aggregation: new ExplicitBucketHistogramAggregation(
-                        HTTP_SERVER_DURATION_BUCKETS,
-                    ),
-                }),
+                    aggregation: {
+                        type: AggregationType.EXPLICIT_BUCKET_HISTOGRAM,
+                        options: { boundaries: HTTP_SERVER_DURATION_BUCKETS },
+                    },
+                },
                 // Drop the outbound client metric — instrumentation-http emits it
                 // too, but it is out of scope here and its server_address/
                 // server_port labels add unwanted cardinality.
-                new View({
+                {
                     instrumentName: 'http.client.request.duration',
-                    aggregation: new DropAggregation(),
-                }),
+                    aggregation: { type: AggregationType.DROP },
+                },
             ],
         });
         metrics.setGlobalMeterProvider(provider);
