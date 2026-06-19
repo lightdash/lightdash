@@ -1,3 +1,10 @@
+## [0.3204.1](https://github.com/lightdash/lightdash/compare/0.3204.0...0.3204.1) (2026-06-19)
+
+
+### Bug Fixes
+
+* **data-apps:** parse structured-syntax +json content types in external-fetch proxy ([#24527](https://github.com/lightdash/lightdash/issues/24527)) ([14bec1c](https://github.com/lightdash/lightdash/commit/14bec1c3a7dfef1388dec0e09ae95245dd713683))
+
 # [0.3204.0](https://github.com/lightdash/lightdash/compare/0.3203.2...0.3204.0) (2026-06-19)
 
 
