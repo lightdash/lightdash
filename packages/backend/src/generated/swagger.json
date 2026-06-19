@@ -2458,6 +2458,23 @@
                 "required": ["agentUuid", "type"],
                 "type": "object"
             },
+            "EmbedJwtContentApiAccess": {
+                "properties": {
+                    "serviceAccountUserUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["apiAccess"],
+                        "nullable": false
+                    }
+                },
+                "required": ["serviceAccountUserUuid", "type"],
+                "type": "object"
+            },
             "EmbedWriteActions": {
                 "properties": {
                     "spaceUuid": {
@@ -2523,6 +2540,9 @@
                             },
                             {
                                 "$ref": "#/components/schemas/EmbedJwtContentAiAgent"
+                            },
+                            {
+                                "$ref": "#/components/schemas/EmbedJwtContentApiAccess"
                             }
                         ]
                     }

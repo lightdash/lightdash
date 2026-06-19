@@ -14,7 +14,7 @@ import {
     type FC,
     type PropsWithChildren,
 } from 'react';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, Route, Routes } from 'react-router';
 import { type SdkFilter } from '../src/ee/features/embed/EmbedDashboard/types';
 import EmbedChart from '../src/ee/pages/EmbedChart';
 import EmbedDashboard from '../src/ee/pages/EmbedDashboard';
@@ -35,6 +35,15 @@ import ReactQueryProvider from '../src/providers/ReactQuery/ReactQueryProvider';
 import ThirdPartyServicesProvider from '../src/providers/ThirdPartyServicesProvider';
 import TrackingProvider from '../src/providers/Tracking/TrackingProvider';
 import { setToInMemoryStorage } from '../src/utils/inMemoryStorage';
+import {
+    createLightdashApiClient,
+    type LightdashApiClientConfig,
+    type LightdashContentItem,
+    type LightdashContentResults,
+    type LightdashSdkApiAuth,
+    type ListContentOptions,
+} from './api';
+import { useLightdashContent } from './hooks';
 const LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY =
     '__lightdash_sdk_instance_url';
 const LIGHTDASH_SDK_VERSION_LOCAL_STORAGE_KEY = '__lightdash_sdk_version';
@@ -205,8 +214,9 @@ const SdkProviders: FC<
     PropsWithChildren<{
         styles?: { backgroundColor?: string; fontFamily?: string };
         theme?: 'light' | 'dark';
+        projectUuid?: string;
     }>
-> = ({ children, styles, theme }) => {
+> = ({ children, styles, theme, projectUuid }) => {
     const themeOverride = {
         fontFamily: styles?.fontFamily,
         other: {
@@ -214,6 +224,14 @@ const SdkProviders: FC<
             chartFont: styles?.fontFamily,
         },
     };
+    const route = projectUuid ? `/projects/${projectUuid}` : '/';
+    const routedChildren = projectUuid ? (
+        <Routes>
+            <Route path="/projects/:projectUuid/*" element={<>{children}</>} />
+        </Routes>
+    ) : (
+        children
+    );
 
     return (
         <ReactQueryProvider>
@@ -234,12 +252,12 @@ const SdkProviders: FC<
                             <FullscreenProvider enabled={false}>
                                 <ThirdPartyServicesProvider enabled={false}>
                                     <ErrorBoundary wrapper={{ mt: '4xl' }}>
-                                        <MemoryRouter>
+                                        <MemoryRouter initialEntries={[route]}>
                                             <TrackingProvider enabled={true}>
                                                 <AbilityProvider>
                                                     <ChartColorMappingContextProvider>
                                                         <ActiveJobProvider>
-                                                            {children}
+                                                            {routedChildren}
                                                         </ActiveJobProvider>
                                                     </ChartColorMappingContextProvider>
                                                 </AbilityProvider>
@@ -275,7 +293,11 @@ const Dashboard: FC<DashboardProps> = ({
     }
 
     return (
-        <SdkProviders styles={styles} theme={theme}>
+        <SdkProviders
+            projectUuid={tokenContext.projectUuid}
+            styles={styles}
+            theme={theme}
+        >
             <EmbedProvider
                 embedToken={tokenContext.token}
                 projectUuid={tokenContext.projectUuid}
@@ -415,7 +437,11 @@ const DashboardBuilder: FC<DashboardBuilderProps> = ({
     }
 
     return (
-        <SdkProviders styles={styles} theme={theme}>
+        <SdkProviders
+            projectUuid={tokenContext.projectUuid}
+            styles={styles}
+            theme={theme}
+        >
             <EmbedProvider
                 embedToken={tokenContext.token}
                 projectUuid={tokenContext.projectUuid}
@@ -486,7 +512,7 @@ const Explore: FC<BaseProps & { exploreId: string; savedChart: SavedChart }> = (
     }
 
     return (
-        <SdkProviders styles={styles} theme={theme}>
+        <SdkProviders projectUuid={projectUuid} styles={styles} theme={theme}>
             <EmbedProvider
                 embedToken={token}
                 projectUuid={projectUuid}
@@ -562,7 +588,7 @@ const Chart: FC<Omit<BaseProps, 'filters' | 'onExplore'> & { id: string }> = ({
     }
 
     return (
-        <SdkProviders styles={styles} theme={theme}>
+        <SdkProviders projectUuid={projectUuid} styles={styles} theme={theme}>
             <EmbedProvider
                 embedToken={token}
                 projectUuid={projectUuid}
@@ -631,9 +657,27 @@ const Lightdash = {
     Explore,
     Chart,
     FilterOperator,
+    createLightdashApiClient,
+    useLightdashContent,
 };
 
 // ts-unused-exports:disable-next-line
-export { AiAgent, Chart, Dashboard, DashboardBuilder, Explore, FilterOperator };
+export {
+    AiAgent,
+    Chart,
+    Dashboard,
+    DashboardBuilder,
+    Explore,
+    FilterOperator,
+    createLightdashApiClient,
+    useLightdashContent,
+};
+export type {
+    LightdashApiClientConfig,
+    LightdashContentItem,
+    LightdashContentResults,
+    LightdashSdkApiAuth,
+    ListContentOptions,
+};
 // ts-unused-exports:disable-next-line
 export default Lightdash;

@@ -2409,6 +2409,23 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    EmbedJwtContentApiAccess: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                serviceAccountUserUuid: { dataType: 'string', required: true },
+                projectUuid: { dataType: 'string' },
+                type: {
+                    dataType: 'enum',
+                    enums: ['apiAccess'],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     EmbedWriteActions: {
         dataType: 'refAlias',
         type: {
@@ -2451,6 +2468,7 @@ const models: TsoaRoute.Models = {
                         { ref: 'EmbedJwtContentChart' },
                         { ref: 'EmbedJwtContentDataApp' },
                         { ref: 'EmbedJwtContentAiAgent' },
+                        { ref: 'EmbedJwtContentApiAccess' },
                     ],
                     required: true,
                 },

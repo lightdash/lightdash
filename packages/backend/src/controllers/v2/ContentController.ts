@@ -29,7 +29,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { getAccountWriteContext, toSessionUser } from '../../auth/account';
+import { getAccountApiAccessContext, toSessionUser } from '../../auth/account';
 import { ContentArgs } from '../../models/ContentModel/ContentModelTypes';
 import { allowApiKeyAuthentication, isAuthenticated } from '../authentication';
 import { BaseController } from '../baseController';
@@ -58,9 +58,7 @@ export class ContentController extends BaseController {
         @Query() sortBy?: ContentArgs['sortBy'],
         @Query() sortDirection?: ContentArgs['sortDirection'],
     ): Promise<ApiContentResponse> {
-        const { user, embedWriteActions } = getAccountWriteContext(
-            req.account!,
-        );
+        const { user } = getAccountApiAccessContext(req.account!);
         this.setStatus(200);
         return {
             status: 'ok',
@@ -68,9 +66,7 @@ export class ContentController extends BaseController {
                 user,
                 {
                     projectUuids,
-                    spaceUuids: embedWriteActions
-                        ? [embedWriteActions.spaceUuid]
-                        : spaceUuids,
+                    spaceUuids,
                     contentTypes,
                     search,
                 },

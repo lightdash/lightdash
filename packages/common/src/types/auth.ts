@@ -102,7 +102,7 @@ export type EmbedContent = {
     /** The AI agent UUID the JWT may have access to */
     agentUuid?: string;
     /** The type of content */
-    type: 'dashboard' | 'chart' | 'dataApp' | 'aiAgent';
+    type: 'dashboard' | 'chart' | 'dataApp' | 'aiAgent' | 'apiAccess';
 };
 
 export type EmbedAccess = {

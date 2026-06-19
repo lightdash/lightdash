@@ -1,5 +1,6 @@
 export {
     fromJwt,
+    getAccountApiAccessContext,
     getAccountWriteContext,
     fromServiceAccount,
     fromSession,
