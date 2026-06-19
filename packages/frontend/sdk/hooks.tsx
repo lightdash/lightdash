@@ -113,7 +113,13 @@ export const useLightdashContent = (
     options: UseLightdashApiOptions = {},
 ): UseLightdashApiResult<LightdashContentResults> => {
     const client = useLightdashApiClient(config);
-    const key = JSON.stringify(['content', config.instanceUrl, args]);
+    const key = JSON.stringify([
+        'content',
+        config.instanceUrl,
+        config.projectUuid ?? null,
+        config.auth ?? null,
+        args,
+    ]);
     const enabled = options.enabled !== false;
 
     return useLightdashApiQuery(

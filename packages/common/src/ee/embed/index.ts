@@ -176,6 +176,11 @@ export const EmbedJwtSchema = z
                 projectUuid: z.string().optional(),
                 agentUuid: z.string(),
             }),
+            z.object({
+                type: z.literal('apiAccess'),
+                projectUuid: z.string().optional(),
+                serviceAccountUserUuid: z.string().uuid(),
+            }),
         ]),
         writeActions: EmbedWriteActionsSchema.optional(),
         iat: z.number().optional(),
@@ -257,13 +262,20 @@ export type EmbedJwtContentAiAgent = {
     agentUuid: string;
 };
 
+export type EmbedJwtContentApiAccess = {
+    type: 'apiAccess';
+    projectUuid?: string;
+    serviceAccountUserUuid: string;
+};
+
 export type CreateEmbedJwt = {
     content:
         | EmbedJwtContentDashboardUuid
         | EmbedJwtContentDashboardSlug
         | EmbedJwtContentChart
         | EmbedJwtContentDataApp
-        | EmbedJwtContentAiAgent;
+        | EmbedJwtContentAiAgent
+        | EmbedJwtContentApiAccess;
     writeActions?: EmbedWriteActions;
     userAttributes?: { [key: string]: string };
     user?: {

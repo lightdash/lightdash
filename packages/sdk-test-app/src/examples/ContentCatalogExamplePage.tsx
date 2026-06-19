@@ -26,9 +26,6 @@ type JwtPayload = {
     content: {
         projectUuid: string;
     };
-    writeActions?: {
-        spaceUuid?: string;
-    };
 };
 
 const sourceUrl = getRepoSourceUrl(
@@ -155,11 +152,6 @@ const getProjectUuid = (embedConfig: EmbedConfigState) =>
         ? embedConfig.parsedJwt.payload.content.projectUuid
         : null;
 
-const getWriteSpaceUuid = (embedConfig: EmbedConfigState) =>
-    isJwtPayload(embedConfig.parsedJwt?.payload)
-        ? embedConfig.parsedJwt.payload.writeActions?.spaceUuid
-        : null;
-
 const getCatalogErrorMessage = ({
     errorMessage,
     instanceUrl,
@@ -180,9 +172,7 @@ export function ContentCatalogExamplePage({
     const instanceUrl = embedConfig.instanceUrl ?? '';
     const token = embedConfig.token ?? '';
     const projectUuid = getProjectUuid(embedConfig);
-    const writeSpaceUuid = getWriteSpaceUuid(embedConfig);
-    const hasRequiredConfig =
-        !!instanceUrl && !!token && !!projectUuid && !!writeSpaceUuid;
+    const hasRequiredConfig = !!instanceUrl && !!token && !!projectUuid;
     const apiInstanceUrl =
         import.meta.env.DEV && typeof window !== 'undefined'
             ? `${window.location.origin}/sdk-test-app-api/lightdash`
@@ -278,8 +268,7 @@ export function ContentCatalogExamplePage({
             description={
                 <>
                     This example calls <code>useLightdashContent</code> to list
-                    spaces, dashboards, and charts for the write-action space
-                    in the configured project.
+                    spaces, dashboards, and charts with an API access token.
                 </>
             }
         >
@@ -291,8 +280,8 @@ export function ContentCatalogExamplePage({
                         <code>useLightdashContent</code>, let the customer
                         choose a space, then render its catalog in your own UI.
                         The SDK only sends the configured embed token to the
-                        reviewed content endpoint, so the token must include{' '}
-                        <code>writeActions.spaceUuid</code>.
+                        reviewed content endpoint, so visibility comes from its
+                        service-account actor.
                     </p>
 
                     <div style={toolbarStyle}>
@@ -408,9 +397,8 @@ export function ContentCatalogExamplePage({
                 <div style={emptyStateStyle}>
                     <div style={emptyStateBoxStyle}>
                         Click <strong>Config</strong> to add an embed URL with a
-                        project UUID and <code>writeActions.spaceUuid</code>.
-                        The local <code>generate-embed-token</code> helper
-                        creates a compatible URL.
+                        project UUID and an API access token. Service-account
+                        write-action tokens are also compatible.
                     </div>
                 </div>
             )}

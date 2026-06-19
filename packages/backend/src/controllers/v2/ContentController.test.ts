@@ -34,19 +34,20 @@ const buildSessionUser = (): SessionUser => ({
 });
 
 const buildJwtAccount = ({
-    spaceUuid,
+    content = {
+        type: 'apiAccess',
+        projectUuid: 'project-uuid',
+        serviceAccountUserUuid: 'embed-write-user-uuid',
+    } satisfies CreateEmbedJwt['content'],
 }: {
-    spaceUuid: string;
+    content?: CreateEmbedJwt['content'];
 }): Account =>
     ({
         isJwtUser: () => true,
         authentication: {
             type: 'jwt',
             data: {
-                writeActions: {
-                    spaceUuid,
-                    userUuid: 'embed-write-user-uuid',
-                } satisfies CreateEmbedJwt['writeActions'],
+                content,
             },
         },
         embedWriteUser: buildSessionUser(),
@@ -64,10 +65,10 @@ const buildController = () => {
 
 describe('ContentController', () => {
     describe('listContent', () => {
-        it('uses the embed write-action space instead of requested spaces for JWT accounts', async () => {
+        it('uses the apiAccess service account actor and keeps requested spaces for JWT accounts', async () => {
             const { controller, find } = buildController();
             const req = {
-                account: buildJwtAccount({ spaceUuid: 'token-space-uuid' }),
+                account: buildJwtAccount({}),
             } as express.Request;
 
             await controller.listContent(
@@ -89,7 +90,7 @@ describe('ContentController', () => {
                 }),
                 expect.objectContaining({
                     projectUuids: ['project-uuid'],
-                    spaceUuids: ['token-space-uuid'],
+                    spaceUuids: ['requested-space-uuid'],
                     contentTypes: [ContentType.CHART],
                 }),
                 expect.any(Object),
