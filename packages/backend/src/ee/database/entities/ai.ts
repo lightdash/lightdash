@@ -108,6 +108,12 @@ export type DbAiWritebackThread = {
     ai_thread_uuid: string;
     sandbox_id: string;
     pull_request_uuid: string | null;
+    /** "owner/repo" this row's sandbox + PR target; null only on legacy rows. */
+    target_repo: string | null;
+    /** Git host for this row's PR ('github' | 'gitlab'); null on legacy rows. */
+    provider: string | null;
+    /** Feature branch pushed by this row's sandbox; null until a branch exists. */
+    branch: string | null;
     created_at: Date;
 };
 
@@ -115,9 +121,16 @@ export type AiWritebackThreadTable = Knex.CompositeTableType<
     DbAiWritebackThread,
     Pick<
         DbAiWritebackThread,
-        'ai_thread_uuid' | 'sandbox_id' | 'pull_request_uuid'
+        | 'ai_thread_uuid'
+        | 'sandbox_id'
+        | 'pull_request_uuid'
+        | 'target_repo'
+        | 'provider'
+        | 'branch'
     >,
-    Pick<DbAiWritebackThread, 'sandbox_id' | 'pull_request_uuid'>
+    Partial<
+        Pick<DbAiWritebackThread, 'sandbox_id' | 'pull_request_uuid' | 'branch'>
+    >
 >;
 
 export const AiPromptTableName = 'ai_prompt';

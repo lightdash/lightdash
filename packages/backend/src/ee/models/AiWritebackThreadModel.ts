@@ -26,16 +26,35 @@ export class AiWritebackThreadModel {
         this.database = dependencies.database;
     }
 
-    async findByAiThreadUuid(
+    /**
+     * Resolve the resume row for a `(thread, repo)` pair — the unit a sandbox +
+     * PR is keyed on since the re-key. `targetRepo` is "owner/repo". Legacy rows
+     * (pre-backfill) carry a null `target_repo`; pass null to match those so the
+     * dbt single-row path keeps resuming after upgrade.
+     */
+    async findByAiThreadUuidAndRepo(
         aiThreadUuid: string,
+        targetRepo: string | null,
     ): Promise<AiWritebackThreadWithPrUrl | null> {
-        const row = await this.database(AiWritebackThreadTableName)
+        const query = this.database(AiWritebackThreadTableName)
             .leftJoin(
                 PullRequestsTableName,
                 `${PullRequestsTableName}.pull_request_uuid`,
                 `${AiWritebackThreadTableName}.pull_request_uuid`,
             )
-            .where(`${AiWritebackThreadTableName}.ai_thread_uuid`, aiThreadUuid)
+            .where(
+                `${AiWritebackThreadTableName}.ai_thread_uuid`,
+                aiThreadUuid,
+            );
+        if (targetRepo === null) {
+            void query.whereNull(`${AiWritebackThreadTableName}.target_repo`);
+        } else {
+            void query.where(
+                `${AiWritebackThreadTableName}.target_repo`,
+                targetRepo,
+            );
+        }
+        const row = await query
             .select<AiWritebackThreadWithPrUrl>(
                 `${AiWritebackThreadTableName}.*`,
                 `${PullRequestsTableName}.pr_url`,
@@ -47,7 +66,10 @@ export class AiWritebackThreadModel {
     async create(data: {
         aiThreadUuid: string;
         sandboxId: string;
-        pullRequestUuid: string;
+        pullRequestUuid: string | null;
+        targetRepo: string | null;
+        provider: string | null;
+        branch: string | null;
     }): Promise<DbAiWritebackThread> {
         const [row] = await this.database<AiWritebackThreadTable>(
             AiWritebackThreadTableName,
@@ -56,14 +78,33 @@ export class AiWritebackThreadModel {
                 ai_thread_uuid: data.aiThreadUuid,
                 sandbox_id: data.sandboxId,
                 pull_request_uuid: data.pullRequestUuid,
+                target_repo: data.targetRepo,
+                provider: data.provider,
+                branch: data.branch,
             })
             .returning('*');
         return row;
     }
 
+    /** Link a (now-opened) PR onto an existing row + clear its pending branch. */
+    async setPullRequest(
+        aiWritebackThreadUuid: string,
+        pullRequestUuid: string,
+    ): Promise<void> {
+        await this.database<AiWritebackThreadTable>(AiWritebackThreadTableName)
+            .where('ai_writeback_thread_uuid', aiWritebackThreadUuid)
+            .update({ pull_request_uuid: pullRequestUuid, branch: null });
+    }
+
     async deleteByAiThreadUuid(aiThreadUuid: string): Promise<void> {
         await this.database<AiWritebackThreadTable>(AiWritebackThreadTableName)
             .where('ai_thread_uuid', aiThreadUuid)
+            .delete();
+    }
+
+    async deleteByUuid(aiWritebackThreadUuid: string): Promise<void> {
+        await this.database<AiWritebackThreadTable>(AiWritebackThreadTableName)
+            .where('ai_writeback_thread_uuid', aiWritebackThreadUuid)
             .delete();
     }
 }

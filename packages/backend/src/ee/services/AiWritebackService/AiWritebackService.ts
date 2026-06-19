@@ -1597,10 +1597,16 @@ export class AiWritebackService extends BaseService {
                   })
                 : this.resolveDbtTurnTarget({ user, project });
 
-        // Resume only when both the caller supplied a thread uuid AND we
-        // have a stored sandbox for it. Otherwise we start fresh.
+        // Resume only when the caller supplied a thread uuid AND we have a
+        // stored sandbox for THIS repo. Keyed on (thread, repo) since the
+        // re-key, so a thread can drive edits to several repos, each resuming
+        // its own sandbox + PR.
+        const targetRepo = `${target.gitConnection.owner}/${target.gitConnection.repo}`;
         const existingRow = aiThreadUuid
-            ? await this.aiWritebackThreadModel.findByAiThreadUuid(aiThreadUuid)
+            ? await this.aiWritebackThreadModel.findByAiThreadUuidAndRepo(
+                  aiThreadUuid,
+                  targetRepo,
+              )
             : null;
 
         // A thread is bound to its first PR. If that PR has since been merged or
@@ -1902,13 +1908,15 @@ export class AiWritebackService extends BaseService {
                 return sandbox;
             } catch (error) {
                 // The persisted sandbox is gone (reaped by E2B, or some other
-                // permanent failure). Clear the row so the next turn starts
-                // fresh instead of looping on the same dead reference.
+                // permanent failure). Clear THIS (thread, repo) row only — other
+                // repos' rows on the same thread keep their sandboxes — so the
+                // next turn for this repo starts fresh instead of looping on the
+                // dead reference.
                 this.logger.warn(
-                    `AiWriteback: failed to resume sandbox ${existingRow.sandbox_id} — clearing conversation row (ai_thread_uuid=${existingRow.ai_thread_uuid}): ${getErrorMessage(error)}`,
+                    `AiWriteback: failed to resume sandbox ${existingRow.sandbox_id} — clearing conversation row (ai_thread_uuid=${existingRow.ai_thread_uuid}, repo=${existingRow.target_repo}): ${getErrorMessage(error)}`,
                 );
-                await this.aiWritebackThreadModel.deleteByAiThreadUuid(
-                    existingRow.ai_thread_uuid,
+                await this.aiWritebackThreadModel.deleteByUuid(
+                    existingRow.ai_writeback_thread_uuid,
                 );
                 throw new ParameterError(
                     'This writeback conversation has expired. Please start a new one.',
@@ -2891,6 +2899,10 @@ export class AiWritebackService extends BaseService {
                 aiThreadUuid,
                 sandboxId: sandbox.sandboxId,
                 pullRequestUuid: pullRequest.pullRequestUuid,
+                // Key the row on its repo so a thread can hold several.
+                targetRepo: `${turn.gitConnection.owner}/${turn.gitConnection.repo}`,
+                provider: turn.provider.provider,
+                branch: null,
             });
         }
     }
