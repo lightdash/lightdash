@@ -460,6 +460,25 @@ describe('ExternalConnectionService.proxyFetch', () => {
         expect(res.body).toBe('not json{');
     });
 
+    it('parses a structured-syntax +json content type (e.g. geo+json, with charset) as JSON', async () => {
+        mockSecureFetch.mockResolvedValueOnce({
+            status: 200,
+            contentType: 'application/geo+json; charset=utf-8',
+            bodyText: '{"type":"FeatureCollection","features":[]}',
+            truncated: false,
+        });
+        const { service } = buildService({
+            connection: baseConnection({
+                allowedContentTypes: ['application/geo+json'],
+            }),
+        });
+        const res = await service.proxyFetch(user, 'proj-1', 'app-1', {
+            connectionAlias: 'weather',
+            path: '/v1/x',
+        });
+        expect(res.body).toEqual({ type: 'FeatureCollection', features: [] });
+    });
+
     it('rejects a GET when the serialized query string exceeds requestMaxBytes', async () => {
         const { service } = buildService({
             connection: baseConnection({ requestMaxBytes: 10 }),
