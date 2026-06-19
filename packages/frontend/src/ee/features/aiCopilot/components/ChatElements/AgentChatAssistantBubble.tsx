@@ -389,6 +389,14 @@ const AssistantBubbleContent: FC<{
         !isStreaming && !streamingError && !message.message && !isPending;
     const shouldShowRetry = hasError || hasNoResponse || !!streamingError;
 
+    const isBenignEmptyResponse = hasNoResponse && !hasError && !streamingError;
+    const noticeTitle = isBenignEmptyResponse
+        ? 'No response'
+        : displayErrorTitle;
+    const noticeMessage = isBenignEmptyResponse
+        ? 'The agent finished without a response. You can try again.'
+        : displayErrorMessage;
+
     const baseMessageContent =
         isStreaming && streamingState
             ? streamingState.content
@@ -500,10 +508,10 @@ const AssistantBubbleContent: FC<{
                         >
                             <Stack gap={4}>
                                 <Text size="sm" fw={500} c="dimmed">
-                                    {displayErrorTitle}
+                                    {noticeTitle}
                                 </Text>
                                 <Text size="xs" c="dimmed">
-                                    {displayErrorMessage}
+                                    {noticeMessage}
                                 </Text>
                             </Stack>
                         </Alert>

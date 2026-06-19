@@ -26,6 +26,20 @@
     }
 }
 
+.emptyMessageCard {
+    border-style: dashed;
+
+    @mixin light {
+        background-color: transparent;
+        border-color: var(--mantine-color-ldGray-3);
+    }
+
+    @mixin dark {
+        background-color: transparent;
+        border-color: var(--mantine-color-ldGray-7);
+    }
+}
+
 .markdown {
     background-color: transparent;
     font-size: 0.8125rem;

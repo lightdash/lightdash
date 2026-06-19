@@ -42,40 +42,51 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
     isActive,
     projectUuid,
     showAgentName = false,
-}) => (
-    <NavLink
-        color="gray"
-        component={Link}
-        key={thread.uuid}
-        to={`/projects/${projectUuid}/ai-agents/${thread.agentUuid}/threads/${thread.uuid}`}
-        px="xs"
-        py={rem(4)}
-        className={classes.threadNavLink}
-        label={
-            <Text truncate="end" size="xs" fw={500} c="ldGray.9">
-                {thread.title || thread.firstMessage.message}
-            </Text>
-        }
-        description={
-            showAgentName ? (
-                <AgentNamePill
-                    name={thread.agentName}
-                    imageUrl={thread.agentImageUrl}
-                    variant="inline"
-                />
-            ) : undefined
-        }
-        active={isActive}
-        rightSection={
-            thread.createdFrom === 'slack' && (
-                <Tooltip label={'Threads created in slack are read only'}>
-                    <IconBrandSlack size={18} stroke={1} />
-                </Tooltip>
-            )
-        }
-        viewTransition
-    />
-);
+}) => {
+    const threadTitle = (thread.title || thread.firstMessage.message).trim();
+    const hasTitle = threadTitle.length > 0;
+
+    return (
+        <NavLink
+            color="gray"
+            component={Link}
+            key={thread.uuid}
+            to={`/projects/${projectUuid}/ai-agents/${thread.agentUuid}/threads/${thread.uuid}`}
+            px="xs"
+            py={rem(4)}
+            className={classes.threadNavLink}
+            label={
+                <Text
+                    truncate="end"
+                    size="xs"
+                    fw={500}
+                    c={hasTitle ? 'ldGray.9' : 'dimmed'}
+                    fs={hasTitle ? undefined : 'italic'}
+                >
+                    {hasTitle ? threadTitle : 'Untitled thread'}
+                </Text>
+            }
+            description={
+                showAgentName ? (
+                    <AgentNamePill
+                        name={thread.agentName}
+                        imageUrl={thread.agentImageUrl}
+                        variant="inline"
+                    />
+                ) : undefined
+            }
+            active={isActive}
+            rightSection={
+                thread.createdFrom === 'slack' && (
+                    <Tooltip label={'Threads created in slack are read only'}>
+                        <IconBrandSlack size={18} stroke={1} />
+                    </Tooltip>
+                )
+            }
+            viewTransition
+        />
+    );
+};
 
 type ThreadListProps = {
     projectUuid: string;
