@@ -5,9 +5,11 @@ import {
     type AiMcpServer,
     isToolProposeChangeResult,
     isToolEditDbtProjectResult,
+    isToolEditRepoResult,
     isToolSetupPreviewDeployResult,
     type ToolProposeChangeArgs,
     type ToolEditDbtProjectOutput,
+    type ToolEditRepoOutput,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -73,6 +75,7 @@ import { ContentLink, type SqlRunnerLinkState } from './ContentLink';
 import { MessageModelIndicator } from './MessageModelIndicator';
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { AiEditDbtProjectToolCall } from './ToolCalls/AiEditDbtProjectToolCall';
+import { AiEditRepoToolCall } from './ToolCalls/AiEditRepoToolCall';
 import { AiProposeChangeToolCall } from './ToolCalls/AiProposeChangeToolCall';
 import { ImproveContextToolCall } from './ToolCalls/ImproveContextToolCall';
 import {
@@ -470,6 +473,25 @@ const AssistantBubbleContent: FC<{
             metadata: liveOutput.metadata,
             isPreviewDeploySetup: livePart?.toolName === 'setupPreviewDeploy',
         };
+    })();
+
+    // General coding-agent (editRepo) PR card metadata — resolved the same way
+    // as editDbtProject (persisted result, then live streaming part), but kept
+    // separate since it has no preview / post-merge migration.
+    const editRepoMetadata: ToolEditRepoOutput['metadata'] | null = (() => {
+        const persisted = message.toolResults.find(isToolEditRepoResult);
+        if (persisted) return persisted.metadata;
+        const livePart = streamingState?.parts.find(
+            (p): p is Extract<StreamPart, { type: 'toolCall' }> =>
+                p.type === 'toolCall' &&
+                p.toolName === 'editRepo' &&
+                p.toolResult !== null &&
+                p.isPreliminary !== true,
+        );
+        const liveOutput = livePart?.toolResult as
+            | ToolEditRepoOutput
+            | undefined;
+        return liveOutput?.metadata ?? null;
     })();
 
     const mcpUnavailableNotices = streamingState?.mcpUnavailableNotices ?? [];
@@ -917,6 +939,12 @@ const AssistantBubbleContent: FC<{
                     }
                     agentUuid={agentUuid}
                     threadUuid={message.threadUuid}
+                />
+            )}
+            {editRepoMetadata && (
+                <AiEditRepoToolCall
+                    metadata={editRepoMetadata}
+                    projectUuid={projectUuid}
                 />
             )}
         </>
