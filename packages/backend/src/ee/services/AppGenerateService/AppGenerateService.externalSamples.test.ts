@@ -1,6 +1,11 @@
 // e2b and ai are ESM-only packages that cannot be required by Jest/CJS.
 // Mock them before importing AppGenerateService.
-import { FeatureFlags, type ExternalConnectionSample } from '@lightdash/common';
+import {
+    FeatureFlags,
+    ForbiddenError,
+    ParameterError,
+    type ExternalConnectionSample,
+} from '@lightdash/common';
 import { AppGenerateService } from './AppGenerateService';
 
 jest.mock('e2b', () => ({
@@ -29,6 +34,17 @@ type PrivateWithSamples = {
         appId: string,
     ) => Promise<AppExternalConnectionDoc[]>;
     logger: { info: jest.Mock };
+};
+
+type PrivateWithLink = {
+    linkExternalConnections: (
+        user: unknown,
+        projectUuid: string,
+        appId: string,
+        externalConnections:
+            | Array<{ externalConnectionUuid: string; alias: string }>
+            | undefined,
+    ) => Promise<void>;
 };
 
 function buildService(flagEnabled = true) {
@@ -138,8 +154,8 @@ describe('AppGenerateService.writeExternalConnectionSamples', () => {
             ([path]: [string]) => path === '/tmp/external-data/weather.json',
         );
         const weatherDoc = JSON.parse(weatherCall[1]);
-        expect(weatherDoc.usage).toContain('weather');
-        expect(weatherDoc.usage).toContain('externalFetch');
+        expect(weatherDoc.howToCall).toContain('weather');
+        expect(weatherDoc.howToCall).toContain('externalFetch');
         expect(weatherDoc.allowedMethods).toEqual(['GET']);
         expect(weatherDoc.allowedPathPrefixes).toEqual(['/v1/']);
         expect(weatherDoc.samples).toHaveLength(1);
@@ -185,7 +201,7 @@ describe('AppGenerateService.writeExternalConnectionSamples', () => {
         );
         const call = (sandbox.files.write as jest.Mock).mock.calls[0];
         const written = JSON.parse(call[1]);
-        expect(written.usage).toContain('externalFetch');
+        expect(written.howToCall).toContain('externalFetch');
         expect(written.allowedMethods).toEqual(['GET']);
         expect(written.samples).toEqual([]);
         expect(block).toContain('/tmp/external-data/weather.json');
@@ -320,5 +336,68 @@ describe('AppGenerateService pipeline external-access flag gate', () => {
         );
 
         expect(resolveSpy).toHaveBeenCalledWith('app-1');
+    });
+});
+
+describe('AppGenerateService.linkExternalConnections', () => {
+    const sameProjectConn = {
+        projectUuid: 'proj-1',
+        organizationUuid: 'org-1',
+    };
+    const ref = [{ externalConnectionUuid: 'c1', alias: 'weather' }];
+    const user = { userUuid: 'u1', organizationUuid: 'org-1' };
+
+    function setup(opts: { connection?: unknown; canManage: boolean }) {
+        const { service } = buildService(true);
+        const linkToApp = jest.fn().mockResolvedValue(undefined);
+        (
+            service as unknown as { externalConnectionModel: unknown }
+        ).externalConnectionModel = {
+            findByUuid: jest
+                .fn()
+                .mockResolvedValue(opts.connection ?? sameProjectConn),
+            linkToApp,
+        };
+        jest.spyOn(
+            service as unknown as { createAuditedAbility: () => unknown },
+            'createAuditedAbility',
+        ).mockReturnValue({
+            can: () => opts.canManage,
+            cannot: () => !opts.canManage,
+        });
+        return { service: service as unknown as PrivateWithLink, linkToApp };
+    }
+
+    it('throws ForbiddenError and does not link when the user cannot manage the connection', async () => {
+        const { service, linkToApp } = setup({ canManage: false });
+        await expect(
+            service.linkExternalConnections(user, 'proj-1', 'app-1', ref),
+        ).rejects.toThrow(ForbiddenError);
+        expect(linkToApp).not.toHaveBeenCalled();
+    });
+
+    it('rejects an alias outside the safe charset before persisting', async () => {
+        const { service, linkToApp } = setup({ canManage: true });
+        await expect(
+            service.linkExternalConnections(user, 'proj-1', 'app-1', [
+                { externalConnectionUuid: 'c1', alias: '../../etc/passwd' },
+            ]),
+        ).rejects.toThrow(ParameterError);
+        expect(linkToApp).not.toHaveBeenCalled();
+    });
+
+    it('links when the user can manage and the alias is valid', async () => {
+        const { service, linkToApp } = setup({ canManage: true });
+        await service.linkExternalConnections(user, 'proj-1', 'app-1', ref);
+        expect(linkToApp).toHaveBeenCalledWith('app-1', 'c1', 'weather');
+    });
+
+    it('skips (does not link) a connection from another project', async () => {
+        const { service, linkToApp } = setup({
+            canManage: true,
+            connection: { projectUuid: 'other', organizationUuid: 'org-1' },
+        });
+        await service.linkExternalConnections(user, 'proj-1', 'app-1', ref);
+        expect(linkToApp).not.toHaveBeenCalled();
     });
 });

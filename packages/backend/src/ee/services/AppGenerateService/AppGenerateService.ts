@@ -421,13 +421,23 @@ export class AppGenerateService extends BaseService {
      * Linking is idempotent, so re-sending an already-linked connection is fine.
      */
     private async linkExternalConnections(
-        user: { userUuid: string; organizationUuid: string | undefined },
+        user: SessionUser,
         projectUuid: string,
         appId: string,
         externalConnections: AppExternalConnectionReference[] | undefined,
     ): Promise<void> {
         if (!externalConnections || externalConnections.length === 0) return;
-        if (!(await this.externalAccessEnabledFor(user))) return;
+        if (
+            !(await this.externalAccessEnabledFor({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+            }))
+        )
+            return;
+        // Authorize against the connection resource the same way the admin API
+        // (ExternalConnectionService.linkToApp) does — generation must not be a
+        // weaker door to attaching a credentialed connection to an app.
+        const ability = this.createAuditedAbility(user);
         for (const conn of externalConnections) {
             // eslint-disable-next-line no-await-in-loop
             const connection = await this.externalConnectionModel.findByUuid(
@@ -439,6 +449,26 @@ export class AppGenerateService extends BaseService {
                 );
                 // eslint-disable-next-line no-continue
                 continue;
+            }
+            // The alias becomes a sandbox file path (/tmp/external-data/{alias}.json),
+            // so reject anything outside the safe charset — mirrors linkToApp.
+            if (!/^[a-z0-9_-]+$/i.test(conn.alias) || conn.alias.length > 64) {
+                throw new ParameterError(
+                    'Alias must contain only letters, numbers, hyphens, and underscores (max 64 chars)',
+                );
+            }
+            if (
+                ability.cannot(
+                    'manage',
+                    subject('ExternalConnection', {
+                        organizationUuid: connection.organizationUuid,
+                        projectUuid: connection.projectUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    'You do not have permission to link this external connection',
+                );
             }
             // eslint-disable-next-line no-await-in-loop
             await this.externalConnectionModel.linkToApp(
@@ -3572,10 +3602,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         }
 
         await this.linkExternalConnections(
-            {
-                userUuid: user.userUuid,
-                organizationUuid: user.organizationUuid,
-            },
+            user,
             projectUuid,
             appUuid,
             externalConnections,
@@ -3643,10 +3670,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         );
 
         await this.linkExternalConnections(
-            {
-                userUuid: user.userUuid,
-                organizationUuid: user.organizationUuid,
-            },
+            user,
             projectUuid,
             appUuid,
             externalConnections,

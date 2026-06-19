@@ -1,6 +1,7 @@
 import {
     type ExternalConnection,
     type ExternalConnectionSample,
+    type ExternalConnectionSampleRequest,
     type ExternalFetchResponse,
 } from '@lightdash/common';
 import {
@@ -130,6 +131,10 @@ export const ConnectionDrawer: FC<Props> = ({
     const [queryParams, setQueryParams] = useState('');
     const [requestBody, setRequestBody] = useState('');
     const [sampleLabel, setSampleLabel] = useState('');
+    // The exact request that produced the current test result. Saved verbatim so
+    // a sample never pairs the latest form edits with an older response.
+    const [testedRequest, setTestedRequest] =
+        useState<ExternalConnectionSampleRequest | null>(null);
 
     const { showToastError } = useToaster();
     const testMutation = useTestConnection();
@@ -147,6 +152,7 @@ export const ConnectionDrawer: FC<Props> = ({
         setQueryParams('');
         setRequestBody('');
         setSampleLabel('');
+        setTestedRequest(null);
         onClose();
     };
 
@@ -173,47 +179,30 @@ export const ConnectionDrawer: FC<Props> = ({
             }
         }
 
-        testMutation.mutate({
-            projectUuid,
-            connectionUuid: connection.externalConnectionUuid,
+        const request: ExternalConnectionSampleRequest = {
             method,
             path,
             query: parsedQuery,
             body: parsedBody,
+        };
+        setTestedRequest(request);
+        testMutation.mutate({
+            projectUuid,
+            connectionUuid: connection.externalConnectionUuid,
+            ...request,
         });
     };
 
     const handleSaveSample = (data: ExternalFetchResponse) => {
-        if (!connection) return;
-
-        let parsedQuery: Record<string, string> | undefined;
-        if (queryParams.trim()) {
-            try {
-                parsedQuery = JSON.parse(queryParams);
-            } catch {
-                // already validated in handleTest
-            }
-        }
-
-        let parsedBody: unknown;
-        if (method === 'POST' && requestBody.trim()) {
-            try {
-                parsedBody = JSON.parse(requestBody);
-            } catch {
-                // already validated in handleTest
-            }
-        }
+        // Save the immutable snapshot of the request that produced this
+        // response — not the current (possibly edited) form state.
+        if (!connection || !testedRequest) return;
 
         saveSampleMutation.mutate({
             projectUuid,
             connectionUuid: connection.externalConnectionUuid,
             label: sampleLabel.trim() || null,
-            request: {
-                method,
-                path,
-                query: parsedQuery,
-                body: parsedBody,
-            },
+            request: testedRequest,
             response: data.body,
         });
         setSampleLabel('');

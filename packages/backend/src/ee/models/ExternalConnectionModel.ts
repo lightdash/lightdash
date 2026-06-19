@@ -332,13 +332,22 @@ export class ExternalConnectionModel {
     }
 
     async softDelete(uuid: string): Promise<void> {
-        const count = await this.database(ExternalConnectionsTableName)
-            .where('external_connection_uuid', uuid)
-            .whereNull('deleted_at')
-            .update({ deleted_at: this.database.fn.now() as unknown as Date });
-        if (count === 0) {
-            throw new NotFoundError('External connection not found');
-        }
+        await this.database.transaction(async (trx) => {
+            const count = await trx(ExternalConnectionsTableName)
+                .where('external_connection_uuid', uuid)
+                .whereNull('deleted_at')
+                .update({ deleted_at: trx.fn.now() as unknown as Date });
+            if (count === 0) {
+                throw new NotFoundError('External connection not found');
+            }
+            // Remove app links so the freed (app_id, alias) slots can be
+            // relinked. Otherwise the rows linger but are hidden by the
+            // deleted_at filter in listAppLinks/resolveAppAlias, while
+            // linkToApp's onConflict(...).ignore() silently no-ops a re-link.
+            await trx(AppExternalConnectionsTableName)
+                .where('external_connection_uuid', uuid)
+                .delete();
+        });
     }
 
     async rotateSecret(uuid: string, secret: string): Promise<void> {
@@ -408,6 +417,15 @@ export class ExternalConnectionModel {
             .orderBy('created_at', 'desc')
             .select<DbExternalConnectionSample[]>('*');
         return rows.map(ExternalConnectionModel.mapToExternalConnectionSample);
+    }
+
+    async countSamples(connectionUuid: string): Promise<number> {
+        const [{ count }] = await this.database(
+            ExternalConnectionSamplesTableName,
+        )
+            .where('external_connection_uuid', connectionUuid)
+            .count<[{ count: string }]>('* as count');
+        return Number(count);
     }
 
     async deleteSample(sampleUuid: string): Promise<void> {

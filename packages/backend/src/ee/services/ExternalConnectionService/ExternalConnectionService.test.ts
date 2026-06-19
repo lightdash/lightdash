@@ -78,6 +78,7 @@ function buildService(opts: {
     connection?: ExternalConnection | null;
     secret?: string | null;
     saveSampleFn?: jest.Mock;
+    countSamplesFn?: jest.Mock;
     listSamplesFn?: jest.Mock;
     deleteSampleFn?: jest.Mock;
     getSampleConnectionUuidFn?: jest.Mock;
@@ -96,6 +97,7 @@ function buildService(opts: {
             .mockResolvedValue(opts.secret ?? 's3cr3t'),
         saveSample:
             opts.saveSampleFn ?? jest.fn().mockResolvedValue(fakeSample),
+        countSamples: opts.countSamplesFn ?? jest.fn().mockResolvedValue(0),
         listSamples:
             opts.listSamplesFn ?? jest.fn().mockResolvedValue([fakeSample]),
         deleteSample:
@@ -408,6 +410,80 @@ describe('ExternalConnectionService.saveSample', () => {
         });
 
         expect(model.getDecryptedSecret).not.toHaveBeenCalled();
+    });
+
+    it('rejects a sample whose request method is not allowed by the connection', async () => {
+        const saveSampleFn = jest.fn();
+        const { service } = buildService({
+            connection: { ...connection, allowedMethods: ['GET'] },
+            saveSampleFn,
+        });
+        mockAbility(service, true);
+
+        await expect(
+            service.saveSample(adminAccount, projectUuid, connectionUuid, {
+                request: { method: 'POST', path: '/v1/weather' },
+                response: {},
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(saveSampleFn).not.toHaveBeenCalled();
+    });
+
+    it('rejects a sample whose request path is outside the allowed prefixes', async () => {
+        const saveSampleFn = jest.fn();
+        const { service } = buildService({ saveSampleFn });
+        mockAbility(service, true);
+
+        await expect(
+            service.saveSample(adminAccount, projectUuid, connectionUuid, {
+                request: { method: 'GET', path: '/admin/secrets' },
+                response: {},
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(saveSampleFn).not.toHaveBeenCalled();
+    });
+
+    it('rejects saving once the connection is at the sample cap', async () => {
+        const saveSampleFn = jest.fn();
+        const { service } = buildService({
+            saveSampleFn,
+            countSamplesFn: jest
+                .fn()
+                .mockResolvedValue(
+                    ExternalConnectionService.MAX_SAMPLES_PER_CONNECTION,
+                ),
+        });
+        mockAbility(service, true);
+
+        await expect(
+            service.saveSample(adminAccount, projectUuid, connectionUuid, {
+                request: sampleRequest,
+                response: {},
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(saveSampleFn).not.toHaveBeenCalled();
+    });
+
+    it('redacts secret-ish keys from the request query/body before persisting', async () => {
+        const saveSampleFn = jest.fn().mockResolvedValue(fakeSample);
+        const { service } = buildService({ saveSampleFn });
+        mockAbility(service, true);
+
+        await service.saveSample(adminAccount, projectUuid, connectionUuid, {
+            request: {
+                method: 'POST',
+                path: '/v1/weather',
+                query: { token: 'sekret', city: 'Berlin' },
+                body: { password: 'hunter2', keep: 'me' },
+            },
+            response: {},
+        });
+
+        const persistedRequest = saveSampleFn.mock.calls[0][2].request;
+        expect(persistedRequest.query.token).toBe('[redacted]');
+        expect(persistedRequest.query.city).toBe('Berlin');
+        expect(persistedRequest.body.password).toBe('[redacted]');
+        expect(persistedRequest.body.keep).toBe('me');
     });
 });
 

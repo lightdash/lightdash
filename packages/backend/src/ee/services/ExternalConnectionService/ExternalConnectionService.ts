@@ -10,6 +10,7 @@ import {
     type ExternalConnection,
     type ExternalConnectionMethod,
     type ExternalConnectionSample,
+    type ExternalConnectionSampleRequest,
     type ExternalFetchRequest,
     type ExternalFetchResponse,
     type LightdashUser,
@@ -770,6 +771,13 @@ export class ExternalConnectionService extends BaseService {
 
     static readonly MAX_SAMPLE_ROWS = 50;
 
+    // Bound storage: a connection keeps a small, human-curated set of samples,
+    // and labels are short. The endpoint accepts client-supplied samples, so cap
+    // both to keep the table (and the generation prompt) from being abused.
+    static readonly MAX_SAMPLES_PER_CONNECTION = 20;
+
+    static readonly MAX_SAMPLE_LABEL_CHARS = 200;
+
     /**
      * Redaction keys whose values are blanked before persisting a sample.
      * Belt-and-braces guard: executeExternalFetch never returns request
@@ -787,33 +795,107 @@ export class ExternalConnectionService extends BaseService {
     ]);
 
     /**
-     * Sanitize an admin-supplied sample: cap array length, redact known
+     * Recursively redact known secret keys and cap array length. Shared by the
+     * request and response sanitizers below.
+     */
+    private static redactSecretKeys(value: unknown): unknown {
+        if (Array.isArray(value)) {
+            return value
+                .slice(0, ExternalConnectionService.MAX_SAMPLE_ROWS)
+                .map((v) => ExternalConnectionService.redactSecretKeys(v));
+        }
+        if (value && typeof value === 'object') {
+            return Object.fromEntries(
+                Object.entries(value as Record<string, unknown>).map(([k, v]) =>
+                    ExternalConnectionService.SAMPLE_REDACT_KEYS.has(
+                        k.toLowerCase(),
+                    )
+                        ? [k, '[redacted]']
+                        : [k, ExternalConnectionService.redactSecretKeys(v)],
+                ),
+            );
+        }
+        return value;
+    }
+
+    /**
+     * Validate a client-supplied sample request against the connection's own
+     * contract — the SAME method/path/query/body rules the runtime proxy
+     * enforces — so a stored sample is always replayable and its size is bounded
+     * by the connection's requestMaxBytes.
+     */
+    private static validateSampleRequest(
+        conn: ExternalConnection,
+        request: ExternalConnectionSampleRequest,
+    ): void {
+        if (!conn.allowedMethods.includes(request.method)) {
+            throw new ParameterError(
+                `Sample method ${request.method} is not allowed by this connection`,
+            );
+        }
+        // Throws on a malformed path or one outside the allowed prefixes.
+        normalizeAndValidatePath(request.path, conn.allowedPathPrefixes);
+        if (request.query) {
+            for (const [k, v] of Object.entries(request.query)) {
+                if (typeof v !== 'string') {
+                    throw new ParameterError(
+                        `Sample query value for "${k}" must be a string`,
+                    );
+                }
+            }
+            if (
+                Buffer.byteLength(JSON.stringify(request.query), 'utf8') >
+                conn.requestMaxBytes
+            ) {
+                throw new ParameterError(
+                    'Sample query exceeds the connection request size limit',
+                );
+            }
+        }
+        if (request.body !== undefined) {
+            if (request.method === 'GET') {
+                throw new ParameterError(
+                    'A GET sample must not include a body',
+                );
+            }
+            const { bytes } = serializeRequestBody(request.body);
+            if (bytes > conn.requestMaxBytes) {
+                throw new ParameterError(
+                    'Sample body exceeds the connection request size limit',
+                );
+            }
+        }
+    }
+
+    /**
+     * Redact secret-ish keys from a sample request's query/body before
+     * persisting. method/path are kept verbatim (already validated).
+     */
+    private static sanitizeSampleRequest(
+        request: ExternalConnectionSampleRequest,
+    ): ExternalConnectionSampleRequest {
+        return {
+            method: request.method,
+            path: request.path,
+            query: request.query
+                ? (ExternalConnectionService.redactSecretKeys(
+                      request.query,
+                  ) as Record<string, string>)
+                : undefined,
+            body:
+                request.body !== undefined
+                    ? ExternalConnectionService.redactSecretKeys(request.body)
+                    : undefined,
+        };
+    }
+
+    /**
+     * Sanitize an admin-supplied sample value: cap array length, redact known
      * secret keys, then hard-truncate by JSON byte size. Pure + secret-free
      * — never touches the connection's decrypted credential.
      */
     private static sanitizeSample(sample: unknown): unknown {
-        const redact = (value: unknown): unknown => {
-            if (Array.isArray(value)) {
-                return value
-                    .slice(0, ExternalConnectionService.MAX_SAMPLE_ROWS)
-                    .map(redact);
-            }
-            if (value && typeof value === 'object') {
-                return Object.fromEntries(
-                    Object.entries(value as Record<string, unknown>).map(
-                        ([k, v]) =>
-                            ExternalConnectionService.SAMPLE_REDACT_KEYS.has(
-                                k.toLowerCase(),
-                            )
-                                ? [k, '[redacted]']
-                                : [k, redact(v)],
-                    ),
-                );
-            }
-            return value;
-        };
-
-        let result = redact(sample);
+        let result = ExternalConnectionService.redactSecretKeys(sample);
         // Hard byte cap: if still over budget, wrap in a truncated note so
         // the persisted blob is always bounded regardless of shape.
         const json = JSON.stringify(result) ?? 'null';
@@ -912,16 +994,41 @@ export class ExternalConnectionService extends BaseService {
         );
         this.assertCanManage(account, conn.projectUuid, conn.organizationUuid);
 
-        const sanitizedResponse = ExternalConnectionService.sanitizeSample(
-            data.response,
-        );
+        // Validate the client-supplied request against the connection contract
+        // before persisting, so a stored sample is always replayable + bounded.
+        ExternalConnectionService.validateSampleRequest(conn, data.request);
+
+        // Cap the number of stored samples per connection.
+        const existingCount =
+            await this.externalConnectionModel.countSamples(connectionUuid);
+        if (
+            existingCount >=
+            ExternalConnectionService.MAX_SAMPLES_PER_CONNECTION
+        ) {
+            throw new ParameterError(
+                `This connection already has the maximum of ${ExternalConnectionService.MAX_SAMPLES_PER_CONNECTION} saved samples. Delete one before saving another.`,
+            );
+        }
+
+        const label =
+            data.label != null
+                ? data.label.slice(
+                      0,
+                      ExternalConnectionService.MAX_SAMPLE_LABEL_CHARS,
+                  )
+                : null;
+
         return this.externalConnectionModel.saveSample(
             connectionUuid,
             account.user.id,
             {
-                label: data.label ?? null,
-                request: data.request,
-                response: sanitizedResponse,
+                label,
+                request: ExternalConnectionService.sanitizeSampleRequest(
+                    data.request,
+                ),
+                response: ExternalConnectionService.sanitizeSample(
+                    data.response,
+                ),
             },
         );
     }
