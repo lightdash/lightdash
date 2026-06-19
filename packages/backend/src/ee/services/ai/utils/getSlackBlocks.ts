@@ -97,6 +97,62 @@ export const getMarkdownBlocks = (text: string): (Block | KnownBlock)[] =>
             }) as unknown as Block,
     );
 
+// Slack rejects a whole message when its blocks are collectively too large
+// (msg_too_long); the threshold is undocumented but answers ~25k chars failed,
+// so we budget well below that and split across messages.
+const SLACK_MESSAGE_TEXT_BUDGET = 11000;
+// Under Slack's 50-block message cap, leaving headroom for trailing cards.
+const SLACK_MESSAGE_BLOCK_LIMIT = 45;
+export const SLACK_MAX_ANSWER_MESSAGES = 4;
+
+export type SlackMarkdownMessages = {
+    messages: (Block | KnownBlock)[][];
+    truncated: boolean;
+};
+
+const getBlockTextLength = (block: Block | KnownBlock): number => {
+    const { text } = block as unknown as { text?: string };
+    return typeof text === 'string' ? text.length : 0;
+};
+
+/**
+ * Splits a long markdown answer into multiple Slack messages, each within a
+ * single message's size budget. Returns `truncated: true` (and only the first
+ * `maxMessages` messages) when the answer is too large to deliver in full.
+ */
+export const splitMarkdownIntoMessages = (
+    text: string,
+    maxMessages: number = SLACK_MAX_ANSWER_MESSAGES,
+): SlackMarkdownMessages => {
+    const blocks = getMarkdownBlocks(text);
+    const messages: (Block | KnownBlock)[][] = [];
+    let current: (Block | KnownBlock)[] = [];
+    let currentChars = 0;
+
+    for (const block of blocks) {
+        const blockChars = getBlockTextLength(block);
+        const exceedsBudget =
+            current.length > 0 &&
+            (currentChars + blockChars > SLACK_MESSAGE_TEXT_BUDGET ||
+                current.length >= SLACK_MESSAGE_BLOCK_LIMIT);
+        if (exceedsBudget) {
+            messages.push(current);
+            current = [];
+            currentChars = 0;
+        }
+        current.push(block);
+        currentChars += blockChars;
+    }
+    if (current.length > 0) {
+        messages.push(current);
+    }
+
+    if (messages.length <= maxMessages) {
+        return { messages, truncated: false };
+    }
+    return { messages: messages.slice(0, maxMessages), truncated: true };
+};
+
 const TOOL_TASK_TITLES: Record<string, string> = {
     agent_reasoning: 'Working through the answer',
     loadProjectContext: 'Reading project context',
@@ -163,12 +219,16 @@ export const buildSlackTaskUpdate = ({
     status,
     details,
     output,
+    count,
 }: {
     toolName: string;
     taskId?: string;
     status: 'pending' | 'in_progress' | 'complete' | 'error';
     details?: string;
     output?: string;
+    // Times this tool type ran; when >1 the title shows "×N" so repeated calls
+    // collapse into one task instead of one block each.
+    count?: number;
 }): SlackStreamChunk => {
     const title = getSlackToolTitle(toolName);
     const resolvedDetails =
@@ -183,7 +243,7 @@ export const buildSlackTaskUpdate = ({
     return {
         type: 'task_update',
         id: getSlackTaskId(taskId ?? toolName),
-        title,
+        title: count && count > 1 ? `${title} ×${count}` : title,
         status,
         ...(resolvedDetails
             ? { details: truncateTaskText(resolvedDetails) }
