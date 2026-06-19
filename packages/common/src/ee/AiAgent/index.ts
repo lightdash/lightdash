@@ -510,6 +510,12 @@ export type ApiAiAgentThreadStreamRequest = {
      */
     enableSqlMode?: boolean;
     /**
+     * Skips the SQL human-approval gate for this stream. Used by the review
+     * remediation workspace so Continue PR turns run frictionlessly. Defaults
+     * to false — normal chat still asks the user to approve SQL.
+     */
+    autoApproveSql?: boolean;
+    /**
      * Tool names hinted by the user when they composed the message (via
      * suggestion chips that carry a tool id). agentV2 appends a soft hint
      * to the user message before sending it to the LLM. Transient — never

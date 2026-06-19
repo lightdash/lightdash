@@ -330,12 +330,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentModel: models.getAiAgentModel(),
                     aiAgentReviewClassifierModel:
                         models.getAiAgentReviewClassifierModel<AiAgentReviewClassifierModel>(),
+                    aiAgentService:
+                        repository.getAiAgentService<AiAgentService>(),
                     featureFlagService: repository.getFeatureFlagService(),
                     aiOrganizationSettingsService:
                         repository.getAiOrganizationSettingsService(),
                     projectModel: models.getProjectModel(),
-                    aiWritebackService:
-                        repository.getAiWritebackService<AiWritebackService>(),
+                    projectService: repository.getProjectService(),
                     projectContextService:
                         repository.getProjectContextService<ProjectContextService>(),
                     pullRequestsModel: models.getPullRequestsModel(),

@@ -125,6 +125,12 @@ export type AiAgentArgs = AnyAiModel & {
     siteUrl: string;
     canManageAgent: boolean;
     toolHints: string[];
+    /**
+     * When true, the first tool hint is *forced* on the opening step
+     * (toolChoice), not just suggested — used by the review Build-fix run to
+     * guarantee the agent opens a PR via editDbtProject.
+     */
+    forceToolHints?: boolean;
 };
 
 export type PerformanceMetrics = {
