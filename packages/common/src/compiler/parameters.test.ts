@@ -392,6 +392,26 @@ describe('validateParameterNames', () => {
         expect(result.invalidParameters).toContain('invalid.param');
         expect(result.invalidParameters).toContain('another invalid');
     });
+
+    it('should reject reserved parameter names', () => {
+        const result = validateParameterNames({
+            date_zoom: { label: 'Date zoom', default: 'week' },
+        });
+        expect(result.isInvalid).toBe(true);
+        expect(result.reservedParameters).toContain('date_zoom');
+        expect(result.invalidParameters).toEqual([]);
+    });
+
+    it('should report invalid and reserved names separately', () => {
+        const result = validateParameterNames({
+            'bad.name': { label: 'Bad', default: 'x' },
+            date_zoom: { label: 'Date zoom', default: 'week' },
+            good_name: { label: 'Good', default: 'y' },
+        });
+        expect(result.isInvalid).toBe(true);
+        expect(result.invalidParameters).toEqual(['bad.name']);
+        expect(result.reservedParameters).toEqual(['date_zoom']);
+    });
 });
 
 describe('validateParameterConfiguration', () => {

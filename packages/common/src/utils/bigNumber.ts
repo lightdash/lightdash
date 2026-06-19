@@ -1,4 +1,7 @@
-import { type DateGranularity } from '../types/timeFrames';
+import {
+    getGranularityReferenceValue,
+    type DateGranularity,
+} from '../types/timeFrames';
 
 const GRANULARITY_PATTERN = /\$\{([^}]+)\.granularity\}/g;
 
@@ -14,7 +17,9 @@ export const resolveGranularityInLabel = (
         GRANULARITY_PATTERN,
         (match, fieldBaseId: string) => {
             const granularity = granularityMap[fieldBaseId];
-            return granularity ? granularity.toLowerCase() : match;
+            return granularity
+                ? getGranularityReferenceValue(granularity)
+                : match;
         },
     );
 };

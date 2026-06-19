@@ -57,16 +57,32 @@ export const loadLightdashProjectConfig = async (
         configFile.parameters = undefined;
     }
 
-    const { isInvalid: hasInvalidParameterNames, invalidParameters } =
-        validateParameterNames(configFile.parameters);
+    const {
+        isInvalid: hasInvalidParameterNames,
+        invalidParameters,
+        reservedParameters,
+    } = validateParameterNames(configFile.parameters);
 
     if (hasInvalidParameterNames) {
+        const reasons = [
+            invalidParameters.length > 0
+                ? `invalid parameter names: ${invalidParameters.join(', ')}`
+                : undefined,
+            reservedParameters.length > 0
+                ? `reserved parameter names cannot be used: ${reservedParameters.join(
+                      ', ',
+                  )}`
+                : undefined,
+        ]
+            .filter(Boolean)
+            .join('. ');
         throw new LightdashProjectConfigError(
-            `Invalid lightdash.config.yml with invalid parameter names: ${invalidParameters.join(
-                ', ',
-            )}`,
+            `Invalid lightdash.config.yml with ${reasons}`,
             {
-                invalidParameters,
+                invalidParameters: [
+                    ...invalidParameters,
+                    ...reservedParameters,
+                ],
             },
         );
     }

@@ -5,6 +5,10 @@
 import Ajv from 'ajv';
 import AjvErrors from 'ajv-errors';
 import betterAjvErrors from 'better-ajv-errors';
+import {
+    getReservedParameterNames,
+    isReservedParameterName,
+} from '../parameters/reservedParameters';
 import lightdashDbtYamlSchema from '../schemas/json/lightdash-dbt-2.0.json';
 import { CompileError } from '../types/errors';
 import type { CompiledTable, Table } from '../types/explore';
@@ -112,9 +116,9 @@ export const getAvailableParameterNames = (
     projectParameters: Record<string, LightdashProjectParameter> | undefined,
     exploreParameters: Record<string, LightdashProjectParameter> | undefined,
 ): string[] =>
-    Object.keys(projectParameters || {}).concat(
-        Object.keys(exploreParameters || {}),
-    );
+    Object.keys(projectParameters || {})
+        .concat(Object.keys(exploreParameters || {}))
+        .concat(getReservedParameterNames());
 
 /**
  * Get all available parameter names for a project and explore
@@ -154,20 +158,28 @@ export const getAvailableParametersFromTables = (
     }, {});
 
 /**
- * Validate parameter names
+ * Validate parameter names. A name is rejected when it doesn't match the valid pattern
+ * or when it collides with a reserved (system-owned) parameter name.
  * @param parameters - The parameters to validate
- * @returns True if any parameter name doesn't match the valid pattern, false otherwise
+ * @returns invalid names (bad pattern) and reserved names (collisions) separately so
+ * callers can surface a clear message for each case.
  */
 export const validateParameterNames = (
     parameters: Record<string, LightdashProjectParameter> | undefined,
 ) => {
     const validNamePattern = /^[a-zA-Z0-9_-]+$/;
-    const invalidParameters = Object.keys(parameters || {}).filter(
+    const parameterNames = Object.keys(parameters || {});
+    const invalidParameters = parameterNames.filter(
         (paramName) => !validNamePattern.test(paramName),
     );
+    const reservedParameters = parameterNames.filter((paramName) =>
+        isReservedParameterName(paramName),
+    );
     return {
-        isInvalid: invalidParameters.length > 0,
+        isInvalid:
+            invalidParameters.length > 0 || reservedParameters.length > 0,
         invalidParameters,
+        reservedParameters,
     };
 };
 

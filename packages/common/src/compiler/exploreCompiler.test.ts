@@ -769,6 +769,32 @@ describe('Explore compilation with model-level parameters', () => {
                 /Missing parameters: active_status\..*Hint:.*"active_status" is a model-level parameter.*\${lightdash\.parameters\.b\.active_status}/,
             );
         });
+
+        test('should treat reserved parameter names as available during compilation', () => {
+            const exploreWithReservedParameterReference: UncompiledExplore = {
+                ...exploreWithParameters,
+                tables: {
+                    ...exploreWithParameters.tables,
+                    a: {
+                        ...exploreWithParameters.tables.a,
+                        dimensions: {
+                            ...exploreWithParameters.tables.a.dimensions,
+                            grain_flag: {
+                                ...exploreWithParameters.tables.a.dimensions
+                                    .dim1,
+                                name: 'grain_flag',
+                                label: 'grain_flag',
+                                sql: "{% if ld.parameters.date_zoom == 'week' %}1{% else %}0{% endif %}",
+                            },
+                        },
+                    },
+                },
+            };
+
+            expect(() =>
+                compiler.compileExplore(exploreWithReservedParameterReference),
+            ).not.toThrow();
+        });
     });
 
     describe('Partial compilation surfaces field-level errors clearly', () => {

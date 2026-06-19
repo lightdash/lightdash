@@ -457,16 +457,32 @@ export class ExploreCompiler {
             );
         }
 
-        const { isInvalid: hasInvalidParameterNames, invalidParameters } =
-            validateParameterNames(meta.parameters);
+        const {
+            isInvalid: hasInvalidParameterNames,
+            invalidParameters,
+            reservedParameters,
+        } = validateParameterNames(meta.parameters);
 
         if (hasInvalidParameterNames) {
+            const reasons = [
+                invalidParameters.length > 0
+                    ? `Invalid parameter names: ${invalidParameters.join(', ')}`
+                    : undefined,
+                reservedParameters.length > 0
+                    ? `Reserved parameter names cannot be used: ${reservedParameters.join(
+                          ', ',
+                      )}`
+                    : undefined,
+            ]
+                .filter(Boolean)
+                .join('. ');
             throw new CompileError(
-                `Failed to compile explore "${name}". Invalid parameter names: ${invalidParameters.join(
-                    ', ',
-                )}`,
+                `Failed to compile explore "${name}". ${reasons}`,
                 {
-                    invalidParameters,
+                    invalidParameters: [
+                        ...invalidParameters,
+                        ...reservedParameters,
+                    ],
                 },
             );
         }
