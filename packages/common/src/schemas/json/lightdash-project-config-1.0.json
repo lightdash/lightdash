@@ -161,6 +161,17 @@
                 }
             }
         },
+        "dbt_semantic_layer": {
+            "type": ["object", "null"],
+            "description": "Import dbt semantic layer (MetricFlow) semantic models and metrics from the dbt manifest into Lightdash explores",
+            "properties": {
+                "enabled": {
+                    "description": "When true, dbt semantic layer config is converted into Lightdash dimensions and metrics at compile time. Defaults to false.",
+                    "type": "boolean",
+                    "default": false
+                }
+            }
+        },
         "table_groups": {
             "type": ["object", "null"],
             "description": "Define labels and descriptions for the group keys referenced by models in their meta.groups array. Used to render nested table groups in the sidebar.",

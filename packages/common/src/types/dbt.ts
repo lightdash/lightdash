@@ -11,6 +11,10 @@ import {
     type CompiledModelNode,
     type ParsedMetric,
 } from './dbtFromSchema';
+import {
+    type DbtSemanticLayerMetric,
+    type DbtSemanticModel,
+} from './dbtSemanticLayer';
 import { ParseError } from './errors';
 import { type JoinRelationship } from './explore';
 import {
@@ -472,6 +476,7 @@ export interface DbtManifest {
     metadata: DbtRawManifestMetadata;
     metrics: Record<string, DbtMetric>;
     docs: Record<string, DbtDoc>;
+    semantic_models?: Record<string, DbtSemanticModel>;
 }
 
 export interface DbtRawManifestMetadata {
@@ -831,6 +836,40 @@ export const getDbtManifestVersion = (
 export const getLatestSupportedDbtManifestVersion = (): DbtManifestVersion => {
     const versions = Object.values(DbtManifestVersion);
     return versions[versions.length - 1];
+};
+
+/**
+ * Manifest versions where `metrics` contains MetricFlow (dbt semantic layer)
+ * metrics and `semantic_models` exists, rather than the legacy pre-1.6 metrics.
+ */
+export const SEMANTIC_LAYER_MANIFEST_VERSIONS = [
+    DbtManifestVersion.V10,
+    DbtManifestVersion.V11,
+    DbtManifestVersion.V12,
+    DbtManifestVersion.V20,
+];
+
+export const getSemanticLayerFromManifest = (
+    manifest: DbtManifest,
+    manifestVersion: DbtManifestVersion,
+): {
+    semanticModels: DbtSemanticModel[];
+    metrics: DbtSemanticLayerMetric[];
+} => {
+    if (!SEMANTIC_LAYER_MANIFEST_VERSIONS.includes(manifestVersion)) {
+        return { semanticModels: [], metrics: [] };
+    }
+    return {
+        semanticModels: Object.values(manifest.semantic_models ?? {}),
+        // In v10+ manifests the metrics entries are MetricFlow metrics, not
+        // the legacy DbtMetric shape this field is typed as.
+        metrics: Object.values(
+            (manifest.metrics ?? {}) as unknown as Record<
+                string,
+                DbtSemanticLayerMetric
+            >,
+        ),
+    };
 };
 
 export enum DbtExposureType {
