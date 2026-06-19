@@ -1027,8 +1027,42 @@ export class UnfurlService extends BaseService {
                     const { browserEndpoint } =
                         this.lightdashConfig.headlessBrowser;
 
+                    // APP renders inside a cross-origin iframe sized 100vh.
+                    // Starting tall avoids a mid-flight resize race where the
+                    // child paints into the new area after the screenshot fires.
+                    let initialViewport: { width: number; height: number };
+                    if (chartType === ChartType.BIG_NUMBER) {
+                        initialViewport = bigNumberViewport;
+                    } else if (lightdashPage === LightdashPage.APP) {
+                        initialViewport = {
+                            ...appViewport,
+                            width: gridWidth ?? appViewport.width,
+                        };
+                    } else {
+                        initialViewport = {
+                            ...viewport,
+                            width: gridWidth ?? viewport.width,
+                        };
+                    }
+
+                    const browserConnectionEndpoint =
+                        lightdashPage === LightdashPage.APP
+                            ? (() => {
+                                  const endpoint = new URL(browserEndpoint);
+                                  endpoint.searchParams.set(
+                                      'launch',
+                                      JSON.stringify({
+                                          args: [
+                                              `--window-size=${initialViewport.width},${initialViewport.height}`,
+                                          ],
+                                      }),
+                                  );
+                                  return endpoint.toString();
+                              })()
+                            : browserEndpoint;
+
                     browser = await playwright.chromium.connectOverCDP(
-                        browserEndpoint,
+                        browserConnectionEndpoint,
                         {
                             timeout: 1000 * 60 * 30, // 30 minutes
                             logger: {
@@ -1054,24 +1088,6 @@ export class UnfurlService extends BaseService {
                             },
                         },
                     );
-
-                    // APP renders inside a cross-origin iframe sized 100vh.
-                    // Starting tall avoids a mid-flight resize race where the
-                    // child paints into the new area after the screenshot fires.
-                    let initialViewport: { width: number; height: number };
-                    if (chartType === ChartType.BIG_NUMBER) {
-                        initialViewport = bigNumberViewport;
-                    } else if (lightdashPage === LightdashPage.APP) {
-                        initialViewport = {
-                            ...appViewport,
-                            width: gridWidth ?? appViewport.width,
-                        };
-                    } else {
-                        initialViewport = {
-                            ...viewport,
-                            width: gridWidth ?? viewport.width,
-                        };
-                    }
 
                     page = await browser.newPage({
                         viewport: initialViewport,
@@ -1111,15 +1127,6 @@ export class UnfurlService extends BaseService {
                             await route.fallback().catch(() => {});
                         }
                     });
-
-                    if (lightdashPage === LightdashPage.APP) {
-                        // Browserless connects over CDP, where the viewport
-                        // passed to newPage can be ignored. Apply it
-                        // explicitly before navigation so the app iframe's
-                        // 100vh/100% box starts at the intended screenshot
-                        // size.
-                        await page.setViewportSize(initialViewport);
-                    }
 
                     // Polyfill crypto.randomUUID (needed for Loom iframes)
                     await page.addInitScript(() => {
@@ -1415,17 +1422,6 @@ export class UnfurlService extends BaseService {
                         await page.goto(url, {
                             timeout: 150000,
                         });
-
-                        if (lightdashPage === LightdashPage.APP) {
-                            // Browserless connects over CDP; setViewportSize
-                            // before navigation silently no-ops because the
-                            // emulation override doesn't survive the commit.
-                            // Apply it now that the page is live. The iframe
-                            // inside MinimalApp only mounts after the app
-                            // metadata + preview token fetches resolve, so
-                            // we're still well ahead of any iframe paint.
-                            await page.setViewportSize(initialViewport);
-                        }
 
                         const blockingElementChecks = [
                             {
