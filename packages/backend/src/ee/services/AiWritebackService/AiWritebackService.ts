@@ -301,6 +301,13 @@ export class AiWritebackService extends BaseService {
 
     private readonly aiWritebackThreadModel: AiWritebackThreadModel;
 
+    // In-flight (thread, repo) keys, so a second concurrent turn on the same
+    // repo in the same conversation is rejected rather than racing the first
+    // (decision #3). Single-instance only: a horizontally-scaled backend relies
+    // on the chat UI serializing turns per thread; the composite unique still
+    // prevents duplicate rows across instances. Cleared in the run's finally.
+    private readonly inFlightTurns = new Set<string>();
+
     private readonly pullRequestsModel: PullRequestsModel;
 
     private readonly prometheusMetrics?: PrometheusMetrics;
@@ -1288,6 +1295,18 @@ export class AiWritebackService extends BaseService {
 
         const repository = `${turn.gitConnection.owner}/${turn.gitConnection.repo}`;
 
+        // Reject a second concurrent turn on the same (thread, repo) — both
+        // would resume/race the same sandbox or open duplicate PRs (decision #3).
+        // Only tracked conversations have a stable key; one-shots are independent.
+        // Checked before acquiring so a rejection never enters the finally that
+        // would clear the winner's lock.
+        const lockKey = aiThreadUuid ? `${aiThreadUuid}::${repository}` : null;
+        if (lockKey && this.inFlightTurns.has(lockKey)) {
+            throw new ParameterError(
+                'An edit is already in progress for this repository in this conversation. Please wait for it to finish before making another change.',
+            );
+        }
+
         const tracker = this.startTracking({ user, projectUuid, turn });
 
         let failureStage: AiWritebackFailureStage = 'install';
@@ -1325,6 +1344,11 @@ export class AiWritebackService extends BaseService {
         // it would poison the row for every future turn. Fresh turns have no
         // such row, so the default kill is fine.
         let pauseOnExit = turn.isResume;
+        // Acquire the in-flight lock last, right before the work — only plain
+        // declarations sit between here and the finally that releases it.
+        if (lockKey) {
+            this.inFlightTurns.add(lockKey);
+        }
         try {
             const installation = await turn.provider.resolveInstallation(
                 turn.organizationUuid,
@@ -1547,6 +1571,9 @@ export class AiWritebackService extends BaseService {
             tracker.failed(failureStage, error);
             throw error;
         } finally {
+            if (lockKey) {
+                this.inFlightTurns.delete(lockKey);
+            }
             if (sandbox) {
                 await this.releaseSandbox(sandbox, pauseOnExit, projectUuid);
             }
