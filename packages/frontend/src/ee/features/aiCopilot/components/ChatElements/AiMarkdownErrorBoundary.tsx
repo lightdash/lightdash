@@ -1,5 +1,10 @@
 import { Text } from '@mantine-8/core';
-import { Component, type PropsWithChildren, type ReactNode } from 'react';
+import {
+    Component,
+    type ErrorInfo,
+    type PropsWithChildren,
+    type ReactNode,
+} from 'react';
 
 type Props = PropsWithChildren<{
     fallback?: ReactNode;
@@ -14,6 +19,10 @@ export class AiMarkdownErrorBoundary extends Component<Props, State> {
 
     static getDerivedStateFromError() {
         return { hasError: true };
+    }
+
+    componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+        console.error('Failed to render AI markdown', error, errorInfo);
     }
 
     render() {
