@@ -934,8 +934,9 @@ export class AiWritebackService extends BaseService {
      *
      * Each repo carries a `writable` flag from the SAME predicate the editRepo
      * authz chokepoint uses ({@link computeWritableRepoKeys}), so the picker can
-     * disable repos the backend would 403 (R5). GitLab repos are read-only for
-     * now (write support is a later slice).
+     * disable repos the backend would 403 (R5). GitLab uses a single install
+     * identity (no user-intersection), so every listed repo is writable bar the
+     * denylist.
      */
     async listProjectRepositories({
         user,
@@ -955,14 +956,19 @@ export class AiWritebackService extends BaseService {
                 projectUuid,
             });
             const repos = await access.listRepos();
+            const writableKeys = computeWritableRepoKeys(
+                repos.map((r) => ({ owner: r.owner, repo: r.repo })),
+                [],
+                // GitLab: single install identity, no user-intersection.
+                false,
+            );
             return repos.map(({ owner, repo, defaultBranch }) => ({
                 name: repo,
                 ownerLogin: owner,
                 fullName: `${owner}/${repo}`,
                 defaultBranch,
                 provider: 'gitlab',
-                // GitLab write targeting is a later slice.
-                writable: false,
+                writable: writableKeys.has(`${owner}/${repo}`),
             }));
         }
 
@@ -1753,6 +1759,43 @@ export class AiWritebackService extends BaseService {
             throw new ForbiddenError(`The repository ${key} cannot be edited`);
         }
 
+        // The host follows the project's connection (like the repo picker): a
+        // GitLab-connected project edits its GitLab repos, otherwise GitHub.
+        if (project.dbtConnection.type === DbtProjectType.GITLAB) {
+            return this.resolveWritableGitlabTarget({
+                user,
+                project,
+                owner,
+                repo,
+                key,
+            });
+        }
+        return this.resolveWritableGithubTarget({
+            user,
+            project,
+            owner,
+            repo,
+            key,
+        });
+    }
+
+    /** GitHub branch of {@link resolveWritableRepoTarget}: user ∩ installation. */
+    private async resolveWritableGithubTarget({
+        user,
+        project,
+        owner,
+        repo,
+        key,
+    }: {
+        user: SessionUser;
+        project: Awaited<ReturnType<ProjectModel['get']>>;
+        owner: string;
+        repo: string;
+        key: string;
+    }): Promise<ResolvedTurnTarget> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
         const installation = await this.githubProvider.resolveInstallation(
             user.organizationUuid,
         );
@@ -1835,6 +1878,65 @@ export class AiWritebackService extends BaseService {
             },
             // No warehouse/dbt context for a general edit; a default dbt version
             // keeps the type satisfied (the general path never compiles).
+            warehouseType: null,
+            dbtVersion: resolveSandboxDbtVersion(project.dbtVersion),
+        };
+    }
+
+    /**
+     * GitLab branch of {@link resolveWritableRepoTarget}. GitLab has no per-user
+     * account linking (the install acts as a single identity), so there's no
+     * user-intersection — every project the org's GitLab install can reach is
+     * writable (minus the denylist). The clone uses the installation token with
+     * a `.git` scrub only (GitLab OAuth tokens can't be scoped/revoked like
+     * GitHub's), wired via the general config's `resolveCloneToken` returning
+     * null for GitLab. No pre-clone size guard for GitLab in v1 (the GitHub repo
+     * API has no GitLab equivalent here); `--filter=blob:none` still bounds it.
+     */
+    private async resolveWritableGitlabTarget({
+        user,
+        project,
+        owner,
+        repo,
+        key,
+    }: {
+        user: SessionUser;
+        project: Awaited<ReturnType<ProjectModel['get']>>;
+        owner: string;
+        repo: string;
+        key: string;
+    }): Promise<ResolvedTurnTarget> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const access = await this.getGitlabInstallationRepoReadAccess({
+            user,
+            projectUuid: project.projectUuid,
+        });
+        const repos = await access.listRepos();
+        const writable = computeWritableRepoKeys(
+            repos.map((r) => ({ owner: r.owner, repo: r.repo })),
+            [],
+            // GitLab: single install identity, no user-intersection.
+            false,
+        );
+        if (!writable.has(key)) {
+            throw new ForbiddenError(
+                `${key} is not accessible to your organization's GitLab installation`,
+            );
+        }
+
+        return {
+            organizationUuid: user.organizationUuid,
+            projectName: project.name,
+            provider: this.gitlabProvider,
+            gitConnection: {
+                provider: PullRequestProvider.GITLAB,
+                owner,
+                repo,
+                projectSubPath: '.',
+                hostDomain: access.hostDomain,
+            },
             warehouseType: null,
             dbtVersion: resolveSandboxDbtVersion(project.dbtVersion),
         };
