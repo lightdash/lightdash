@@ -1386,6 +1386,14 @@ export type LightdashConfig = {
     };
     aiWriteback: {
         anthropicApiKey: string | null;
+        /**
+         * Pre-clone size ceiling (MB) for the general coding agent. A repo whose
+         * GitHub-reported size exceeds this is rejected with an actionable error
+         * before any sandbox/clone (fail closed, never deadline_exceeded). With
+         * --depth 1 --filter=blob:none the API size over-counts the real fetch,
+         * so the guard is conservative by design.
+         */
+        codingAgentMaxRepoSizeMb: number;
     };
 
     initialSetup?: {
@@ -2537,6 +2545,10 @@ export const parseConfig = (): LightdashConfig => {
         },
         aiWriteback: {
             anthropicApiKey: process.env.AI_WRITEBACK_ANTHROPIC_API_KEY || null,
+            codingAgentMaxRepoSizeMb: parseInt(
+                process.env.AI_CODING_AGENT_MAX_REPO_SIZE_MB || '500',
+                10,
+            ),
         },
         initialSetup: getInitialSetupConfig(),
         updateSetup: getUpdateSetupConfig(),

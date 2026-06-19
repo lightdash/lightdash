@@ -29,9 +29,12 @@ import type {
 } from '../../../analytics/LightdashAnalytics';
 import {
     getRepoDefaultBranch,
+    getRepoMetadata,
     getRepoTree,
+    getScopedRepoCloneToken,
     listReposAccessibleToInstallation,
     listReposAccessibleToUser,
+    revokeInstallationToken,
 } from '../../../clients/github/Github';
 import { getGitlabProjects } from '../../../clients/gitlab/Gitlab';
 import type { LightdashConfig } from '../../../config/parseConfig';
@@ -59,6 +62,7 @@ import {
     CWD,
     GATHER_REPO_CONTEXT_SANDBOX_PATH,
     GENERAL_ALLOWED_TOOLS,
+    GENERAL_DISALLOWED_TOOLS,
     GENERAL_SKILLS_DIR,
     GIT_TIMEOUT_MS,
     PR_DESCRIPTION_PATH,
@@ -74,7 +78,9 @@ import {
     TMP_PROFILES_DIR,
     WAREHOUSE_SKILL_PATH,
 } from './constants';
+import { DeniedPathError } from './deniedPaths';
 import {
+    RepoTooLargeError,
     WritebackGitNotConnectedError,
     WritebackThreadPrClosedError,
 } from './errors';
@@ -259,6 +265,29 @@ export const computeWritableRepoKeys = (
             .filter((key) => !DENYLISTED_WRITE_REPOS.has(key.toLowerCase()))
             .filter((key) => !intersectWithUser || userKeys.has(key)),
     );
+};
+
+/**
+ * Classify a coding-agent failure into a stable audit `reason` category that
+ * distinguishes the conditions decision #2 requires (user-intersection /
+ * installation / branch-protection / denied-repo / denied-path / size). Keyword
+ * matching on the ForbiddenError sub-cases is acceptable for an audit log.
+ */
+export const auditReasonForError = (error: unknown): string => {
+    if (error instanceof DeniedPathError) return 'denied_path';
+    if (error instanceof RepoTooLargeError) return 'repo_too_large';
+    if (error instanceof WritebackGitNotConnectedError) return 'not_installed';
+    if (error instanceof WritebackThreadPrClosedError) return 'pr_not_open';
+    if (error instanceof ForbiddenError) {
+        const message = error.message.toLowerCase();
+        if (message.includes('cannot be edited')) return 'denied_repo';
+        if (message.includes('linked github')) return 'user_intersection';
+        if (message.includes('installation')) return 'installation';
+        if (message.includes('organization')) return 'no_org';
+        return 'permission';
+    }
+    if (error instanceof ParameterError) return 'invalid_target';
+    return 'unknown';
 };
 
 export class AiWritebackService extends BaseService {
@@ -1311,17 +1340,43 @@ export class AiWritebackService extends BaseService {
                       })
                     : null;
 
+            // Clone with a scoped, revocable token when the config provides one
+            // (general agent) — keep the full installation for the host-side
+            // commit. Only mint on a fresh clone; a resume reuses the existing
+            // checkout (its clone token was already scrubbed + revoked).
+            let cloneInstallation = installation;
+            let onAfterClone: (() => Promise<void>) | undefined;
+            if (
+                config.resolveCloneToken &&
+                !turn.existingRow &&
+                installation.provider === PullRequestProvider.GITHUB
+            ) {
+                const minted = await config.resolveCloneToken({
+                    gitConnection: turn.gitConnection,
+                    installation,
+                });
+                if (minted) {
+                    cloneInstallation = {
+                        ...installation,
+                        token: minted.token,
+                        userToken: null,
+                    };
+                    onAfterClone = minted.onAfterClone;
+                }
+            }
+
             sandbox = await this.acquireSandbox({
                 projectUuid,
                 cloneTarget: turn.provider.getCloneTarget(
                     turn.gitConnection,
-                    installation,
+                    cloneInstallation,
                 ),
                 existingRow: turn.existingRow,
                 adoptBranch: adoptedPr?.headRef ?? null,
                 setStage,
                 templateRef: config.resolveTemplateRef(),
                 cloneExtraOptions: config.cloneExtraOptions,
+                onAfterClone,
             });
 
             setStage('agent');
@@ -1338,6 +1393,7 @@ export class AiWritebackService extends BaseService {
                 source,
                 recordStep,
                 allowedTools: setup.allowedTools,
+                disallowedTools: setup.disallowedTools,
                 addDirs: setup.addDirs,
                 model: setup.model,
                 warehouseType: turn.warehouseType,
@@ -1715,21 +1771,22 @@ export class AiWritebackService extends BaseService {
             const reason = inInstallation
                 ? `${key} is not accessible to your linked GitHub account`
                 : `${key} is not accessible to your organization's GitHub App installation`;
-            this.logger.info('AI coding agent write denied', {
-                event: 'ai_coding_agent.write.denied',
-                projectUuid: project.projectUuid,
-                target: key,
-                reason,
-                intersectWithUser,
-            });
             throw new ForbiddenError(reason);
         }
 
-        const branch = await getRepoDefaultBranch({
+        // Pre-clone size guard (R9): fail closed BEFORE any sandbox/clone with an
+        // actionable error, never a deadline_exceeded from a giant clone.
+        const { defaultBranch: branch, sizeKb } = await getRepoMetadata({
             owner,
             repo,
             installationId,
         });
+        const limitMb =
+            this.lightdashConfig.aiWriteback.codingAgentMaxRepoSizeMb;
+        const sizeMb = Math.round(sizeKb / 1024);
+        if (sizeMb > limitMb) {
+            throw new RepoTooLargeError(key, sizeMb, limitMb);
+        }
 
         return {
             organizationUuid: user.organizationUuid,
@@ -1822,6 +1879,7 @@ export class AiWritebackService extends BaseService {
         setStage,
         templateRef,
         cloneExtraOptions,
+        onAfterClone,
     }: {
         projectUuid: string;
         cloneTarget: CloneTarget;
@@ -1830,6 +1888,8 @@ export class AiWritebackService extends BaseService {
         setStage: SetStage;
         templateRef: string;
         cloneExtraOptions: Record<string, unknown>;
+        /** Run after a fresh clone + .git scrub (e.g. revoke the scoped token). */
+        onAfterClone?: () => Promise<void>;
     }): Promise<Sandbox> {
         setStage('sandbox');
 
@@ -1895,6 +1955,21 @@ export class AiWritebackService extends BaseService {
                     error,
                 )}`,
             );
+        }
+
+        // Revoke the scoped clone token now the checkout exists (general agent).
+        // Best-effort: a revoke failure is logged, not thrown — the token is
+        // already scrubbed from .git and GitHub caps it at 1h anyway.
+        if (onAfterClone) {
+            try {
+                await onAfterClone();
+            } catch (error) {
+                this.logger.warn(
+                    `AiWriteback: onAfterClone (clone-token revoke) failed (sandboxId=${sandbox.sandboxId}): ${getErrorMessage(
+                        error,
+                    )}`,
+                );
+            }
         }
         return sandbox;
     }
@@ -2020,6 +2095,7 @@ export class AiWritebackService extends BaseService {
         source,
         recordStep,
         allowedTools,
+        disallowedTools,
         addDirs,
         model,
         warehouseType,
@@ -2034,6 +2110,8 @@ export class AiWritebackService extends BaseService {
         recordStep: (step: AiWritebackStep) => void;
         /** Claude Code `--allowedTools` string for this mode. */
         allowedTools: string;
+        /** Claude Code `--disallowedTools` string (paths denied under the allow). */
+        disallowedTools: string | undefined;
         /** Extra `--add-dir` mounts beyond the repo CWD. */
         addDirs: string[];
         /** Anthropic model the CLI runs with. */
@@ -2140,6 +2218,9 @@ export class AiWritebackService extends BaseService {
         };
 
         const continueFlag = isResume ? '--continue ' : '';
+        const disallowedFlag = disallowedTools
+            ? ` --disallowedTools "${disallowedTools}"`
+            : '';
         let result;
         try {
             result = await sandbox.commands.run(
@@ -2156,7 +2237,7 @@ export class AiWritebackService extends BaseService {
                     // metadata, the skills dirs) has to be added explicitly or the
                     // operation is refused. The mounts differ per mode.
                     `${addDirs.map((dir) => `--add-dir ${dir}`).join(' ')} ` +
-                    `--allowedTools "${allowedTools}"`,
+                    `--allowedTools "${allowedTools}"${disallowedFlag}`,
                 {
                     cwd: CWD,
                     timeoutMs: RUN_TIMEOUT_MS,
@@ -2432,7 +2513,65 @@ export class AiWritebackService extends BaseService {
             repoTarget: args.repoTarget ?? null,
             source: args.source,
         });
-        return this.runCodingAgent(args, this.generalCodingAgentConfig());
+        try {
+            const result = await this.runCodingAgent(
+                args,
+                this.generalCodingAgentConfig(),
+            );
+            this.emitWriteAudit({
+                user: args.user,
+                projectUuid: args.projectUuid,
+                targetRepo: result.repository,
+                allowed: true,
+                reason: null,
+            });
+            return result;
+        } catch (error) {
+            // Audit every denied/failed attempt with the condition-specific
+            // reason — the forensic record of the org token mutating a repo.
+            this.emitWriteAudit({
+                user: args.user,
+                projectUuid: args.projectUuid,
+                targetRepo: args.repoTarget ?? null,
+                allowed: false,
+                reason: auditReasonForError(error),
+            });
+            throw error;
+        }
+    }
+
+    /**
+     * The coding-agent write audit (decision #2): one structured line per
+     * attempt — `{ user, project, target_repo, allowed, reason }` — so the org
+     * installation token mutating an arbitrary repo always leaves a trail. Self
+     * contained: an audit failure must never affect the run.
+     */
+    private emitWriteAudit({
+        user,
+        projectUuid,
+        targetRepo,
+        allowed,
+        reason,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        targetRepo: string | null;
+        allowed: boolean;
+        reason: string | null;
+    }): void {
+        try {
+            this.logger.info('coding_agent_write', {
+                event: 'coding_agent_write',
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid ?? null,
+                projectUuid,
+                targetRepo,
+                allowed,
+                reason,
+            });
+        } catch {
+            // best-effort audit; never throw back into the run
+        }
     }
 
     /**
@@ -2453,9 +2592,31 @@ export class AiWritebackService extends BaseService {
                     name: e2bCodingAgentTemplateName,
                     tag: e2bCodingAgentTemplateTag,
                 }),
-            // depth:1 is applied in acquireSandbox; blob:none + size guard land
-            // with the security slice. No extra clone options for now.
-            cloneExtraOptions: {},
+            // depth:1 (acquireSandbox) + blob:none keeps the clone minimal; the
+            // pre-clone size guard (resolveWritableRepoTarget) bounds it further.
+            cloneExtraOptions: { filter: 'blob:none' },
+            resolveCloneToken: async ({ gitConnection, installation }) => {
+                // GitHub: mint a per-repo contents:read-only token, revoked once
+                // the checkout exists. GitLab can't revoke OAuth tokens as
+                // cleanly, so it falls back to the .git scrub only (null here).
+                if (installation.provider !== PullRequestProvider.GITHUB) {
+                    return null;
+                }
+                const token = await getScopedRepoCloneToken({
+                    installationId: installation.installationId,
+                    repo: gitConnection.repo,
+                });
+                return {
+                    token,
+                    onAfterClone: async () => {
+                        await revokeInstallationToken(token);
+                        this.logger.info(
+                            'AI coding agent scoped clone token revoked',
+                            { event: 'ai_coding_agent.clone_token.revoked' },
+                        );
+                    },
+                };
+            },
             buildAgentSetup: async ({ sandbox, repository }) => {
                 const repoContext =
                     await this.gatherGeneralRepoContext(sandbox);
@@ -2465,6 +2626,7 @@ export class AiWritebackService extends BaseService {
                         repoContext,
                     }),
                     allowedTools: GENERAL_ALLOWED_TOOLS,
+                    disallowedTools: GENERAL_DISALLOWED_TOOLS,
                     addDirs: ['/tmp', GENERAL_SKILLS_DIR],
                     model: CLAUDE_MODEL,
                 };

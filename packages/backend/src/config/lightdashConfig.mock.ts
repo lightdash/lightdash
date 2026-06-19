@@ -315,6 +315,7 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     aiWriteback: {
         anthropicApiKey: null,
+        codingAgentMaxRepoSizeMb: 500,
     },
     mcp: {
         enabled: true,

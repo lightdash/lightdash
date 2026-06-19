@@ -150,6 +150,31 @@ export const CLAUDE_MODEL = 'claude-sonnet-4-6';
 // read-only because the general agent has no Bash — skills can't execute.
 export const GENERAL_SKILLS_DIR = '/home/user/.lightdash-coding-skills';
 
+// Read paths DENIED to the general coding agent even though they fall under the
+// `Read(/CWD/**)` allow — applied via Claude Code `--disallowedTools`. Excludes
+// `.git` (clone remote/creds + git internals) so the agent can't lift a token
+// from `.git/config` and exfiltrate it via the PR (R4), and common secret files
+// so it can't read+leak them (R6). Defense-in-depth: the clone token is already
+// scoped + scrubbed + revoked, and secrets are denied at commit time too.
+export const GENERAL_DISALLOWED_TOOLS = [
+    `Read(/${CWD}/.git/**)`,
+    `Read(/${CWD}/.env)`,
+    `Read(/${CWD}/.env.*)`,
+    `Read(/${CWD}/**/.env)`,
+    `Read(/${CWD}/**/.env.*)`,
+    `Read(/${CWD}/**/*.pem)`,
+    `Read(/${CWD}/**/*.key)`,
+    `Read(/${CWD}/**/*.p12)`,
+    `Read(/${CWD}/**/*.pfx)`,
+    `Read(/${CWD}/**/id_rsa)`,
+    `Read(/${CWD}/**/id_ed25519)`,
+    `Read(/${CWD}/**/.npmrc)`,
+    `Read(/${CWD}/**/.pypirc)`,
+    `Read(/${CWD}/**/credentials)`,
+    `Read(/${CWD}/**/*.keyfile)`,
+    `Read(/${CWD}/**/*.keyfile.json)`,
+].join(',');
+
 // Fine-grained tool permissions for the GENERAL coding agent (editRepo). The
 // security-critical difference from ALLOWED_TOOLS: there are ZERO Bash entries.
 // With no Bash and no per-language toolchain, "no in-sandbox build" is

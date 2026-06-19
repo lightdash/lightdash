@@ -27,6 +27,7 @@ import {
 } from '../../../clients/github/Github';
 import {
     AiWritebackService,
+    auditReasonForError,
     computeWritableRepoKeys,
     mergeSourceCodeRepoAccess,
     parseOwnerRepo,
@@ -38,6 +39,12 @@ import {
     PR_TITLE_CLOSE,
     PR_TITLE_OPEN,
 } from './constants';
+import { DeniedPathError } from './deniedPaths';
+import {
+    RepoTooLargeError,
+    WritebackGitNotConnectedError,
+    WritebackThreadPrClosedError,
+} from './errors';
 
 // e2b (and the GitHub client → octokit) are ESM-only and break Jest's parser.
 // Stub the modules so the import graph stays CJS; the run() tests drive the
@@ -46,6 +53,7 @@ jest.mock('e2b', () => ({
     Sandbox: { create: jest.fn(), connect: jest.fn() },
     CommandExitError: class CommandExitError extends Error {},
     TimeoutError: class TimeoutError extends Error {},
+    ALL_TRAFFIC: '0.0.0.0/0',
 }));
 jest.mock('../../../clients/github/Github', () => ({
     createBranch: jest.fn().mockResolvedValue(undefined),
@@ -627,6 +635,27 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         expect(wrapperWrite[1]).toContain('-u ANTHROPIC_API_KEY');
     });
 
+    // R13: the sandbox network lockdown is a security invariant. Egress must
+    // stay allowOut=[anthropic,github,gitlab] / denyOut=ALL — never widened to
+    // `*`. A provider/model change must update the allowlist deliberately; this
+    // test fails loudly if the lockdown is ever loosened.
+    it('creates the sandbox with denyOut=ALL and a fixed egress allowlist', async () => {
+        const sandbox = fakeSandbox(0, true);
+        (Sandbox.create as jest.Mock).mockClear();
+        (Sandbox.create as jest.Mock).mockResolvedValue(sandbox);
+
+        await runService(sandbox);
+
+        expect(Sandbox.create).toHaveBeenCalledTimes(1);
+        const [, options] = (Sandbox.create as jest.Mock).mock.calls[0];
+        expect(options.network).toEqual({
+            allowOut: ['api.anthropic.com', 'github.com', 'gitlab.com'],
+            denyOut: ['0.0.0.0/0'], // ALL_TRAFFIC
+        });
+        expect(options.network.allowOut).not.toContain('*');
+        expect(options.lifecycle).toEqual({ onTimeout: 'pause' });
+    });
+
     it('skips the PR when the agent exits non-zero', async () => {
         const sandbox = fakeSandbox(1, true);
         (Sandbox.create as jest.Mock).mockResolvedValue(sandbox);
@@ -1193,5 +1222,54 @@ describe('computeWritableRepoKeys', () => {
             false,
         );
         expect(keys.size).toBe(0);
+    });
+});
+
+describe('auditReasonForError', () => {
+    it('maps each terminal coding-agent error to a stable reason', () => {
+        expect(auditReasonForError(new DeniedPathError(['.env']))).toBe(
+            'denied_path',
+        );
+        expect(
+            auditReasonForError(new RepoTooLargeError('a/b', 900, 500)),
+        ).toBe('repo_too_large');
+        expect(
+            auditReasonForError(
+                new WritebackGitNotConnectedError(PullRequestProvider.GITHUB),
+            ),
+        ).toBe('not_installed');
+        expect(
+            auditReasonForError(new WritebackThreadPrClosedError('merged')),
+        ).toBe('pr_not_open');
+    });
+
+    it('distinguishes the ForbiddenError authz sub-conditions by message', () => {
+        expect(
+            auditReasonForError(
+                new ForbiddenError(
+                    'The repository lightdash/lightdash cannot be edited',
+                ),
+            ),
+        ).toBe('denied_repo');
+        expect(
+            auditReasonForError(
+                new ForbiddenError(
+                    'a/b is not accessible to your linked GitHub account',
+                ),
+            ),
+        ).toBe('user_intersection');
+        expect(
+            auditReasonForError(
+                new ForbiddenError(
+                    "a/b is not accessible to your organization's GitHub App installation",
+                ),
+            ),
+        ).toBe('installation');
+        // A bare ForbiddenError (the manage:SourceCode gate) -> permission.
+        expect(auditReasonForError(new ForbiddenError())).toBe('permission');
+    });
+
+    it('falls back to unknown for unrecognised errors', () => {
+        expect(auditReasonForError(new Error('boom'))).toBe('unknown');
     });
 });

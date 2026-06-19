@@ -7,6 +7,7 @@ import {
 import { tool } from 'ai';
 import { DeniedPathError } from '../../AiWritebackService/deniedPaths';
 import {
+    RepoTooLargeError,
     WritebackGitNotConnectedError,
     WritebackThreadPrClosedError,
 } from '../../AiWritebackService/errors';
@@ -34,6 +35,9 @@ type EditRepoErrorCode =
 const classifyEditRepoError = (error: unknown): EditRepoErrorCode => {
     if (error instanceof DeniedPathError) {
         return 'denied_path';
+    }
+    if (error instanceof RepoTooLargeError) {
+        return 'repo_too_large';
     }
     if (error instanceof ForbiddenError) {
         return 'repo_write_forbidden';
@@ -107,6 +111,16 @@ export const getEditRepo = ({ editRepo }: Dependencies) =>
                         metadata: {
                             status: 'error' as const,
                             errorCode: 'pull_request_not_open' as const,
+                        },
+                    };
+                }
+                // Repo too large — terminal, do not retry. Relay verbatim.
+                if (error instanceof RepoTooLargeError) {
+                    return {
+                        result: error.message,
+                        metadata: {
+                            status: 'error' as const,
+                            errorCode: 'repo_too_large' as const,
                         },
                     };
                 }

@@ -116,6 +116,12 @@ export type CodingAgentSetup = {
     systemPrompt: string;
     /** Claude Code `--allowedTools` string for this mode. */
     allowedTools: string;
+    /**
+     * Claude Code `--disallowedTools` string — paths denied even under the
+     * allowlist (general agent: `.git` + secret files). Empty/undefined omits
+     * the flag.
+     */
+    disallowedTools?: string;
     /** Extra `--add-dir` mounts beyond the repo CWD (e.g. /tmp, skills dirs). */
     addDirs: string[];
     /** Anthropic model the CLI runs with. */
@@ -144,6 +150,18 @@ export type CodingAgentConfig = {
     resolveTemplateRef: () => string;
     /** Extra options merged into `sandbox.git.clone` (e.g. a blob filter). */
     cloneExtraOptions: Record<string, unknown>;
+    /**
+     * Mint a short-lived, narrowly-scoped token for the clone instead of using
+     * the org-wide installation token (general agent). Returns the token plus an
+     * `onAfterClone` to revoke it once the checkout exists — the host commits via
+     * the API with the full installation token, so the sandbox never needs a
+     * usable token to outlive the clone (R2/R4). Returns null (or is undefined)
+     * to clone with the installation token, as dbt writeback does.
+     */
+    resolveCloneToken?: (args: {
+        gitConnection: GitConnection;
+        installation: GitInstallation;
+    }) => Promise<{ token: string; onAfterClone: () => Promise<void> } | null>;
     /**
      * Stage any sandbox prerequisites that inform the prompt (repo context,
      * profiles, tree listing) and build the system prompt + CLI knobs for this
