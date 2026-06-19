@@ -12,7 +12,7 @@ const rule = (args: {
     id: args.id,
     target: { fieldId: args.fieldId },
     operator: args.operator,
-    ...(args.values ? { values: args.values } : {}),
+    ...(args.values !== undefined ? { values: args.values } : {}),
 });
 
 const getValidationMessage = (filterRule: FilterRule): string => {
@@ -83,10 +83,41 @@ describe('validateFilterRules error messages', () => {
             'For string fields, these are all available filter combinations:',
         );
         expect(message).toContain(
-            '{"fieldId":"orders_customer_name","fieldType":"string","fieldFilterType":"string","operator":"include","values":["@lightdash.com"]}',
+            '{"fieldId":"orders_customer_name","fieldType":"string","fieldFilterType":"string","operator":"include","values":["contains"]}',
         );
         expect(message).not.toContain('invalid_union');
         expect(message).not.toContain('ZodError');
+    });
+
+    it('explains presence filters that include values', () => {
+        const message = getValidationMessage(
+            rule({
+                id: 'filter-presence',
+                fieldId: 'orders_is_active',
+                operator: FilterOperator.NULL,
+                values: [true],
+            }),
+        );
+
+        expect(message).toContain(
+            '"isNull" is a presence operator and must not include values or settings. Received values=[true] settings=undefined.',
+        );
+        expect(message).not.toContain('invalid_union');
+        expect(message).not.toContain('ZodError');
+    });
+
+    it('preserves explicit null values in the problem description', () => {
+        const message = getValidationMessage(
+            rule({
+                id: 'filter-null-value',
+                fieldId: 'orders_amount',
+                operator: FilterOperator.GREATER_THAN,
+                values: null as unknown as unknown[],
+            }),
+        );
+
+        expect(message).toContain('Received null.');
+        expect(message).not.toContain('Received [].');
     });
 
     it('explains invalid number filters with available combinations', () => {

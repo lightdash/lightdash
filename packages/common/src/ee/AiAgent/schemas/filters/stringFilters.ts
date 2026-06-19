@@ -27,6 +27,7 @@ const stringFilterSchema = z.union([
                 ])
                 .describe(valuePresenceOperatorDescription),
         })
+        .strict()
         .describe(
             `Use for string fields when checking if a value is missing or present. Do not include values. ${filterJsonExamplesForOperators(
                 {
@@ -57,6 +58,7 @@ const stringFilterSchema = z.union([
                     'String values to match. Do not put natural-language date ranges here.',
                 ),
         })
+        .strict()
         .describe(
             `Use for text matching on string fields. For dates like "last 2 weeks", use a date filter instead. ${filterJsonExamplesForOperators(
                 {

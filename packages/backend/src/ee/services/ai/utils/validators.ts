@@ -43,9 +43,11 @@ import {
     ToolRunQueryArgsTransformed,
     ToolSortField,
     TransformedCustomMetric,
+    UnitOfTime,
     WeekDay,
     WindowFunctionType,
 } from '@lightdash/common';
+import { z } from 'zod';
 import Logger from '../../../../logging/logger';
 import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';
 import { serializeData } from './serializeData';
@@ -197,7 +199,10 @@ const getFieldLabel = (
 };
 
 const valuesDescription = (values: unknown): string =>
-    stringifyReceivedValue(values ?? []);
+    values === undefined ? '[]' : stringifyReceivedValue(values);
+
+const settingsDescription = (settings: unknown): string =>
+    settings === undefined ? 'undefined' : stringifyReceivedValue(settings);
 
 const hasOnlyValuesOfType = (
     values: unknown,
@@ -209,16 +214,47 @@ const hasOnlyValuesOfType = (
 const hasLength = (values: unknown, length: number): boolean =>
     Array.isArray(values) && values.length === length;
 
+const relativeDateUnitSchema = z.union([
+    z.literal(UnitOfTime.days),
+    z.literal(UnitOfTime.weeks),
+    z.literal(UnitOfTime.months),
+    z.literal(UnitOfTime.quarters),
+    z.literal(UnitOfTime.years),
+]);
+
+const dateSettingsSchema = z
+    .object({
+        completed: z.boolean(),
+        unitOfTime: relativeDateUnitSchema,
+    })
+    .strict();
+
+const currentDateSettingsSchema = z
+    .object({
+        completed: z.literal(false),
+        unitOfTime: relativeDateUnitSchema,
+    })
+    .strict();
+
+const dateOrDateTimeSchema = z.union([
+    z.string().date(),
+    z.string().datetime(),
+]);
+
 const hasDateSettings = (settings: unknown): boolean =>
-    typeof settings === 'object' && settings !== null;
+    dateSettingsSchema.safeParse(settings).success;
+
+const hasCurrentDateSettings = (settings: unknown): boolean =>
+    currentDateSettingsSchema.safeParse(settings).success;
 
 const isIsoDateOrDateTime = (value: unknown): value is string =>
-    typeof value === 'string' &&
-    /^\d{4}-\d{2}-\d{2}(T.*)?$/.test(value) &&
-    !Number.isNaN(Date.parse(value));
+    dateOrDateTimeSchema.safeParse(value).success;
 
 const hasOnlyIsoDateValues = (values: unknown): boolean =>
     Array.isArray(values) && values.every(isIsoDateOrDateTime);
+
+const hasCurrentDateValue = (values: unknown): boolean =>
+    Array.isArray(values) && values.length === 1 && values[0] === 1;
 
 const getFilterRuleProblem = (
     filterRule: FilterRule,
@@ -228,6 +264,15 @@ const getFilterRuleProblem = (
 
     if (!availableOperators.includes(filterRule.operator)) {
         return `"${filterRule.operator}" is not available for ${filterType} fields. Available operators: ${availableOperators.join(', ')}.`;
+    }
+
+    if (
+        [FilterOperator.NULL, FilterOperator.NOT_NULL].includes(
+            filterRule.operator,
+        ) &&
+        (filterRule.values !== undefined || filterRule.settings !== undefined)
+    ) {
+        return `"${filterRule.operator}" is a presence operator and must not include values or settings. Received values=${valuesDescription(filterRule.values)} settings=${settingsDescription(filterRule.settings)}.`;
     }
 
     switch (filterType) {
@@ -319,17 +364,26 @@ const getFilterRuleProblem = (
 
             if (
                 [
+                    FilterOperator.IN_THE_CURRENT,
+                    FilterOperator.NOT_IN_THE_CURRENT,
+                ].includes(filterRule.operator) &&
+                (!hasCurrentDateValue(filterRule.values) ||
+                    !hasCurrentDateSettings(filterRule.settings))
+            ) {
+                return `"${filterRule.operator}" is a valid date operator, but values must be [1] and settings must include completed=false and unitOfTime. Received values=${valuesDescription(filterRule.values)} settings=${settingsDescription(filterRule.settings)}.`;
+            }
+
+            if (
+                [
                     FilterOperator.IN_THE_PAST,
                     FilterOperator.NOT_IN_THE_PAST,
                     FilterOperator.IN_THE_NEXT,
-                    FilterOperator.IN_THE_CURRENT,
-                    FilterOperator.NOT_IN_THE_CURRENT,
                 ].includes(filterRule.operator) &&
                 (!hasLength(filterRule.values, 1) ||
                     !hasOnlyValuesOfType(filterRule.values, 'number') ||
                     !hasDateSettings(filterRule.settings))
             ) {
-                return `"${filterRule.operator}" is a valid date operator, but values must be one number and settings must include completed and unitOfTime. Received values=${valuesDescription(filterRule.values)} settings=${valuesDescription(filterRule.settings)}.`;
+                return `"${filterRule.operator}" is a valid date operator, but values must be one number and settings must include completed and unitOfTime. Received values=${valuesDescription(filterRule.values)} settings=${settingsDescription(filterRule.settings)}.`;
             }
             break;
         default:
@@ -363,6 +417,21 @@ For ${filterType} fields, these are all available filter combinations:
 ${examples}`;
 };
 
+const getFilterSchemaInput = (
+    filterRule: FilterRule,
+    field: CompiledField | AdditionalMetric | TableCalculation,
+    fieldFilterType: FilterType,
+) => ({
+    fieldId: filterRule.target.fieldId,
+    fieldType: field.type,
+    fieldFilterType,
+    operator: filterRule.operator,
+    ...(filterRule.values !== undefined ? { values: filterRule.values } : {}),
+    ...(filterRule.settings !== undefined
+        ? { settings: filterRule.settings }
+        : {}),
+});
+
 function validateFilterRule(
     filterRule: FilterRule,
     field: CompiledField | AdditionalMetric | TableCalculation,
@@ -375,13 +444,9 @@ function validateFilterRule(
 
     switch (filterType) {
         case FilterType.BOOLEAN:
-            const parsedBooleanFilterRule = booleanFilterSchema.safeParse({
-                fieldId: filterRule.target.fieldId,
-                fieldType: field.type,
-                fieldFilterType: 'boolean',
-                operator: filterRule.operator,
-                values: filterRule.values,
-            });
+            const parsedBooleanFilterRule = booleanFilterSchema.safeParse(
+                getFilterSchemaInput(filterRule, field, FilterType.BOOLEAN),
+            );
 
             if (!parsedBooleanFilterRule.success) {
                 throw new AiAgentValidatorError(
@@ -395,14 +460,9 @@ function validateFilterRule(
 
             break;
         case FilterType.DATE:
-            const parsedDateFilterRule = dateFilterSchema.safeParse({
-                fieldId: filterRule.target.fieldId,
-                fieldType: field.type,
-                fieldFilterType: 'date',
-                operator: filterRule.operator,
-                values: filterRule.values,
-                settings: filterRule.settings,
-            });
+            const parsedDateFilterRule = dateFilterSchema.safeParse(
+                getFilterSchemaInput(filterRule, field, FilterType.DATE),
+            );
 
             if (!parsedDateFilterRule.success) {
                 throw new AiAgentValidatorError(
@@ -416,13 +476,9 @@ function validateFilterRule(
 
             break;
         case FilterType.NUMBER:
-            const parsedNumberFilterRule = numberFilterSchema.safeParse({
-                fieldId: filterRule.target.fieldId,
-                fieldType: field.type,
-                fieldFilterType: 'number',
-                operator: filterRule.operator,
-                values: filterRule.values,
-            });
+            const parsedNumberFilterRule = numberFilterSchema.safeParse(
+                getFilterSchemaInput(filterRule, field, FilterType.NUMBER),
+            );
 
             if (!parsedNumberFilterRule.success) {
                 throw new AiAgentValidatorError(
@@ -436,13 +492,9 @@ function validateFilterRule(
 
             break;
         case FilterType.STRING:
-            const parsedStringFilterRule = stringFilterSchema.safeParse({
-                fieldId: filterRule.target.fieldId,
-                fieldType: field.type,
-                fieldFilterType: 'string',
-                operator: filterRule.operator,
-                values: filterRule.values,
-            });
+            const parsedStringFilterRule = stringFilterSchema.safeParse(
+                getFilterSchemaInput(filterRule, field, FilterType.STRING),
+            );
 
             if (!parsedStringFilterRule.success) {
                 throw new AiAgentValidatorError(

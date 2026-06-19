@@ -27,6 +27,7 @@ const booleanFilterSchema = z.union([
                 ])
                 .describe(valuePresenceOperatorDescription),
         })
+        .strict()
         .describe(
             `Use for boolean fields when checking if a value is missing or present. Do not include values. ${filterJsonExamplesForOperators(
                 {
@@ -52,6 +53,7 @@ const booleanFilterSchema = z.union([
                 .length(1)
                 .describe('Exactly one boolean value, e.g. [true] or [false].'),
         })
+        .strict()
         .describe(
             `Use for boolean fields when matching or excluding true/false values. ${filterJsonExamplesForOperators(
                 {

@@ -39,6 +39,7 @@ const dateFilterSchema = z.union([
                 ])
                 .describe(datePresenceOperatorDescription),
         })
+        .strict()
         .describe(
             `Use for date/timestamp fields when checking if a value is missing or present. Do not include values. ${filterJsonExamplesForOperators(
                 {
@@ -63,6 +64,7 @@ const dateFilterSchema = z.union([
                 .array(dateOrDateTimeSchema)
                 .describe('One or more explicit ISO dates/datetimes.'),
         })
+        .strict()
         .describe(
             `Use for specific dates like 2024-01-01. For relative periods like "last 2 weeks", use ${FilterOperator.IN_THE_PAST}. ${filterJsonExamplesForOperators(
                 {
@@ -111,6 +113,7 @@ const dateFilterSchema = z.union([
                 })
                 .describe('Relative period settings.'),
         })
+        .strict()
         .describe(
             `Use for relative date requests such as "last 2 weeks" or "next 3 months". ${filterJsonExamplesForOperators(
                 {
@@ -158,6 +161,7 @@ const dateFilterSchema = z.union([
                 })
                 .describe('Current-period settings.'),
         })
+        .strict()
         .describe(
             `Use for current date requests such as "today", "this week", "this month", or "this year". ${filterJsonExamplesForOperators(
                 {
@@ -188,6 +192,7 @@ const dateFilterSchema = z.union([
                 .length(1)
                 .describe('Exactly one explicit ISO date/datetime threshold.'),
         })
+        .strict()
         .describe(
             `Use for date/timestamp fields before, on-or-before, after, or on-or-after a specific date. ${filterJsonExamplesForOperators(
                 {
@@ -217,6 +222,7 @@ const dateFilterSchema = z.union([
                     'Exactly two explicit ISO dates/datetimes: [start, end].',
                 ),
         })
+        .strict()
         .describe(
             `Use for explicit date ranges such as from 2024-01-01 to 2024-01-31. ${filterJsonExamplesForOperators(
                 {

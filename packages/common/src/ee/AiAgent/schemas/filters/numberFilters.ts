@@ -37,6 +37,7 @@ const numberFilterSchema = z.union([
                 ])
                 .describe(valuePresenceOperatorDescription),
         })
+        .strict()
         .describe(
             `Use for numeric fields when checking if a value is missing or present. Do not include values. ${filterJsonExamplesForOperators(
                 {
@@ -61,6 +62,7 @@ const numberFilterSchema = z.union([
                 .array(z.number())
                 .describe('One or more exact numeric values to match.'),
         })
+        .strict()
         .describe(
             `Use for numeric fields that equal or exclude specific values. ${filterJsonExamplesForOperators(
                 {
@@ -91,6 +93,7 @@ const numberFilterSchema = z.union([
                 .length(1)
                 .describe('Exactly one numeric threshold value.'),
         })
+        .strict()
         .describe(
             `Use for numeric fields with a single comparison threshold. ${filterJsonExamplesForOperators(
                 {
@@ -119,6 +122,7 @@ const numberFilterSchema = z.union([
                 .length(2)
                 .describe('Exactly two numeric bounds: [lower, upper].'),
         })
+        .strict()
         .describe(
             `Use for numeric fields inside or outside a two-value range. ${filterJsonExamplesForOperators(
                 {

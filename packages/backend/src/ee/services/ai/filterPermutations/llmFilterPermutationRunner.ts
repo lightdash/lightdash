@@ -5,6 +5,7 @@ import {
     getErrorMessage,
 } from '@lightdash/common';
 import { generateText, stepCountIs, tool, type JSONValue } from 'ai';
+import isEqual from 'lodash/isEqual';
 import { type z } from 'zod';
 import { aiCopilotConfigSchema } from '../../../../config/aiConfigSchema';
 import { getAiConfig as getRawAiConfig } from '../../../../config/parseConfig';
@@ -42,9 +43,9 @@ export type FilterPermutationResult = {
 
 export const filterPermutationModelConfigs = [
     {
-        label: 'OpenAI GPT-5.4 Mini',
+        label: 'OpenAI GPT-5 Mini',
         provider: 'openai',
-        modelName: 'gpt-5.4-mini',
+        modelName: 'gpt-5-mini',
         requiredEnvVar: 'OPENAI_API_KEY',
     },
     {
@@ -135,7 +136,7 @@ const getRuleSettings = (
         : undefined;
 
 const valuesEqual = (actual: unknown, expected: unknown): boolean =>
-    JSON.stringify(actual) === JSON.stringify(expected);
+    isEqual(actual, expected);
 
 export const summarizeRule = (rule: FilterRuleInput): string =>
     JSON.stringify({
@@ -273,28 +274,6 @@ const validateTransformedFilters = (
     return errors;
 };
 
-const buildCasePrompt = (probeCase: LlmPermutationCase): string => {
-    const { expected } = probeCase;
-    const expectedRule = {
-        fieldId: expected.fieldId,
-        fieldType: expected.fieldType,
-        fieldFilterType: expected.fieldFilterType,
-        operator: expected.operator,
-        ...(expected.values ? { values: expected.values } : {}),
-        ...(expected.settings ? { settings: expected.settings } : {}),
-    };
-    const expectedFilters = {
-        type: 'and',
-        dimensions: [expectedRule],
-        metrics: null,
-        tableCalculations: null,
-    };
-
-    return `Call submitFilters exactly once with this exact JSON as the tool input. Do not reinterpret it. Do not add, remove, or change any property.
-
-${JSON.stringify(expectedFilters, null, 2)}`;
-};
-
 export const isFilterPermutationModelConfigured = (
     modelConfig: FilterPermutationModelConfig,
 ): boolean => Boolean(process.env[modelConfig.requiredEnvVar]);
@@ -354,7 +333,7 @@ export const runLlmFilterPermutationCase = async ({
                     },
                 }),
             },
-            messages: [{ role: 'user', content: buildCasePrompt(probeCase) }],
+            messages: [{ role: 'user', content: probeCase.prompt }],
         });
 
         const filters = submittedFilters;

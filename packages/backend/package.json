@@ -28,6 +28,7 @@
         "test:snapshots:update": "TZ=UTC LANG=en_US.UTF-8 jest --config jest.config.js src/utils/QueryBuilder/metricQueryBuilderSnapshots -u",
         "test:integration": "vitest run --config vitest.config.integration.ts",
         "test:integration:dev": "vitest run --config vitest.config.integration.ts --watch",
+        "test:ai-filter-permutations": "TZ=UTC LANG=en_US.UTF-8 vitest run --config vitest.config.ai-filter-permutations.ts",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore --rulesdir eslint-rules",
         "formatter": "oxfmt",
         "lint": "pnpm run linter ./src",

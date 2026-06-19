@@ -39,12 +39,12 @@ const booleanFilterExampleTemplates: FilterExampleTemplate[] = [
 const stringFilterExampleTemplates: FilterExampleTemplate[] = [
     { operator: FilterOperator.NULL },
     { operator: FilterOperator.NOT_NULL },
-    { operator: FilterOperator.EQUALS, values: ['complete', 'paid'] },
-    { operator: FilterOperator.NOT_EQUALS, values: ['cancelled'] },
-    { operator: FilterOperator.STARTS_WITH, values: ['SKU-'] },
-    { operator: FilterOperator.ENDS_WITH, values: ['.com'] },
-    { operator: FilterOperator.INCLUDE, values: ['@lightdash.com'] },
-    { operator: FilterOperator.NOT_INCLUDE, values: ['internal'] },
+    { operator: FilterOperator.EQUALS, values: ['example'] },
+    { operator: FilterOperator.NOT_EQUALS, values: ['excluded'] },
+    { operator: FilterOperator.STARTS_WITH, values: ['prefix'] },
+    { operator: FilterOperator.ENDS_WITH, values: ['suffix'] },
+    { operator: FilterOperator.INCLUDE, values: ['contains'] },
+    { operator: FilterOperator.NOT_INCLUDE, values: ['exclude'] },
 ];
 
 const numberFilterExampleTemplates: FilterExampleTemplate[] = [
@@ -60,6 +60,39 @@ const numberFilterExampleTemplates: FilterExampleTemplate[] = [
     { operator: FilterOperator.NOT_IN_BETWEEN, values: [100, 500] },
 ];
 
+const dateRelativeUnits = [
+    UnitOfTime.days,
+    UnitOfTime.weeks,
+    UnitOfTime.months,
+    UnitOfTime.quarters,
+    UnitOfTime.years,
+] as const;
+
+const dateRelativeFilterExampleTemplates: FilterExampleTemplate[] = [
+    FilterOperator.IN_THE_PAST,
+    FilterOperator.NOT_IN_THE_PAST,
+    FilterOperator.IN_THE_NEXT,
+].flatMap((operator) =>
+    dateRelativeUnits.flatMap((unitOfTime) =>
+        [false, true].map((completed) => ({
+            operator,
+            values: [2],
+            settings: { completed, unitOfTime },
+        })),
+    ),
+);
+
+const dateCurrentFilterExampleTemplates: FilterExampleTemplate[] = [
+    FilterOperator.IN_THE_CURRENT,
+    FilterOperator.NOT_IN_THE_CURRENT,
+].flatMap((operator) =>
+    dateRelativeUnits.map((unitOfTime) => ({
+        operator,
+        values: [1],
+        settings: { completed: false, unitOfTime },
+    })),
+);
+
 const dateFilterExampleTemplates: FilterExampleTemplate[] = [
     { operator: FilterOperator.NULL },
     { operator: FilterOperator.NOT_NULL },
@@ -68,31 +101,8 @@ const dateFilterExampleTemplates: FilterExampleTemplate[] = [
         operator: FilterOperator.NOT_EQUALS,
         values: ['2024-01-01T00:00:00Z'],
     },
-    {
-        operator: FilterOperator.IN_THE_PAST,
-        values: [2],
-        settings: { completed: false, unitOfTime: UnitOfTime.weeks },
-    },
-    {
-        operator: FilterOperator.NOT_IN_THE_PAST,
-        values: [7],
-        settings: { completed: false, unitOfTime: UnitOfTime.days },
-    },
-    {
-        operator: FilterOperator.IN_THE_NEXT,
-        values: [14],
-        settings: { completed: false, unitOfTime: UnitOfTime.days },
-    },
-    {
-        operator: FilterOperator.IN_THE_CURRENT,
-        values: [1],
-        settings: { completed: false, unitOfTime: UnitOfTime.months },
-    },
-    {
-        operator: FilterOperator.NOT_IN_THE_CURRENT,
-        values: [1],
-        settings: { completed: false, unitOfTime: UnitOfTime.months },
-    },
+    ...dateRelativeFilterExampleTemplates,
+    ...dateCurrentFilterExampleTemplates,
     { operator: FilterOperator.LESS_THAN, values: ['2024-02-01T00:00:00Z'] },
     {
         operator: FilterOperator.LESS_THAN_OR_EQUAL,

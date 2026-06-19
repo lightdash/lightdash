@@ -1,4 +1,9 @@
-import { filtersSchemaV2 } from '@lightdash/common';
+import {
+    filtersSchemaTransformed,
+    filtersSchemaV2,
+    FilterType,
+    getFilterExamples,
+} from '@lightdash/common';
 import {
     filterPermutationCases,
     filterPermutationGroups,
@@ -10,8 +15,28 @@ describe('filter permutation cases', () => {
         expect(new Set(ids).size).toBe(ids.length);
     });
 
-    it('has at least 3 cases for each family/operator group', () => {
-        expect(filterPermutationGroups.length).toBe(36);
+    it('has at least 3 cases for each available family/operator group', () => {
+        const expectedGroupKeys = [
+            { family: 'boolean', fieldFilterType: FilterType.BOOLEAN },
+            { family: 'string', fieldFilterType: FilterType.STRING },
+            { family: 'number', fieldFilterType: FilterType.NUMBER },
+            { family: 'date', fieldFilterType: FilterType.DATE },
+        ].flatMap(({ family, fieldFilterType }) =>
+            Array.from(
+                new Set(
+                    getFilterExamples({
+                        fieldId: 'field_id',
+                        fieldType: fieldFilterType,
+                        fieldFilterType,
+                    }).map((example) => example.operator),
+                ),
+            ).map((operator) => `${family}.${operator}`),
+        );
+        const actualGroupKeys = filterPermutationGroups.map(
+            (group) => `${group.family}.${group.operator}`,
+        );
+
+        expect(new Set(actualGroupKeys)).toEqual(new Set(expectedGroupKeys));
         filterPermutationGroups.forEach((group) => {
             expect(group.cases.length).toBeGreaterThanOrEqual(3);
         });
@@ -45,7 +70,17 @@ describe('filter permutation cases', () => {
                 );
             }
 
+            const transformedParseResult = filtersSchemaTransformed.safeParse(
+                parseResult.data,
+            );
+            if (!transformedParseResult.success) {
+                throw new Error(
+                    `${testCase.id} failed transformed schema validation: ${transformedParseResult.error.message}`,
+                );
+            }
+
             expect(parseResult.success).toBe(true);
+            expect(transformedParseResult.success).toBe(true);
         });
     });
 });
