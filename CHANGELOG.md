@@ -1,3 +1,10 @@
+# [0.3200.0](https://github.com/lightdash/lightdash/compare/0.3199.0...0.3200.0) (2026-06-19)
+
+
+### Features
+
+* **data-apps:** external-fetch proxy endpoint ([#24465](https://github.com/lightdash/lightdash/issues/24465)) ([0431e92](https://github.com/lightdash/lightdash/commit/0431e922dc4faba03b0745f75550970fcab215b5))
+
 # [0.3199.0](https://github.com/lightdash/lightdash/compare/0.3198.0...0.3199.0) (2026-06-19)
 
 
