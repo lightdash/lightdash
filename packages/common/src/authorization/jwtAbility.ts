@@ -253,6 +253,8 @@ const getEmbeddedAbilitiesForType = (
             return dataAppTypeAbilities;
         case 'aiAgent':
             return [];
+        case 'apiAccess':
+            return [];
         case 'dashboard':
             return dashboardTypeAbilities;
         default:

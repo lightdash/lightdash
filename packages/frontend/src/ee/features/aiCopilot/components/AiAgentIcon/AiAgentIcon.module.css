@@ -127,6 +127,28 @@
     animation-direction: alternate-reverse;
 }
 
+.animated {
+    filter: none;
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.66),
+        inset 0 -4px 10px rgba(94, 76, 255, 0.24),
+        0 2px 6px rgba(152, 54, 255, 0.22),
+        0 0 0 1px color-mix(in oklch, #9836ff 36%, transparent);
+    animation: ai-agent-icon-morph 6s ease infinite;
+}
+
+.animated::before,
+.animated::after {
+    opacity: 1;
+    animation: ai-agent-icon-drift 2.4s cubic-bezier(0.45, 0, 0.55, 1) 280ms
+        infinite alternate;
+}
+
+.animated::after {
+    animation-duration: 2.6s;
+    animation-direction: alternate-reverse;
+}
+
 @keyframes ai-agent-icon-morph {
     0% {
         background-position: 43% 0%;
@@ -154,7 +176,10 @@
 @media (prefers-reduced-motion: reduce) {
     .root,
     .root::before,
-    .root::after {
+    .root::after,
+    .animated,
+    .animated::before,
+    .animated::after {
         animation: none !important;
         transition: opacity 120ms ease;
     }

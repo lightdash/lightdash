@@ -682,6 +682,8 @@ type Axis = {
     min?: string | undefined;
     /** Maximum value (or 'dataMax' for auto) */
     max?: string | undefined;
+    /** Minimum interval between ticks (e.g. 1 to force integer ticks) */
+    minInterval?: number | undefined;
     /** Offset from minimum value */
     minOffset?: string | undefined;
     /** Offset from maximum value */

@@ -870,6 +870,17 @@ const scopes: Scope[] = [
         ],
     },
 
+    // External Connections — project-scoped allowlisted outbound HTTP endpoints
+    // that data apps reach through the secure fetch proxy. Admin-only.
+    {
+        name: 'manage:ExternalConnection',
+        description:
+            'Create, edit, and delete external API connections used by data apps',
+        isEnterprise: true,
+        group: ScopeGroup.AI,
+        getConditions: addDefaultUuidCondition,
+    },
+
     // Organization Design Assets (shared CSS/fonts/images/instructions
     // injected into every data app generated in the org). Org-scoped
     // resource — view is available to all members, manage to org admins.

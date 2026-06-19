@@ -330,6 +330,10 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
 
+        can('manage', 'ExternalConnection', {
+            projectUuid: member.projectUuid,
+        });
+
         can('manage', 'ContentVerification', {
             projectUuid: member.projectUuid,
         });

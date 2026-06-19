@@ -54,8 +54,12 @@ import type {
     ApiPromoteAppResponse,
     ApiUpdateAiOrganizationSettingsResponse,
     ApiUpdateUserAgentPreferencesResponse,
+    AppExternalConnectionLink,
     DecodedEmbed,
     EmbedUrl,
+    ExternalConnection,
+    ExternalConnectionSample,
+    ExternalFetchResponse,
 } from '../ee';
 import type { DashboardPreAggregateAudit } from '../ee/preAggregates/audit';
 import type { PivotValuesColumn } from '../visualizations/types';
@@ -1156,7 +1160,14 @@ type ApiResults =
     | ApiManagedAgentRunResponse['results']
     | ApiManagedAgentRunsListResponse['results']
     | ApiManagedAgentActionResponse['results']
-    | DashboardPreAggregateAudit;
+    | DashboardPreAggregateAudit
+    | ExternalConnection
+    | ExternalConnection[]
+    | ExternalConnectionSample
+    | ExternalConnectionSample[]
+    | AppExternalConnectionLink
+    | AppExternalConnectionLink[]
+    | ExternalFetchResponse;
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 

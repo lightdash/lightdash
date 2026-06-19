@@ -9,7 +9,12 @@ import {
     UserAccessControls,
 } from '@lightdash/common';
 // Import the functions we want to test
-import { fromJwt, fromSession, getAccountWriteContext } from './account';
+import {
+    fromJwt,
+    fromSession,
+    getAccountApiAccessContext,
+    getAccountWriteContext,
+} from './account';
 
 describe('account', () => {
     describe('fromJwt', () => {
@@ -320,9 +325,14 @@ describe('account', () => {
         };
 
         const buildJwtAccount = ({
+            content = {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-uuid',
+            } as CreateEmbedJwt['content'],
             writeActions,
             embedWriteUser,
         }: {
+            content?: CreateEmbedJwt['content'];
             writeActions?: CreateEmbedJwt['writeActions'];
             embedWriteUser?: SessionUser;
         }) =>
@@ -331,6 +341,7 @@ describe('account', () => {
                 authentication: {
                     type: 'jwt',
                     data: {
+                        content,
                         writeActions,
                     },
                 },
@@ -375,6 +386,54 @@ describe('account', () => {
                     spaceUuid: 'write-space-uuid',
                 },
             });
+        });
+
+        it('rejects apiAccess JWTs for write actions even when a write space is present', () => {
+            expect(() =>
+                getAccountWriteContext(
+                    buildJwtAccount({
+                        content: {
+                            type: 'apiAccess',
+                            serviceAccountUserUuid: mockSessionUser.userUuid,
+                        },
+                        writeActions: {
+                            spaceUuid: 'write-space-uuid',
+                            serviceAccountUserUuid: mockSessionUser.userUuid,
+                        },
+                        embedWriteUser: mockSessionUser,
+                    }),
+                ),
+            ).toThrowError(ForbiddenError);
+        });
+
+        it('returns the embed service account actor for legacy service account write-action JWT API access', () => {
+            expect(
+                getAccountApiAccessContext(
+                    buildJwtAccount({
+                        writeActions: {
+                            spaceUuid: 'write-space-uuid',
+                            serviceAccountUserUuid: mockSessionUser.userUuid,
+                        },
+                        embedWriteUser: mockSessionUser,
+                    }),
+                ),
+            ).toEqual({
+                user: mockSessionUser,
+            });
+        });
+
+        it('rejects user write-action JWTs for API access', () => {
+            expect(() =>
+                getAccountApiAccessContext(
+                    buildJwtAccount({
+                        writeActions: {
+                            spaceUuid: 'write-space-uuid',
+                            userUuid: mockSessionUser.userUuid,
+                        },
+                        embedWriteUser: mockSessionUser,
+                    }),
+                ),
+            ).toThrowError(ForbiddenError);
         });
     });
 });

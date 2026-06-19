@@ -11,11 +11,12 @@ import {
 } from 'vitest';
 import { useAppSdkBridge, type QueryEvent } from './useAppSdkBridge';
 
+const mockUseEmbed = vi.fn(() => ({
+    embedToken: undefined as string | undefined,
+    projectUuid: undefined as string | undefined,
+}));
 vi.mock('../../../ee/providers/Embed/useEmbed', () => ({
-    default: () => ({
-        embedToken: undefined,
-        projectUuid: undefined,
-    }),
+    default: () => mockUseEmbed(),
 }));
 
 vi.mock('../../../providers/App/useApp', () => ({
@@ -25,8 +26,14 @@ vi.mock('../../../providers/App/useApp', () => ({
     }),
 }));
 
-vi.mock('../../../hooks/useProjectUuid', () => ({
-    useProjectUuid: () => undefined,
+const mockUseServerFeatureFlag = vi.fn(
+    (_featureFlagId: string): { data: { enabled: boolean } | undefined } => ({
+        data: { enabled: true },
+    }),
+);
+vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: (featureFlagId: string) =>
+        mockUseServerFeatureFlag(featureFlagId),
 }));
 
 const PROJECT_UUID = 'project-uuid';
@@ -100,12 +107,20 @@ function pollQueryResult(id: string = GET_ID) {
     });
 }
 
+const APP_UUID = 'app-uuid';
+
 function renderBridge(onQueryEvent: (event: QueryEvent) => void) {
     const iframeRef = {
         current: { contentWindow: window } as unknown as HTMLIFrameElement,
     } as RefObject<HTMLIFrameElement | null>;
     renderHook(() =>
-        useAppSdkBridge(iframeRef, window.location.origin, onQueryEvent),
+        useAppSdkBridge(
+            iframeRef,
+            window.location.origin,
+            PROJECT_UUID,
+            APP_UUID,
+            onQueryEvent,
+        ),
     );
 }
 
@@ -366,5 +381,231 @@ describe('useAppSdkBridge', () => {
                 expect.objectContaining({ method: 'GET' }),
             ),
         );
+    });
+});
+
+describe('external-fetch branch', () => {
+    beforeEach(() => {
+        vi.stubGlobal('fetch', vi.fn());
+        mockUseServerFeatureFlag.mockReturnValue({ data: { enabled: true } });
+        mockUseEmbed.mockReturnValue({
+            embedToken: undefined,
+            projectUuid: undefined,
+        });
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.clearAllMocks();
+    });
+
+    function postExternalFetch(payload: Record<string, unknown>) {
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:external-fetch',
+            id: POST_ID,
+            ...payload,
+        });
+    }
+
+    function captureResponses() {
+        const responses: Array<Record<string, unknown>> = [];
+        const spy = vi
+            .spyOn(window, 'postMessage')
+            .mockImplementation((msg: unknown) =>
+                responses.push(msg as Record<string, unknown>),
+            );
+        return { responses, spy };
+    }
+
+    it('POSTs to the EE external-fetch endpoint with the app-supplied body only', async () => {
+        renderBridge(() => undefined);
+        mockFetchOk({
+            status: 'ok',
+            results: {
+                status: 200,
+                contentType: 'application/json',
+                body: { ok: true },
+                truncated: false,
+            },
+        });
+
+        postExternalFetch({
+            alias: 'stripe',
+            method: 'POST',
+            path: '/v1/charges',
+            query: { limit: '10' },
+            body: { amount: 500 },
+        });
+
+        await vi.waitFor(() =>
+            expect(fetch).toHaveBeenCalledWith(
+                `/api/v1/ee/projects/${PROJECT_UUID}/apps/${APP_UUID}/external-fetch`,
+                expect.objectContaining({ method: 'POST' }),
+            ),
+        );
+        const [, init] = (fetch as Mock).mock.calls[0];
+        expect(JSON.parse(init.body)).toEqual({
+            connectionAlias: 'stripe',
+            method: 'POST',
+            path: '/v1/charges',
+            query: { limit: '10' },
+            body: { amount: 500 },
+        });
+        // No app-supplied headers leak through; external fetch never sends the
+        // embed JWT (it is not supported in embed mode).
+        expect(Object.keys(init.headers)).toEqual(['Content-Type']);
+    });
+
+    it('proceeds while the external-access flag query is still loading', async () => {
+        mockUseServerFeatureFlag.mockReturnValue({ data: undefined });
+        renderBridge(() => undefined);
+        mockFetchOk({
+            status: 'ok',
+            results: {
+                status: 200,
+                contentType: 'application/json',
+                body: { ok: true },
+                truncated: false,
+            },
+        });
+
+        postExternalFetch({ alias: 'weather', path: '/today' });
+
+        // Must defer to the backend (authoritative) rather than be falsely
+        // rejected while the flag query is still resolving.
+        await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
+    });
+
+    it('rejects external fetch in embed mode without calling the backend', async () => {
+        mockUseEmbed.mockReturnValue({
+            embedToken: 'embed-jwt',
+            projectUuid: undefined,
+        });
+        renderBridge(() => undefined);
+        const { responses } = captureResponses();
+
+        postExternalFetch({ alias: 'weather', path: '/today' });
+
+        await vi.waitFor(() =>
+            expect(
+                responses.find(
+                    (r) =>
+                        r['type'] === 'lightdash:sdk:external-fetch-response',
+                ),
+            ).toMatchObject({
+                id: POST_ID,
+                error: 'External data access is not available in embedded apps',
+            }),
+        );
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('posts back the result on success', async () => {
+        renderBridge(() => undefined);
+        const { responses } = captureResponses();
+        const result = {
+            status: 200,
+            contentType: 'application/json',
+            body: 1,
+            truncated: false,
+        };
+        mockFetchOk({ status: 'ok', results: result });
+
+        postExternalFetch({ alias: 'weather', path: '/today' });
+
+        await vi.waitFor(() =>
+            expect(
+                responses.find(
+                    (r) =>
+                        r['type'] === 'lightdash:sdk:external-fetch-response',
+                ),
+            ).toMatchObject({ id: POST_ID, result }),
+        );
+    });
+
+    it('posts back an error when the EE call fails', async () => {
+        renderBridge(() => undefined);
+        const { responses } = captureResponses();
+        mockFetchNonOk({
+            status: 'error',
+            error: { message: 'Connection alias not found' },
+        });
+
+        postExternalFetch({ alias: 'nope', path: '/x' });
+
+        await vi.waitFor(() =>
+            expect(
+                responses.find(
+                    (r) =>
+                        r['type'] === 'lightdash:sdk:external-fetch-response',
+                ),
+            ).toMatchObject({
+                id: POST_ID,
+                error: 'Connection alias not found',
+            }),
+        );
+    });
+
+    it('does not consult the ALLOWED_ROUTES allowlist (the EE path is not in it)', async () => {
+        renderBridge(() => undefined);
+        const { responses } = captureResponses();
+        mockFetchOk({
+            status: 'ok',
+            results: {
+                status: 200,
+                contentType: 'application/json',
+                body: null,
+                truncated: false,
+            },
+        });
+
+        // A GET external-fetch — would be "Blocked" if it went through
+        // isAllowedRoute. It must succeed instead.
+        postExternalFetch({ alias: 'weather', method: 'GET', path: '/today' });
+
+        await vi.waitFor(() =>
+            expect(
+                responses.find(
+                    (r) =>
+                        r['type'] === 'lightdash:sdk:external-fetch-response',
+                )?.['result'],
+            ).toBeDefined(),
+        );
+    });
+
+    it('rejects external-fetch messages from a spoofed sender (wrong source AND wrong origin)', async () => {
+        // Security invariant: the bridge guard checks BOTH event.source
+        // (must match iframeRef.current.contentWindow) AND event.origin
+        // (must match expectedPreviewOrigin or "null"). A message arriving
+        // from a foreign window with a foreign origin — even with a
+        // well-formed payload — must never trigger a fetch or post a
+        // response.
+        renderBridge(() => undefined);
+        const { responses } = captureResponses();
+
+        // Dispatch with source=null (not the iframe contentWindow) and a
+        // foreign origin (not window.location.origin, not "null").
+        const spoofedEvent = new MessageEvent('message', {
+            data: {
+                type: 'lightdash:sdk:external-fetch',
+                id: POST_ID,
+                alias: 'stripe',
+                method: 'POST',
+                path: '/v1/charges',
+                body: { amount: 500 },
+            },
+            origin: 'https://evil.example.com',
+            source: null,
+        });
+        window.dispatchEvent(spoofedEvent);
+
+        // Give the (async) handler a chance to run — if it ran, it would
+        // call fetch() and/or postMessage() before we reach this point.
+        await vi.waitFor(() => expect(fetch).not.toHaveBeenCalled());
+        expect(
+            responses.find(
+                (r) => r['type'] === 'lightdash:sdk:external-fetch-response',
+            ),
+        ).toBeUndefined();
     });
 });

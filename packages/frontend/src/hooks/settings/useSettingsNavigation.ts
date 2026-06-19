@@ -25,6 +25,7 @@ import {
     IconMessageCircle,
     IconPalette,
     IconPlug,
+    IconPlugConnected,
     IconRefresh,
     IconReportAnalytics,
     IconRobotFace,
@@ -78,12 +79,14 @@ export const useSettingsNavigation = (
         shouldShowAiAgentReviews,
         embeddingEnabled,
         dataAppsFlag,
+        dataAppExternalAccessFlag,
         isGitProject,
     } = context;
 
     const isEmbeddingEnabled = embeddingEnabled?.enabled ?? false;
     const isScimEnabled = isScimTokenManagementEnabled?.enabled ?? false;
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
+    const isExternalAccessEnabled = dataAppExternalAccessFlag?.enabled ?? false;
 
     return useMemo<SettingsNavigationSection[]>(() => {
         const ability = user?.ability;
@@ -621,6 +624,27 @@ export const useSettingsNavigation = (
             });
 
             if (
+                isDataAppsEnabled &&
+                isExternalAccessEnabled &&
+                ability?.can(
+                    'manage',
+                    subject('ExternalConnection', {
+                        organizationUuid: organization.organizationUuid,
+                        projectUuid: project.projectUuid,
+                    }),
+                )
+            ) {
+                projectItems.push({
+                    label: 'Data app connections',
+                    to: `${base}/dataAppConnections`,
+                    icon: IconPlugConnected,
+                    keywords: ['external', 'api', 'http', 'fetch', 'apps'],
+                    children: [],
+                    exact: true,
+                });
+            }
+
+            if (
                 ability?.can(
                     'update',
                     subject('Project', {
@@ -776,6 +800,7 @@ export const useSettingsNavigation = (
         shouldShowAiAgentReviews,
         isEmbeddingEnabled,
         isDataAppsEnabled,
+        isExternalAccessEnabled,
         isGitProject,
         track,
     ]);

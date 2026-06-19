@@ -3066,19 +3066,6 @@ export class ProjectService extends BaseService {
         const updatedProject =
             await this.projectModel.getWithSensitiveFields(projectUuid);
 
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot('update', subject('Project', updatedProject))
-        ) {
-            throw new ForbiddenError();
-        }
-
-        if (updatedProject.warehouseConnection === undefined) {
-            throw new Error(
-                `Missing warehouseConnection details on project ${projectUuid}'}`,
-            );
-        }
-
         // This job is the job model we use to compile projects
         // This is not the graphile Job id we use on scheduler
         // TODO: remove this old job method and replace with scheduler log details
@@ -3106,6 +3093,22 @@ export class ProjectService extends BaseService {
         };
 
         try {
+            const auditedAbility = this.createAuditedAbility(user);
+            if (
+                auditedAbility.cannot(
+                    'update',
+                    subject('Project', updatedProject),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+
+            if (updatedProject.warehouseConnection === undefined) {
+                throw new Error(
+                    `Missing warehouseConnection details on project ${projectUuid}'}`,
+                );
+            }
+
             await this.jobModel.update(job.jobUuid, {
                 jobStatus: JobStatusType.RUNNING,
             });
@@ -6217,6 +6220,13 @@ export class ProjectService extends BaseService {
                 }),
             )
         ) {
+            await this._markJobAsFailed(jobUuid).catch((e) => {
+                this.logger.error(
+                    `Failed to mark compile job as failed: ${
+                        e instanceof Error ? e.stack : e
+                    }`,
+                );
+            });
             throw new ForbiddenError();
         }
 
@@ -7974,7 +7984,8 @@ export class ProjectService extends BaseService {
                 project.dbtConnection,
                 data.dbtConnectionOverrides ?? {},
             ),
-            upstreamProjectUuid: data.copyContent ? projectUuid : undefined,
+            upstreamProjectUuid: projectUuid,
+            copyContent: data.copyContent,
             organizationWarehouseCredentialsUuid:
                 project.organizationWarehouseCredentialsUuid,
             dbtVersion: project.dbtVersion,

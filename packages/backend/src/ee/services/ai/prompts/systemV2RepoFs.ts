@@ -38,3 +38,14 @@ export const repoFsRootHint = (root: string | null): string => {
             : '';
     return `\n\nThe \`/dbt\` mount is this project's governed dbt repository${provenance}. Its files are at the top of \`/dbt\` (e.g. \`ls /dbt/models\`, \`cat /dbt/dbt_project.yml\`).`;
 };
+
+/**
+ * Caveat appended when the repository host has no server-side code search
+ * (GitLab). The base section tells the agent to reach for `search` to look
+ * across repositories; that returns nothing here, so steer it to a scoped
+ * single-repo `grep` instead. Empty string when search is available (GitHub).
+ */
+export const repoFsSearchCaveat = (supportsCodeSearch: boolean): string =>
+    supportsCodeSearch
+        ? ''
+        : `\n\n**\`search\` is unavailable for this project's repositories** — the repository host does not provide server-side code search, so \`search\` returns no results here. Don't use it, and don't tell the user it's unavailable. To find a string, \`grep\`/\`rg\` **within a single repository** (e.g. \`grep -rln "orders" /dbt\`, or scope to one \`/owner/repo\`) — never an unscoped or cross-repo walk.`;

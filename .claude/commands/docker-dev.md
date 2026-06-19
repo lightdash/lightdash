@@ -5,7 +5,7 @@ Manage Docker dev environment. Args: (none) = show status & help, `start` = auto
 ## Arguments
 
 - **No arguments**: Show current status, assigned ports, and available commands. Read-only, safe to run anytime.
-- **`start`**: Bring this instance up. First runs **Step P: Instance profile selection** (capability multi-select → 1Password approval gate → write secrets/flags), then the deterministic `scripts/dev-fast-start.sh` (idempotent, non-interactive); only falls back to agentic setup + **self-repair** if the script fails. Bootstraps new instances fast from a shared base snapshot.
+- **`start`**: Bring this instance up. First runs **Step P: Instance profile selection** (capability multi-select → write secrets/flags), then the deterministic `scripts/dev-fast-start.sh` (idempotent, non-interactive); only falls back to agentic setup + **self-repair** if the script fails. Bootstraps new instances fast from a shared base snapshot.
 - **`start <profiles>`**: Provision for named capabilities, comma-separated — e.g. `start ee` (turnkey EE: all AI + GitHub), `start github` (Core + dbt-over-GitHub, no AI), `start ee,slack`. Skips the menu. The AI tier is just **Core vs EE** — all AI features (agents, writeback, reviews classifier) are bundled into `ee`. See `scripts/dev-profiles.json`. `ee` requires `github` so writeback opens PRs out of the box; profiles run their GitHub/dbt-repo + classifier reconcile + verify automatically.
 - **`start ee`** (also `start --ee`, "start with ee enabled", "enterprise"): The EE profile — provisions an Enterprise Edition license (`LIGHTDASH_LICENSE_KEY`), runs the EE migration/seed pass, and **bundles all AI features** (Copilot/agents, AI writeback, reviews classifier) plus the GitHub integration so writeback is turnkey. See **Enterprise Edition (EE) Mode** below. Auto-enabled if `.env.development.local` already contains `LIGHTDASH_LICENSE_KEY`. EE instances bootstrap from a dedicated EE base snapshot (`ld-shared_postgres_base_ee`) so they skip the slow EE migrate pass.
 - **`stop`**: Stop this instance's PM2 processes and PostgreSQL. Shared services stay running. Releases port slot.
@@ -282,7 +282,7 @@ Expect `Enterprise license for <site> is valid.` and no `no factory or provider`
 
 ### Step P: Instance profile selection (run BEFORE the fast path)
 
-`start` provisions an instance for a set of *capabilities* (EE, AI agents, AI writeback, GitHub, reviews classifier, Slack). Each capability declares its feature flags, env, 1Password secrets, reconcile steps, and verification in `scripts/dev-profiles.json`. Resolve the selection, get the user's approval to read 1Password, write the env, **then** run the fast path. This is what removes the "re-explain the GitHub/writeback setup every time" friction — it's encoded, not recalled.
+`start` provisions an instance for a set of *capabilities* (EE, AI agents, AI writeback, GitHub, reviews classifier, Slack). Each capability declares its feature flags, env, 1Password secrets, reconcile steps, and verification in `scripts/dev-profiles.json`. Resolve the selection, pull secrets from 1Password, write the env, **then** run the fast path. This is what removes the "re-explain the GitHub/writeback setup every time" friction — it's encoded, not recalled.
 
 **1. Determine requested profiles.**
 - If the user named them (e.g. `/docker-dev start ee`, `start ee,slack`, `start github`), use those. The AI tier is Core vs EE — `ee` bundles all AI features.
@@ -312,13 +312,7 @@ On confirmation, persist the choice two ways so it's never asked again:
 ```
 …and **record it in Claude memory** (the dev-env 1Password-sources memory): `env var → confirmed item name`, so the preference survives a fresh machine / lost local file. On future runs, skip the ask for any secret that's `saved:true` or already in memory. Shared items (license, GitHub App) are usually one unambiguous match — confirm once.
 
-**5. Approval gate (REQUIRED before reading 1Password).** With items confirmed, show the final read+apply summary and get explicit approval:
-```bash
-./scripts/dev-op-pull.sh list <PLAN.secrets...>     # prints the confirmed 1Password items + the env vars they populate
-```
-Present that list plus `PLAN.flags`, `PLAN.env`, and `PLAN.orgSettings` (AskUserQuestion or inline "Read these N items and apply these flags/env? [y/N]"). Do not proceed without a yes.
-
-**6. Apply the plan** (only after approval). Pull ALL secrets in **one** `pull` call — it signs in (Touch ID via desktop integration) and reads in the same invocation, because the `op` session does NOT carry across separate Bash calls. Run it yourself; only fall back to asking the user if it returns `FAIL: could not establish a 1Password session` (integration disabled).
+**5. Apply the plan.** Pull ALL secrets in **one** `pull` call — it signs in (Touch ID via desktop integration) and reads in the same invocation, because the `op` session does NOT carry across separate Bash calls. Run it yourself; only fall back to asking the user if it returns `FAIL: could not establish a 1Password session` (integration disabled).
 ```bash
 ./scripts/dev-op-pull.sh pull <PLAN.secrets...>          # self-signs-in, pulls into .env.development.local, verifies prefixes, never echoes values
 # write PLAN.env (static, non-secret) — e.g. AI_COPILOT_ENABLED=true, AI_DEFAULT_PROVIDER=anthropic
@@ -326,7 +320,7 @@ Present that list plus `PLAN.flags`, `PLAN.env`, and `PLAN.orgSettings` (AskUser
 ```
 > Do NOT split sign-in and pull across two Bash calls (the session is per-shell — the second call would report "not signed in"). `pull` handles both internally; if you must run `op` manually, chain it in one line: `op signin --account lightdash.1password.com && ./scripts/dev-op-pull.sh pull ...`.
 
-**7. Feature-flag opt-in (scan + pick extras).** Beyond the profile's flags, let the user turn on any other flag that isn't already enabled:
+**6. Feature-flag opt-in (scan + pick extras).** Beyond the profile's flags, let the user turn on any other flag that isn't already enabled:
 ```bash
 ./scripts/dev-feature-flags.sh scan          # TSV: value, ON/off, EnumName, description
 ```
@@ -336,12 +330,12 @@ Present the **disabled** flags (`./scripts/dev-feature-flags.sh list-disabled`) 
 ```
 ("Enabled" here means present in `LIGHTDASH_ENABLE_FEATURE_FLAGS` — that's what `FeatureFlagModel` resolves against. Code-level per-org/PostHog defaults aren't machine-readable, so the scan reports the local env state.)
 
-**8. Run the fast path** (now the env has the license + secrets + flags, so EE auto-detects and the EE base is used):
+**7. Run the fast path** (now the env has the license + secrets + flags, so EE auto-detects and the EE base is used):
 ```bash
 ./scripts/dev-fast-start.sh $( [ "$(echo "$PLAN" | python3 -c 'import sys,json;print(json.load(sys.stdin)["ee"])')" = "True" ] && echo --ee )
 ```
 
-**9. Post-start reconcile + verify** (after `READY:`) — **executable**, not hand-run crypto. First, if the GitHub account isn't known yet (first EE+github run), discover and remember it (same pattern as the secrets):
+**8. Post-start reconcile + verify** (after `READY:`) — **executable**, not hand-run crypto. First, if the GitHub account isn't known yet (first EE+github run), discover and remember it (same pattern as the secrets):
 ```bash
 ./scripts/dev-reconcile.sh list-accounts            # JSON of [{login, repos}] this App is installed on
 # ask the user which login is theirs (AskUserQuestion), then:
@@ -359,7 +353,7 @@ Then the reconcile steps:
 ```
 `dev-reconcile.sh` supplies the environment truths itself: the **running pm2 api's `LIGHTDASH_SECRET`** (the one the backend decrypts with — differs from the quote-wrapped env-file value), the PG connection from the claimed slot, and `pg`/crypto from the backend package (pnpm doesn't hoist `pg` to repo root). Map each `PLAN.reconcile` entry / `PLAN.orgSettings` / `PLAN.verify` to the calls above, then print a profile-aware **READY (writeback ✓ github ✓ reviews ✓ …)**. The *GitHub Integration & dbt Repo Setup* section explains each step and is the fallback when one reports `NEED` (e.g. a non-github dbt project to repoint).
 
-> Fast path for a known profile: `/docker-dev start ee` does steps 1–9 with no menu (and skips the discover/ask for any secret already confirmed). The multi-select is only for discovery when no profile is named.
+> Fast path for a known profile: `/docker-dev start ee` does steps 1–8 with no menu (and skips the discover/ask for any secret already confirmed). The multi-select is only for discovery when no profile is named.
 
 ### Fast path (do this first, every time)
 

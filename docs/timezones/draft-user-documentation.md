@@ -9,7 +9,9 @@ This guide is in two parts:
 
 If you only read one thing: **set your project timezone to the zone you actually report in, store timestamps as timezone-aware types in your warehouse, and use** `DATE` **for calendar values.** The rest is detail.
 
-> **Editor's note for reviewers.** Inline tags like *— [GLITCH-NNN](https://linear.app/lightdash/issue/GLITCH-NNN)* link this draft to unbuilt design work tracked in the [Timezone Handling Linear project](https://linear.app/lightdash/project/timezone-handling-4659dc553e25). They mark sentences whose accuracy depends on changes that haven't shipped yet. Strip them before publishing to the public docs site. The whole document corresponds to [GLITCH-457](https://linear.app/lightdash/issue/GLITCH-457).
+> **Editor's note for reviewers.** Inline tags like *— [GLITCH-NNN](https://linear.app/lightdash/issue/GLITCH-NNN)* link this draft to design work in the [Timezone Handling Linear project](https://linear.app/lightdash/project/timezone-handling-4659dc553e25). Strip all tags before publishing. The whole document corresponds to [GLITCH-457](https://linear.app/lightdash/issue/GLITCH-457).
+>
+> **Status (as of v2 Phases 1–2 shipped).** Most tagged features have now shipped behind the `TimezoneV2` flag and the tags are just citations to drop: GLITCH-449/509 (DST/ECharts), 451 (flag gating), 452 (DATE grain), 453 (fractional offsets), 454 (data-tz preview), 455/456/459 (pin/viewer UX + badge), 488 (embed `?timezone=`), 499 (MIN/MAX). **Two sections still describe v3 features that will NOT exist at the Phase-3 publish:** `wall_clock_timezone:` (GLITCH-463) and `${ldQueryTimezone}` custom-SQL templating (GLITCH-462/461). Per the v2 rollout playbook, **cut or gate those before publishing** — they are marked inline below. Mixed-zone guidance should fall back to the connection-level data timezone until GLITCH-463 ships.
 
 ---
 
@@ -105,6 +107,8 @@ columns:
 Use cases: audit logs, system timestamps, pre-converted values. The column will render exactly what the warehouse stores.
 
 ### `wall_clock_timezone:` — declare a non-UTC source zone for one column
+
+> ⚠️ **v3 — not yet available (GLITCH-463). Cut or gate this section before publishing.** Until it ships, mixed-zone naive data must use the connection-level **Data timezone**, which is warehouse-wide.
 
 If a specific column is stored as a naive timestamp in a known non-UTC zone (e.g., an event logged in Pacific time on a UTC-default warehouse):
 
@@ -288,6 +292,8 @@ When you embed a Lightdash chart in another product, the embed has no user — t
 For multi-tenant embeds, set `?timezone=` per session to render each tenant in its own zone — you don't need a separate chart per timezone. An unrecognised timezone value is rejected rather than silently ignored.
 
 ## Custom SQL with `${ldQueryTimezone}`
+
+> ⚠️ **v3 — not yet available (GLITCH-462; `${ldNow}` is GLITCH-461). Cut or gate this section before publishing.** There is no supported template variable for the resolved timezone in custom SQL yet.
 
 If you write custom SQL in a dimension or metric (for example, a custom time grain not covered by the built-in intervals), you can reference the resolved timezone using the template variable `${ldQueryTimezone}`:
 

@@ -17,6 +17,15 @@ export const reviewRootCauseLabels: Record<AiAgentRootCause, string> = {
     ambiguous: 'Ambiguous',
 };
 
+const DEFAULT_HIDDEN_ROOT_CAUSES: AiAgentRootCause[] = [
+    'agent_configuration',
+    'runtime_reliability',
+];
+
+export const DEFAULT_VISIBLE_ROOT_CAUSES = (
+    Object.keys(reviewRootCauseLabels) as AiAgentRootCause[]
+).filter((rootCause) => !DEFAULT_HIDDEN_ROOT_CAUSES.includes(rootCause));
+
 export const reviewRootCauseColors: Record<AiAgentRootCause, string> = {
     semantic_layer: 'indigo',
     project_context: 'violet',

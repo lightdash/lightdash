@@ -10,7 +10,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine-8/hooks';
+import { useDebouncedValue, useLocalStorage } from '@mantine-8/hooks';
 import {
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,
@@ -65,6 +65,7 @@ import SupportImpersonationPanel from '../components/UserSettings/SupportImperso
 import UserAttributesPanel from '../components/UserSettings/UserAttributesPanel';
 import UsersAndGroupsPanel from '../components/UserSettings/UsersAndGroupsPanel';
 import VerifiedDomainsPanel from '../components/UserSettings/VerifiedDomains/VerifiedDomainsPanel';
+import { ReviewRemediationWorkspace } from '../ee/features/aiCopilot/components/Admin/ReviewRemediationWorkspace';
 import { AiAgentsSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiAgentsSettingsPage';
 import { AiGeneralSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiGeneralSettingsPage';
 import { AiReviewsSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiReviewsSettingsPage';
@@ -83,11 +84,18 @@ import { TrackPage } from '../providers/Tracking/TrackingProvider';
 import { PageName } from '../types/Events';
 import classes from './Settings.module.css';
 
+const SETTINGS_SIDEBAR_COLLAPSED_STORAGE_KEY = 'settings:sidebar-collapsed';
+
 const Settings: FC = () => {
     const context = useSettingsContext();
     const sections = useSettingsNavigation(context);
 
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] =
+        useLocalStorage<boolean>({
+            key: SETTINGS_SIDEBAR_COLLAPSED_STORAGE_KEY,
+            defaultValue: false,
+            getInitialValueInEffect: false,
+        });
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 200);
 
@@ -570,6 +578,14 @@ const Settings: FC = () => {
                         </AiSettingsProviders>
                     ),
                 });
+                allowedRoutes.push({
+                    path: '/ai/reviews/:fingerprint',
+                    element: (
+                        <AiSettingsProviders>
+                            <ReviewRemediationWorkspace />
+                        </AiSettingsProviders>
+                    ),
+                });
             }
         }
 
@@ -707,6 +723,10 @@ const Settings: FC = () => {
             !matchPath(
                 { path: '/generalSettings/ai/reviews' },
                 location.pathname,
+            ) &&
+            !matchPath(
+                { path: '/generalSettings/ai/reviews/:fingerprint' },
+                location.pathname,
             )
         );
     }, [location.pathname]);
@@ -782,9 +802,7 @@ const Settings: FC = () => {
                                 color="gray"
                                 size="lg"
                                 onClick={() =>
-                                    setIsSidebarCollapsed(
-                                        (collapsed) => !collapsed,
-                                    )
+                                    setIsSidebarCollapsed(!isSidebarCollapsed)
                                 }
                                 aria-label={
                                     isSidebarCollapsed

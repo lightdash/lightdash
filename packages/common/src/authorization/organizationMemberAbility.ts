@@ -378,6 +378,10 @@ export const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
 
+        can('manage', 'ExternalConnection', {
+            organizationUuid: member.organizationUuid,
+        });
+
         can('manage', 'OrganizationDesign', {
             organizationUuid: member.organizationUuid,
         });

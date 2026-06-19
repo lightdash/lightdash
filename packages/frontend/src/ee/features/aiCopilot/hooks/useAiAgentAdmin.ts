@@ -14,6 +14,7 @@ import {
     type ApiAiAgentVerifiedArtifactsResponse,
     type ApiError,
     type ApiUpstreamDiffResponse,
+    type UpdateAiAgentReviewItemAssignee,
     type UpdateAiAgentReviewItemStatus,
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
@@ -250,6 +251,43 @@ export const useAiAgentReviewItemActivity = (
     });
 };
 
+const retestAiAgentReviewRemediation = async (fingerprint: string) => {
+    return lightdashApi<ApiAiAgentReviewItemActivityResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/review-items/${encodeURIComponent(
+            fingerprint,
+        )}/retest`,
+        method: 'POST',
+        body: undefined,
+    });
+};
+
+export const useRetestAiAgentReviewRemediation = () => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiAiAgentReviewItemActivityResponse['results'],
+        ApiError,
+        { fingerprint: string }
+    >({
+        mutationFn: ({ fingerprint }) =>
+            retestAiAgentReviewRemediation(fingerprint),
+        onSuccess: (_data, { fingerprint }) => {
+            showToastSuccess({ title: 'Re-testing the fix…' });
+            void queryClient.invalidateQueries({
+                queryKey: ['ai-agent-admin-review-item-activity', fingerprint],
+            });
+            void queryClient.invalidateQueries({
+                queryKey: ['ai-agent-admin-review-item', fingerprint],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({ title: 'Failed to retest', apiError: error });
+        },
+    });
+};
+
 const getAiAgentReviewItemPrDiff = async (fingerprint: string) => {
     return lightdashApi<ApiAiAgentReviewItemPrDiffResponse['results']>({
         version: 'v1',
@@ -399,6 +437,50 @@ export const useUpdateAiAgentReviewItemStatus = () => {
         onError: ({ error }) => {
             showToastApiError({
                 title: 'Failed to update review item',
+                apiError: error,
+            });
+        },
+    });
+};
+
+const updateAiAgentReviewItemAssignee = async (args: {
+    fingerprint: string;
+    assignedToUserUuid: string | null;
+}) => {
+    return lightdashApi<ApiAiAgentReviewItemResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/review-items/${encodeURIComponent(args.fingerprint)}/assignee`,
+        method: 'PATCH',
+        body: JSON.stringify({
+            assignedToUserUuid: args.assignedToUserUuid,
+        } satisfies UpdateAiAgentReviewItemAssignee),
+    });
+};
+
+export const useUpdateAiAgentReviewItemAssignee = () => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiAiAgentReviewItemResponse['results'],
+        ApiError,
+        { fingerprint: string; assignedToUserUuid: string | null }
+    >({
+        mutationFn: updateAiAgentReviewItemAssignee,
+        onSuccess: (updatedItem, { fingerprint }) => {
+            showToastSuccess({ title: 'Assignee updated' });
+            queryClient.setQueryData(
+                ['ai-agent-admin-review-item', fingerprint],
+                updatedItem,
+            );
+            updateCachedReviewItemLists(queryClient, updatedItem);
+            void queryClient.invalidateQueries({
+                queryKey: [AI_AGENT_ADMIN_REVIEW_ITEMS_QUERY_KEY],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to update assignee',
                 apiError: error,
             });
         },

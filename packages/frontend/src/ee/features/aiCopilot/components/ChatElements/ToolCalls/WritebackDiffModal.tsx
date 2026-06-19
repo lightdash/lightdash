@@ -1,4 +1,3 @@
-import { type CiChecks } from '@lightdash/common';
 import {
     Box,
     Center,
@@ -22,9 +21,7 @@ import DiffsWorkerUrl from '@pierre/diffs/worker/worker.js?worker&url';
 import { IconFileDiff } from '@tabler/icons-react';
 import { useMemo, useState, type CSSProperties, type FC } from 'react';
 import MantineModal from '../../../../../../components/common/MantineModal';
-import { useMergePullRequest } from '../../../hooks/useMergePullRequest';
 import { usePullRequestDiff } from '../../../hooks/usePullRequestDiff';
-import { isMergeable } from './pullRequestActions';
 
 // Tokenize with both Pierre themes; the diff renders via CSS `light-dark()`.
 // Writeback PRs touch dbt YAML/SQL plus the odd markdown doc, so cover those.
@@ -201,36 +198,15 @@ export const WritebackDiffModal: FC<{
     projectUuid: string;
     prUrl: string;
     commitSha: string | null;
-    ciChecks: CiChecks | null;
     opened: boolean;
     onClose: () => void;
-}> = ({ projectUuid, prUrl, commitSha, ciChecks, opened, onClose }) => {
+}> = ({ projectUuid, prUrl, commitSha, opened, onClose }) => {
     const { data, isInitialLoading, isError } = usePullRequestDiff(
         projectUuid,
         prUrl,
         commitSha,
         opened,
     );
-    const { mutate: merge, isLoading: isMerging } =
-        useMergePullRequest(projectUuid);
-
-    // Offer the merge from the viewer only while the PR is still actionable;
-    // disable (rather than hide) when not yet mergeable so the action is
-    // discoverable. Reviewing the diff is itself the confirmation, so this
-    // merges directly and closes on success.
-    const isOpen = !!ciChecks && !ciChecks.merged && ciChecks.state === 'open';
-    const mergeProps = isOpen
-        ? {
-              confirmLabel: 'Merge PR',
-              confirmDisabled: !isMergeable(ciChecks),
-              confirmLoading: isMerging,
-              onConfirm: () =>
-                  merge(
-                      { prUrl, sha: commitSha },
-                      { onSuccess: () => onClose() },
-                  ),
-          }
-        : {};
 
     return (
         <MantineModal
@@ -241,7 +217,6 @@ export const WritebackDiffModal: FC<{
             size="90%"
             bodyScrollAreaMaxHeight={BODY_MAX_HEIGHT}
             cancelLabel={false}
-            {...mergeProps}
         >
             {isInitialLoading ? (
                 <Center p="xl">

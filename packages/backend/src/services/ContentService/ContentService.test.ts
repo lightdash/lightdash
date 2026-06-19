@@ -2,8 +2,10 @@ import {
     ChartSourceType,
     ContentType,
     defineUserAbility,
+    KnexPaginatedData,
     OrganizationMemberRole,
     ProjectMemberRole,
+    SummaryContent,
 } from '@lightdash/common';
 import type { DeletedContentItem, SessionUser } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
@@ -43,8 +45,23 @@ const createUser = (): SessionUser =>
         ),
     }) as SessionUser;
 
-const createService = () => {
+const createService = ({
+    contentModel = {} as ContentModel,
+    spaceModel = {} as SpaceModel,
+    spacePermissionService = {} as SpacePermissionService,
+}: {
+    contentModel?: ContentModel;
+    spaceModel?: SpaceModel;
+    spacePermissionService?: SpacePermissionService;
+} = {}) => {
     const projectModel = {
+        getAllByOrganizationUuid: jest.fn().mockResolvedValue([
+            {
+                projectUuid,
+                name: 'Test project',
+                organizationUuid,
+            },
+        ]),
         getSummary: jest.fn().mockResolvedValue({
             organizationUuid,
             name: 'Test project',
@@ -71,14 +88,14 @@ const createService = () => {
         service: new ContentService({
             analytics: analyticsMock,
             projectModel: projectModel as unknown as ProjectModel,
-            contentModel: {} as ContentModel,
-            spaceModel: {} as SpaceModel,
+            contentModel,
+            spaceModel,
             spaceService: spaceService as unknown as SpaceService,
             dashboardService: dashboardService as unknown as DashboardService,
             savedChartService:
                 savedChartService as unknown as SavedChartService,
             savedSqlService: savedSqlService as unknown as SavedSqlService,
-            spacePermissionService: {} as SpacePermissionService,
+            spacePermissionService,
             appMoveService: undefined,
             appGenerateService: undefined,
         }),
@@ -214,6 +231,79 @@ describe('ContentService deleted content actions', () => {
                     { projectUuid },
                 );
             },
+        );
+    });
+});
+
+describe('ContentService.find', () => {
+    afterEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('filters content to spaces the service account user can view', async () => {
+        const accessibleSpaceUuid = 'accessible-space-uuid';
+        const privateSpaceUuid = 'private-space-uuid';
+        const findSummaryContents = jest.fn(
+            async (): Promise<KnexPaginatedData<SummaryContent[]>> => ({
+                pagination: {
+                    page: 1,
+                    pageSize: 50,
+                    totalPageCount: 1,
+                    totalResults: 0,
+                },
+                data: [],
+            }),
+        );
+        const getAccessibleSpaceUuids = jest
+            .fn()
+            .mockResolvedValue([accessibleSpaceUuid]);
+        const user = {
+            ...createUser(),
+            serviceAccount: {
+                uuid: 'service-account-uuid',
+                description: 'Embedded customer actions',
+            },
+        };
+        const deps = createService({
+            contentModel: {
+                findSummaryContents,
+            } as unknown as ContentModel,
+            spaceModel: {
+                find: jest
+                    .fn()
+                    .mockResolvedValue([
+                        { uuid: accessibleSpaceUuid },
+                        { uuid: privateSpaceUuid },
+                    ]),
+            } as unknown as SpaceModel,
+            spacePermissionService: {
+                getAccessibleSpaceUuids,
+                getDirectAccessUserUuids: jest.fn(),
+            } as unknown as SpacePermissionService,
+        });
+
+        await deps.service.find(
+            user,
+            {
+                projectUuids: [projectUuid],
+                contentTypes: [ContentType.SPACE],
+            },
+            {},
+            { page: 1, pageSize: 50 },
+        );
+
+        expect(getAccessibleSpaceUuids).toHaveBeenCalledWith('view', user, [
+            accessibleSpaceUuid,
+            privateSpaceUuid,
+        ]);
+        expect(findSummaryContents).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectUuids: [projectUuid],
+                spaceUuids: [accessibleSpaceUuid],
+                contentTypes: [ContentType.SPACE],
+            }),
+            expect.any(Object),
+            expect.objectContaining({ page: 1, pageSize: 50 }),
         );
     });
 });

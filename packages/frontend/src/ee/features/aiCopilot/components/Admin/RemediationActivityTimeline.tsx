@@ -185,6 +185,18 @@ export const RemediationActivityTimeline: FC<Props> = ({ reviewItem }) => {
                   : false,
     });
 
+    const workThreadUrl = useMemo(() => {
+        const r = reviewItem.remediation;
+        if (
+            r?.previewProjectUuid &&
+            r.previewAgentUuid &&
+            r.previewThreadUuid
+        ) {
+            return `/projects/${r.previewProjectUuid}/ai-agents/${r.previewAgentUuid}/threads/${r.previewThreadUuid}`;
+        }
+        return null;
+    }, [reviewItem.remediation]);
+
     const rows = useMemo<TimelineRow[]>(() => {
         if (!data || data.events.length === 0) {
             return [];
@@ -200,10 +212,12 @@ export const RemediationActivityTimeline: FC<Props> = ({ reviewItem }) => {
                 ...eventRow(event, reviewItem),
             };
         });
-        return data.liveState
+        const liveRows = data.liveState
             ? [...eventRows, liveRow(data.liveState, data.liveMessage)]
             : eventRows;
-    }, [data, reviewItem]);
+        if (!workThreadUrl) return liveRows;
+        return liveRows;
+    }, [data, reviewItem, workThreadUrl]);
 
     if (rows.length === 0) {
         return null;

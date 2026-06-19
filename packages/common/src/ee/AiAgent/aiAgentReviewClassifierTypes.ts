@@ -292,6 +292,7 @@ export type AiAgentFindingReviewStatus =
     | 'needs_more_evidence';
 
 export type AiAgentReviewItemStatus =
+    | 'triage'
     | 'open'
     | 'in_progress'
     | 'resolved'
@@ -369,6 +370,7 @@ export type AiAgentReviewRemediation = {
     sourceThreadUuid: string;
     sourceProjectUuid: string;
     sourceAgentUuid: string;
+    workThreadUuid: string | null;
     pullRequestUuid: string | null;
     linkedPrUrl: string | null;
     previewProjectUuid: string | null;
@@ -647,6 +649,10 @@ export type UpdateAiAgentReviewItemStatus = {
     dismissedReason: AiAgentReviewItemDismissedReason | null;
 };
 
+export type UpdateAiAgentReviewItemAssignee = {
+    assignedToUserUuid: string | null;
+};
+
 export type ApiAiAgentReviewItemResponse = ApiSuccess<AiAgentReviewItemSummary>;
 
 /**
@@ -709,6 +715,10 @@ export type AiAgentReviewRemediationEventDetail =
           eventType: 'pr_opened';
           payload: { prUrl: string; prNumber: number | null };
       }
+    | {
+          eventType: 'pr_updated';
+          payload: { prUrl: string | null };
+      }
     | { eventType: 'preview_compiled'; payload: { previewProjectUuid: string } }
     | {
           eventType: 'verification_completed';
@@ -743,6 +753,12 @@ export type AiAgentReviewItemActivity = {
     liveState: AiAgentReviewRemediationLiveState | null;
     /** Streaming progress text for the live row (writeback step messages). */
     liveMessage: string | null;
+    /**
+     * True when the PR changed after the latest verdict — derived from event
+     * ordering (latest pr_opened/pr_updated/writeback_completed occurred after
+     * the latest verification_completed). Drives the "Retest" prompt.
+     */
+    verdictStale: boolean;
 };
 
 export type ApiAiAgentReviewItemActivityResponse =

@@ -381,7 +381,9 @@ type AiAgentServiceDependencies = {
     pullRequestsModel: Pick<PullRequestsModel, 'findByAiThreadUuid' | 'find'>;
     aiAgentReviewClassifierModel: Pick<
         AiAgentReviewClassifierModel,
-        'findReviewRemediationByPreviewThread'
+        | 'findReviewRemediationByPreviewThread'
+        | 'findReviewRemediationByWorkThread'
+        | 'createRemediationEvent'
     >;
     prometheusMetrics?: PrometheusMetrics;
 };
@@ -634,7 +636,9 @@ export class AiAgentService extends BaseService {
 
     private readonly aiAgentReviewClassifierModel: Pick<
         AiAgentReviewClassifierModel,
-        'findReviewRemediationByPreviewThread'
+        | 'findReviewRemediationByPreviewThread'
+        | 'findReviewRemediationByWorkThread'
+        | 'createRemediationEvent'
     >;
 
     private readonly aiAgentMcpRuntimeClient: AiAgentMcpRuntimeClient;
@@ -3983,12 +3987,14 @@ export class AiAgentService extends BaseService {
             agentUuid,
             threadUuid,
             enableSqlMode,
+            autoApproveSql,
             toolHints,
             runtimeOptions,
         }: {
             agentUuid: string;
             threadUuid: string;
             enableSqlMode: boolean;
+            autoApproveSql?: boolean;
             toolHints: string[];
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
         },
@@ -4040,6 +4046,7 @@ export class AiAgentService extends BaseService {
                     stream: true,
                     canManageAgent,
                     enableSqlMode,
+                    autoApproveSql,
                     toolHints,
                     runtimeOptions,
                 },
@@ -4266,10 +4273,23 @@ export class AiAgentService extends BaseService {
             agentUuid,
             threadUuid,
             autoApproveSql = false,
+            toolHints,
+            forceToolHints,
+            onStepProgress,
+            suppressWritebackPreview,
         }: {
             agentUuid: string;
             threadUuid: string;
             autoApproveSql?: boolean;
+            toolHints?: string[];
+            forceToolHints?: boolean;
+            onStepProgress?: (
+                progress: string,
+                toolName?: string,
+                progressId?: string,
+                progressStatus?: 'in_progress' | 'complete' | 'error',
+            ) => void;
+            suppressWritebackPreview?: boolean;
         },
     ): Promise<string> {
         try {
@@ -4307,6 +4327,10 @@ export class AiAgentService extends BaseService {
                     // Non-stream callers (eval, etc.) preserve flag-only gating.
                     enableSqlMode: true,
                     autoApproveSql,
+                    toolHints,
+                    forceToolHints,
+                    onSlackStepProgress: onStepProgress,
+                    suppressWritebackPreview,
                 },
             );
             return response;
@@ -5437,6 +5461,13 @@ export class AiAgentService extends BaseService {
         return { relevantVerifiedAnswers: verifiedArtifacts };
     }
 
+    static stripSlackMentions(text: string): string {
+        return text.replaceAll(/<@U\d+\w*?>/g, '').trim();
+    }
+
+    private static readonly EMPTY_PROMPT_WELCOME =
+        "Hi! 👋 What would you like to know? Ask me a question about your data and I'll take a look.";
+
     static createRelevantArtifactsMessage(
         artifacts: {
             chartConfig: Record<string, unknown>;
@@ -5654,12 +5685,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const messagesWithToolCalls = await Promise.all(
             threadMessages.map(async (message, index) => {
-                const messages: ModelMessage[] = [
-                    {
-                        role: 'user',
-                        content: message.prompt,
-                    } satisfies UserModelMessage,
-                ];
+                const messages: ModelMessage[] =
+                    message.prompt.trim().length > 0
+                        ? [
+                              {
+                                  role: 'user',
+                                  content: message.prompt,
+                              } satisfies UserModelMessage,
+                          ]
+                        : [];
 
                 const pinnedContextMessage =
                     AiAgentService.createPinnedContextMessage(
@@ -5750,6 +5784,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const history = messagesWithToolCalls.flat();
 
         if (!options.compaction) {
+            if (history.length === 0) {
+                return [
+                    {
+                        role: 'user',
+                        content:
+                            "The user hasn't asked anything yet. Greet them and ask what they'd like to know about their data.",
+                    } satisfies UserModelMessage,
+                ];
+            }
             return history;
         }
 
@@ -5781,6 +5824,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 progressStatus?: 'in_progress' | 'complete' | 'error',
             ) => void;
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
+            suppressWritebackPreview?: boolean;
         },
     ) {
         const { projectUuid, organizationUuid } = prompt;
@@ -6021,6 +6065,31 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         onProgress: writebackProgressCallback,
                     }),
             );
+
+            // Build-fix seam: if this thread is a review remediation's work
+            // thread, every commit it lands (the initial run and each Continue
+            // PR turn) must be reflected on the remediation so the Test-fix
+            // verdict is marked stale (verdict staleness is derived from event
+            // ordering). null for ordinary writeback threads — a no-op.
+            const reviewRemediation = organizationUuid
+                ? await this.aiAgentReviewClassifierModel.findReviewRemediationByWorkThread(
+                      {
+                          organizationUuid,
+                          workThreadUuid: prompt.threadUuid,
+                      },
+                  )
+                : null;
+            if (reviewRemediation && result.prUrl) {
+                await this.aiAgentReviewClassifierModel.createRemediationEvent({
+                    remediationUuid: reviewRemediation.uuid,
+                    organizationUuid: reviewRemediation.organizationUuid,
+                    event: {
+                        eventType: 'pr_updated',
+                        payload: { prUrl: result.prUrl },
+                    },
+                });
+            }
+
             // On a successful PR open/update, add a green-tick reaction to the
             // user's original Slack mention so they see the outcome at a
             // glance without scrolling through the agent's reply. Best-effort
@@ -6080,7 +6149,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             // CI-posted URL. Returns null for unsupported projects (e.g.
             // CLI-deployed) or on any failure — those surface no preview.
             let previewUrl: string | null = null;
-            if (result.prUrl) {
+            if (
+                result.prUrl &&
+                !options?.suppressWritebackPreview &&
+                !reviewRemediation
+            ) {
                 const preview =
                     await this.writebackPreviewService.createPreviewForPullRequest(
                         {
@@ -6136,8 +6209,28 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     );
                 }
             };
-        // The installation-browse path (buildRepoFs) is GitHub-App-only.
         const onRepoFsTiming = makeRepoFsTiming('github');
+        // The browse path supports GitHub (installation, user+org union) and
+        // GitLab (org install, single token). Determine the project's provider
+        // once so the listing/mounting/search callbacks pick the right backend.
+        let repoProviderPromise: Promise<'github' | 'gitlab' | null> | null =
+            null;
+        const getRepoProvider = () => {
+            if (!repoProviderPromise) {
+                repoProviderPromise = (async () => {
+                    const project = await this.projectModel.get(projectUuid);
+                    switch (project.dbtConnection.type) {
+                        case DbtProjectType.GITHUB:
+                            return 'github';
+                        case DbtProjectType.GITLAB:
+                            return 'gitlab';
+                        default:
+                            return null;
+                    }
+                })();
+            }
+            return repoProviderPromise;
+        };
         let installationAccessPromise: ReturnType<
             typeof this.aiWritebackService.getInstallationRepoReadAccess
         > | null = null;
@@ -6150,6 +6243,21 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     });
             }
             return installationAccessPromise;
+        };
+        let gitlabAccessPromise: ReturnType<
+            typeof this.aiWritebackService.getGitlabInstallationRepoReadAccess
+        > | null = null;
+        const getGitlabAccess = () => {
+            if (!gitlabAccessPromise) {
+                gitlabAccessPromise =
+                    this.aiWritebackService.getGitlabInstallationRepoReadAccess(
+                        {
+                            user,
+                            projectUuid,
+                        },
+                    );
+            }
+            return gitlabAccessPromise;
         };
 
         const buildDbtRepoFs = async (): Promise<RepoFs> => {
@@ -6173,6 +6281,24 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             owner: string,
             repo: string,
         ): Promise<RepoFs> => {
+            if ((await getRepoProvider()) === 'gitlab') {
+                const access = await getGitlabAccess();
+                const { branch, token } = await access.resolveRepoAccess(
+                    owner,
+                    repo,
+                );
+                return new RepoFs(
+                    createGitlabRepoSource({
+                        owner,
+                        repo,
+                        branch,
+                        token,
+                        hostDomain: access.hostDomain,
+                        // No subPath => the whole repo is readable, root-relative.
+                        onTiming: makeRepoFsTiming('gitlab'),
+                    }),
+                );
+            }
             const access = await getInstallationAccess();
             // The token is per-repo: org-installation repos read with the
             // installation token, the user's own repos with their user token.
@@ -6205,6 +6331,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         project.dbtConnection.type === DbtProjectType.GITLAB;
                     return MountingRepoFileSystem.create({
                         listRepos: async () => {
+                            if ((await getRepoProvider()) === 'gitlab') {
+                                this.prometheusMetrics?.incrementRepoFsGitlabRequest(
+                                    'list',
+                                );
+                                return (await getGitlabAccess()).listRepos();
+                            }
                             this.prometheusMetrics?.incrementRepoFsGithubRequest(
                                 'list',
                             );
@@ -6214,6 +6346,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         buildDbtRepoFs,
                         buildRepoFs,
                         searchOwner: async (owner, query) => {
+                            // GitLab's RepoSource has no server-side code search
+                            // yet; the shell's grep falls back to reading files,
+                            // so there are no owner-wide search hits to surface.
+                            if ((await getRepoProvider()) === 'gitlab') {
+                                return [];
+                            }
                             const { installationToken, userToken } =
                                 await getInstallationAccess();
                             // Code search is token-scoped: the installation
@@ -6358,6 +6496,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             canManageAgent: boolean;
             enableSqlMode?: boolean;
             autoApproveSql?: boolean;
+            // Set by the review Build-fix flow, which owns preview compilation
+            // and verification itself — the editDbtProject tool must not also
+            // spin up its own preview project.
+            suppressWritebackPreview?: boolean;
+            // Forces the first tool hint on the opening step instead of merely
+            // suggesting it (review Build-fix guarantees editDbtProject runs).
+            forceToolHints?: boolean;
             toolHints?: string[];
             onSlackStepProgress?: (
                 progress: string,
@@ -6395,6 +6540,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             canManageAgent: boolean;
             enableSqlMode?: boolean;
             autoApproveSql?: boolean;
+            suppressWritebackPreview?: boolean;
+            forceToolHints?: boolean;
             toolHints?: string[];
             onSlackStepProgress?: (
                 progress: string,
@@ -6491,6 +6638,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                           })
                     : undefined),
             runtimeOptions: options.runtimeOptions,
+            suppressWritebackPreview: options.suppressWritebackPreview,
         });
 
         const enableSqlMode = options.enableSqlMode ?? false;
@@ -6707,6 +6855,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 .replace(/\/+$/, '');
             repoFsRoot = raw === '' ? '.' : raw;
         }
+        // GitLab's repo source has no server-side code search, so the prompt
+        // must steer the agent off `search` (it returns nothing) toward a
+        // scoped single-repo grep. GitHub supports it.
+        const repoFsSupportsCodeSearch =
+            promptProject.dbtConnection.type !== DbtProjectType.GITLAB;
 
         const canUseContentTools =
             agentRevampEnabled &&
@@ -6761,6 +6914,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enablePreviewDeploySetup: aiPreviewDeploySetupEnabled,
             enableRepoDiscovery: repoDiscoveryEnabled,
             repoFsRoot,
+            repoFsSupportsCodeSearch,
             canRunSql,
             autoApproveSql: options.autoApproveSql ?? false,
             autoApproveSqlUserUuid: options.autoApproveSql
@@ -6780,6 +6934,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             siteUrl: this.lightdashConfig.siteUrl,
             canManageAgent: options.canManageAgent,
             toolHints: options.toolHints ?? [],
+            forceToolHints: options.forceToolHints ?? false,
         };
 
         const mcpToolSetup: AgentMcpToolSetup =
@@ -7196,12 +7351,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             );
         }
 
-        const slackTagRegex = /<@U\d+\w*?>/g;
-
         const uuid = await this.aiAgentModel.createSlackPrompt({
             threadUuid,
             createdByUserUuid: data.userUuid,
-            prompt: data.prompt.replaceAll(slackTagRegex, '').trim(),
+            prompt: AiAgentService.stripSlackMentions(data.prompt),
             slackUserId: data.slackUserId,
             slackChannelId: data.slackChannelId,
             promptSlackTs: data.promptSlackTs,
@@ -8188,6 +8341,18 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         let agent: AiAgent | undefined;
         if (thread.agentUuid) {
             agent = await this.getAgent(user, thread.agentUuid);
+        }
+
+        if (slackPrompt.prompt.trim().length === 0) {
+            const welcomeText = AiAgentService.EMPTY_PROMPT_WELCOME;
+            await this.slackClient.updateMessage({
+                organizationUuid: slackPrompt.organizationUuid,
+                text: welcomeText,
+                blocks: getMarkdownBlocks(welcomeText),
+                channelId: slackPrompt.slackChannelId,
+                messageTs: slackPrompt.response_slack_ts,
+            });
+            return;
         }
 
         let response: string | undefined;
@@ -11231,6 +11396,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         botId: context.botId,
                     });
                 }
+            }
+
+            if (
+                AiAgentService.stripSlackMentions(event.text ?? '').length === 0
+            ) {
+                const welcomeText = AiAgentService.EMPTY_PROMPT_WELCOME;
+                await say({
+                    username: agentConfig.name,
+                    thread_ts: event.thread_ts ?? event.ts,
+                    text: welcomeText,
+                    blocks: getMarkdownBlocks(welcomeText),
+                });
+                return;
             }
 
             [slackPromptUuid, createdThread] = await this.createSlackPrompt({

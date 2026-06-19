@@ -1660,6 +1660,514 @@
                 ],
                 "type": "object"
             },
+            "ExternalConnectionAuthType": {
+                "type": "string",
+                "enum": ["none", "api_key", "bearer_token"]
+            },
+            "ExternalConnectionMethod": {
+                "type": "string",
+                "enum": ["GET", "POST"]
+            },
+            "ApiKeyLocation": {
+                "type": "string",
+                "enum": ["header", "query"]
+            },
+            "ExternalConnection": {
+                "properties": {
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "hasSecret": {
+                        "type": "boolean"
+                    },
+                    "apiKeyLocation": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ApiKeyLocation"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "apiKeyName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "rateLimitPerMinute": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "timeoutMs": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "requestMaxBytes": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "responseMaxBytes": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "allowedContentTypes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "allowedMethods": {
+                        "items": {
+                            "$ref": "#/components/schemas/ExternalConnectionMethod"
+                        },
+                        "type": "array"
+                    },
+                    "allowedPathPrefixes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "origin": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ExternalConnectionAuthType"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "externalConnectionUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "updatedAt",
+                    "createdAt",
+                    "updatedByUserUuid",
+                    "createdByUserUuid",
+                    "hasSecret",
+                    "apiKeyLocation",
+                    "apiKeyName",
+                    "rateLimitPerMinute",
+                    "timeoutMs",
+                    "requestMaxBytes",
+                    "responseMaxBytes",
+                    "allowedContentTypes",
+                    "allowedMethods",
+                    "allowedPathPrefixes",
+                    "origin",
+                    "type",
+                    "name",
+                    "organizationUuid",
+                    "projectUuid",
+                    "externalConnectionUuid"
+                ],
+                "type": "object",
+                "description": "READ shape returned by the API — NEVER includes the secret value."
+            },
+            "ApiExternalConnectionResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ExternalConnection"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "CreateExternalConnection": {
+                "properties": {
+                    "secret": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "apiKeyLocation": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ApiKeyLocation"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "apiKeyName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "rateLimitPerMinute": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "timeoutMs": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "requestMaxBytes": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "responseMaxBytes": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "allowedContentTypes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "allowedMethods": {
+                        "items": {
+                            "$ref": "#/components/schemas/ExternalConnectionMethod"
+                        },
+                        "type": "array"
+                    },
+                    "allowedPathPrefixes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "origin": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ExternalConnectionAuthType"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "allowedContentTypes",
+                    "allowedMethods",
+                    "allowedPathPrefixes",
+                    "origin",
+                    "type",
+                    "name"
+                ],
+                "type": "object",
+                "description": "WRITE shape — includes the secret."
+            },
+            "ApiExternalConnectionListResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/ExternalConnection"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "Partial_CreateExternalConnection_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ExternalConnectionAuthType"
+                    },
+                    "origin": {
+                        "type": "string"
+                    },
+                    "allowedPathPrefixes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "allowedMethods": {
+                        "items": {
+                            "$ref": "#/components/schemas/ExternalConnectionMethod"
+                        },
+                        "type": "array"
+                    },
+                    "allowedContentTypes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "responseMaxBytes": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "requestMaxBytes": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "timeoutMs": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "rateLimitPerMinute": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "apiKeyName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "apiKeyLocation": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ApiKeyLocation"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "secret": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "UpdateExternalConnection": {
+                "$ref": "#/components/schemas/Partial_CreateExternalConnection_",
+                "description": "Omitted/blank `secret` means the stored secret is left unchanged."
+            },
+            "ApiAppExternalConnectionListResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "properties": {
+                                "connection": {
+                                    "$ref": "#/components/schemas/ExternalConnection"
+                                },
+                                "alias": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["connection", "alias"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ExternalFetchResponse": {
+                "properties": {
+                    "truncated": {
+                        "type": "boolean"
+                    },
+                    "body": {},
+                    "contentType": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["truncated", "body", "contentType", "status"],
+                "type": "object"
+            },
+            "ApiExternalFetchResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ExternalFetchResponse"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "Record_string.string_": {
+                "properties": {},
+                "additionalProperties": {
+                    "type": "string"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ExternalFetchRequest": {
+                "properties": {
+                    "body": {},
+                    "query": {
+                        "$ref": "#/components/schemas/Record_string.string_"
+                    },
+                    "path": {
+                        "type": "string"
+                    },
+                    "method": {
+                        "$ref": "#/components/schemas/ExternalConnectionMethod"
+                    },
+                    "connectionAlias": {
+                        "type": "string"
+                    }
+                },
+                "required": ["path", "connectionAlias"],
+                "type": "object"
+            },
+            "ApiTestExternalConnectionResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ExternalFetchResponse"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiTestExternalConnectionRequest": {
+                "properties": {
+                    "body": {},
+                    "query": {
+                        "$ref": "#/components/schemas/Record_string.string_"
+                    },
+                    "path": {
+                        "type": "string"
+                    },
+                    "method": {
+                        "type": "string",
+                        "enum": ["GET", "POST"]
+                    }
+                },
+                "required": ["path"],
+                "type": "object"
+            },
+            "ExternalConnectionSampleRequest": {
+                "properties": {
+                    "body": {},
+                    "query": {
+                        "$ref": "#/components/schemas/Record_string.string_"
+                    },
+                    "path": {
+                        "type": "string"
+                    },
+                    "method": {
+                        "$ref": "#/components/schemas/ExternalConnectionMethod"
+                    }
+                },
+                "required": ["path", "method"],
+                "type": "object",
+                "description": "The request that produced a sample (stored alongside the response)."
+            },
+            "ExternalConnectionSample": {
+                "properties": {
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "response": {},
+                    "request": {
+                        "$ref": "#/components/schemas/ExternalConnectionSampleRequest"
+                    },
+                    "label": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "externalConnectionUuid": {
+                        "type": "string"
+                    },
+                    "sampleUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "createdAt",
+                    "response",
+                    "request",
+                    "label",
+                    "externalConnectionUuid",
+                    "sampleUuid"
+                ],
+                "type": "object",
+                "description": "READ shape for a persisted sample row."
+            },
+            "ApiSaveExternalConnectionSampleResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ExternalConnectionSample"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSaveExternalConnectionSampleRequest": {
+                "properties": {
+                    "response": {},
+                    "request": {
+                        "$ref": "#/components/schemas/ExternalConnectionSampleRequest"
+                    },
+                    "label": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["response", "request"],
+                "type": "object"
+            },
+            "ApiListExternalConnectionSamplesResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/ExternalConnectionSample"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "Pick_Organization.name-or-createdAt-or-organizationUuid_": {
                 "properties": {
                     "name": {
@@ -2075,6 +2583,23 @@
                 "required": ["agentUuid", "type"],
                 "type": "object"
             },
+            "EmbedJwtContentApiAccess": {
+                "properties": {
+                    "serviceAccountUserUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["apiAccess"],
+                        "nullable": false
+                    }
+                },
+                "required": ["serviceAccountUserUuid", "type"],
+                "type": "object"
+            },
             "EmbedWriteActions": {
                 "properties": {
                     "spaceUuid": {
@@ -2140,6 +2665,9 @@
                             },
                             {
                                 "$ref": "#/components/schemas/EmbedJwtContentAiAgent"
+                            },
+                            {
+                                "$ref": "#/components/schemas/EmbedJwtContentApiAccess"
                             }
                         ]
                     }
@@ -3222,14 +3750,6 @@
                     "MINUTE_OF_HOUR_NUM"
                 ],
                 "type": "string"
-            },
-            "Record_string.string_": {
-                "properties": {},
-                "additionalProperties": {
-                    "type": "string"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
             },
             "CustomFormatType": {
                 "enum": [
@@ -5863,6 +6383,11 @@
                     "minOffset": {
                         "type": "string",
                         "description": "Offset from minimum value"
+                    },
+                    "minInterval": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Minimum interval between ticks (e.g. 1 to force integer ticks)"
                     },
                     "max": {
                         "type": "string",
@@ -9776,8 +10301,27 @@
                 "type": "string",
                 "enum": ["opus", "sonnet", "haiku"]
             },
+            "AppExternalConnectionReference": {
+                "properties": {
+                    "alias": {
+                        "type": "string"
+                    },
+                    "externalConnectionUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["alias", "externalConnectionUuid"],
+                "type": "object",
+                "description": "An external connection attached to a generation request. Linked to the app\n(under `alias`) server-side at creation — before the catalog stage — so the\ngenerated app can call it via `client.externalFetch(alias, …)`. Validated\n(must belong to the app's project) and gated on the external-access flag."
+            },
             "GenerateAppRequestBody": {
                 "properties": {
+                    "externalConnections": {
+                        "items": {
+                            "$ref": "#/components/schemas/AppExternalConnectionReference"
+                        },
+                        "type": "array"
+                    },
                     "designUuid": {
                         "type": "string",
                         "nullable": true
@@ -15713,6 +16257,10 @@
                         "type": "array",
                         "description": "Tool names hinted by the user when they composed the message (via\nsuggestion chips that carry a tool id). agentV2 appends a soft hint\nto the user message before sending it to the LLM. Transient — never\npersisted."
                     },
+                    "autoApproveSql": {
+                        "type": "boolean",
+                        "description": "Skips the SQL human-approval gate for this stream. Used by the review\nremediation workspace so Continue PR turns run frictionlessly. Defaults\nto false — normal chat still asks the user to approve SQL."
+                    },
                     "enableSqlMode": {
                         "type": "boolean",
                         "description": "Per-thread toggle that decides whether the agent gets access to the\nrunSql / listWarehouseTables / describeWarehouseTable tools for this\nstream. Frontend tracks the toggle in its slice; passed in on every\nstream call. Falls back to `false` when omitted (e.g. older clients,\nAPI callers) so the safer \"semantic layer only\" mode is the default."
@@ -20603,6 +21151,10 @@
             },
             "GitRepo": {
                 "properties": {
+                    "provider": {
+                        "type": "string",
+                        "enum": ["github", "gitlab"]
+                    },
                     "defaultBranch": {
                         "type": "string"
                     },
@@ -20855,6 +21407,7 @@
             "AiAgentReviewItemStatus": {
                 "type": "string",
                 "enum": [
+                    "triage",
                     "open",
                     "in_progress",
                     "resolved",
@@ -21177,6 +21730,10 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "workThreadUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "sourceAgentUuid": {
                         "type": "string"
                     },
@@ -21216,6 +21773,7 @@
                     "previewProjectUuid",
                     "linkedPrUrl",
                     "pullRequestUuid",
+                    "workThreadUuid",
                     "sourceAgentUuid",
                     "sourceProjectUuid",
                     "sourceThreadUuid",
@@ -21826,6 +22384,27 @@
                         "properties": {
                             "payload": {
                                 "properties": {
+                                    "prUrl": {
+                                        "type": "string",
+                                        "nullable": true
+                                    }
+                                },
+                                "required": ["prUrl"],
+                                "type": "object"
+                            },
+                            "eventType": {
+                                "type": "string",
+                                "enum": ["pr_updated"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["payload", "eventType"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "payload": {
+                                "properties": {
                                     "previewProjectUuid": {
                                         "type": "string"
                                     }
@@ -21978,6 +22557,10 @@
             },
             "AiAgentReviewItemActivity": {
                 "properties": {
+                    "verdictStale": {
+                        "type": "boolean",
+                        "description": "True when the PR changed after the latest verdict — derived from event\nordering (latest pr_opened/pr_updated/writeback_completed occurred after\nthe latest verification_completed). Drives the \"Retest\" prompt."
+                    },
                     "liveMessage": {
                         "type": "string",
                         "nullable": true,
@@ -21998,7 +22581,12 @@
                         "type": "array"
                     }
                 },
-                "required": ["liveMessage", "liveState", "events"],
+                "required": [
+                    "verdictStale",
+                    "liveMessage",
+                    "liveState",
+                    "events"
+                ],
                 "type": "object"
             },
             "ApiSuccess_AiAgentReviewItemActivity_": {
@@ -22115,6 +22703,16 @@
                     }
                 },
                 "required": ["dismissedReason", "status"],
+                "type": "object"
+            },
+            "UpdateAiAgentReviewItemAssignee": {
+                "properties": {
+                    "assignedToUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["assignedToUserUuid"],
                 "type": "object"
             },
             "AiAgentReviewItemWritebackPreview": {
@@ -23250,9 +23848,6 @@
             },
             "Pick_CreateRedshiftCredentials-or-CreatePostgresCredentials-or-CreateSnowflakeCredentials-or-CreateTrinoCredentials-or-CreateClickhouseCredentials.type-or-user_": {
                 "properties": {
-                    "user": {
-                        "type": "string"
-                    },
                     "type": {
                         "anyOf": [
                             {
@@ -23271,9 +23866,12 @@
                                 "$ref": "#/components/schemas/WarehouseTypes.CLICKHOUSE"
                             }
                         ]
+                    },
+                    "user": {
+                        "type": "string"
                     }
                 },
-                "required": ["user", "type"],
+                "required": ["type", "user"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -23396,43 +23994,43 @@
             },
             "Pick_CreateRedshiftCredentials.type-or-user-or-password_": {
                 "properties": {
-                    "user": {
-                        "type": "string"
-                    },
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.REDSHIFT"
+                    },
+                    "user": {
+                        "type": "string"
                     },
                     "password": {
                         "type": "string"
                     }
                 },
-                "required": ["user", "type", "password"],
+                "required": ["type", "user", "password"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "Pick_CreatePostgresCredentials.type-or-user-or-password_": {
                 "properties": {
-                    "user": {
-                        "type": "string"
-                    },
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.POSTGRES"
+                    },
+                    "user": {
+                        "type": "string"
                     },
                     "password": {
                         "type": "string"
                     }
                 },
-                "required": ["user", "type", "password"],
+                "required": ["type", "user", "password"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "Pick_CreateSnowflakeCredentials.type-or-user-or-password-or-authenticationType-or-refreshToken_": {
                 "properties": {
-                    "user": {
-                        "type": "string"
-                    },
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.SNOWFLAKE"
+                    },
+                    "user": {
+                        "type": "string"
                     },
                     "password": {
                         "type": "string"
@@ -23444,39 +24042,39 @@
                         "$ref": "#/components/schemas/SnowflakeAuthenticationType"
                     }
                 },
-                "required": ["user", "type"],
+                "required": ["type", "user"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "Pick_CreateTrinoCredentials.type-or-user-or-password_": {
                 "properties": {
-                    "user": {
-                        "type": "string"
-                    },
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.TRINO"
+                    },
+                    "user": {
+                        "type": "string"
                     },
                     "password": {
                         "type": "string"
                     }
                 },
-                "required": ["user", "type", "password"],
+                "required": ["type", "user", "password"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "Pick_CreateClickhouseCredentials.type-or-user-or-password_": {
                 "properties": {
-                    "user": {
-                        "type": "string"
-                    },
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.CLICKHOUSE"
+                    },
+                    "user": {
+                        "type": "string"
                     },
                     "password": {
                         "type": "string"
                     }
                 },
-                "required": ["user", "type", "password"],
+                "required": ["type", "user", "password"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -39814,7 +40412,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3189.0",
+        "version": "0.3200.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -46886,6 +47484,56 @@
                 ]
             }
         },
+        "/api/v1/aiAgents/admin/review-items/{fingerprint}/assignee": {
+            "patch": {
+                "operationId": "updateAiAgentReviewItemAssignee",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentReviewItemResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Set the assignee on an AI agent review item",
+                "summary": "Update AI agent review item assignee",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "fingerprint",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateAiAgentReviewItemAssignee"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/aiAgents/admin/review-items/{fingerprint}/writeback": {
             "post": {
                 "operationId": "createAiAgentReviewItemWriteback",
@@ -46913,6 +47561,46 @@
                 },
                 "description": "Open a writeback pull request for a review item (semantic-layer or\nproject-context root cause)",
                 "summary": "Create AI agent review item writeback PR",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "fingerprint",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/aiAgents/admin/review-items/{fingerprint}/retest": {
+            "post": {
+                "operationId": "retestAiAgentReviewRemediation",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentReviewItemActivityResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Re-verify a remediation after its PR changed: recompiles the existing\npreview and re-runs the Test-fix verification thread.",
+                "summary": "Retest an AI agent review remediation",
                 "security": [],
                 "parameters": [
                     {

@@ -202,6 +202,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
         ? getReviewReasoningText(selectedReviewItem)
         : null;
     const [showValidation, setShowValidation] = useState(false);
+    const [showConversation, setShowConversation] = useState(true);
     const previewProjectUuid =
         selectedReviewItem?.remediation?.previewProjectUuid ?? null;
 
@@ -679,13 +680,41 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                             threadUuid={threadUuid}
                         />
                     )}
-                    <AgentChatDisplay
-                        thread={threadData}
-                        projectUuid={projectUuid}
-                        agentUuid={agentUuid}
-                        showAddToEvalsButton={showAddToEvalsButton}
-                        renderArtifactsInline
-                    />
+                    <Box p="md" pt="sm">
+                        <UnstyledButton
+                            className={styles.sectionToggle}
+                            data-active={showConversation || undefined}
+                            onClick={() => setShowConversation((open) => !open)}
+                            aria-expanded={showConversation}
+                        >
+                            <Text
+                                size="10px"
+                                fw={700}
+                                tt="uppercase"
+                                lts={0.4}
+                                c="ldGray.7"
+                            >
+                                Evidence
+                            </Text>
+                            <MantineIcon
+                                icon={
+                                    showConversation
+                                        ? IconChevronDown
+                                        : IconChevronRight
+                                }
+                                size="xs"
+                            />
+                        </UnstyledButton>
+                        <Collapse in={showConversation}>
+                            <AgentChatDisplay
+                                thread={threadData}
+                                projectUuid={projectUuid}
+                                agentUuid={agentUuid}
+                                showAddToEvalsButton={showAddToEvalsButton}
+                                renderArtifactsInline
+                            />
+                        </Collapse>
+                    </Box>
                 </Box>
             )}
         </Box>
