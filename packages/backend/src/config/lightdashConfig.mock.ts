@@ -100,6 +100,7 @@ export const lightdashConfigMock: LightdashConfig = {
         eventMetricsEnabled: false,
         allQueryMetricsEnabled: false,
         extendedMetricsEnabled: false,
+        httpMetricsEnabled: false,
     },
     dashboard: {
         maxTilesPerTab: 50,

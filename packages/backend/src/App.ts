@@ -956,7 +956,7 @@ export default class App {
     }
 
     async stop() {
-        this.prometheusMetrics.stop();
+        await this.prometheusMetrics.stop();
         if (this.schedulerWorker && this.schedulerWorker.runner) {
             try {
                 await this.schedulerWorker.runner.stop();

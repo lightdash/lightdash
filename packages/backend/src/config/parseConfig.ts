@@ -1245,6 +1245,7 @@ export type LightdashConfig = {
         eventMetricsConfigPath?: string;
         allQueryMetricsEnabled: boolean;
         extendedMetricsEnabled: boolean;
+        httpMetricsEnabled: boolean;
     };
     database: {
         connectionUri: string | undefined;
@@ -2212,6 +2213,9 @@ export const parseConfig = (): LightdashConfig => {
                 'true', // defaults to false, tracks execution duration & S3 upload for all queries (not just pre-aggregate)
             extendedMetricsEnabled:
                 process.env.LIGHTDASH_PROMETHEUS_EXTENDED_METRICS_ENABLED ===
+                'true', // defaults to false
+            httpMetricsEnabled:
+                process.env.LIGHTDASH_PROMETHEUS_HTTP_METRICS_ENABLED ===
                 'true', // defaults to false
         },
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
