@@ -43,6 +43,14 @@ export const errorHandler = (error: Error): LightdashError => {
     ) {
         return new PayloadTooLargeError();
     }
+    if (error instanceof URIError || error.name === 'URIError') {
+        return new LightdashError({
+            statusCode: 400,
+            name: 'URIError',
+            message: 'Invalid URI encoding',
+            data: {},
+        });
+    }
     if (error instanceof LightdashError) {
         return error;
     }
