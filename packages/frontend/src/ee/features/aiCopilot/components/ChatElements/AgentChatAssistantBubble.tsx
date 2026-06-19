@@ -68,6 +68,7 @@ import {
 import styles from './AgentChatAssistantBubble.module.css';
 import AgentChatDebugDrawer from './AgentChatDebugDrawer';
 import { AiArtifactInline } from './AiArtifactInline';
+import { AiMarkdownErrorBoundary } from './AiMarkdownErrorBoundary';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
 import { ContentLink, type SqlRunnerLinkState } from './ContentLink';
 import { MessageModelIndicator } from './MessageModelIndicator';
@@ -643,46 +644,48 @@ const AssistantBubbleContent: FC<{
                             }`}
                             style={mdStyle}
                         >
-                            <Streamdown
-                                parseIncompleteMarkdown
-                                controls={false}
-                                caret="block"
-                                isAnimating={isStreaming}
-                                mode={isStreaming ? 'streaming' : 'static'}
-                                remarkPlugins={[remarkGfm, remarkEmoji]}
-                                rehypePlugins={[rehypeAiAgentContentLinks]}
-                                plugins={markdownPlugins}
-                                components={{
-                                    a: ({ node, children, ...props }) => {
-                                        const contentType =
-                                            'data-content-type' in props &&
-                                            typeof props[
-                                                'data-content-type'
-                                            ] === 'string'
-                                                ? props['data-content-type']
-                                                : undefined;
-                                        return (
-                                            <ContentLink
-                                                contentType={contentType}
-                                                props={props}
-                                                message={message}
-                                                projectUuid={projectUuid}
-                                                agentUuid={agentUuid}
-                                                sqlRunnerLinkState={
-                                                    sqlRunnerLinkState
-                                                }
-                                                onDashboardLinkClick={
-                                                    onDashboardLinkClick
-                                                }
-                                            >
-                                                {children}
-                                            </ContentLink>
-                                        );
-                                    },
-                                }}
-                            >
-                                {latestTextSeg.text}
-                            </Streamdown>
+                            <AiMarkdownErrorBoundary>
+                                <Streamdown
+                                    parseIncompleteMarkdown
+                                    controls={false}
+                                    caret="block"
+                                    isAnimating={isStreaming}
+                                    mode={isStreaming ? 'streaming' : 'static'}
+                                    remarkPlugins={[remarkGfm, remarkEmoji]}
+                                    rehypePlugins={[rehypeAiAgentContentLinks]}
+                                    plugins={markdownPlugins}
+                                    components={{
+                                        a: ({ node, children, ...props }) => {
+                                            const contentType =
+                                                'data-content-type' in props &&
+                                                typeof props[
+                                                    'data-content-type'
+                                                ] === 'string'
+                                                    ? props['data-content-type']
+                                                    : undefined;
+                                            return (
+                                                <ContentLink
+                                                    contentType={contentType}
+                                                    props={props}
+                                                    message={message}
+                                                    projectUuid={projectUuid}
+                                                    agentUuid={agentUuid}
+                                                    sqlRunnerLinkState={
+                                                        sqlRunnerLinkState
+                                                    }
+                                                    onDashboardLinkClick={
+                                                        onDashboardLinkClick
+                                                    }
+                                                >
+                                                    {children}
+                                                </ContentLink>
+                                            );
+                                        },
+                                    }}
+                                >
+                                    {latestTextSeg.text}
+                                </Streamdown>
+                            </AiMarkdownErrorBoundary>
                         </Box>
                     ) : null;
                     const pendingApprovalContent =
@@ -840,46 +843,61 @@ const AssistantBubbleContent: FC<{
                                 className={styles.aiMarkdown}
                                 style={{ ...mdStyle, paddingBlock: '0.5rem' }}
                             >
-                                <Streamdown
-                                    parseIncompleteMarkdown
-                                    controls={false}
-                                    animated
-                                    mode="static"
-                                    remarkPlugins={[remarkGfm, remarkEmoji]}
-                                    rehypePlugins={[rehypeAiAgentContentLinks]}
-                                    plugins={markdownPlugins}
-                                    components={{
-                                        a: ({ node, children, ...props }) => {
-                                            const contentType =
-                                                'data-content-type' in props &&
-                                                typeof props[
-                                                    'data-content-type'
-                                                ] === 'string'
-                                                    ? props['data-content-type']
-                                                    : undefined;
+                                <AiMarkdownErrorBoundary>
+                                    <Streamdown
+                                        parseIncompleteMarkdown
+                                        controls={false}
+                                        animated
+                                        mode="static"
+                                        remarkPlugins={[remarkGfm, remarkEmoji]}
+                                        rehypePlugins={[
+                                            rehypeAiAgentContentLinks,
+                                        ]}
+                                        plugins={markdownPlugins}
+                                        components={{
+                                            a: ({
+                                                node,
+                                                children,
+                                                ...props
+                                            }) => {
+                                                const contentType =
+                                                    'data-content-type' in
+                                                        props &&
+                                                    typeof props[
+                                                        'data-content-type'
+                                                    ] === 'string'
+                                                        ? props[
+                                                              'data-content-type'
+                                                          ]
+                                                        : undefined;
 
-                                            return (
-                                                <ContentLink
-                                                    contentType={contentType}
-                                                    props={props}
-                                                    message={message}
-                                                    projectUuid={projectUuid}
-                                                    agentUuid={agentUuid}
-                                                    sqlRunnerLinkState={
-                                                        sqlRunnerLinkState
-                                                    }
-                                                    onDashboardLinkClick={
-                                                        onDashboardLinkClick
-                                                    }
-                                                >
-                                                    {children}
-                                                </ContentLink>
-                                            );
-                                        },
-                                    }}
-                                >
-                                    {messageContent}
-                                </Streamdown>
+                                                return (
+                                                    <ContentLink
+                                                        contentType={
+                                                            contentType
+                                                        }
+                                                        props={props}
+                                                        message={message}
+                                                        projectUuid={
+                                                            projectUuid
+                                                        }
+                                                        agentUuid={agentUuid}
+                                                        sqlRunnerLinkState={
+                                                            sqlRunnerLinkState
+                                                        }
+                                                        onDashboardLinkClick={
+                                                            onDashboardLinkClick
+                                                        }
+                                                    >
+                                                        {children}
+                                                    </ContentLink>
+                                                );
+                                            },
+                                        }}
+                                    >
+                                        {messageContent}
+                                    </Streamdown>
+                                </AiMarkdownErrorBoundary>
                             </Box>
                         ) : null}
                     </>
