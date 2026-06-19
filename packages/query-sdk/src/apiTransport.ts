@@ -15,6 +15,8 @@ import type {
     DownloadResultsOptions,
     DownloadResultsResult,
     DownloadUnderlyingDataOptions,
+    ExternalFetchOptions,
+    ExternalFetchResult,
     FormatFunction,
     InternalFilterDefinition,
     LightdashClientConfig,
@@ -871,6 +873,18 @@ export function createApiTransport(
                 orgId: user.organizationUuid,
                 attributes: user.userAttributes ?? {},
             };
+        },
+
+        async externalFetch(
+            _alias: string,
+            _opts: ExternalFetchOptions,
+        ): Promise<ExternalFetchResult> {
+            // The external-fetch proxy authorizes per linked app. The direct/dev
+            // (PAT) transport has no app context, so there is no connection link
+            // to resolve. Only the in-iframe postMessage transport supports it.
+            throw new Error(
+                'externalFetch is only available inside a data app preview',
+            );
         },
     };
 }

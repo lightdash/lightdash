@@ -255,6 +255,8 @@ export default function AppPreviewTest() {
             <AppIframePreview
                 src={previewUrl}
                 expectedPreviewOrigin={previewOrigin}
+                projectUuid={projectUuid}
+                appUuid={appUuid}
                 identityKey={`${appUuid}:${version}`}
                 invalidateCache={invalidateCache}
                 onQueryEvent={handleQueryEvent}

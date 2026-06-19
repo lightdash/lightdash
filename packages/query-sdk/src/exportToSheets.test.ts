@@ -1,14 +1,23 @@
+import {
+    afterEach,
+    beforeEach,
+    describe,
+    expect,
+    it,
+    vi,
+    type Mock,
+} from 'vitest';
 import { exportToSheets } from './exportToSheets';
 import type { SdkGsheetExportRequest } from './postMessageTransport';
 
 describe('exportToSheets', () => {
     let listeners: Array<(e: MessageEvent) => void> = [];
     let posted: unknown[] = [];
-    let mockParent: { postMessage: jest.Mock };
+    let mockParent: { postMessage: Mock };
     let mockWindow: {
-        addEventListener: jest.Mock;
-        removeEventListener: jest.Mock;
-        parent: { postMessage: jest.Mock };
+        addEventListener: Mock;
+        removeEventListener: Mock;
+        parent: { postMessage: Mock };
         crypto: { randomUUID: () => string };
     };
 
@@ -17,16 +26,16 @@ describe('exportToSheets', () => {
         posted = [];
 
         mockParent = {
-            postMessage: jest.fn((msg) => {
+            postMessage: vi.fn((msg) => {
                 posted.push(msg);
             }),
         };
 
         mockWindow = {
-            addEventListener: jest.fn((evt, cb) => {
+            addEventListener: vi.fn((evt, cb) => {
                 if (evt === 'message') listeners.push(cb as never);
             }),
-            removeEventListener: jest.fn((evt, cb) => {
+            removeEventListener: vi.fn((evt, cb) => {
                 if (evt === 'message') {
                     listeners = listeners.filter((l) => l !== cb);
                 }
@@ -39,12 +48,12 @@ describe('exportToSheets', () => {
         };
 
         // Install mock window so exportToSheets sees it
-        (global as Record<string, unknown>).window = mockWindow;
+        (globalThis as Record<string, unknown>).window = mockWindow;
     });
 
     afterEach(() => {
-        delete (global as Record<string, unknown>).window;
-        jest.restoreAllMocks();
+        delete (globalThis as Record<string, unknown>).window;
+        vi.restoreAllMocks();
     });
 
     const reply = (id: string, data: { fileUrl?: string; error?: string }) => {

@@ -24,6 +24,10 @@ type Props = {
      *  (the configured preview-host), or the parent's own origin in the
      *  same-origin fallback case. */
     expectedPreviewOrigin: string;
+    /** Project the iframe's external-fetch calls run against. */
+    projectUuid: string;
+    /** App the iframe's external-fetch calls are attributed to. */
+    appUuid: string;
     /** Stable identity scope for the SDK capability handshake — typically the
      *  app UUID. Drives the inspector/screenshot availability resets, so a
      *  change here means a new app whose SDK capabilities are unknown and we
@@ -97,6 +101,8 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
         {
             src,
             expectedPreviewOrigin,
+            projectUuid,
+            appUuid,
             identityKey,
             onQueryEvent,
             onElementSelected,
@@ -125,6 +131,8 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             useAppSdkBridge(
                 iframeRef,
                 expectedPreviewOrigin,
+                projectUuid,
+                appUuid,
                 onQueryEvent,
                 onElementSelected,
                 handleInspectorAnnounce,

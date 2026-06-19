@@ -28,6 +28,8 @@ export type {
     DownloadResultsResult,
     DownloadResultsValues,
     DownloadUnderlyingDataOptions,
+    ExternalFetchOptions,
+    ExternalFetchResult,
     Filter,
     FilterOperator,
     FilterValue,
@@ -47,6 +49,8 @@ export type {
 } from './types';
 
 export type {
+    SdkExternalFetchRequest,
+    SdkExternalFetchResponse,
     SdkFetchRequest,
     SdkFetchResponse,
     SdkReadyMessage,
