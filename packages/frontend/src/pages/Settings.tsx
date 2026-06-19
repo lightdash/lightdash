@@ -65,6 +65,7 @@ import SupportImpersonationPanel from '../components/UserSettings/SupportImperso
 import UserAttributesPanel from '../components/UserSettings/UserAttributesPanel';
 import UsersAndGroupsPanel from '../components/UserSettings/UsersAndGroupsPanel';
 import VerifiedDomainsPanel from '../components/UserSettings/VerifiedDomains/VerifiedDomainsPanel';
+import { ReviewRemediationWorkspace } from '../ee/features/aiCopilot/components/Admin/ReviewRemediationWorkspace';
 import { AiAgentsSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiAgentsSettingsPage';
 import { AiGeneralSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiGeneralSettingsPage';
 import { AiReviewsSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiReviewsSettingsPage';
@@ -577,6 +578,14 @@ const Settings: FC = () => {
                         </AiSettingsProviders>
                     ),
                 });
+                allowedRoutes.push({
+                    path: '/ai/reviews/:fingerprint',
+                    element: (
+                        <AiSettingsProviders>
+                            <ReviewRemediationWorkspace />
+                        </AiSettingsProviders>
+                    ),
+                });
             }
         }
 
@@ -713,6 +722,10 @@ const Settings: FC = () => {
             ) &&
             !matchPath(
                 { path: '/generalSettings/ai/reviews' },
+                location.pathname,
+            ) &&
+            !matchPath(
+                { path: '/generalSettings/ai/reviews/:fingerprint' },
                 location.pathname,
             )
         );
