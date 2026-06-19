@@ -7,7 +7,9 @@ import {
     GoogleSheetsTransientError,
     MetricType,
     NotEnoughResults,
+    SchedulerJobStatus,
     ThresholdOperator,
+    type CompileProjectPayload,
     type UploadGsheetPayload,
 } from '@lightdash/common';
 import ExecutionContext from 'node-execution-context';
@@ -693,5 +695,74 @@ describe('uploadGsheetFromQuery — rows branch', () => {
         expect(mockAppendToSheet).toHaveBeenCalledTimes(1);
         expect(mockAppendToSheet.mock.calls[0][2]).toEqual(payload.rows);
         expect(mockExecuteMetricQueryAndGetResults).not.toHaveBeenCalled();
+    });
+});
+
+describe('compileProject', () => {
+    const makeTask = (
+        overrides: Partial<ConstructorParameters<typeof SchedulerTask>[0]> = {},
+    ) => {
+        const stub = {} as ConstructorParameters<typeof SchedulerTask>[0];
+        return new SchedulerTask({
+            ...stub,
+            ...overrides,
+        });
+    };
+
+    it('marks the legacy job as failed when project compile is forbidden', async () => {
+        const error = new ForbiddenError();
+        const mockGetSessionByUserUuid = jest.fn().mockResolvedValue({
+            userUuid: 'user-1',
+        });
+        const mockLogSchedulerJob = jest.fn().mockResolvedValue(undefined);
+        const mockCompileProject = jest.fn().mockRejectedValue(error);
+        const mockMarkJobAsFailed = jest.fn().mockResolvedValue(undefined);
+
+        const task = makeTask({
+            userService: {
+                getSessionByUserUuid: mockGetSessionByUserUuid,
+            } as unknown as ConstructorParameters<
+                typeof SchedulerTask
+            >[0]['userService'],
+            schedulerService: {
+                logSchedulerJob: mockLogSchedulerJob,
+            } as unknown as ConstructorParameters<
+                typeof SchedulerTask
+            >[0]['schedulerService'],
+            projectService: {
+                compileProject: mockCompileProject,
+                _markJobAsFailed: mockMarkJobAsFailed,
+            } as unknown as ConstructorParameters<
+                typeof SchedulerTask
+            >[0]['projectService'],
+        });
+
+        const payload: CompileProjectPayload = {
+            createdByUserUuid: 'user-1',
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            requestMethod: 'api',
+            jobUuid: 'job-1',
+            isPreview: true,
+            validateAfterCompile: false,
+            userUuid: 'user-1',
+        };
+
+        await expect(
+            (
+                task as unknown as {
+                    compileProject(
+                        jobId: string,
+                        scheduledTime: Date,
+                        payload: CompileProjectPayload,
+                    ): Promise<void>;
+                }
+            ).compileProject('graphile-job-1', new Date(), payload),
+        ).rejects.toBe(error);
+
+        expect(mockLogSchedulerJob).toHaveBeenCalledWith(
+            expect.objectContaining({ status: SchedulerJobStatus.ERROR }),
+        );
+        expect(mockMarkJobAsFailed).toHaveBeenCalledWith('job-1');
     });
 });

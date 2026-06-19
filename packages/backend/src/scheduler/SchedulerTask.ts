@@ -2071,6 +2071,7 @@ export default class SchedulerTask {
                     createdByUserUuid: payload.createdByUserUuid,
                 },
             });
+            await this.projectService._markJobAsFailed(payload.jobUuid);
             throw e;
         }
     }

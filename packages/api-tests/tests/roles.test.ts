@@ -12,6 +12,7 @@ import {
     loginWithEmail,
     loginWithPermissions,
 } from '../helpers/auth';
+import { pollUntil } from '../helpers/polling';
 
 type RoleResult = {
     roleUuid: string;
@@ -819,6 +820,73 @@ describe('Roles API Tests', () => {
                     SEED_PROJECT.project_uuid,
                 );
                 expect(previewProjectAsCreator.status).toBe(200);
+            } finally {
+                if (previewProjectUuid) {
+                    await admin.delete(
+                        `/api/v1/org/projects/${previewProjectUuid}`,
+                        { failOnStatusCode: false },
+                    );
+                }
+            }
+        });
+
+        it('should mark preview compile job as failed when custom role lacks compile scopes', async () => {
+            let previewProjectUuid: string | undefined;
+            const roleResp = await admin.post<Body<RoleResult>>(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+                {
+                    name: `Preview Missing Compile ${Date.now()}`,
+                    description: 'Preview role without compile scopes',
+                    scopes: ['view:Project', 'create:Project@preview'],
+                },
+            );
+            const { roleUuid } = roleResp.body.results;
+            rolesToCleanup.push(roleUuid);
+
+            const { client: member, email } = await loginWithPermissions(
+                'member',
+                [],
+            );
+            const me = await member.get<Body<{ userUuid: string }>>(
+                `${apiUrl}/user`,
+            );
+
+            await admin.post<Body<AssignmentResult>>(
+                `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/user/${me.body.results.userUuid}`,
+                { roleId: roleUuid },
+            );
+
+            const previewUser = await loginWithEmail(email);
+
+            try {
+                const resp = await previewUser.post<
+                    Body<{ projectUuid: string; compileJobUuid: string }>
+                >(
+                    `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/createPreview`,
+                    {
+                        name: `Missing Compile Preview ${Date.now()}`,
+                        copyContent: true,
+                    },
+                );
+
+                expect(resp.status).toBe(200);
+                previewProjectUuid = resp.body.results.projectUuid;
+
+                const job = await pollUntil<
+                    Body<{
+                        jobStatus: 'STARTED' | 'RUNNING' | 'DONE' | 'ERROR';
+                    }>
+                >(
+                    previewUser,
+                    `${apiUrl}/jobs/${resp.body.results.compileJobUuid}`,
+                    {
+                        timeout: 15_000,
+                        interval: 500,
+                        condition: (body) => body.results.jobStatus === 'ERROR',
+                    },
+                );
+
+                expect(job.results.jobStatus).toBe('ERROR');
             } finally {
                 if (previewProjectUuid) {
                     await admin.delete(
