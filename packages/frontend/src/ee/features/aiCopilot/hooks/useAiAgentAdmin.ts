@@ -251,6 +251,43 @@ export const useAiAgentReviewItemActivity = (
     });
 };
 
+const retestAiAgentReviewRemediation = async (fingerprint: string) => {
+    return lightdashApi<ApiAiAgentReviewItemActivityResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/review-items/${encodeURIComponent(
+            fingerprint,
+        )}/retest`,
+        method: 'POST',
+        body: undefined,
+    });
+};
+
+export const useRetestAiAgentReviewRemediation = () => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiAiAgentReviewItemActivityResponse['results'],
+        ApiError,
+        { fingerprint: string }
+    >({
+        mutationFn: ({ fingerprint }) =>
+            retestAiAgentReviewRemediation(fingerprint),
+        onSuccess: (_data, { fingerprint }) => {
+            showToastSuccess({ title: 'Re-testing the fix…' });
+            void queryClient.invalidateQueries({
+                queryKey: ['ai-agent-admin-review-item-activity', fingerprint],
+            });
+            void queryClient.invalidateQueries({
+                queryKey: ['ai-agent-admin-review-item', fingerprint],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({ title: 'Failed to retest', apiError: error });
+        },
+    });
+};
+
 const getAiAgentReviewItemPrDiff = async (fingerprint: string) => {
     return lightdashApi<ApiAiAgentReviewItemPrDiffResponse['results']>({
         version: 'v1',

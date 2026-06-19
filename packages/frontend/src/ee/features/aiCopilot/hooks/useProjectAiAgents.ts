@@ -1005,6 +1005,7 @@ export const useCreateAgentThreadMessageMutation = (
         ApiAiAgentThreadMessageCreateRequest & {
             optimisticContext?: AiPromptContext;
             enableSqlMode?: boolean;
+            autoApproveSql?: boolean;
             toolHints?: string[];
         },
         { messageUuid: string }
@@ -1012,6 +1013,7 @@ export const useCreateAgentThreadMessageMutation = (
         mutationFn: ({
             optimisticContext: _optimisticContext,
             enableSqlMode: _enableSqlMode,
+            autoApproveSql: _autoApproveSql,
             toolHints: _toolHints,
             ...data
         }) =>
@@ -1091,6 +1093,7 @@ export const useCreateAgentThreadMessageMutation = (
                 threadUuid: threadUuid!,
                 messageUuid: data.uuid,
                 enableSqlMode: vars.enableSqlMode,
+                autoApproveSql: vars.autoApproveSql,
                 toolHints: vars.toolHints,
                 onFinish: () =>
                     queryClient.invalidateQueries([
