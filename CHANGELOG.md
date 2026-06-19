@@ -1,3 +1,10 @@
+# [0.3204.0](https://github.com/lightdash/lightdash/compare/0.3203.2...0.3204.0) (2026-06-19)
+
+
+### Features
+
+* **data-apps:** connection test panel + saved samples for agent grounding ([#24468](https://github.com/lightdash/lightdash/issues/24468)) ([131cc0c](https://github.com/lightdash/lightdash/commit/131cc0c81a3a9767b50472ec3f7bc4280d0a275e))
+
 ## [0.3203.2](https://github.com/lightdash/lightdash/compare/0.3203.1...0.3203.2) (2026-06-19)
 
 
