@@ -1,3 +1,15 @@
+# [0.3203.0](https://github.com/lightdash/lightdash/compare/0.3202.0...0.3203.0) (2026-06-19)
+
+
+### Bug Fixes
+
+* wrap AiMarkdown in an error boundary ([#24509](https://github.com/lightdash/lightdash/issues/24509)) ([fd961b3](https://github.com/lightdash/lightdash/commit/fd961b3b37ac24423bec1526817ff4b77077494e))
+
+
+### Features
+
+* **data-apps:** external connections admin UI + app-builder linking ([#24467](https://github.com/lightdash/lightdash/issues/24467)) ([9280d62](https://github.com/lightdash/lightdash/commit/9280d62479ca684ac6ace37d00094892ec80ee9f))
+
 # [0.3202.0](https://github.com/lightdash/lightdash/compare/0.3201.3...0.3202.0) (2026-06-19)
 
 
