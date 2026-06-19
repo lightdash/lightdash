@@ -520,6 +520,20 @@ export class GoogleSheetsTransientError extends LightdashError {
     }
 }
 
+export class TooManyRequestsError extends LightdashError {
+    constructor(
+        message = 'Too many requests',
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'TooManyRequestsError',
+            statusCode: 429,
+            data,
+        });
+    }
+}
+
 export class GoogleSheetsQuotaError extends LightdashError {
     constructor(
         message = 'Google Sheets API quota exceeded. The sync will be retried automatically.',

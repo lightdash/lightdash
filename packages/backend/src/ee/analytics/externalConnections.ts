@@ -42,4 +42,26 @@ export type ExternalConnectionEvent = BaseTrack &
                   alias: string;
               };
           }
+        | {
+              event: 'external_connection.fetch';
+              userId: string;
+              properties: {
+                  organizationId: string;
+                  projectId: string;
+                  appUuid: string;
+                  externalConnectionUuid: string;
+                  connectionAlias: string;
+                  method: 'GET' | 'POST';
+                  path: string;
+                  status: number | null;
+                  outcome:
+                      | 'ok'
+                      | 'rejected'
+                      | 'rate_limited'
+                      | 'upstream_error';
+                  durationMs: number;
+                  requestBytes: number;
+                  responseBytes: number;
+              };
+          }
     );

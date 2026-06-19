@@ -3,6 +3,8 @@ import {
     type ApiErrorPayload,
     type CreateExternalConnection,
     type ExternalConnection,
+    type ExternalFetchRequest,
+    type ExternalFetchResponse,
     type UpdateExternalConnection,
 } from '@lightdash/common';
 import {
@@ -21,6 +23,7 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -42,6 +45,11 @@ type ApiExternalConnectionListResponse = {
 type ApiAppExternalConnectionListResponse = {
     status: 'ok';
     results: Array<{ alias: string; connection: ExternalConnection }>;
+};
+
+type ApiExternalFetchResponse = {
+    status: 'ok';
+    results: ExternalFetchResponse;
 };
 
 @Route('/api/v1/ee/projects/{projectUuid}')
@@ -295,11 +303,38 @@ export class ExternalConnectionController extends BaseController {
         return { status: 'ok', results: undefined };
     }
 
-    // FORWARD REFS (do not implement here):
-    // - M2 adds `@Post('apps/{appUuid}/external-fetch')` (the outbound proxy)
-    //   to this controller, delegating to ExternalConnectionService.proxyFetch.
-    // - M5 adds `@Post('external-connections/{connectionUuid}/test')`
-    //   delegating to ExternalConnectionService.testConnection.
+    /**
+     * Proxy an outbound HTTP request from a data app through a configured,
+     * authorized connection alias. The app never sees the connection's secret
+     * or origin — only the alias + a relative path.
+     * @summary External fetch proxy for data apps
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('apps/{appUuid}/external-fetch')
+    @OperationId('externalFetch')
+    async externalFetch(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+        @Body() body: ExternalFetchRequest,
+    ): Promise<ApiExternalFetchResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.getService().proxyFetch(
+            toSessionUser(req.account),
+            projectUuid,
+            appUuid,
+            body,
+        );
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    // M5 adds `@Post('external-connections/{connectionUuid}/test')`
+    // delegating to ExternalConnectionService.testConnection.
 
     private getService(): ExternalConnectionService {
         return this.services.getExternalConnectionService<ExternalConnectionService>();

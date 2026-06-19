@@ -422,6 +422,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     externalConnectionModel:
                         models.getExternalConnectionModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
+                    appModel: models.getAppModel(),
                     spacePermissionService:
                         repository.getSpacePermissionService(),
                 }),

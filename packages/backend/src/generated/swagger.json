@@ -1985,6 +1985,64 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ExternalFetchResponse": {
+                "properties": {
+                    "truncated": {
+                        "type": "boolean"
+                    },
+                    "body": {},
+                    "contentType": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["truncated", "body", "contentType", "status"],
+                "type": "object"
+            },
+            "ApiExternalFetchResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ExternalFetchResponse"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "Record_string.string_": {
+                "properties": {},
+                "additionalProperties": {
+                    "type": "string"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ExternalFetchRequest": {
+                "properties": {
+                    "body": {},
+                    "query": {
+                        "$ref": "#/components/schemas/Record_string.string_"
+                    },
+                    "path": {
+                        "type": "string"
+                    },
+                    "method": {
+                        "$ref": "#/components/schemas/ExternalConnectionMethod"
+                    },
+                    "connectionAlias": {
+                        "type": "string"
+                    }
+                },
+                "required": ["path", "connectionAlias"],
+                "type": "object"
+            },
             "Pick_Organization.name-or-createdAt-or-organizationUuid_": {
                 "properties": {
                     "name": {
@@ -3547,14 +3605,6 @@
                     "MINUTE_OF_HOUR_NUM"
                 ],
                 "type": "string"
-            },
-            "Record_string.string_": {
-                "properties": {},
-                "additionalProperties": {
-                    "type": "string"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
             },
             "CustomFormatType": {
                 "enum": [
