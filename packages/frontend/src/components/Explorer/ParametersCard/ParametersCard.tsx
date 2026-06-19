@@ -1,4 +1,5 @@
-import { Box } from '@mantine-8/core';
+import { getReservedParameterDefinitions } from '@lightdash/common';
+import { Box, Code, Stack, Text } from '@mantine-8/core';
 import { memo, useCallback, useMemo } from 'react';
 import {
     explorerActions,
@@ -46,6 +47,12 @@ const ParametersCard = memo(
             );
         }, [parameterDefinitions, parameterReferences]);
 
+        const referencedReservedParameters = useMemo(() => {
+            return Object.entries(getReservedParameterDefinitions()).filter(
+                ([key]) => parameterReferences?.includes(key),
+            );
+        }, [parameterReferences]);
+
         const setParameter = useCallback(
             (
                 key: string,
@@ -89,6 +96,26 @@ const ParametersCard = memo(
                         projectUuid={projectUuid}
                         disabled={!isEditMode}
                     />
+
+                    {referencedReservedParameters.length > 0 && (
+                        <Stack gap="xs" mt="md">
+                            <Text size="xs" fw={600} c="dimmed">
+                                System variables
+                            </Text>
+                            {referencedReservedParameters.map(
+                                ([name, definition]) => (
+                                    <Box key={name}>
+                                        <Code>{`\${ld.parameters.${name}}`}</Code>
+                                        {definition.description && (
+                                            <Text size="xs" c="dimmed" mt={2}>
+                                                {definition.description}
+                                            </Text>
+                                        )}
+                                    </Box>
+                                ),
+                            )}
+                        </Stack>
+                    )}
                 </Box>
             </CollapsableCard>
         );

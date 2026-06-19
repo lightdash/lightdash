@@ -3,6 +3,7 @@ import {
     getDimensions,
     getFieldRef,
     getItemId,
+    getReservedParameterDefinitions,
     type Field,
     type Metric,
 } from '@lightdash/common';
@@ -152,6 +153,28 @@ const TABLE_CALCULATION_FUNCTION_COMPLETIONS: Ace.Completion[] = [
     },
 ];
 
+// Reserved (system-owned) parameters resolve in custom SQL dimensions/metrics, so
+// surface them alongside field completions. Not added to the table-calculation completer:
+// table calcs have no parameter pass yet.
+const mapReservedParametersToCompletions = (): Ace.Completion[] =>
+    Object.entries(getReservedParameterDefinitions()).reduce<Ace.Completion[]>(
+        (acc, [name, definition]) => {
+            const reference = `\${ld.parameters.${name}}`;
+            const technicalOption: Ace.Completion = {
+                caption: reference,
+                value: reference,
+                meta: 'System variable',
+                score: Number.MAX_VALUE,
+            };
+            const friendlyOption: Ace.Completion = {
+                ...technicalOption,
+                caption: definition.label,
+            };
+            return [...acc, technicalOption, friendlyOption];
+        },
+        [],
+    );
+
 const mapCustomDimensionsToCompletions = (
     customDimensions: { id: string; name: string }[],
 ): Ace.Completion[] =>
@@ -287,7 +310,12 @@ export const useCustomDimensionsAceEditorCompleter = (): {
                 getDimensions(activeExplore),
                 'Dimension',
             );
-            langTools.setCompleters([createCompleter(fields)]);
+            langTools.setCompleters([
+                createCompleter([
+                    ...fields,
+                    ...mapReservedParametersToCompletions(),
+                ]),
+            ]);
         }
         return () => {
             langTools.setCompleters([]);
