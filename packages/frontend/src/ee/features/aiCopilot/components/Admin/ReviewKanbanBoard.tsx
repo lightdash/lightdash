@@ -24,12 +24,14 @@ import {
     Stack,
     Text,
 } from '@mantine-8/core';
-import { IconBox, IconTag } from '@tabler/icons-react';
+import { IconBox, IconTag, IconUser } from '@tabler/icons-react';
 import { type FC, useDeferredValue, useMemo, useState } from 'react';
 import FilterFacet, {
     type FilterFacetOption,
 } from '../../../../../components/common/FilterFacet';
+import { useOrganizationUsers } from '../../../../../hooks/useOrganizationUsers';
 import { useProjects } from '../../../../../hooks/useProjects';
+import useApp from '../../../../../providers/App/useApp';
 import {
     useAiAgentAdminReviewItems,
     useCreateAiAgentReviewItemWriteback,
@@ -37,6 +39,10 @@ import {
 } from '../../hooks/useAiAgentAdmin';
 import { type AiAgentAdminReviewItemPreviewTarget } from './AiAgentAdminReviewItemsTable';
 import { EXAMPLE_REVIEW_ITEMS } from './onboarding';
+import {
+    buildAssigneeFacetOptions,
+    matchesAssigneeFilter,
+} from './reviewAssigneeFacet';
 import {
     DEFAULT_VISIBLE_ROOT_CAUSES,
     getIssueTitle,
@@ -150,10 +156,18 @@ export const ReviewKanbanBoard: FC<Props> = ({
     const [selectedRootCauses, setSelectedRootCauses] = useState<
         AiAgentRootCause[]
     >(DEFAULT_VISIBLE_ROOT_CAUSES);
+    const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
     const { data, isLoading } = useAiAgentAdminReviewItems({
         statuses: BOARD_STATUSES,
     });
     const { data: projects } = useProjects();
+    const { user } = useApp();
+    const currentUserUuid = user.data?.userUuid ?? null;
+    const { data: orgUsers = [] } = useOrganizationUsers();
+    const orgUsersByUuid = useMemo(
+        () => new Map(orgUsers.map((orgUser) => [orgUser.userUuid, orgUser])),
+        [orgUsers],
+    );
     const [expandedLanes, setExpandedLanes] = useState<
         Partial<Record<ReviewLane, boolean>>
     >({});
@@ -204,12 +218,20 @@ export const ReviewKanbanBoard: FC<Props> = ({
     }, [searchFilteredItems, selectedProjectUuids]);
 
     const items = useMemo<AiAgentReviewItemSummary[]>(() => {
-        if (selectedRootCauses.length === 0) return projectFilteredItems;
-        const rootCauseSet = new Set(selectedRootCauses);
-        return projectFilteredItems.filter((item) =>
-            rootCauseSet.has(item.primaryRootCause),
-        );
-    }, [projectFilteredItems, selectedRootCauses]);
+        let next = projectFilteredItems;
+        if (selectedRootCauses.length > 0) {
+            const rootCauseSet = new Set(selectedRootCauses);
+            next = next.filter((item) =>
+                rootCauseSet.has(item.primaryRootCause),
+            );
+        }
+        if (selectedAssignees.length > 0) {
+            next = next.filter((item) =>
+                matchesAssigneeFilter(item, selectedAssignees),
+            );
+        }
+        return next;
+    }, [projectFilteredItems, selectedRootCauses, selectedAssignees]);
 
     const projectFacetOptions = useMemo((): FilterFacetOption[] => {
         const counts = new Map<string, number>();
@@ -255,6 +277,16 @@ export const ReviewKanbanBoard: FC<Props> = ({
                     String(a.label).localeCompare(String(b.label)),
             );
     }, [projectFilteredItems]);
+
+    const assigneeFacetOptions = useMemo(
+        (): FilterFacetOption[] =>
+            buildAssigneeFacetOptions({
+                items: projectFilteredItems,
+                usersByUuid: orgUsersByUuid,
+                currentUserUuid,
+            }),
+        [projectFilteredItems, orgUsersByUuid, currentUserUuid],
+    );
 
     const lanes = useMemo(() => {
         const byLane: Record<ReviewLane, AiAgentReviewItemSummary[]> = {
@@ -345,6 +377,15 @@ export const ReviewKanbanBoard: FC<Props> = ({
                     }
                     emptyLabel="No root causes in current view"
                     tooltipLabel="Filter by root cause"
+                />
+                <FilterFacet
+                    label="Assignee"
+                    icon={IconUser}
+                    options={assigneeFacetOptions}
+                    selected={selectedAssignees}
+                    onChange={setSelectedAssignees}
+                    emptyLabel="No assignees in current view"
+                    tooltipLabel="Filter by assignee"
                 />
             </Group>
             <Box className={styles.boardWrapper}>

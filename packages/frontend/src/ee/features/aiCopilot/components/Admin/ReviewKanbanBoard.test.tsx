@@ -26,6 +26,10 @@ vi.mock('../../../../../hooks/useProjectAccess', () => ({
     useProjectAccess: () => ({ data: [] }),
 }));
 
+vi.mock('../../../../../hooks/useOrganizationUsers', () => ({
+    useOrganizationUsers: () => ({ data: [] }),
+}));
+
 vi.mock('../AgentNamePill', () => ({ AgentNamePill: () => null }));
 
 const items = [
