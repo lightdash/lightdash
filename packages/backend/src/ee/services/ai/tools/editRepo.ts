@@ -96,14 +96,17 @@ export const getEditRepo = ({ editRepo }: Dependencies) =>
 
                 return {
                     result,
+                    // These fields are already `T | null` on AiWritebackRunResult
+                    // (never undefined), so they're passed through as-is — no
+                    // `?? null` coalescing needed (L8).
                     metadata: {
                         status: 'success' as const,
                         repository,
-                        prUrl: prUrl ?? null,
-                        prAction: prAction ?? null,
-                        commitSha: commitSha ?? null,
-                        additions: additions ?? null,
-                        deletions: deletions ?? null,
+                        prUrl,
+                        prAction,
+                        commitSha,
+                        additions,
+                        deletions,
                         steps,
                     },
                 };

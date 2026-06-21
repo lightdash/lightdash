@@ -16,3 +16,25 @@
 .row:hover {
     background-color: var(--mantine-color-default-hover);
 }
+
+.spacer {
+    flex-grow: 1;
+}
+
+.chevron {
+    transition: transform 150ms ease;
+}
+
+.chevronExpanded {
+    composes: chevron;
+    transform: rotate(90deg);
+}
+
+.noShrink {
+    flex-shrink: 0;
+}
+
+.title {
+    flex: 0 1 auto;
+    min-width: 0;
+}

@@ -7403,9 +7403,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         // General coding agent (editRepo): gated by the CodingAgent flag,
         // independent of AiWriteback, with the same Slack trusted-identity guard.
-        // Slice 1 targets the project's connected repo, so it likewise requires a
-        // GitHub/GitLab connection; arbitrary-repo targeting lands in a later
-        // slice. The per-repo write authz is enforced in AiWritebackService.
+        // It still requires a GitHub/GitLab connection on the project (the host
+        // follows the project's connection), but the agent can target ANY repo
+        // that installation can write — the per-repo write authz (manage:SourceCode
+        // + denylist + user∩installation) is enforced in AiWritebackService.
         let { enabled: codingAgentEnabled } = await this.featureFlagService.get(
             {
                 user,

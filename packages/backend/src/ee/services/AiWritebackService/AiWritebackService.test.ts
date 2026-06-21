@@ -22,8 +22,11 @@ import {
     getInstallationToken,
     getOrRefreshToken,
     getRepoDefaultBranch,
+    getRepoMetadata,
+    getScopedRepoCloneToken,
     listReposAccessibleToInstallation,
     listReposAccessibleToUser,
+    revokeInstallationToken,
 } from '../../../clients/github/Github';
 import { createSandboxManager, SandboxManager } from '../SandboxRuntime';
 import {
@@ -81,9 +84,14 @@ vi.mock('../../../clients/github/Github', () => ({
     getInstallationToken: vi.fn(),
     getOrRefreshToken: vi.fn(),
     getRepoDefaultBranch: vi.fn(),
+    getRepoMetadata: vi
+        .fn()
+        .mockResolvedValue({ defaultBranch: 'main', sizeKb: 1024 }),
     getRepoTree: vi.fn(),
+    getScopedRepoCloneToken: vi.fn().mockResolvedValue('scoped-clone-token'),
     listReposAccessibleToInstallation: vi.fn(),
     listReposAccessibleToUser: vi.fn(),
+    revokeInstallationToken: vi.fn().mockResolvedValue(undefined),
     updatePullRequest: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -532,7 +540,7 @@ describe('AiWritebackService.prepareTurn', () => {
             } as AnyType,
         });
         // A live PR triggers the edit-state guard, so stub the provider calls.
-        jest.spyOn(
+        vi.spyOn(
             (service as AnyType).githubProvider,
             'resolveInstallation',
         ).mockResolvedValue({
@@ -543,7 +551,7 @@ describe('AiWritebackService.prepareTurn', () => {
             commitAuthor: { name: 'n', email: 'e' },
             coAuthorTrailer: '',
         } as AnyType);
-        jest.spyOn(
+        vi.spyOn(
             (service as AnyType).githubProvider,
             'getPullRequestEditState',
         ).mockResolvedValue({ editable: true, reason: null });
@@ -1185,10 +1193,20 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
 
         expect(fakeSandboxProvider.create).toHaveBeenCalledTimes(1);
         const [spec] = fakeSandboxProvider.create.mock.calls[0];
-        expect(spec.egress).toEqual({
-            allow: ['api.anthropic.com', 'github.com', 'gitlab.com'],
+        // The INVARIANT (not just the current literal): the egress allowlist is a
+        // non-empty set of specific hosts — never a wildcard or a broad CIDR. The
+        // implicit deny-all default is enforced inside the provider. A provider or
+        // model change may extend the host list, but must keep this shape or the
+        // test fails loudly.
+        const { allow } = spec.egress;
+        expect(allow.length).toBeGreaterThan(0);
+        allow.forEach((host: string) => {
+            expect(host).not.toContain('*');
+            expect(host).not.toMatch(/\/\d+$/); // no CIDR
+            expect(host).not.toBe('0.0.0.0');
+            expect(host).toMatch(/^[a-z0-9.-]+\.[a-z]{2,}$/i); // a real hostname
         });
-        expect(spec.egress.allow).not.toContain('*');
+        expect(allow).toContain('api.anthropic.com');
     });
 
     it('skips the PR when the agent exits non-zero', async () => {
@@ -1894,6 +1912,21 @@ describe('GENERAL_ALLOWED_TOOLS', () => {
         expect(tools.some((t) => t.startsWith('WebFetch'))).toBe(false);
         expect(tools.some((t) => t.startsWith('WebSearch'))).toBe(false);
     });
+
+    // L2: path-scoped allows must use Claude Code absolute (`//`) paths too, so
+    // the allowlist matches the real /home/user/repo checkout rather than a
+    // project-relative path (which would silently grant nothing / the wrong dir).
+    it('scopes repo file tools to the absolute (//) repo path', () => {
+        const repoFileTools = tools.filter((t) =>
+            /^(Read|Glob|Grep|Edit|Write)\(.*home\/user\/repo/.test(t),
+        );
+        expect(repoFileTools.length).toBeGreaterThan(0);
+        repoFileTools.forEach((t) => {
+            expect(t).toMatch(
+                /^(Read|Glob|Grep|Edit|Write)\(\/\/home\/user\/repo\//,
+            );
+        });
+    });
 });
 
 describe('GENERAL_DISALLOWED_TOOLS', () => {
@@ -1922,6 +1955,17 @@ describe('GENERAL_DISALLOWED_TOOLS', () => {
                 expect.stringMatching(/^Grep\(.*\.env\)$/),
             ]),
         );
+    });
+
+    // L2: in Claude Code, `//path` is an ABSOLUTE filesystem path while `/path`
+    // is relative to the project root. The agent's repo is at the absolute path
+    // /home/user/repo, so every deny rule MUST keep the `//` prefix — dropping a
+    // slash would silently retarget the deny to a project-relative path and stop
+    // blocking the real secret files. This test fails loudly if that happens.
+    it('uses absolute (//) paths so the deny rules target the real repo', () => {
+        rules.forEach((rule) => {
+            expect(rule).toMatch(/^(Read|Grep)\(\/\/home\/user\/repo\//);
+        });
     });
 });
 
@@ -1953,18 +1997,18 @@ describe('AiWritebackService.resolveWritableRepoTarget (fail-closed authz)', () 
         warehouseConnection: { type: WarehouseTypes.POSTGRES },
     });
 
-    beforeEach(() => jest.clearAllMocks());
+    beforeEach(() => vi.clearAllMocks());
 
     it('fails closed (does NOT widen to installation scope) when the user repo listing fails', async () => {
         const { service } = (() => {
             const svc = buildService({
                 githubAppService: {
-                    getValidUserToken: jest
+                    getValidUserToken: vi
                         .fn()
                         .mockResolvedValue('user-token'),
                 } as AnyType,
             });
-            jest.spyOn(
+            vi.spyOn(
                 (svc as AnyType).githubProvider,
                 'resolveInstallation',
             ).mockResolvedValue({
@@ -1979,11 +2023,11 @@ describe('AiWritebackService.resolveWritableRepoTarget (fail-closed authz)', () 
         })();
 
         // The installation can reach the target...
-        (listReposAccessibleToInstallation as jest.Mock).mockResolvedValue([
+        (listReposAccessibleToInstallation as import('vitest').Mock).mockResolvedValue([
             { owner: 'acme', repo: 'analytics' },
         ]);
         // ...but listing the user's own repos fails transiently.
-        (listReposAccessibleToUser as jest.Mock).mockRejectedValue(
+        (listReposAccessibleToUser as import('vitest').Mock).mockRejectedValue(
             new Error('GitHub 503'),
         );
 
@@ -1994,6 +2038,190 @@ describe('AiWritebackService.resolveWritableRepoTarget (fail-closed authz)', () 
                 repoTarget: 'acme/analytics',
             }),
         ).rejects.toThrow(/Could not verify your GitHub access/);
+    });
+
+    it('fails closed at the size guard (R9) before any clone when the repo is over the limit', async () => {
+        const svc = buildService({
+            lightdashConfig: {
+                gitlab: {},
+                aiWriteback: { codingAgentMaxRepoSizeMb: 100 },
+            } as AnyType,
+            githubAppService: {
+                getValidUserToken: vi.fn().mockResolvedValue(undefined),
+            } as AnyType,
+        });
+        vi.spyOn(
+            (svc as AnyType).githubProvider,
+            'resolveInstallation',
+        ).mockResolvedValue({
+            provider: PullRequestProvider.GITHUB,
+            installationId: 'inst-1',
+            token: 'install-token',
+            userToken: null,
+            commitAuthor: { name: 'n', email: 'e' },
+            coAuthorTrailer: '',
+        } as AnyType);
+        (listReposAccessibleToInstallation as import('vitest').Mock).mockResolvedValue([
+            { owner: 'acme', repo: 'analytics' },
+        ]);
+        // 250 MB checkout against a 100 MB limit → reject before cloning.
+        (getRepoMetadata as import('vitest').Mock).mockResolvedValue({
+            defaultBranch: 'main',
+            sizeKb: 250 * 1024,
+        });
+
+        await expect(
+            svc.resolveWritableRepoTarget({
+                user: userWithManage(),
+                project: githubProject(),
+                repoTarget: 'acme/analytics',
+            }),
+        ).rejects.toThrow(RepoTooLargeError);
+    });
+});
+
+describe('AiWritebackService.generalCodingAgentConfig (general-agent invariants, H3)', () => {
+    const buildGeneralService = () =>
+        buildService({
+            lightdashConfig: {
+                gitlab: {},
+                appRuntime: {
+                    e2bCodingAgentTemplateName: 'coding-tpl',
+                    e2bCodingAgentTemplateTag: '',
+                },
+            } as AnyType,
+        });
+
+    const config = (): AnyType =>
+        (buildGeneralService() as AnyType).generalCodingAgentConfig();
+
+    beforeEach(() => vi.clearAllMocks());
+
+    it('runs in general mode behind the CodingAgent flag with no compile hooks', async () => {
+        const cfg = config();
+        expect(cfg.mode).toBe('general');
+        expect(cfg.featureFlag).toBe(FeatureFlags.CodingAgent);
+        // No in-sandbox build: prep/teardown are no-ops (Inv#2 relies on this).
+        await expect(cfg.beforeAgentRun()).resolves.toBeUndefined();
+        await expect(cfg.afterAgentRun()).resolves.toBeUndefined();
+    });
+
+    it('passes the no-Bash allowlist AND the secret/CI denylist to the agent', async () => {
+        const sandbox = {
+            commands: {
+                run: vi
+                    .fn()
+                    .mockResolvedValue({ stdout: 'models/a.sql\nREADME.md' }),
+            },
+        };
+        const setup = await config().buildAgentSetup({
+            sandbox,
+            repository: 'acme/web-app',
+        });
+        expect(setup.allowedTools).toBe(GENERAL_ALLOWED_TOOLS);
+        expect(setup.disallowedTools).toBe(GENERAL_DISALLOWED_TOOLS);
+    });
+
+    it('mints a scoped contents:read clone token and revokes it after clone (R2)', async () => {
+        const minted = await config().resolveCloneToken({
+            gitConnection: {
+                provider: PullRequestProvider.GITHUB,
+                owner: 'acme',
+                repo: 'web-app',
+            },
+            installation: {
+                provider: PullRequestProvider.GITHUB,
+                installationId: 'inst-1',
+            },
+        });
+
+        expect(getScopedRepoCloneToken).toHaveBeenCalledWith({
+            installationId: 'inst-1',
+            repo: 'web-app',
+        });
+        expect(minted.token).toBe('scoped-clone-token');
+        // The token is revoked once the checkout exists — not left live (R2).
+        expect(revokeInstallationToken).not.toHaveBeenCalled();
+        await minted.onAfterClone();
+        expect(revokeInstallationToken).toHaveBeenCalledWith(
+            'scoped-clone-token',
+        );
+    });
+
+    it('does not mint a scoped token for non-GitHub installs (GitLab falls back to scrub-only)', async () => {
+        const minted = await config().resolveCloneToken({
+            gitConnection: { provider: PullRequestProvider.GITLAB },
+            installation: { provider: PullRequestProvider.GITLAB },
+        });
+        expect(minted).toBeNull();
+        expect(getScopedRepoCloneToken).not.toHaveBeenCalled();
+    });
+});
+
+describe('AiWritebackService.runEditRepo (write audit, decision #2)', () => {
+    const args = (): AnyType => ({
+        user: { userUuid: 'u1', organizationUuid: ORG } as AnyType,
+        projectUuid: 'p1',
+        repoTarget: 'acme/web-app',
+        prompt: 'edit it',
+        source: 'web',
+    });
+
+    // runEditRepo builds the general config eagerly (reads appRuntime), so the
+    // service needs it even though runCodingAgent itself is stubbed.
+    const auditService = () =>
+        buildService({
+            lightdashConfig: {
+                gitlab: {},
+                appRuntime: {
+                    e2bCodingAgentTemplateName: 'coding-tpl',
+                    e2bCodingAgentTemplateTag: '',
+                },
+            } as AnyType,
+        });
+
+    beforeEach(() => vi.clearAllMocks());
+
+    it('emits an allowed audit line on success', async () => {
+        const service = auditService();
+        vi.spyOn(service as AnyType, 'runCodingAgent').mockResolvedValue({
+            repository: 'acme/web-app',
+        });
+        const info = vi.spyOn((service as AnyType).logger, 'info');
+
+        await service.runEditRepo(args());
+
+        expect(info).toHaveBeenCalledWith(
+            'coding_agent_write',
+            expect.objectContaining({
+                event: 'coding_agent_write',
+                projectUuid: 'p1',
+                targetRepo: 'acme/web-app',
+                allowed: true,
+                reason: null,
+            }),
+        );
+    });
+
+    it('emits a denied audit line with the classified reason on failure', async () => {
+        const service = auditService();
+        vi.spyOn(service as AnyType, 'runCodingAgent').mockRejectedValue(
+            new RepoTooLargeError('acme/web-app', 500, 100),
+        );
+        const info = vi.spyOn((service as AnyType).logger, 'info');
+
+        await expect(service.runEditRepo(args())).rejects.toThrow(
+            RepoTooLargeError,
+        );
+
+        expect(info).toHaveBeenCalledWith(
+            'coding_agent_write',
+            expect.objectContaining({
+                event: 'coding_agent_write',
+                allowed: false,
+                reason: 'repo_too_large',
+            }),
+        );
     });
 });
 
@@ -2044,7 +2272,7 @@ describe('AiWritebackService.prepareTurn (stale-PR recovery, M4)', () => {
         });
 
     it('treats a resumed workstream whose PR was deleted (null pr_url) as a fresh turn', async () => {
-        const findActiveWorkstreamByRepo = jest.fn().mockResolvedValue({
+        const findActiveWorkstreamByRepo = vi.fn().mockResolvedValue({
             ai_writeback_thread_uuid: 'w-1',
             ai_thread_uuid: 'thread-1',
             target_repo: 'acme/analytics',
@@ -2052,14 +2280,14 @@ describe('AiWritebackService.prepareTurn (stale-PR recovery, M4)', () => {
         });
         const service = buildService({
             projectModel: {
-                get: jest.fn().mockResolvedValue(githubProject()),
+                get: vi.fn().mockResolvedValue(githubProject()),
             } as AnyType,
             featureFlagModel: {
-                get: jest.fn().mockResolvedValue({ enabled: true }),
+                get: vi.fn().mockResolvedValue({ enabled: true }),
             } as AnyType,
             aiWritebackThreadModel: {
                 findActiveWorkstreamByRepo,
-                findByAiThreadUuidAndPrUrl: jest.fn(),
+                findByAiThreadUuidAndPrUrl: vi.fn(),
             } as AnyType,
         });
 
@@ -2118,21 +2346,21 @@ describe('AiWritebackService.closePullRequest (workstream provider)', () => {
         ...overrides,
     });
 
-    beforeEach(() => jest.clearAllMocks());
+    beforeEach(() => vi.clearAllMocks());
 
     it('closes a recorded PR in another repo via its provider, not CiService', async () => {
-        const findByAiThreadUuidAndUrl = jest
+        const findByAiThreadUuidAndUrl = vi
             .fn()
             .mockResolvedValue(recordedPr());
-        const ciClose = jest.fn();
+        const ciClose = vi.fn();
         const service = buildService({
             projectModel: {
-                get: jest.fn().mockResolvedValue(githubProject()),
+                get: vi.fn().mockResolvedValue(githubProject()),
             } as AnyType,
             pullRequestsModel: { findByAiThreadUuidAndUrl } as AnyType,
             ciService: { closePullRequest: ciClose } as AnyType,
         });
-        jest.spyOn(
+        vi.spyOn(
             (service as AnyType).githubProvider,
             'resolveInstallation',
         ).mockResolvedValue({
@@ -2143,7 +2371,7 @@ describe('AiWritebackService.closePullRequest (workstream provider)', () => {
             commitAuthor: { name: 'n', email: 'e' },
             coAuthorTrailer: '',
         } as AnyType);
-        const providerClose = jest
+        const providerClose = vi
             .spyOn((service as AnyType).githubProvider, 'closePullRequest')
             .mockResolvedValue({ state: 'closed' });
 
@@ -2171,9 +2399,9 @@ describe('AiWritebackService.closePullRequest (workstream provider)', () => {
     });
 
     it('falls back to CiService when the PR URL is not a recorded workstream', async () => {
-        const findByAiThreadUuidAndUrl = jest.fn().mockResolvedValue(null);
-        const findByProjectAndUrl = jest.fn().mockResolvedValue(null);
-        const ciClose = jest.fn().mockResolvedValue({ state: 'closed' });
+        const findByAiThreadUuidAndUrl = vi.fn().mockResolvedValue(null);
+        const findByProjectAndUrl = vi.fn().mockResolvedValue(null);
+        const ciClose = vi.fn().mockResolvedValue({ state: 'closed' });
         const service = buildService({
             pullRequestsModel: {
                 findByAiThreadUuidAndUrl,
@@ -2199,11 +2427,11 @@ describe('AiWritebackService.closePullRequest (workstream provider)', () => {
     });
 
     it('rejects a project PR that is not a workstream in the current thread', async () => {
-        const ciClose = jest.fn();
+        const ciClose = vi.fn();
         const service = buildService({
             pullRequestsModel: {
-                findByAiThreadUuidAndUrl: jest.fn().mockResolvedValue(null),
-                findByProjectAndUrl: jest.fn().mockResolvedValue(recordedPr()),
+                findByAiThreadUuidAndUrl: vi.fn().mockResolvedValue(null),
+                findByProjectAndUrl: vi.fn().mockResolvedValue(recordedPr()),
             } as AnyType,
             ciService: { closePullRequest: ciClose } as AnyType,
         });
@@ -2222,15 +2450,15 @@ describe('AiWritebackService.closePullRequest (workstream provider)', () => {
     it('rejects a recorded-PR close when the user lacks manage:SourceCode', async () => {
         const service = buildService({
             projectModel: {
-                get: jest.fn().mockResolvedValue(githubProject()),
+                get: vi.fn().mockResolvedValue(githubProject()),
             } as AnyType,
             pullRequestsModel: {
-                findByAiThreadUuidAndUrl: jest
+                findByAiThreadUuidAndUrl: vi
                     .fn()
                     .mockResolvedValue(recordedPr()),
             } as AnyType,
         });
-        const providerClose = jest.spyOn(
+        const providerClose = vi.spyOn(
             (service as AnyType).githubProvider,
             'closePullRequest',
         );
@@ -2249,10 +2477,10 @@ describe('AiWritebackService.closePullRequest (workstream provider)', () => {
     it('routes a recorded GitLab MR to the GitLab provider', async () => {
         const service = buildService({
             projectModel: {
-                get: jest.fn().mockResolvedValue(githubProject()),
+                get: vi.fn().mockResolvedValue(githubProject()),
             } as AnyType,
             pullRequestsModel: {
-                findByAiThreadUuidAndUrl: jest.fn().mockResolvedValue(
+                findByAiThreadUuidAndUrl: vi.fn().mockResolvedValue(
                     recordedPr({
                         provider: PullRequestProvider.GITLAB,
                         owner: 'acme',
@@ -2263,7 +2491,7 @@ describe('AiWritebackService.closePullRequest (workstream provider)', () => {
                 ),
             } as AnyType,
         });
-        jest.spyOn(
+        vi.spyOn(
             (service as AnyType).gitlabProvider,
             'resolveInstallation',
         ).mockResolvedValue({
@@ -2272,10 +2500,10 @@ describe('AiWritebackService.closePullRequest (workstream provider)', () => {
             instanceUrl: 'https://gitlab.com',
             commitAuthor: { name: 'n', email: 'e' },
         } as AnyType);
-        const gitlabClose = jest
+        const gitlabClose = vi
             .spyOn((service as AnyType).gitlabProvider, 'closePullRequest')
             .mockResolvedValue({ state: 'closed' });
-        const githubClose = jest.spyOn(
+        const githubClose = vi.spyOn(
             (service as AnyType).githubProvider,
             'closePullRequest',
         );

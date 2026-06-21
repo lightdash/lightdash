@@ -31,6 +31,13 @@ export const useClosePullRequest = (projectUuid: string) => {
             void queryClient.invalidateQueries({
                 queryKey: ['pullRequestCiChecks', projectUuid, prUrl],
             });
+            // Refresh the in-thread workstreams panel too so its PR badge flips
+            // to "Closed" — that query is keyed by thread, not prUrl (#41).
+            void queryClient.invalidateQueries({
+                predicate: (query) =>
+                    query.queryKey.includes(projectUuid) &&
+                    query.queryKey.includes('workstreams'),
+            });
         },
         onError: ({ error }) => {
             showToastApiError({
