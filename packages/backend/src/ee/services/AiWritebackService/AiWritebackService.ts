@@ -312,12 +312,20 @@ export const computeWritableRepoKeys = (
     userRepos: { owner: string; repo: string }[],
     intersectWithUser: boolean,
 ): Set<string> => {
-    const userKeys = new Set(userRepos.map((r) => `${r.owner}/${r.repo}`));
+    // GitHub/GitLab repo slugs are case-insensitive, and the installation vs
+    // user listings can disagree on case — compare lowercased so the
+    // intersection never falsely drops a permitted repo. Output keys keep the
+    // installation's original case (the picker matches against the same source).
+    const userKeys = new Set(
+        userRepos.map((r) => `${r.owner}/${r.repo}`.toLowerCase()),
+    );
     return new Set(
         installationRepos
             .map((r) => `${r.owner}/${r.repo}`)
             .filter((key) => !DENYLISTED_WRITE_REPOS.has(key.toLowerCase()))
-            .filter((key) => !intersectWithUser || userKeys.has(key)),
+            .filter(
+                (key) => !intersectWithUser || userKeys.has(key.toLowerCase()),
+            ),
     );
 };
 
@@ -378,9 +386,15 @@ export class AiWritebackService extends BaseService {
     // In-flight WORKSTREAM lock keys, so a second concurrent turn on the same
     // workstream (one sandbox + one PR) is rejected rather than racing the first.
     // Distinct workstreams — different PRs, even on the same repo — run in
-    // parallel. Single-instance only: a horizontally-scaled backend relies on the
-    // chat UI serializing turns per thread; the composite unique still prevents
-    // duplicate rows across instances. Cleared in the run's finally.
+    // parallel. SINGLE-INSTANCE, BEST-EFFORT ONLY: this is an in-process Set, so a
+    // horizontally-scaled backend relies on the chat UI serializing turns per
+    // thread. The partial unique index is keyed on (ai_thread_uuid,
+    // pull_request_uuid) — it does NOT prevent two concurrent fresh turns for the
+    // same (thread, repo) on different pods from each opening a distinct PR (each
+    // gets a different pull_request_uuid, so both inserts satisfy the index). The
+    // worst case is a benign duplicate PR (no data loss / security hole); a DB
+    // advisory lock or a (thread, target_repo) unique is the cross-pod fix (H1).
+    // Cleared in the run's finally.
     private readonly inFlightWorkstreams = new Set<string>();
 
     // Count of in-flight coding-agent turns per thread, so the per-workstream
@@ -2536,9 +2550,15 @@ export class AiWritebackService extends BaseService {
             userRepos,
             intersectWithUser,
         );
-        if (!writable.has(key)) {
+        // Case-insensitive membership: `key` is user-supplied (repoTarget) and
+        // may differ in case from the canonical installation listing (L1).
+        const writableLower = new Set(
+            [...writable].map((k) => k.toLowerCase()),
+        );
+        if (!writableLower.has(key.toLowerCase())) {
             const inInstallation = installationRepos.some(
-                (r) => `${r.owner}/${r.repo}` === key,
+                (r) =>
+                    `${r.owner}/${r.repo}`.toLowerCase() === key.toLowerCase(),
             );
             const reason = inInstallation
                 ? `${key} is not accessible to your linked GitHub account`
@@ -2611,7 +2631,11 @@ export class AiWritebackService extends BaseService {
             // GitLab: single install identity, no user-intersection.
             false,
         );
-        if (!writable.has(key)) {
+        // Case-insensitive membership: `key` is user-supplied (L1).
+        const writableLower = new Set(
+            [...writable].map((k) => k.toLowerCase()),
+        );
+        if (!writableLower.has(key.toLowerCase())) {
             throw new ForbiddenError(
                 `${key} is not accessible to your organization's GitLab installation`,
             );
