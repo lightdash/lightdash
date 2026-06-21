@@ -503,14 +503,15 @@ describe('AiWritebackService.prepareTurn', () => {
     });
 
     // Workstream routing: a thread can hold several PRs per repo, so the resume
-    // row is selected, not just looked up by repo. A `pr_url: null` row skips the
-    // PR edit-state guard, keeping these tests free of provider mocks.
+    // row is selected, not just looked up by repo. The row carries a live PR url
+    // so the resume path is taken (a null pr_url now means the PR was deleted and
+    // the turn restarts fresh — see the stale-PR recovery test, M4).
     const workstreamRow = {
         ai_writeback_thread_uuid: 'w1',
         ai_thread_uuid: 't1',
         sandbox_id: 's1',
         target_repo: 'acme/analytics',
-        pr_url: null,
+        pr_url: PR_3,
     };
 
     it('continues the active workstream for the repo by default (unchanged path)', async () => {
@@ -530,6 +531,22 @@ describe('AiWritebackService.prepareTurn', () => {
                 findByAiThreadUuidAndPrUrl,
             } as AnyType,
         });
+        // A live PR triggers the edit-state guard, so stub the provider calls.
+        jest.spyOn(
+            (service as AnyType).githubProvider,
+            'resolveInstallation',
+        ).mockResolvedValue({
+            provider: PullRequestProvider.GITHUB,
+            installationId: 'inst-1',
+            token: 'install-token',
+            userToken: null,
+            commitAuthor: { name: 'n', email: 'e' },
+            coAuthorTrailer: '',
+        } as AnyType);
+        jest.spyOn(
+            (service as AnyType).githubProvider,
+            'getPullRequestEditState',
+        ).mockResolvedValue({ editable: true, reason: null });
 
         const turn = await (service as AnyType).prepareTurn({
             user: userWithOrg(true),
@@ -1977,6 +1994,85 @@ describe('AiWritebackService.resolveWritableRepoTarget (fail-closed authz)', () 
                 repoTarget: 'acme/analytics',
             }),
         ).rejects.toThrow(/Could not verify your GitHub access/);
+    });
+});
+
+describe('AiWritebackService.prepareTurn (stale-PR recovery, M4)', () => {
+    const userWithManage = (): SessionUser => {
+        const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+        can('manage', 'SourceCode', { organizationUuid: ORG });
+        return {
+            userUuid: 'u1',
+            organizationUuid: ORG,
+            organizationName: 'Acme',
+            organizationCreatedAt: new Date(),
+            role: 'admin',
+            ability: build(),
+        } as AnyType;
+    };
+
+    const githubProject = (): AnyType => ({
+        organizationUuid: ORG,
+        projectUuid: 'p1',
+        name: 'Analytics',
+        dbtConnection: {
+            type: DbtProjectType.GITHUB,
+            authorization_method: 'installation_id',
+            repository: 'acme/analytics',
+            branch: 'main',
+            project_sub_path: '/',
+        },
+        warehouseConnection: { type: WarehouseTypes.POSTGRES },
+        dbtVersion: SupportedDbtVersions.V1_9,
+    });
+
+    const prepare = (
+        service: AiWritebackService,
+        overrides: AnyType = {},
+    ): AnyType =>
+        (service as AnyType).prepareTurn({
+            user: userWithManage(),
+            projectUuid: 'p1',
+            aiThreadUuid: 'thread-1',
+            source: 'web',
+            featureFlag: FeatureFlags.AiWriteback,
+            mode: 'dbt',
+            repoTarget: undefined,
+            prUrl: undefined,
+            startNewPullRequest: false,
+            ...overrides,
+        });
+
+    it('treats a resumed workstream whose PR was deleted (null pr_url) as a fresh turn', async () => {
+        const findActiveWorkstreamByRepo = jest.fn().mockResolvedValue({
+            ai_writeback_thread_uuid: 'w-1',
+            ai_thread_uuid: 'thread-1',
+            target_repo: 'acme/analytics',
+            pr_url: null,
+        });
+        const service = buildService({
+            projectModel: {
+                get: jest.fn().mockResolvedValue(githubProject()),
+            } as AnyType,
+            featureFlagModel: {
+                get: jest.fn().mockResolvedValue({ enabled: true }),
+            } as AnyType,
+            aiWritebackThreadModel: {
+                findActiveWorkstreamByRepo,
+                findByAiThreadUuidAndPrUrl: jest.fn(),
+            } as AnyType,
+        });
+
+        const turn = await prepare(service);
+
+        // The stale row is discarded so the turn opens a fresh PR rather than
+        // resuming onto a dead branch and throwing later (M4).
+        expect(findActiveWorkstreamByRepo).toHaveBeenCalledWith(
+            'thread-1',
+            'acme/analytics',
+        );
+        expect(turn.existingRow).toBeNull();
+        expect(turn.isResume).toBe(false);
     });
 });
 

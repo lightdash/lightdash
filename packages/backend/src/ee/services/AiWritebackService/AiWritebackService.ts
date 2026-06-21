@@ -38,7 +38,10 @@ import {
     listReposAccessibleToUser,
     revokeInstallationToken,
 } from '../../../clients/github/Github';
-import { getGitlabProjects } from '../../../clients/gitlab/Gitlab';
+import {
+    getGitlabProjects,
+    getRepositorySizeMb as getGitlabRepositorySizeMb,
+} from '../../../clients/gitlab/Gitlab';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import type { GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
@@ -1668,11 +1671,23 @@ export class AiWritebackService extends BaseService {
         // it would poison the row for every future turn. Fresh turns have no
         // such row, so the default kill is fine.
         let pauseOnExit = turn.isResume;
-        // Acquire the in-flight slot last, right before the work — only plain
-        // declarations sit between here and the finally that releases it. Safe to
-        // mutate without re-checking: no await ran since assertTurnSlotAvailable,
-        // so no other turn could have taken the slot on this instance.
+        // Acquire the in-flight slot last, right before the work. The in-memory
+        // Set serializes turns on THIS instance; the cross-pod guard below adds a
+        // Postgres advisory lock so a racing turn on another instance is rejected
+        // too (H1). Acquired immediately before the try so the finally always
+        // releases it — no throw-bearing statement sits in between.
         this.acquireTurnSlot(aiThreadUuid, lockKey);
+        const workstreamLock = lockKey
+            ? await this.aiWritebackThreadModel.acquireWorkstreamLock(lockKey)
+            : null;
+        if (lockKey && !workstreamLock) {
+            this.releaseTurnSlot(aiThreadUuid, lockKey);
+            throw new ParameterError(
+                turn.existingRow
+                    ? 'An edit is already in progress for this pull request (possibly on another server instance). Please wait for it to finish before making another change.'
+                    : 'An edit is already in progress for this repository (possibly on another server instance). Please wait for it to finish before making another change.',
+            );
+        }
         try {
             const installation = await turn.provider.resolveInstallation(
                 turn.organizationUuid,
@@ -1902,6 +1917,19 @@ export class AiWritebackService extends BaseService {
             throw error;
         } finally {
             this.releaseTurnSlot(aiThreadUuid, lockKey);
+            if (workstreamLock) {
+                // Best-effort: unlocking failures must not mask the run's own
+                // error, and the connection is returned to the pool regardless.
+                try {
+                    await workstreamLock.release();
+                } catch (releaseError) {
+                    this.logger.warn(
+                        `AiWriteback: failed to release workstream advisory lock: ${getErrorMessage(
+                            releaseError,
+                        )}`,
+                    );
+                }
+            }
             if (sandbox && sandboxUuid) {
                 await this.releaseSandbox(
                     sandboxUuid,
@@ -2116,10 +2144,23 @@ export class AiWritebackService extends BaseService {
                 storedRow.ai_writeback_thread_uuid,
             );
         }
-        const existingRow: ResumableWritebackThread | null =
+        let existingRow: ResumableWritebackThread | null =
             storedRow && storedRow.sandbox_uuid !== null
                 ? { ...storedRow, sandbox_uuid: storedRow.sandbox_uuid }
                 : null;
+
+        // A workstream whose PR was deleted has its `pull_request_uuid` cleared
+        // (FK ON DELETE SET NULL), so the join yields a null `pr_url`. Resuming it
+        // would push onto an orphaned branch and then throw in applyAgentChanges,
+        // discarding the agent's work. Instead treat the turn as FRESH: open a new
+        // PR off the default branch. The new workstream row supersedes the stale
+        // one (findActiveWorkstreamByRepo orders by created_at desc). (M4)
+        if (existingRow && !existingRow.pr_url) {
+            this.logger.info(
+                `AiWriteback: workstream ${existingRow.ai_writeback_thread_uuid} has no live PR (deleted) — starting a fresh pull request instead of resuming.`,
+            );
+            existingRow = null;
+        }
 
         // A thread is bound to its first PR. If that PR has since been merged or
         // closed (from the chat card or directly on the host), editing it again
@@ -2639,6 +2680,22 @@ export class AiWritebackService extends BaseService {
             throw new ForbiddenError(
                 `${key} is not accessible to your organization's GitLab installation`,
             );
+        }
+
+        // Pre-clone size guard (R9), mirroring the GitHub path: fail closed with
+        // an actionable error before cloning a giant repo. GitLab exposes size via
+        // project statistics; when unavailable (null) we can't enforce it and fall
+        // back to the clone timeout rather than blocking a valid edit.
+        const sizeMb = await getGitlabRepositorySizeMb({
+            owner,
+            repo,
+            token: access.token,
+            hostDomain: access.hostDomain,
+        });
+        const limitMb =
+            this.lightdashConfig.aiWriteback.codingAgentMaxRepoSizeMb;
+        if (sizeMb !== null && sizeMb > limitMb) {
+            throw new RepoTooLargeError(key, sizeMb, limitMb);
         }
 
         return {
