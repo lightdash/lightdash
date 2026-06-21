@@ -175,6 +175,12 @@ export const GENERAL_SKILLS_DIR = '/home/user/.lightdash-coding-skills';
 // grep the secret out and write it into an allowed file. Defense-in-depth: the
 // clone token is already scoped + scrubbed + revoked, and secrets are denied at
 // commit time too.
+//
+// Each glob is `/${CWD}/...` where CWD = `/home/user/repo`, so it renders with a
+// leading `//` — Claude Code's syntax for an ABSOLUTE path (a single `/` is
+// project-root-RELATIVE). Do NOT "simplify" the `//` to `/`: that would retarget
+// these deny rules to a project-relative path and stop blocking the real secret
+// files. The leading-slash parity with the allowlist is asserted by tests.
 const GENERAL_SENSITIVE_PATH_GLOBS = [
     `/${CWD}/.git/**`,
     `/${CWD}/.env`,

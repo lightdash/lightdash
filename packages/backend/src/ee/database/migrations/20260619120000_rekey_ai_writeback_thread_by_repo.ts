@@ -29,7 +29,11 @@ export async function up(knex: Knex): Promise<void> {
         });
     }
 
-    // Backfill target_repo from the linked pull request.
+    // Backfill target_repo from the linked pull request. A legacy row with no
+    // linked PR (pull_request_uuid IS NULL) keeps target_repo NULL and so won't
+    // be picked up by findActiveWorkstreamByRepo — acceptable: those are
+    // pre-feature orphans with no PR to resume. (The `provider` lives on the
+    // pull_requests join, so no provider column is added here.)
     await knex.raw(
         `UPDATE ?? AS t
             SET target_repo = pr.owner || '/' || pr.repo

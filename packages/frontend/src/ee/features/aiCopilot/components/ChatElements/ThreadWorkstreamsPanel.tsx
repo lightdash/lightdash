@@ -45,7 +45,7 @@ export const ThreadWorkstreamsPanel: FC<Props> = ({ workstreams }) => {
 
     return (
         <Box className={styles.container}>
-            <Paper withBorder radius="md" p={0} mb="sm" bg="gray.0">
+            <Paper withBorder radius="md" p={0} mb="sm" bg="ldGray.0">
                 <UnstyledButton
                     w="100%"
                     px="sm"
@@ -53,21 +53,25 @@ export const ThreadWorkstreamsPanel: FC<Props> = ({ workstreams }) => {
                     onClick={() => setExpanded((e) => !e)}
                 >
                     <Group gap="xs" wrap="nowrap">
-                        <MantineIcon icon={IconGitPullRequest} color="gray.6" />
-                        <Text size="sm" fw={500} c="gray.7">
+                        <MantineIcon
+                            icon={IconGitPullRequest}
+                            color="ldGray.6"
+                        />
+                        <Text size="sm" fw={500} c="ldGray.7">
                             Pull requests in this conversation
                         </Text>
-                        <Badge size="sm" variant="light" color="gray">
+                        <Badge size="sm" variant="light" color="ldGray">
                             {workstreams.length}
                         </Badge>
-                        <Box style={{ flexGrow: 1 }} />
+                        <Box className={styles.spacer} />
                         <MantineIcon
                             icon={IconChevronRight}
-                            color="gray.6"
-                            style={{
-                                transform: expanded ? 'rotate(90deg)' : 'none',
-                                transition: 'transform 150ms ease',
-                            }}
+                            color="ldGray.6"
+                            className={
+                                expanded
+                                    ? styles.chevronExpanded
+                                    : styles.chevron
+                            }
                         />
                     </Group>
                 </UnstyledButton>
@@ -93,7 +97,7 @@ export const ThreadWorkstreamsPanel: FC<Props> = ({ workstreams }) => {
                                         rel="noreferrer"
                                         size="sm"
                                         fw={500}
-                                        style={{ flexShrink: 0 }}
+                                        className={styles.noShrink}
                                     >
                                         {ws.repository} #{ws.prNumber}
                                     </Anchor>
@@ -102,7 +106,7 @@ export const ThreadWorkstreamsPanel: FC<Props> = ({ workstreams }) => {
                                             size="sm"
                                             variant="light"
                                             color={badge.color}
-                                            style={{ flexShrink: 0 }}
+                                            className={styles.noShrink}
                                         >
                                             {badge.label}
                                         </Badge>
@@ -111,10 +115,7 @@ export const ThreadWorkstreamsPanel: FC<Props> = ({ workstreams }) => {
                                         size="sm"
                                         c="dimmed"
                                         truncate
-                                        style={{
-                                            flex: '0 1 auto',
-                                            minWidth: 0,
-                                        }}
+                                        className={styles.title}
                                     >
                                         {ws.title ?? ws.summary ?? ''}
                                     </Text>

@@ -1113,6 +1113,13 @@ export class AiWritebackService extends BaseService {
      * disable repos the backend would 403 (R5). GitLab uses a single install
      * identity (no user-intersection), so every listed repo is writable bar the
      * denylist.
+     *
+     * The flag is advisory/display-only (L4): it is computed under view:SourceCode
+     * while a write needs manage:SourceCode, and on a transient user-listing
+     * failure it degrades to installation scope (more permissive). That drift is
+     * SAFE because {@link resolveWritableRepoTarget} is the authoritative gate and
+     * fails CLOSED on the same failure — at worst the picker shows a repo as
+     * writable that the backend then refuses.
      */
     async listProjectRepositories({
         user,
@@ -3460,11 +3467,11 @@ export class AiWritebackService extends BaseService {
     /**
      * Run one turn of the general-purpose coding agent (`editRepo`): edit a repo
      * and open/update a pull request, with no dbt/compile step — verification
-     * lives in the PR's own CI. Slice 1 targets the project's already-connected
-     * repo (reusing the dbt-connection auth/resolution); arbitrary-repo targeting
-     * + per-repo write authz arrive in a later slice. Gated by the CodingAgent
-     * flag (asserted in `prepareTurn`) and the same `manage:SourceCode` check as
-     * writeback.
+     * lives in the PR's own CI. Targets ANY repo the request resolves through the
+     * authz chokepoint ({@link resolveWritableRepoTarget}: manage:SourceCode +
+     * denylist + user∩installation), NOT just the project's dbt-connection repo.
+     * Gated by the CodingAgent flag (asserted in `prepareTurn`). Every attempt is
+     * written to the coding-agent write audit (allowed and denied alike).
      */
     async runEditRepo(args: AiWritebackRunArgs): Promise<AiWritebackRunResult> {
         this.logger.info('AI coding agent run requested', {
