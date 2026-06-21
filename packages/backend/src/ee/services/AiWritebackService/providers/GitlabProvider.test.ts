@@ -3,6 +3,7 @@ import {
     createPullRequest,
     getMergeRequest,
 } from '../../../../clients/gitlab/Gitlab';
+import { DeniedPathError } from '../deniedPaths';
 import type { GitlabConnection, GitlabInstallation } from '../types';
 import { GitlabProvider } from './GitlabProvider';
 
@@ -156,6 +157,33 @@ describe('GitlabProvider.openPullRequest', () => {
             expect.stringContaining('Co-authored-by: Jane Doe <jane@acme.com>'),
             expect.anything(),
         );
+    });
+
+    it('rejects a CI-touching commit (general agent) without pushing or opening an MR', async () => {
+        const sandbox = fakeSandbox();
+        // The denied-path gate probes staged paths with `--name-status -z`;
+        // return a CI/workflow path for that call, empty for everything else.
+        sandbox.commands.run = jest.fn(async (cmd: string) =>
+            cmd.includes('--name-status')
+                ? { exitCode: 0, stdout: 'A\0.github/workflows/deploy.yml\0' }
+                : { exitCode: 0, stdout: '' },
+        );
+
+        await expect(
+            provider.openPullRequest({
+                sandbox: sandbox as never,
+                connection,
+                installation,
+                title: 'Add workflow',
+                description: 'Adds CI.',
+                user: { userUuid: 'u1' } as never,
+                setStage: jest.fn(),
+                denyCiPaths: true,
+            }),
+        ).rejects.toBeInstanceOf(DeniedPathError);
+
+        expect(mockCreatePullRequest).not.toHaveBeenCalled();
+        expect(sandbox.git.push).not.toHaveBeenCalled();
     });
 });
 
