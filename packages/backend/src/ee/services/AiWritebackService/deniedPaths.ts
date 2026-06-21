@@ -20,11 +20,14 @@ import { ForbiddenError } from '@lightdash/common';
 
 /** Secret/credential files — denied on every coding-agent commit. */
 const SECRET_PATH_PATTERNS: RegExp[] = [
-    /(^|\/)\.env(\..*)?$/i, // .env, .env.local, .env.production, ...
+    // Dotfile envs AND `<name>.env` files: .env, .env.local, prod.env, app.env.local
+    /(^|\/)[^/]*\.env(\.[^/]*)?$/i,
     /\.pem$/i,
     /\.key$/i,
     /\.p12$/i,
     /\.pfx$/i,
+    /\.keystore$/i,
+    /\.jks$/i,
     /(^|\/)id_rsa(\.pub)?$/i,
     /(^|\/)id_ed25519(\.pub)?$/i,
     /(^|\/)\.npmrc$/i,
@@ -33,15 +36,19 @@ const SECRET_PATH_PATTERNS: RegExp[] = [
     /\.keyfile(\.json)?$/i,
 ];
 
-/** CI/workflow files — denied for the general agent (RCE in customer CI). */
+/**
+ * CI/workflow files — denied for the general agent (RCE in customer CI). Every
+ * single-file CI config matches both `.yml` and `.yaml` (`ya?ml`); a malicious
+ * workflow under the alternate extension must not slip the gate (R3).
+ */
 const CI_PATH_PATTERNS: RegExp[] = [
     /(^|\/)\.github\/workflows\//i,
     /(^|\/)\.github\/actions\//i,
-    /(^|\/)\.gitlab-ci\.yml$/i,
+    /(^|\/)\.gitlab-ci\.ya?ml$/i,
     /(^|\/)Jenkinsfile$/i,
     /(^|\/)\.circleci\//i,
-    /(^|\/)azure-pipelines\.yml$/i,
-    /(^|\/)bitbucket-pipelines\.yml$/i,
+    /(^|\/)azure-pipelines\.ya?ml$/i,
+    /(^|\/)bitbucket-pipelines\.ya?ml$/i,
 ];
 
 /**

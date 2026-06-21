@@ -5,9 +5,15 @@ describe('findDeniedCommitPaths', () => {
         '.env',
         '.env.production',
         'config/.env.local',
+        // `<name>.env` files are secrets too — not just dotfile envs (M2/R6).
+        'prod.env',
+        'config/app.env',
+        'config/app.env.local',
         'certs/server.pem',
         'deploy/id_rsa',
         'app/private.key',
+        'release/app.keystore',
+        'android/app.jks',
         '.npmrc',
         'service-account.keyfile.json',
     ];
@@ -16,9 +22,14 @@ describe('findDeniedCommitPaths', () => {
         '.github/workflows/deploy.yml',
         '.github/actions/build/action.yml',
         '.gitlab-ci.yml',
+        // `.yaml` variants must be denied too — the alternate extension was a
+        // bypass before (M1/R3).
+        '.gitlab-ci.yaml',
         'Jenkinsfile',
         '.circleci/config.yml',
         'azure-pipelines.yml',
+        'azure-pipelines.yaml',
+        'bitbucket-pipelines.yaml',
     ];
 
     const allowed = [
@@ -28,6 +39,10 @@ describe('findDeniedCommitPaths', () => {
         'schema.yml',
         'docs/.github-notes.md',
         '.github/CODEOWNERS', // not under workflows/actions
+        // Near-misses that must NOT be denied.
+        '.envrc',
+        'src/environment.ts',
+        'lib/myenv.py',
     ];
 
     it('always denies secret paths regardless of denyCiPaths', () => {

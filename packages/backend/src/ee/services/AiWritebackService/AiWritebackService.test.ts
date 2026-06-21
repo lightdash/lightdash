@@ -36,6 +36,7 @@ import {
 } from './AiWritebackService';
 import {
     COMPILE_WRAPPER_PATH,
+    GENERAL_ALLOWED_TOOLS,
     GENERAL_DISALLOWED_TOOLS,
     MAX_CONCURRENT_WORKSTREAM_TURNS_PER_THREAD,
     PR_DESCRIPTION_CLOSE,
@@ -1800,6 +1801,17 @@ describe('computeWritableRepoKeys', () => {
         );
         expect(keys.size).toBe(0);
     });
+
+    it('intersects case-insensitively (installation vs user listings can differ in case)', () => {
+        const keys = computeWritableRepoKeys(
+            [r('Acme', 'Web-App')],
+            [r('acme', 'web-app')],
+            true,
+        );
+        // The slug differs only by case across the two listings — it must still
+        // intersect (L1), and the output keeps the installation's casing.
+        expect([...keys]).toEqual(['Acme/Web-App']);
+    });
 });
 
 describe('auditReasonForError', () => {
@@ -1848,6 +1860,22 @@ describe('auditReasonForError', () => {
 
     it('falls back to unknown for unrecognised errors', () => {
         expect(auditReasonForError(new Error('boom'))).toBe('unknown');
+    });
+});
+
+describe('GENERAL_ALLOWED_TOOLS', () => {
+    const tools = GENERAL_ALLOWED_TOOLS.split(',');
+
+    // Inv#2: the general coding agent has NO shell. "No in-sandbox build" is
+    // enforceable (not convention) only while zero Bash entries are granted.
+    it('grants zero Bash entries (no shell for the general agent)', () => {
+        expect(tools.some((t) => t.startsWith('Bash('))).toBe(false);
+        expect(tools).not.toContain('Bash');
+    });
+
+    it('does not grant a blanket WebFetch/WebSearch escape hatch', () => {
+        expect(tools.some((t) => t.startsWith('WebFetch'))).toBe(false);
+        expect(tools.some((t) => t.startsWith('WebSearch'))).toBe(false);
     });
 });
 
