@@ -481,6 +481,25 @@ export type AiAgentThreadPullRequest = {
 export type ApiAiAgentThreadPullRequestResponse =
     ApiSuccess<AiAgentThreadPullRequest | null>;
 
+/**
+ * One pull request a chat thread has opened with the coding agent (a
+ * "workstream" — one sandbox + one PR). A thread can hold several, across one or
+ * more repos. `state` is resolved live from the git host where possible (null
+ * when it couldn't be fetched, e.g. GitLab or a transient error).
+ */
+export type AiAgentThreadWorkstream = {
+    prUrl: string;
+    repository: string;
+    prNumber: number;
+    title: string | null;
+    summary: string | null;
+    state: 'open' | 'merged' | 'closed' | null;
+};
+
+export type ApiAiAgentThreadWorkstreamsResponse = ApiSuccess<
+    AiAgentThreadWorkstream[]
+>;
+
 export type ApiAiAgentThreadCreateRequest = {
     prompt?: string;
     context?: AiPromptContextInput;

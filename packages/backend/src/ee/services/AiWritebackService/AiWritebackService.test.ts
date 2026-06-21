@@ -28,16 +28,26 @@ import {
 import { createSandboxManager, SandboxManager } from '../SandboxRuntime';
 import {
     AiWritebackService,
+    auditReasonForError,
+    computeWritableRepoKeys,
     mergeSourceCodeRepoAccess,
+    parseOwnerRepo,
+    workstreamLockKey,
 } from './AiWritebackService';
 import {
     COMPILE_WRAPPER_PATH,
+    MAX_CONCURRENT_WORKSTREAM_TURNS_PER_THREAD,
     PR_DESCRIPTION_CLOSE,
     PR_DESCRIPTION_OPEN,
     PR_TITLE_CLOSE,
     PR_TITLE_OPEN,
 } from './constants';
-import { WritebackGitNotConnectedError } from './errors';
+import { DeniedPathError } from './deniedPaths';
+import {
+    RepoTooLargeError,
+    WritebackGitNotConnectedError,
+    WritebackThreadPrClosedError,
+} from './errors';
 
 // Stub e2b and the GitHub/octokit client so the run() tests drive fakes and the
 // unit tests below never reach the real SDKs.
@@ -488,6 +498,148 @@ describe('AiWritebackService.prepareTurn', () => {
                 hostDomain: 'gitlab.acme.com',
             },
         });
+    });
+
+    // Workstream routing: a thread can hold several PRs per repo, so the resume
+    // row is selected, not just looked up by repo. A `pr_url: null` row skips the
+    // PR edit-state guard, keeping these tests free of provider mocks.
+    const workstreamRow = {
+        ai_writeback_thread_uuid: 'w1',
+        ai_thread_uuid: 't1',
+        sandbox_id: 's1',
+        target_repo: 'acme/analytics',
+        pr_url: null,
+    };
+
+    it('continues the active workstream for the repo by default (unchanged path)', async () => {
+        const findActiveWorkstreamByRepo = vi
+            .fn()
+            .mockResolvedValue(workstreamRow);
+        const findByAiThreadUuidAndPrUrl = vi.fn();
+        const service = buildService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            } as AnyType,
+            projectModel: {
+                get: vi.fn().mockResolvedValue(githubProject()),
+            } as AnyType,
+            aiWritebackThreadModel: {
+                findActiveWorkstreamByRepo,
+                findByAiThreadUuidAndPrUrl,
+            } as AnyType,
+        });
+
+        const turn = await (service as AnyType).prepareTurn({
+            user: userWithOrg(true),
+            projectUuid: 'p1',
+            aiThreadUuid: 't1',
+        });
+
+        expect(findActiveWorkstreamByRepo).toHaveBeenCalledWith(
+            't1',
+            'acme/analytics',
+        );
+        expect(findByAiThreadUuidAndPrUrl).not.toHaveBeenCalled();
+        expect(turn).toMatchObject({
+            existingRow: workstreamRow,
+            isResume: true,
+        });
+    });
+
+    it('forces a fresh workstream when startNewPullRequest is set', async () => {
+        const findActiveWorkstreamByRepo = vi.fn();
+        const findByAiThreadUuidAndPrUrl = vi.fn();
+        const service = buildService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            } as AnyType,
+            projectModel: {
+                get: vi.fn().mockResolvedValue(githubProject()),
+            } as AnyType,
+            aiWritebackThreadModel: {
+                findActiveWorkstreamByRepo,
+                findByAiThreadUuidAndPrUrl,
+            } as AnyType,
+        });
+
+        const turn = await (service as AnyType).prepareTurn({
+            user: userWithOrg(true),
+            projectUuid: 'p1',
+            aiThreadUuid: 't1',
+            startNewPullRequest: true,
+        });
+
+        expect(findActiveWorkstreamByRepo).not.toHaveBeenCalled();
+        expect(findByAiThreadUuidAndPrUrl).not.toHaveBeenCalled();
+        expect(turn).toMatchObject({ existingRow: null, isResume: false });
+    });
+});
+
+describe('AiWritebackService workstream concurrency', () => {
+    const turnWith = (existingRow: AnyType): AnyType => ({ existingRow });
+
+    it('keys the lock on the workstream when resuming, new::repo when fresh, null one-shot', () => {
+        const key = (aiThreadUuid: string | undefined, existingRow: AnyType) =>
+            workstreamLockKey(
+                aiThreadUuid,
+                turnWith(existingRow),
+                'acme/web-app',
+            );
+        expect(key('t1', { ai_writeback_thread_uuid: 'w1' })).toBe(
+            't1::ws::w1',
+        );
+        expect(key('t1', null)).toBe('t1::new::acme/web-app');
+        expect(key(undefined, null)).toBeNull();
+    });
+
+    it('rejects a second turn on the same workstream but allows a different PR', () => {
+        const service = buildService();
+        const assertAvailable = (lockKey: string, existingRow: AnyType) =>
+            (service as AnyType).assertTurnSlotAvailable(
+                't1',
+                lockKey,
+                existingRow,
+            );
+        (service as AnyType).acquireTurnSlot('t1', 't1::ws::w1');
+
+        expect(() => assertAvailable('t1::ws::w1', { x: 1 })).toThrow(
+            /already in progress for this pull request/,
+        );
+        // A different workstream on the same repo runs in parallel.
+        expect(() => assertAvailable('t1::ws::w2', { x: 1 })).not.toThrow();
+    });
+
+    it('caps concurrent turns per thread and frees a slot on release', () => {
+        const service = buildService();
+        const assertCap = () =>
+            (service as AnyType).assertTurnSlotAvailable('t1', null, null);
+        for (
+            let i = 0;
+            i < MAX_CONCURRENT_WORKSTREAM_TURNS_PER_THREAD;
+            i += 1
+        ) {
+            (service as AnyType).acquireTurnSlot('t1', `t1::ws::w${i}`);
+        }
+
+        expect(assertCap).toThrow(/Too many edits/);
+
+        (service as AnyType).releaseTurnSlot('t1', 't1::ws::w0');
+        expect(assertCap).not.toThrow();
+    });
+
+    it('isolates the per-thread cap between threads', () => {
+        const service = buildService();
+        for (
+            let i = 0;
+            i < MAX_CONCURRENT_WORKSTREAM_TURNS_PER_THREAD;
+            i += 1
+        ) {
+            (service as AnyType).acquireTurnSlot('t1', `t1::ws::w${i}`);
+        }
+        // A different thread is unaffected by t1 saturating its cap.
+        expect(() =>
+            (service as AnyType).assertTurnSlotAvailable('t2', null, null),
+        ).not.toThrow();
     });
 });
 
@@ -1000,6 +1152,26 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         expect(wrapperWrite[1]).toContain('-u ANTHROPIC_API_KEY');
     });
 
+    // R13: the sandbox network lockdown is a security invariant. The egress
+    // allowlist passed to the provider must stay [anthropic,github,gitlab] —
+    // never widened to `*`. Under the SandboxProvider abstraction the implicit
+    // denyOut=ALL is enforced inside the provider; this test fails loudly if the
+    // allowlist handed to the provider is ever loosened.
+    it('creates the sandbox with a fixed egress allowlist', async () => {
+        const sandbox = fakeSandbox(0, true);
+        fakeSandboxProvider.create.mockClear();
+        fakeSandboxProvider.create.mockResolvedValue(sandbox);
+
+        await runService(sandbox);
+
+        expect(fakeSandboxProvider.create).toHaveBeenCalledTimes(1);
+        const [spec] = fakeSandboxProvider.create.mock.calls[0];
+        expect(spec.egress).toEqual({
+            allow: ['api.anthropic.com', 'github.com', 'gitlab.com'],
+        });
+        expect(spec.egress.allow).not.toContain('*');
+    });
+
     it('skips the PR when the agent exits non-zero', async () => {
         const sandbox = fakeSandbox(1, true);
         fakeSandboxProvider.create.mockResolvedValue(sandbox);
@@ -1301,6 +1473,58 @@ describe('AiWritebackService repo read access', () => {
     });
 });
 
+describe('AiWritebackService.listWorkstreams', () => {
+    it('returns [] without querying when the thread has no uuid', async () => {
+        const listByAiThreadUuid = vi.fn();
+        const service = buildService({
+            aiWritebackThreadModel: { listByAiThreadUuid } as AnyType,
+        });
+        await expect(
+            service.listWorkstreams({
+                aiThreadUuid: undefined,
+                repoTarget: null,
+            }),
+        ).resolves.toEqual([]);
+        expect(listByAiThreadUuid).not.toHaveBeenCalled();
+    });
+
+    it('maps rows to owner/repo workstreams, passing the repo filter through', async () => {
+        const listByAiThreadUuid = vi.fn().mockResolvedValue([
+            {
+                owner: 'acme',
+                repo: 'analytics',
+                provider: PullRequestProvider.GITHUB,
+                pr_url: PR_7,
+                pr_number: 7,
+                summary: 'Fix the typo',
+                created_at: new Date(),
+            },
+        ]);
+        const service = buildService({
+            aiWritebackThreadModel: { listByAiThreadUuid } as AnyType,
+        });
+
+        await expect(
+            service.listWorkstreams({
+                aiThreadUuid: 'thread-1',
+                repoTarget: 'acme/analytics',
+            }),
+        ).resolves.toEqual([
+            {
+                repository: 'acme/analytics',
+                provider: PullRequestProvider.GITHUB,
+                prUrl: PR_7,
+                prNumber: 7,
+                summary: 'Fix the typo',
+            },
+        ]);
+        expect(listByAiThreadUuid).toHaveBeenCalledWith(
+            'thread-1',
+            'acme/analytics',
+        );
+    });
+});
+
 describe('AiWritebackService.mergePullRequest', () => {
     const gitProject = (): AnyType => ({
         organizationUuid: ORG,
@@ -1509,5 +1733,119 @@ describe('mergeSourceCodeRepoAccess', () => {
         ]);
         expect(map.get('me/personal')?.token).toBe('user-token');
         expect(map.get('acme/shared')?.token).toBe('inst-token'); // org wins
+    });
+});
+
+describe('parseOwnerRepo', () => {
+    it('parses a valid owner/repo', () => {
+        expect(parseOwnerRepo('acme/web-app')).toEqual({
+            owner: 'acme',
+            repo: 'web-app',
+        });
+    });
+
+    it('trims whitespace and a trailing .git', () => {
+        expect(parseOwnerRepo('  acme/web-app.git ')).toEqual({
+            owner: 'acme',
+            repo: 'web-app',
+        });
+    });
+
+    it.each([undefined, '', 'noslash', 'a/b/c', 'owner/', '/repo'])(
+        'throws ParameterError on malformed input %p',
+        (input) => {
+            expect(() => parseOwnerRepo(input as string)).toThrow();
+        },
+    );
+});
+
+describe('computeWritableRepoKeys', () => {
+    const r = (owner: string, repo: string) => ({ owner, repo });
+
+    it('without user intersection, every installation repo is writable', () => {
+        const keys = computeWritableRepoKeys(
+            [r('acme', 'a'), r('acme', 'b')],
+            [],
+            false,
+        );
+        expect([...keys].sort()).toEqual(['acme/a', 'acme/b']);
+    });
+
+    it('with user intersection, only repos in BOTH sets are writable', () => {
+        const keys = computeWritableRepoKeys(
+            [r('acme', 'a'), r('acme', 'b'), r('acme', 'c')],
+            [r('acme', 'b'), r('acme', 'c'), r('me', 'x')],
+            true,
+        );
+        // acme/a is install-only (excluded); me/x is user-only (not installable)
+        expect([...keys].sort()).toEqual(['acme/b', 'acme/c']);
+    });
+
+    it('never marks the denylisted lightdash/lightdash writable', () => {
+        const keys = computeWritableRepoKeys(
+            [r('lightdash', 'lightdash'), r('acme', 'a')],
+            [],
+            false,
+        );
+        expect(keys.has('lightdash/lightdash')).toBe(false);
+        expect(keys.has('acme/a')).toBe(true);
+    });
+
+    it('denylist is case-insensitive', () => {
+        const keys = computeWritableRepoKeys(
+            [r('Lightdash', 'Lightdash')],
+            [],
+            false,
+        );
+        expect(keys.size).toBe(0);
+    });
+});
+
+describe('auditReasonForError', () => {
+    it('maps each terminal coding-agent error to a stable reason', () => {
+        expect(auditReasonForError(new DeniedPathError(['.env']))).toBe(
+            'denied_path',
+        );
+        expect(
+            auditReasonForError(new RepoTooLargeError('a/b', 900, 500)),
+        ).toBe('repo_too_large');
+        expect(
+            auditReasonForError(
+                new WritebackGitNotConnectedError(PullRequestProvider.GITHUB),
+            ),
+        ).toBe('not_installed');
+        expect(
+            auditReasonForError(new WritebackThreadPrClosedError('merged')),
+        ).toBe('pr_not_open');
+    });
+
+    it('distinguishes the ForbiddenError authz sub-conditions by message', () => {
+        expect(
+            auditReasonForError(
+                new ForbiddenError(
+                    'The repository lightdash/lightdash cannot be edited',
+                ),
+            ),
+        ).toBe('denied_repo');
+        expect(
+            auditReasonForError(
+                new ForbiddenError(
+                    'a/b is not accessible to your linked GitHub account',
+                ),
+            ),
+        ).toBe('user_intersection');
+        expect(
+            auditReasonForError(
+                new ForbiddenError(
+                    "a/b is not accessible to your organization's GitHub App installation",
+                ),
+            ),
+        ).toBe('installation');
+        // A bare ForbiddenError (the manage:SourceCode gate) -> permission.
+        expect(auditReasonForError(new ForbiddenError())).toBe('permission');
+    });
+
+    it('falls back to unknown for unrecognised errors', () => {
+        expect(auditReasonForError(new Error('boom'))).toBe('unknown');
     });
 });
