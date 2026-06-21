@@ -36,6 +36,7 @@ import {
 } from './AiWritebackService';
 import {
     COMPILE_WRAPPER_PATH,
+    GENERAL_DISALLOWED_TOOLS,
     MAX_CONCURRENT_WORKSTREAM_TURNS_PER_THREAD,
     PR_DESCRIPTION_CLOSE,
     PR_DESCRIPTION_OPEN,
@@ -1847,5 +1848,323 @@ describe('auditReasonForError', () => {
 
     it('falls back to unknown for unrecognised errors', () => {
         expect(auditReasonForError(new Error('boom'))).toBe('unknown');
+    });
+});
+
+describe('GENERAL_DISALLOWED_TOOLS', () => {
+    const rules = GENERAL_DISALLOWED_TOOLS.split(',');
+
+    it('denies Grep on every path it denies Read on (no read/grep parity gap)', () => {
+        const readGlobs = rules
+            .filter((r) => r.startsWith('Read('))
+            .map((r) => r.slice('Read('.length, -1));
+        const grepGlobs = new Set(
+            rules
+                .filter((r) => r.startsWith('Grep('))
+                .map((r) => r.slice('Grep('.length, -1)),
+        );
+
+        expect(readGlobs.length).toBeGreaterThan(0);
+        readGlobs.forEach((glob) => {
+            expect(grepGlobs.has(glob)).toBe(true);
+        });
+    });
+
+    it('denies Grep against .env and .git so secrets cannot be grepped out', () => {
+        expect(rules).toEqual(
+            expect.arrayContaining([
+                expect.stringMatching(/^Grep\(.*\.git\/\*\*\)$/),
+                expect.stringMatching(/^Grep\(.*\.env\)$/),
+            ]),
+        );
+    });
+});
+
+describe('AiWritebackService.resolveWritableRepoTarget (fail-closed authz)', () => {
+    const userWithManage = (): SessionUser => {
+        const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+        can('manage', 'SourceCode', { organizationUuid: ORG });
+        return {
+            userUuid: 'u1',
+            organizationUuid: ORG,
+            organizationName: 'Acme',
+            organizationCreatedAt: new Date(),
+            role: 'admin',
+            ability: build(),
+        } as AnyType;
+    };
+
+    const githubProject = (): AnyType => ({
+        organizationUuid: ORG,
+        projectUuid: 'p1',
+        name: 'Analytics',
+        dbtConnection: {
+            type: DbtProjectType.GITHUB,
+            authorization_method: 'installation_id',
+            repository: 'acme/analytics',
+            branch: 'main',
+            project_sub_path: '/',
+        },
+        warehouseConnection: { type: WarehouseTypes.POSTGRES },
+    });
+
+    beforeEach(() => jest.clearAllMocks());
+
+    it('fails closed (does NOT widen to installation scope) when the user repo listing fails', async () => {
+        const { service } = (() => {
+            const svc = buildService({
+                githubAppService: {
+                    getValidUserToken: jest
+                        .fn()
+                        .mockResolvedValue('user-token'),
+                } as AnyType,
+            });
+            jest.spyOn(
+                (svc as AnyType).githubProvider,
+                'resolveInstallation',
+            ).mockResolvedValue({
+                provider: PullRequestProvider.GITHUB,
+                installationId: 'inst-1',
+                token: 'install-token',
+                userToken: null,
+                commitAuthor: { name: 'n', email: 'e' },
+                coAuthorTrailer: '',
+            } as AnyType);
+            return { service: svc };
+        })();
+
+        // The installation can reach the target...
+        (listReposAccessibleToInstallation as jest.Mock).mockResolvedValue([
+            { owner: 'acme', repo: 'analytics' },
+        ]);
+        // ...but listing the user's own repos fails transiently.
+        (listReposAccessibleToUser as jest.Mock).mockRejectedValue(
+            new Error('GitHub 503'),
+        );
+
+        await expect(
+            service.resolveWritableRepoTarget({
+                user: userWithManage(),
+                project: githubProject(),
+                repoTarget: 'acme/analytics',
+            }),
+        ).rejects.toThrow(/Could not verify your GitHub access/);
+    });
+});
+
+describe('AiWritebackService.closePullRequest (workstream provider)', () => {
+    const PR_OTHER = 'https://github.com/acme/other-repo/pull/42';
+
+    const userWithManage = (canManage = true): SessionUser => {
+        const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+        if (canManage) can('manage', 'SourceCode', { organizationUuid: ORG });
+        return {
+            userUuid: 'u1',
+            organizationUuid: ORG,
+            organizationName: 'Acme',
+            organizationCreatedAt: new Date(),
+            role: 'admin',
+            ability: build(),
+        } as AnyType;
+    };
+
+    const githubProject = (): AnyType => ({
+        organizationUuid: ORG,
+        projectUuid: 'p1',
+        name: 'Analytics',
+        dbtConnection: {
+            type: DbtProjectType.GITHUB,
+            authorization_method: 'installation_id',
+            repository: 'acme/analytics',
+            branch: 'main',
+            project_sub_path: '/',
+        },
+        warehouseConnection: { type: WarehouseTypes.POSTGRES },
+    });
+
+    const recordedPr = (overrides: AnyType = {}): AnyType => ({
+        pullRequestUuid: 'pr-uuid-1',
+        organizationUuid: ORG,
+        projectUuid: 'p1',
+        provider: PullRequestProvider.GITHUB,
+        owner: 'acme',
+        repo: 'other-repo',
+        prNumber: 42,
+        prUrl: PR_OTHER,
+        ...overrides,
+    });
+
+    beforeEach(() => jest.clearAllMocks());
+
+    it('closes a recorded PR in another repo via its provider, not CiService', async () => {
+        const findByAiThreadUuidAndUrl = jest
+            .fn()
+            .mockResolvedValue(recordedPr());
+        const ciClose = jest.fn();
+        const service = buildService({
+            projectModel: {
+                get: jest.fn().mockResolvedValue(githubProject()),
+            } as AnyType,
+            pullRequestsModel: { findByAiThreadUuidAndUrl } as AnyType,
+            ciService: { closePullRequest: ciClose } as AnyType,
+        });
+        jest.spyOn(
+            (service as AnyType).githubProvider,
+            'resolveInstallation',
+        ).mockResolvedValue({
+            provider: PullRequestProvider.GITHUB,
+            installationId: 'inst-1',
+            token: 'install-token',
+            userToken: null,
+            commitAuthor: { name: 'n', email: 'e' },
+            coAuthorTrailer: '',
+        } as AnyType);
+        const providerClose = jest
+            .spyOn((service as AnyType).githubProvider, 'closePullRequest')
+            .mockResolvedValue({ state: 'closed' });
+
+        const result = await service.closePullRequest({
+            user: userWithManage(),
+            projectUuid: 'p1',
+            aiThreadUuid: 'thread-1',
+            prUrl: PR_OTHER,
+        });
+
+        expect(result).toEqual({ state: 'closed' });
+        expect(findByAiThreadUuidAndUrl).toHaveBeenCalledWith(
+            'thread-1',
+            PR_OTHER,
+        );
+        expect(ciClose).not.toHaveBeenCalled();
+        expect(providerClose).toHaveBeenCalledWith(
+            expect.objectContaining({
+                prUrl: PR_OTHER,
+                owner: 'acme',
+                repo: 'other-repo',
+                pullNumber: 42,
+            }),
+        );
+    });
+
+    it('falls back to CiService when the PR URL is not a recorded workstream', async () => {
+        const findByAiThreadUuidAndUrl = jest.fn().mockResolvedValue(null);
+        const findByProjectAndUrl = jest.fn().mockResolvedValue(null);
+        const ciClose = jest.fn().mockResolvedValue({ state: 'closed' });
+        const service = buildService({
+            pullRequestsModel: {
+                findByAiThreadUuidAndUrl,
+                findByProjectAndUrl,
+            } as AnyType,
+            ciService: { closePullRequest: ciClose } as AnyType,
+        });
+        const args = {
+            user: userWithManage(),
+            projectUuid: 'p1',
+            aiThreadUuid: 'thread-1',
+            prUrl: PR_7,
+        };
+
+        const result = await service.closePullRequest(args);
+
+        expect(result).toEqual({ state: 'closed' });
+        expect(ciClose).toHaveBeenCalledWith({
+            user: args.user,
+            projectUuid: args.projectUuid,
+            prUrl: args.prUrl,
+        });
+    });
+
+    it('rejects a project PR that is not a workstream in the current thread', async () => {
+        const ciClose = jest.fn();
+        const service = buildService({
+            pullRequestsModel: {
+                findByAiThreadUuidAndUrl: jest.fn().mockResolvedValue(null),
+                findByProjectAndUrl: jest.fn().mockResolvedValue(recordedPr()),
+            } as AnyType,
+            ciService: { closePullRequest: ciClose } as AnyType,
+        });
+
+        await expect(
+            service.closePullRequest({
+                user: userWithManage(),
+                projectUuid: 'p1',
+                aiThreadUuid: 'thread-1',
+                prUrl: PR_OTHER,
+            }),
+        ).rejects.toThrow(/not a workstream in the current conversation/);
+        expect(ciClose).not.toHaveBeenCalled();
+    });
+
+    it('rejects a recorded-PR close when the user lacks manage:SourceCode', async () => {
+        const service = buildService({
+            projectModel: {
+                get: jest.fn().mockResolvedValue(githubProject()),
+            } as AnyType,
+            pullRequestsModel: {
+                findByAiThreadUuidAndUrl: jest
+                    .fn()
+                    .mockResolvedValue(recordedPr()),
+            } as AnyType,
+        });
+        const providerClose = jest.spyOn(
+            (service as AnyType).githubProvider,
+            'closePullRequest',
+        );
+
+        await expect(
+            service.closePullRequest({
+                user: userWithManage(false),
+                projectUuid: 'p1',
+                aiThreadUuid: 'thread-1',
+                prUrl: PR_OTHER,
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(providerClose).not.toHaveBeenCalled();
+    });
+
+    it('routes a recorded GitLab MR to the GitLab provider', async () => {
+        const service = buildService({
+            projectModel: {
+                get: jest.fn().mockResolvedValue(githubProject()),
+            } as AnyType,
+            pullRequestsModel: {
+                findByAiThreadUuidAndUrl: jest.fn().mockResolvedValue(
+                    recordedPr({
+                        provider: PullRequestProvider.GITLAB,
+                        owner: 'acme',
+                        repo: 'gl-repo',
+                        prNumber: 7,
+                        prUrl: 'https://gitlab.com/acme/gl-repo/-/merge_requests/7',
+                    }),
+                ),
+            } as AnyType,
+        });
+        jest.spyOn(
+            (service as AnyType).gitlabProvider,
+            'resolveInstallation',
+        ).mockResolvedValue({
+            provider: PullRequestProvider.GITLAB,
+            token: 'gitlab-token',
+            instanceUrl: 'https://gitlab.com',
+            commitAuthor: { name: 'n', email: 'e' },
+        } as AnyType);
+        const gitlabClose = jest
+            .spyOn((service as AnyType).gitlabProvider, 'closePullRequest')
+            .mockResolvedValue({ state: 'closed' });
+        const githubClose = jest.spyOn(
+            (service as AnyType).githubProvider,
+            'closePullRequest',
+        );
+
+        const result = await service.closePullRequest({
+            user: userWithManage(),
+            projectUuid: 'p1',
+            aiThreadUuid: 'thread-1',
+            prUrl: 'https://gitlab.com/acme/gl-repo/-/merge_requests/7',
+        });
+
+        expect(result).toEqual({ state: 'closed' });
+        expect(gitlabClose).toHaveBeenCalledTimes(1);
+        expect(githubClose).not.toHaveBeenCalled();
     });
 });

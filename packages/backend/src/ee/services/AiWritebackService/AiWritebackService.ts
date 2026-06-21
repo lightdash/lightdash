@@ -448,18 +448,74 @@ export class AiWritebackService extends BaseService {
     }
 
     /**
-     * Close a write-back PR without merging it — the same path the chat PR
-     * card's "Close PR" button uses, exposed so the coding agent can close a
-     * pull request the thread opened (e.g. after folding its change elsewhere).
-     * Delegates to {@link CiService}, which owns the `manage:SourceCode` guard
-     * and verifies the URL targets this project's repo. Reversible.
+     * Close a write-back PR without merging it, so the coding agent can retire a
+     * pull request it opened (e.g. after folding its change elsewhere).
+     *
+     * The general coding agent opens PRs in any repo the user∩installation can
+     * write — NOT just the project's dbt repo — so we cannot delegate blindly to
+     * {@link CiService}, whose close path ties the URL to the project's dbt
+     * connection and would reject ("does not belong to this project") any
+     * workstream in another repo. Instead we resolve the URL back to the
+     * `pull_requests` row linked to this thread's workstream, re-check
+     * `manage:SourceCode`, and close it through that workstream's own provider.
+     *
+     * A URL with no recorded project row falls back to the CiService path, which
+     * fails closed unless the URL is this project's own dbt-repo PR. A URL
+     * recorded in the project but not this thread is denied. Reversible.
      */
     async closePullRequest(args: {
         user: SessionUser;
         projectUuid: string;
+        aiThreadUuid: string;
         prUrl: string;
     }): Promise<ClosePullRequestResult> {
-        return this.ciService.closePullRequest(args);
+        const { user, projectUuid, aiThreadUuid, prUrl } = args;
+        const recorded = await this.pullRequestsModel.findByAiThreadUuidAndUrl(
+            aiThreadUuid,
+            prUrl,
+        );
+        if (!recorded) {
+            const projectPr = await this.pullRequestsModel.findByProjectAndUrl(
+                projectUuid,
+                prUrl,
+            );
+            if (projectPr) {
+                throw new ForbiddenError(
+                    'This pull request is not a workstream in the current conversation',
+                );
+            }
+            return this.ciService.closePullRequest({
+                user,
+                projectUuid,
+                prUrl,
+            });
+        }
+        if (recorded.projectUuid !== projectUuid) {
+            throw new ForbiddenError(
+                'This pull request does not belong to the current project',
+            );
+        }
+
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const project = await this.projectModel.get(projectUuid);
+        this.assertCanManageSourceCode(user, project, projectUuid);
+
+        const provider =
+            recorded.provider === PullRequestProvider.GITLAB
+                ? this.gitlabProvider
+                : this.githubProvider;
+        const installation = await provider.resolveInstallation(
+            user.organizationUuid,
+        );
+        return provider.closePullRequest({
+            prUrl: recorded.prUrl,
+            owner: recorded.owner,
+            repo: recorded.repo,
+            pullNumber: recorded.prNumber,
+            installation,
+        });
     }
 
     /**
@@ -2450,9 +2506,13 @@ export class AiWritebackService extends BaseService {
         ]);
 
         // Intersect with the user's own GitHub access (R1) when they've linked.
-        // A failed user listing degrades to the installation scope rather than
-        // blocking all writes on a transient GitHub error (logged).
-        let intersectWithUser = Boolean(userToken);
+        // The intersection is a hard requirement once a user token exists: if we
+        // can't list the user's repos we must FAIL CLOSED for this target rather
+        // than degrade to the installation scope — degrading would authorize a
+        // write against any installation-accessible repo the user's own GitHub
+        // account may not reach, on nothing more than a transient API/rate-limit
+        // error. Deny the target instead (logged).
+        const intersectWithUser = Boolean(userToken);
         let userRepos: { owner: string; repo: string }[] = [];
         if (userToken) {
             try {
@@ -2460,11 +2520,13 @@ export class AiWritebackService extends BaseService {
                     token: userToken,
                 });
             } catch (error) {
-                intersectWithUser = false;
                 this.logger.warn(
-                    `AiCodingAgent: user repo listing failed — degrading to installation scope for write authz: ${getErrorMessage(
+                    `AiCodingAgent: user repo listing failed — failing closed on write authz for ${key} rather than degrading to installation scope: ${getErrorMessage(
                         error,
                     )}`,
+                );
+                throw new ForbiddenError(
+                    `Could not verify your GitHub access to ${key}, so no pull request was opened. This is usually transient — try again.`,
                 );
             }
         }

@@ -547,6 +547,52 @@ export class PullRequestsModel {
     }
 
     /**
+     * Look up a pull request recorded as a workstream in this specific AI
+     * thread. Used by the coding-agent close tool so one thread cannot close a
+     * PR that only belongs to another conversation in the same project.
+     */
+    async findByAiThreadUuidAndUrl(
+        aiThreadUuid: string,
+        prUrl: string,
+    ): Promise<PullRequest | null> {
+        if (this.aiWritebackTableExists === undefined) {
+            this.aiWritebackTableExists = await this.database.schema.hasTable(
+                AiWritebackThreadTableName,
+            );
+        }
+        if (!this.aiWritebackTableExists) {
+            return null;
+        }
+
+        const row = await this.database(PullRequestsTableName)
+            .innerJoin(
+                AiWritebackThreadTableName,
+                `${AiWritebackThreadTableName}.pull_request_uuid`,
+                `${PullRequestsTableName}.pull_request_uuid`,
+            )
+            .where(`${AiWritebackThreadTableName}.ai_thread_uuid`, aiThreadUuid)
+            .andWhere(`${PullRequestsTableName}.pr_url`, prUrl)
+            .select(`${PullRequestsTableName}.*`)
+            .first();
+
+        if (!row) {
+            return null;
+        }
+
+        const threadInfo = await this.getAiThreadInfo([row.pull_request_uuid]);
+        const reviewContext = await this.getReviewContextInfo([
+            { pullRequestUuid: row.pull_request_uuid, prUrl: row.pr_url },
+        ]);
+        return mapDbPullRequest(
+            row,
+            threadInfo.get(row.pull_request_uuid) ?? null,
+            reviewContext.byPullRequestUuid.get(row.pull_request_uuid) ??
+                reviewContext.byPrUrl.get(row.pr_url) ??
+                null,
+        );
+    }
+
+    /**
      * Look up a recorded pull request by its URL, scoped to a project. Used to
      * resolve a PR the frontend only knows by URL (e.g. from an AI write-back
      * tool result) back to its stored owner/repo/number before reaching out to

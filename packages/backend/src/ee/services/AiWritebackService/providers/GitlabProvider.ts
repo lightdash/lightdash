@@ -7,12 +7,14 @@ import {
     ParameterError,
     PullRequestProvider,
     UnexpectedServerError,
+    type ClosePullRequestResult,
     type DbtProjectConfig,
     type SessionUser,
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
 import type { Logger } from 'winston';
 import {
+    closeMergeRequest,
     createPullRequest,
     getGitlabUser,
     getMergeRequest,
@@ -44,6 +46,7 @@ import {
 } from '../utils';
 import type {
     AdoptPullRequestArgs,
+    ClosePullRequestArgs,
     GitProvider,
     LandedCommit,
     OpenPullRequestArgs,
@@ -379,6 +382,26 @@ export class GitlabProvider implements GitProvider {
             pullNumber: mergeRequestIid,
             headRef: mr.sourceBranch,
         };
+    }
+
+    async closePullRequest({
+        prUrl,
+        owner,
+        repo,
+        pullNumber,
+        installation,
+    }: ClosePullRequestArgs): Promise<ClosePullRequestResult> {
+        const gitlab = asGitlabInstallation(installation);
+        // The MR lives wherever the recorded workstream targeted; derive the
+        // host from its URL rather than the project's dbt connection.
+        const hostDomain = new URL(prUrl).hostname;
+        return closeMergeRequest({
+            owner,
+            repo,
+            iid: pullNumber,
+            token: gitlab.token,
+            hostDomain,
+        });
     }
 
     /**
