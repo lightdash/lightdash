@@ -33,6 +33,7 @@ import {
     ApiAiAgentThreadShareResponse,
     ApiAiAgentThreadStreamRequest,
     ApiAiAgentThreadSummaryListResponse,
+    ApiAiAgentThreadWorkstreamsResponse,
     ApiAiAgentVerifiedArtifactsResponse,
     ApiAiAgentVerifiedQuestionsResponse,
     ApiAiMcpGithubAvailabilityResponse,
@@ -925,6 +926,34 @@ export class AiAgentController extends BaseController {
         return {
             status: 'ok',
             results: await this.getAiAgentService().getThreadPullRequest(
+                toSessionUser(req.account),
+                agentUuid,
+                threadUuid,
+            ),
+        };
+    }
+
+    /**
+     * List every pull request the coding agent has opened in this thread (its
+     * workstreams), each enriched with live PR state where available. A thread
+     * can drive several PRs across one or more repos.
+     * @summary List AI agent thread pull requests
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{agentUuid}/threads/{threadUuid}/pull-requests')
+    @OperationId('listAgentThreadWorkstreams')
+    async listAgentThreadWorkstreams(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Path() threadUuid: string,
+    ): Promise<ApiAiAgentThreadWorkstreamsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().getThreadWorkstreams(
                 toSessionUser(req.account),
                 agentUuid,
                 threadUuid,

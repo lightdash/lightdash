@@ -18,12 +18,14 @@ import {
 import Logger from '../../../../logging/logger';
 import { getSystemPromptV2 } from '../prompts/systemV2';
 import { getAnalyzeFieldImpact } from '../tools/analyzeFieldImpact';
+import { getClosePullRequest } from '../tools/closePullRequest';
 import { getCreateContent } from '../tools/createContent';
 import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
 import { getDiscoverRepos } from '../tools/discoverRepos';
 import { getEditContent } from '../tools/editContent';
 import { getEditDbtProject } from '../tools/editDbtProject';
 import { getEditProjectContext } from '../tools/editProjectContext';
+import { getEditRepo } from '../tools/editRepo';
 import { getExploreRepo } from '../tools/exploreRepo';
 import { getFindContent } from '../tools/findContent';
 import { getGenerateDashboardV2 } from '../tools/generateDashboardV2';
@@ -46,6 +48,7 @@ import { getListContent } from '../tools/listContent';
 import { getListKnowledgeDocuments } from '../tools/listKnowledgeDocuments';
 import { getListProjects } from '../tools/listProjects';
 import { getListWarehouseTables } from '../tools/listWarehouseTables';
+import { getListWorkstreams } from '../tools/listWorkstreams';
 import { getLoadProjectContext } from '../tools/loadProjectContext';
 import { getLoadSkill } from '../tools/loadSkill';
 import { getReadContent } from '../tools/readContent';
@@ -463,6 +466,12 @@ const getAgentTools = (
           })
         : null;
 
+    const editRepo = args.enableCodingAgent
+        ? getEditRepo({
+              editRepo: dependencies.editRepo,
+          })
+        : null;
+
     const syncDbtProject = args.enableAiWriteback
         ? getSyncDbtProject({
               syncDbtProject: dependencies.syncDbtProject,
@@ -485,6 +494,18 @@ const getAgentTools = (
     const discoverRepos = args.enableRepoDiscovery
         ? getDiscoverRepos({
               discoverRepos: dependencies.discoverRepos,
+          })
+        : null;
+
+    const listWorkstreams = args.enableCodingAgent
+        ? getListWorkstreams({
+              listWorkstreams: dependencies.listWorkstreams,
+          })
+        : null;
+
+    const closePullRequest = args.enableCodingAgent
+        ? getClosePullRequest({
+              closePullRequest: dependencies.closePullRequest,
           })
         : null;
 
@@ -576,10 +597,13 @@ const getAgentTools = (
         ...(args.canManageAgent ? { improveContext } : {}),
         ...(editDbtProject ? { editDbtProject } : {}),
         ...(editProjectContext ? { editProjectContext } : {}),
+        ...(editRepo ? { editRepo } : {}),
         ...(syncDbtProject ? { syncDbtProject } : {}),
         ...(setupPreviewDeploy ? { setupPreviewDeploy } : {}),
         ...(exploreRepo ? { exploreRepo } : {}),
         ...(discoverRepos ? { discoverRepos } : {}),
+        ...(listWorkstreams ? { listWorkstreams } : {}),
+        ...(closePullRequest ? { closePullRequest } : {}),
         ...(args.enableDataAccess ? { searchFieldValues } : {}),
         ...(runSql ? { runSql } : {}),
         ...(listWarehouseTables ? { listWarehouseTables } : {}),
@@ -691,6 +715,7 @@ const getAgentMessages = (
             enableSearchSemanticLayer: args.enableSearchSemanticLayer,
             enableAiWriteback: args.enableAiWriteback,
             writebackAttribution: args.writebackAttribution,
+            enableCodingAgent: args.enableCodingAgent,
             siteUrl: args.siteUrl,
             enableRepoDiscovery: args.enableRepoDiscovery,
             repoFsRoot: args.repoFsRoot,

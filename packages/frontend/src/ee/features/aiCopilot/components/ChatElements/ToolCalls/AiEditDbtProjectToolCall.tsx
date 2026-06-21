@@ -13,8 +13,6 @@ import {
     ThemeIcon,
 } from '@mantine-8/core';
 import {
-    IconBrandGithub,
-    IconBrandGitlab,
     IconCheck,
     IconChevronDown,
     IconEye,
@@ -23,7 +21,6 @@ import {
     IconGitPullRequest,
     IconGitPullRequestClosed,
     IconSettings,
-    type Icon as TablerIcon,
 } from '@tabler/icons-react';
 import confetti from 'canvas-confetti';
 import { useEffect, useRef, useState, type FC } from 'react';
@@ -39,6 +36,7 @@ import { usePullRequestCiChecks } from '../../../hooks/usePullRequestCiChecks';
 import { POST_MERGE_MIGRATION_PROMPT } from '../../../postMergeMigrationPrompt';
 import styles from './AiEditDbtProjectToolCall.module.css';
 import { isMergeable } from './pullRequestActions';
+import { INSTALL_ACTIONS, summarisePrUrl } from './pullRequestCardUtils';
 import { PullRequestCiChecks } from './PullRequestCiChecks';
 import { WritebackDiffModal } from './WritebackDiffModal';
 
@@ -62,49 +60,8 @@ type Props = {
     threadUuid?: string;
 };
 
-// Parses "https://github.com/lightdash/jaffle/pull/29" into "lightdash/jaffle"
-// so the user can verify which repo the PR landed in at a glance. The PR number
-// itself lives on the link button. Best-effort — any non-GitHub host or
-// malformed path falls back to the raw hostname.
-const summarisePrUrl = (prUrl: string): string | null => {
-    try {
-        const url = new URL(prUrl);
-        const segments = url.pathname.split('/').filter(Boolean);
-        if (
-            url.hostname === 'github.com' &&
-            segments.length >= 4 &&
-            segments[2] === 'pull'
-        ) {
-            const [owner, repo] = segments;
-            return `${owner}/${repo}`;
-        }
-        return url.hostname;
-    } catch {
-        return null;
-    }
-};
-
-// A writeback can't open a PR until the org installs the matching git app.
-// The agent's prose already explains the problem, so we surface only the
-// one-click action — each `installUrl` is the same install entry point as the
-// Integrations settings page, opened in a new tab so the user keeps their thread.
-const INSTALL_ACTIONS: Record<
-    'github_not_installed' | 'gitlab_not_installed',
-    { icon: TablerIcon; installUrl: string; cta: string }
-> = {
-    github_not_installed: {
-        icon: IconBrandGithub,
-        installUrl: '/api/v1/github/install',
-        cta: 'Install GitHub App',
-    },
-    gitlab_not_installed: {
-        icon: IconBrandGitlab,
-        installUrl: '/api/v1/gitlab/install',
-        cta: 'Connect GitLab',
-    },
-};
-
-const InstallAppButton: FC<{
+// ts-unused-exports:disable-next-line
+export const InstallAppButton: FC<{
     action: (typeof INSTALL_ACTIONS)[keyof typeof INSTALL_ACTIONS];
 }> = ({ action }) => (
     <Group gap={0}>
@@ -128,7 +85,8 @@ const InstallAppButton: FC<{
  * preview entry is omitted when there's no preview (non-GitHub run, failed
  * preview, or a setup PR). Owns the diff modal it launches.
  */
-const PullRequestViewMenu: FC<{
+// ts-unused-exports:disable-next-line
+export const PullRequestViewMenu: FC<{
     projectUuid: string;
     prUrl: string;
     previewUrl: string | null;

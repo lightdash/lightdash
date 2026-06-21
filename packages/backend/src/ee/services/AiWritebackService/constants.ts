@@ -8,8 +8,16 @@ export const CWD = '/home/user/repo';
 // resolves to the project's configured version. See `dbtSandboxVenvBin`.
 export const DBT_VENV_BIN_PREFIX = '/usr/local/dbt';
 
-export const PROMPT_PATH = '/tmp/prompt.txt';
-export const SYSTEM_PROMPT_PATH = '/tmp/system_prompt.txt';
+// Prompt + system-prompt files the host rewrites on EVERY turn (including a
+// resumed sandbox) before invoking the CLI. They live in the agent's $HOME —
+// NOT in /tmp — on purpose: E2B's envd `files.write` cannot overwrite an
+// existing file that survived a pause/resume when it sits in a sticky-bit
+// directory (/tmp is mode 1777), and fails with "permission denied". $HOME is
+// owned by the sandbox user and non-sticky, so the per-turn overwrite succeeds.
+// Kept outside CWD (/home/user/repo) so `git add --all` can never sweep them
+// into a PR.
+export const PROMPT_PATH = '/home/user/.ld-agent-prompt.txt';
+export const SYSTEM_PROMPT_PATH = '/home/user/.ld-agent-system-prompt.txt';
 
 // Warehouse-specific guidance the host pushes into the sandbox before the agent
 // runs. Kept OUTSIDE the cloned repo (CWD) so `git add --all` can't sweep them
@@ -57,6 +65,13 @@ export const CO_AUTHOR_TRAILER = `Co-authored-by: ${COMMIT_AUTHOR_NAME} <${COMMI
 // Hard ceiling on a single synchronous run. The HTTP request is held open for
 // the duration, so keep this well under typical load-balancer/proxy timeouts.
 export const RUN_TIMEOUT_MS = 20 * 60 * 1000;
+
+// Most coding-agent turns a single chat thread may run at once. The
+// per-workstream lock lets distinct PRs (even on the same repo) run in parallel;
+// this caps how many sandboxes one conversation can spin up concurrently so a
+// runaway agent can't exhaust the sandbox pool. A turn over the cap is rejected
+// (not queued) with guidance to wait.
+export const MAX_CONCURRENT_WORKSTREAM_TURNS_PER_THREAD = 3;
 
 // How long an E2B sandbox stays alive before E2B reaps it. Used both when
 // creating a sandbox and when connecting to a paused one to keep it warm.
@@ -142,6 +157,57 @@ export const ALLOWED_TOOLS = [
 // snapshot rather than the CLI default so runs stay deterministic across
 // Claude Code releases.
 export const CLAUDE_MODEL = 'claude-sonnet-4-6';
+
+// Host-curated Agent Skills directory for the GENERAL coding agent, distinct
+// from the dbt warehouse skills (SKILLS_DIR) and the baked-in Claude skills
+// (CLAUDE_SKILLS_DIR). Shipped near-empty for v1; lives OUTSIDE the cloned repo
+// (CWD) so `git add` can never sweep its contents into a PR. Safe to expose
+// read-only because the general agent has no Bash — skills can't execute.
+export const GENERAL_SKILLS_DIR = '/home/user/.lightdash-coding-skills';
+
+// Read paths DENIED to the general coding agent even though they fall under the
+// `Read(/CWD/**)` allow — applied via Claude Code `--disallowedTools`. Excludes
+// `.git` (clone remote/creds + git internals) so the agent can't lift a token
+// from `.git/config` and exfiltrate it via the PR (R4), and common secret files
+// so it can't read+leak them (R6). Defense-in-depth: the clone token is already
+// scoped + scrubbed + revoked, and secrets are denied at commit time too.
+export const GENERAL_DISALLOWED_TOOLS = [
+    `Read(/${CWD}/.git/**)`,
+    `Read(/${CWD}/.env)`,
+    `Read(/${CWD}/.env.*)`,
+    `Read(/${CWD}/**/.env)`,
+    `Read(/${CWD}/**/.env.*)`,
+    `Read(/${CWD}/**/*.pem)`,
+    `Read(/${CWD}/**/*.key)`,
+    `Read(/${CWD}/**/*.p12)`,
+    `Read(/${CWD}/**/*.pfx)`,
+    `Read(/${CWD}/**/id_rsa)`,
+    `Read(/${CWD}/**/id_ed25519)`,
+    `Read(/${CWD}/**/.npmrc)`,
+    `Read(/${CWD}/**/.pypirc)`,
+    `Read(/${CWD}/**/credentials)`,
+    `Read(/${CWD}/**/*.keyfile)`,
+    `Read(/${CWD}/**/*.keyfile.json)`,
+].join(',');
+
+// Fine-grained tool permissions for the GENERAL coding agent (editRepo). The
+// security-critical difference from ALLOWED_TOOLS: there are ZERO Bash entries.
+// With no Bash and no per-language toolchain, "no in-sandbox build" is
+// enforceable rather than convention — the agent can only read/edit files in
+// the cloned repo, write PR metadata to /tmp, and invoke read-only Skills.
+export const GENERAL_ALLOWED_TOOLS = [
+    `Read(/${CWD}/**)`,
+    `Glob(/${CWD}/**)`,
+    `Grep(/${CWD}/**)`,
+    `Edit(/${CWD}/**)`,
+    `Write(/${CWD}/**)`,
+    // PR metadata files live directly in /tmp (also passed via --add-dir).
+    `Write(//tmp/**)`,
+    // Invoke host-curated Skills and read their resource files. The dir is
+    // outside CWD so it must also be passed via --add-dir (see addDirs).
+    'Skill',
+    `Read(/${GENERAL_SKILLS_DIR}/**)`,
+].join(',');
 
 // Ceiling on the gather pass itself. The shell pipeline is sub-second on
 // typical repos; this guards against an unusually large checkout taking long

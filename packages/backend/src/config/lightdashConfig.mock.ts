@@ -318,6 +318,7 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     aiWriteback: {
         anthropicApiKey: null,
+        codingAgentMaxRepoSizeMb: 500,
     },
     mcp: {
         enabled: true,
@@ -408,6 +409,8 @@ export const lightdashConfigMock: LightdashConfig = {
         azureSandboxesDataAppDiskImage: null,
         azureSandboxesAiWritebackGroup: null,
         azureSandboxesAiWritebackDiskImage: null,
+        e2bCodingAgentTemplateName: 'lightdash-ai-coding-agent',
+        e2bCodingAgentTemplateTag: '',
     },
     enabledFeatureFlags: new Set<string>(),
     disabledFeatureFlags: new Set<string>(),

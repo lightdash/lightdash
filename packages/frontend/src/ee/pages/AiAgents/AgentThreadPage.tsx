@@ -10,6 +10,7 @@ import {
     contextItemsToContentMentionSuggestions,
     mergeContentMentionSuggestionItems,
 } from '../../features/aiCopilot/components/ChatElements/contentMentions';
+import { ThreadWorkstreamsPanel } from '../../features/aiCopilot/components/ChatElements/ThreadWorkstreamsPanel';
 import { isEmbedAiAgentRoute } from '../../features/aiCopilot/hooks/aiAgentRouting';
 import { emitEmbedAiAgentThreadChange } from '../../features/aiCopilot/hooks/embedAiAgentThreadChange';
 import {
@@ -25,6 +26,7 @@ import { usePinnedContext } from '../../features/aiCopilot/hooks/usePinnedContex
 import {
     useProjectAiAgent as useAiAgent,
     useAiAgentThread,
+    useAiAgentThreadWorkstreams,
     useCreateAgentThreadMessageMutation,
 } from '../../features/aiCopilot/hooks/useProjectAiAgents';
 import {
@@ -61,6 +63,13 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
             threadUuid,
         });
     }, [agentUuid, isEmbed, projectUuid, thread, threadUuid]);
+
+    // Pull requests the coding agent has opened in this thread (its workstreams).
+    const { data: workstreams } = useAiAgentThreadWorkstreams(
+        projectUuid!,
+        agentUuid,
+        threadUuid,
+    );
 
     // Handle artifact selection based on thread changes
     useAiAgentThreadArtifact({
@@ -296,6 +305,9 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                     showAddToEvalsButton={canManage}
                     onDashboardLinkClick={handleDashboardLinkClick}
                 >
+                    {workstreams && workstreams.length > 0 && (
+                        <ThreadWorkstreamsPanel workstreams={workstreams} />
+                    )}
                     <AgentChatInput
                         disabled={inputDisabled}
                         disabledReason={inputDisabledReason}

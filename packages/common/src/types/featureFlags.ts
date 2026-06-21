@@ -296,6 +296,19 @@ export enum FeatureFlags {
      * firewall. Enable per-org for gradual rollout.
      */
     MultiDbtSources = 'multi-dbt-sources',
+
+    /**
+     * Enable the general-purpose coding agent: the WRITE counterpart to repo
+     * discovery (`repo-fs`). Lets the AI agent make a code change to any repo
+     * the org's GitHub/GitLab App installation can write (intersected with the
+     * triggering user's own access) and open a pull request — not just the
+     * project's dbt repo. Reuses the AI-writeback E2B → signed-commit → PR
+     * pipeline via a lean, no-Bash sandbox template and the `editRepo` tool.
+     * Off by default and EE/license-gated; the per-repo write authz lives in
+     * the service (`manage:SourceCode` + user∩installation), since this flag
+     * is presence-of-feature, not permission.
+     */
+    CodingAgent = 'ai-coding-agent',
 }
 
 export type FeatureFlag = {

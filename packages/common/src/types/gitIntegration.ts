@@ -142,6 +142,11 @@ export type GitRepo = {
     // Which provider the repo lives on, so the UI can pick the right icon.
     // Optional for back-compat with existing GitRepo producers (setup endpoints).
     provider?: 'github' | 'gitlab';
+    // Whether the coding agent can WRITE this repo (open a PR) for the current
+    // user: backed by the same predicate as the editRepo authz chokepoint, so
+    // the picker never offers a repo the backend would then 403. Optional for
+    // back-compat with producers that only surface read access.
+    writable?: boolean;
 };
 
 export type GitFileEntry = {

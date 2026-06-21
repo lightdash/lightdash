@@ -1355,76 +1355,6 @@
                 "type": "object",
                 "additionalProperties": true
             },
-            "SchedulerAiAugmentation": {
-                "anyOf": [
-                    {
-                        "properties": {
-                            "sourceThreadUuid": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "agentUuid": {
-                                "type": "string"
-                            },
-                            "prompt": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["agent"],
-                                "nullable": false
-                            }
-                        },
-                        "required": [
-                            "sourceThreadUuid",
-                            "agentUuid",
-                            "prompt",
-                            "type"
-                        ],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "prompt": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["fast_model"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["prompt", "type"],
-                        "type": "object"
-                    }
-                ],
-                "description": "Enterprise-only AI augmentation attached to a scheduled delivery. On each\nfire the agent (or ambient fast model) writes the delivery message from the\ndelivery's content and the prompt. Persisted in the EE `scheduler_ai_augmentation`\nsatellite table, not on the scheduler itself, so OSS carries none of it."
-            },
-            "ApiSchedulerAiAugmentationResponse": {
-                "properties": {
-                    "results": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/SchedulerAiAugmentation"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "UUID": {
-                "type": "string",
-                "format": "uuid",
-                "description": "Stringified UUIDv4.\nSee [RFC 4112](https://tools.ietf.org/html/rfc4122)",
-                "pattern": "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}"
-            },
             "ManagedAgentScheduleOption": {
                 "enum": [
                     "every_6_hours",
@@ -1732,12 +1662,7 @@
             },
             "ExternalConnectionAuthType": {
                 "type": "string",
-                "enum": [
-                    "none",
-                    "api_key",
-                    "bearer_token",
-                    "google_service_account"
-                ]
+                "enum": ["none", "api_key", "bearer_token"]
             },
             "ExternalConnectionMethod": {
                 "type": "string",
@@ -1767,13 +1692,6 @@
                     },
                     "hasSecret": {
                         "type": "boolean"
-                    },
-                    "oauthScopes": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "nullable": true
                     },
                     "apiKeyLocation": {
                         "allOf": [
@@ -1851,7 +1769,6 @@
                     "updatedByUserUuid",
                     "createdByUserUuid",
                     "hasSecret",
-                    "oauthScopes",
                     "apiKeyLocation",
                     "apiKeyName",
                     "rateLimitPerMinute",
@@ -1890,13 +1807,6 @@
                 "properties": {
                     "secret": {
                         "type": "string",
-                        "nullable": true
-                    },
-                    "oauthScopes": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
                         "nullable": true
                     },
                     "apiKeyLocation": {
@@ -2049,13 +1959,6 @@
                                 "$ref": "#/components/schemas/ApiKeyLocation"
                             }
                         ],
-                        "nullable": true
-                    },
-                    "oauthScopes": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
                         "nullable": true
                     },
                     "secret": {
@@ -13954,7 +13857,7 @@
                 "required": ["modelProvider", "modelName"],
                 "type": "object"
             },
-            "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-adminOnly-or-modelConfig-or-version_": {
+            "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-adminOnly-or-modelConfig-or-version_": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -14044,9 +13947,6 @@
                     "enableContentTools": {
                         "type": "boolean"
                     },
-                    "enableUserContext": {
-                        "type": "boolean"
-                    },
                     "adminOnly": {
                         "type": "boolean"
                     },
@@ -14082,7 +13982,6 @@
                     "enableDataAccess",
                     "enableSelfImprovement",
                     "enableContentTools",
-                    "enableUserContext",
                     "adminOnly",
                     "modelConfig",
                     "version"
@@ -14091,7 +13990,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgentSummary": {
-                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-adminOnly-or-modelConfig-or-version_"
+                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-adminOnly-or-modelConfig-or-version_"
             },
             "ApiAiAgentSummaryResponse": {
                 "properties": {
@@ -14448,10 +14347,6 @@
                 },
                 "type": "object"
             },
-            "AiThreadCreatedFrom": {
-                "type": "string",
-                "enum": ["slack", "web_app", "evals", "scheduler"]
-            },
             "AiAgentUser": {
                 "properties": {
                     "name": {
@@ -14490,7 +14385,7 @@
                         "nullable": true
                     },
                     "createdFrom": {
-                        "$ref": "#/components/schemas/AiThreadCreatedFrom"
+                        "type": "string"
                     },
                     "createdAt": {
                         "type": "string"
@@ -14584,7 +14479,7 @@
             "ApiAiAgentProjectThreadSummaryListResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_AiAgentProjectThreadSummary-Array__"
             },
-            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-adminOnly-or-modelConfig-or-version_": {
+            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-adminOnly-or-modelConfig-or-version_": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -14674,9 +14569,6 @@
                     "enableContentTools": {
                         "type": "boolean"
                     },
-                    "enableUserContext": {
-                        "type": "boolean"
-                    },
                     "adminOnly": {
                         "type": "boolean"
                     },
@@ -14712,7 +14604,6 @@
                     "enableDataAccess",
                     "enableSelfImprovement",
                     "enableContentTools",
-                    "enableUserContext",
                     "adminOnly",
                     "modelConfig",
                     "version"
@@ -14721,7 +14612,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgent": {
-                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-adminOnly-or-modelConfig-or-version_"
+                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-adminOnly-or-modelConfig-or-version_"
             },
             "ApiAiAgentResponse": {
                 "properties": {
@@ -15325,9 +15216,6 @@
                             "adminOnly": {
                                 "type": "boolean"
                             },
-                            "enableUserContext": {
-                                "type": "boolean"
-                            },
                             "enableContentTools": {
                                 "type": "boolean"
                             }
@@ -15336,7 +15224,7 @@
                     }
                 ]
             },
-            "Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-description-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-adminOnly-or-modelConfig-or-version__": {
+            "Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-description-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-adminOnly-or-modelConfig-or-version__": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -15407,9 +15295,6 @@
                     "enableContentTools": {
                         "type": "boolean"
                     },
-                    "enableUserContext": {
-                        "type": "boolean"
-                    },
                     "adminOnly": {
                         "type": "boolean"
                     },
@@ -15432,7 +15317,7 @@
             "ApiUpdateAiAgent": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-description-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-adminOnly-or-modelConfig-or-version__"
+                        "$ref": "#/components/schemas/Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-description-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-adminOnly-or-modelConfig-or-version__"
                     },
                     {
                         "properties": {
@@ -15494,7 +15379,7 @@
                         "nullable": true
                     },
                     "createdFrom": {
-                        "$ref": "#/components/schemas/AiThreadCreatedFrom"
+                        "type": "string"
                     },
                     "createdAt": {
                         "type": "string"
@@ -16520,9 +16405,12 @@
                     "loadProjectContext",
                     "editDbtProject",
                     "editProjectContext",
+                    "editRepo",
                     "syncDbtProject",
                     "exploreRepo",
                     "discoverRepos",
+                    "listWorkstreams",
+                    "closePullRequest",
                     "setupPreviewDeploy",
                     "runQuery",
                     "runSavedChart",
@@ -16644,8 +16532,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -16774,8 +16662,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -16822,8 +16710,8 @@
                                                                         "status": {
                                                                             "type": "string",
                                                                             "enum": [
-                                                                                "error",
-                                                                                "success"
+                                                                                "success",
+                                                                                "error"
                                                                             ]
                                                                         },
                                                                         "results": {
@@ -16888,8 +16776,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -16923,8 +16811,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
                                                             "success",
+                                                            "error",
                                                             "not_found"
                                                         ]
                                                     }
@@ -16951,70 +16839,6 @@
                                                         "anyOf": [
                                                             {
                                                                 "properties": {
-                                                                    "rationale": {
-                                                                        "type": "string",
-                                                                        "nullable": true
-                                                                    },
-                                                                    "fields": {
-                                                                        "items": {
-                                                                            "properties": {
-                                                                                "fieldValueType": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "caseSensitiveFilters": {
-                                                                                    "type": "string",
-                                                                                    "enum": [
-                                                                                        "true",
-                                                                                        "false",
-                                                                                        "not_applicable"
-                                                                                    ]
-                                                                                },
-                                                                                "isFromJoinedTable": {
-                                                                                    "type": "boolean"
-                                                                                },
-                                                                                "fieldFilterType": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "fieldType": {
-                                                                                    "type": "string",
-                                                                                    "enum": [
-                                                                                        "dimension",
-                                                                                        "metric"
-                                                                                    ]
-                                                                                },
-                                                                                "description": {
-                                                                                    "type": "string",
-                                                                                    "nullable": true
-                                                                                },
-                                                                                "label": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "fieldId": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "name": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "table": {
-                                                                                    "type": "string"
-                                                                                }
-                                                                            },
-                                                                            "required": [
-                                                                                "fieldValueType",
-                                                                                "caseSensitiveFilters",
-                                                                                "isFromJoinedTable",
-                                                                                "fieldFilterType",
-                                                                                "fieldType",
-                                                                                "description",
-                                                                                "label",
-                                                                                "fieldId",
-                                                                                "name",
-                                                                                "table"
-                                                                            ],
-                                                                            "type": "object"
-                                                                        },
-                                                                        "type": "array"
-                                                                    },
                                                                     "explore": {
                                                                         "properties": {
                                                                             "requiredFilters": {
@@ -17076,6 +16900,70 @@
                                                                         ],
                                                                         "type": "object"
                                                                     },
+                                                                    "fields": {
+                                                                        "items": {
+                                                                            "properties": {
+                                                                                "fieldValueType": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "caseSensitiveFilters": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                        "true",
+                                                                                        "false",
+                                                                                        "not_applicable"
+                                                                                    ]
+                                                                                },
+                                                                                "isFromJoinedTable": {
+                                                                                    "type": "boolean"
+                                                                                },
+                                                                                "fieldFilterType": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "fieldType": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                        "dimension",
+                                                                                        "metric"
+                                                                                    ]
+                                                                                },
+                                                                                "description": {
+                                                                                    "type": "string",
+                                                                                    "nullable": true
+                                                                                },
+                                                                                "label": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "fieldId": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "name": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "table": {
+                                                                                    "type": "string"
+                                                                                }
+                                                                            },
+                                                                            "required": [
+                                                                                "fieldValueType",
+                                                                                "caseSensitiveFilters",
+                                                                                "isFromJoinedTable",
+                                                                                "fieldFilterType",
+                                                                                "fieldType",
+                                                                                "description",
+                                                                                "label",
+                                                                                "fieldId",
+                                                                                "name",
+                                                                                "table"
+                                                                            ],
+                                                                            "type": "object"
+                                                                        },
+                                                                        "type": "array"
+                                                                    },
+                                                                    "rationale": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
                                                                     "status": {
                                                                         "type": "string",
                                                                         "enum": [
@@ -17085,9 +16973,9 @@
                                                                     }
                                                                 },
                                                                 "required": [
-                                                                    "rationale",
-                                                                    "fields",
                                                                     "explore",
+                                                                    "fields",
+                                                                    "rationale",
                                                                     "status"
                                                                 ],
                                                                 "type": "object"
@@ -17229,9 +17117,9 @@
                                                                 "kind": {
                                                                     "type": "string",
                                                                     "enum": [
-                                                                        "search",
                                                                         "read",
                                                                         "edit",
+                                                                        "search",
                                                                         "compile",
                                                                         "stage"
                                                                     ]
@@ -17347,8 +17235,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -17360,9 +17248,9 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
                                                             "success",
                                                             "rejected",
+                                                            "error",
                                                             "timeout"
                                                         ]
                                                     }
@@ -17374,10 +17262,6 @@
                                                 "properties": {
                                                     "ranking": {
                                                         "properties": {
-                                                            "searchQuery": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            },
                                                             "fields": {
                                                                 "items": {
                                                                     "properties": {
@@ -17414,6 +17298,10 @@
                                                                 },
                                                                 "type": "array"
                                                             },
+                                                            "searchQuery": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
                                                             "type": {
                                                                 "type": "string",
                                                                 "enum": [
@@ -17425,8 +17313,8 @@
                                                             }
                                                         },
                                                         "required": [
-                                                            "searchQuery",
                                                             "fields",
+                                                            "searchQuery",
                                                             "type"
                                                         ],
                                                         "type": "object"
@@ -17434,8 +17322,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -17841,6 +17729,63 @@
             "ApiAiAgentThreadPullRequestResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiAgentThreadPullRequest-or-null_"
             },
+            "AiAgentThreadWorkstream": {
+                "properties": {
+                    "state": {
+                        "type": "string",
+                        "enum": ["open", "merged", "closed", null],
+                        "nullable": true
+                    },
+                    "summary": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "title": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "prNumber": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "repository": {
+                        "type": "string"
+                    },
+                    "prUrl": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "state",
+                    "summary",
+                    "title",
+                    "prNumber",
+                    "repository",
+                    "prUrl"
+                ],
+                "type": "object",
+                "description": "One pull request a chat thread has opened with the coding agent (a\n\"workstream\" — one sandbox + one PR). A thread can hold several, across one or\nmore repos. `state` is resolved live from the git host where possible (null\nwhen it couldn't be fetched, e.g. GitLab or a transient error)."
+            },
+            "ApiSuccess_AiAgentThreadWorkstream-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentThreadWorkstream"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentThreadWorkstreamsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiAgentThreadWorkstream-Array_"
+            },
             "ApiSuccess_AiAgentThreadSummary_": {
                 "properties": {
                     "results": {
@@ -18212,10 +18157,6 @@
             },
             "ApiCloneThreadResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiAgentThreadSummary_"
-            },
-            "AiClonedThreadCreatedFrom": {
-                "type": "string",
-                "enum": ["web_app", "evals"]
             },
             "AiAgentExploreAccessSummary": {
                 "properties": {
@@ -19308,13 +19249,7 @@
                     "preAggregateName": {
                         "type": "string"
                     },
-                    "exploreLabel": {
-                        "type": "string"
-                    },
                     "exploreName": {
-                        "type": "string"
-                    },
-                    "chartName": {
                         "type": "string"
                     },
                     "savedChartUuid": {
@@ -19337,9 +19272,7 @@
                 },
                 "required": [
                     "preAggregateName",
-                    "exploreLabel",
                     "exploreName",
-                    "chartName",
                     "savedChartUuid",
                     "tileType",
                     "tileName",
@@ -19357,13 +19290,7 @@
                     "miss": {
                         "$ref": "#/components/schemas/PreAggregateMatchMiss"
                     },
-                    "exploreLabel": {
-                        "type": "string"
-                    },
                     "exploreName": {
-                        "type": "string"
-                    },
-                    "chartName": {
                         "type": "string"
                     },
                     "savedChartUuid": {
@@ -19387,9 +19314,7 @@
                 "required": [
                     "missFieldLabel",
                     "miss",
-                    "exploreLabel",
                     "exploreName",
-                    "chartName",
                     "savedChartUuid",
                     "tileType",
                     "tileName",
@@ -22772,59 +22697,8 @@
                 "type": "object",
                 "description": "One action the writeback sandbox took, in a generic shape the chat UI can\ngroup and render as step rows without knowing anything about writeback.\n`kind` buckets the action (consecutive same-kind steps are grouped, e.g.\n\"Read 3 files\"); `label` is the file basename or a stage description."
             },
-            "AiWritebackDbtSourceOption": {
-                "properties": {
-                    "projectSubPath": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "branch": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "repository": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "isPrimary": {
-                        "type": "boolean"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "projectDbtSourceUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "projectSubPath",
-                    "branch",
-                    "repository",
-                    "isPrimary",
-                    "name",
-                    "projectDbtSourceUuid"
-                ],
-                "type": "object",
-                "description": "One dbt source a writeback run can target, surfaced when a project has more\nthan one and the run needs the caller to choose. `projectDbtSourceUuid` is\nthe project's own uuid for the primary source and a row uuid for additional\nsources — the same identifier the project's dbt-sources list returns, so the\ncaller can echo it straight back as `dbtSourceUuid`."
-            },
             "AiWritebackRunResult": {
                 "properties": {
-                    "dbtSourceOptions": {
-                        "items": {
-                            "$ref": "#/components/schemas/AiWritebackDbtSourceOption"
-                        },
-                        "type": "array",
-                        "description": "The dbt sources to choose from when `needsDbtSourceSelection` is set."
-                    },
-                    "needsDbtSourceSelection": {
-                        "type": "boolean",
-                        "description": "Set when the project has several dbt sources and the run could not decide\nwhich one the prompt targets. No sandbox is started and no pull request is\nopened; `dbtSourceOptions` lists the choices and the caller should re-run\nwith `dbtSourceUuid` set to one of them. Absent on a normal run."
-                    },
-                    "dbtSourceUuid": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "The dbt source this run targeted: a `project_dbt_sources` row uuid for an\nadditional source, or `null` for the project's primary dbt connection. A\nthread stays bound to this source across resumes — one thread, one PR.\nOptional so an older server's response (which omits it) doesn't surface as\n`undefined` on a newer typed client."
-                    },
                     "steps": {
                         "items": {
                             "$ref": "#/components/schemas/AiWritebackStep"
@@ -22907,17 +22781,13 @@
             },
             "AiWritebackRequestBody": {
                 "properties": {
-                    "dbtSourceUuid": {
-                        "type": "string",
-                        "description": "Which of the project's dbt sources to target, when it has more than one\n(see {@link AiWritebackDbtSourceOption}). Pass the project's own uuid (or\nomit) to target the primary dbt connection. When omitted and the project\nhas several sources, the run infers the target from the prompt and asks\nthe caller to choose if it can't (see `needsDbtSourceSelection`)."
-                    },
                     "prompt": {
                         "type": "string"
                     }
                 },
                 "required": ["prompt"],
                 "type": "object",
-                "description": "Body for kicking off an AI writeback run. The target repository is\ncloned into a sandbox, the prompt is executed by the Claude Code CLI, and a\npull request is opened against the repo if the agent changes any files.\n\nThe target repository (owner, repo) and the dbt project sub-folder are\nresolved server-side from the chosen dbt source — by default the Lightdash\nproject's primary dbt connection (identified by the `projectUuid` path\nparameter), or the source named by `dbtSourceUuid` when the project has more\nthan one dbt source."
+                "description": "Body for kicking off an AI writeback run. The target repository is\ncloned into a sandbox, the prompt is executed by the Claude Code CLI, and a\npull request is opened against the repo if the agent changes any files.\n\nThe target repository (owner, repo) and the dbt project sub-folder are\nresolved server-side from the Lightdash project's dbt connection — identified\nby the `projectUuid` path parameter — so the caller only supplies the prompt."
             },
             "ProjectCiStatus": {
                 "properties": {
@@ -23214,6 +23084,9 @@
             },
             "GitRepo": {
                 "properties": {
+                    "writable": {
+                        "type": "boolean"
+                    },
                     "provider": {
                         "type": "string",
                         "enum": ["github", "gitlab"]
@@ -23286,8 +23159,7 @@
                         "nullable": true
                     },
                     "createdFrom": {
-                        "type": "string",
-                        "enum": ["slack", "web_app", "evals", "scheduler"]
+                        "type": "string"
                     }
                 },
                 "required": [
@@ -24099,66 +23971,6 @@
                     "description",
                     "title"
                 ],
-                "type": "object"
-            },
-            "AiAgentReviewReplayCaptureEntry": {
-                "properties": {
-                    "input": {},
-                    "captureError": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "threadUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "promptUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "signalUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "input",
-                    "captureError",
-                    "threadUuid",
-                    "promptUuid",
-                    "signalUuid"
-                ],
-                "type": "object"
-            },
-            "ApiSuccess_AiAgentReviewReplayCaptureEntry-Array_": {
-                "properties": {
-                    "results": {
-                        "items": {
-                            "$ref": "#/components/schemas/AiAgentReviewReplayCaptureEntry"
-                        },
-                        "type": "array"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiAiAgentReviewReplayCaptureResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_AiAgentReviewReplayCaptureEntry-Array_"
-            },
-            "AiAgentReviewReplayCaptureRequest": {
-                "properties": {
-                    "signalUuids": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["signalUuids"],
                 "type": "object"
             },
             "AiAgentReviewRemediationEventDetail": {
@@ -25750,42 +25562,6 @@
             "ApiDashboardValidationResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__errors-CreateDashboardValidation-Array__"
             },
-            "UserAvatarGradientId": {
-                "type": "string",
-                "enum": [
-                    "lilac",
-                    "blush",
-                    "amethyst",
-                    "sunrise",
-                    "slate",
-                    "pearl"
-                ]
-            },
-            "HexColor": {
-                "type": "string"
-            },
-            "MeshColor": {
-                "type": "string"
-            },
-            "SolidColor": {
-                "type": "string"
-            },
-            "UserAvatarColorValue": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/UserAvatarGradientId"
-                    },
-                    {
-                        "$ref": "#/components/schemas/HexColor"
-                    },
-                    {
-                        "$ref": "#/components/schemas/MeshColor"
-                    },
-                    {
-                        "$ref": "#/components/schemas/SolidColor"
-                    }
-                ]
-            },
             "LightdashUser": {
                 "properties": {
                     "userUuid": {
@@ -25844,18 +25620,6 @@
                         "type": "string",
                         "nullable": true
                     },
-                    "avatarUrl": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "avatarGradient": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/UserAvatarColorValue"
-                            }
-                        ],
-                        "nullable": true
-                    },
                     "isPending": {
                         "type": "boolean"
                     }
@@ -25871,9 +25635,7 @@
                     "isActive",
                     "createdAt",
                     "updatedAt",
-                    "timezone",
-                    "avatarUrl",
-                    "avatarGradient"
+                    "timezone"
                 ],
                 "type": "object",
                 "additionalProperties": true
@@ -26839,26 +26601,6 @@
                 "properties": {
                     "results": {
                         "$ref": "#/components/schemas/SerializedAccount"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiUserAvatarResponse": {
-                "properties": {
-                    "results": {
-                        "properties": {
-                            "avatarUrl": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["avatarUrl"],
-                        "type": "object"
                     },
                     "status": {
                         "type": "string",
@@ -28687,14 +28429,6 @@
                             "$ref": "#/components/schemas/CreateSchedulerTarget"
                         },
                         "type": "array"
-                    },
-                    "aiAugmentation": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/SchedulerAiAugmentation"
-                            }
-                        ],
-                        "nullable": true
                     }
                 },
                 "required": [
@@ -29072,18 +28806,6 @@
             },
             "SpaceAccessUserMetadata": {
                 "properties": {
-                    "avatarGradient": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/UserAvatarColorValue"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "avatarUrl": {
-                        "type": "string",
-                        "nullable": true
-                    },
                     "isInternal": {
                         "type": "boolean"
                     },
@@ -29097,14 +28819,7 @@
                         "type": "string"
                     }
                 },
-                "required": [
-                    "avatarGradient",
-                    "avatarUrl",
-                    "isInternal",
-                    "email",
-                    "lastName",
-                    "firstName"
-                ],
+                "required": ["isInternal", "email", "lastName", "firstName"],
                 "type": "object"
             },
             "SpaceShare": {
@@ -29907,22 +29622,6 @@
                 "required": ["type"],
                 "type": "object"
             },
-            "PartialFailureType.AI_AUGMENTATION": {
-                "enum": ["ai_augmentation"],
-                "type": "string"
-            },
-            "AiAugmentationPartialFailure": {
-                "properties": {
-                    "error": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/PartialFailureType.AI_AUGMENTATION"
-                    }
-                },
-                "required": ["error", "type"],
-                "type": "object"
-            },
             "PartialFailure": {
                 "anyOf": [
                     {
@@ -29933,9 +29632,6 @@
                     },
                     {
                         "$ref": "#/components/schemas/MissingTargetsPartialFailure"
-                    },
-                    {
-                        "$ref": "#/components/schemas/AiAugmentationPartialFailure"
                     }
                 ]
             },
@@ -31149,6 +30845,12 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
+            },
+            "UUID": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Stringified UUIDv4.\nSee [RFC 4112](https://tools.ietf.org/html/rfc4122)",
+                "pattern": "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}"
             },
             "ApiProjectDbtSourceResponse": {
                 "properties": {
@@ -35903,20 +35605,6 @@
             },
             "OrganizationMemberProfile": {
                 "properties": {
-                    "avatarGradient": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/UserAvatarColorValue"
-                            }
-                        ],
-                        "nullable": true,
-                        "description": "Explicit gradient placeholder override; null falls back to the deterministic gradient"
-                    },
-                    "avatarUrl": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "Content-addressed path to the uploaded avatar image; null when none uploaded"
-                    },
                     "isPending": {
                         "type": "boolean",
                         "description": "Whether the user doesn't have an authentication method (password or openId)"
@@ -35964,8 +35652,6 @@
                     }
                 },
                 "required": [
-                    "avatarGradient",
-                    "avatarUrl",
                     "isActive",
                     "role",
                     "organizationUuid",
@@ -38705,31 +38391,11 @@
                     },
                     "user": {
                         "properties": {
-                            "avatarGradient": {
-                                "allOf": [
-                                    {
-                                        "$ref": "#/components/schemas/UserAvatarColorValue"
-                                    }
-                                ],
-                                "nullable": true
-                            },
-                            "avatarUrl": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "userUuid": {
-                                "type": "string"
-                            },
                             "name": {
                                 "type": "string"
                             }
                         },
-                        "required": [
-                            "avatarGradient",
-                            "avatarUrl",
-                            "userUuid",
-                            "name"
-                        ],
+                        "required": ["name"],
                         "type": "object"
                     },
                     "createdAt": {
@@ -40855,12 +40521,6 @@
                     },
                     {
                         "properties": {
-                            "dashboardFilters": {
-                                "$ref": "#/components/schemas/DashboardFilters"
-                            },
-                            "filters": {
-                                "$ref": "#/components/schemas/Filters"
-                            },
                             "pivotResults": {
                                 "type": "boolean"
                             },
@@ -42850,16 +42510,16 @@
                     },
                     {
                         "properties": {
-                            "chartCount": {
+                            "schedulerCount": {
                                 "type": "number",
                                 "format": "double"
                             },
-                            "schedulerCount": {
+                            "chartCount": {
                                 "type": "number",
                                 "format": "double"
                             }
                         },
-                        "required": ["chartCount", "schedulerCount"],
+                        "required": ["schedulerCount", "chartCount"],
                         "type": "object"
                     }
                 ]
@@ -42941,11 +42601,11 @@
                                 "type": "number",
                                 "format": "double"
                             },
-                            "chartCount": {
+                            "schedulerCount": {
                                 "type": "number",
                                 "format": "double"
                             },
-                            "schedulerCount": {
+                            "chartCount": {
                                 "type": "number",
                                 "format": "double"
                             },
@@ -42957,8 +42617,8 @@
                         "required": [
                             "appCount",
                             "nestedSpaceCount",
-                            "chartCount",
                             "schedulerCount",
+                            "chartCount",
                             "dashboardCount"
                         ],
                         "type": "object"
@@ -43239,7 +42899,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3309.0",
+        "version": "0.3293.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -44607,135 +44267,6 @@
                 ]
             }
         },
-        "/api/v1/schedulers/{schedulerUuid}/ai-augmentation": {
-            "get": {
-                "operationId": "getSchedulerAiAugmentation",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSchedulerAiAugmentationResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Get the AI augmentation attached to a scheduled delivery, or null.",
-                "summary": "Get scheduler AI augmentation",
-                "tags": ["Schedulers"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "schedulerUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    }
-                ]
-            },
-            "put": {
-                "operationId": "upsertSchedulerAiAugmentation",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSchedulerAiAugmentationResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Attach or replace the AI augmentation on a scheduled delivery.",
-                "summary": "Upsert scheduler AI augmentation",
-                "tags": ["Schedulers"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "schedulerUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/SchedulerAiAugmentation"
-                            }
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "operationId": "deleteSchedulerAiAugmentation",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Remove the AI augmentation from a scheduled delivery.",
-                "summary": "Delete scheduler AI augmentation",
-                "tags": ["Schedulers"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "schedulerUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    }
-                ]
-            }
-        },
         "/api/v1/databricks/sso/is-authenticated": {
             "get": {
                 "operationId": "getDatabricksAccessToken",
@@ -45838,7 +45369,8 @@
                         "name": "createdFrom",
                         "required": false,
                         "schema": {
-                            "$ref": "#/components/schemas/AiThreadCreatedFrom"
+                            "type": "string",
+                            "enum": ["web_app", "slack"]
                         }
                     },
                     {
@@ -46694,6 +46226,62 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/pull-requests": {
+            "get": {
+                "operationId": "listAgentThreadWorkstreams",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentThreadWorkstreamsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List every pull request the coding agent has opened in this thread (its\nworkstreams), each enriched with live PR state where available. A thread\ncan drive several PRs across one or more repos.",
+                "summary": "List AI agent thread pull requests",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/messages": {
             "post": {
                 "operationId": "createAgentThreadMessage",
@@ -47193,7 +46781,8 @@
                         "name": "createdFrom",
                         "required": false,
                         "schema": {
-                            "$ref": "#/components/schemas/AiClonedThreadCreatedFrom"
+                            "type": "string",
+                            "enum": ["web_app", "evals"]
                         }
                     }
                 ]
@@ -50233,7 +49822,8 @@
                         "name": "createdFrom",
                         "required": false,
                         "schema": {
-                            "$ref": "#/components/schemas/AiThreadCreatedFrom"
+                            "type": "string",
+                            "enum": ["slack", "web_app"]
                         }
                     },
                     {
@@ -50534,47 +50124,6 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/UpdateAiAgentReviewItemStatus"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/aiAgents/admin/review-replay-capture": {
-            "post": {
-                "operationId": "captureAiAgentReviewReplayInputs",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiAiAgentReviewReplayCaptureResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Rebuild judge replay inputs for historical review signals so the eval\nscoreboard can replay the judge offline. Read-only; feature-flag gated.",
-                "summary": "Capture AI review judge replay inputs",
-                "security": [],
-                "parameters": [],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/AiAgentReviewReplayCaptureRequest"
                             }
                         }
                     }
@@ -52220,110 +51769,6 @@
                 "tags": ["My Account"],
                 "security": [],
                 "parameters": []
-            }
-        },
-        "/api/v1/user/me/avatar": {
-            "put": {
-                "operationId": "UpdateMyAvatar",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiUserAvatarResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Upload a profile avatar. Send raw image bytes as the body with an\nimage/png, image/jpeg or image/webp Content-Type. The image is\ncenter-cropped, resized and re-encoded server-side.",
-                "summary": "Upload avatar",
-                "tags": ["My Account"],
-                "security": [],
-                "parameters": []
-            },
-            "delete": {
-                "operationId": "DeleteMyAvatar",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Remove the current user's uploaded avatar.",
-                "summary": "Delete avatar",
-                "tags": ["My Account"],
-                "security": [],
-                "parameters": []
-            }
-        },
-        "/api/v1/users/{userUuid}/avatar/{contentHash}": {
-            "get": {
-                "operationId": "GetUserAvatar",
-                "responses": {
-                    "200": {
-                        "description": "Success"
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Serve a user's avatar image. Content-addressed by hash, so responses\nare immutable and cached by the browser indefinitely.",
-                "summary": "Get user avatar",
-                "tags": ["My Account"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "userUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "contentHash",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
             }
         },
         "/api/v1/org/attributes": {
@@ -56689,17 +56134,7 @@
                             "type": "string"
                         }
                     }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/CreateSchedulerAndTargetsWithoutIds"
-                            }
-                        }
-                    }
-                }
+                ]
             }
         },
         "/api/v1/saved/{chartUuid}/export": {

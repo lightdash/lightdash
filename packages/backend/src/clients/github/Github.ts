@@ -867,6 +867,70 @@ export const getInstallationToken = async (
     }
 };
 
+/**
+ * Mint a per-repository, **contents:read-only** installation access token for a
+ * just-in-time clone. Far narrower than {@link getInstallationToken} (org-wide,
+ * read+write): scoped to the single repo and the single permission needed to
+ * clone, so a leaked token can't be used to write or to reach other repos.
+ * Pair with {@link revokeInstallationToken} immediately after the clone — the
+ * host commits via the API with the full installation token, so the sandbox
+ * never needs a usable token to outlive the clone. `repo` is the bare repo name
+ * (the endpoint scopes within the installation).
+ */
+export const getScopedRepoCloneToken = async ({
+    installationId,
+    repo,
+}: {
+    installationId: string;
+    repo: string;
+}): Promise<string> => {
+    try {
+        const octokit = getOctokitRestForApp(installationId);
+        const response = await octokit.rest.apps.createInstallationAccessToken({
+            installation_id: parseInt(installationId, 10),
+            repositories: [repo],
+            permissions: { contents: 'read' },
+        });
+        return response.data.token;
+    } catch (error) {
+        throw new UnexpectedGitError(getErrorMessage(error));
+    }
+};
+
+/**
+ * Revoke an installation access token (`DELETE /installation/token`),
+ * authenticated with the token itself. Throws on failure; the caller treats it
+ * as best-effort (the token is GitHub-capped at 1h and the clone is done).
+ */
+export const revokeInstallationToken = async (token: string): Promise<void> => {
+    const octokit = withRateLimitObserver(new OctokitRest({ auth: token }));
+    await octokit.rest.apps.revokeInstallationAccessToken();
+};
+
+/**
+ * Repo metadata for the coding agent's pre-clone checks: the default branch and
+ * the repository size (in KB, as GitHub reports it). One `repos.get` call.
+ */
+export const getRepoMetadata = async ({
+    owner,
+    repo,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    installationId?: string;
+    token?: string;
+}): Promise<{ defaultBranch: string; sizeKb: number }> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+    try {
+        const { data } = await octokit.rest.repos.get({ owner, repo, headers });
+        return { defaultBranch: data.default_branch, sizeKb: data.size };
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
 export const updateFile = async ({
     owner,
     repo,
