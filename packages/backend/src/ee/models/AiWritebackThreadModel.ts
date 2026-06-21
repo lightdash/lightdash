@@ -165,6 +165,64 @@ export class AiWritebackThreadModel {
             );
     }
 
+    /**
+     * Cross-pod workstream guard (H1). Takes a Postgres SESSION-level advisory
+     * lock keyed on `lockKey` (a `(thread, repo)` / `(thread, PR)` identifier) so
+     * a second turn for the same workstream — on THIS pod or another — is rejected
+     * rather than racing the first into a duplicate PR. The lock is NOT
+     * transaction-scoped: it is held across the whole multi-minute agent run, so
+     * a session lock (released explicitly) is used instead of `pg_advisory_xact_lock`,
+     * which would force an open transaction for the duration. This pins one pooled
+     * connection per in-flight coding-agent turn; the feature is flag-gated and
+     * low-concurrency, so the cost is bounded.
+     *
+     * `pg_try_advisory_lock` is non-blocking: a `false` result means another
+     * session already holds the workstream, so the caller rejects the racing turn.
+     * Returns a `release()` that unlocks AND returns the connection to the pool;
+     * the caller MUST call it in a `finally`. Returns null when the lock is held.
+     */
+    async acquireWorkstreamLock(
+        lockKey: string,
+    ): Promise<{ release: () => Promise<void> } | null> {
+        const connection = await this.database.client.acquireConnection();
+        try {
+            const result = await connection.query(
+                'SELECT pg_try_advisory_lock(hashtext($1)) AS locked',
+                [lockKey],
+            );
+            const locked = result.rows[0]?.locked === true;
+            if (!locked) {
+                await this.database.client.releaseConnection(connection);
+                return null;
+            }
+            return {
+                release: async () => {
+                    try {
+                        await connection.query(
+                            'SELECT pg_advisory_unlock(hashtext($1))',
+                            [lockKey],
+                        );
+                    } finally {
+                        await this.database.client.releaseConnection(
+                            connection,
+                        );
+                    }
+                },
+            };
+        } catch (error) {
+            await this.database.client.releaseConnection(connection);
+            throw error;
+        }
+    }
+
+    /**
+     * Record a workstream AFTER its PR has opened. A row is only ever written
+     * once a PR exists (a concrete `pullRequestUuid`), so there is no "PR pending"
+     * placeholder state: on a commit-ok/PR-open-fail, no row is written and the
+     * next turn opens a FRESH PR (R11 = fresh-PR-on-retry, not branch adoption).
+     * `pull_request_uuid` is nullable in the schema only so the FK can ON DELETE
+     * SET NULL when a recorded PR is later deleted; reads handle that null.
+     */
     async create(data: {
         aiThreadUuid: string;
         sandboxUuid: string;
@@ -172,7 +230,7 @@ export class AiWritebackThreadModel {
         // The dbt source this thread targets — null for the project's primary
         // dbt connection. Binds the thread to one repo across resumes.
         projectDbtSourceUuid: string | null;
-        targetRepo: string | null;
+        targetRepo: string;
     }): Promise<DbAiWritebackThread> {
         const [row] = await this.database<AiWritebackThreadTable>(
             AiWritebackThreadTableName,
@@ -186,16 +244,6 @@ export class AiWritebackThreadModel {
             })
             .returning('*');
         return row;
-    }
-
-    /** Link a (now-opened) PR onto an existing row. */
-    async setPullRequest(
-        aiWritebackThreadUuid: string,
-        pullRequestUuid: string,
-    ): Promise<void> {
-        await this.database<AiWritebackThreadTable>(AiWritebackThreadTableName)
-            .where('ai_writeback_thread_uuid', aiWritebackThreadUuid)
-            .update({ pull_request_uuid: pullRequestUuid });
     }
 
     async deleteByAiThreadUuid(aiThreadUuid: string): Promise<void> {
