@@ -541,6 +541,7 @@ export class PullRequestsModel {
             )
             .where(`${AiWritebackThreadTableName}.ai_thread_uuid`, aiThreadUuid)
             .select(`${PullRequestsTableName}.*`)
+            .orderBy(`${PullRequestsTableName}.created_at`, 'desc')
             .first();
 
         return row ? mapDbPullRequest(row, null, null) : null;
