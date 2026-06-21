@@ -39,14 +39,18 @@ const classifyEditRepoError = (error: unknown): EditRepoErrorCode => {
     if (error instanceof RepoTooLargeError) {
         return 'repo_too_large';
     }
-    if (error instanceof ForbiddenError) {
-        return 'repo_write_forbidden';
-    }
+    // WritebackGitNotConnectedError extends ForbiddenError, so it MUST be
+    // checked before the generic ForbiddenError branch — otherwise a missing
+    // GitHub/GitLab app install is miscoded as repo_write_forbidden and the
+    // chat card shows the wrong remediation (no install CTA).
     if (error instanceof WritebackGitNotConnectedError) {
         if (error.provider === PullRequestProvider.GITLAB) {
             return 'gitlab_not_installed';
         }
         return 'github_not_installed';
+    }
+    if (error instanceof ForbiddenError) {
+        return 'repo_write_forbidden';
     }
     if (error instanceof WritebackThreadPrClosedError) {
         return 'pull_request_not_open';
@@ -134,6 +138,27 @@ export const getEditRepo = ({ editRepo }: Dependencies) =>
                             status: 'error' as const,
                             errorCode: 'denied_path' as const,
                             reason: error.paths.join(', '),
+                        },
+                    };
+                }
+                // Missing GitHub/GitLab app install. Must be checked BEFORE the
+                // generic ForbiddenError branch below (this error extends it),
+                // so the card renders the provider-specific install CTA instead
+                // of a generic "no write access" message.
+                if (error instanceof WritebackGitNotConnectedError) {
+                    const errorCode =
+                        error.provider === PullRequestProvider.GITLAB
+                            ? ('gitlab_not_installed' as const)
+                            : ('github_not_installed' as const);
+                    return {
+                        result: `The change could not be made: ${error.message} Tell the user they need to connect the ${
+                            error.provider === PullRequestProvider.GITLAB
+                                ? 'GitLab'
+                                : 'GitHub'
+                        } app for their organization.`,
+                        metadata: {
+                            status: 'error' as const,
+                            errorCode,
                         },
                     };
                 }

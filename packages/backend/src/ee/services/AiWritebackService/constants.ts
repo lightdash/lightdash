@@ -165,30 +165,38 @@ export const CLAUDE_MODEL = 'claude-sonnet-4-6';
 // read-only because the general agent has no Bash — skills can't execute.
 export const GENERAL_SKILLS_DIR = '/home/user/.lightdash-coding-skills';
 
-// Read paths DENIED to the general coding agent even though they fall under the
-// `Read(/CWD/**)` allow — applied via Claude Code `--disallowedTools`. Excludes
-// `.git` (clone remote/creds + git internals) so the agent can't lift a token
-// from `.git/config` and exfiltrate it via the PR (R4), and common secret files
-// so it can't read+leak them (R6). Defense-in-depth: the clone token is already
-// scoped + scrubbed + revoked, and secrets are denied at commit time too.
-export const GENERAL_DISALLOWED_TOOLS = [
-    `Read(/${CWD}/.git/**)`,
-    `Read(/${CWD}/.env)`,
-    `Read(/${CWD}/.env.*)`,
-    `Read(/${CWD}/**/.env)`,
-    `Read(/${CWD}/**/.env.*)`,
-    `Read(/${CWD}/**/*.pem)`,
-    `Read(/${CWD}/**/*.key)`,
-    `Read(/${CWD}/**/*.p12)`,
-    `Read(/${CWD}/**/*.pfx)`,
-    `Read(/${CWD}/**/id_rsa)`,
-    `Read(/${CWD}/**/id_ed25519)`,
-    `Read(/${CWD}/**/.npmrc)`,
-    `Read(/${CWD}/**/.pypirc)`,
-    `Read(/${CWD}/**/credentials)`,
-    `Read(/${CWD}/**/*.keyfile)`,
-    `Read(/${CWD}/**/*.keyfile.json)`,
-].join(',');
+// Sensitive paths the general coding agent may neither READ nor GREP, even
+// though they fall under the `Read(/CWD/**)` / `Grep(/CWD/**)` allows — applied
+// via Claude Code `--disallowedTools`. Covers `.git` (clone remote/creds + git
+// internals) so the agent can't lift a token from `.git/config` and exfiltrate
+// it via the PR (R4), and common secret files so it can't read+leak them (R6).
+// Grep is denied alongside Read because grep returns matching *lines* (the
+// secret values themselves), so a Read-only deny would leave a trivial bypass:
+// grep the secret out and write it into an allowed file. Defense-in-depth: the
+// clone token is already scoped + scrubbed + revoked, and secrets are denied at
+// commit time too.
+const GENERAL_SENSITIVE_PATH_GLOBS = [
+    `/${CWD}/.git/**`,
+    `/${CWD}/.env`,
+    `/${CWD}/.env.*`,
+    `/${CWD}/**/.env`,
+    `/${CWD}/**/.env.*`,
+    `/${CWD}/**/*.pem`,
+    `/${CWD}/**/*.key`,
+    `/${CWD}/**/*.p12`,
+    `/${CWD}/**/*.pfx`,
+    `/${CWD}/**/id_rsa`,
+    `/${CWD}/**/id_ed25519`,
+    `/${CWD}/**/.npmrc`,
+    `/${CWD}/**/.pypirc`,
+    `/${CWD}/**/credentials`,
+    `/${CWD}/**/*.keyfile`,
+    `/${CWD}/**/*.keyfile.json`,
+];
+
+export const GENERAL_DISALLOWED_TOOLS = GENERAL_SENSITIVE_PATH_GLOBS.flatMap(
+    (glob) => [`Read(${glob})`, `Grep(${glob})`],
+).join(',');
 
 // Fine-grained tool permissions for the GENERAL coding agent (editRepo). The
 // security-critical difference from ALLOWED_TOOLS: there are ZERO Bash entries.

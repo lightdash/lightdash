@@ -504,6 +504,27 @@ const GITLAB_BRANCHES_PER_PAGE = 100;
 // forever. Real repos are well under this; same defensive pattern as the tree.
 const MAX_BRANCH_PAGES = 100;
 
+export const closeMergeRequest = async ({
+    owner,
+    repo,
+    iid,
+    token,
+    hostDomain = DEFAULT_GITLAB_HOST_DOMAIN,
+}: GitlabApiParams & {
+    iid: number;
+}): Promise<{ state: 'open' | 'closed' }> => {
+    const projectId = getProjectId(owner, repo);
+    const url = getApiUrl(
+        hostDomain,
+        `/projects/${projectId}/merge_requests/${iid}`,
+    );
+    const mr = await makeGitlabRequest(url, token, {
+        method: 'PUT',
+        body: JSON.stringify({ state_event: 'close' }),
+    });
+    return { state: mr.state === 'closed' ? 'closed' : 'open' };
+};
+
 export const getBranches = async ({
     owner,
     repo,

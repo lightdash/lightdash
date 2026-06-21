@@ -6,12 +6,14 @@ import {
     ParameterError,
     PullRequestProvider,
     UnexpectedServerError,
+    type ClosePullRequestResult,
     type DbtProjectConfig,
     type SessionUser,
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
 import type { Logger } from 'winston';
 import {
+    closePullRequest as closeGithubPullRequest,
     createBranch,
     createPullRequest,
     createSignedCommitOnBranch,
@@ -52,6 +54,7 @@ import {
 } from '../utils';
 import type {
     AdoptPullRequestArgs,
+    ClosePullRequestArgs,
     GitProvider,
     LandedCommit,
     OpenPullRequestArgs,
@@ -414,6 +417,21 @@ export class GithubProvider implements GitProvider {
             pullNumber: parsed.pullNumber,
             headRef: pr.headRef,
         };
+    }
+
+    async closePullRequest({
+        owner,
+        repo,
+        pullNumber,
+        installation,
+    }: ClosePullRequestArgs): Promise<ClosePullRequestResult> {
+        const github = asGithubInstallation(installation);
+        return closeGithubPullRequest({
+            owner,
+            repo,
+            pullNumber,
+            ...githubAuth(github),
+        });
     }
 
     /**
