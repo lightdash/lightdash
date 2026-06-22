@@ -24,15 +24,7 @@ import {
 } from '@lightdash/common';
 import { Badge, Box, Button, Group, Stack, Text } from '@mantine-8/core';
 import { IconBox, IconTag, IconUser } from '@tabler/icons-react';
-import {
-    type FC,
-    useCallback,
-    useDeferredValue,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-} from 'react';
+import { type FC, useDeferredValue, useMemo, useState } from 'react';
 import FilterFacet, {
     type FilterFacetOption,
 } from '../../../../../components/common/FilterFacet';
@@ -190,16 +182,15 @@ export const ReviewKanbanBoard: FC<Props> = ({
         Partial<Record<ReviewLane, boolean>>
     >({});
     const [activeId, setActiveId] = useState<string | null>(null);
-    // Optimistic per-lane order for drag-and-drop. Seeded from the server (which
-    // sorts by board_position) and reconciled whenever the server data/filters
-    // change while no drag is in flight — see the effect below.
-    const [laneItems, setLaneItems] = useState<
-        Record<ReviewLane, AiAgentReviewItemSummary[]>
-    >({ needs_triage: [], todo: [], in_progress: [], done: [] });
-
-    // Tracks an in-flight drag without re-rendering, so the reconcile effect can
-    // skip while dragging (and right after a drop, before the refetch lands).
-    const draggingRef = useRef(false);
+    // While a drag is in flight we hold the optimistic per-lane order here so
+    // dragging can reorder freely. It's null the rest of the time — the board
+    // then renders straight from server-derived `lanes` (kept current by the
+    // reorder mutation's optimistic cache update), so no effect copies server
+    // state into a parallel variable.
+    const [dragLanes, setDragLanes] = useState<Record<
+        ReviewLane,
+        AiAgentReviewItemSummary[]
+    > | null>(null);
 
     const updateStatus = useUpdateAiAgentReviewItemStatus();
     const createWriteback = useCreateAiAgentReviewItemWriteback();
@@ -325,44 +316,11 @@ export const ReviewKanbanBoard: FC<Props> = ({
         return byLane;
     }, [items]);
 
-    // Reseed from the server only when the server data (or filters) actually
-    // change — never merely because a drag ended, which would otherwise clobber
-    // the optimistic order before the post-drop refetch arrives. After a drop
-    // the reorder/status mutations invalidate the query, the refetch re-derives
-    // `lanes`, and that authoritative order lands here.
-    useEffect(() => {
-        if (draggingRef.current) return;
-        setLaneItems(lanes);
-    }, [lanes]);
+    // During a drag, render the optimistic order; otherwise straight from the
+    // server (the reorder mutation updates the cache optimistically, so `lanes`
+    // already reflects a just-dropped order without a reconcile effect).
+    const displayLanes = dragLanes ?? lanes;
 
-    const findLane = useCallback(
-        (id: string): ReviewLane | null => {
-            if (LANE_IDS.has(id)) return id as ReviewLane;
-            return (
-                REVIEW_LANES.find((lane) =>
-                    laneItems[lane.id].some((item) => item.uuid === id),
-                )?.id ?? null
-            );
-        },
-        [laneItems],
-    );
-
-    const draggingItem = activeId
-        ? (Object.values(laneItems)
-              .flat()
-              .find((item) => item.uuid === activeId) ?? null)
-        : null;
-
-    const handleDragStart = ({ active }: DragStartEvent) => {
-        draggingRef.current = true;
-        setActiveId(String(active.id));
-    };
-
-    // Reorder continuously while dragging — within a lane and across lanes — so
-    // the card already sits in its final slot on release. Without this, dnd-kit
-    // animates the drop back to the original index and the row flashes before
-    // the persisted order lands. Lanes are resolved from `prev` to dodge stale
-    // state across rapid dragOver events.
     const laneOf = (
         state: Record<ReviewLane, AiAgentReviewItemSummary[]>,
         id: string,
@@ -375,12 +333,29 @@ export const ReviewKanbanBoard: FC<Props> = ({
         );
     };
 
+    const draggingItem = activeId
+        ? (Object.values(displayLanes)
+              .flat()
+              .find((item) => item.uuid === activeId) ?? null)
+        : null;
+
+    const handleDragStart = ({ active }: DragStartEvent) => {
+        setDragLanes(lanes);
+        setActiveId(String(active.id));
+    };
+
+    // Reorder continuously while dragging — within a lane and across lanes — so
+    // the card already sits in its final slot on release. Without this, dnd-kit
+    // animates the drop back to the original index and the row flashes before
+    // the persisted order lands. Lanes are resolved from `prev` to dodge stale
+    // state across rapid dragOver events.
     const handleDragOver = ({ active, over }: DragOverEvent) => {
         if (!over) return;
         const activeKey = String(active.id);
         const overKey = String(over.id);
         if (activeKey === overKey) return;
-        setLaneItems((prev) => {
+        setDragLanes((prev) => {
+            if (!prev) return prev;
             const fromLane = laneOf(prev, activeKey);
             const toLane = laneOf(prev, overKey);
             if (!fromLane || !toLane) return prev;
@@ -421,20 +396,16 @@ export const ReviewKanbanBoard: FC<Props> = ({
     // persist that order and apply the status change if it crossed lanes.
     const handleDragEnd = ({ active }: DragEndEvent) => {
         const activeKey = String(active.id);
-        draggingRef.current = false;
+        const snapshot = dragLanes;
         setActiveId(null);
+        setDragLanes(null);
+        if (!snapshot) return;
 
-        const lane = findLane(activeKey);
-        if (!lane) {
-            setLaneItems(lanes);
-            return;
-        }
-        const laneList = laneItems[lane];
+        const lane = laneOf(snapshot, activeKey);
+        if (!lane) return;
+        const laneList = snapshot[lane];
         const moved = laneList.find((item) => item.uuid === activeKey);
-        if (!moved) {
-            setLaneItems(lanes);
-            return;
-        }
+        if (!moved) return;
 
         // Status follows the lane. The deterministic writeback kicks off when a
         // card lands in In progress, same as before.
@@ -456,9 +427,8 @@ export const ReviewKanbanBoard: FC<Props> = ({
     };
 
     const handleDragCancel = () => {
-        draggingRef.current = false;
         setActiveId(null);
-        setLaneItems(lanes);
+        setDragLanes(null);
     };
 
     return (
@@ -510,7 +480,7 @@ export const ReviewKanbanBoard: FC<Props> = ({
                 >
                     <Box className={styles.board}>
                         {REVIEW_LANES.map((lane, laneIndex) => {
-                            const all = laneItems[lane.id];
+                            const all = displayLanes[lane.id];
                             const isExpanded = expandedLanes[lane.id] ?? false;
                             const displayed =
                                 isExpanded || all.length <= VISIBLE_PER_LANE

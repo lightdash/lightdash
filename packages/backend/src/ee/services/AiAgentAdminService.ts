@@ -909,25 +909,31 @@ export class AiAgentAdminService extends BaseService {
         }
         this.checkOrganizationAdminAccess(user);
 
-        await Promise.all(
-            orderedFingerprints.map(async (fingerprint, index) => {
+        // Resolve scope per fingerprint (reads — safe to parallelise), drop any
+        // that are no longer promoted, then persist the whole lane order in one
+        // transaction so a failure can't leave it half-reordered.
+        const resolved = await Promise.all(
+            orderedFingerprints.map(async (fingerprint) => {
                 const scope =
                     await this.aiAgentReviewClassifierModel.getPromotedFingerprintScope(
                         organizationUuid,
                         fingerprint,
                     );
-                if (!scope) return;
-                await this.aiAgentReviewClassifierModel.setReviewItemBoardPosition(
-                    {
-                        organizationUuid,
-                        projectUuid: scope.projectUuid,
-                        agentUuid: scope.agentUuid,
-                        fingerprint,
-                        boardPosition: index,
-                    },
-                );
+                return scope
+                    ? {
+                          fingerprint,
+                          projectUuid: scope.projectUuid,
+                          agentUuid: scope.agentUuid,
+                      }
+                    : null;
             }),
         );
+        await this.aiAgentReviewClassifierModel.setReviewItemBoardPositions({
+            organizationUuid,
+            items: resolved.filter(
+                (item): item is NonNullable<typeof item> => item !== null,
+            ),
+        });
     }
 
     async updateReviewItemAssignee(

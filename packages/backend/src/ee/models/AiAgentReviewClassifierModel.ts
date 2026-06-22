@@ -1653,30 +1653,36 @@ export class AiAgentReviewClassifierModel {
             });
     }
 
-    // Sets only the manual board sort key, leaving status/assignee/timestamps
-    // untouched on existing rows. Inserts a triage-status row when the item has
-    // never been acted on (so a never-triaged card can still be ordered).
-    async setReviewItemBoardPosition(args: {
+    // Persists the board order for a lane: board_position = array index for each
+    // item, in a single transaction so a mid-list failure can't leave the lane
+    // half-reordered. Sets only the sort key (status/assignee/timestamps stay)
+    // and inserts a triage-status row for items never acted on (so a
+    // never-triaged card can still be ordered).
+    async setReviewItemBoardPositions(args: {
         organizationUuid: string;
-        projectUuid: string;
-        agentUuid: string;
-        fingerprint: string;
-        boardPosition: number;
+        items: { fingerprint: string; projectUuid: string; agentUuid: string }[];
     }): Promise<void> {
-        await this.database<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
-            .insert({
-                fingerprint: args.fingerprint,
-                organization_uuid: args.organizationUuid,
-                project_uuid: args.projectUuid,
-                agent_uuid: args.agentUuid,
-                status: 'triage',
-                board_position: args.boardPosition,
-            })
-            .onConflict('fingerprint')
-            .merge({
-                board_position: args.boardPosition,
-                updated_at: this.database.fn.now(),
-            });
+        if (args.items.length === 0) return;
+        await this.database.transaction(async (trx) => {
+            await Promise.all(
+                args.items.map((item, index) =>
+                    trx<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
+                        .insert({
+                            fingerprint: item.fingerprint,
+                            organization_uuid: args.organizationUuid,
+                            project_uuid: item.projectUuid,
+                            agent_uuid: item.agentUuid,
+                            status: 'triage',
+                            board_position: index,
+                        })
+                        .onConflict('fingerprint')
+                        .merge({
+                            board_position: index,
+                            updated_at: trx.fn.now(),
+                        }),
+                ),
+            );
+        });
     }
 
     async updateReviewItemAssignee(args: {

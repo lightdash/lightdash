@@ -11,8 +11,8 @@ export async function up(knex: Knex): Promise<void> {
     });
 }
 
-export async function down(knex: Knex): Promise<void> {
-    await knex.schema.alterTable(reviewItemTable, (table) => {
-        table.dropColumn('board_position');
-    });
+export async function down(_knex: Knex): Promise<void> {
+    // Dropping a column is a disallowed, data-losing operation; this down
+    // migration is intentionally a no-op (the nullable column is harmless if
+    // the code is rolled back).
 }
