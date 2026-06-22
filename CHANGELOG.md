@@ -1,3 +1,17 @@
+# [0.3209.0](https://github.com/lightdash/lightdash/compare/0.3208.1...0.3209.0) (2026-06-22)
+
+
+### Bug Fixes
+
+* **data-apps:** send a default User-Agent from the external-fetch proxy ([#24528](https://github.com/lightdash/lightdash/issues/24528)) ([df344ed](https://github.com/lightdash/lightdash/commit/df344edc741180d76292e4ccf12491ced3c95877))
+* share ai agent router flow ([#24565](https://github.com/lightdash/lightdash/issues/24565)) ([72fe0f2](https://github.com/lightdash/lightdash/commit/72fe0f29c1e99fef34bacfca51916c0d55b5df68))
+
+
+### Features
+
+* add gpt-5.5 ai model preset ([#24560](https://github.com/lightdash/lightdash/issues/24560)) ([f84c645](https://github.com/lightdash/lightdash/commit/f84c645c9e0e20de40e973e778d2485839017880)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* route ask ai launcher through ai router ([#24564](https://github.com/lightdash/lightdash/issues/24564)) ([6d9941e](https://github.com/lightdash/lightdash/commit/6d9941eaede3e6925eb003d573b9d41e864abcfa))
+
 ## [0.3208.1](https://github.com/lightdash/lightdash/compare/0.3208.0...0.3208.1) (2026-06-22)
 
 
