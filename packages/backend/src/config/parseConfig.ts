@@ -1452,9 +1452,6 @@ export type LightdashConfig = {
     };
     analyticsEmbedSecret?: string;
 
-    echarts6: {
-        enabled: boolean;
-    };
     editYamlInUi: {
         enabled: boolean;
     };
@@ -2535,9 +2532,6 @@ export const parseConfig = (): LightdashConfig => {
             enabled: process.env.CUSTOM_ROLES_ENABLED === 'true',
         },
         analyticsEmbedSecret: process.env.ANALYTICS_EMBED_SECRET,
-        echarts6: {
-            enabled: process.env.ECHARTS_V6_ENABLED === 'true',
-        },
         editYamlInUi: {
             enabled: process.env.EDIT_YAML_IN_UI_ENABLED === 'true',
         },

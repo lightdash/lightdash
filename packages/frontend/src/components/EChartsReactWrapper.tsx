@@ -1,13 +1,8 @@
 import type EChartsReactClass from 'echarts-for-react';
-import EChartsReactV5 from 'echarts-for-react';
-import EChartsReactV6 from 'echarts-for-react-6';
+import EChartsReact from 'echarts-for-react';
 import { forwardRef } from 'react';
-import useHealth from '../hooks/health/useHealth';
 
 /**
- * Wrapper component that conditionally loads echarts-for-react v5 or v6
- * based on the echartsVersion from health endpoint.
- *
  * Usage:
  * ```tsx
  * import EChartsReact from './components/EChartsReactWrapper';
@@ -19,13 +14,7 @@ const EChartsReactWrapper = forwardRef<
     EChartsReactClass,
     React.ComponentProps<typeof EChartsReactClass>
 >((props, ref) => {
-    const healthQuery = useHealth();
-
-    const Component = healthQuery.data?.echarts6.enabled
-        ? EChartsReactV6
-        : EChartsReactV5;
-
-    return <Component {...props} ref={ref as any} />;
+    return <EChartsReact {...props} ref={ref as any} />;
 });
 
 EChartsReactWrapper.displayName = 'EChartsReactWrapper';

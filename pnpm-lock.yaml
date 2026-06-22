@@ -254,7 +254,7 @@ importers:
         version: 2.8.0(@opentelemetry/api@1.9.0)
       '@rudderstack/rudder-sdk-node':
         specifier: 2.1.1
-        version: 2.1.1(tslib@2.8.1)
+        version: 2.1.1(tslib@2.6.2)
       '@sentry/core':
         specifier: 9.31.0
         version: 9.31.0
@@ -340,8 +340,8 @@ importers:
         specifier: 2.16.0
         version: 2.16.0
       echarts:
-        specifier: 6.0.0
-        version: 6.0.0
+        specifier: 5.6.0
+        version: 5.6.0
       exceljs:
         specifier: 4.4.0
         version: 4.4.0
@@ -530,7 +530,7 @@ importers:
         version: 8.3.2
       vitest:
         specifier: 4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.0)(@types/node@22.13.1)(jsdom@24.0.0(canvas@3.2.1))(vite@7.3.5(@types/node@22.13.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3))
+        version: 4.1.6(@opentelemetry/api@1.9.0)(@types/node@24.3.1)(jsdom@24.0.0(canvas@3.2.1))(vite@7.3.5(@types/node@24.3.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3))
       winston:
         specifier: 3.13.0
         version: 3.13.0
@@ -648,7 +648,7 @@ importers:
         version: 3.1.9
       ts-node:
         specifier: 10.9.2
-        version: 10.9.2(@swc/core@1.13.5)(@types/node@22.13.1)(typescript@6.0.3)
+        version: 10.9.2(@swc/core@1.13.5)(@types/node@24.3.1)(typescript@6.0.3)
       typescript:
         specifier: 6.0.3
         version: 6.0.3
@@ -724,7 +724,7 @@ importers:
         version: 9.15.1(encoding@0.1.13)
       inquirer:
         specifier: 8.2.7
-        version: 8.2.7(@types/node@22.13.1)
+        version: 8.2.7(@types/node@24.3.1)
       js-yaml:
         specifier: 4.2.0
         version: 4.2.0
@@ -791,7 +791,7 @@ importers:
         version: 6.7.0(encoding@0.1.13)
       ts-node:
         specifier: 10.9.2
-        version: 10.9.2(@swc/core@1.13.5)(@types/node@22.13.1)(typescript@6.0.3)
+        version: 10.9.2(@swc/core@1.13.5)(@types/node@24.3.1)(typescript@6.0.3)
       typescript:
         specifier: 6.0.3
         version: 6.0.3
@@ -838,8 +838,8 @@ importers:
         specifier: 0.11.0
         version: 0.11.0
       echarts:
-        specifier: 6.1.0
-        version: 6.1.0
+        specifier: 5.6.0
+        version: 5.6.0
       fast-json-patch:
         specifier: 3.1.1
         version: 3.1.1
@@ -1179,15 +1179,9 @@ importers:
       echarts:
         specifier: 5.6.0
         version: 5.6.0
-      echarts-6:
-        specifier: npm:echarts@6.0.0
-        version: echarts@6.0.0
       echarts-for-react:
         specifier: 3.0.2
         version: 3.0.2(echarts@5.6.0)(react@19.2.0)
-      echarts-for-react-6:
-        specifier: npm:echarts-for-react@3.0.1
-        version: echarts-for-react@3.0.1(react@19.2.0)
       emoji-picker-react:
         specifier: 4.12.0
         version: 4.12.0(react@19.2.0)
@@ -9557,11 +9551,6 @@ packages:
   ecdsa-sig-formatter@1.0.11:
     resolution: {integrity: sha512-nagl3RYrbNv6kQkeJIpt6NJZy8twLB/2vtz6yN9Z4vRKHN4/QZJIEbqohALSgwKdnksuY3k5Addp5lg8sVoVcQ==}
 
-  echarts-for-react@3.0.1:
-    resolution: {integrity: sha512-9LNcPNT+DH+IwtZlahuXQf7zqCWSnnYqITXtKgLDzoQ7fvotH1xEaFPriASQb+jYqSI9pBdtN5cFneT89wECUg==}
-    peerDependencies:
-      react: ^15.0.0 || >=16.0.0
-
   echarts-for-react@3.0.2:
     resolution: {integrity: sha512-DRwIiTzx8JfwPOVgGttDytBqdp5VzCSyMRIxubgU/g2n9y3VLUmF2FK7Icmg/sNVkv4+rktmrLN9w22U2yy3fA==}
     peerDependencies:
@@ -9570,12 +9559,6 @@ packages:
 
   echarts@5.6.0:
     resolution: {integrity: sha512-oTbVTsXfKuEhxftHqL5xprgLoc0k7uScAwtryCgWF6hPYFLRwOUHiFmHGCBKP5NPFNkDVopOieyUqYGH8Fa3kA==}
-
-  echarts@6.0.0:
-    resolution: {integrity: sha512-Tte/grDQRiETQP4xz3iZWSvoHrkCQtwqd6hs+mifXcjrCuo2iKWbajFObuLJVBlDIJlOzgQPd1hsaKt/3+OMkQ==}
-
-  echarts@6.1.0:
-    resolution: {integrity: sha512-q0yaFPggC9FUdsWH4blavRWFmxdrIodbkoKNAjJudAI6CA9gNPxHtV2RcZNEepZVlk4yvBYkOkbk6HIVpIyHZA==}
 
   ee-first@1.1.1:
     resolution: {integrity: sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==}
@@ -15755,6 +15738,9 @@ packages:
   tslib@2.3.0:
     resolution: {integrity: sha512-N82ooyxVNm6h1riLCoyS9e3fuJ3AMG2zIZs2Gd1ATcSFjSA23Q0fzjjZeh0jbJvWVDZ0cJT8yaNNaaXHzueNjg==}
 
+  tslib@2.6.2:
+    resolution: {integrity: sha512-AEYxH93jGFPn/a2iVAwW87VuUIkR1FVUKB77NwMF7nBTDkDrrT/Hpt/IrCJ0QXhW27jTBDcf5ZY7w6RiqTMw2Q==}
+
   tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
 
@@ -16836,12 +16822,6 @@ packages:
 
   zrender@5.6.1:
     resolution: {integrity: sha512-OFXkDJKcrlx5su2XbzJvj/34Q3m6PvyCZkVPHGYpcCJ52ek4U/ymZyfuV1nKE23AyBJ51E/6Yr0mhZ7xGTO4ag==}
-
-  zrender@6.0.0:
-    resolution: {integrity: sha512-41dFXEEXuJpNecuUQq6JlbybmnHaqqpGlbH1yxnA5V9MMP4SbohSVZsJIwz+zdjQXSSlR1Vc34EgH1zxyTDvhg==}
-
-  zrender@6.1.0:
-    resolution: {integrity: sha512-oEGMDB6pOP2S6OwRR4PdVv610zrjnA3Bh+JnSG12fYJlBKjtNAoEb5fSUoCOOINlH96I2fU38/A2UpRKs67xYQ==}
 
   zustand@4.5.5:
     resolution: {integrity: sha512-+0PALYNJNgK6hldkgDq2vLrw5f6g/jCInz52n9RTpropGgeAf/ioFUCdtsjCqu4gNhW9D01rUQBROoRjdzyn2Q==}
@@ -19775,12 +19755,12 @@ snapshots:
   '@img/sharp-win32-x64@0.34.5':
     optional: true
 
-  '@inquirer/external-editor@1.0.3(@types/node@22.13.1)':
+  '@inquirer/external-editor@1.0.3(@types/node@24.3.1)':
     dependencies:
       chardet: 2.1.1
       iconv-lite: 0.7.0
     optionalDependencies:
-      '@types/node': 22.13.1
+      '@types/node': 24.3.1
 
   '@ioredis/commands@1.2.0':
     optional: true
@@ -21640,7 +21620,7 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.60.2':
     optional: true
 
-  '@rudderstack/rudder-sdk-node@2.1.1(tslib@2.8.1)':
+  '@rudderstack/rudder-sdk-node@2.1.1(tslib@2.6.2)':
     dependencies:
       axios: 1.16.0
       axios-retry: 4.5.0(axios@1.16.0)
@@ -21652,7 +21632,7 @@ snapshots:
       ms: 2.1.3
       remove-trailing-slash: 0.1.1
       serialize-javascript: 6.0.2
-      tslib: 2.8.1
+      tslib: 2.6.2
       uuid: 11.0.2
     optionalDependencies:
       bull: 4.16.4
@@ -23538,7 +23518,6 @@ snapshots:
   '@types/node@24.3.1':
     dependencies:
       undici-types: 7.10.0
-    optional: true
 
   '@types/nodemailer@7.0.9':
     dependencies:
@@ -24170,14 +24149,6 @@ snapshots:
       '@vitest/utils': 4.1.6
       chai: 6.2.2
       tinyrainbow: 3.1.0
-
-  '@vitest/mocker@4.1.6(vite@7.3.5(@types/node@22.13.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3))':
-    dependencies:
-      '@vitest/spy': 4.1.6
-      estree-walker: 3.0.3
-      magic-string: 0.30.21
-    optionalDependencies:
-      vite: 7.3.5(@types/node@22.13.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3)
 
   '@vitest/mocker@4.1.6(vite@7.3.5(@types/node@24.3.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3))':
     dependencies:
@@ -26555,13 +26526,6 @@ snapshots:
     dependencies:
       safe-buffer: 5.2.1
 
-  echarts-for-react@3.0.1(react@19.2.0):
-    dependencies:
-      echarts: 6.0.0
-      fast-deep-equal: 3.1.3
-      react: 19.2.0
-      size-sensor: 1.0.1
-
   echarts-for-react@3.0.2(echarts@5.6.0)(react@19.2.0):
     dependencies:
       echarts: 5.6.0
@@ -26573,16 +26537,6 @@ snapshots:
     dependencies:
       tslib: 2.3.0
       zrender: 5.6.1
-
-  echarts@6.0.0:
-    dependencies:
-      tslib: 2.3.0
-      zrender: 6.0.0
-
-  echarts@6.1.0:
-    dependencies:
-      tslib: 2.3.0
-      zrender: 6.1.0
 
   ee-first@1.1.1: {}
 
@@ -26681,7 +26635,7 @@ snapshots:
       has-property-descriptors: 1.0.2
       has-proto: 1.2.0
       has-symbols: 1.1.0
-      hasown: 2.0.2
+      hasown: 2.0.4
       internal-slot: 1.1.0
       is-array-buffer: 3.0.5
       is-callable: 1.2.7
@@ -27624,7 +27578,7 @@ snapshots:
       asynckit: 0.4.0
       combined-stream: 1.0.8
       es-set-tostringtag: 2.1.0
-      hasown: 2.0.2
+      hasown: 2.0.4
       mime-types: 2.1.35
 
   form-data@4.0.5:
@@ -27632,7 +27586,7 @@ snapshots:
       asynckit: 0.4.0
       combined-stream: 1.0.8
       es-set-tostringtag: 2.1.0
-      hasown: 2.0.2
+      hasown: 2.0.4
       mime-types: 2.1.35
 
   form-data@4.0.6:
@@ -27812,7 +27766,7 @@ snapshots:
       get-proto: 1.0.1
       gopd: 1.2.0
       has-symbols: 1.1.0
-      hasown: 2.0.2
+      hasown: 2.0.4
       math-intrinsics: 1.1.0
 
   get-nonce@1.0.1: {}
@@ -28544,9 +28498,9 @@ snapshots:
     dependencies:
       css-in-js-utils: 3.1.0
 
-  inquirer@8.2.7(@types/node@22.13.1):
+  inquirer@8.2.7(@types/node@24.3.1):
     dependencies:
-      '@inquirer/external-editor': 1.0.3(@types/node@22.13.1)
+      '@inquirer/external-editor': 1.0.3(@types/node@24.3.1)
       ansi-escapes: 4.3.2
       chalk: 4.1.2
       cli-cursor: 3.1.0
@@ -28672,7 +28626,7 @@ snapshots:
 
   is-core-module@2.16.1:
     dependencies:
-      hasown: 2.0.2
+      hasown: 2.0.4
 
   is-data-view@1.0.2:
     dependencies:
@@ -34351,6 +34305,7 @@ snapshots:
       yn: 3.1.1
     optionalDependencies:
       '@swc/core': 1.13.5
+    optional: true
 
   ts-node@10.9.2(@swc/core@1.13.5)(@types/node@24.3.1)(typescript@6.0.3):
     dependencies:
@@ -34371,7 +34326,6 @@ snapshots:
       yn: 3.1.1
     optionalDependencies:
       '@swc/core': 1.13.5
-    optional: true
 
   ts-unused-exports@9.0.4(typescript@6.0.3):
     dependencies:
@@ -34395,6 +34349,8 @@ snapshots:
   tslib@1.14.1: {}
 
   tslib@2.3.0: {}
+
+  tslib@2.6.2: {}
 
   tslib@2.8.1: {}
 
@@ -34555,8 +34511,7 @@ snapshots:
 
   undici-types@6.20.0: {}
 
-  undici-types@7.10.0:
-    optional: true
+  undici-types@7.10.0: {}
 
   undici@6.27.0: {}
 
@@ -35175,24 +35130,6 @@ snapshots:
       - supports-color
       - typescript
 
-  vite@7.3.5(@types/node@22.13.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3):
-    dependencies:
-      esbuild: 0.27.7
-      fdir: 6.5.0(picomatch@4.0.4)
-      picomatch: 4.0.4
-      postcss: 8.5.10
-      rollup: 4.60.2
-      tinyglobby: 0.2.15
-    optionalDependencies:
-      '@types/node': 22.13.1
-      fsevents: 2.3.3
-      jiti: 2.6.1
-      lightningcss: 1.32.0
-      sugarss: 5.0.1(postcss@8.5.10)
-      terser: 5.46.1
-      tsx: 4.19.4
-      yaml: 2.8.3
-
   vite@7.3.5(@types/node@24.3.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3):
     dependencies:
       esbuild: 0.27.7
@@ -35231,10 +35168,10 @@ snapshots:
       - '@emnapi/core'
       - '@emnapi/runtime'
 
-  vitest@4.1.6(@opentelemetry/api@1.9.0)(@types/node@22.13.1)(jsdom@24.0.0(canvas@3.2.1))(vite@7.3.5(@types/node@22.13.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3)):
+  vitest@4.1.6(@opentelemetry/api@1.9.0)(@types/node@24.3.1)(jsdom@24.0.0(canvas@3.2.1))(vite@7.3.5(@types/node@24.3.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3)):
     dependencies:
       '@vitest/expect': 4.1.6
-      '@vitest/mocker': 4.1.6(vite@7.3.5(@types/node@22.13.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3))
+      '@vitest/mocker': 4.1.6(vite@7.3.5(@types/node@24.3.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3))
       '@vitest/pretty-format': 4.1.6
       '@vitest/runner': 4.1.6
       '@vitest/snapshot': 4.1.6
@@ -35251,11 +35188,11 @@ snapshots:
       tinyexec: 1.0.4
       tinyglobby: 0.2.15
       tinyrainbow: 3.1.0
-      vite: 7.3.5(@types/node@22.13.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3)
+      vite: 7.3.5(@types/node@24.3.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@opentelemetry/api': 1.9.0
-      '@types/node': 22.13.1
+      '@types/node': 24.3.1
       jsdom: 24.0.0(canvas@3.2.1)
     transitivePeerDependencies:
       - msw
@@ -35660,14 +35597,6 @@ snapshots:
   zod@4.1.5: {}
 
   zrender@5.6.1:
-    dependencies:
-      tslib: 2.3.0
-
-  zrender@6.0.0:
-    dependencies:
-      tslib: 2.3.0
-
-  zrender@6.1.0:
     dependencies:
       tslib: 2.3.0
 
