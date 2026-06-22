@@ -3,14 +3,26 @@ import {
     DndContext,
     DragOverlay,
     KeyboardSensor,
+    pointerWithin,
     PointerSensor,
     useDroppable,
     useSensor,
     useSensors,
+    type CollisionDetection,
     type DragEndEvent,
     type DragOverEvent,
     type DragStartEvent,
 } from '@dnd-kit/core';
+
+// closestCorners can't resolve to an empty lane (a filled lane's card is always
+// a closer corner), so dropping into an empty column never registers. Prefer the
+// lane/card the pointer is literally within, falling back to closestCorners.
+const collisionDetectionStrategy: CollisionDetection = (args) => {
+    const pointerCollisions = pointerWithin(args);
+    return pointerCollisions.length > 0
+        ? pointerCollisions
+        : closestCorners(args);
+};
 import {
     arrayMove,
     SortableContext,
@@ -503,7 +515,7 @@ export const ReviewKanbanBoard: FC<Props> = ({
             <Box className={styles.boardWrapper}>
                 <DndContext
                     sensors={sensors}
-                    collisionDetection={closestCorners}
+                    collisionDetection={collisionDetectionStrategy}
                     onDragStart={handleDragStart}
                     onDragOver={handleDragOver}
                     onDragEnd={handleDragEnd}
