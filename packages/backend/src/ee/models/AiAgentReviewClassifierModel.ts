@@ -195,6 +195,9 @@ type UpsertReviewItemStateArgs = {
     status: AiAgentReviewItemStatus;
     dismissedReason: AiAgentReviewItemDismissedReason | null;
     statusUpdatedByUserUuid: string | null;
+    // undefined = leave the manual board order untouched (plain status change);
+    // a number repositions the card; null clears it back to default order.
+    boardPosition?: number | null;
 };
 
 type CreateReviewRemediationArgs = {
@@ -1070,6 +1073,18 @@ export class AiAgentReviewClassifierModel {
             }),
         ]);
 
+        // Manual board order: items with a board_position sort first (ascending);
+        // the rest keep the default last-seen order. V8's stable sort preserves
+        // that fallback order for nulls and ties.
+        fingerprints.sort((a, b) => {
+            const pa = persisted.get(a)?.board_position;
+            const pb = persisted.get(b)?.board_position;
+            if (pa == null && pb == null) return 0;
+            if (pa == null) return 1;
+            if (pb == null) return -1;
+            return pa - pb;
+        });
+
         const reviewItems = fingerprints
             .map((fingerprint): AiAgentReviewItemSummary | null => {
                 const latest = latestByFingerprint.get(fingerprint);
@@ -1116,6 +1131,7 @@ export class AiAgentReviewClassifierModel {
                     prWritebackMessage: writebackStale
                         ? WRITEBACK_TIMED_OUT_MESSAGE
                         : (item?.pr_writeback_message ?? null),
+                    boardPosition: item?.board_position ?? null,
                     writebackEligible: false,
                     writebackEligibility: defaultWritebackEligibility,
                     remediation,
@@ -1620,6 +1636,9 @@ export class AiAgentReviewClassifierModel {
                 dismissed_reason: args.dismissedReason,
                 status_updated_at: this.database.fn.now() as never,
                 status_updated_by_user_uuid: args.statusUpdatedByUserUuid,
+                ...(args.boardPosition !== undefined
+                    ? { board_position: args.boardPosition }
+                    : {}),
             })
             .onConflict('fingerprint')
             .merge({
@@ -1627,6 +1646,35 @@ export class AiAgentReviewClassifierModel {
                 dismissed_reason: args.dismissedReason,
                 status_updated_at: this.database.fn.now(),
                 status_updated_by_user_uuid: args.statusUpdatedByUserUuid,
+                updated_at: this.database.fn.now(),
+                ...(args.boardPosition !== undefined
+                    ? { board_position: args.boardPosition }
+                    : {}),
+            });
+    }
+
+    // Sets only the manual board sort key, leaving status/assignee/timestamps
+    // untouched on existing rows. Inserts a triage-status row when the item has
+    // never been acted on (so a never-triaged card can still be ordered).
+    async setReviewItemBoardPosition(args: {
+        organizationUuid: string;
+        projectUuid: string;
+        agentUuid: string;
+        fingerprint: string;
+        boardPosition: number;
+    }): Promise<void> {
+        await this.database<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
+            .insert({
+                fingerprint: args.fingerprint,
+                organization_uuid: args.organizationUuid,
+                project_uuid: args.projectUuid,
+                agent_uuid: args.agentUuid,
+                status: 'triage',
+                board_position: args.boardPosition,
+            })
+            .onConflict('fingerprint')
+            .merge({
+                board_position: args.boardPosition,
                 updated_at: this.database.fn.now(),
             });
     }

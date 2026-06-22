@@ -14,6 +14,7 @@ import {
     type ApiAiAgentVerifiedArtifactsResponse,
     type ApiError,
     type ApiUpstreamDiffResponse,
+    type ReorderAiAgentReviewItems,
     type UpdateAiAgentReviewItemAssignee,
     type UpdateAiAgentReviewItemStatus,
 } from '@lightdash/common';
@@ -481,6 +482,39 @@ export const useUpdateAiAgentReviewItemAssignee = () => {
         onError: ({ error }) => {
             showToastApiError({
                 title: 'Failed to update assignee',
+                apiError: error,
+            });
+        },
+    });
+};
+
+const reorderAiAgentReviewItems = async (orderedFingerprints: string[]) => {
+    return lightdashApi<undefined>({
+        version: 'v1',
+        url: `/aiAgents/admin/review-items/reorder`,
+        method: 'PATCH',
+        body: JSON.stringify({
+            orderedFingerprints,
+        } satisfies ReorderAiAgentReviewItems),
+    });
+};
+
+// Silent on success (fires on every drop); the board updates optimistically and
+// a failure re-fetches the authoritative order.
+export const useReorderReviewItems = () => {
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+
+    return useMutation<undefined, ApiError, string[]>({
+        mutationFn: reorderAiAgentReviewItems,
+        onSettled: () => {
+            void queryClient.invalidateQueries({
+                queryKey: [AI_AGENT_ADMIN_REVIEW_ITEMS_QUERY_KEY],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to reorder items',
                 apiError: error,
             });
         },

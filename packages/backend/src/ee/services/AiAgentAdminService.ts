@@ -836,6 +836,7 @@ export class AiAgentAdminService extends BaseService {
             status: update.status,
             dismissedReason: update.dismissedReason,
             statusUpdatedByUserUuid: user.userUuid,
+            boardPosition: update.boardPosition,
         });
 
         const reviewItem =
@@ -891,6 +892,42 @@ export class AiAgentAdminService extends BaseService {
             );
         }
         return this.getReviewItem(user, fingerprint);
+    }
+
+    /**
+     * Persists the board's manual card order by reindexing the given
+     * fingerprints (board_position = index). Scope is resolved per fingerprint
+     * so it works for the cross-project board; callers pass a lane's full order.
+     */
+    async reorderReviewItems(
+        user: SessionUser,
+        orderedFingerprints: string[],
+    ): Promise<void> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkOrganizationAdminAccess(user);
+
+        await Promise.all(
+            orderedFingerprints.map(async (fingerprint, index) => {
+                const scope =
+                    await this.aiAgentReviewClassifierModel.getPromotedFingerprintScope(
+                        organizationUuid,
+                        fingerprint,
+                    );
+                if (!scope) return;
+                await this.aiAgentReviewClassifierModel.setReviewItemBoardPosition(
+                    {
+                        organizationUuid,
+                        projectUuid: scope.projectUuid,
+                        agentUuid: scope.agentUuid,
+                        fingerprint,
+                        boardPosition: index,
+                    },
+                );
+            }),
+        );
     }
 
     async updateReviewItemAssignee(

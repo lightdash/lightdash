@@ -11,9 +11,11 @@ import {
     ApiAiAgentSummaryResponse,
     ApiAiOrganizationSettingsResponse,
     ApiErrorPayload,
+    ApiSuccessEmpty,
     ApiUpdateAiOrganizationSettingsResponse,
     assertRegisteredAccount,
     KnexPaginateArgs,
+    ReorderAiAgentReviewItems,
     UpdateAiAgentReviewItemAssignee,
     UpdateAiAgentReviewItemStatus,
     UpdateAiOrganizationSettings,
@@ -257,6 +259,32 @@ export class AiAgentAdminController extends BaseController {
                     threadUuid,
                 ),
         };
+    }
+
+    /**
+     * Persist the board's manual card order for one lane. Declared before the
+     * `{fingerprint}` route so "reorder" isn't matched as a fingerprint.
+     * @summary Reorder AI agent review items on the board
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('/review-items/reorder')
+    @OperationId('reorderAiAgentReviewItems')
+    async reorderReviewItems(
+        @Request() req: express.Request,
+        @Body() body: ReorderAiAgentReviewItems,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getAiAgentAdminService().reorderReviewItems(
+            toSessionUser(req.account),
+            body.orderedFingerprints,
+        );
+        this.setStatus(200);
+        return { status: 'ok', results: undefined };
     }
 
     /**

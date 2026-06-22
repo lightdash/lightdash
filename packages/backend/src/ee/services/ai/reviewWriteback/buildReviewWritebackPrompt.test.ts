@@ -29,6 +29,7 @@ const baseItem = (
     prState: null,
     prWritebackStatus: null,
     prWritebackMessage: null,
+    boardPosition: null,
     writebackEligible: true,
     writebackEligibility: {
         eligible: true,

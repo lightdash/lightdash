@@ -16,6 +16,10 @@ vi.mock('../../hooks/useAiAgentAdmin', () => ({
         mutate: vi.fn(),
         isLoading: false,
     }),
+    useReorderReviewItems: () => ({
+        mutate: vi.fn(),
+        isLoading: false,
+    }),
     useUpdateAiAgentReviewItemAssignee: () => ({
         mutate: vi.fn(),
         isLoading: false,
