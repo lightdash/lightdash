@@ -24,6 +24,7 @@ type Props = {
     totalOpen: number;
     reviewsUrl: string;
     promptTrend: { date: string; promptCount: number }[];
+    promptTrendDays: number;
     isLoadingPromptTrend?: boolean;
 };
 
@@ -96,6 +97,7 @@ export const ReviewFindingsPreview: FC<Props> = ({
     totalOpen,
     reviewsUrl,
     promptTrend,
+    promptTrendDays,
     isLoadingPromptTrend = false,
 }) => {
     const totalPrompts = promptTrend.reduce(
@@ -115,7 +117,7 @@ export const ReviewFindingsPreview: FC<Props> = ({
                 <Group justify="space-between" mb={4} wrap="nowrap">
                     <Text className={classes.heading}>Prompts</Text>
                     <Text className={classes.heading}>
-                        {totalPrompts} in 14d
+                        {totalPrompts} in {promptTrendDays}d
                     </Text>
                 </Group>
                 {isLoadingPromptTrend ? (

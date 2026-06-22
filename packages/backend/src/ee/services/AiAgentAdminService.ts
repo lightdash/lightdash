@@ -389,7 +389,7 @@ export class AiAgentAdminService extends BaseService {
     async getPromptActivity(
         user: SessionUser,
         projectUuid: string,
-        days: number = 14,
+        days: number = 30,
     ): Promise<AiAgentAdminPromptActivityPoint[]> {
         const { organizationUuid } = user;
 

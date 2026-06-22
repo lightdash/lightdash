@@ -132,7 +132,7 @@ export class AiAgentAdminController extends BaseController {
     async getProjectPromptActivity(
         @Request() req: express.Request,
         @Path() projectUuid: string,
-        @Query() days: number = 14,
+        @Query() days: number = 30,
     ): Promise<ApiAiAgentAdminPromptActivityResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);

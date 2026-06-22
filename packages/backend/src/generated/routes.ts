@@ -53886,7 +53886,7 @@ export function RegisterRoutes(app: Router) {
         days: {
             in: 'query',
             name: 'days',
-            default: 14,
+            default: 30,
             dataType: 'double',
         },
     };

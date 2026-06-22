@@ -47319,7 +47319,7 @@
                         "name": "days",
                         "required": false,
                         "schema": {
-                            "default": 14,
+                            "default": 30,
                             "format": "double",
                             "type": "number"
                         }

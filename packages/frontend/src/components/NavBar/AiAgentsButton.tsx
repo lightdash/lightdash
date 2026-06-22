@@ -12,7 +12,7 @@ import { useAiAgentButtonVisibility } from '../../ee/features/aiCopilot/hooks/us
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 
 const PREVIEW_LIMIT = 3;
-const PROMPT_TREND_DAYS = 14;
+const PROMPT_TREND_DAYS = 30;
 
 type Props = {
     projectUuid: string;
@@ -113,6 +113,7 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
                     totalOpen={reviewCount}
                     reviewsUrl={reviewsUrl}
                     promptTrend={promptActivityQuery.data ?? []}
+                    promptTrendDays={PROMPT_TREND_DAYS}
                     isLoadingPromptTrend={promptActivityQuery.isFetching}
                 />
             </HoverCard.Dropdown>
