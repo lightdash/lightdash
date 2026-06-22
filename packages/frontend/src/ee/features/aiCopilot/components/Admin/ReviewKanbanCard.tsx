@@ -9,11 +9,7 @@ import {
     Text,
     Tooltip,
 } from '@mantine-8/core';
-import {
-    IconArrowUpRight,
-    IconBox,
-    IconLayoutColumns,
-} from '@tabler/icons-react';
+import { IconArrowUpRight, IconLayoutColumns } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
 import { Link } from 'react-router';
 import { CategoryBadge } from '../../../../../components/common/CategoryBadge';
@@ -42,6 +38,28 @@ type Props = {
     onSelect: (item: AiAgentReviewItemSummary) => void;
 };
 
+// Live status shown in place of "Open workspace" while the fix is still being
+// built; null once the workspace is genuinely openable.
+const getWorkspaceActivityLabel = (
+    item: AiAgentReviewItemSummary,
+): string | null => {
+    if (
+        item.prWritebackStatus === 'queued' ||
+        item.prWritebackStatus === 'running'
+    ) {
+        return 'Writing fix…';
+    }
+    switch (item.remediation?.status) {
+        case 'queued':
+        case 'running':
+            return 'Building…';
+        case 'pr_open':
+            return 'Compiling…';
+        default:
+            return null;
+    }
+};
+
 // ts-unused-exports:disable-next-line
 export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
     const createWriteback = useCreateAiAgentReviewItemWriteback();
@@ -63,19 +81,7 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
     const workspaceHref = `/generalSettings/ai/reviews/${encodeURIComponent(
         item.fingerprint,
     )}`;
-    const hasPreview = Boolean(remediation?.previewProjectUuid);
-
-    const isPreviewBuilding =
-        remediation?.status === 'queued' || remediation?.status === 'running';
-
-    const previewHref =
-        remediation?.previewProjectUuid &&
-        remediation?.previewAgentUuid &&
-        remediation?.previewThreadUuid
-            ? `/projects/${remediation.previewProjectUuid}/ai-agents/${remediation.previewAgentUuid}/threads/${remediation.previewThreadUuid}`
-            : remediation?.previewProjectUuid
-              ? `/projects/${remediation.previewProjectUuid}/home`
-              : null;
+    const activityLabel = getWorkspaceActivityLabel(item);
 
     return (
         <Box
@@ -190,63 +196,39 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                 </Stack>
             </Box>
 
-            {!hasWorkspace &&
-                hasPreview &&
-                !isPreviewBuilding &&
-                previewHref && (
+            {hasWorkspace &&
+                (activityLabel ? (
+                    <Box className={styles.cardFooter}>
+                        <Group gap={6} align="center">
+                            <Box
+                                pos="relative"
+                                w={7}
+                                h={7}
+                                bg="indigo.5"
+                                className={styles.pulse}
+                                style={{ borderRadius: '50%' }}
+                            />
+                            <Text fz="xs" c="dimmed">
+                                {activityLabel}
+                            </Text>
+                        </Group>
+                    </Box>
+                ) : (
                     <Box
-                        component="a"
-                        href={previewHref}
+                        component={Link}
+                        to={workspaceHref}
                         onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
                             e.stopPropagation()
                         }
                         className={styles.cardFooter}
                     >
                         <Group gap={6} align="center">
-                            <MantineIcon icon={IconBox} size={13} />
-                            <Text fz="xs">Preview project</Text>
+                            <MantineIcon icon={IconLayoutColumns} size={13} />
+                            <Text fz="xs">Open workspace</Text>
                         </Group>
                         <MantineIcon icon={IconArrowUpRight} size={14} />
                     </Box>
-                )}
-            {!hasWorkspace && hasPreview && isPreviewBuilding && (
-                <Box className={styles.cardFooter}>
-                    <Group gap={6} align="center">
-                        <MantineIcon icon={IconBox} size={13} />
-                        <Text fz="xs">Preview project</Text>
-                    </Group>
-                    <Group gap={6} align="center">
-                        <Box
-                            pos="relative"
-                            w={7}
-                            h={7}
-                            bg="yellow.5"
-                            className={styles.pulse}
-                            style={{ borderRadius: '50%' }}
-                        />
-                        <Text fz="xs" c="dimmed">
-                            Building…
-                        </Text>
-                    </Group>
-                </Box>
-            )}
-
-            {hasWorkspace && (
-                <Box
-                    component={Link}
-                    to={workspaceHref}
-                    onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
-                        e.stopPropagation()
-                    }
-                    className={styles.cardFooter}
-                >
-                    <Group gap={6} align="center">
-                        <MantineIcon icon={IconLayoutColumns} size={13} />
-                        <Text fz="xs">Open workspace</Text>
-                    </Group>
-                    <MantineIcon icon={IconArrowUpRight} size={14} />
-                </Box>
-            )}
+                ))}
 
             {startKind !== null && (
                 <Button
