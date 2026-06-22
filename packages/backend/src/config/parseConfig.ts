@@ -1569,6 +1569,20 @@ export type AppRuntimeConfig = {
      */
     e2bAiWritebackTemplateName: string;
     e2bAiWritebackTemplateTag: string;
+    /**
+     * OpenTelemetry export for data-app generation. When enabled with an
+     * endpoint, Claude Code's native OTEL tracing is turned on inside the
+     * sandbox and pointed at this OTLP collector; the collector host is added
+     * to the sandbox egress allowlist. The data-app generation gets a backend
+     * parent span and the sandbox `claude_code.*` spans nest under it via an
+     * injected TRACEPARENT. Off unless an endpoint is configured.
+     */
+    otel: {
+        enabled: boolean;
+        endpoint: string | null;
+        protocol: string;
+        headers: string | null;
+    };
 };
 
 export type IntercomConfig = {
@@ -1793,6 +1807,20 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             'lightdash-ai-writeback',
         e2bAiWritebackTemplateTag:
             process.env.E2B_AI_WRITEBACK_TEMPLATE_TAG ?? (VERSION as string),
+        // Reuses the shared OTEL trace-export config (same flag + collector as
+        // the backend's own OTLP exporter in src/tracing/tracing.ts) so the
+        // data-app sandbox traces land in the same place and stitch into one
+        // trace. Enablement mirrors that module's otelTracingEnabled().
+        otel: {
+            enabled:
+                process.env.LIGHTDASH_OTEL_TRACES_ENABLED === 'true' &&
+                process.env.OTEL_SDK_DISABLED !== 'true' &&
+                process.env.OTEL_TRACES_EXPORTER !== 'none',
+            endpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || null,
+            protocol:
+                process.env.OTEL_EXPORTER_OTLP_PROTOCOL || 'http/protobuf',
+            headers: process.env.OTEL_EXPORTER_OTLP_HEADERS || null,
+        },
     };
 };
 
