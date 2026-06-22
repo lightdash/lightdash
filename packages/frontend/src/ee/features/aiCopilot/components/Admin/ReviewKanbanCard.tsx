@@ -3,12 +3,15 @@ import {
     Badge,
     Box,
     Button,
+    Code,
     Group,
     HoverCard,
     Stack,
     Text,
+    Tooltip,
 } from '@mantine-8/core';
 import {
+    IconArrowRight,
     IconArrowUpRight,
     IconBox,
     IconGitPullRequest,
@@ -26,8 +29,11 @@ import { AiAgentIcon } from '../AiAgentIcon';
 import { ProjectContextWritebackModal } from './ProjectContextWritebackModal';
 import { ReviewAssigneeMenu } from './ReviewAssigneeMenu';
 import {
+    formatRelativeReviewDate,
     formatReviewDate,
+    getFixReadyText,
     getIssueTitle,
+    getTargetAnchor,
     reviewRootCauseColors,
     reviewRootCauseLabels,
 } from './reviewItemDetails';
@@ -51,6 +57,13 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
     const isAgentRunning =
         item.prWritebackStatus === 'queued' ||
         item.prWritebackStatus === 'running';
+
+    const title = getIssueTitle(item);
+    const targetAnchor = getTargetAnchor(item);
+    const isRecurring = item.findingCount > 1;
+    // The fix row would just echo a fix-framed title; only surface it when it adds something.
+    const fixReadyText = getFixReadyText(item);
+    const showFixReady = fixReadyText !== null && fixReadyText !== title;
 
     const startKind = getStartWritebackKind(item);
 
@@ -96,22 +109,80 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                         align="flex-start"
                         wrap="nowrap"
                     >
-                        <Text fz="sm" fw={550} lineClamp={2}>
-                            {getIssueTitle(item)}
-                        </Text>
+                        <Stack gap={2} style={{ minWidth: 0 }}>
+                            <Text fz="sm" fw={550} lineClamp={2}>
+                                {title}
+                            </Text>
+                            {targetAnchor && (
+                                <Code
+                                    fz={10}
+                                    c="dimmed"
+                                    w="fit-content"
+                                    maw="100%"
+                                >
+                                    {targetAnchor}
+                                </Code>
+                            )}
+                        </Stack>
                         <Group gap={8} wrap="nowrap" align="center">
                             {isAgentRunning && (
                                 <AiAgentIcon size={14} animated />
                             )}
-                            <Text
-                                fz="xs"
-                                c="dimmed"
-                                style={{ whiteSpace: 'nowrap' }}
+                            {isRecurring && (
+                                <Tooltip
+                                    variant="xs"
+                                    label={`Seen ${item.findingCount} times`}
+                                    position="top"
+                                >
+                                    <Badge
+                                        size="sm"
+                                        radius="sm"
+                                        variant="light"
+                                        color="orange"
+                                    >
+                                        {item.findingCount}×
+                                    </Badge>
+                                </Tooltip>
+                            )}
+                            <Tooltip
+                                variant="xs"
+                                position="top"
+                                label={`First seen ${formatReviewDate(
+                                    item.firstSeenAt,
+                                )} · last seen ${formatReviewDate(
+                                    item.lastSeenAt,
+                                )}`}
                             >
-                                {formatReviewDate(item.firstSeenAt)}
-                            </Text>
+                                <Text
+                                    fz="xs"
+                                    c="dimmed"
+                                    style={{ whiteSpace: 'nowrap' }}
+                                >
+                                    {formatRelativeReviewDate(item.lastSeenAt)}
+                                </Text>
+                            </Tooltip>
                         </Group>
                     </Group>
+
+                    {showFixReady && (
+                        <Box className={styles.fixReadyWrap}>
+                            <Group
+                                gap={6}
+                                wrap="nowrap"
+                                align="flex-start"
+                                className={styles.fixReadyRow}
+                            >
+                                <MantineIcon
+                                    icon={IconArrowRight}
+                                    size={13}
+                                    color="indigo"
+                                />
+                                <Text fz="xs" c="dimmed" lineClamp={2}>
+                                    {fixReadyText}
+                                </Text>
+                            </Group>
+                        </Box>
+                    )}
 
                     <Group
                         gap={6}

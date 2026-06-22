@@ -44,6 +44,8 @@ const items = [
         linkedPrUrl: null,
         agentUuid: null,
         firstSeenAt: new Date('2026-06-01'),
+        lastSeenAt: new Date('2026-06-01'),
+        findingCount: 1,
         writebackEligibility: { eligible: false, reason: 'no_fix_targets' },
         latestFinding: {
             fixTargets: [],
@@ -62,6 +64,8 @@ const items = [
         linkedPrUrl: null,
         agentUuid: null,
         firstSeenAt: new Date('2026-06-01'),
+        lastSeenAt: new Date('2026-06-01'),
+        findingCount: 1,
         writebackEligibility: { eligible: false, reason: 'no_fix_targets' },
         latestFinding: {
             fixTargets: [],
