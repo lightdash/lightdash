@@ -1,9 +1,9 @@
 import {
+    closestCorners,
     DndContext,
     DragOverlay,
     KeyboardSensor,
     PointerSensor,
-    useDraggable,
     useDroppable,
     useSensor,
     useSensors,
@@ -12,19 +12,19 @@ import {
     type DragStartEvent,
 } from '@dnd-kit/core';
 import {
+    arrayMove,
+    SortableContext,
+    useSortable,
+    verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import {
     type AiAgentReviewItemSummary,
     type AiAgentRootCause,
 } from '@lightdash/common';
-import {
-    Badge,
-    Box,
-    Button,
-    Divider,
-    Group,
-    Stack,
-    Text,
-} from '@mantine-8/core';
+import { Badge, Box, Button, Group, Stack, Text } from '@mantine-8/core';
 import { IconBox, IconTag, IconUser } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { type FC, useDeferredValue, useMemo, useState } from 'react';
 import FilterFacet, {
     type FilterFacetOption,
@@ -33,8 +33,10 @@ import { useOrgUsersByUuid } from '../../../../../hooks/useOrganizationUsers';
 import { useProjects } from '../../../../../hooks/useProjects';
 import useApp from '../../../../../providers/App/useApp';
 import {
+    applyOptimisticReviewBoardOrder,
     useAiAgentAdminReviewItems,
     useCreateAiAgentReviewItemWriteback,
+    useReorderReviewItems,
     useUpdateAiAgentReviewItemStatus,
 } from '../../hooks/useAiAgentAdmin';
 import { type AiAgentAdminReviewItemPreviewTarget } from './AiAgentAdminReviewItemsTable';
@@ -56,7 +58,6 @@ import {
     getReviewLane,
     getStartWritebackKind,
     LANE_TARGET_STATUS,
-    partitionInProgress,
     REVIEW_LANES,
     type ReviewLane,
 } from './reviewLane';
@@ -88,25 +89,38 @@ const toTarget = (
     };
 };
 
-type DraggableCardProps = {
+type SortableCardProps = {
     item: AiAgentReviewItemSummary;
     isSelected: boolean;
     onSelect: () => void;
 };
 
-const DraggableCard: FC<DraggableCardProps> = ({
+const SortableCard: FC<SortableCardProps> = ({
     item,
     isSelected,
     onSelect,
 }) => {
-    const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-        id: item.uuid,
-    });
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id: item.uuid });
 
     return (
         <Box
             ref={setNodeRef}
-            className={isDragging ? styles.cardGhost : undefined}
+            className={`${styles.draggableCard}${
+                isDragging ? ` ${styles.cardGhost}` : ''
+            }`}
+            // dnd-kit drives the per-frame shift that previews where the card
+            // will land; this transform/transition can only be inline.
+            style={{
+                transform: CSS.Translate.toString(transform),
+                transition,
+            }}
             {...listeners}
             {...attributes}
         >
@@ -121,23 +135,25 @@ const DraggableCard: FC<DraggableCardProps> = ({
 
 type DroppableLaneProps = {
     laneId: ReviewLane;
-    isDraggingValidTarget: boolean;
+    isDragActive: boolean;
     children: React.ReactNode;
 };
 
 const DroppableLane: FC<DroppableLaneProps> = ({
     laneId,
-    isDraggingValidTarget,
+    isDragActive,
     children,
 }) => {
     const { setNodeRef, isOver } = useDroppable({ id: laneId });
-    const highlight = isOver && isDraggingValidTarget;
+
+    const classNames = [styles.laneScroll];
+    // Every lane accepts a drop now (reorder within, or move across); the
+    // sortable gap shows exactly where the card will land.
+    if (isOver) classNames.push(styles.laneOver);
+    else if (isDragActive) classNames.push(styles.laneValidTarget);
 
     return (
-        <Box
-            ref={setNodeRef}
-            className={`${styles.laneScroll}${highlight ? ` ${styles.laneOver}` : ''}`}
-        >
+        <Box ref={setNodeRef} className={classNames.join(' ')}>
             {children}
         </Box>
     );
@@ -167,13 +183,21 @@ export const ReviewKanbanBoard: FC<Props> = ({
     const [expandedLanes, setExpandedLanes] = useState<
         Partial<Record<ReviewLane, boolean>>
     >({});
-    const [draggingItemUuid, setDraggingItemUuid] = useState<string | null>(
-        null,
-    );
-    const [overLaneId, setOverLaneId] = useState<ReviewLane | null>(null);
+    const [activeId, setActiveId] = useState<string | null>(null);
+    // While a drag is in flight we hold the optimistic per-lane order here so
+    // dragging can reorder freely. It's null the rest of the time — the board
+    // then renders straight from server-derived `lanes` (kept current by the
+    // reorder mutation's optimistic cache update), so no effect copies server
+    // state into a parallel variable.
+    const [dragLanes, setDragLanes] = useState<Record<
+        ReviewLane,
+        AiAgentReviewItemSummary[]
+    > | null>(null);
 
+    const queryClient = useQueryClient();
     const updateStatus = useUpdateAiAgentReviewItemStatus();
     const createWriteback = useCreateAiAgentReviewItemWriteback();
+    const reorderItems = useReorderReviewItems();
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -295,55 +319,147 @@ export const ReviewKanbanBoard: FC<Props> = ({
         return byLane;
     }, [items]);
 
-    // Resolve the item being dragged to check if a given lane is a valid target
-    const draggingItem = draggingItemUuid
-        ? (items.find((item) => item.uuid === draggingItemUuid) ?? null)
+    // During a drag, render the optimistic order; otherwise straight from the
+    // server (the reorder mutation updates the cache optimistically, so `lanes`
+    // already reflects a just-dropped order without a reconcile effect).
+    const displayLanes = dragLanes ?? lanes;
+
+    const laneOf = (
+        state: Record<ReviewLane, AiAgentReviewItemSummary[]>,
+        id: string,
+    ): ReviewLane | null => {
+        if (LANE_IDS.has(id)) return id as ReviewLane;
+        return (
+            REVIEW_LANES.find((lane) =>
+                state[lane.id].some((item) => item.uuid === id),
+            )?.id ?? null
+        );
+    };
+
+    const draggingItem = activeId
+        ? (Object.values(displayLanes)
+              .flat()
+              .find((item) => item.uuid === activeId) ?? null)
         : null;
 
-    const isValidTarget = (laneId: ReviewLane): boolean => {
-        if (!draggingItem) return false;
-        const targetStatus = LANE_TARGET_STATUS[laneId];
-        return targetStatus !== null && targetStatus !== draggingItem.status;
-    };
-
     const handleDragStart = ({ active }: DragStartEvent) => {
-        setDraggingItemUuid(String(active.id));
+        setDragLanes(lanes);
+        setActiveId(String(active.id));
     };
 
-    const handleDragOver = ({ over }: DragOverEvent) => {
-        const id = over?.id ? String(over.id) : null;
-        const next = id && LANE_IDS.has(id) ? (id as ReviewLane) : null;
-        setOverLaneId((prev) => (prev === next ? prev : next));
-    };
-
-    const handleDragEnd = ({ active, over }: DragEndEvent) => {
-        setDraggingItemUuid(null);
-        setOverLaneId(null);
+    // Reorder continuously while dragging — within a lane and across lanes — so
+    // the card already sits in its final slot on release. Without this, dnd-kit
+    // animates the drop back to the original index and the row flashes before
+    // the persisted order lands. Lanes are resolved from `prev` to dodge stale
+    // state across rapid dragOver events.
+    const handleDragOver = ({ active, over }: DragOverEvent) => {
         if (!over) return;
-        if (!LANE_IDS.has(String(over.id))) return;
-        const targetLane = over.id as ReviewLane;
-        const draggedItem = items.find((item) => item.uuid === active.id);
-        if (!draggedItem) return;
+        const activeKey = String(active.id);
+        const overKey = String(over.id);
+        if (activeKey === overKey) return;
+        setDragLanes((prev) => {
+            if (!prev) return prev;
+            const fromLane = laneOf(prev, activeKey);
+            const toLane = laneOf(prev, overKey);
+            if (!fromLane || !toLane) return prev;
+            const fromList = prev[fromLane];
+            const activeIndex = fromList.findIndex(
+                (item) => item.uuid === activeKey,
+            );
+            if (activeIndex < 0) return prev;
 
-        const targetStatus = LANE_TARGET_STATUS[targetLane];
-        if (targetStatus === null) return;
+            if (fromLane === toLane) {
+                const overIndex = fromList.findIndex(
+                    (item) => item.uuid === overKey,
+                );
+                if (overIndex < 0 || activeIndex === overIndex) return prev;
+                return {
+                    ...prev,
+                    [fromLane]: arrayMove(fromList, activeIndex, overIndex),
+                };
+            }
 
-        if (targetStatus !== draggedItem.status) {
+            const moved = fromList[activeIndex];
+            const toList = prev[toLane];
+            const overIndex = toList.findIndex((item) => item.uuid === overKey);
+            const insertAt = overIndex >= 0 ? overIndex : toList.length;
+            return {
+                ...prev,
+                [fromLane]: fromList.filter((item) => item.uuid !== activeKey),
+                [toLane]: [
+                    ...toList.slice(0, insertAt),
+                    moved,
+                    ...toList.slice(insertAt),
+                ],
+            };
+        });
+    };
+
+    // dragOver has already placed the card in its final slot/lane; here we just
+    // persist that order and apply the status change if it crossed lanes.
+    const handleDragEnd = ({ active }: DragEndEvent) => {
+        const activeKey = String(active.id);
+        const snapshot = dragLanes;
+        const clearDrag = () => {
+            setActiveId(null);
+            setDragLanes(null);
+        };
+        if (!snapshot) {
+            clearDrag();
+            return;
+        }
+
+        const lane = laneOf(snapshot, activeKey);
+        const moved = lane
+            ? snapshot[lane].find((item) => item.uuid === activeKey)
+            : undefined;
+        if (!lane || !moved) {
+            clearDrag();
+            return;
+        }
+        const laneList = snapshot[lane];
+        const orderedFingerprints = laneList.map((item) => item.fingerprint);
+
+        // Status follows the lane (null on lanes that don't map to a status).
+        const targetStatus = LANE_TARGET_STATUS[lane];
+        const statusOverride =
+            targetStatus !== null && moved.status !== targetStatus
+                ? { fingerprint: moved.fingerprint, status: targetStatus }
+                : null;
+
+        // Commit the dropped arrangement (order + cross-lane status) to the cache
+        // and clear the transient drag order in the same tick, so the board hands
+        // off to the server-derived lanes in one render — no flash to the old
+        // position before the persist settles.
+        applyOptimisticReviewBoardOrder(
+            queryClient,
+            orderedFingerprints,
+            statusOverride,
+        );
+        clearDrag();
+
+        if (statusOverride) {
             updateStatus.mutate({
-                fingerprint: draggedItem.fingerprint,
-                body: { status: targetStatus, dismissedReason: null },
+                fingerprint: moved.fingerprint,
+                body: { status: statusOverride.status, dismissedReason: null },
             });
-            if (targetLane === 'in_progress') {
-                const kind = getStartWritebackKind(draggedItem);
+            // The deterministic writeback kicks off when a card lands in
+            // In progress, same as before.
+            if (lane === 'in_progress') {
+                const kind = getStartWritebackKind(moved);
                 if (kind === 'mutate')
-                    createWriteback.mutate(draggedItem.fingerprint);
+                    createWriteback.mutate(moved.fingerprint);
             }
         }
+
+        // Persist the dropped lane's order (reindexes board_position). The source
+        // lane keeps its relative order, so only this lane needs rewriting.
+        reorderItems.mutate(orderedFingerprints);
     };
 
     const handleDragCancel = () => {
-        setDraggingItemUuid(null);
-        setOverLaneId(null);
+        setActiveId(null);
+        setDragLanes(null);
     };
 
     return (
@@ -387,6 +503,7 @@ export const ReviewKanbanBoard: FC<Props> = ({
             <Box className={styles.boardWrapper}>
                 <DndContext
                     sensors={sensors}
+                    collisionDetection={closestCorners}
                     onDragStart={handleDragStart}
                     onDragOver={handleDragOver}
                     onDragEnd={handleDragEnd}
@@ -394,22 +511,13 @@ export const ReviewKanbanBoard: FC<Props> = ({
                 >
                     <Box className={styles.board}>
                         {REVIEW_LANES.map((lane, laneIndex) => {
-                            const all = lanes[lane.id];
+                            const all = displayLanes[lane.id];
                             const isExpanded = expandedLanes[lane.id] ?? false;
                             const displayed =
                                 isExpanded || all.length <= VISIBLE_PER_LANE
                                     ? all
                                     : all.slice(0, VISIBLE_PER_LANE);
                             const hasMore = all.length > VISIBLE_PER_LANE;
-
-                            const { active, rest } =
-                                lane.id === 'in_progress'
-                                    ? partitionInProgress(displayed)
-                                    : { active: [], rest: displayed };
-                            const cards =
-                                lane.id === 'in_progress'
-                                    ? [...active, ...rest]
-                                    : displayed;
 
                             return (
                                 <Box key={lane.id} className={styles.lane}>
@@ -433,9 +541,7 @@ export const ReviewKanbanBoard: FC<Props> = ({
                                     </Group>
                                     <DroppableLane
                                         laneId={lane.id}
-                                        isDraggingValidTarget={isValidTarget(
-                                            lane.id,
-                                        )}
+                                        isDragActive={activeId !== null}
                                     >
                                         {showSkeletons ? (
                                             Array.from({
@@ -448,32 +554,35 @@ export const ReviewKanbanBoard: FC<Props> = ({
                                                     key={i}
                                                 />
                                             ))
-                                        ) : cards.length === 0 ? (
-                                            <Box className={styles.emptyLane}>
-                                                <Text fz="xs" c="dimmed">
-                                                    No issues
-                                                </Text>
-                                            </Box>
                                         ) : (
-                                            <>
-                                                {cards.map((item, index) => {
-                                                    const showDivider =
-                                                        lane.id ===
-                                                            'in_progress' &&
-                                                        active.length > 0 &&
-                                                        index === active.length;
-                                                    const target =
-                                                        toTarget(item);
-                                                    return (
-                                                        <Box key={item.uuid}>
-                                                            {showDivider && (
-                                                                <Divider
-                                                                    my="xs"
-                                                                    label="Other"
-                                                                    labelPosition="left"
-                                                                />
-                                                            )}
-                                                            <DraggableCard
+                                            <SortableContext
+                                                items={displayed.map(
+                                                    (item) => item.uuid,
+                                                )}
+                                                strategy={
+                                                    verticalListSortingStrategy
+                                                }
+                                            >
+                                                {displayed.length === 0 ? (
+                                                    <Box
+                                                        className={
+                                                            styles.emptyLane
+                                                        }
+                                                    >
+                                                        <Text
+                                                            fz="xs"
+                                                            c="dimmed"
+                                                        >
+                                                            No issues
+                                                        </Text>
+                                                    </Box>
+                                                ) : (
+                                                    displayed.map((item) => {
+                                                        const target =
+                                                            toTarget(item);
+                                                        return (
+                                                            <SortableCard
+                                                                key={item.uuid}
                                                                 item={item}
                                                                 isSelected={
                                                                     selectedReviewItemUuid ===
@@ -486,9 +595,9 @@ export const ReviewKanbanBoard: FC<Props> = ({
                                                                         );
                                                                 }}
                                                             />
-                                                        </Box>
-                                                    );
-                                                })}
+                                                        );
+                                                    })
+                                                )}
                                                 {hasMore && (
                                                     <Button
                                                         variant="subtle"
@@ -510,15 +619,7 @@ export const ReviewKanbanBoard: FC<Props> = ({
                                                             : `Show all (${all.length})`}
                                                     </Button>
                                                 )}
-                                                {overLaneId === lane.id &&
-                                                    isValidTarget(lane.id) && (
-                                                        <Box
-                                                            className={
-                                                                styles.dropPlaceholder
-                                                            }
-                                                        />
-                                                    )}
-                                            </>
+                                            </SortableContext>
                                         )}
                                     </DroppableLane>
                                 </Box>

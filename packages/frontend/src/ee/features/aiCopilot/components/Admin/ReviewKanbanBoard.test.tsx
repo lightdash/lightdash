@@ -5,6 +5,7 @@ import { renderWithProviders } from '../../../../../testing/testUtils';
 import { ReviewKanbanBoard } from './ReviewKanbanBoard';
 
 vi.mock('../../hooks/useAiAgentAdmin', () => ({
+    applyOptimisticReviewBoardOrder: vi.fn(),
     useAiAgentAdminReviewItems: () => ({ data: items }),
     useAiAgentAdminAgents: () => ({ data: [] }),
     useAiAgentReviewItemPrDiff: () => ({ data: null }),
@@ -13,6 +14,10 @@ vi.mock('../../hooks/useAiAgentAdmin', () => ({
         isLoading: false,
     }),
     useCreateAiAgentReviewItemWriteback: () => ({
+        mutate: vi.fn(),
+        isLoading: false,
+    }),
+    useReorderReviewItems: () => ({
         mutate: vi.fn(),
         isLoading: false,
     }),
