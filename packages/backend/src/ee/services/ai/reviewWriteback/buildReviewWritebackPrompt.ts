@@ -120,14 +120,12 @@ const buildSemanticLayerWritebackPrompt = (
 };
 
 /**
- * Seed prompt for the project_context remediation work thread. Unlike the
- * semantic prompt (run in a sandbox), this thread is not auto-run. The finding,
- * the proposed change, and the source conversation now travel as pinned context
- * items (rendered as cards and as structured agent context), so the prompt is a
- * one-line instruction pointing at the editProjectContext tool.
+ * Seed prompt for the project_context remediation work thread. The finding, the
+ * proposed change, and the source conversation travel as pinned context (cards +
+ * structured agent context), so the prompt stays a single short line.
  */
 export const PROJECT_CONTEXT_WORK_THREAD_INSTRUCTION =
-    'You are refining this project’s Lightdash project context to close a gap surfaced by AI agent review. The pinned review finding, the proposed change, and the original conversation are attached as context. A pull request applying the change to lightdash.project_context.yml is opened automatically — to change or extend the definition, tell me what to adjust and I’ll open an updated pull request with the editProjectContext tool.';
+    'A pull request applying this change to your project context is already open. Tell me what to refine and I’ll update it with editProjectContext.';
 
 /**
  * Per-root-cause strategy dispatcher. Two strategies are implemented:

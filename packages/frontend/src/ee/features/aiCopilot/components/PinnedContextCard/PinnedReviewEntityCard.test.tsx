@@ -25,7 +25,7 @@ const renderCard = (item: ReviewEntityItem): ReactElement =>
     ) as unknown as ReactElement;
 
 describe('PinnedReviewEntityCard', () => {
-    it('renders a pull request card with number, status badge and title', () => {
+    it('renders a pull request card linking by title with a status badge', () => {
         renderCard({
             type: 'pull_request',
             prUrl: 'https://github.com/acme/repo/pull/123',
@@ -35,13 +35,10 @@ describe('PinnedReviewEntityCard', () => {
             title: 'Add weekly_active_users',
         });
 
-        expect(screen.getByText('PR #123')).toBeInTheDocument();
         expect(screen.getByText('open')).toBeInTheDocument();
-        expect(screen.getByText('Add weekly_active_users')).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'PR #123' })).toHaveAttribute(
-            'href',
-            'https://github.com/acme/repo/pull/123',
-        );
+        expect(
+            screen.getByRole('link', { name: 'Add weekly_active_users' }),
+        ).toHaveAttribute('href', 'https://github.com/acme/repo/pull/123');
     });
 
     it('renders a project-context proposed change card with the entry content', () => {
@@ -87,7 +84,7 @@ describe('PinnedReviewEntityCard', () => {
         ).toBeInTheDocument();
     });
 
-    it('renders a finding card with title, root-cause badge and frequency', () => {
+    it('renders a finding card with title and frequency', () => {
         renderCard({
             type: 'review_finding',
             fingerprint: 'fp-3',
@@ -100,7 +97,6 @@ describe('PinnedReviewEntityCard', () => {
         expect(
             screen.getByText('No metric for weekly active users'),
         ).toBeInTheDocument();
-        expect(screen.getByText('Semantic layer')).toBeInTheDocument();
         expect(screen.getByText('8×')).toBeInTheDocument();
     });
 

@@ -1,18 +1,43 @@
-.card {
-    border: 1px solid
-        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-ldGray-3));
-    border-radius: 8px;
+.group {
+    border-radius: 10px;
     background-color: light-dark(
-        var(--mantine-color-white),
+        var(--mantine-color-ldGray-0),
         var(--mantine-color-dark-6)
     );
     max-width: 100%;
+    overflow: hidden;
 }
 
-.evidenceText {
-    font-family: var(--mantine-font-family-monospace);
-    white-space: pre-wrap;
-    word-break: break-word;
+.row {
+    padding: 8px 12px;
+}
+
+.divider {
+    height: 1px;
+    background-color: light-dark(
+        var(--mantine-color-ldGray-2),
+        var(--mantine-color-dark-4)
+    );
+}
+
+.eyebrow {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--mantine-color-dimmed);
+    margin-bottom: 1px;
+}
+
+.chevron {
+    transition: transform 150ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.chevronOpen {
+    transform: rotate(90deg);
+}
+
+.evidenceList {
+    border-left: 1px solid
+        light-dark(var(--mantine-color-ldGray-3), var(--mantine-color-ldGray-4));
 }
 
 .redacted {

@@ -15,6 +15,10 @@ import { Link, useParams } from 'react-router';
 import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
 import useApp from '../../../../../providers/App/useApp';
 import { PinnedContextCard } from '../PinnedContextCard/PinnedContextCard';
+import {
+    isReviewEntityItem,
+    PinnedReviewContextGroup,
+} from '../PinnedContextCard/PinnedReviewEntityCard';
 import styles from './AgentChatUserBubble.module.css';
 import { ContentReferenceLink } from './ContentReferenceLink';
 import {
@@ -64,6 +68,11 @@ export const UserBubble: FC<Props> = ({
         if (!hasInlineReferences) return true;
         return !matchedKeys.has(getPromptContextItemKey(item));
     });
+    // Review entities share one quiet grouped card; everything else stays a chip.
+    const reviewContext = remainingContext.filter(isReviewEntityItem);
+    const otherContext = remainingContext.filter(
+        (item) => !isReviewEntityItem(item),
+    );
 
     return (
         <Stack
@@ -93,20 +102,26 @@ export const UserBubble: FC<Props> = ({
             </Stack>
 
             {remainingContext.length > 0 && projectUuid && (
-                <Group
+                <Stack
                     gap="xs"
-                    wrap="wrap"
-                    justify="flex-end"
+                    align="flex-end"
                     className={styles.contextGroup}
                 >
-                    {remainingContext.map((item, idx) => (
-                        <PinnedContextCard
-                            key={`${getPromptContextItemKey(item)}-${idx}`}
-                            item={item}
-                            projectUuid={projectUuid}
-                        />
-                    ))}
-                </Group>
+                    {otherContext.length > 0 && (
+                        <Group gap="xs" wrap="wrap" justify="flex-end">
+                            {otherContext.map((item, idx) => (
+                                <PinnedContextCard
+                                    key={`${getPromptContextItemKey(item)}-${idx}`}
+                                    item={item}
+                                    projectUuid={projectUuid}
+                                />
+                            ))}
+                        </Group>
+                    )}
+                    {reviewContext.length > 0 && (
+                        <PinnedReviewContextGroup items={reviewContext} />
+                    )}
+                </Stack>
             )}
 
             <Card

@@ -6,7 +6,7 @@ import {
 import {
     Anchor,
     Badge,
-    Card,
+    Box,
     Collapse,
     Group,
     Stack,
@@ -14,23 +14,18 @@ import {
 } from '@mantine-8/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
-    IconChevronDown,
     IconChevronRight,
     IconFlask,
     IconGitPullRequest,
     IconPencil,
     IconSearch,
 } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { type FC, Fragment, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import {
-    reviewRootCauseColors,
-    reviewRootCauseLabels,
-} from '../Admin/reviewItemDetails';
 import styles from './PinnedReviewEntityCard.module.css';
 
-type ReviewEntityItem = Extract<
+export type ReviewEntityItem = Extract<
     AiPromptContextItem,
     {
         type:
@@ -41,9 +36,16 @@ type ReviewEntityItem = Extract<
     }
 >;
 
-type Props = {
-    item: ReviewEntityItem;
-};
+const REVIEW_ENTITY_TYPES = new Set<AiPromptContextItem['type']>([
+    'pull_request',
+    'proposed_change',
+    'review_finding',
+    'preview_environment',
+]);
+
+export const isReviewEntityItem = (
+    item: AiPromptContextItem,
+): item is ReviewEntityItem => REVIEW_ENTITY_TYPES.has(item.type);
 
 const PR_STATE_COLORS: Record<AiAgentReviewItemPrState, string> = {
     open: 'teal',
@@ -51,145 +53,132 @@ const PR_STATE_COLORS: Record<AiAgentReviewItemPrState, string> = {
     closed: 'gray',
 };
 
-const CardShell: FC<{ children: React.ReactNode }> = ({ children }) => (
-    <Card className={styles.card} p="xs" radius="md" withBorder={false}>
-        {children}
-    </Card>
+// One row: a muted icon column + the entity's content. No own chrome — the
+// surrounding group provides the (single, subtle) container.
+const Row: FC<{
+    icon: typeof IconSearch;
+    right?: ReactNode;
+    children: ReactNode;
+}> = ({ icon, right, children }) => (
+    <Group gap={8} wrap="nowrap" align="flex-start">
+        <MantineIcon
+            icon={icon}
+            size={13}
+            color="dimmed"
+            style={{ marginTop: 2, flexShrink: 0 }}
+        />
+        <Box style={{ flex: 1, minWidth: 0 }}>{children}</Box>
+        {right}
+    </Group>
 );
 
-const PullRequestCard: FC<{
+const PullRequestRow: FC<{
     item: Extract<ReviewEntityItem, { type: 'pull_request' }>;
 }> = ({ item }) => {
     const status = item.status ?? 'open';
     return (
-        <CardShell>
-            <Group gap="xs" wrap="nowrap" align="center">
-                <MantineIcon
-                    icon={IconGitPullRequest}
-                    color="teal.7"
-                    size={14}
-                />
-                <Anchor
-                    href={item.prUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    fz="xs"
-                    fw={600}
-                    c="ldGray.8"
-                >
-                    PR #{item.prNumber ?? '?'}
-                </Anchor>
+        <Row
+            icon={IconGitPullRequest}
+            right={
                 <Badge
                     color={PR_STATE_COLORS[status]}
                     variant="light"
-                    size="sm"
+                    size="xs"
+                    radius="sm"
                 >
                     {status}
                 </Badge>
-            </Group>
-            {item.title && (
-                <Text fz="xs" c="ldGray.7" mt="two" lineClamp={2}>
-                    {item.title}
-                </Text>
-            )}
-        </CardShell>
+            }
+        >
+            <Anchor
+                href={item.prUrl}
+                target="_blank"
+                rel="noreferrer"
+                fz="xs"
+                c="ldGray.8"
+                lineClamp={2}
+            >
+                {item.title ?? `#${item.prNumber ?? '?'}`}
+            </Anchor>
+        </Row>
     );
 };
 
-const ProposedChangeCard: FC<{
+const ProposedChangeRow: FC<{
     item: Extract<ReviewEntityItem, { type: 'proposed_change' }>;
 }> = ({ item }) => {
     const { payload } = item;
-    const isProjectContext = payload.changeKind === 'project_context';
     const summary =
         payload.changeKind === 'project_context'
             ? payload.entry.content
             : payload.recommendation.title;
     return (
-        <CardShell>
-            <Group gap="xs" wrap="nowrap" align="center" mb="two">
-                <MantineIcon icon={IconPencil} color="violet.7" size={14} />
-                <Text fz="xs" fw={600} c="ldGray.7" tt="uppercase">
-                    Proposed change
-                </Text>
-                <Badge
-                    color={
-                        isProjectContext
-                            ? reviewRootCauseColors.project_context
-                            : reviewRootCauseColors.semantic_layer
-                    }
-                    variant="light"
-                    size="sm"
-                >
-                    {isProjectContext
-                        ? reviewRootCauseLabels.project_context
-                        : reviewRootCauseLabels.semantic_layer}
-                </Badge>
-            </Group>
+        <Row icon={IconPencil}>
+            <Text className={styles.eyebrow}>Proposed change</Text>
             <Text fz="xs" c="ldGray.8">
                 {summary}
             </Text>
-        </CardShell>
+        </Row>
     );
 };
 
-const ReviewFindingCard: FC<{
+const ReviewFindingRow: FC<{
     item: Extract<ReviewEntityItem, { type: 'review_finding' }>;
 }> = ({ item }) => {
     const [evidenceOpen, { toggle: toggleEvidence }] = useDisclosure(false);
     const hasEvidence = item.evidenceExcerpts.length > 0;
     return (
-        <CardShell>
-            <Group gap="xs" wrap="nowrap" align="center" mb="two">
-                <MantineIcon icon={IconSearch} color="orange.7" size={14} />
-                <Badge
-                    color={reviewRootCauseColors[item.rootCause]}
-                    variant="light"
-                    size="sm"
-                >
-                    {reviewRootCauseLabels[item.rootCause]}
-                </Badge>
-                {item.findingCount > 1 && (
-                    <Badge color="gray" variant="light" size="sm">
+        <Row
+            icon={IconSearch}
+            right={
+                item.findingCount > 1 ? (
+                    <Text fz={10} fw={600} c="dimmed" style={{ flexShrink: 0 }}>
                         {item.findingCount}×
-                    </Badge>
-                )}
-            </Group>
+                    </Text>
+                ) : undefined
+            }
+        >
             <Text fz="xs" fw={500} c="ldGray.8">
                 {item.title}
             </Text>
             {hasEvidence && (
-                <Stack gap="two" mt="xs">
+                <>
                     <Anchor
                         component="button"
                         type="button"
                         onClick={toggleEvidence}
-                        fz="xs"
-                        c="ldGray.6"
+                        fz={11}
+                        c="dimmed"
+                        underline="never"
+                        mt={2}
                     >
-                        <Group gap={4} wrap="nowrap" align="center">
+                        <Group gap={2} wrap="nowrap" align="center">
                             <MantineIcon
-                                icon={
-                                    evidenceOpen
-                                        ? IconChevronDown
-                                        : IconChevronRight
-                                }
-                                size={12}
+                                icon={IconChevronRight}
+                                size={11}
+                                className={`${styles.chevron}${
+                                    evidenceOpen ? ` ${styles.chevronOpen}` : ''
+                                }`}
                             />
                             Evidence ({item.evidenceExcerpts.length})
                         </Group>
                     </Anchor>
                     <Collapse in={evidenceOpen}>
-                        <Stack gap="two">
+                        <Stack
+                            gap={4}
+                            mt={4}
+                            pl="xs"
+                            className={styles.evidenceList}
+                        >
                             {item.evidenceExcerpts.map((excerpt, idx) => (
                                 <Text
                                     key={idx}
-                                    fz="xs"
-                                    c="ldGray.7"
+                                    fz={11}
+                                    c="dimmed"
                                     className={
                                         excerpt.redacted
-                                            ? `${styles.evidenceText} ${styles.redacted}`
-                                            : styles.evidenceText
+                                            ? styles.redacted
+                                            : undefined
                                     }
                                 >
                                     {excerpt.redacted
@@ -199,54 +188,79 @@ const ReviewFindingCard: FC<{
                             ))}
                         </Stack>
                     </Collapse>
-                </Stack>
+                </>
             )}
-        </CardShell>
+        </Row>
     );
 };
 
-const PreviewEnvironmentCard: FC<{
+const PreviewEnvironmentRow: FC<{
     item: Extract<ReviewEntityItem, { type: 'preview_environment' }>;
 }> = ({ item }) => {
     const to = item.previewThreadUuid
         ? `/projects/${item.previewProjectUuid}/ai-agents/threads/${item.previewThreadUuid}`
         : `/projects/${item.previewProjectUuid}/home`;
     return (
-        <CardShell>
-            <Group gap="xs" wrap="nowrap" align="center">
-                <MantineIcon icon={IconFlask} color="cyan.7" size={14} />
-                <Anchor
-                    component={Link}
-                    to={to}
-                    target="_blank"
-                    rel="noreferrer"
-                    fz="xs"
-                    fw={600}
-                    c="ldGray.8"
-                >
-                    {item.projectName ?? 'Preview environment'}
-                </Anchor>
-                {item.status && (
-                    <Badge color="cyan" variant="light" size="sm">
+        <Row
+            icon={IconFlask}
+            right={
+                item.status ? (
+                    <Badge color="cyan" variant="light" size="xs" radius="sm">
                         {item.status}
                     </Badge>
-                )}
-            </Group>
-        </CardShell>
+                ) : undefined
+            }
+        >
+            <Anchor
+                component={Link}
+                to={to}
+                target="_blank"
+                rel="noreferrer"
+                fz="xs"
+                c="ldGray.8"
+            >
+                {item.projectName ?? 'Preview environment'}
+            </Anchor>
+        </Row>
     );
 };
 
-export const PinnedReviewEntityCard: FC<Props> = ({ item }) => {
+const EntityRow: FC<{ item: ReviewEntityItem }> = ({ item }) => {
     switch (item.type) {
         case 'pull_request':
-            return <PullRequestCard item={item} />;
+            return <PullRequestRow item={item} />;
         case 'proposed_change':
-            return <ProposedChangeCard item={item} />;
+            return <ProposedChangeRow item={item} />;
         case 'review_finding':
-            return <ReviewFindingCard item={item} />;
+            return <ReviewFindingRow item={item} />;
         case 'preview_environment':
-            return <PreviewEnvironmentCard item={item} />;
+            return <PreviewEnvironmentRow item={item} />;
         default:
-            return assertUnreachable(item, 'Unknown review entity card type');
+            return assertUnreachable(item, 'Unknown review entity row type');
     }
 };
+
+// The review entities share a single quiet container, stacked and hairline-
+// divided, rather than one loud card each.
+export const PinnedReviewContextGroup: FC<{ items: ReviewEntityItem[] }> = ({
+    items,
+}) => {
+    if (items.length === 0) return null;
+    return (
+        <Stack gap={0} className={styles.group}>
+            {items.map((item, idx) => (
+                <Fragment key={idx}>
+                    {idx > 0 && <Box className={styles.divider} />}
+                    <Box className={styles.row}>
+                        <EntityRow item={item} />
+                    </Box>
+                </Fragment>
+            ))}
+        </Stack>
+    );
+};
+
+// Standalone single-entity render (group of one) for callers that pin one item.
+export const PinnedReviewEntityCard: FC<{ item: ReviewEntityItem }> = ({
+    item,
+}) => <PinnedReviewContextGroup items={[item]} />;
