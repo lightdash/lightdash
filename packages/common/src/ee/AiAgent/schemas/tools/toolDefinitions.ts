@@ -71,6 +71,11 @@ import {
     toolEditDbtProjectOutputSchema,
 } from './toolEditDbtProjectArgs';
 import {
+    TOOL_EDIT_PROJECT_CONTEXT_DESCRIPTION,
+    toolEditProjectContextArgsSchema,
+    toolEditProjectContextOutputSchema,
+} from './toolEditProjectContextArgs';
+import {
     TOOL_EXPLORE_REPO_DESCRIPTION,
     toolExploreRepoArgsSchema,
     toolExploreRepoOutputSchema,
@@ -615,6 +620,15 @@ export const editDbtProjectToolDefinition = defineTool({
     agent: { outputSchema: toolEditDbtProjectOutputSchema },
 });
 
+export const editProjectContextToolDefinition = defineTool({
+    name: 'editProjectContext',
+    title: 'Edit project context',
+    description: TOOL_EDIT_PROJECT_CONTEXT_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolEditProjectContextArgsSchema,
+    agent: { outputSchema: toolEditProjectContextOutputSchema },
+});
+
 export const syncDbtProjectToolDefinition = defineTool({
     name: 'syncDbtProject',
     title: 'Sync dbt project',
@@ -949,6 +963,7 @@ type AgentToolDefinitionsByName = {
     loadProjectContext: typeof loadProjectContextToolDefinition;
     proposeChange: typeof proposeChangeToolDefinition;
     editDbtProject: typeof editDbtProjectToolDefinition;
+    editProjectContext: typeof editProjectContextToolDefinition;
     syncDbtProject: typeof syncDbtProjectToolDefinition;
     exploreRepo: typeof exploreRepoToolDefinition;
     discoverRepos: typeof discoverReposToolDefinition;
@@ -993,6 +1008,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     loadProjectContext: loadProjectContextToolDefinition,
     proposeChange: proposeChangeToolDefinition,
     editDbtProject: editDbtProjectToolDefinition,
+    editProjectContext: editProjectContextToolDefinition,
     syncDbtProject: syncDbtProjectToolDefinition,
     exploreRepo: exploreRepoToolDefinition,
     discoverRepos: discoverReposToolDefinition,
@@ -1039,6 +1055,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     loadProjectContextToolDefinition,
     proposeChangeToolDefinition,
     editDbtProjectToolDefinition,
+    editProjectContextToolDefinition,
     syncDbtProjectToolDefinition,
     exploreRepoToolDefinition,
     discoverReposToolDefinition,

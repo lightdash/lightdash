@@ -2,7 +2,10 @@ import {
     PullRequestProvider,
     type AiAgentReviewItemSummary,
 } from '@lightdash/common';
-import { planReviewWriteback } from './buildReviewWritebackPrompt';
+import {
+    buildProjectContextWorkThreadPrompt,
+    planReviewWriteback,
+} from './buildReviewWritebackPrompt';
 
 const baseItem = (
     overrides: Partial<AiAgentReviewItemSummary> = {},
@@ -144,5 +147,37 @@ describe('planReviewWriteback', () => {
                 baseItem({ primaryRootCause: 'runtime_reliability' }),
             ),
         ).toThrow('not supported');
+    });
+});
+
+describe('buildProjectContextWorkThreadPrompt', () => {
+    const entry = {
+        op: 'create' as const,
+        id: null,
+        kind: 'definition' as const,
+        content: '"HR" = high-risk cohort.',
+        terms: ['HR', 'high risk'],
+        objects: ['patients'],
+    };
+
+    it('states the applied entry and points at the editProjectContext tool', () => {
+        const prompt = buildProjectContextWorkThreadPrompt(
+            baseItem({ primaryRootCause: 'project_context' }),
+            entry,
+        );
+        expect(prompt).toContain('Applied project context definition');
+        expect(prompt).toContain('"HR" = high-risk cohort.');
+        expect(prompt).toContain('Triggers: HR, high risk');
+        expect(prompt).toContain('Related objects: patients');
+        expect(prompt).toContain('editProjectContext tool');
+    });
+
+    it('omits the triggers/objects lines when empty', () => {
+        const prompt = buildProjectContextWorkThreadPrompt(
+            baseItem({ primaryRootCause: 'project_context' }),
+            { ...entry, terms: [], objects: [] },
+        );
+        expect(prompt).not.toContain('Triggers:');
+        expect(prompt).not.toContain('Related objects:');
     });
 });
