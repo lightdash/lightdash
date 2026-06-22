@@ -7812,6 +7812,30 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         });
     }
 
+    private static isSlackModernStreamUnsupported(error: unknown) {
+        const errorCode =
+            typeof error === 'object' && error !== null && 'data' in error
+                ? (error as { data?: { error?: string } }).data?.error
+                : undefined;
+        const message = getErrorMessage(error).toLowerCase();
+        return [
+            errorCode,
+            message.includes('missing_scope') ? 'missing_scope' : undefined,
+            message.includes('unknown_method') ? 'unknown_method' : undefined,
+            message.includes('not_allowed') ? 'not_allowed' : undefined,
+            message.includes('unsupported') ? 'unsupported' : undefined,
+        ].some((code) =>
+            [
+                'missing_scope',
+                'unknown_method',
+                'invalid_arguments',
+                'not_allowed_token_type',
+                'method_not_supported_for_channel_type',
+                'unsupported',
+            ].includes(code ?? ''),
+        );
+    }
+
     private async replyToSlackPromptWithModernBlocks({
         user,
         slackPrompt,
@@ -7924,6 +7948,25 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 throw new Error('Slack stream did not return a message ts');
             }
         } catch (error) {
+            if (AiAgentService.isSlackModernStreamUnsupported(error)) {
+                Sentry.captureException(error, {
+                    tags: { tag: 'slack.modernStreamUnsupported' },
+                });
+                Logger.warn(
+                    'Slack modern AI stream unsupported; asking workspace admin to reconnect Slack',
+                    error,
+                );
+                const reconnectNotice =
+                    '⚠️ Lightdash AI cannot reply here yet. A workspace admin needs to reconnect Slack in Lightdash (Integrations → Slack) so the app has the latest permissions.';
+                await this.slackClient.updateMessage({
+                    organizationUuid: slackPrompt.organizationUuid,
+                    text: reconnectNotice,
+                    blocks: getMarkdownBlocks(reconnectNotice),
+                    channelId: slackPrompt.slackChannelId,
+                    messageTs: slackPrompt.response_slack_ts,
+                });
+                return;
+            }
             Logger.error('Failed to start Slack modern AI stream', error);
             throw error;
         }
