@@ -116,14 +116,6 @@ export enum FeatureFlags {
     AiAgentRevamp = 'ai-agent-revamp',
 
     /**
-     * Use Slack's modern AI-agent message primitives for Lightdash AI agent
-     * replies: assistant status, streamed markdown, task updates, and
-     * context-action feedback. Falls back to classic Slack blocks when the
-     * workspace has not re-authorized the required Slack scopes.
-     */
-    AiAgentSlackModernBlocks = 'ai-agent-slack-modern-blocks',
-
-    /**
      * Enable the Hexbin (H3 hexagonal binning) layer type for Map charts.
      * Gates the option in the Map Type segmented control. Existing charts
      * already saved with the hexbin layer continue to render either way.
