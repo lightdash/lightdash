@@ -10,6 +10,7 @@ import type {
     ApiAiAgentThreadGenerateTitleResponse,
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
+    ApiAiAgentThreadMessageInterruptResponse,
     ApiAiAgentThreadMessageVizQuery,
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadShareResponse,
@@ -704,6 +705,7 @@ const createOptimisticMessages = (
             threadUuid,
             message: '',
             errorMessage: null,
+            interrupted: false,
             createdAt: new Date().toISOString(),
             user: {
                 name: agent?.name ?? 'Unknown',
@@ -1237,6 +1239,27 @@ export const useRetryAiAgentThreadMessageMutation = () => {
         },
     });
 };
+
+export const useInterruptAiAgentThreadMessageMutation = () =>
+    useMutation<
+        ApiAiAgentThreadMessageInterruptResponse['results'],
+        ApiError,
+        {
+            projectUuid: string;
+            agentUuid: string;
+            threadUuid: string;
+            messageUuid: string;
+        }
+    >({
+        mutationFn: ({ projectUuid, agentUuid, threadUuid, messageUuid }) =>
+            lightdashApi<ApiAiAgentThreadMessageInterruptResponse['results']>({
+                url: `${getAiAgentApiBase(
+                    projectUuid,
+                )}/${agentUuid}/threads/${threadUuid}/messages/${messageUuid}/interrupt`,
+                method: 'POST',
+                body: undefined,
+            }),
+    });
 
 // Feedback and query management functionality
 const updatePromptFeedback = async (

@@ -32,6 +32,7 @@ import {
     GetProjectInfoFn,
     GetPromptFn,
     GetSavedChartFn,
+    IsPromptInterruptedFn,
     ListContentFn,
     ListExploresFn,
     ListKnowledgeDocumentsFn,
@@ -182,6 +183,7 @@ export type AiAgentDependencies = {
     storeToolCall: StoreToolCallFn;
     storeToolResults: StoreToolResultsFn;
     storeReasoning: StoreReasoningFn;
+    isPromptInterrupted: IsPromptInterruptedFn;
     searchFieldValues: SearchFieldValuesFn;
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;

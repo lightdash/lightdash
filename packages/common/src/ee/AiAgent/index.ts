@@ -247,6 +247,7 @@ export type AiAgentMessageAssistant = {
     message: string | null;
     // ai_prompt.error_message
     errorMessage: string | null;
+    interrupted: boolean;
     // ai_prompt.responded_at but this can not be null because
     // we check for null before creating the agent message
     createdAt: string;
@@ -526,6 +527,10 @@ export type ApiAiAgentThreadStreamRequest = {
 
 export type ApiAiAgentSqlApprovalResponse = ApiSuccess<{
     decision: 'approved' | 'rejected';
+}>;
+
+export type ApiAiAgentThreadMessageInterruptResponse = ApiSuccess<{
+    interrupted: true;
 }>;
 
 export type ApiAiAgentThreadMessageCreateResponse = ApiSuccess<
