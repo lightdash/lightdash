@@ -33,6 +33,7 @@ import {
 import {
     IconAppsOff,
     IconAppWindow,
+    IconCheck,
     IconArrowUp,
     IconCopy,
     IconDatabase,
@@ -285,15 +286,70 @@ const TemplateChip: FC<{ template: DataAppTemplate }> = ({ template }) => {
     );
 };
 
-const ThemeChip: FC<{ themeName: string }> = ({ themeName }) => (
-    <Badge
-        variant="light"
-        color="gray"
-        size="md"
-        leftSection={<MantineIcon icon={IconBrush} size={12} />}
-    >
-        {themeName}
-    </Badge>
+const NO_THEME_LABEL = 'No theme';
+
+const ThemeChip: FC<{
+    themeName: string;
+    selectedThemeUuid: string | null;
+    themes: { designUuid: string; name: string; isDefault?: boolean }[];
+    disabled?: boolean;
+    onThemeChange: (designUuid: string | null) => void;
+}> = ({ themeName, selectedThemeUuid, themes, disabled, onThemeChange }) => (
+    <Menu position="top-start" shadow="md" withinPortal>
+        <Menu.Target>
+            <Badge
+                component="button"
+                type="button"
+                variant="light"
+                color="gray"
+                size="md"
+                leftSection={<MantineIcon icon={IconBrush} size={12} />}
+                disabled={disabled}
+                styles={{
+                    root: {
+                        cursor: disabled ? 'not-allowed' : 'pointer',
+                    },
+                }}
+            >
+                {themeName}
+            </Badge>
+        </Menu.Target>
+        <Menu.Dropdown>
+            <Menu.Item
+                leftSection={
+                    selectedThemeUuid === null ? (
+                        <MantineIcon icon={IconCheck} size={14} />
+                    ) : undefined
+                }
+                disabled={disabled}
+                onClick={() => onThemeChange(null)}
+            >
+                {NO_THEME_LABEL}
+            </Menu.Item>
+            {themes.length > 0 && <Menu.Divider />}
+            {themes.map((theme) => (
+                <Menu.Item
+                    key={theme.designUuid}
+                    leftSection={
+                        selectedThemeUuid === theme.designUuid ? (
+                            <MantineIcon icon={IconCheck} size={14} />
+                        ) : undefined
+                    }
+                    disabled={disabled}
+                    onClick={() => onThemeChange(theme.designUuid)}
+                >
+                    <Group gap="xs">
+                        <Text size="sm">{theme.name}</Text>
+                        {theme.isDefault && (
+                            <Text size="xs" c="dimmed">
+                                Default
+                            </Text>
+                        )}
+                    </Group>
+                </Menu.Item>
+            ))}
+        </Menu.Dropdown>
+    </Menu>
 );
 
 /** A removable pill for a connection selected for this prompt. */
@@ -401,6 +457,10 @@ const AppGenerate: FC = () => {
     const [modelOverride, setModelOverride] = useState<{
         appUuid: string | null; // null = override set from the new-app page
         model: DataAppClaudeModel;
+    } | null>(null);
+    const [themeChipOverride, setThemeChipOverride] = useState<{
+        appUuid: string | null; // null = override set from the new-app page
+        designUuid: string | null;
     } | null>(null);
     const [wizardStage, setWizardStage] = useState<'pick' | 'confirm'>('pick');
     const [imageAttachments, setImageAttachments] = useState<
@@ -529,6 +589,7 @@ const AppGenerate: FC = () => {
         setScreenshotAvailable(false);
         setIsCapturingScreenshot(false);
         setSelectedTemplate(null);
+        setThemeChipOverride(null);
         setWizardStage('pick');
         setPendingClarification(null);
         setClarificationAnswers([]);
@@ -832,13 +893,12 @@ const AppGenerate: FC = () => {
     // version (any status — a still-building version's model is already a
     // valid signal of the user's intent). `null` when no version data is
     // loaded yet or older versions didn't persist the field.
-    const latestVersionModel: DataAppClaudeModel | null = useMemo(() => {
+    const latestVersion = useMemo(() => {
         if (allVersions.length === 0) return null;
-        const latest = [...allVersions].sort(
-            (a, b) => b.version - a.version,
-        )[0];
-        return latest.resources?.claudeModel ?? null;
+        return [...allVersions].sort((a, b) => b.version - a.version)[0];
     }, [allVersions]);
+    const latestVersionModel: DataAppClaudeModel | null =
+        latestVersion?.resources?.claudeModel ?? null;
 
     // Effective model for the picker / next submit:
     // user's explicit pick (if it's for this app) > latest version's model
@@ -868,13 +928,13 @@ const AppGenerate: FC = () => {
         [activeAppUuid],
     );
 
-    // Theme (org design) picker state — only meaningful on initial creation.
-    // We pre-populate with the org's default theme so the visible selection
-    // matches what the backend would have applied anyway. `null` means
-    // "no theme" (the Lightdash default styling).
-    const { data: orgThemes = [] } = useOrganizationDesigns({
-        enabled: isNewApp,
-    });
+    // Theme (org design) picker state. New apps pre-populate with the org's
+    // default theme so the visible selection matches what the backend would
+    // have applied anyway. Existing apps use the latest version's design
+    // snapshot and send explicit changes as style-only iterations.
+    // `null` means "no theme" (the Lightdash default styling).
+    const { data: orgThemes = [], isFetched: hasFetchedOrgThemes } =
+        useOrganizationDesigns();
     const [themeOverride, setThemeOverride] = useState<
         string | null | undefined
     >(undefined);
@@ -882,21 +942,138 @@ const AppGenerate: FC = () => {
         orgThemes.find((t) => t.isDefault)?.designUuid ?? null;
     const selectedThemeUuid: string | null =
         themeOverride !== undefined ? themeOverride : orgDefaultThemeUuid;
-    const handleThemeChange = useCallback((designUuid: string | null) => {
-        setThemeOverride(designUuid);
-    }, []);
+    const effectiveThemeChipOverride =
+        themeChipOverride &&
+        (themeChipOverride.appUuid === null ||
+            themeChipOverride.appUuid === activeAppUuid)
+            ? themeChipOverride.designUuid
+            : undefined;
+    const currentThemeUuid: string | null = isNewApp
+        ? (effectiveThemeChipOverride ?? selectedThemeUuid)
+        : (effectiveThemeChipOverride ??
+          latestVersion?.resources?.design?.designUuid ??
+          null);
+    const handleThemeChange = useCallback(
+        (designUuid: string | null) => {
+            if (designUuid === currentThemeUuid) return;
+
+            if (isNewApp) {
+                setThemeOverride(designUuid);
+                setThemeChipOverride({ appUuid: null, designUuid });
+                return;
+            }
+
+            if (!projectUuid || !activeAppUuid || isAgentWorking) return;
+
+            const themeName = designUuid
+                ? (orgThemes.find((t) => t.designUuid === designUuid)?.name ??
+                  'Selected theme')
+                : NO_THEME_LABEL;
+            const prompt =
+                designUuid === null
+                    ? `Remove theme`
+                    : `Apply theme: ${themeName}`;
+
+            setLocalMessages((prev) => [
+                ...prev,
+                {
+                    role: 'user',
+                    content: prompt,
+                    imagePreviewUrls: [],
+                    imageResourceIds: [],
+                    charts: [],
+                    dashboardName: null,
+                    clarifications: [],
+                    appUuid: null,
+                    version: null,
+                    timestamp: new Date(),
+                    userName:
+                        [user.data?.firstName, user.data?.lastName]
+                            .filter((s): s is string => !!s && s.length > 0)
+                            .join(' ') || null,
+                    submittedAtVersion: maxHistoryVersion,
+                },
+            ]);
+            setThemeChipOverride({ appUuid: activeAppUuid, designUuid });
+            resetIterate();
+            iterateMutate(
+                {
+                    projectUuid,
+                    appUuid: activeAppUuid,
+                    prompt,
+                    claudeModel: selectedModel,
+                    designUuid,
+                },
+                {
+                    onSuccess: (data: { appUuid: string; version: number }) => {
+                        setActiveAppUuid(data.appUuid);
+                        void queryClient.invalidateQueries({
+                            queryKey: ['app', projectUuid, data.appUuid],
+                        });
+                    },
+                    onError: (err: unknown) => {
+                        setThemeChipOverride(null);
+                        setLocalMessages((prev) => [
+                            ...prev,
+                            {
+                                role: 'assistant',
+                                content:
+                                    err instanceof Error
+                                        ? err.message
+                                        : 'Failed to apply theme',
+                                imagePreviewUrls: [],
+                                imageResourceIds: [],
+                                charts: [],
+                                dashboardName: null,
+                                clarifications: [],
+                                appUuid: null,
+                                version: null,
+                                timestamp: new Date(),
+                                userName: null,
+                            },
+                        ]);
+                    },
+                },
+            );
+        },
+        [
+            activeAppUuid,
+            currentThemeUuid,
+            isAgentWorking,
+            isNewApp,
+            iterateMutate,
+            maxHistoryVersion,
+            orgThemes,
+            projectUuid,
+            queryClient,
+            resetIterate,
+            selectedModel,
+            user.data?.firstName,
+            user.data?.lastName,
+        ],
+    );
 
     // What theme name to render on the chip above the prompt input.
     // - New apps: the just-picked theme's name (from the org themes list).
     // - Existing apps: the snapshot the pipeline persisted on the latest
     //   version's resources — survives org-default changes and theme
     //   renames, so what you see is what the build actually used.
-    const displayThemeName: string | null = isNewApp
-        ? selectedThemeUuid
-            ? (orgThemes.find((t) => t.designUuid === selectedThemeUuid)
-                  ?.name ?? null)
-            : null
-        : (latestReadyVersion?.resources?.design?.name ?? null);
+    const hasThemeChipSource = isNewApp
+        ? currentThemeUuid !== null ||
+          themeOverride === null ||
+          (themeOverride === undefined && hasFetchedOrgThemes)
+        : effectiveThemeChipOverride !== undefined || latestVersion !== null;
+    const latestVersionDesign = latestVersion?.resources?.design ?? null;
+    const latestVersionThemeName =
+        latestVersionDesign?.designUuid === currentThemeUuid
+            ? latestVersionDesign.name
+            : null;
+    const displayThemeName: string | null = hasThemeChipSource
+        ? currentThemeUuid
+            ? (orgThemes.find((t) => t.designUuid === currentThemeUuid)?.name ??
+              latestVersionThemeName)
+            : NO_THEME_LABEL
+        : null;
 
     // User-pinned version override. `null` = follow latest ready (default).
     // We snapshot the app uuid and the latest ready version at the moment of
@@ -1265,6 +1442,12 @@ const AppGenerate: FC = () => {
             // the generate request both use the same app-scoped S3 path.
             const newAppUuid = activeAppUuid ? undefined : uuid4();
             const targetAppUuid = activeAppUuid ?? newAppUuid;
+            if (newAppUuid) {
+                setThemeChipOverride({
+                    appUuid: newAppUuid,
+                    designUuid: selectedThemeUuid,
+                });
+            }
 
             // Upload images sequentially. Two reasons we can't run these in parallel:
             // 1. The backend buffers each body to avoid AWS SDK chunked signing,
@@ -2124,6 +2307,14 @@ const AppGenerate: FC = () => {
                                         {displayThemeName && (
                                             <ThemeChip
                                                 themeName={displayThemeName}
+                                                selectedThemeUuid={
+                                                    currentThemeUuid
+                                                }
+                                                themes={orgThemes}
+                                                disabled={isAgentWorking}
+                                                onThemeChange={
+                                                    handleThemeChange
+                                                }
                                             />
                                         )}
                                         {availableConnectionAliases.length >

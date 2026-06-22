@@ -18,6 +18,7 @@ type IterateAppParams = {
     dashboard?: AppDashboardReference;
     claudeModel?: DataAppClaudeModel;
     externalConnections?: AppExternalConnectionReference[];
+    designUuid?: string | null;
 };
 
 type IterateAppResult = ApiGenerateAppResponse['results'];
@@ -31,6 +32,7 @@ const iterateApp = async ({
     dashboard,
     claudeModel,
     externalConnections,
+    designUuid,
 }: IterateAppParams): Promise<IterateAppResult> => {
     const data = await lightdashApi<IterateAppResult>({
         method: 'POST',
@@ -42,6 +44,7 @@ const iterateApp = async ({
             dashboard,
             claudeModel,
             externalConnections,
+            ...(designUuid !== undefined ? { designUuid } : {}),
         }),
     });
     return data;

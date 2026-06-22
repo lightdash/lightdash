@@ -134,9 +134,10 @@ export type GenerateAppRequestBody = {
     // conversation context but accepts a fresh `--model` flag per turn.
     claudeModel?: DataAppClaudeModel;
     // Theme (org design) to apply to this app's source tree and system
-    // prompt. Only honored on initial creation — iterations always inherit
-    // from the parent app's `apps.design_uuid`. Omit (or null) for "no
-    // theme"; the org default is resolved server-side when this is null.
+    // prompt. On initial creation, omit to use the org default, null for no
+    // theme, or pass a uuid for a specific theme. On iteration, omit to
+    // inherit the current app theme; pass a uuid/null to change the app theme
+    // and run a style-only rebuild.
     designUuid?: string | null;
     // External connections to link to the app before the catalog stage of this
     // build, so the generated app can call them via client.externalFetch.

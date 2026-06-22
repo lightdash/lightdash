@@ -159,6 +159,23 @@ When users send follow-up prompts, the system creates a new `DbAppVersion` and e
 
 This means Claude can see what it built previously and make targeted changes rather than starting from scratch.
 
+### Changing themes
+
+The org design (theme) can be applied, changed, or removed from an existing app from the theme chip above the prompt
+input. This creates a normal new app version, but the backend sends Claude a constrained style-only instruction instead
+of treating it like an open-ended user prompt: preserve content, queries, filters, chart semantics, layout intent, and
+interactions; only rework visual styling and theme asset usage.
+
+How the theme-change flow differs from a regular iteration:
+
+- The frontend sends `designUuid` on `POST /api/v1/ee/projects/{projectUuid}/apps/{appUuid}/versions`. Omitted means
+  "inherit the current app theme"; a UUID switches to that org design; `null` removes the theme.
+- The backend validates that the selected design belongs to the app's organization, snapshots it onto
+  `app_versions.resources.design`, updates `apps.design_uuid` for future iterations, and enqueues the normal generation
+  pipeline with the resolved design UUID.
+- The pipeline still calls `copyDesignIntoSandbox` before Claude runs. When the design UUID is `null`, it removes
+  `/app/src/design` from the sandbox so warm sandboxes do not retain stale theme files.
+
 ### Model selection
 
 The chat input carries a `ModelPicker` (next to the send button) that lets the user choose which Claude model runs the generation: `opus` (highest quality, best for complex apps), `sonnet` (default, balanced), or `haiku` (fastest). The choice is editable on every turn — `claude --continue` keeps the prior conversation context but accepts a fresh `--model` flag per invocation, so switching mid-iteration doesn't reset Claude's memory of what it already built.
