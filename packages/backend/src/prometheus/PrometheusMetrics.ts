@@ -19,6 +19,10 @@ import { PreAggregateMaterializationsTableName } from '../ee/database/entities/p
 import Logger from '../logging/logger';
 import { SchedulerClient } from '../scheduler/SchedulerClient';
 import {
+    serializeOtelHttpMetrics,
+    shutdownOtelHttpMetrics,
+} from './otelHttpMetrics';
+import {
     PrometheusEventMetricManager,
     PrometheusEventMetricManagerConfig,
 } from './PrometheusEventMetricManager';
@@ -744,7 +748,9 @@ export default class PrometheusMetrics {
                 this.server = http.createServer(app);
                 app.get(metricsPath, async (req, res) => {
                     res.set('Content-Type', prometheus.register.contentType);
-                    res.end(await prometheus.register.metrics());
+                    let body = await prometheus.register.metrics();
+                    body += await serializeOtelHttpMetrics();
+                    res.end(body);
                 });
                 this.server.listen(port, () => {
                     Logger.info(
@@ -1391,10 +1397,11 @@ export default class PrometheusMetrics {
         }
     }
 
-    public stop() {
+    public async stop() {
         if (this.server) {
             this.server.close();
         }
         this.eventMetricManager?.cleanup();
+        await shutdownOtelHttpMetrics();
     }
 }

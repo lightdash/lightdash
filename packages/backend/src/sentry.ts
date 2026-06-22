@@ -1,7 +1,12 @@
 import * as Sentry from '@sentry/node';
 import { nodeProfilingIntegration } from '@sentry/profiling-node';
 import { lightdashConfig } from './config/lightdashConfig';
+import { initOtelHttpMetrics } from './prometheus/otelHttpMetrics';
 import { VERSION } from './version';
+
+// Register the global OTel MeterProvider before Sentry.init() so Sentry's http
+// instrumentation captures it and emits http.server.request.duration.
+initOtelHttpMetrics(lightdashConfig.prometheus);
 
 export const IGNORE_ERRORS = [
     'WarehouseConnectionError',
