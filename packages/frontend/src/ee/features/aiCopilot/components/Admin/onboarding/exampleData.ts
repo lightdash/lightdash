@@ -41,6 +41,7 @@ const makeExampleReviewItem = (
         strategy: null,
     },
     remediation: null,
+    boardPosition: null,
     createdAt: EXAMPLE_SEEN_AT,
     updatedAt: EXAMPLE_SEEN_AT,
     latestFinding: null,
