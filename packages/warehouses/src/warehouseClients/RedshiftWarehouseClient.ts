@@ -1,5 +1,6 @@
 import {
     CreateRedshiftCredentials,
+    RedshiftAuthenticationType,
     SupportedDbtAdapter,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -7,6 +8,13 @@ import * as fs from 'fs';
 import path from 'path';
 import { PoolConfig } from 'pg';
 import { PostgresClient, PostgresSqlBuilder } from './PostgresWarehouseClient';
+import { mintRedshiftIamCredentials } from './redshiftIamCredentials';
+
+// Refresh minted credentials this long before the AWS-reported expiry so an
+// in-flight connection never races the expiry.
+const CREDENTIALS_REFRESH_BUFFER_MS = 60 * 1000;
+// Fallback lifetime when AWS returns no expiry — under the 15-min minimum.
+const CREDENTIALS_FALLBACK_LIFETIME_MS = 14 * 60 * 1000;
 
 const AMAZON_CA_BUNDLE = [
     fs.readFileSync(path.resolve(__dirname, './ca-bundle-aws-redshift.crt')),
@@ -46,18 +54,87 @@ export class RedshiftSqlBuilder extends PostgresSqlBuilder {
 }
 
 export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCredentials> {
+    private readonly ssl: PoolConfig['ssl'];
+
+    private cachedIamPoolConfig:
+        | { config: PoolConfig; expiresAt: number }
+        | undefined;
+
     constructor(credentials: CreateRedshiftCredentials) {
         const sslmode = credentials.sslmode || 'prefer';
         const ssl = getSSLConfigFromMode(sslmode);
-        super(credentials, {
-            connectionString: `postgres://${encodeURIComponent(
-                credentials.user,
-            )}:${encodeURIComponent(credentials.password)}@${encodeURIComponent(
-                credentials.host,
-            )}:${credentials.port}/${encodeURIComponent(credentials.dbname)}`,
-            ssl,
-        });
+
+        const isIam =
+            credentials.authenticationType === RedshiftAuthenticationType.IAM;
+
+        // For password auth the connection string is fixed at construction.
+        // For IAM auth credentials are minted lazily in getPoolConfig (the
+        // constructor is synchronous and minted credentials expire), so the
+        // base config carries only the SSL settings.
+        super(
+            credentials,
+            isIam
+                ? { ssl }
+                : {
+                      connectionString:
+                          RedshiftWarehouseClient.getConnectionString(
+                              credentials,
+                              credentials.user ?? '',
+                              credentials.password ?? '',
+                          ),
+                      ssl,
+                  },
+        );
+        this.ssl = ssl;
         // Override the sqlBuilder with RedshiftSqlBuilder
         this.sqlBuilder = new RedshiftSqlBuilder(credentials.startOfWeek);
+    }
+
+    private static getConnectionString(
+        credentials: CreateRedshiftCredentials,
+        user: string,
+        password: string,
+    ): string {
+        return `postgres://${encodeURIComponent(user)}:${encodeURIComponent(
+            password,
+        )}@${encodeURIComponent(credentials.host)}:${
+            credentials.port
+        }/${encodeURIComponent(credentials.dbname)}`;
+    }
+
+    protected async getPoolConfig(): Promise<PoolConfig> {
+        if (
+            this.credentials.authenticationType !==
+            RedshiftAuthenticationType.IAM
+        ) {
+            return this.config;
+        }
+
+        const now = Date.now();
+        if (
+            this.cachedIamPoolConfig &&
+            this.cachedIamPoolConfig.expiresAt > now
+        ) {
+            return this.cachedIamPoolConfig.config;
+        }
+
+        const { dbUser, dbPassword, expiration } =
+            await mintRedshiftIamCredentials(this.credentials);
+
+        const config: PoolConfig = {
+            connectionString: RedshiftWarehouseClient.getConnectionString(
+                this.credentials,
+                dbUser,
+                dbPassword,
+            ),
+            ssl: this.ssl,
+        };
+
+        const expiresAt = expiration
+            ? expiration.getTime() - CREDENTIALS_REFRESH_BUFFER_MS
+            : now + CREDENTIALS_FALLBACK_LIFETIME_MS;
+        this.cachedIamPoolConfig = { config, expiresAt };
+
+        return config;
     }
 }

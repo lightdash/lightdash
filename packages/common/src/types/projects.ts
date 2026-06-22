@@ -84,6 +84,7 @@ export const sensitiveCredentialsFieldNames = [
     'oauthClientSecret',
     'accessKeyId',
     'secretAccessKey',
+    'sessionToken',
 ] as const;
 export type SensitiveCredentialsFieldNames =
     (typeof sensitiveCredentialsFieldNames)[number];
@@ -444,11 +445,19 @@ export const stripDucklakeNestedSensitive = (
     };
 };
 
+export enum RedshiftAuthenticationType {
+    PASSWORD = 'password',
+    IAM = 'iam',
+}
+
 export type CreateRedshiftCredentials = SshTunnelConfiguration & {
     type: WarehouseTypes.REDSHIFT;
     host: string;
     user: string;
-    password: string;
+    // password is required for password auth and unused (minted by AWS) for
+    // IAM auth. `user` is the login user for password auth and the requested
+    // DB user for provisioned IAM (empty for serverless, which derives it).
+    password?: string;
     requireUserCredentials?: boolean;
     port: number;
     dbname: string;
@@ -460,6 +469,22 @@ export type CreateRedshiftCredentials = SshTunnelConfiguration & {
     startOfWeek?: WeekDay | null;
     dataTimezone?: string;
     timeoutSeconds?: number;
+    // IAM authentication (mint short-lived DB credentials from AWS)
+    authenticationType?: RedshiftAuthenticationType;
+    region?: string;
+    // Provisioned clusters use GetClusterCredentials with a cluster identifier;
+    // serverless workgroups use GetCredentials with a workgroup name.
+    isServerless?: boolean;
+    clusterIdentifier?: string;
+    workgroupName?: string;
+    autoCreate?: boolean;
+    dbGroups?: string[];
+    // AWS identity used to call the credential APIs
+    accessKeyId?: string;
+    secretAccessKey?: string;
+    sessionToken?: string;
+    assumeRoleArn?: string;
+    assumeRoleExternalId?: string;
 };
 export type RedshiftCredentials = Omit<
     CreateRedshiftCredentials,

@@ -1,6 +1,7 @@
 import {
     CreateRedshiftCredentials,
     ParseError,
+    RedshiftAuthenticationType,
     WarehouseTypes,
 } from '@lightdash/common';
 import { JSONSchemaType } from 'ajv';
@@ -11,7 +12,7 @@ import { Target } from '../types';
 export type RedshiftTarget = {
     type: 'redshift';
     host: string;
-    user: string;
+    user?: string;
     port: number;
     dbname?: string;
     database?: string;
@@ -24,6 +25,11 @@ export type RedshiftTarget = {
     search_path?: string;
     role?: string;
     sslmode?: string;
+    method?: string;
+    cluster_id?: string;
+    region?: string;
+    iam_profile?: string;
+    autocreate?: boolean;
 };
 
 export const redshiftSchema: JSONSchemaType<RedshiftTarget> = {
@@ -38,6 +44,7 @@ export const redshiftSchema: JSONSchemaType<RedshiftTarget> = {
         },
         user: {
             type: 'string',
+            nullable: true,
         },
         port: {
             type: 'integer',
@@ -85,8 +92,28 @@ export const redshiftSchema: JSONSchemaType<RedshiftTarget> = {
             type: 'string',
             nullable: true,
         },
+        method: {
+            type: 'string',
+            nullable: true,
+        },
+        cluster_id: {
+            type: 'string',
+            nullable: true,
+        },
+        region: {
+            type: 'string',
+            nullable: true,
+        },
+        iam_profile: {
+            type: 'string',
+            nullable: true,
+        },
+        autocreate: {
+            type: 'boolean',
+            nullable: true,
+        },
     },
-    required: ['type', 'host', 'user', 'port', 'schema'],
+    required: ['type', 'host', 'port', 'schema'],
 };
 
 export const convertRedshiftSchema = (
@@ -94,17 +121,45 @@ export const convertRedshiftSchema = (
 ): CreateRedshiftCredentials => {
     const validate = ajv.compile<RedshiftTarget>(redshiftSchema);
     if (validate(target)) {
+        const dbname = target.dbname || target.database;
+        if (!dbname) {
+            throw new ParseError(
+                `Redshift target requires a database name: "database"`,
+            );
+        }
+
+        // IAM authentication: dbt-redshift's connector mints temporary
+        // credentials, so no password is present in the profile.
+        if (target.method === 'iam') {
+            if (!target.region) {
+                throw new ParseError(
+                    `Redshift IAM target requires a region: "region"`,
+                );
+            }
+            return {
+                type: WarehouseTypes.REDSHIFT,
+                host: target.host,
+                user: target.user ?? '',
+                port: target.port,
+                dbname,
+                schema: target.schema,
+                keepalivesIdle: target.keepalives_idle,
+                sslmode: target.sslmode,
+                authenticationType: RedshiftAuthenticationType.IAM,
+                region: target.region,
+                clusterIdentifier: target.cluster_id,
+                autoCreate: target.autocreate,
+            };
+        }
+
         const password = target.pass || target.password;
         if (!password) {
             throw new ParseError(
                 `Redshift target requires a password: "password"`,
             );
         }
-        const dbname = target.dbname || target.database;
-        if (!dbname) {
-            throw new ParseError(
-                `Redshift target requires a database name: "database"`,
-            );
+        if (!target.user) {
+            throw new ParseError(`Redshift target requires a user: "user"`);
         }
         return {
             type: WarehouseTypes.REDSHIFT,

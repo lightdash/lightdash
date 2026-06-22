@@ -18213,6 +18213,11 @@ const models: TsoaRoute.Models = {
         enums: ['redshift'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    RedshiftAuthenticationType: {
+        dataType: 'refEnum',
+        enums: ['password', 'iam'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_CreateRedshiftCredentials.Exclude_keyofCreateRedshiftCredentials.SensitiveCredentialsFieldNames__':
         {
             dataType: 'refAlias',
@@ -18224,6 +18229,13 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    authenticationType: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'RedshiftAuthenticationType' },
                             { dataType: 'undefined' },
                         ],
                     },
@@ -18313,6 +18325,65 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    region: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    isServerless: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    clusterIdentifier: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    workgroupName: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    autoCreate: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    dbGroups: {
+                        dataType: 'union',
+                        subSchemas: [
+                            {
+                                dataType: 'array',
+                                array: { dataType: 'string' },
+                            },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    assumeRoleArn: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    assumeRoleExternalId: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
                             { dataType: 'undefined' },
                         ],
                     },
@@ -18919,14 +18990,6 @@ const models: TsoaRoute.Models = {
                         ],
                     },
                     region: { dataType: 'string', required: true },
-                    s3StagingDir: { dataType: 'string', required: true },
-                    s3DataDir: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
                     assumeRoleArn: {
                         dataType: 'union',
                         subSchemas: [
@@ -18935,6 +18998,14 @@ const models: TsoaRoute.Models = {
                         ],
                     },
                     assumeRoleExternalId: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    s3StagingDir: { dataType: 'string', required: true },
+                    s3DataDir: {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'string' },
@@ -19581,6 +19652,23 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        assumeRoleExternalId: { dataType: 'string' },
+                        assumeRoleArn: { dataType: 'string' },
+                        sessionToken: { dataType: 'string' },
+                        secretAccessKey: { dataType: 'string' },
+                        accessKeyId: { dataType: 'string' },
+                        dbGroups: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                        },
+                        autoCreate: { dataType: 'boolean' },
+                        workgroupName: { dataType: 'string' },
+                        clusterIdentifier: { dataType: 'string' },
+                        isServerless: { dataType: 'boolean' },
+                        region: { dataType: 'string' },
+                        authenticationType: {
+                            ref: 'RedshiftAuthenticationType',
+                        },
                         timeoutSeconds: { dataType: 'double' },
                         dataTimezone: { dataType: 'string' },
                         startOfWeek: {
@@ -19598,7 +19686,7 @@ const models: TsoaRoute.Models = {
                         dbname: { dataType: 'string', required: true },
                         port: { dataType: 'double', required: true },
                         requireUserCredentials: { dataType: 'boolean' },
-                        password: { dataType: 'string', required: true },
+                        password: { dataType: 'string' },
                         user: { dataType: 'string', required: true },
                         host: { dataType: 'string', required: true },
                         type: {
@@ -23952,7 +24040,13 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 type: { ref: 'WarehouseTypes.REDSHIFT', required: true },
                 user: { dataType: 'string', required: true },
-                password: { dataType: 'string', required: true },
+                password: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
             },
             validators: {},
         },

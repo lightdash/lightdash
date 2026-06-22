@@ -302,6 +302,9 @@ export const lightdashConfigMock: LightdashConfig = {
     athenaWarehouseIamRoleAuth: {
         enabled: false,
     },
+    redshiftIamAuth: {
+        enabled: false,
+    },
     saveCredentialsForm: {
         enabled: false,
     },

@@ -215,6 +215,13 @@ export class PostgresClient<
         this.config = config;
     }
 
+    // Resolve the pool config for each connection. Overridable so subclasses
+    // (e.g. Redshift IAM) can mint short-lived credentials lazily, since the
+    // constructor is synchronous and minted credentials expire.
+    protected async getPoolConfig(): Promise<pg.PoolConfig> {
+        return this.config;
+    }
+
     private getSQLWithMetadata(sql: string, tags?: Record<string, string>) {
         let alteredQuery = sql;
         if (tags) {
@@ -272,6 +279,10 @@ export class PostgresClient<
         const clientTimeoutMs =
             statementTimeoutMs + CLIENT_STATEMENT_TIMEOUT_BUFFER_MS;
 
+        // Resolved once per query — may mint short-lived credentials (Redshift
+        // IAM) before the pool is created.
+        const poolConfig = await this.getPoolConfig();
+
         return new Promise<void>((resolve, reject) => {
             queryTimeout = setTimeout(() => {
                 const timeoutError = new WarehouseQueryError(
@@ -284,7 +295,7 @@ export class PostgresClient<
             }, clientTimeoutMs);
 
             pool = new pg.Pool({
-                ...this.config,
+                ...poolConfig,
                 connectionTimeoutMillis: 30000,
                 query_timeout: this.credentials.timeoutSeconds
                     ? this.credentials.timeoutSeconds * 1000

@@ -5,6 +5,7 @@ import {
     DuckdbConnectionType,
     DucklakeCatalogType,
     DucklakeDataPathType,
+    RedshiftAuthenticationType,
     WarehouseTypes,
 } from '@lightdash/common';
 import type {
@@ -106,6 +107,16 @@ export const RedshiftDefaultValues: CreateRedshiftCredentials = {
     sshTunnelPublicKey: '',
     startOfWeek: undefined,
     dataTimezone: undefined,
+    authenticationType: RedshiftAuthenticationType.PASSWORD,
+    isServerless: false,
+    region: '',
+    clusterIdentifier: '',
+    workgroupName: '',
+    accessKeyId: '',
+    secretAccessKey: '',
+    assumeRoleArn: '',
+    assumeRoleExternalId: '',
+    autoCreate: false,
 };
 
 export const SnowflakeDefaultValues: CreateSnowflakeCredentials = {

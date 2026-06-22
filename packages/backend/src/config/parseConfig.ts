@@ -1358,6 +1358,9 @@ export type LightdashConfig = {
     athenaWarehouseIamRoleAuth: {
         enabled: boolean;
     };
+    redshiftIamAuth: {
+        enabled: boolean;
+    };
     saveCredentialsForm: {
         enabled: boolean;
     };
@@ -2467,6 +2470,9 @@ export const parseConfig = (): LightdashConfig => {
         },
         athenaWarehouseIamRoleAuth: {
             enabled: process.env.ATHENA_WAREHOUSE_IAM_ROLE_AUTH === 'true',
+        },
+        redshiftIamAuth: {
+            enabled: process.env.REDSHIFT_IAM_AUTH === 'true',
         },
         saveCredentialsForm: {
             enabled: process.env.SAVE_CREDENTIALS_FORM_ENABLED === 'true',

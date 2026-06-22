@@ -8,6 +8,7 @@ import {
     DucklakeCatalogType,
     DucklakeDataPathType,
     ParameterError,
+    RedshiftAuthenticationType,
     SnowflakeAuthenticationType,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -87,28 +88,78 @@ const credentialsTarget = (
                         `Incorrect BigQuery profile. Received authenticationType: ${authenticationType}`,
                     );
             }
-        case WarehouseTypes.REDSHIFT:
+        case WarehouseTypes.REDSHIFT: {
+            const redshiftSharedTarget = {
+                type: credentials.type,
+                host: credentials.host,
+                port: credentials.port,
+                dbname: credentials.dbname,
+                schema: credentials.schema,
+                threads: DEFAULT_THREADS,
+                keepalives_idle: credentials.keepalivesIdle,
+                sslmode: credentials.sslmode,
+                sslrootcert:
+                    require.resolve('@lightdash/warehouses/dist/warehouseClients/ca-bundle-aws-redshift.crt'),
+                ra3_node: credentials.ra3Node || true,
+            };
+
+            if (
+                credentials.authenticationType ===
+                RedshiftAuthenticationType.IAM
+            ) {
+                if (!credentials.region) {
+                    throw new ParameterError(
+                        'Redshift IAM authentication requires an AWS region',
+                    );
+                }
+                // dbt-redshift's connector (boto3) reads AWS credentials from
+                // the standard env vars. When neither static keys nor a
+                // pre-resolved session token are present we set nothing, so
+                // boto3 falls back to its default credential chain.
+                const awsEnvironment: Record<string, string> = {};
+                if (credentials.accessKeyId && credentials.secretAccessKey) {
+                    awsEnvironment.AWS_ACCESS_KEY_ID = credentials.accessKeyId;
+                    awsEnvironment.AWS_SECRET_ACCESS_KEY =
+                        credentials.secretAccessKey;
+                    if (credentials.sessionToken) {
+                        awsEnvironment.AWS_SESSION_TOKEN =
+                            credentials.sessionToken;
+                    }
+                }
+                return {
+                    target: {
+                        ...redshiftSharedTarget,
+                        method: 'iam',
+                        region: credentials.region,
+                        // Provisioned clusters need a cluster_id; serverless
+                        // workgroups are detected from the host endpoint.
+                        ...(credentials.isServerless
+                            ? {}
+                            : { cluster_id: credentials.clusterIdentifier }),
+                        user: credentials.user || undefined,
+                        autocreate: credentials.autoCreate || undefined,
+                        db_groups:
+                            credentials.dbGroups &&
+                            credentials.dbGroups.length > 0
+                                ? credentials.dbGroups
+                                : undefined,
+                    },
+                    environment: awsEnvironment,
+                };
+            }
+
             return {
                 target: {
-                    type: credentials.type,
-                    host: credentials.host,
+                    ...redshiftSharedTarget,
                     user: envVarReference('user'),
                     password: envVarReference('password'),
-                    port: credentials.port,
-                    dbname: credentials.dbname,
-                    schema: credentials.schema,
-                    threads: DEFAULT_THREADS,
-                    keepalives_idle: credentials.keepalivesIdle,
-                    sslmode: credentials.sslmode,
-                    sslrootcert:
-                        require.resolve('@lightdash/warehouses/dist/warehouseClients/ca-bundle-aws-redshift.crt'),
-                    ra3_node: credentials.ra3Node || true,
                 },
                 environment: {
-                    [envVar('user')]: credentials.user,
-                    [envVar('password')]: credentials.password,
+                    [envVar('user')]: credentials.user ?? '',
+                    [envVar('password')]: credentials.password ?? '',
                 },
             };
+        }
         case WarehouseTypes.POSTGRES:
             return {
                 target: {
