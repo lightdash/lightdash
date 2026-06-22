@@ -23,7 +23,10 @@ import useUser from '../../../../../hooks/user/useUser';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import { useAgentSuggestions } from '../../hooks/useAgentSuggestions';
-import { useInterruptAiAgentThreadMessageMutation } from '../../hooks/useProjectAiAgents';
+import {
+    useCreateAiAgentThreadMessageSteerMutation,
+    useInterruptAiAgentThreadMessageMutation,
+} from '../../hooks/useProjectAiAgents';
 import { useAiAgentThreadStreamQuery } from '../../streaming/useAiAgentThreadStreamQuery';
 import { AgentSelector } from '../AgentSelector';
 import { type Agent } from '../AgentSelector/AgentSelectorUtils';
@@ -167,6 +170,7 @@ export const AgentChatInput = ({
     const [hasRequestedInterrupt, setHasRequestedInterrupt] = useState(false);
     const threadStream = useAiAgentThreadStreamQuery(threadUuid ?? '');
     const interruptMutation = useInterruptAiAgentThreadMessageMutation();
+    const steerMutation = useCreateAiAgentThreadMessageSteerMutation();
     useEffect(() => {
         const el = rootRef.current;
         if (!el) return undefined;
@@ -435,12 +439,18 @@ export const AgentChatInput = ({
         threadStream?.isStreaming &&
         activeMessageUuid,
     );
+    const canSteer = canInterrupt && !disabled && !hasRequestedInterrupt;
 
     const handleSubmit = () => {
         const ed = editorRef.current;
         if (!ed) return;
         const text = ed.getText().trim();
-        if (!text || disabled || loading) return;
+        if (!text || disabled) return;
+        if (canSteer) {
+            void handleSteer(text);
+            return;
+        }
+        if (loading) return;
         onSubmitRef.current({
             message: text,
             toolHints: extractToolHints(ed),
@@ -450,6 +460,22 @@ export const AgentChatInput = ({
             ed.commands.clearContent();
             setValueState('');
         }
+    };
+
+    const handleSteer = async (message: string) => {
+        if (!projectUuid || !agentUuid || !threadUuid || !activeMessageUuid) {
+            return;
+        }
+
+        await steerMutation.mutateAsync({
+            projectUuid,
+            agentUuid,
+            threadUuid,
+            messageUuid: activeMessageUuid,
+            message,
+        });
+        editorRef.current?.commands.clearContent();
+        setValueState('');
     };
 
     const handleInterrupt = async () => {
@@ -591,14 +617,29 @@ export const AgentChatInput = ({
                             </Text>
                         )}
 
-                        {canInterrupt ? (
+                        {canSteer && hasValue ? (
                             <ActionIcon
-                                right={12}
-                                bottom={10}
+                                variant="filled"
+                                size="md"
+                                className={`${styles.minimalSubmitButton} ${styles.minimalStreamActionButton}`}
+                                disabled={steerMutation.isLoading}
+                                loading={steerMutation.isLoading}
+                                onClick={handleSubmit}
+                                aria-label="Send guidance"
+                            >
+                                <MantineIcon
+                                    icon={IconArrowUp}
+                                    color="ldGray.0"
+                                    size={18}
+                                    stroke={2}
+                                />
+                            </ActionIcon>
+                        ) : canInterrupt ? (
+                            <ActionIcon
                                 variant="filled"
                                 color="red"
                                 size="md"
-                                className={styles.minimalSubmitButton}
+                                className={`${styles.minimalSubmitButton} ${styles.minimalStreamActionButton}`}
                                 disabled={hasRequestedInterrupt}
                                 loading={
                                     interruptMutation.isLoading ||
@@ -724,7 +765,24 @@ export const AgentChatInput = ({
                                 </Box>
                             )}
 
-                        {canInterrupt ? (
+                        {canSteer && hasValue ? (
+                            <ActionIcon
+                                variant="filled"
+                                size="lg"
+                                className={styles.submitButton}
+                                disabled={steerMutation.isLoading}
+                                loading={steerMutation.isLoading}
+                                onClick={handleSubmit}
+                                aria-label="Send guidance"
+                            >
+                                <MantineIcon
+                                    icon={IconArrowUp}
+                                    color="ldGray.0"
+                                    size={20}
+                                    stroke={2}
+                                />
+                            </ActionIcon>
+                        ) : canInterrupt ? (
                             <ActionIcon
                                 variant="filled"
                                 color="red"

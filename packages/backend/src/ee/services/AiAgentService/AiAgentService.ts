@@ -26,6 +26,7 @@ import {
     AiMetricQueryWithFilters,
     AiModelOption,
     AiPromptContext,
+    AiPromptSteer,
     AiResultType,
     AiVizMetadata,
     AiWebAppPrompt,
@@ -4158,6 +4159,81 @@ export class AiAgentService extends BaseService {
         });
     }
 
+    async createAgentThreadMessageSteer(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid,
+            messageUuid,
+            message,
+        }: {
+            agentUuid: string;
+            threadUuid: string;
+            messageUuid: string;
+            message: string;
+        },
+    ): Promise<AiPromptSteer> {
+        if (!user.organizationUuid) {
+            throw new ForbiddenError();
+        }
+
+        const trimmedMessage = message.trim();
+        if (trimmedMessage.length === 0) {
+            throw new ParameterError('Steer message is required');
+        }
+
+        const prompt = await this.aiAgentModel.findWebAppPrompt(messageUuid);
+
+        if (
+            !prompt ||
+            prompt.organizationUuid !== user.organizationUuid ||
+            prompt.agentUuid !== agentUuid ||
+            prompt.threadUuid !== threadUuid
+        ) {
+            throw new NotFoundError(`Prompt not found: ${messageUuid}`);
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid: user.organizationUuid,
+            agentUuid,
+        });
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid: user.organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+        if (!thread) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+
+        const hasAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            thread.user.uuid,
+        );
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to steer this agent thread',
+            );
+        }
+
+        const isInterrupted =
+            await this.aiAgentModel.hasAiPromptInterrupt(messageUuid);
+        if (isInterrupted) {
+            throw new ParameterError('Cannot steer an interrupted prompt');
+        }
+
+        return this.aiAgentModel.createAiPromptSteer({
+            promptUuid: messageUuid,
+            createdByUserUuid: user.userUuid,
+            message: trimmedMessage,
+        });
+    }
+
     async getEmbedAgentModelOptions(
         account: AnonymousAccount,
         projectUuid: string,
@@ -6737,6 +6813,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             storeReasoning,
             isPromptInterrupted: (promptUuid: string) =>
                 this.aiAgentModel.hasAiPromptInterrupt(promptUuid),
+            consumePromptSteers: (args: {
+                promptUuid: string;
+                stepNumber: number;
+            }) =>
+                this.aiAgentModel.consumeUnconsumedPromptSteers({
+                    promptUuid: args.promptUuid,
+                    stepNumber: args.stepNumber,
+                }),
             searchFieldValues: toolsRuntime.searchFieldValues,
             editDbtProject,
             editProjectContext,
@@ -6903,6 +6987,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             storeToolResults,
             storeReasoning,
             isPromptInterrupted,
+            consumePromptSteers,
             searchFieldValues,
             editDbtProject,
             editProjectContext,
@@ -7315,6 +7400,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             storeToolResults,
             storeReasoning,
             isPromptInterrupted,
+            consumePromptSteers,
             searchFieldValues,
             editDbtProject,
             editProjectContext,

@@ -40,6 +40,21 @@
     }
 }
 
+.steerCard {
+    max-width: min(100%, rem(520px));
+    border-style: dashed;
+
+    @mixin light {
+        background-color: transparent;
+        border-color: var(--mantine-color-ldGray-3);
+    }
+
+    @mixin dark {
+        background-color: transparent;
+        border-color: var(--mantine-color-ldGray-7);
+    }
+}
+
 .markdown {
     background-color: transparent;
     font-size: 0.8125rem;
@@ -65,5 +80,14 @@
 
 .inlineMarkdown :global(p) {
     display: inline;
+    margin: 0;
+}
+
+.steerMarkdown {
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.steerMarkdown :global(p) {
     margin: 0;
 }

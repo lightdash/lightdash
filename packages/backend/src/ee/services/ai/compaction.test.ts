@@ -48,6 +48,7 @@ describe('AI context compaction helpers', () => {
                         chartKind: null,
                     },
                 ],
+                steers: [],
                 hidden: false,
             },
             {
@@ -113,6 +114,7 @@ describe('AI context compaction helpers', () => {
                     { type: 'file', path: 'hello/world' },
                     { type: 'repository', fullName: 'hello/world' },
                 ],
+                steers: [],
                 hidden: false,
             },
         ]);

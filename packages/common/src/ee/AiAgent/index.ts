@@ -219,12 +219,22 @@ export type AiAgentMessageUser<TUser extends AiAgentUser = AiAgentUser> = {
 
     user: TUser;
     context: AiPromptContext;
+    steers: AiPromptSteer[];
     /**
      * Hidden turn: the agent received and responded to this prompt, but the UI
      * should not render its user bubble (e.g. the post-merge migration prompt
      * injected from the writeback PR card).
      */
     hidden: boolean;
+};
+
+export type AiPromptSteer = {
+    uuid: string;
+    promptUuid: string;
+    message: string;
+    createdAt: string;
+    consumedAt: string | null;
+    consumedStep: number | null;
 };
 
 export type AiAgentMessageAssistantArtifact = Pick<
@@ -532,6 +542,14 @@ export type ApiAiAgentSqlApprovalResponse = ApiSuccess<{
 export type ApiAiAgentThreadMessageInterruptResponse = ApiSuccess<{
     interrupted: true;
 }>;
+
+export type ApiAiAgentThreadMessageSteerResponse = ApiSuccess<{
+    steer: AiPromptSteer;
+}>;
+
+export type ApiCreateAiAgentThreadMessageSteer = {
+    message: string;
+};
 
 export type ApiAiAgentThreadMessageCreateResponse = ApiSuccess<
     AiAgentMessageUser<AiAgentUser>

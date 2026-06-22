@@ -156,6 +156,55 @@ const buildForcedFirstStep = (args: AiAgentArgs, tools: ToolSet) => {
             : {};
 };
 
+const buildPrepareStep = ({
+    args,
+    dependencies,
+    tools,
+    logger,
+}: {
+    args: AiAgentArgs;
+    dependencies: AiAgentDependencies;
+    tools: ToolSet;
+    logger: ReturnType<typeof createAiAgentLogger>;
+}) => {
+    const forcedFirstStep = buildForcedFirstStep(args, tools);
+
+    return async ({
+        stepNumber,
+        messages,
+    }: {
+        stepNumber: number;
+        messages: ModelMessage[];
+    }) => {
+        const forced = forcedFirstStep?.({ stepNumber }) ?? {};
+        const steers = await dependencies.consumePromptSteers({
+            promptUuid: args.promptUuid,
+            stepNumber,
+        });
+
+        if (steers.length === 0) return forced;
+
+        logger(
+            'Prepare Step',
+            `Injecting ${steers.length} steer(s) for prompt UUID: ${args.promptUuid}`,
+        );
+
+        return {
+            ...forced,
+            messages: [
+                ...messages,
+                {
+                    role: 'user' as const,
+                    content: [
+                        'Additional guidance from the user while you were working:',
+                        ...steers.map((steer) => `- ${steer.message}`),
+                    ].join('\n'),
+                },
+            ],
+        };
+    };
+};
+
 const getAgentTools = (
     args: AiAgentArgs,
     dependencies: AiAgentDependencies,
@@ -617,11 +666,16 @@ export const generateAgentResponse = async ({
             'Generate Agent Response',
             `Calling generateText with model: ${modelName}`,
         );
-        const forcedFirstStep = buildForcedFirstStep(args, tools);
+        const prepareStep = buildPrepareStep({
+            args,
+            dependencies,
+            tools,
+            logger,
+        });
         const result = await generateText({
             ...defaultAgentOptions,
             ...args.callOptions,
-            ...(forcedFirstStep ? { prepareStep: forcedFirstStep } : {}),
+            prepareStep,
             providerOptions: args.providerOptions,
             model: args.model,
             tools,
@@ -853,7 +907,12 @@ export const streamAgentResponse = async ({
             'Stream Agent Response',
             `Calling streamText with model: ${modelName}`,
         );
-        const forcedFirstStep = buildForcedFirstStep(args, tools);
+        const prepareStep = buildPrepareStep({
+            args,
+            dependencies,
+            tools,
+            logger,
+        });
         const stopWhenPromptInterrupted = async () => {
             const interrupted = await dependencies.isPromptInterrupted(
                 args.promptUuid,
@@ -869,7 +928,7 @@ export const streamAgentResponse = async ({
         const result = streamText({
             ...defaultAgentOptions,
             ...args.callOptions,
-            ...(forcedFirstStep ? { prepareStep: forcedFirstStep } : {}),
+            prepareStep,
             stopWhen: [stepCountIs(STEP_CAP), stopWhenPromptInterrupted],
             providerOptions: args.providerOptions,
             model: args.model,
