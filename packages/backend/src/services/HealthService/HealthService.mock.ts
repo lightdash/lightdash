@@ -118,9 +118,6 @@ export const BaseResponse: HealthState = {
         analyticsDashboardUuid: undefined,
         isAmbientAiEnabled: false,
     },
-    echarts6: {
-        enabled: false,
-    },
     funnelBuilder: {
         enabled: false,
     },

@@ -324,9 +324,6 @@ export const lightdashConfigMock: LightdashConfig = {
     customRoles: {
         enabled: false,
     },
-    echarts6: {
-        enabled: false,
-    },
     editYamlInUi: {
         enabled: false,
     },
