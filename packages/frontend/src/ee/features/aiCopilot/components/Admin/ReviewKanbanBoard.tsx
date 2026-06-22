@@ -24,6 +24,7 @@ import {
 } from '@lightdash/common';
 import { Badge, Box, Button, Group, Stack, Text } from '@mantine-8/core';
 import { IconBox, IconTag, IconUser } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { type FC, useDeferredValue, useMemo, useState } from 'react';
 import FilterFacet, {
     type FilterFacetOption,
@@ -32,6 +33,7 @@ import { useOrgUsersByUuid } from '../../../../../hooks/useOrganizationUsers';
 import { useProjects } from '../../../../../hooks/useProjects';
 import useApp from '../../../../../providers/App/useApp';
 import {
+    applyOptimisticReviewBoardOrder,
     useAiAgentAdminReviewItems,
     useCreateAiAgentReviewItemWriteback,
     useReorderReviewItems,
@@ -192,6 +194,7 @@ export const ReviewKanbanBoard: FC<Props> = ({
         AiAgentReviewItemSummary[]
     > | null>(null);
 
+    const queryClient = useQueryClient();
     const updateStatus = useUpdateAiAgentReviewItemStatus();
     const createWriteback = useCreateAiAgentReviewItemWriteback();
     const reorderItems = useReorderReviewItems();
@@ -397,33 +400,61 @@ export const ReviewKanbanBoard: FC<Props> = ({
     const handleDragEnd = ({ active }: DragEndEvent) => {
         const activeKey = String(active.id);
         const snapshot = dragLanes;
-        setActiveId(null);
-        setDragLanes(null);
-        if (!snapshot) return;
+        const clearDrag = () => {
+            setActiveId(null);
+            setDragLanes(null);
+        };
+        if (!snapshot) {
+            clearDrag();
+            return;
+        }
 
         const lane = laneOf(snapshot, activeKey);
-        if (!lane) return;
+        const moved = lane
+            ? snapshot[lane].find((item) => item.uuid === activeKey)
+            : undefined;
+        if (!lane || !moved) {
+            clearDrag();
+            return;
+        }
         const laneList = snapshot[lane];
-        const moved = laneList.find((item) => item.uuid === activeKey);
-        if (!moved) return;
+        const orderedFingerprints = laneList.map((item) => item.fingerprint);
 
-        // Status follows the lane. The deterministic writeback kicks off when a
-        // card lands in In progress, same as before.
+        // Status follows the lane (null on lanes that don't map to a status).
         const targetStatus = LANE_TARGET_STATUS[lane];
-        if (targetStatus !== null && moved.status !== targetStatus) {
+        const statusOverride =
+            targetStatus !== null && moved.status !== targetStatus
+                ? { fingerprint: moved.fingerprint, status: targetStatus }
+                : null;
+
+        // Commit the dropped arrangement (order + cross-lane status) to the cache
+        // and clear the transient drag order in the same tick, so the board hands
+        // off to the server-derived lanes in one render — no flash to the old
+        // position before the persist settles.
+        applyOptimisticReviewBoardOrder(
+            queryClient,
+            orderedFingerprints,
+            statusOverride,
+        );
+        clearDrag();
+
+        if (statusOverride) {
             updateStatus.mutate({
                 fingerprint: moved.fingerprint,
-                body: { status: targetStatus, dismissedReason: null },
+                body: { status: statusOverride.status, dismissedReason: null },
             });
+            // The deterministic writeback kicks off when a card lands in
+            // In progress, same as before.
             if (lane === 'in_progress') {
                 const kind = getStartWritebackKind(moved);
-                if (kind === 'mutate') createWriteback.mutate(moved.fingerprint);
+                if (kind === 'mutate')
+                    createWriteback.mutate(moved.fingerprint);
             }
         }
 
         // Persist the dropped lane's order (reindexes board_position). The source
         // lane keeps its relative order, so only this lane needs rewriting.
-        reorderItems.mutate(laneList.map((item) => item.fingerprint));
+        reorderItems.mutate(orderedFingerprints);
     };
 
     const handleDragCancel = () => {

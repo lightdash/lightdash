@@ -5,6 +5,7 @@ import { renderWithProviders } from '../../../../../testing/testUtils';
 import { ReviewKanbanBoard } from './ReviewKanbanBoard';
 
 vi.mock('../../hooks/useAiAgentAdmin', () => ({
+    applyOptimisticReviewBoardOrder: vi.fn(),
     useAiAgentAdminReviewItems: () => ({ data: items }),
     useAiAgentAdminAgents: () => ({ data: [] }),
     useAiAgentReviewItemPrDiff: () => ({ data: null }),

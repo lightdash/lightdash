@@ -25,7 +25,6 @@ import {
     useQuery,
     useQueryClient,
     type QueryClient,
-    type QueryKey,
     type UseInfiniteQueryOptions,
     type UseQueryOptions,
 } from '@tanstack/react-query';
@@ -523,42 +522,50 @@ const reorderCachedItems = (
     });
 };
 
-// Optimistic + silent: applies the new order to the cache immediately (rolling
-// back on error), so the board never flashes back while the request is in
-// flight. onSettled re-fetches the authoritative order.
+// Applies a drop to the cached review-item lists synchronously: reorders the
+// dragged fingerprints into the given order at the slots they occupy, and (for a
+// cross-lane drop) moves the dragged item to the target lane by overriding its
+// status. Call this in the drop handler in the same tick the drag's transient
+// order is cleared, so the board hands off to the server-derived lanes in one
+// commit — without it the board flashes back to the pre-drop order for a frame.
+export const applyOptimisticReviewBoardOrder = (
+    queryClient: QueryClient,
+    orderedFingerprints: string[],
+    statusOverride: {
+        fingerprint: string;
+        status: AiAgentReviewItemStatus;
+    } | null,
+) => {
+    queryClient.setQueriesData<AiAgentReviewItemSummary[]>(
+        { queryKey: [AI_AGENT_ADMIN_REVIEW_ITEMS_QUERY_KEY] },
+        (old) => {
+            if (!old) return old;
+            const withStatus = statusOverride
+                ? old.map((item) =>
+                      item.fingerprint === statusOverride.fingerprint
+                          ? { ...item, status: statusOverride.status }
+                          : item,
+                  )
+                : old;
+            return reorderCachedItems(withStatus, orderedFingerprints);
+        },
+    );
+};
+
+// Persists the board order. The optimistic update is applied synchronously by
+// the drop handler (applyOptimisticReviewBoardOrder); here we just write through
+// and reconcile to the authoritative order on settle (which also reverts the
+// optimistic order if the request failed).
 export const useReorderReviewItems = () => {
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
 
-    return useMutation<
-        undefined,
-        ApiError,
-        string[],
-        { previous: [QueryKey, AiAgentReviewItemSummary[] | undefined][] }
-    >({
+    return useMutation<undefined, ApiError, string[]>({
         mutationFn: reorderAiAgentReviewItems,
-        onMutate: async (orderedFingerprints) => {
-            await queryClient.cancelQueries({
-                queryKey: [AI_AGENT_ADMIN_REVIEW_ITEMS_QUERY_KEY],
-            });
-            const previous =
-                queryClient.getQueriesData<AiAgentReviewItemSummary[]>({
-                    queryKey: [AI_AGENT_ADMIN_REVIEW_ITEMS_QUERY_KEY],
-                });
-            queryClient.setQueriesData<AiAgentReviewItemSummary[]>(
-                { queryKey: [AI_AGENT_ADMIN_REVIEW_ITEMS_QUERY_KEY] },
-                (old) =>
-                    old ? reorderCachedItems(old, orderedFingerprints) : old,
-            );
-            return { previous };
-        },
-        onError: (error, _orderedFingerprints, context) => {
-            context?.previous.forEach(([key, data]) => {
-                queryClient.setQueryData(key, data);
-            });
+        onError: ({ error }) => {
             showToastApiError({
                 title: 'Failed to reorder items',
-                apiError: error.error,
+                apiError: error,
             });
         },
         onSettled: () => {
