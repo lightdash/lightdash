@@ -145,3 +145,17 @@
 .minWidth0 {
     min-width: 0;
 }
+
+.candidateContent {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    min-width: 0;
+}
+
+.candidateText {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
