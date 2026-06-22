@@ -55,16 +55,17 @@ describe('convertRedshiftSchema', () => {
             sslmode: undefined,
             authenticationType: RedshiftAuthenticationType.IAM,
             region: 'us-east-1',
+            isServerless: false,
             clusterIdentifier: 'my-cluster',
             autoCreate: true,
         });
     });
 
-    test('should parse IAM authentication without a user (serverless)', () => {
+    test('should parse IAM authentication for serverless (derived from host)', () => {
         const target = {
             type: 'redshift',
             method: 'iam',
-            host: 'wg.123.us-east-1.redshift-serverless.amazonaws.com',
+            host: 'my-wg.123.us-east-1.redshift-serverless.amazonaws.com',
             region: 'us-east-1',
             port: 5439,
             dbname: 'dev',
@@ -73,7 +74,7 @@ describe('convertRedshiftSchema', () => {
 
         expect(convertRedshiftSchema(target)).toEqual({
             type: WarehouseTypes.REDSHIFT,
-            host: 'wg.123.us-east-1.redshift-serverless.amazonaws.com',
+            host: 'my-wg.123.us-east-1.redshift-serverless.amazonaws.com',
             user: '',
             port: 5439,
             dbname: 'dev',
@@ -82,7 +83,8 @@ describe('convertRedshiftSchema', () => {
             sslmode: undefined,
             authenticationType: RedshiftAuthenticationType.IAM,
             region: 'us-east-1',
-            clusterIdentifier: undefined,
+            isServerless: true,
+            workgroupName: 'my-wg',
             autoCreate: undefined,
         });
     });

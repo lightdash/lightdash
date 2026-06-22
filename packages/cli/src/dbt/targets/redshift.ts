@@ -136,6 +136,12 @@ export const convertRedshiftSchema = (
                     `Redshift IAM target requires a region: "region"`,
                 );
             }
+            // dbt-redshift represents serverless purely via the host endpoint
+            // (no cluster_id); derive the workgroup from it so the connection
+            // round-trips to the runtime client correctly.
+            const isServerless = target.host.endsWith(
+                '.redshift-serverless.amazonaws.com',
+            );
             return {
                 type: WarehouseTypes.REDSHIFT,
                 host: target.host,
@@ -147,7 +153,10 @@ export const convertRedshiftSchema = (
                 sslmode: target.sslmode,
                 authenticationType: RedshiftAuthenticationType.IAM,
                 region: target.region,
-                clusterIdentifier: target.cluster_id,
+                isServerless,
+                ...(isServerless
+                    ? { workgroupName: target.host.split('.')[0] }
+                    : { clusterIdentifier: target.cluster_id }),
                 autoCreate: target.autocreate,
             };
         }

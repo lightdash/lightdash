@@ -234,27 +234,20 @@ const RedshiftForm: FC<{
                             disabled={disabled}
                         />
                         <TextInput
-                            name="warehouse.accessKeyId"
-                            label="AWS access key ID"
-                            description="Access key ID of an IAM user permitted to mint Redshift credentials. Leave blank to use the host's IAM role."
-                            placeholder={
-                                disabled || !requireSecrets
-                                    ? '**************'
-                                    : undefined
-                            }
-                            {...form.getInputProps('warehouse.accessKeyId')}
+                            name="warehouse.assumeRoleArn"
+                            label="Assume role ARN"
+                            description="Recommended: an IAM role Lightdash assumes to mint Redshift credentials. Leave blank to use the host's IAM role (self-hosted), or provide AWS access keys under Advanced."
+                            placeholder="arn:aws:iam::123456789012:role/my-redshift-role"
+                            {...form.getInputProps('warehouse.assumeRoleArn')}
                             disabled={disabled}
                         />
-                        <PasswordInput
-                            name="warehouse.secretAccessKey"
-                            label="AWS secret access key"
-                            description="Secret access key paired with the access key ID above."
-                            placeholder={
-                                disabled || !requireSecrets
-                                    ? '**************'
-                                    : undefined
-                            }
-                            {...form.getInputProps('warehouse.secretAccessKey')}
+                        <TextInput
+                            name="warehouse.assumeRoleExternalId"
+                            label="Assume role external ID"
+                            description="External ID required by the assume-role trust policy, if configured."
+                            {...form.getInputProps(
+                                'warehouse.assumeRoleExternalId',
+                            )}
                             disabled={disabled}
                         />
                     </>
@@ -285,21 +278,30 @@ const RedshiftForm: FC<{
                         {isIamAuthentication && (
                             <>
                                 <TextInput
-                                    name="warehouse.assumeRoleArn"
-                                    label="Assume role ARN"
-                                    description="Optional IAM role ARN to assume before minting Redshift credentials, for least-privilege cross-account access."
-                                    placeholder="arn:aws:iam::123456789012:role/my-redshift-role"
+                                    name="warehouse.accessKeyId"
+                                    label="AWS access key ID"
+                                    description="Advanced: static IAM user access key, only if you are not using an assume-role ARN or the host's IAM role. Long-lived secret — prefer assume-role where possible."
+                                    placeholder={
+                                        disabled || !requireSecrets
+                                            ? '**************'
+                                            : undefined
+                                    }
                                     {...form.getInputProps(
-                                        'warehouse.assumeRoleArn',
+                                        'warehouse.accessKeyId',
                                     )}
                                     disabled={disabled}
                                 />
-                                <TextInput
-                                    name="warehouse.assumeRoleExternalId"
-                                    label="Assume role external ID"
-                                    description="Optional external ID required by the assume-role trust policy."
+                                <PasswordInput
+                                    name="warehouse.secretAccessKey"
+                                    label="AWS secret access key"
+                                    description="Secret access key paired with the access key ID above."
+                                    placeholder={
+                                        disabled || !requireSecrets
+                                            ? '**************'
+                                            : undefined
+                                    }
                                     {...form.getInputProps(
-                                        'warehouse.assumeRoleExternalId',
+                                        'warehouse.secretAccessKey',
                                     )}
                                     disabled={disabled}
                                 />

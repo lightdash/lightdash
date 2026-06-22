@@ -112,6 +112,15 @@ const credentialsTarget = (
                         'Redshift IAM authentication requires an AWS region',
                     );
                 }
+                // dbt-redshift's connector cannot assume a role from the
+                // profile, so an assume-role ARN without pre-resolved session
+                // credentials would silently authenticate as the wrong (base)
+                // identity. Reject it until STS pre-resolution is wired up.
+                if (credentials.assumeRoleArn && !credentials.sessionToken) {
+                    throw new ParameterError(
+                        'Redshift IAM assume-role is not yet supported for dbt compilation. Use static AWS credentials, the host IAM role, or remove the assume-role ARN.',
+                    );
+                }
                 // dbt-redshift's connector (boto3) reads AWS credentials from
                 // the standard env vars. When neither static keys nor a
                 // pre-resolved session token are present we set nothing, so
