@@ -446,9 +446,13 @@ export class PivotQueryBuilder {
             ...indexColumns.map((col) => `${q}${col.reference}${q}`),
         ];
 
-        // Carry _order columns through for sorted custom bin dimensions
+        // Carry _order columns through for sorted custom bin dimensions.
+        // sortOnlyDimensions must be included: a hidden, sorted custom-bin pivot
+        // column drives the column ORDER BY via its _order companion, so that
+        // column has to survive group_by_query.
         const sortedBinRefs = this.getSortedBinDimensionReferences([
             ...(groupByColumns || []),
+            ...(sortOnlyDimensions || []),
             ...indexColumns,
         ]);
         for (const ref of sortedBinRefs) {
