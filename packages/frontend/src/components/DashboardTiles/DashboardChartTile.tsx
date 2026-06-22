@@ -34,9 +34,8 @@ import {
     type SavedChart,
     type Series,
 } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
+import { ActionIcon, Menu } from '@mantine-8/core';
 import {
-    ActionIcon,
     Badge,
     Box,
     Group,
@@ -1376,7 +1375,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                     </HoverCard.Dropdown>
 
                                     <HoverCard.Target>
-                                        <ActionIcon size="sm">
+                                        <ActionIcon
+                                            size="sm"
+                                            variant="subtle"
+                                            color="gray"
+                                        >
                                             <MantineIcon icon={IconFilter} />
                                         </ActionIcon>
                                     </HoverCard.Target>
@@ -1429,7 +1432,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                         </HoverCard.Dropdown>
 
                                         <HoverCard.Target>
-                                            <ActionIcon size="sm">
+                                            <ActionIcon
+                                                size="sm"
+                                                variant="subtle"
+                                                color="gray"
+                                            >
                                                 <MantineIcon
                                                     icon={IconVariable}
                                                 />
