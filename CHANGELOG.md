@@ -1,3 +1,10 @@
+# [0.3219.0](https://github.com/lightdash/lightdash/compare/0.3218.0...0.3219.0) (2026-06-22)
+
+
+### Features
+
+* **reviews:** pin review entities in remediation work threads (not prose) ([#24596](https://github.com/lightdash/lightdash/issues/24596)) ([c1d2e1e](https://github.com/lightdash/lightdash/commit/c1d2e1e0231c39c360fb1a815484324c53fb25f8))
+
 # [0.3218.0](https://github.com/lightdash/lightdash/compare/0.3217.0...0.3218.0) (2026-06-22)
 
 
