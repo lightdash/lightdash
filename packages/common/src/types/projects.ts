@@ -781,6 +781,7 @@ export interface DbtCloudIDEProjectConfig extends DbtProjectConfigBase {
     environment_id: string;
     discovery_api_endpoint?: string;
     tags?: string[];
+    webhook_hmac_secret?: string;
 }
 
 export interface DbtGithubProjectConfig extends DbtProjectCompilerBase {

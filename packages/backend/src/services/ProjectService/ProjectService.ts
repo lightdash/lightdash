@@ -202,6 +202,7 @@ import {
     warehouseSqlBuilderFromType,
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
+import { createHmac, timingSafeEqual } from 'crypto';
 import * as fs from 'fs';
 import * as yaml from 'js-yaml';
 import { uniq } from 'lodash';
@@ -351,6 +352,20 @@ export type ProjectServiceArguments = {
     // AppGenerateService depends on ProjectService, so eager injection would
     // create a construction cycle. Resolves undefined in core (non-EE) builds.
     getAppGenerateService?: () => AppGenerateService | undefined;
+};
+
+const isValidDbtCloudWebhookSignature = (
+    secret: string,
+    rawBody: Buffer,
+    signature: string,
+): boolean => {
+    const expected = createHmac('sha256', secret).update(rawBody).digest('hex');
+    const expectedBuffer = Buffer.from(expected, 'utf8');
+    const signatureBuffer = Buffer.from(signature, 'utf8');
+    if (expectedBuffer.length !== signatureBuffer.length) {
+        return false;
+    }
+    return timingSafeEqual(expectedBuffer, signatureBuffer);
 };
 
 export class ProjectService extends BaseService {
@@ -9091,10 +9106,11 @@ export class ProjectService extends BaseService {
         return updatedCharts;
     }
 
-    async createPreviewWithExplores(
+    async createPreviewFromDbtCloudWebhook(
         projectUuid: string,
-        accountId: string,
-        runId: string,
+        accountId: number,
+        runId: number,
+        webhookAuth: { rawBody: Buffer | null; signature: string | null },
     ): Promise<string> {
         // create preview project permissions are checked in `createWithoutCompile`
         const project =
@@ -9109,6 +9125,25 @@ export class ProjectService extends BaseService {
         if (project.dbtConnection.type !== DbtProjectType.DBT_CLOUD_IDE) {
             throw new ParameterError(
                 `Project ${projectUuid} is not a dbt Cloud IDE project`,
+            );
+        }
+
+        const webhookSecret = project.dbtConnection.webhook_hmac_secret;
+        if (webhookSecret) {
+            if (
+                !webhookAuth.rawBody ||
+                !webhookAuth.signature ||
+                !isValidDbtCloudWebhookSignature(
+                    webhookSecret,
+                    webhookAuth.rawBody,
+                    webhookAuth.signature,
+                )
+            ) {
+                throw new ForbiddenError('Invalid dbt Cloud webhook signature');
+            }
+        } else {
+            this.logger.info(
+                `dbt Cloud webhook for project ${projectUuid} processed without signature verification (no webhook_hmac_secret configured)`,
             );
         }
 
