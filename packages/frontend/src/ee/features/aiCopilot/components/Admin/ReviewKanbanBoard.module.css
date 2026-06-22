@@ -126,6 +126,12 @@
     flex-direction: column;
     gap: var(--mantine-spacing-xs);
     padding: 2px;
+    border-radius: var(--mantine-radius-md);
+    outline: 1.5px dashed transparent;
+    outline-offset: 2px;
+    transition:
+        background 120ms ease,
+        outline-color 120ms ease;
 }
 .spacer {
     flex: 1;
@@ -137,32 +143,57 @@
     padding: var(--mantine-spacing-md);
     text-align: center;
 }
+/* Lane the cursor is currently over — strongest affordance. */
 .laneOver {
     background: light-dark(
         var(--mantine-color-indigo-0),
         var(--mantine-color-dark-5)
     );
-    outline: 1.5px dashed var(--mantine-color-indigo-4);
-    border-radius: var(--mantine-radius-md);
+    outline-color: var(--mantine-color-indigo-4);
+}
+/* Every lane the dragged card *could* land in, while a drag is in flight. */
+.laneValidTarget {
+    outline-color: light-dark(
+        var(--mantine-color-indigo-2),
+        var(--mantine-color-dark-3)
+    );
+}
+.draggableCard {
+    cursor: grab;
+}
+.draggableCard:active {
+    cursor: grabbing;
 }
 .cardGhost {
     opacity: 0.4;
     pointer-events: none;
 }
 .dragOverlayCard {
-    transform: rotate(2deg);
-    box-shadow: 0 8px 24px rgba(20, 22, 28, 0.18);
+    transform: rotate(2.5deg) scale(1.02);
+    box-shadow: 0 12px 28px rgba(20, 22, 28, 0.22);
     border-radius: var(--mantine-radius-md);
     cursor: grabbing;
 }
 .dropPlaceholder {
-    height: 64px;
+    flex: none;
+    height: 56px;
     border: 1.5px dashed var(--mantine-color-indigo-4);
     border-radius: var(--mantine-radius-md);
     background: light-dark(
         var(--mantine-color-indigo-0),
         var(--mantine-color-dark-5)
     );
+    animation: ldDropPlaceholderIn 140ms ease;
+}
+@keyframes ldDropPlaceholderIn {
+    from {
+        opacity: 0;
+        transform: scaleY(0.6);
+    }
+    to {
+        opacity: 1;
+        transform: scaleY(1);
+    }
 }
 .assigneeTrigger {
     cursor: pointer;

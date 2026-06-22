@@ -106,7 +106,9 @@ const DraggableCard: FC<DraggableCardProps> = ({
     return (
         <Box
             ref={setNodeRef}
-            className={isDragging ? styles.cardGhost : undefined}
+            className={`${styles.draggableCard}${
+                isDragging ? ` ${styles.cardGhost}` : ''
+            }`}
             {...listeners}
             {...attributes}
         >
@@ -121,23 +123,27 @@ const DraggableCard: FC<DraggableCardProps> = ({
 
 type DroppableLaneProps = {
     laneId: ReviewLane;
-    isDraggingValidTarget: boolean;
+    isDragActive: boolean;
+    canDrop: boolean;
     children: React.ReactNode;
 };
 
 const DroppableLane: FC<DroppableLaneProps> = ({
     laneId,
-    isDraggingValidTarget,
+    isDragActive,
+    canDrop,
     children,
 }) => {
     const { setNodeRef, isOver } = useDroppable({ id: laneId });
-    const highlight = isOver && isDraggingValidTarget;
+    const isActiveTarget = isOver && canDrop;
+
+    const classNames = [styles.laneScroll];
+    if (isActiveTarget) classNames.push(styles.laneOver);
+    else if (isDragActive && canDrop) classNames.push(styles.laneValidTarget);
 
     return (
-        <Box
-            ref={setNodeRef}
-            className={`${styles.laneScroll}${highlight ? ` ${styles.laneOver}` : ''}`}
-        >
+        <Box ref={setNodeRef} className={classNames.join(' ')}>
+            {isActiveTarget && <Box className={styles.dropPlaceholder} />}
             {children}
         </Box>
     );
@@ -433,9 +439,8 @@ export const ReviewKanbanBoard: FC<Props> = ({
                                     </Group>
                                     <DroppableLane
                                         laneId={lane.id}
-                                        isDraggingValidTarget={isValidTarget(
-                                            lane.id,
-                                        )}
+                                        isDragActive={draggingItemUuid !== null}
+                                        canDrop={isValidTarget(lane.id)}
                                     >
                                         {showSkeletons ? (
                                             Array.from({
@@ -449,11 +454,17 @@ export const ReviewKanbanBoard: FC<Props> = ({
                                                 />
                                             ))
                                         ) : cards.length === 0 ? (
-                                            <Box className={styles.emptyLane}>
-                                                <Text fz="xs" c="dimmed">
-                                                    No issues
-                                                </Text>
-                                            </Box>
+                                            // Hide the empty hint while previewing a drop here.
+                                            overLaneId === lane.id &&
+                                            isValidTarget(lane.id) ? null : (
+                                                <Box
+                                                    className={styles.emptyLane}
+                                                >
+                                                    <Text fz="xs" c="dimmed">
+                                                        No issues
+                                                    </Text>
+                                                </Box>
+                                            )
                                         ) : (
                                             <>
                                                 {cards.map((item, index) => {
@@ -510,14 +521,6 @@ export const ReviewKanbanBoard: FC<Props> = ({
                                                             : `Show all (${all.length})`}
                                                     </Button>
                                                 )}
-                                                {overLaneId === lane.id &&
-                                                    isValidTarget(lane.id) && (
-                                                        <Box
-                                                            className={
-                                                                styles.dropPlaceholder
-                                                            }
-                                                        />
-                                                    )}
                                             </>
                                         )}
                                     </DroppableLane>
