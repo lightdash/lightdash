@@ -16,6 +16,7 @@ import {
     AiAgentMessageUser,
     AiAgentNotFoundError,
     AiAgentReasoning,
+    AiAgentReviewItemSummary,
     AiAgentSummary,
     AiAgentThreadSummary,
     AiAgentToolCall,
@@ -33,6 +34,7 @@ import {
     AiPromptContext,
     AiPromptContextInput,
     AiPromptContextItem,
+    AiPromptProposedChangePayload,
     AiResultType,
     AiThread,
     AiThreadCompaction,
@@ -61,6 +63,7 @@ import {
     NotImplementedError,
     ParameterError,
     ProjectType,
+    PullRequestProvider,
     SlackPrompt,
     ToolName,
     ToolNameSchema,
@@ -165,6 +168,7 @@ import {
     DbAiEvalRunResultAssessment,
 } from '../database/entities/aiEvals';
 import { type SqlApprovalDecision } from '../services/ai/tools/sqlApprovals';
+import { AiAgentReviewClassifierModel } from './AiAgentReviewClassifierModel';
 
 type Dependencies = {
     database: Knex;
@@ -299,10 +303,15 @@ export class AiAgentModel {
 
     private encryptionUtil: EncryptionUtil;
 
+    private reviewClassifierModel: AiAgentReviewClassifierModel;
+
     constructor(dependencies: Dependencies) {
         this.database = dependencies.database;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.encryptionUtil = dependencies.encryptionUtil;
+        this.reviewClassifierModel = new AiAgentReviewClassifierModel({
+            database: this.database,
+        });
     }
 
     static async withTrx<T>(
@@ -4874,6 +4883,45 @@ export class AiAgentModel {
                         entity_ref: ctx.fullName,
                         display_name: ctx.fullName,
                     };
+                // Review-remediation references store their natural key
+                // (PR url / finding fingerprint) in entity_ref and resolve the
+                // live data at read time. preview_environment keys off a real
+                // project uuid, so it uses entity_uuid like the chart/dashboard.
+                case 'pull_request':
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type:
+                            'pull_request' as AiPromptContextEntityType,
+                        entity_uuid: null,
+                        entity_ref: ctx.prUrl,
+                        display_name: ctx.prUrl,
+                    };
+                case 'proposed_change':
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type:
+                            'proposed_change' as AiPromptContextEntityType,
+                        entity_uuid: null,
+                        entity_ref: ctx.fingerprint,
+                        display_name: null,
+                    };
+                case 'review_finding':
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type:
+                            'review_finding' as AiPromptContextEntityType,
+                        entity_uuid: null,
+                        entity_ref: ctx.fingerprint,
+                        display_name: null,
+                    };
+                case 'preview_environment':
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type:
+                            'preview_environment' as AiPromptContextEntityType,
+                        entity_uuid: ctx.previewProjectUuid,
+                        display_name: null,
+                    };
                 default:
                     return assertUnreachable(
                         ctx,
@@ -4941,19 +4989,140 @@ export class AiAgentModel {
             ).map((r) => [r.dashboard_uuid, r.slug] as const),
         );
 
+        // review_finding / proposed_change pins resolve live finding data,
+        // scoped by the org of the prompt they hang off. Only worth the extra
+        // prompt -> thread -> org lookup when such a pin is actually present.
+        const hasReviewFindingRows = rows.some(
+            (row) =>
+                row.entity_type === 'review_finding' ||
+                row.entity_type === 'proposed_change',
+        );
+        const orgByPromptUuid = new Map(
+            hasReviewFindingRows
+                ? (
+                      await this.database(AiPromptTableName)
+                          .leftJoin(
+                              AiThreadTableName,
+                              `${AiPromptTableName}.ai_thread_uuid`,
+                              `${AiThreadTableName}.ai_thread_uuid`,
+                          )
+                          .whereIn(
+                              `${AiPromptTableName}.ai_prompt_uuid`,
+                              promptUuids,
+                          )
+                          .select<
+                              {
+                                  ai_prompt_uuid: string;
+                                  organization_uuid: string | null;
+                              }[]
+                          >({
+                              ai_prompt_uuid: `${AiPromptTableName}.ai_prompt_uuid`,
+                              organization_uuid: `${AiThreadTableName}.organization_uuid`,
+                          })
+                  ).map((r) => [r.ai_prompt_uuid, r.organization_uuid] as const)
+                : [],
+        );
+
+        const { reviewClassifierModel } = this;
+        const reviewItemByOrgFingerprint = new Map<
+            string,
+            AiAgentReviewItemSummary | null
+        >();
+        const orgFingerprintPairs = new Map<
+            string,
+            { organizationUuid: string; fingerprint: string }
+        >();
+        rows.filter(
+            (row) =>
+                row.entity_type === 'review_finding' ||
+                row.entity_type === 'proposed_change',
+        ).forEach((row) => {
+            const organizationUuid = orgByPromptUuid.get(row.ai_prompt_uuid);
+            if (organizationUuid && row.entity_ref !== null) {
+                orgFingerprintPairs.set(
+                    `${organizationUuid}:${row.entity_ref}`,
+                    {
+                        organizationUuid,
+                        fingerprint: row.entity_ref,
+                    },
+                );
+            }
+        });
+        await Promise.all(
+            [...orgFingerprintPairs.entries()].map(async ([key, pair]) => {
+                const item = await reviewClassifierModel.getReviewItem(
+                    pair.organizationUuid,
+                    pair.fingerprint,
+                );
+                reviewItemByOrgFingerprint.set(key, item);
+            }),
+        );
+
+        const previewProjectUuids = rows
+            .filter((r) => r.entity_type === 'preview_environment')
+            .map((r) => r.entity_uuid)
+            .filter((u): u is string => u !== null);
+        const projectNameByUuid = new Map(
+            (
+                await this.database(ProjectTableName)
+                    .whereIn('project_uuid', previewProjectUuids)
+                    .select<{ project_uuid: string; name: string }[]>(
+                        'project_uuid',
+                        'name',
+                    )
+            ).map((r) => [r.project_uuid, r.name] as const),
+        );
+
         for (const row of rows) {
+            const organizationUuid =
+                orgByPromptUuid.get(row.ai_prompt_uuid) ?? null;
+            const reviewItem =
+                organizationUuid && row.entity_ref !== null
+                    ? (reviewItemByOrgFingerprint.get(
+                          `${organizationUuid}:${row.entity_ref}`,
+                      ) ?? null)
+                    : null;
             const existing = grouped.get(row.ai_prompt_uuid) ?? [];
             existing.push(
                 AiAgentModel.toAiPromptContextItem(
                     row,
                     chartDataByUuid,
                     dashboardSlugByUuid,
+                    reviewItem,
+                    projectNameByUuid,
                 ),
             );
             grouped.set(row.ai_prompt_uuid, existing);
         }
 
         return grouped;
+    }
+
+    // Builds the resolved proposed-change payload from a finding: a
+    // project_context entry takes precedence, otherwise the semantic-layer
+    // recommendation. Falls back to an empty semantic_layer change when the
+    // finding is missing or carries neither.
+    private static toProposedChangePayload(
+        reviewItem: AiAgentReviewItemSummary | null,
+    ): AiPromptProposedChangePayload {
+        const entry = reviewItem?.latestFinding?.projectContextEntry ?? null;
+        if (reviewItem?.primaryRootCause === 'project_context' && entry) {
+            return { changeKind: 'project_context', entry };
+        }
+        const recommendation =
+            reviewItem?.latestFinding?.recommendation ?? null;
+        if (recommendation) {
+            return { changeKind: 'semantic_layer', recommendation };
+        }
+        return {
+            changeKind: 'semantic_layer',
+            recommendation: {
+                actionType: 'no_action',
+                title: '(change unavailable)',
+                rationale: '',
+                targetRefs: [],
+            },
+        };
     }
 
     private static toAiPromptContextItem(
@@ -4963,6 +5132,8 @@ export class AiAgentModel {
             { chartKind: ChartKind | null; slug: string }
         >,
         dashboardSlugByUuid: Map<string, string>,
+        reviewItem: AiAgentReviewItemSummary | null,
+        projectNameByUuid: Map<string, string>,
     ): AiPromptContextItem {
         // chart/dashboard/thread are uuid-keyed: entity_uuid is a non-null
         // invariant (only file/repository leave it null, using entity_ref).
@@ -5013,11 +5184,72 @@ export class AiAgentModel {
                 return { type: 'file', path: row.entity_ref ?? '' };
             case 'repository':
                 return { type: 'repository', fullName: row.entity_ref ?? '' };
+            case 'pull_request': {
+                const prUrl = row.entity_ref ?? '';
+                return {
+                    type: 'pull_request',
+                    prUrl,
+                    prNumber: AiAgentModel.parsePrNumber(prUrl),
+                    provider: AiAgentModel.parsePrProvider(prUrl),
+                    status: null,
+                    title: null,
+                };
+            }
+            case 'proposed_change':
+                return {
+                    type: 'proposed_change',
+                    fingerprint: row.entity_ref ?? '',
+                    payload: AiAgentModel.toProposedChangePayload(reviewItem),
+                };
+            case 'review_finding':
+                return {
+                    type: 'review_finding',
+                    fingerprint: row.entity_ref ?? '',
+                    title: reviewItem?.title ?? '(finding unavailable)',
+                    rootCause: reviewItem?.primaryRootCause ?? 'ambiguous',
+                    findingCount: reviewItem?.findingCount ?? 0,
+                    evidenceExcerpts:
+                        reviewItem?.latestFinding?.evidenceExcerpts ?? [],
+                };
+            case 'preview_environment': {
+                const entityUuid = requireEntityUuid();
+                return {
+                    type: 'preview_environment',
+                    previewProjectUuid: entityUuid,
+                    previewThreadUuid: null,
+                    status: null,
+                    projectName: projectNameByUuid.get(entityUuid) ?? null,
+                };
+            }
             default:
                 return assertUnreachable(
                     row.entity_type,
                     `Unknown ai_prompt_context.entity_type`,
                 );
+        }
+    }
+
+    // PR url -> trailing number (e.g. .../pull/123 or .../merge_requests/123).
+    private static parsePrNumber(prUrl: string): number | null {
+        const match = prUrl.match(/(\d+)\/?$/);
+        if (!match) return null;
+        const parsed = Number.parseInt(match[1], 10);
+        return Number.isNaN(parsed) ? null : parsed;
+    }
+
+    private static parsePrProvider(prUrl: string): PullRequestProvider | null {
+        if (!prUrl) return null;
+        try {
+            const host = new URL(prUrl).hostname;
+            if (host.includes('github.com')) {
+                return PullRequestProvider.GITHUB;
+            }
+            if (host.includes('gitlab.com')) {
+                return PullRequestProvider.GITLAB;
+            }
+            return null;
+        } catch {
+            return null;
         }
     }
 

@@ -62,26 +62,18 @@
     top: var(--mantine-spacing-xs);
     right: var(--mantine-spacing-xs);
     opacity: 0;
-    transition: opacity 120ms ease;
+    transition:
+        opacity 120ms ease,
+        transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
     background: var(--mantine-color-indigo-filled);
+    box-shadow: var(--mantine-shadow-sm);
 }
-.card:hover .startAction {
+.card:hover .startAction,
+.cardSelected .startAction {
     opacity: 1;
 }
-.fixReadyWrap {
-    display: grid;
-    grid-template-rows: 0fr;
-    transition: grid-template-rows 140ms ease;
-}
-.card:has(.cardBody:hover) .fixReadyWrap,
-.cardSelected .fixReadyWrap {
-    grid-template-rows: 1fr;
-}
-.fixReadyRow {
-    overflow: hidden;
-    min-height: 0;
-    border-left: 2px solid var(--mantine-color-indigo-3);
-    padding-left: var(--mantine-spacing-xs);
+.startAction:active {
+    transform: scale(0.96);
 }
 .assigneeUnassigned {
     opacity: 0.4;

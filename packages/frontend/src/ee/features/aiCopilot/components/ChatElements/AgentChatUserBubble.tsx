@@ -15,6 +15,8 @@ import { Link, useParams } from 'react-router';
 import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
 import useApp from '../../../../../providers/App/useApp';
 import { PinnedContextCard } from '../PinnedContextCard/PinnedContextCard';
+import { PinnedReviewContextGroup } from '../PinnedContextCard/PinnedReviewEntityCard';
+import { isReviewEntityItem } from '../PinnedContextCard/reviewEntityItem';
 import styles from './AgentChatUserBubble.module.css';
 import { ContentReferenceLink } from './ContentReferenceLink';
 import {
@@ -26,6 +28,9 @@ import {
 type Props = {
     message: AiAgentMessageUser<AiAgentUser>;
     isActive?: boolean;
+    // Explicit for routes where projectUuid isn't a URL param (the review
+    // remediation workspace); falls back to params for the normal agent chat.
+    projectUuid?: string;
 };
 
 const getVisibleUserName = (name: string) => {
@@ -37,8 +42,13 @@ const getVisibleUserName = (name: string) => {
     return trimmedName;
 };
 
-export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
-    const { projectUuid, agentUuid } = useParams();
+export const UserBubble: FC<Props> = ({
+    message,
+    isActive = false,
+    projectUuid: projectUuidProp,
+}) => {
+    const { projectUuid: paramsProjectUuid, agentUuid } = useParams();
+    const projectUuid = projectUuidProp ?? paramsProjectUuid;
     const timeAgo = useTimeAgo(message.createdAt);
     const name = getVisibleUserName(message.user.name);
     const app = useApp();
@@ -56,6 +66,11 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
         if (!hasInlineReferences) return true;
         return !matchedKeys.has(getPromptContextItemKey(item));
     });
+    // Review entities share one quiet grouped card; everything else stays a chip.
+    const reviewContext = remainingContext.filter(isReviewEntityItem);
+    const otherContext = remainingContext.filter(
+        (item) => !isReviewEntityItem(item),
+    );
 
     return (
         <Stack
@@ -85,20 +100,26 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
             </Stack>
 
             {remainingContext.length > 0 && projectUuid && (
-                <Group
+                <Stack
                     gap="xs"
-                    wrap="wrap"
-                    justify="flex-end"
+                    align="flex-end"
                     className={styles.contextGroup}
                 >
-                    {remainingContext.map((item, idx) => (
-                        <PinnedContextCard
-                            key={`${getPromptContextItemKey(item)}-${idx}`}
-                            item={item}
-                            projectUuid={projectUuid}
-                        />
-                    ))}
-                </Group>
+                    {otherContext.length > 0 && (
+                        <Group gap="xs" wrap="wrap" justify="flex-end">
+                            {otherContext.map((item, idx) => (
+                                <PinnedContextCard
+                                    key={`${getPromptContextItemKey(item)}-${idx}`}
+                                    item={item}
+                                    projectUuid={projectUuid}
+                                />
+                            ))}
+                        </Group>
+                    )}
+                    {reviewContext.length > 0 && (
+                        <PinnedReviewContextGroup items={reviewContext} />
+                    )}
+                </Stack>
             )}
 
             <Card

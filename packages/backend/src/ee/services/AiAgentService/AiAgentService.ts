@@ -700,6 +700,18 @@ export class AiAgentService extends BaseService {
                 case 'repository':
                     key = `repository:${item.fullName}`;
                     break;
+                case 'pull_request':
+                    key = `pull_request:${item.prUrl}`;
+                    break;
+                case 'proposed_change':
+                    key = `proposed_change:${item.fingerprint}`;
+                    break;
+                case 'review_finding':
+                    key = `review_finding:${item.fingerprint}`;
+                    break;
+                case 'preview_environment':
+                    key = `preview_environment:${item.previewProjectUuid}`;
+                    break;
                 default:
                     return assertUnreachable(
                         item,
@@ -778,6 +790,27 @@ export class AiAgentService extends BaseService {
                             'You do not have permission to view this project source code',
                         );
                     }
+                    return;
+                }
+
+                // review_finding / proposed_change carry a finding fingerprint
+                // and are only ever seeded by the remediation flow — a user
+                // @-mention of one (this is the user path) is rejected.
+                if (
+                    item.type === 'review_finding' ||
+                    item.type === 'proposed_change'
+                ) {
+                    throw new ForbiddenError(
+                        'This context item can only be attached by the review remediation flow',
+                    );
+                }
+
+                // pull_request / preview_environment have no extra access gate
+                // beyond the agent's project membership the request already has.
+                if (
+                    item.type === 'pull_request' ||
+                    item.type === 'preview_environment'
+                ) {
                     return;
                 }
 
@@ -5548,6 +5581,38 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     return `- File \`/dbt/${item.path}\` — a source file in this project's dbt repository. Read it with the exploreRepo tool.`;
                 case 'repository':
                     return `- Repository \`${item.fullName}\` (mounted at \`/${item.fullName}\`) — explore it with the exploreRepo tool.`;
+                case 'pull_request': {
+                    const number = item.prNumber ? ` #${item.prNumber}` : '';
+                    const title = item.title ? ` "${item.title}"` : '';
+                    return `- Pull request${number} (${item.status ?? 'open'})${title} — the change is applied here; update it with the editProjectContext / editDbtProject tool.`;
+                }
+                case 'proposed_change': {
+                    if (item.payload.changeKind === 'project_context') {
+                        const { entry } = item.payload;
+                        const triggers =
+                            entry.terms.length > 0
+                                ? ` (triggers: ${entry.terms.join(', ')})`
+                                : '';
+                        return `- Proposed project-context entry: "${entry.content}"${triggers}.`;
+                    }
+                    return `- Proposed semantic-layer change: "${item.payload.recommendation.title}".`;
+                }
+                case 'review_finding': {
+                    const evidence = item.evidenceExcerpts
+                        .map((e) => (e.redacted ? '[redacted]' : `"${e.text}"`))
+                        .join(', ');
+                    const evidenceText = evidence
+                        ? ` Evidence: ${evidence}`
+                        : '';
+                    return `- Review finding: "${item.title}" (${item.rootCause}, seen ${item.findingCount}×).${evidenceText}`;
+                }
+                case 'preview_environment': {
+                    const name = item.projectName
+                        ? ` (${item.projectName})`
+                        : '';
+                    const status = item.status ? ` — ${item.status}` : '';
+                    return `- Preview environment${name}${status} — test the fix in this preview project.`;
+                }
                 default:
                     return assertUnreachable(
                         item,

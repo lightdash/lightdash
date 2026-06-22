@@ -5,8 +5,12 @@ import {
     IconBrandGithub,
     IconChartBar,
     IconFile,
+    IconFlask,
+    IconGitPullRequest,
     IconLayoutDashboard,
     IconMessages,
+    IconPencil,
+    IconSearch,
     type Icon,
 } from '@tabler/icons-react';
 import { type AnchorHTMLAttributes, type ReactNode } from 'react';
@@ -21,7 +25,11 @@ type ContentReferenceKind =
     | 'dashboard'
     | 'thread'
     | 'file'
-    | 'repository';
+    | 'repository'
+    | 'pull_request'
+    | 'proposed_change'
+    | 'review_finding'
+    | 'preview_environment';
 
 type Props = {
     chartKind?: ChartKind;
@@ -75,6 +83,30 @@ const getIconMeta = ({
                 color: 'ldGray.7',
                 fill: 'ldGray.4',
                 icon: IconBrandGithub,
+            };
+        case 'pull_request':
+            return {
+                color: 'teal.7',
+                fill: 'teal.4',
+                icon: IconGitPullRequest,
+            };
+        case 'proposed_change':
+            return {
+                color: 'violet.7',
+                fill: 'violet.4',
+                icon: IconPencil,
+            };
+        case 'review_finding':
+            return {
+                color: 'orange.7',
+                fill: 'orange.4',
+                icon: IconSearch,
+            };
+        case 'preview_environment':
+            return {
+                color: 'cyan.7',
+                fill: 'cyan.4',
+                icon: IconFlask,
             };
         case 'chart':
         default:

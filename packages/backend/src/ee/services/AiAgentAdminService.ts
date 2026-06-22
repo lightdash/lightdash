@@ -67,9 +67,9 @@ import { AiAgentModel } from '../models/AiAgentModel';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type CommercialSchedulerClient } from '../scheduler/SchedulerClient';
 import {
-    buildProjectContextWorkThreadPrompt,
     buildYmlPathByModel,
     planReviewWriteback,
+    PROJECT_CONTEXT_WORK_THREAD_INSTRUCTION,
 } from './ai/reviewWriteback/buildReviewWritebackPrompt';
 import { type AiAgentService } from './AiAgentService/AiAgentService';
 import { type AiOrganizationSettingsService } from './AiOrganizationSettingsService';
@@ -1081,7 +1081,7 @@ export class AiAgentAdminService extends BaseService {
         // user drives in the workspace (the initial PR is deterministic).
         const workThreadPrompt =
             plan.strategy === 'project_context'
-                ? buildProjectContextWorkThreadPrompt(reviewItem, plan.entry)
+                ? PROJECT_CONTEXT_WORK_THREAD_INSTRUCTION
                 : plan.promptText;
         const { threadUuid: workThreadUuid } =
             await this.aiAgentModel.createWebAppThreadWithPrompt({
@@ -1095,12 +1095,17 @@ export class AiAgentAdminService extends BaseService {
                 prompt: {
                     createdByUserUuid: user.userUuid,
                     prompt: workThreadPrompt,
+                    // The finding and proposed change ride as pins (cards +
+                    // structured agent context). The PR/preview pins are added
+                    // once those exist — they post-date this seed.
                     context: [
                         {
                             type: 'thread',
                             threadUuid: finding.threadUuid,
                             promptUuid: finding.promptUuid,
                         },
+                        { type: 'review_finding', fingerprint },
+                        { type: 'proposed_change', fingerprint },
                     ],
                 },
             });

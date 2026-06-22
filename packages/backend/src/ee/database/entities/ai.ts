@@ -288,7 +288,11 @@ export type AiPromptContextEntityType =
     | 'dashboard'
     | 'thread'
     | 'file'
-    | 'repository';
+    | 'repository'
+    | 'pull_request'
+    | 'proposed_change'
+    | 'review_finding'
+    | 'preview_environment';
 
 export type DbAiPromptContext = {
     ai_prompt_context_uuid: string;

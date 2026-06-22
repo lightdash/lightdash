@@ -268,6 +268,14 @@ const getContextKey = (item: AiPromptContextInput[number]) => {
             return `file:${item.path}`;
         case 'repository':
             return `repository:${item.fullName}`;
+        case 'pull_request':
+            return `pull_request:${item.prUrl}`;
+        case 'proposed_change':
+            return `proposed_change:${item.fingerprint}`;
+        case 'review_finding':
+            return `review_finding:${item.fingerprint}`;
+        case 'preview_environment':
+            return `preview_environment:${item.previewProjectUuid}`;
         default:
             return assertUnreachable(
                 item,

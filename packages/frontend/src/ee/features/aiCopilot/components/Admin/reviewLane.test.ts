@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
     getReviewLane,
     getStartWritebackKind,
+    isWritebackRetry,
     LANE_TARGET_STATUS,
-    parsePrNumber,
     partitionInProgress,
 } from './reviewLane';
 
@@ -73,17 +73,6 @@ describe('getReviewLane', () => {
             expect(getReviewLane(base({ status }))).toBe('done');
         },
     );
-});
-
-describe('parsePrNumber', () => {
-    it('extracts a PR number from a GitHub url', () => {
-        expect(parsePrNumber('https://github.com/lightdash/x/pull/853')).toBe(
-            853,
-        );
-    });
-    it('returns null for no url', () => {
-        expect(parsePrNumber(null)).toBeNull();
-    });
 });
 
 describe('partitionInProgress', () => {
@@ -168,5 +157,27 @@ describe('getStartWritebackKind', () => {
                 }),
             ),
         ).toBeNull();
+    });
+    it('returns null for terminal-status items (done lane)', () => {
+        (['resolved', 'dismissed', 'duplicate'] as const).forEach((status) => {
+            expect(
+                getStartWritebackKind(
+                    eligible({ status, primaryRootCause: 'semantic_layer' }),
+                ),
+            ).toBeNull();
+        });
+    });
+});
+
+describe('isWritebackRetry', () => {
+    it('is true when a prior writeback failed', () => {
+        expect(isWritebackRetry(base({ prWritebackStatus: 'failed' }))).toBe(
+            true,
+        );
+    });
+    it('is false when no writeback has failed', () => {
+        expect(isWritebackRetry(base({ prWritebackStatus: 'running' }))).toBe(
+            false,
+        );
     });
 });

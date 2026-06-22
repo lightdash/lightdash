@@ -3,8 +3,8 @@ import {
     type AiAgentReviewItemSummary,
 } from '@lightdash/common';
 import {
-    buildProjectContextWorkThreadPrompt,
     planReviewWriteback,
+    PROJECT_CONTEXT_WORK_THREAD_INSTRUCTION,
 } from './buildReviewWritebackPrompt';
 
 const baseItem = (
@@ -95,15 +95,19 @@ describe('planReviewWriteback', () => {
 
         expect(plan.aggregationKey).toBeNull();
         expect(plan.promptText).toContain(
-            'Agent picked the wrong revenue metric',
+            'Add an ai_hint to average_order_size',
         );
         expect(plan.promptText).toContain(
-            'Add an ai_hint to average_order_size',
+            'Disambiguate it from total_order_amount.',
         );
         expect(plan.promptText).toContain(
             'metric "orders.average_order_size" (yaml: models/orders.yml)',
         );
-        expect(plan.promptText).toContain(
+        // The finding title and raw evidence now travel as pins, not prose.
+        expect(plan.promptText).not.toContain(
+            'Agent picked the wrong revenue metric',
+        );
+        expect(plan.promptText).not.toContain(
             'use average_order_size, not total_order_amount',
         );
     });
@@ -150,34 +154,16 @@ describe('planReviewWriteback', () => {
     });
 });
 
-describe('buildProjectContextWorkThreadPrompt', () => {
-    const entry = {
-        op: 'create' as const,
-        id: null,
-        kind: 'definition' as const,
-        content: '"HR" = high-risk cohort.',
-        terms: ['HR', 'high risk'],
-        objects: ['patients'],
-    };
-
-    it('states the applied entry and points at the editProjectContext tool', () => {
-        const prompt = buildProjectContextWorkThreadPrompt(
-            baseItem({ primaryRootCause: 'project_context' }),
-            entry,
+describe('PROJECT_CONTEXT_WORK_THREAD_INSTRUCTION', () => {
+    it('is a one-line instruction pointing at the editProjectContext tool', () => {
+        // The finding/change/conversation now travel as pinned context, so the
+        // seed prompt no longer renders the entry inline.
+        expect(PROJECT_CONTEXT_WORK_THREAD_INSTRUCTION).toContain(
+            'editProjectContext',
         );
-        expect(prompt).toContain('Applied project context definition');
-        expect(prompt).toContain('"HR" = high-risk cohort.');
-        expect(prompt).toContain('Triggers: HR, high risk');
-        expect(prompt).toContain('Related objects: patients');
-        expect(prompt).toContain('editProjectContext tool');
-    });
-
-    it('omits the triggers/objects lines when empty', () => {
-        const prompt = buildProjectContextWorkThreadPrompt(
-            baseItem({ primaryRootCause: 'project_context' }),
-            { ...entry, terms: [], objects: [] },
+        expect(PROJECT_CONTEXT_WORK_THREAD_INSTRUCTION).toContain(
+            'project context',
         );
-        expect(prompt).not.toContain('Triggers:');
-        expect(prompt).not.toContain('Related objects:');
+        expect(PROJECT_CONTEXT_WORK_THREAD_INSTRUCTION).not.toContain('\n\n');
     });
 });

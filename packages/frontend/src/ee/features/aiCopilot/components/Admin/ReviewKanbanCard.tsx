@@ -5,17 +5,15 @@ import {
     Button,
     Code,
     Group,
-    HoverCard,
     Stack,
     Text,
     Tooltip,
 } from '@mantine-8/core';
 import {
-    IconArrowRight,
     IconArrowUpRight,
-    IconBox,
-    IconGitPullRequest,
+    IconBolt,
     IconLayoutColumns,
+    IconRefresh,
 } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
 import { Link } from 'react-router';
@@ -31,20 +29,40 @@ import { ReviewAssigneeMenu } from './ReviewAssigneeMenu';
 import {
     formatRelativeReviewDate,
     formatReviewDate,
-    getFixReadyText,
     getIssueTitle,
     getTargetAnchor,
     reviewRootCauseColors,
     reviewRootCauseLabels,
 } from './reviewItemDetails';
 import styles from './ReviewKanbanBoard.module.css';
-import { getStartWritebackKind, parsePrNumber } from './reviewLane';
-import { ReviewPrHoverCard } from './ReviewPrHoverCard';
+import { getStartWritebackKind, isWritebackRetry } from './reviewLane';
 
 type Props = {
     item: AiAgentReviewItemSummary;
     isSelected: boolean;
     onSelect: (item: AiAgentReviewItemSummary) => void;
+};
+
+// Live status shown in place of "Open workspace" while the fix is still being
+// built; null once the workspace is genuinely openable.
+const getWorkspaceActivityLabel = (
+    item: AiAgentReviewItemSummary,
+): string | null => {
+    if (
+        item.prWritebackStatus === 'queued' ||
+        item.prWritebackStatus === 'running'
+    ) {
+        return 'Writing fix…';
+    }
+    switch (item.remediation?.status) {
+        case 'queued':
+        case 'running':
+            return 'Building…';
+        case 'pr_open':
+            return 'Compiling…';
+        default:
+            return null;
+    }
 };
 
 // ts-unused-exports:disable-next-line
@@ -53,7 +71,6 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
     const updateStatus = useUpdateAiAgentReviewItemStatus();
     const [previewOpen, setPreviewOpen] = useState(false);
 
-    const prNumber = parsePrNumber(item.linkedPrUrl);
     const isAgentRunning =
         item.prWritebackStatus === 'queued' ||
         item.prWritebackStatus === 'running';
@@ -61,30 +78,16 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
     const title = getIssueTitle(item);
     const targetAnchor = getTargetAnchor(item);
     const isRecurring = item.findingCount > 1;
-    // The fix row would just echo a fix-framed title; only surface it when it adds something.
-    const fixReadyText = getFixReadyText(item);
-    const showFixReady = fixReadyText !== null && fixReadyText !== title;
 
     const startKind = getStartWritebackKind(item);
+    const isRetry = isWritebackRetry(item);
 
     const remediation = item.remediation;
     const hasWorkspace = Boolean(remediation);
     const workspaceHref = `/generalSettings/ai/reviews/${encodeURIComponent(
         item.fingerprint,
     )}`;
-    const hasPreview = Boolean(remediation?.previewProjectUuid);
-
-    const isPreviewBuilding =
-        remediation?.status === 'queued' || remediation?.status === 'running';
-
-    const previewHref =
-        remediation?.previewProjectUuid &&
-        remediation?.previewAgentUuid &&
-        remediation?.previewThreadUuid
-            ? `/projects/${remediation.previewProjectUuid}/ai-agents/${remediation.previewAgentUuid}/threads/${remediation.previewThreadUuid}`
-            : remediation?.previewProjectUuid
-              ? `/projects/${remediation.previewProjectUuid}/home`
-              : null;
+    const activityLabel = getWorkspaceActivityLabel(item);
 
     return (
         <Box
@@ -125,9 +128,6 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                             )}
                         </Stack>
                         <Group gap={8} wrap="nowrap" align="center">
-                            {isAgentRunning && (
-                                <AiAgentIcon size={14} animated />
-                            )}
                             {isRecurring && (
                                 <Tooltip
                                     variant="xs"
@@ -164,26 +164,6 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                         </Group>
                     </Group>
 
-                    {showFixReady && (
-                        <Box className={styles.fixReadyWrap}>
-                            <Group
-                                gap={6}
-                                wrap="nowrap"
-                                align="flex-start"
-                                className={styles.fixReadyRow}
-                            >
-                                <MantineIcon
-                                    icon={IconArrowRight}
-                                    size={13}
-                                    color="indigo"
-                                />
-                                <Text fz="xs" c="dimmed" lineClamp={2}>
-                                    {fixReadyText}
-                                </Text>
-                            </Group>
-                        </Box>
-                    )}
-
                     <Group
                         gap={6}
                         wrap="nowrap"
@@ -199,39 +179,6 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                                     reviewRootCauseLabels[item.primaryRootCause]
                                 }
                             />
-
-                            {prNumber !== null && (
-                                <HoverCard
-                                    width={300}
-                                    shadow="md"
-                                    openDelay={150}
-                                    withinPortal
-                                >
-                                    <HoverCard.Target>
-                                        <Box>
-                                            <Badge
-                                                size="sm"
-                                                radius="sm"
-                                                variant="light"
-                                                color="green"
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={
-                                                            IconGitPullRequest
-                                                        }
-                                                        size={11}
-                                                    />
-                                                }
-                                            >
-                                                #{prNumber}
-                                            </Badge>
-                                        </Box>
-                                    </HoverCard.Target>
-                                    <HoverCard.Dropdown>
-                                        <ReviewPrHoverCard item={item} />
-                                    </HoverCard.Dropdown>
-                                </HoverCard>
-                            )}
                         </Group>
 
                         <ReviewAssigneeMenu
@@ -252,69 +199,55 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                 </Stack>
             </Box>
 
-            {!hasWorkspace &&
-                hasPreview &&
-                !isPreviewBuilding &&
-                previewHref && (
+            {hasWorkspace &&
+                (activityLabel ? (
+                    <Box className={styles.cardFooter}>
+                        <Group gap={6} align="center">
+                            {isAgentRunning ? (
+                                <AiAgentIcon size={14} animated />
+                            ) : (
+                                <Box
+                                    pos="relative"
+                                    w={7}
+                                    h={7}
+                                    bg="indigo.5"
+                                    className={styles.pulse}
+                                    style={{ borderRadius: '50%' }}
+                                />
+                            )}
+                            <Text fz="xs" c="dimmed">
+                                {activityLabel}
+                            </Text>
+                        </Group>
+                    </Box>
+                ) : (
                     <Box
-                        component="a"
-                        href={previewHref}
+                        component={Link}
+                        to={workspaceHref}
                         onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
                             e.stopPropagation()
                         }
                         className={styles.cardFooter}
                     >
                         <Group gap={6} align="center">
-                            <MantineIcon icon={IconBox} size={13} />
-                            <Text fz="xs">Preview project</Text>
+                            <MantineIcon icon={IconLayoutColumns} size={13} />
+                            <Text fz="xs">Open workspace</Text>
                         </Group>
                         <MantineIcon icon={IconArrowUpRight} size={14} />
                     </Box>
-                )}
-            {!hasWorkspace && hasPreview && isPreviewBuilding && (
-                <Box className={styles.cardFooter}>
-                    <Group gap={6} align="center">
-                        <MantineIcon icon={IconBox} size={13} />
-                        <Text fz="xs">Preview project</Text>
-                    </Group>
-                    <Group gap={6} align="center">
-                        <Box
-                            pos="relative"
-                            w={7}
-                            h={7}
-                            bg="yellow.5"
-                            className={styles.pulse}
-                            style={{ borderRadius: '50%' }}
-                        />
-                        <Text fz="xs" c="dimmed">
-                            Building…
-                        </Text>
-                    </Group>
-                </Box>
-            )}
-
-            {hasWorkspace && (
-                <Box
-                    component={Link}
-                    to={workspaceHref}
-                    onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
-                        e.stopPropagation()
-                    }
-                    className={styles.cardFooter}
-                >
-                    <Group gap={6} align="center">
-                        <MantineIcon icon={IconLayoutColumns} size={13} />
-                        <Text fz="xs">Open workspace</Text>
-                    </Group>
-                    <MantineIcon icon={IconArrowUpRight} size={14} />
-                </Box>
-            )}
+                ))}
 
             {startKind !== null && (
                 <Button
                     size="compact-xs"
                     radius="md"
                     variant="filled"
+                    leftSection={
+                        <MantineIcon
+                            icon={isRetry ? IconRefresh : IconBolt}
+                            size={12}
+                        />
+                    }
                     loading={createWriteback.isLoading}
                     className={styles.startAction}
                     onPointerDown={(e: React.PointerEvent) =>
@@ -336,7 +269,7 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                         }
                     }}
                 >
-                    Start
+                    {isRetry ? 'Retry fix' : 'Start fix'}
                 </Button>
             )}
 

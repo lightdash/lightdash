@@ -157,26 +157,6 @@ export const getIssueTitle = (reviewItem: AiAgentReviewItemSummary): string => {
     return reviewItem.latestFinding?.recommendation?.title ?? reviewItem.title;
 };
 
-/**
- * The concrete change a writeback would make, used for the card's fix-ready row:
- * the literal project-context sentence, or the semantic-layer recommendation.
- * Returns null when the data is too thin to promise a fix.
- */
-export const getFixReadyText = (
-    reviewItem: AiAgentReviewItemSummary,
-): string | null => {
-    if (isTriageReviewItem(reviewItem)) return null;
-
-    const finding = reviewItem.latestFinding;
-    if (!finding) return null;
-
-    if (finding.projectContextEntry) {
-        return finding.projectContextEntry.content;
-    }
-
-    return finding.recommendation?.title ?? null;
-};
-
 export const getWhatHappened = (
     reviewItem: AiAgentReviewItemSummary,
 ): string => {
