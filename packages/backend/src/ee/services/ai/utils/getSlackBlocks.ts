@@ -97,9 +97,7 @@ export const getMarkdownBlocks = (text: string): (Block | KnownBlock)[] =>
             }) as unknown as Block,
     );
 
-// Slack rejects a whole message when its blocks are collectively too large
-// (msg_too_long); the threshold is undocumented but answers ~25k chars failed,
-// so we budget well below that and split across messages.
+// Well below the (undocumented) size that triggers msg_too_long; ~25k chars failed.
 const SLACK_MESSAGE_TEXT_BUDGET = 11000;
 // Under Slack's 50-block message cap, leaving headroom for trailing cards.
 const SLACK_MESSAGE_BLOCK_LIMIT = 45;
@@ -116,9 +114,8 @@ const getBlockTextLength = (block: Block | KnownBlock): number => {
 };
 
 /**
- * Splits a long markdown answer into multiple Slack messages, each within a
- * single message's size budget. Returns `truncated: true` (and only the first
- * `maxMessages` messages) when the answer is too large to deliver in full.
+ * Splits a long markdown answer into Slack messages within the size budget.
+ * Returns `truncated: true` (and only the first `maxMessages`) when it doesn't fit.
  */
 export const splitMarkdownIntoMessages = (
     text: string,
@@ -226,8 +223,7 @@ export const buildSlackTaskUpdate = ({
     status: 'pending' | 'in_progress' | 'complete' | 'error';
     details?: string;
     output?: string;
-    // Times this tool type ran; when >1 the title shows "×N" so repeated calls
-    // collapse into one task instead of one block each.
+    // Times this tool type ran; >1 renders "×N" instead of one block per call.
     count?: number;
 }): SlackStreamChunk => {
     const title = getSlackToolTitle(toolName);

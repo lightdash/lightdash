@@ -54,9 +54,8 @@ export const isUnrecoverableSlackError = (error: unknown): boolean => {
 };
 
 /**
- * Whether a Slack error is the whole message being too large to deliver
- * (`msg_too_long` / `msg_blocks_too_long`) — a delivery failure, not a
- * generation failure.
+ * Whether a Slack error is the message being too large to deliver — a delivery
+ * failure, not a generation failure.
  */
 export const isSlackMessageTooLongError = (error: unknown): boolean => {
     const errorCode = getSlackErrorCode(error);

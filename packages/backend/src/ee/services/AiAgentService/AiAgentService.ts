@@ -7539,10 +7539,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         };
     }
 
-    // Delivers a finished answer across one or more Slack messages: the first
-    // finalizes the live stream, the rest post as replies. Falls back to a
-    // Lightdash link if the answer is too large or still rejected — it's already
-    // persisted, so a delivery failure must never read as a generation failure.
+    // Delivers a finished answer across one or more Slack messages (first
+    // finalizes the stream, rest post as replies), falling back to a Lightdash
+    // link if too large — the answer is already persisted, so this never fails.
     private async deliverModernSlackAnswer({
         slackPrompt,
         threadTs,
@@ -7586,7 +7585,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 threadUrl,
             ),
         ];
-        // `text` is just the notification/fallback; keep it small.
+        // Notification fallback only; keep it small.
         const notificationText = slackifiedMarkdown.slice(0, 3000);
         const isLast = (index: number) => index === messages.length - 1;
 
@@ -7596,7 +7595,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 channelId: slackPrompt.slackChannelId,
                 threadTs,
                 messageTs: streamTs,
-                text: notificationText,
                 chunks: [
                     {
                         type: 'blocks',
@@ -7615,7 +7613,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     channelId: slackPrompt.slackChannelId,
                     threadTs,
                     messageTs: streamTs,
-                    text: 'Your answer is ready in Lightdash.',
                     chunks: [{ type: 'blocks', blocks: linkFallbackBlocks }],
                 })
                 .catch((e) =>
@@ -7991,8 +7988,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         let taskUpdateChain: Promise<void> = Promise.resolve();
         let pendingTaskUpdateCount = 0;
-        // Keyed by tool type (not per call) so repeated calls collapse into one
-        // counted task block, staying under Slack's 50-block message cap.
+        // Keyed by tool type so repeated calls collapse into one counted block.
         const taskStates = new Map<
             string,
             {
@@ -8000,8 +7996,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 calls: Map<string, 'in_progress' | 'complete' | 'error'>;
                 details?: string;
                 output?: string;
-                // Lines already streamed. Slack appends details/output deltas on
-                // each same-id update, so each line must be sent at most once.
+                // Lines already streamed; Slack appends deltas, so send each once.
                 sent: Set<string>;
             }
         >();
@@ -8417,7 +8412,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         channelId: slackPrompt.slackChannelId,
                         threadTs,
                         messageTs: streamTs,
-                        text: 'Your answer is ready in Lightdash.',
                         chunks: [
                             {
                                 type: 'blocks',
