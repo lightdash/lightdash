@@ -28,6 +28,8 @@ import {
     DashboardAsCode,
     DbtExposure,
     DbtProjectEnvironmentVariable,
+    ForbiddenError,
+    getErrorMessage,
     getRequestMethod,
     isDuplicateDashboardParams,
     LightdashRequestMethodHeader,
@@ -84,6 +86,7 @@ import {
 import express from 'express';
 import { toSessionUser } from '../auth/account';
 import type { DbTagUpdate } from '../database/entities/tags';
+import Logger from '../logging/logger';
 import {
     allowApiKeyAuthentication,
     getDeprecatedRouteMiddleware,
@@ -1649,17 +1652,31 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
             ) {
                 throw new ParameterError('Invalid accountId or runId');
             }
-            await this.services
-                .getProjectService()
-                .createPreviewFromDbtCloudWebhook(
-                    projectUuid,
-                    Number(accountId),
-                    Number(runId),
-                    {
-                        rawBody: req.rawBody ?? null,
-                        signature: req.header('authorization') ?? null,
-                    },
+            try {
+                await this.services
+                    .getProjectService()
+                    .createPreviewFromDbtCloudWebhook(
+                        projectUuid,
+                        Number(accountId),
+                        Number(runId),
+                        {
+                            rawBody: req.rawBody ?? null,
+                            signature: req.header('authorization') ?? null,
+                        },
+                    );
+            } catch (e) {
+                // Reject invalid signatures, but acknowledge other failures
+                // (e.g. dbt Cloud's test webhook references a non-existent run)
+                // so they don't surface as a 500.
+                if (e instanceof ForbiddenError) {
+                    throw e;
+                }
+                Logger.error(
+                    `dbt Cloud webhook for project ${projectUuid} could not create a preview: ${getErrorMessage(
+                        e,
+                    )}`,
                 );
+            }
         }
 
         this.setStatus(200);
