@@ -76,7 +76,6 @@ export class OrganizationDomainVerificationService extends BaseService {
             user: {
                 userUuid: account.user.userUuid,
                 organizationUuid: account.organization?.organizationUuid,
-                organizationName: account.organization?.name,
             },
             featureFlagId: FeatureFlags.SsoOrganizationSettings,
         });

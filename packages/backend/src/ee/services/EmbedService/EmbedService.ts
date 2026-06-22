@@ -398,20 +398,8 @@ export class EmbedService extends BaseService {
         userUuid: string;
         organizationUuid: string;
     }) {
-        const organization = await this.organizationModel.get(
-            user.organizationUuid,
-        );
-
-        if (!organization) {
-            throw new ForbiddenError('Organization not found');
-        }
-
         const isEnabled = await this.featureFlagModel.get({
-            user: {
-                userUuid: user.userUuid,
-                organizationUuid: user.organizationUuid,
-                organizationName: organization.name,
-            },
+            user,
             featureFlagId: CommercialFeatureFlags.Embedding,
         });
 

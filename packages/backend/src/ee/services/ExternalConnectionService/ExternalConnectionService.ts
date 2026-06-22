@@ -70,10 +70,7 @@ export class ExternalConnectionService extends BaseService {
     }
 
     private async assertExternalAccessEnabledForUser(
-        user: Pick<
-            LightdashUser,
-            'userUuid' | 'organizationUuid' | 'organizationName'
-        >,
+        user: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>,
     ): Promise<void> {
         const { enabled } = await this.featureFlagModel.get({
             user,
@@ -92,7 +89,6 @@ export class ExternalConnectionService extends BaseService {
         return this.assertExternalAccessEnabledForUser({
             userUuid: account.user.userUuid,
             organizationUuid: account.organization.organizationUuid,
-            organizationName: account.organization.name,
         });
     }
 

@@ -522,7 +522,6 @@ export class AiAgentAdminService extends BaseService {
                 user: {
                     userUuid: user.userUuid,
                     organizationUuid,
-                    organizationName: user.organizationName ?? '',
                 },
             }),
         ]);
