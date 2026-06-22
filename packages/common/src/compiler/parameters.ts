@@ -13,6 +13,10 @@ import lightdashDbtYamlSchema from '../schemas/json/lightdash-dbt-2.0.json';
 import { CompileError } from '../types/errors';
 import type { CompiledTable, Table } from '../types/explore';
 import type { LightdashProjectParameter } from '../types/lightdashProjectConfig';
+import type {
+    ParameterDefinitions,
+    ParametersValuesMap,
+} from '../types/parameters';
 
 // Regex for SQL parameter substitution - requires the full ${...} syntax.
 // Used by `replaceLightdashValues` to find substitution sites.
@@ -119,6 +123,33 @@ export const getAvailableParameterNames = (
     Object.keys(projectParameters || {})
         .concat(Object.keys(exploreParameters || {}))
         .concat(getReservedParameterNames());
+
+/**
+ * Whether any of the given parameter references is a reserved (system-owned) parameter.
+ * Reserved parameters are currently all date-zoom values, so this doubles as "is this
+ * query affected by date zoom through a parameter reference".
+ */
+export const hasReservedParameterReference = (
+    parameterReferences: string[],
+): boolean => parameterReferences.some(isReservedParameterName);
+
+/**
+ * Determine which referenced parameters still need a value before a query can run.
+ * A parameter is required when it has no value and no default. Reserved (system-owned)
+ * parameters are resolved server-side from the query context and are never user-provided,
+ * so they are never treated as missing.
+ */
+export const getMissingRequiredParameters = (
+    parameterReferences: string[],
+    parameterValues: ParametersValuesMap | undefined,
+    parameterDefinitions: ParameterDefinitions | undefined,
+): string[] =>
+    parameterReferences.filter(
+        (name) =>
+            !isReservedParameterName(name) &&
+            !parameterValues?.[name] &&
+            !parameterDefinitions?.[name]?.default,
+    );
 
 /**
  * Get all available parameter names for a project and explore

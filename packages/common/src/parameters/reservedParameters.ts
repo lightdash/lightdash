@@ -13,7 +13,6 @@ import { getGranularityReferenceValue } from '../types/timeFrames';
  */
 export type ReservedParameterContext = {
     dateZoom: DateZoom | undefined;
-    dateZoomApplied: boolean;
 };
 
 /**
@@ -35,10 +34,10 @@ export const RESERVED_PARAMETERS: Record<string, ReservedParameterDefinition> =
         date_zoom: {
             label: 'Date zoom',
             description:
-                'The active date zoom granularity in lowercase (e.g. "week"). Empty when no date zoom is applied.',
+                'The selected date zoom granularity in lowercase (e.g. "week"). Empty when no date zoom is selected.',
             type: 'string',
-            resolve: ({ dateZoom, dateZoomApplied }) =>
-                dateZoomApplied && dateZoom?.granularity
+            resolve: ({ dateZoom }) =>
+                dateZoom?.granularity
                     ? getGranularityReferenceValue(dateZoom.granularity)
                     : '',
         },

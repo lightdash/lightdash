@@ -34,10 +34,9 @@ describe('reservedParameters', () => {
     });
 
     describe('resolveReservedParameterValues', () => {
-        it('resolves the active granularity in lowercase when applied', () => {
+        it('resolves the selected granularity in lowercase', () => {
             const values = resolveReservedParameterValues({
                 dateZoom: { granularity: DateGranularity.WEEK },
-                dateZoomApplied: true,
             });
             expect(values.date_zoom).toBe('week');
         });
@@ -45,23 +44,20 @@ describe('reservedParameters', () => {
         it('passes a custom granularity through in lowercase', () => {
             const values = resolveReservedParameterValues({
                 dateZoom: { granularity: 'Fiscal Week' },
-                dateZoomApplied: true,
             });
             expect(values.date_zoom).toBe('fiscal week');
         });
 
-        it('resolves to empty string when no date zoom is applied', () => {
+        it('reflects the selected grain regardless of whether a date dimension is zoomed', () => {
             const values = resolveReservedParameterValues({
-                dateZoom: { granularity: DateGranularity.WEEK },
-                dateZoomApplied: false,
+                dateZoom: { granularity: DateGranularity.MONTH },
             });
-            expect(values.date_zoom).toBe('');
+            expect(values.date_zoom).toBe('month');
         });
 
         it('resolves to empty string when there is no date zoom', () => {
             const values = resolveReservedParameterValues({
                 dateZoom: undefined,
-                dateZoomApplied: true,
             });
             expect(values.date_zoom).toBe('');
         });
