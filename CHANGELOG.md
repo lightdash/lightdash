@@ -1,3 +1,10 @@
+# [0.3218.0](https://github.com/lightdash/lightdash/compare/0.3217.0...0.3218.0) (2026-06-22)
+
+
+### Features
+
+* **ai:** add navbar prompt activity preview ([#24593](https://github.com/lightdash/lightdash/issues/24593)) ([fa14b04](https://github.com/lightdash/lightdash/commit/fa14b045d05167c9e6f5132c3b003d4f763dce4c))
+
 # [0.3217.0](https://github.com/lightdash/lightdash/compare/0.3216.0...0.3217.0) (2026-06-22)
 
 
