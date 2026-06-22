@@ -28,7 +28,7 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
         aiOrganizationSettingsQuery.data?.aiAgentReviewsEnabled === true;
     const showReviews = !!canViewReviews && reviewsEnabled;
     const { data: reviewItems } = useAiAgentAdminReviewItems(
-        { statuses: ['open'] },
+        { statuses: ['triage', 'open', 'in_progress'] },
         { enabled: showReviews },
     );
 
@@ -60,7 +60,7 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
         return null;
     }
 
-    // Original button — nothing to surface (no review access, or no open findings).
+    // Original button — nothing to surface (no review access, or no active findings).
     if (!showReviews || reviewCount === 0) {
         return (
             <Button
