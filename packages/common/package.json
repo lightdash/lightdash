@@ -13,12 +13,12 @@
   "module": "dist/esm/index.js",
   "types": "dist/types/index.d.ts",
   "scripts": {
-    "dev": "tsc --build --watch --preserveWatchOutput --incremental ./tsconfig.build.json",
-    "dev:fast": "tsgo --build --watch --preserveWatchOutput ./tsconfig.build.fast.json",
-    "build": "tsc --build ./tsconfig.build.json",
-    "build:fast": "tsgo --build ./tsconfig.build.fast.json",
-    "typecheck": "tsc --project tsconfig.json --noEmit",
-    "typecheck:fast": "tsgo --project tsconfig.fast.json --noEmit",
+    "dev": "tsc6 --build --watch --preserveWatchOutput --incremental ./tsconfig.build.json",
+    "dev:fast": "tsc --build --watch --preserveWatchOutput ./tsconfig.build.fast.json",
+    "build": "tsc6 --build ./tsconfig.build.json",
+    "build:fast": "tsc --build ./tsconfig.build.fast.json",
+    "typecheck": "tsc6 --project tsconfig.json --noEmit",
+    "typecheck:fast": "tsc --project tsconfig.fast.json --noEmit",
     "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
     "formatter": "oxfmt",
     "lint": "pnpm run linter ./src",
@@ -75,8 +75,8 @@
     "@types/pegjs": "0.10.3",
     "@types/sanitize-html": "2.11.0",
     "@types/uuid": "10.0.0",
-    "@typescript/native-preview": "7.0.0-dev.20260527.2",
-    "typescript": "6.0.3",
+    "typescript": "npm:@typescript/typescript6@6.0.1",
+    "typescript-7": "npm:typescript@7.0.1-rc",
     "vitest": "4.1.6"
   }
 }

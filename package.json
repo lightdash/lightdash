@@ -73,7 +73,8 @@
         "pm2": "7.0.0",
         "tsx": "4.19.4",
         "turbo": "2.9.14",
-        "typescript": "6.0.3"
+        "typescript": "npm:@typescript/typescript6@6.0.1",
+        "typescript-7": "npm:typescript@7.0.1-rc"
     },
     "scripts": {
         "formula:build": "pnpm -F formula build",
