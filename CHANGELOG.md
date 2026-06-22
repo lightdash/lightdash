@@ -1,3 +1,12 @@
+# [0.3215.0](https://github.com/lightdash/lightdash/compare/0.3214.0...0.3215.0) (2026-06-22)
+
+
+### Features
+
+* **ai:** surface reviews in navbar ask ai ([#24581](https://github.com/lightdash/lightdash/issues/24581)) ([e3d0b27](https://github.com/lightdash/lightdash/commit/e3d0b27c58e1b9b5eeb7e70860173b18c7c7fc7b))
+* change data app theme ([#24580](https://github.com/lightdash/lightdash/issues/24580)) ([fe0d7fc](https://github.com/lightdash/lightdash/commit/fe0d7fce27eedb44978c3e610d483fbec92628ae))
+* **roles:** classify scopes as organization- or project-level ([#24588](https://github.com/lightdash/lightdash/issues/24588)) ([af33537](https://github.com/lightdash/lightdash/commit/af33537c2bd043472ba651433f87322b3ca29dd0))
+
 # [0.3214.0](https://github.com/lightdash/lightdash/compare/0.3213.0...0.3214.0) (2026-06-22)
 
 
