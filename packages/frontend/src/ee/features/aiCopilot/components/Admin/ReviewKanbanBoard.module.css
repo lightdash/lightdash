@@ -68,6 +68,21 @@
 .card:hover .startAction {
     opacity: 1;
 }
+.fixReadyWrap {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 140ms ease;
+}
+.card:has(.cardBody:hover) .fixReadyWrap,
+.cardSelected .fixReadyWrap {
+    grid-template-rows: 1fr;
+}
+.fixReadyRow {
+    overflow: hidden;
+    min-height: 0;
+    border-left: 2px solid var(--mantine-color-indigo-3);
+    padding-left: var(--mantine-spacing-xs);
+}
 .assigneeUnassigned {
     opacity: 0.4;
     transition: opacity 120ms ease;
