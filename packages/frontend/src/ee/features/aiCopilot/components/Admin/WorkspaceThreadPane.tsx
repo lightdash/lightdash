@@ -4,11 +4,20 @@ import {
 } from '@lightdash/common';
 import { Center, Loader } from '@mantine-8/core';
 import { useCallback, useMemo, type FC } from 'react';
+import { useAiAgentSqlModeAvailable } from '../../hooks/useAiAgentSqlModeAvailable';
 import { usePendingThreadRefetch } from '../../hooks/usePendingThreadRefetch';
 import {
     useAiAgentThread,
     useCreateAgentThreadMessageMutation,
 } from '../../hooks/useProjectAiAgents';
+import {
+    selectThreadSqlModeRaw,
+    setThreadSqlMode,
+} from '../../store/aiAgentThreadModeSlice';
+import {
+    useAiAgentStoreDispatch,
+    useAiAgentStoreSelector,
+} from '../../store/hooks';
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../ChatElements/AgentChatInput';
 import { contextItemsToContentMentionSuggestions } from '../ChatElements/contentMentions';
@@ -50,6 +59,16 @@ export const WorkspaceThreadPane: FC<Props> = ({
         refetch,
     );
 
+    const dispatch = useAiAgentStoreDispatch();
+    const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
+    // Build-fix threads exist to edit the dbt project with SQL introspection,
+    // so SQL mode defaults on here (unlike normal chat) until the user toggles
+    // it. `raw === undefined` means no stored toggle yet.
+    const rawSqlMode = useAiAgentStoreSelector(
+        selectThreadSqlModeRaw(threadUuid),
+    );
+    const sqlMode = rawSqlMode ?? true;
+
     const { mutateAsync: createMessage, isLoading: isCreating } =
         useCreateAgentThreadMessageMutation(
             projectUuid,
@@ -81,14 +100,14 @@ export const WorkspaceThreadPane: FC<Props> = ({
                 modelConfig: firstAssistant?.modelConfig ?? undefined,
                 context,
                 optimisticContext,
-                enableSqlMode: true,
+                enableSqlMode: sqlMode,
                 autoApproveSql: true,
                 toolHints: toolHints.includes('editDbtProject')
                     ? toolHints
                     : ['editDbtProject', ...toolHints],
             });
         },
-        [createMessage, thread?.messages],
+        [createMessage, thread?.messages, sqlMode],
     );
 
     if (isLoading || !thread) {
@@ -121,6 +140,15 @@ export const WorkspaceThreadPane: FC<Props> = ({
                     fullWidth
                     showSuggestions={false}
                     threadUuid={threadUuid}
+                    sqlMode={sqlModeAvailable ? sqlMode : undefined}
+                    onSqlModeChange={
+                        sqlModeAvailable
+                            ? (enabled) =>
+                                  dispatch(
+                                      setThreadSqlMode({ threadUuid, enabled }),
+                                  )
+                            : undefined
+                    }
                     contentMentionPriorityItems={contentMentionItems}
                     latestAssistantMessageUuid={
                         [...(thread.messages ?? [])]
