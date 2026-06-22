@@ -102,6 +102,10 @@ const resolveAndValidateHost = async (
 
 const MAX_TIMEOUT_MS = 30000;
 
+// Identify the proxy to upstreams. Some APIs (e.g. GitHub) reject requests with
+// no User-Agent. Callers can still override it via options.headers.
+const DEFAULT_USER_AGENT = 'Lightdash-DataApp-Proxy';
+
 // HTTPS agent whose DNS lookup is pinned to a single pre-validated IP. This
 // defeats DNS rebinding between validation and socket open: the kernel never
 // resolves the hostname a second time.
@@ -143,7 +147,7 @@ export async function secureFetch(
         response = await fetch(rawUrl, {
             method: options.method,
             body: options.body,
-            headers: options.headers,
+            headers: { 'User-Agent': DEFAULT_USER_AGENT, ...options.headers },
             agent,
             redirect: 'manual',
             signal: controller.signal as never,

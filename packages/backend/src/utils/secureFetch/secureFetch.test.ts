@@ -264,6 +264,33 @@ describe('secureFetch POST behavior', () => {
     });
 });
 
+describe('secureFetch User-Agent', () => {
+    it('sends a default User-Agent when the caller sets none', async () => {
+        mockedFetch.mockResolvedValue(
+            jsonResponse('{"ok":true}', { status: 200 }),
+        );
+        await secureFetch('https://example.com/x.json', { ...BASE_OPTIONS });
+
+        const [, calledOpts] = mockedFetch.mock.calls[0];
+        expect(calledOpts.headers['User-Agent']).toBe(
+            'Lightdash-DataApp-Proxy',
+        );
+    });
+
+    it('lets the caller override the default User-Agent', async () => {
+        mockedFetch.mockResolvedValue(
+            jsonResponse('{"ok":true}', { status: 200 }),
+        );
+        await secureFetch('https://example.com/x.json', {
+            ...BASE_OPTIONS,
+            headers: { 'User-Agent': 'Custom/9' },
+        });
+
+        const [, calledOpts] = mockedFetch.mock.calls[0];
+        expect(calledOpts.headers['User-Agent']).toBe('Custom/9');
+    });
+});
+
 describe('secureFetch timeout', () => {
     it('maps an aborted request to reason timeout', async () => {
         const abortError = new FetchError(
