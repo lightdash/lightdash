@@ -15,10 +15,8 @@ import { Link, useParams } from 'react-router';
 import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
 import useApp from '../../../../../providers/App/useApp';
 import { PinnedContextCard } from '../PinnedContextCard/PinnedContextCard';
-import {
-    isReviewEntityItem,
-    PinnedReviewContextGroup,
-} from '../PinnedContextCard/PinnedReviewEntityCard';
+import { PinnedReviewContextGroup } from '../PinnedContextCard/PinnedReviewEntityCard';
+import { isReviewEntityItem } from '../PinnedContextCard/reviewEntityItem';
 import styles from './AgentChatUserBubble.module.css';
 import { ContentReferenceLink } from './ContentReferenceLink';
 import {

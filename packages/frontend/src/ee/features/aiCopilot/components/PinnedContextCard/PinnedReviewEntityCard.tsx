@@ -1,7 +1,6 @@
 import {
     assertUnreachable,
     type AiAgentReviewItemPrState,
-    type AiPromptContextItem,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -24,28 +23,7 @@ import { type FC, Fragment, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import styles from './PinnedReviewEntityCard.module.css';
-
-export type ReviewEntityItem = Extract<
-    AiPromptContextItem,
-    {
-        type:
-            | 'pull_request'
-            | 'proposed_change'
-            | 'review_finding'
-            | 'preview_environment';
-    }
->;
-
-const REVIEW_ENTITY_TYPES = new Set<AiPromptContextItem['type']>([
-    'pull_request',
-    'proposed_change',
-    'review_finding',
-    'preview_environment',
-]);
-
-export const isReviewEntityItem = (
-    item: AiPromptContextItem,
-): item is ReviewEntityItem => REVIEW_ENTITY_TYPES.has(item.type);
+import { type ReviewEntityItem } from './reviewEntityItem';
 
 const PR_STATE_COLORS: Record<AiAgentReviewItemPrState, string> = {
     open: 'teal',

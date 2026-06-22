@@ -302,10 +302,15 @@ export class AiAgentModel {
 
     private encryptionUtil: EncryptionUtil;
 
+    private reviewClassifierModel: AiAgentReviewClassifierModel;
+
     constructor(dependencies: Dependencies) {
         this.database = dependencies.database;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.encryptionUtil = dependencies.encryptionUtil;
+        this.reviewClassifierModel = new AiAgentReviewClassifierModel({
+            database: this.database,
+        });
     }
 
     static async withTrx<T>(
@@ -4969,9 +4974,7 @@ export class AiAgentModel {
                 : [],
         );
 
-        const reviewClassifierModel = new AiAgentReviewClassifierModel({
-            database: this.database,
-        });
+        const { reviewClassifierModel } = this;
         const reviewItemByOrgFingerprint = new Map<
             string,
             AiAgentReviewItemSummary | null
@@ -5189,9 +5192,13 @@ export class AiAgentModel {
         if (!prUrl) return null;
         try {
             const host = new URL(prUrl).hostname;
-            return host.includes('github.com')
-                ? PullRequestProvider.GITHUB
-                : PullRequestProvider.GITLAB;
+            if (host.includes('github.com')) {
+                return PullRequestProvider.GITHUB;
+            }
+            if (host.includes('gitlab.com')) {
+                return PullRequestProvider.GITLAB;
+            }
+            return null;
         } catch {
             return null;
         }

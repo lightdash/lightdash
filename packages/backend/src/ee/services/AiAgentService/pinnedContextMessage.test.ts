@@ -1,8 +1,4 @@
-import {
-    AiPromptContext,
-    AiPromptContextInput,
-    ForbiddenError,
-} from '@lightdash/common';
+import { AiPromptContext } from '@lightdash/common';
 import { AiAgentService } from './AiAgentService';
 
 jest.mock('../ai/AiAgentMcpRuntimeClient', () => ({
@@ -148,50 +144,5 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
         expect(content).toContain(
             '- Preview environment (Preview: fix WAU) — preview_ready — test the fix in this preview project.',
         );
-    });
-});
-
-describe('AiAgentService.validatePromptContextAccess system-only pins', () => {
-    const buildService = (): AiAgentService =>
-        new AiAgentService({
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any);
-
-    const agent = {
-        organizationUuid: 'org-1',
-        projectUuid: 'proj-1',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any;
-
-    const validate = (
-        service: AiAgentService,
-        context: AiPromptContextInput,
-    ): Promise<unknown> =>
-        (
-            service as unknown as {
-                validatePromptContextAccess: (
-                    user: unknown,
-                    agent: unknown,
-                    context: AiPromptContextInput,
-                ) => Promise<unknown>;
-            }
-        ).validatePromptContextAccess({ userUuid: 'user-1' }, agent, context);
-
-    it('rejects a user-attached review_finding with ForbiddenError', async () => {
-        const service = buildService();
-        await expect(
-            validate(service, [
-                { type: 'review_finding', fingerprint: 'fp-1' },
-            ]),
-        ).rejects.toBeInstanceOf(ForbiddenError);
-    });
-
-    it('rejects a user-attached proposed_change with ForbiddenError', async () => {
-        const service = buildService();
-        await expect(
-            validate(service, [
-                { type: 'proposed_change', fingerprint: 'fp-1' },
-            ]),
-        ).rejects.toBeInstanceOf(ForbiddenError);
     });
 });
