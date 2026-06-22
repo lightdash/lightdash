@@ -21,6 +21,7 @@ import { SavedChartsTableName } from '../database/entities/savedCharts';
 import { SavedSqlTableName } from '../database/entities/savedSql';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
+import { traceSpan } from '../tracing/tracing';
 import {
     chartViewsSql,
     chartWeeklyAverageQueriesSql,
@@ -55,7 +56,7 @@ export class AnalyticsModel {
     }
 
     async getChartViewStats(chartUuid: string): Promise<ViewStatistics> {
-        return Sentry.startSpan(
+        return traceSpan(
             {
                 op: 'AnalyticsModel.getChartStats',
                 name: 'AnalyticsModel.getChartStats',
@@ -388,7 +389,7 @@ export class AnalyticsModel {
     }
 
     async getUnusedContent(projectUuid: string): Promise<UnusedContent> {
-        return Sentry.startSpan(
+        return traceSpan(
             {
                 op: 'AnalyticsModel.getUnusedContent',
                 name: 'AnalyticsModel.getUnusedContent',

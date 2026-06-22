@@ -10,6 +10,7 @@ import {
     type OrganizationNameResolver,
 } from '../sentry/organizationNameResolver';
 import { type AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
+import { continueTrace, traceSpan } from '../tracing/tracing';
 import {
     STREAM_CONFIGS,
     type AsyncQueryJobPayload,
@@ -27,6 +28,8 @@ const asyncQueryEnvelopeSchema = z.object({
     payload: asyncQueryPayloadSchema,
     traceHeader: z.string().optional(),
     baggageHeader: z.string().optional(),
+    otelTraceparent: z.string().optional(),
+    otelBaggage: z.string().optional(),
     sentryMessageId: z.string().optional(),
 });
 
@@ -199,14 +202,17 @@ export class NatsWorker {
 
         try {
             const didRun = await NatsWorker.runWithAckProgress(message, () =>
-                Sentry.continueTrace(
+                continueTrace(
                     {
                         sentryTrace: parsed.trace.traceHeader,
-                        baggage: parsed.trace.baggageHeader,
+                        traceparent: parsed.trace.otelTraceparent,
+                        baggage:
+                            parsed.trace.otelBaggage ??
+                            parsed.trace.baggageHeader,
                     },
                     () =>
                         Sentry.withIsolationScope(() =>
-                            Sentry.startSpan(
+                            traceSpan(
                                 {
                                     op: 'queue.process',
                                     name: 'queue_consumer',
@@ -296,6 +302,8 @@ export class NatsWorker {
                     trace: {
                         traceHeader: value.traceHeader,
                         baggageHeader: value.baggageHeader,
+                        otelTraceparent: value.otelTraceparent,
+                        otelBaggage: value.otelBaggage,
                         sentryMessageId: value.sentryMessageId,
                     },
                 };

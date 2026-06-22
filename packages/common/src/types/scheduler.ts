@@ -559,6 +559,8 @@ export type ManagedAgentHeartbeatPayload = TraceTaskBase & {
 export type QueueTraceProperties = {
     traceHeader?: string;
     baggageHeader?: string;
+    otelTraceparent?: string;
+    otelBaggage?: string;
     sentryMessageId?: string;
 };
 

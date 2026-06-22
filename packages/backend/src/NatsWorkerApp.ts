@@ -24,6 +24,11 @@ import {
     ServiceProviderMap,
     ServiceRepository,
 } from './services/ServiceRepository';
+import {
+    initOtelTracing,
+    otelTracingEnabled,
+    shutdownOtelTracing,
+} from './tracing/tracing';
 import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
 import { VERSION } from './version';
 
@@ -176,12 +181,15 @@ export default class NatsWorkerApp {
                 this.environment === 'development'
                     ? 'development'
                     : this.lightdashConfig.mode,
+            skipOpenTelemetrySetup: otelTracingEnabled(),
+            registerEsmLoaderHooks: !otelTracingEnabled(),
             integrations: [],
             ignoreErrors: IGNORE_ERRORS,
             tracesSampleRate:
                 this.lightdashConfig.sentry.queryTracesSampleRate ??
                 this.lightdashConfig.sentry.tracesSampleRate,
         });
+        initOtelTracing();
     }
 
     private async initWorker(): Promise<{
@@ -235,6 +243,7 @@ export default class NatsWorkerApp {
             onSignal: async () => {
                 Logger.info('Stopping Prometheus metrics');
                 await this.prometheusMetrics.stop();
+                await shutdownOtelTracing();
                 Logger.info('Stopping NATS worker');
                 await worker.stop();
                 await natsClient.drain();

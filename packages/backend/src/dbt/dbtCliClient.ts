@@ -19,6 +19,7 @@ import * as fs from 'fs/promises';
 import yaml, { dump as dumpYaml, load as loadYaml } from 'js-yaml';
 import path from 'path';
 import Logger from '../logging/logger';
+import { traceSpan } from '../tracing/tracing';
 import { DbtClient } from '../types';
 
 type DbtProjectConfig = {
@@ -241,7 +242,7 @@ export class DbtCliClient implements DbtClient {
     }
 
     async installDeps(): Promise<void> {
-        return Sentry.startSpan(
+        return traceSpan(
             {
                 op: 'dbt',
                 name: 'installDeps',
@@ -312,7 +313,7 @@ export class DbtCliClient implements DbtClient {
     }
 
     async getDbtManifest(): Promise<DbtRpcGetManifestResults> {
-        return Sentry.startSpan(
+        return traceSpan(
             {
                 op: 'dbt',
                 name: 'getDbtManifest',
@@ -420,7 +421,7 @@ export class DbtCliClient implements DbtClient {
     }
 
     async test(): Promise<void> {
-        return Sentry.startSpan(
+        return traceSpan(
             {
                 op: 'dbt',
                 name: 'test',

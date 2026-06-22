@@ -15,6 +15,7 @@ import {
     noopOrganizationNameResolver,
     type OrganizationNameResolver,
 } from '../sentry/organizationNameResolver';
+import { continueTrace, traceSpan } from '../tracing/tracing';
 import { TypedTask, type TypedTaskList } from './types';
 
 const getTagsForTask: {
@@ -281,12 +282,17 @@ export const traceTask = <T extends SchedulerTaskName>(
         payload: TaskPayloadMap[T] & QueueTraceProperties,
         helpers: JobHelpers,
     ) => void = async (payload, helpers) => {
-        const { traceHeader, baggageHeader } = payload;
+        const { traceHeader, baggageHeader, otelTraceparent, otelBaggage } =
+            payload;
 
-        await Sentry.continueTrace(
-            { sentryTrace: traceHeader, baggage: baggageHeader },
-            async () => {
-                await Sentry.startSpan(
+        await continueTrace(
+            {
+                sentryTrace: traceHeader,
+                traceparent: otelTraceparent,
+                baggage: otelBaggage ?? baggageHeader,
+            },
+            async () =>
+                traceSpan(
                     {
                         name: `worker.task.${taskName}`,
                         attributes: {
@@ -424,8 +430,7 @@ export const traceTask = <T extends SchedulerTaskName>(
                             throw e;
                         }
                     },
-                );
-            },
+                ),
         );
     };
     return tracedTask;

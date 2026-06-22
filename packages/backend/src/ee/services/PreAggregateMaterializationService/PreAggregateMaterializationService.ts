@@ -20,6 +20,7 @@ import { type QueryHistoryModel } from '../../../models/QueryHistoryModel/QueryH
 import type PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
 import { type AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
+import { traceSpan } from '../../../tracing/tracing';
 import { PreAggregateModel } from '../../models/PreAggregateModel';
 
 const QUERY_POLL_INTERVAL_MS = 1000;
@@ -224,7 +225,7 @@ export class PreAggregateMaterializationService extends BaseService {
                 `Starting executeAsyncMetricQuery for pre-aggregate materialization for definition ${args.preAggregateDefinitionUuid}`,
             );
 
-            const { queryUuid } = await Sentry.startSpan(
+            const { queryUuid } = await traceSpan(
                 {
                     op: 'preaggregate',
                     name: 'executeAsyncMetricQuery',
@@ -299,7 +300,7 @@ export class PreAggregateMaterializationService extends BaseService {
             );
 
             const pollStart = Date.now();
-            const queryHistory = await Sentry.startSpan(
+            const queryHistory = await traceSpan(
                 {
                     op: 'preaggregate',
                     name: 'pollForQueryCompletion',
@@ -424,7 +425,7 @@ export class PreAggregateMaterializationService extends BaseService {
 
             // Get file size from S3 and promote to active — timed together
             const promoteStart = Date.now();
-            const totalBytes = await Sentry.startSpan(
+            const totalBytes = await traceSpan(
                 {
                     op: 'preaggregate',
                     name: 'getFileSize',
@@ -454,7 +455,7 @@ export class PreAggregateMaterializationService extends BaseService {
                 warehouseExecutionTimeMs: queryHistory.warehouseExecutionTimeMs,
             });
 
-            const { status } = await Sentry.startSpan(
+            const { status } = await traceSpan(
                 {
                     op: 'db',
                     name: 'promoteToActive',

@@ -68,10 +68,22 @@ const finalizeHeaders = (
     }
 
     if (sentryTrace) {
+        const traceparent = sentryTraceToTraceparent(sentryTrace);
         requestHeaders['sentry-trace'] = sentryTrace;
+        if (traceparent) {
+            requestHeaders.traceparent = traceparent;
+        }
     }
 
     return requestHeaders;
+};
+
+const sentryTraceToTraceparent = (sentryTrace: string): string | undefined => {
+    const [traceId, parentId, sampled] = sentryTrace.split('-');
+    if (!traceId?.match(/^[a-f0-9]{32}$/) || !parentId?.match(/^[a-f0-9]{16}$/))
+        return undefined;
+
+    return `00-${traceId}-${parentId}-${sampled === '0' ? '00' : '01'}`;
 };
 
 function finalizeUrl(url: string, embed: InMemoryEmbed | undefined): string {
