@@ -90,12 +90,6 @@ export const getStartWritebackKind = (
     return null;
 };
 
-export const parsePrNumber = (url: string | null): number | null => {
-    if (!url) return null;
-    const match = url.match(/\/pull\/(\d+)/);
-    return match ? Number(match[1]) : null;
-};
-
 export const partitionInProgress = (
     items: AiAgentReviewItemSummary[],
 ): { active: AiAgentReviewItemSummary[]; rest: AiAgentReviewItemSummary[] } => {

@@ -4,7 +4,6 @@ import {
     getReviewLane,
     getStartWritebackKind,
     LANE_TARGET_STATUS,
-    parsePrNumber,
     partitionInProgress,
 } from './reviewLane';
 
@@ -73,17 +72,6 @@ describe('getReviewLane', () => {
             expect(getReviewLane(base({ status }))).toBe('done');
         },
     );
-});
-
-describe('parsePrNumber', () => {
-    it('extracts a PR number from a GitHub url', () => {
-        expect(parsePrNumber('https://github.com/lightdash/x/pull/853')).toBe(
-            853,
-        );
-    });
-    it('returns null for no url', () => {
-        expect(parsePrNumber(null)).toBeNull();
-    });
 });
 
 describe('partitionInProgress', () => {

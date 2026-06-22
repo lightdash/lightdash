@@ -5,7 +5,6 @@ import {
     Button,
     Code,
     Group,
-    HoverCard,
     Stack,
     Text,
     Tooltip,
@@ -14,7 +13,6 @@ import {
     IconArrowRight,
     IconArrowUpRight,
     IconBox,
-    IconGitPullRequest,
     IconLayoutColumns,
 } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
@@ -38,8 +36,7 @@ import {
     reviewRootCauseLabels,
 } from './reviewItemDetails';
 import styles from './ReviewKanbanBoard.module.css';
-import { getStartWritebackKind, parsePrNumber } from './reviewLane';
-import { ReviewPrHoverCard } from './ReviewPrHoverCard';
+import { getStartWritebackKind } from './reviewLane';
 
 type Props = {
     item: AiAgentReviewItemSummary;
@@ -53,7 +50,6 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
     const updateStatus = useUpdateAiAgentReviewItemStatus();
     const [previewOpen, setPreviewOpen] = useState(false);
 
-    const prNumber = parsePrNumber(item.linkedPrUrl);
     const isAgentRunning =
         item.prWritebackStatus === 'queued' ||
         item.prWritebackStatus === 'running';
@@ -199,39 +195,6 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                                     reviewRootCauseLabels[item.primaryRootCause]
                                 }
                             />
-
-                            {prNumber !== null && (
-                                <HoverCard
-                                    width={300}
-                                    shadow="md"
-                                    openDelay={150}
-                                    withinPortal
-                                >
-                                    <HoverCard.Target>
-                                        <Box>
-                                            <Badge
-                                                size="sm"
-                                                radius="sm"
-                                                variant="light"
-                                                color="green"
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={
-                                                            IconGitPullRequest
-                                                        }
-                                                        size={11}
-                                                    />
-                                                }
-                                            >
-                                                #{prNumber}
-                                            </Badge>
-                                        </Box>
-                                    </HoverCard.Target>
-                                    <HoverCard.Dropdown>
-                                        <ReviewPrHoverCard item={item} />
-                                    </HoverCard.Dropdown>
-                                </HoverCard>
-                            )}
                         </Group>
 
                         <ReviewAssigneeMenu
