@@ -17,6 +17,7 @@ describe('getPivotConfig', () => {
                 },
                 pivotConfig: { columns: ['dim_b'] },
                 tableConfig: { columnOrder: [] },
+                metricQuery: { dimensions: ['dim_a', 'dim_b'] },
             });
 
             expect(result).toBeDefined();
@@ -41,6 +42,7 @@ describe('getPivotConfig', () => {
                 },
                 pivotConfig: undefined,
                 tableConfig: { columnOrder: [] },
+                metricQuery: { dimensions: ['dim_a'] },
             });
 
             expect(result).toBeUndefined();
@@ -54,6 +56,7 @@ describe('getPivotConfig', () => {
                 },
                 pivotConfig: { columns: ['dim_b'] },
                 tableConfig: { columnOrder: [] },
+                metricQuery: { dimensions: ['dim_b'] },
             });
 
             expect(result).toBeDefined();
@@ -163,33 +166,29 @@ describe('getPivotConfig', () => {
             expect(result?.hiddenMetricFieldIds).toBeUndefined();
         });
 
-        it('falls back to hiddenMetricFieldIds for all hidden fields when metricQuery is absent', () => {
-            // Backward-compat: callers that cannot provide metricQuery (e.g. ChartDownloadMenu)
-            // get the legacy flat list in hiddenMetricFieldIds.
-            const result = getPivotConfig({
-                chartConfig: {
-                    type: ChartType.TABLE,
-                    config: {
-                        columns: {
-                            orders_status: { visible: false },
-                            payments_total_revenue: { visible: false },
+        it('requires metricQuery by type for table charts — there is no silent fallback', () => {
+            // Replaces the old footgun tests. metricQuery is now mandatory, so a
+            // table chart can never reach getPivotConfig without it and hidden
+            // dimensions can always be classified instead of being misfiled into
+            // hiddenMetricFieldIds (where pivotQueryResults would ignore them and
+            // leak the dim into the CSV/XLSX export).
+            const callWithoutMetricQuery = () =>
+                getPivotConfig({
+                    chartConfig: {
+                        type: ChartType.TABLE,
+                        config: {
+                            columns: { sort_helper_dim: { visible: false } },
                         },
                     },
-                },
-                pivotConfig: { columns: ['payments_payment_method'] },
-                tableConfig: { columnOrder: [] },
-                // No metricQuery provided
-            });
+                    pivotConfig: { columns: ['shipping_method'] },
+                    tableConfig: { columnOrder: [] },
+                    // @ts-expect-error metricQuery is required — omitting it must not type-check
+                    metricQuery: undefined,
+                });
 
-            expect(result).toBeDefined();
-            // Both fields land in hiddenMetricFieldIds (legacy behaviour)
-            expect(result?.hiddenMetricFieldIds).toEqual(
-                expect.arrayContaining([
-                    'orders_status',
-                    'payments_total_revenue',
-                ]),
-            );
-            expect(result?.hiddenDimensionFieldIds).toBeUndefined();
+            // The assertion that matters is the @ts-expect-error above; we never
+            // invoke the callback so there is no runtime path without metricQuery.
+            expect(callWithoutMetricQuery).toBeInstanceOf(Function);
         });
 
         it('routes hidden dimensions into hiddenDimensionFieldIds (not hiddenMetricFieldIds) when getPivotConfig receives metricQuery', () => {
@@ -219,29 +218,6 @@ describe('getPivotConfig', () => {
             // The hidden dim must NOT appear in hiddenMetricFieldIds, otherwise
             // pivotQueryResults would ignore it and the dim leaks into the export.
             expect(result?.hiddenMetricFieldIds).toBeUndefined();
-        });
-
-        it('falls back to hiddenMetricFieldIds when metricQuery is omitted (footgun: callers must pass metricQuery for dim hiding to work)', () => {
-            // Documentation test: demonstrates why ChartDownloadMenu MUST pass
-            // metricQuery. Without it the hidden sort-helper dim ends up in
-            // hiddenMetricFieldIds, which pivotQueryResults ignores for
-            // dimension-typed columns — so the dim leaks into the CSV/XLSX export.
-            const result = getPivotConfig({
-                chartConfig: {
-                    type: ChartType.TABLE,
-                    config: {
-                        columns: { sort_helper_dim: { visible: false } },
-                    },
-                },
-                pivotConfig: { columns: ['shipping_method'] },
-                tableConfig: { columnOrder: [] },
-                // metricQuery intentionally omitted
-            });
-
-            // Footgun: without metricQuery we can't classify, so hidden dims end up
-            // in hiddenMetricFieldIds — where pivotQueryResults will ignore them.
-            expect(result?.hiddenMetricFieldIds).toEqual(['sort_helper_dim']);
-            expect(result?.hiddenDimensionFieldIds).toBeUndefined();
         });
     });
 });

@@ -67,19 +67,20 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
             [chartRef],
         );
 
-        // Build pivot config with pivot dimensions
-        const pivotConfig = getPivotConfig({
-            chartConfig,
-            pivotConfig: pivotDimensions
-                ? {
-                      columns: pivotDimensions,
-                  }
-                : undefined,
-            tableConfig: {
-                columnOrder,
-            },
-            metricQuery: resultsData?.metricQuery,
-        });
+        // Build pivot config with pivot dimensions. metricQuery is required to
+        // classify hidden fields; without results there is nothing to pivot yet.
+        const pivotConfig = resultsData?.metricQuery
+            ? getPivotConfig({
+                  chartConfig,
+                  pivotConfig: pivotDimensions
+                      ? { columns: pivotDimensions }
+                      : undefined,
+                  tableConfig: {
+                      columnOrder,
+                  },
+                  metricQuery: resultsData.metricQuery,
+              })
+            : undefined;
 
         const getChartDownloadQueryUuid = useCallback(
             (
