@@ -70,14 +70,20 @@ export const LANE_TARGET_STATUS: Record<
 export const getStartWritebackKind = (
     item: AiAgentReviewItemSummary,
 ): 'modal' | 'mutate' | null => {
-    if (item.status === 'triage') {
+    // Triage needs categorising first; terminal items are done; an in-flight or
+    // already-opened writeback has nothing left to start.
+    if (
+        item.status === 'triage' ||
+        item.status === 'resolved' ||
+        item.status === 'dismissed' ||
+        item.status === 'duplicate'
+    ) {
         return null;
     }
     if (
         !item.writebackEligibility.eligible ||
         item.linkedPrUrl ||
-        item.prWritebackStatus === 'queued' ||
-        item.prWritebackStatus === 'running'
+        isWritebackInFlight(item)
     ) {
         return null;
     }
@@ -89,6 +95,12 @@ export const getStartWritebackKind = (
     }
     return null;
 };
+
+// A prior writeback that failed (and left no PR) can be kicked off again — the
+// card surfaces this as "Retry fix" rather than "Start fix".
+export const isWritebackRetry = (item: AiAgentReviewItemSummary): boolean =>
+    item.prWritebackStatus === 'failed' ||
+    item.remediation?.status === 'failed';
 
 export const partitionInProgress = (
     items: AiAgentReviewItemSummary[],

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
     getReviewLane,
     getStartWritebackKind,
+    isWritebackRetry,
     LANE_TARGET_STATUS,
     partitionInProgress,
 } from './reviewLane';
@@ -156,5 +157,27 @@ describe('getStartWritebackKind', () => {
                 }),
             ),
         ).toBeNull();
+    });
+    it('returns null for terminal-status items (done lane)', () => {
+        (['resolved', 'dismissed', 'duplicate'] as const).forEach((status) => {
+            expect(
+                getStartWritebackKind(
+                    eligible({ status, primaryRootCause: 'semantic_layer' }),
+                ),
+            ).toBeNull();
+        });
+    });
+});
+
+describe('isWritebackRetry', () => {
+    it('is true when a prior writeback failed', () => {
+        expect(isWritebackRetry(base({ prWritebackStatus: 'failed' }))).toBe(
+            true,
+        );
+    });
+    it('is false when no writeback has failed', () => {
+        expect(isWritebackRetry(base({ prWritebackStatus: 'running' }))).toBe(
+            false,
+        );
     });
 });

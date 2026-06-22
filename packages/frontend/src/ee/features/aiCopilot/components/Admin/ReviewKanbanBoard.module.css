@@ -62,11 +62,18 @@
     top: var(--mantine-spacing-xs);
     right: var(--mantine-spacing-xs);
     opacity: 0;
-    transition: opacity 120ms ease;
+    transition:
+        opacity 120ms ease,
+        transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
     background: var(--mantine-color-indigo-filled);
+    box-shadow: var(--mantine-shadow-sm);
 }
-.card:hover .startAction {
+.card:hover .startAction,
+.cardSelected .startAction {
     opacity: 1;
+}
+.startAction:active {
+    transform: scale(0.96);
 }
 .assigneeUnassigned {
     opacity: 0.4;

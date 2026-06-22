@@ -9,7 +9,12 @@ import {
     Text,
     Tooltip,
 } from '@mantine-8/core';
-import { IconArrowUpRight, IconLayoutColumns } from '@tabler/icons-react';
+import {
+    IconArrowUpRight,
+    IconBolt,
+    IconLayoutColumns,
+    IconRefresh,
+} from '@tabler/icons-react';
 import { type FC, useState } from 'react';
 import { Link } from 'react-router';
 import { CategoryBadge } from '../../../../../components/common/CategoryBadge';
@@ -30,7 +35,7 @@ import {
     reviewRootCauseLabels,
 } from './reviewItemDetails';
 import styles from './ReviewKanbanBoard.module.css';
-import { getStartWritebackKind } from './reviewLane';
+import { getStartWritebackKind, isWritebackRetry } from './reviewLane';
 
 type Props = {
     item: AiAgentReviewItemSummary;
@@ -75,6 +80,7 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
     const isRecurring = item.findingCount > 1;
 
     const startKind = getStartWritebackKind(item);
+    const isRetry = isWritebackRetry(item);
 
     const remediation = item.remediation;
     const hasWorkspace = Boolean(remediation);
@@ -236,6 +242,12 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                     size="compact-xs"
                     radius="md"
                     variant="filled"
+                    leftSection={
+                        <MantineIcon
+                            icon={isRetry ? IconRefresh : IconBolt}
+                            size={12}
+                        />
+                    }
                     loading={createWriteback.isLoading}
                     className={styles.startAction}
                     onPointerDown={(e: React.PointerEvent) =>
@@ -257,7 +269,7 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                         }
                     }}
                 >
-                    Start
+                    {isRetry ? 'Retry fix' : 'Start fix'}
                 </Button>
             )}
 
