@@ -1,8 +1,6 @@
 import {
-    type AiAgentSummary,
     type AiPromptContext,
     type AiPromptContextInput,
-    type AiRouterRouteResponseResult,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -22,8 +20,14 @@ import {
     IconInfoCircle,
     IconSettings,
 } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+    Link,
+    useLocation,
+    useNavigate,
+    useParams,
+    useSearchParams,
+} from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getModelKey } from '../../../components/common/ModelSelector/utils';
@@ -31,15 +35,19 @@ import { useProject } from '../../../hooks/useProject';
 import { AutoModeSidebar } from '../../features/aiCopilot/components/AiAgentPageLayout/AgentSidebar';
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout/AiAgentPageLayout';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
+import {
+    mergeAiPromptContextInput,
+    mergeAiPromptContextItems,
+} from '../../features/aiCopilot/components/ChatElements/contentMentions';
+import { getPromptContextItemKey } from '../../features/aiCopilot/components/ChatElements/contentReferenceUtils';
 import { ChatElementsUtils } from '../../features/aiCopilot/components/ChatElements/utils';
 import { usePendingPrompt } from '../../features/aiCopilot/components/PendingPromptContext/PendingPromptContext';
+import { PinnedContextCard } from '../../features/aiCopilot/components/PinnedContextCard/PinnedContextCard';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
+import { useAiAgentRouterFlow } from '../../features/aiCopilot/hooks/useAiAgentRouterFlow';
 import { useAiAgentSqlModeAvailable } from '../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable';
-import {
-    useAiRouterCommit,
-    useAiRouterRoute,
-} from '../../features/aiCopilot/hooks/useAiRouter';
 import { useModelOptions } from '../../features/aiCopilot/hooks/useModelOptions';
+import { usePinnedContext } from '../../features/aiCopilot/hooks/usePinnedContext';
 import {
     useCreateAgentThreadMutation,
     useProjectAiAgents,
@@ -48,23 +56,11 @@ import { setThreadSqlMode } from '../../features/aiCopilot/store/aiAgentThreadMo
 import { useAiAgentStoreDispatch } from '../../features/aiCopilot/store/hooks';
 import classes from './AgentsRouterPage.module.css';
 
-type Phase =
-    | { kind: 'idle' }
-    | { kind: 'routing' }
-    | {
-          kind: 'picker';
-          context?: AiPromptContextInput;
-          decision: AiRouterRouteResponseResult;
-          optimisticContext?: AiPromptContext;
-          prompt: string;
-          toolHints: string[];
-      }
-    | { kind: 'creating' };
-
 const AgentsRouterPage = () => {
     const { projectUuid } = useParams();
     const navigate = useNavigate();
     const location = useLocation();
+    const [searchParams] = useSearchParams();
     const dispatch = useAiAgentStoreDispatch();
 
     const { data: agents } = useProjectAiAgents({
@@ -92,6 +88,19 @@ const AgentsRouterPage = () => {
     const [extendedThinking, setExtendedThinking] = useState(false);
     const [sqlMode, setSqlMode] = useState(false);
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
+    const chartUuid = searchParams.get('chartUuid');
+    const dashboardUuid = searchParams.get('dashboardUuid');
+
+    const {
+        contextInput,
+        previewItems,
+        contentMentionItems,
+        isReady: isPinnedContextReady,
+    } = usePinnedContext({
+        projectUuid,
+        chartUuidOrSlug: chartUuid,
+        dashboardUuidOrSlug: dashboardUuid,
+    });
 
     const handleSelectedModelKeyChange = useCallback(
         (modelKey: string) => {
@@ -122,28 +131,18 @@ const AgentsRouterPage = () => {
 
     const { pendingPrompt, setPendingPrompt } = usePendingPrompt();
 
-    const [phase, setPhase] = useState<Phase>({ kind: 'idle' });
     const consumedAutoSubmitKeyRef = useRef<string | undefined>(undefined);
 
-    const agentsByUuid = useMemo(() => {
-        const m = new Map<string, AiAgentSummary>();
-        (agents ?? []).forEach((a) => m.set(a.uuid, a));
-        return m;
-    }, [agents]);
-
-    const route = useAiRouterRoute();
-    const { mutate: commitDecisionMutate } = useAiRouterCommit();
     const { mutateAsync: createThread } = useCreateAgentThreadMutation(
         projectUuid!,
     );
 
-    const startThreadForDecision = useCallback(
+    const createThreadForAgent = useCallback(
         async (args: {
             agentUuid: string;
             context?: AiPromptContextInput;
-            decisionUuid: string;
+            message: string;
             optimisticContext?: AiPromptContext;
-            prompt: string;
             toolHints: string[];
         }) => {
             const thread = await createThread({
@@ -151,7 +150,7 @@ const AgentsRouterPage = () => {
                 context: args.context,
                 enableSqlMode: sqlModeAvailable && sqlMode,
                 optimisticContext: args.optimisticContext,
-                prompt: args.prompt,
+                prompt: args.message,
                 toolHints: args.toolHints,
                 modelConfig: selectedModel
                     ? {
@@ -169,16 +168,10 @@ const AgentsRouterPage = () => {
                     enabled: sqlModeAvailable && sqlMode,
                 }),
             );
-            // Fire-and-forget telemetry — the user is already navigating away.
-            commitDecisionMutate({
-                decisionUuid: args.decisionUuid,
-                chosenAgentUuid: args.agentUuid,
-                threadUuid: thread.uuid,
-            });
+            return thread;
         },
         [
             createThread,
-            commitDecisionMutate,
             dispatch,
             extendedThinking,
             selectedModel,
@@ -187,6 +180,40 @@ const AgentsRouterPage = () => {
             sqlModeAvailable,
         ],
     );
+
+    const handleRouteError = useCallback(
+        ({
+            fallbackAgent,
+            message,
+        }: {
+            fallbackAgent?: { uuid: string };
+            message: string;
+        }) => {
+            setPendingPrompt(message);
+            if (fallbackAgent && projectUuid) {
+                void navigate(
+                    `/projects/${projectUuid}/ai-agents/${fallbackAgent.uuid}/threads`,
+                );
+            }
+        },
+        [navigate, projectUuid, setPendingPrompt],
+    );
+
+    const {
+        confirmPick,
+        handleSubmit: handleRouterSubmit,
+        isCreating,
+        isLocked,
+        isPickingAgent,
+        isRouting,
+        phase,
+        sortedCandidates,
+    } = useAiAgentRouterFlow({
+        agents: agents ?? [],
+        createThreadForAgent,
+        onRouteError: handleRouteError,
+        projectUuid,
+    });
 
     const handleSubmit = useCallback(
         async ({
@@ -200,57 +227,29 @@ const AgentsRouterPage = () => {
             optimisticContext?: AiPromptContext;
             toolHints: string[];
         }) => {
-            if (!projectUuid) return;
-            setPhase({ kind: 'routing' });
+            if (!isPinnedContextReady) return;
             setPendingPrompt('');
-
-            try {
-                const result = await route.mutateAsync({
-                    prompt: message,
-                    projectUuid,
-                });
-
-                if (result.nextAction === 'create_thread') {
-                    setPhase({ kind: 'creating' });
-                    await startThreadForDecision({
-                        agentUuid: result.decision.suggestedAgentUuid,
-                        context,
-                        decisionUuid: result.decision.decisionUuid,
-                        optimisticContext,
-                        prompt: message,
-                        toolHints,
-                    });
-                } else {
-                    setPhase({
-                        kind: 'picker',
-                        context,
-                        decision: result,
-                        optimisticContext,
-                        prompt: message,
-                        toolHints,
-                    });
-                }
-            } catch {
-                // Router unreachable — fall back to the first accessible
-                // agent silently. The draft survives via PendingPromptContext,
-                // which the new-thread page reads on mount.
-                setPhase({ kind: 'idle' });
-                setPendingPrompt(message);
-                const fallback = agents?.[0];
-                if (fallback && projectUuid) {
-                    void navigate(
-                        `/projects/${projectUuid}/ai-agents/${fallback.uuid}/threads`,
-                    );
-                }
-            }
+            const mergedContext = mergeAiPromptContextInput(
+                contextInput,
+                context,
+            );
+            const mergedOptimisticContext = mergeAiPromptContextItems(
+                previewItems,
+                optimisticContext,
+            );
+            await handleRouterSubmit({
+                context: mergedContext,
+                message,
+                optimisticContext: mergedOptimisticContext,
+                toolHints,
+            });
         },
         [
-            agents,
-            navigate,
-            projectUuid,
-            route,
+            contextInput,
+            handleRouterSubmit,
+            isPinnedContextReady,
+            previewItems,
             setPendingPrompt,
-            startThreadForDecision,
         ],
     );
 
@@ -260,7 +259,13 @@ const AgentsRouterPage = () => {
             : '';
 
     useEffect(() => {
-        if (!autoSubmitPrompt || phase.kind !== 'idle') return;
+        if (
+            !autoSubmitPrompt ||
+            phase.kind !== 'idle' ||
+            !isPinnedContextReady
+        ) {
+            return;
+        }
         if (consumedAutoSubmitKeyRef.current === location.key) return;
 
         consumedAutoSubmitKeyRef.current = location.key;
@@ -281,44 +286,15 @@ const AgentsRouterPage = () => {
         location.search,
         navigate,
         phase.kind,
+        isPinnedContextReady,
     ]);
 
-    const confirmPick = useCallback(
-        async (agentUuid: string) => {
-            if (phase.kind !== 'picker') return;
-            const { context, decision, optimisticContext, prompt, toolHints } =
-                phase;
-            setPhase({ kind: 'creating' });
-            await startThreadForDecision({
-                agentUuid,
-                context,
-                decisionUuid: decision.decision.decisionUuid,
-                optimisticContext,
-                prompt,
-                toolHints,
-            });
-        },
-        [phase, startThreadForDecision],
-    );
-
-    const sortedCandidates = useMemo(() => {
-        if (phase.kind !== 'picker') return [];
-        const { candidates, suggestedAgentUuid } = phase.decision.decision;
-        return [...candidates].sort((a, b) => {
-            if (a.agentUuid === suggestedAgentUuid) return -1;
-            if (b.agentUuid === suggestedAgentUuid) return 1;
-            return 0;
-        });
-    }, [phase]);
-
-    const isLocked = phase.kind !== 'idle';
-    const isWorking = phase.kind === 'routing' || phase.kind === 'creating';
-    const workingLabel =
-        phase.kind === 'routing'
-            ? 'Finding the right agent…'
-            : phase.kind === 'creating'
-              ? 'Opening the conversation…'
-              : null;
+    const isWorking = isRouting || isCreating;
+    const workingLabel = isRouting
+        ? 'Finding the right agent…'
+        : isCreating
+          ? 'Opening the conversation…'
+          : null;
 
     const title = project?.name ? `Ask ${project.name}` : 'Ask this project';
     const placeholder = project?.name
@@ -364,12 +340,35 @@ const AgentsRouterPage = () => {
                             <Title order={2}>{title}</Title>
                         </Stack>
 
+                        {previewItems.length > 0 && (
+                            <Stack gap="xxs" w="100%">
+                                <Text
+                                    size="xs"
+                                    fw={600}
+                                    c="dimmed"
+                                    tt="uppercase"
+                                >
+                                    Pinned context
+                                </Text>
+                                <Group gap="xs" wrap="wrap">
+                                    {previewItems.map((item) => (
+                                        <PinnedContextCard
+                                            key={getPromptContextItemKey(item)}
+                                            item={item}
+                                            projectUuid={projectUuid!}
+                                        />
+                                    ))}
+                                </Group>
+                            </Stack>
+                        )}
+
                         <AgentChatInput
                             projectUuid={projectUuid}
                             agents={agents ?? []}
                             selectedAgent="auto"
                             placeholder={placeholder}
                             loading={isLocked}
+                            disabled={!isPinnedContextReady}
                             onSubmit={handleSubmit}
                             defaultValue={pendingPrompt}
                             onValueChange={setPendingPrompt}
@@ -393,6 +392,7 @@ const AgentsRouterPage = () => {
                             clearOnSubmit={false}
                             fullWidth
                             showSuggestions={false}
+                            contentMentionPriorityItems={contentMentionItems}
                         />
 
                         {isWorking && workingLabel && (
@@ -413,7 +413,7 @@ const AgentsRouterPage = () => {
                             </Group>
                         )}
 
-                        {phase.kind === 'picker' && (
+                        {isPickingAgent && phase.kind === 'picker' && (
                             <Stack gap="xs" className={classes.pickerStack}>
                                 <div className={classes.pickerHeader}>
                                     <Text size="sm" fw={600}>
@@ -453,13 +453,6 @@ const AgentsRouterPage = () => {
 
                                 <Box className={classes.pickerScroll}>
                                     {sortedCandidates.map((c) => {
-                                        const agent = agentsByUuid.get(
-                                            c.agentUuid,
-                                        );
-                                        const isRecommended =
-                                            c.agentUuid ===
-                                            phase.decision.decision
-                                                .suggestedAgentUuid;
                                         return (
                                             <UnstyledButton
                                                 key={c.agentUuid}
@@ -467,7 +460,7 @@ const AgentsRouterPage = () => {
                                                     confirmPick(c.agentUuid)
                                                 }
                                                 className={`${classes.candidateButton} ${
-                                                    isRecommended
+                                                    c.isRecommended
                                                         ? classes.recommended
                                                         : ''
                                                 }`}
@@ -481,7 +474,7 @@ const AgentsRouterPage = () => {
                                                     <LightdashUserAvatar
                                                         size={32}
                                                         name={c.name}
-                                                        src={agent?.imageUrl}
+                                                        src={c.agent?.imageUrl}
                                                     />
                                                     <Stack
                                                         gap={2}
@@ -499,7 +492,7 @@ const AgentsRouterPage = () => {
                                                             >
                                                                 {c.name}
                                                             </Text>
-                                                            {isRecommended && (
+                                                            {c.isRecommended && (
                                                                 <Badge
                                                                     size="xs"
                                                                     color="violet"
