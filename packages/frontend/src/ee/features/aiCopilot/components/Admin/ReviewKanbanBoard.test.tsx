@@ -28,6 +28,7 @@ vi.mock('../../../../../hooks/useProjectAccess', () => ({
 
 vi.mock('../../../../../hooks/useOrganizationUsers', () => ({
     useOrganizationUsers: () => ({ data: [] }),
+    useOrgUsersByUuid: () => new Map(),
 }));
 
 vi.mock('../AgentNamePill', () => ({ AgentNamePill: () => null }));

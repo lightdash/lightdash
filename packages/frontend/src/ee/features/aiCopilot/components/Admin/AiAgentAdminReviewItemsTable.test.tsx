@@ -21,6 +21,7 @@ vi.mock('../../../../../hooks/useOnboardingMock', () => ({
 
 vi.mock('../../../../../hooks/useOrganizationUsers', () => ({
     useOrganizationUsers: () => ({ data: [] }),
+    useOrgUsersByUuid: () => new Map(),
 }));
 
 // Stable so the async health/user queries behind useApp don't re-render the
