@@ -1,4 +1,8 @@
-import { RedshiftAuthenticationType, WarehouseTypes } from '@lightdash/common';
+import {
+    FeatureFlags,
+    RedshiftAuthenticationType,
+    WarehouseTypes,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -14,7 +18,7 @@ import {
 import { IconCheck, IconCopy } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
 import { useToggle } from 'react-use';
-import useHealth from '../../../hooks/health/useHealth';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../../common/MantineIcon';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
@@ -48,7 +52,9 @@ const RedshiftForm: FC<{
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject } = useProjectFormContext();
     const form = useFormContext();
-    const health = useHealth();
+    const redshiftIamAuthFlag = useServerFeatureFlag(
+        FeatureFlags.RedshiftIamAuth,
+    );
 
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.REDSHIFT;
@@ -61,7 +67,7 @@ const RedshiftForm: FC<{
 
     const warehouse = form.values.warehouse;
 
-    const isIamAuthEnabled = health.data?.isRedshiftIamAuthEnabled ?? false;
+    const isIamAuthEnabled = redshiftIamAuthFlag.data?.enabled === true;
 
     const savedAuthenticationType =
         savedProject?.warehouseConnection?.type === WarehouseTypes.REDSHIFT

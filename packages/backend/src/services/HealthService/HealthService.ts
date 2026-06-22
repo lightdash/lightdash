@@ -242,8 +242,6 @@ export class HealthService extends BaseService {
                 this.lightdashConfig.organizationWarehouseCredentials.enabled,
             isAthenaWarehouseIamRoleAuthEnabled:
                 this.lightdashConfig.athenaWarehouseIamRoleAuth.enabled,
-            isRedshiftIamAuthEnabled:
-                this.lightdashConfig.redshiftIamAuth.enabled,
             isSaveCredentialsFormEnabled:
                 this.lightdashConfig.saveCredentialsForm.enabled,
             isCustomRolesEnabled:

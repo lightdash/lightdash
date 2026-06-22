@@ -1,7 +1,9 @@
 import {
+    AnyType,
     CreateRedshiftCredentials,
     RedshiftAuthenticationType,
     SupportedDbtAdapter,
+    WarehouseResults,
     WarehouseTypes,
 } from '@lightdash/common';
 import * as fs from 'fs';
@@ -68,9 +70,9 @@ export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCreden
             credentials.authenticationType === RedshiftAuthenticationType.IAM;
 
         // For password auth the connection string is fixed at construction.
-        // For IAM auth credentials are minted lazily in getPoolConfig (the
+        // For IAM auth credentials are minted lazily before each query (the
         // constructor is synchronous and minted credentials expire), so the
-        // base config carries only the SSL settings.
+        // base config carries only the SSL settings until then.
         super(
             credentials,
             isIam
@@ -102,14 +104,29 @@ export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCreden
         }/${encodeURIComponent(credentials.dbname)}`;
     }
 
-    protected async getPoolConfig(): Promise<PoolConfig> {
+    // Every query path (test/runQuery/getCatalog/getAllTables/getFields)
+    // funnels through streamQuery, so refreshing this.config here before
+    // delegating to the base Postgres implementation covers them all without
+    // touching the shared base class.
+    async streamQuery(
+        sql: string,
+        streamCallback: (data: WarehouseResults) => void | Promise<void>,
+        options: {
+            values?: AnyType[];
+            tags?: Record<string, string>;
+            timezone?: string;
+        },
+    ): Promise<void> {
         if (
-            this.credentials.authenticationType !==
+            this.credentials.authenticationType ===
             RedshiftAuthenticationType.IAM
         ) {
-            return this.config;
+            this.config = await this.resolveIamPoolConfig();
         }
+        return super.streamQuery(sql, streamCallback, options);
+    }
 
+    private async resolveIamPoolConfig(): Promise<PoolConfig> {
         const now = Date.now();
         if (
             this.cachedIamPoolConfig &&
