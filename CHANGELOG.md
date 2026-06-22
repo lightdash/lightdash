@@ -1,3 +1,11 @@
+# [0.3214.0](https://github.com/lightdash/lightdash/compare/0.3213.0...0.3214.0) (2026-06-22)
+
+
+### Features
+
+* dbt Cloud webhook signature verification and payload validation ([#24587](https://github.com/lightdash/lightdash/issues/24587)) ([8d1d9bb](https://github.com/lightdash/lightdash/commit/8d1d9bb6804bbea66a7bdf1b9b00092665382f14))
+* **reviews:** editProjectContext tool + project_context work threads (ZAP-521) ([#24558](https://github.com/lightdash/lightdash/issues/24558)) ([9315367](https://github.com/lightdash/lightdash/commit/9315367fe97dd71c3d283f8b777aa51151fb752f))
+
 # [0.3213.0](https://github.com/lightdash/lightdash/compare/0.3212.0...0.3213.0) (2026-06-22)
 
 
