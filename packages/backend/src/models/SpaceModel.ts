@@ -47,6 +47,7 @@ import {
 } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 import { DbValidationTable } from '../database/entities/validation';
+import { traceSpan } from '../tracing/tracing';
 import { wrapSentryTransaction } from '../utils';
 import {
     generateUniqueSlug,
@@ -140,7 +141,7 @@ export class SpaceModel {
         },
         { trx = this.database }: { trx?: Knex } = { trx: this.database },
     ): Promise<SpaceSummaryBase[]> {
-        return Sentry.startSpan(
+        return traceSpan(
             {
                 op: 'SpaceModel.find',
                 name: 'SpaceModel.find',

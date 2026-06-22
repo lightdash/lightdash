@@ -10,6 +10,7 @@ import {
     type OrganizationNameResolver,
 } from '../sentry/organizationNameResolver';
 import { type AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
+import { continueOtelTrace, traceSpan } from '../tracing/tracing';
 import {
     STREAM_CONFIGS,
     type AsyncQueryJobPayload,
@@ -27,6 +28,8 @@ const asyncQueryEnvelopeSchema = z.object({
     payload: asyncQueryPayloadSchema,
     traceHeader: z.string().optional(),
     baggageHeader: z.string().optional(),
+    otelTraceparent: z.string().optional(),
+    otelBaggage: z.string().optional(),
     sentryMessageId: z.string().optional(),
 });
 
@@ -206,28 +209,35 @@ export class NatsWorker {
                     },
                     () =>
                         Sentry.withIsolationScope(() =>
-                            Sentry.startSpan(
+                            continueOtelTrace(
                                 {
-                                    op: 'queue.process',
-                                    name: 'queue_consumer',
-                                    attributes: {
-                                        'messaging.message.id':
-                                            parsed.jobId ?? '',
-                                        'messaging.destination.name':
-                                            message.subject,
-                                        'lightdash.queryUuid':
-                                            parsed.payload.queryUuid,
-                                    },
+                                    traceparent: parsed.trace.otelTraceparent,
+                                    baggage: parsed.trace.otelBaggage,
                                 },
-                                async () => {
-                                    await this.applyQuerySentryContext(
-                                        parsed.payload.queryUuid,
-                                    );
-                                    return runQuery(
-                                        parsed.payload.queryUuid,
-                                        workerLabel,
-                                    );
-                                },
+                                () =>
+                                    traceSpan(
+                                        {
+                                            op: 'queue.process',
+                                            name: 'queue_consumer',
+                                            attributes: {
+                                                'messaging.message.id':
+                                                    parsed.jobId ?? '',
+                                                'messaging.destination.name':
+                                                    message.subject,
+                                                'lightdash.queryUuid':
+                                                    parsed.payload.queryUuid,
+                                            },
+                                        },
+                                        async () => {
+                                            await this.applyQuerySentryContext(
+                                                parsed.payload.queryUuid,
+                                            );
+                                            return runQuery(
+                                                parsed.payload.queryUuid,
+                                                workerLabel,
+                                            );
+                                        },
+                                    ),
                             ),
                         ),
                 ),
@@ -296,6 +306,8 @@ export class NatsWorker {
                     trace: {
                         traceHeader: value.traceHeader,
                         baggageHeader: value.baggageHeader,
+                        otelTraceparent: value.otelTraceparent,
+                        otelBaggage: value.otelBaggage,
                         sentryMessageId: value.sentryMessageId,
                     },
                 };

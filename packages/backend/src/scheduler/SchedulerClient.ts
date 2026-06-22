@@ -66,6 +66,11 @@ import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
 import { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import { SchedulerModel } from '../models/SchedulerModel';
+import {
+    continueOtelTrace,
+    getOtelTraceHeaders,
+    traceSpan,
+} from '../tracing/tracing';
 
 type SchedulerClientArguments = {
     lightdashConfig: LightdashConfig;
@@ -157,57 +162,73 @@ export class SchedulerClient {
         payload: TaskPayloadMap[T],
         funct: () => Promise<void>,
     ) {
-        const { traceHeader, baggageHeader, sentryMessageId } =
-            payload as unknown as QueueTraceProperties;
+        const {
+            traceHeader,
+            baggageHeader,
+            otelTraceparent,
+            otelBaggage,
+            sentryMessageId,
+        } = payload as unknown as QueueTraceProperties;
 
         const latency = Date.now() - runAt.getTime();
         return new Promise<void>((resolve, reject) => {
             Sentry.continueTrace(
                 { sentryTrace: traceHeader, baggage: baggageHeader },
                 async () => {
-                    await Sentry.startSpan(
+                    await continueOtelTrace(
                         {
-                            name: 'queue_consumer_transaction',
-                            op: task,
+                            traceparent: otelTraceparent,
+                            baggage: otelBaggage,
                         },
-                        async (parent) => {
-                            await Sentry.startSpan(
+                        async () =>
+                            traceSpan(
                                 {
-                                    name: 'queue_consumer',
-                                    op: 'queue.process',
-                                    attributes: {
-                                        'messaging.message.id': sentryMessageId,
-                                        'messaging.destination.name': task,
-                                        'messaging.message.body.size':
-                                            Buffer.byteLength(
-                                                JSON.stringify(payload),
-                                            ),
-                                        'messaging.message.receive.latency':
-                                            latency,
-                                        'messaging.message.retry.count': 0,
-                                        'messaging.message.job.id': `${jobId}`,
-                                    },
+                                    name: 'queue_consumer_transaction',
+                                    op: task,
                                 },
-                                async (span) => {
-                                    const OK = 1;
-                                    const ERROR = 2;
-                                    try {
-                                        await funct();
+                                async (parent) => {
+                                    await traceSpan(
+                                        {
+                                            name: 'queue_consumer',
+                                            op: 'queue.process',
+                                            attributes: {
+                                                'messaging.message.id':
+                                                    sentryMessageId,
+                                                'messaging.destination.name':
+                                                    task,
+                                                'messaging.message.body.size':
+                                                    Buffer.byteLength(
+                                                        JSON.stringify(payload),
+                                                    ),
+                                                'messaging.message.receive.latency':
+                                                    latency,
+                                                'messaging.message.retry.count': 0,
+                                                'messaging.message.job.id': `${jobId}`,
+                                            },
+                                        },
+                                        async () => {
+                                            const OK = 1;
+                                            const ERROR = 2;
+                                            try {
+                                                await funct();
 
-                                        parent.setStatus({ code: OK });
+                                                parent.setStatus({
+                                                    code: OK,
+                                                });
 
-                                        resolve();
-                                    } catch (e) {
-                                        parent.setStatus({
-                                            code: ERROR,
-                                            message: `Unable to process job ${e}`,
-                                        });
-                                        reject(e);
-                                        throw e;
-                                    }
+                                                resolve();
+                                            } catch (e) {
+                                                parent.setStatus({
+                                                    code: ERROR,
+                                                    message: `Unable to process job ${e}`,
+                                                });
+                                                reject(e);
+                                                throw e;
+                                            }
+                                        },
+                                    );
                                 },
-                            );
-                        },
+                            ),
                     );
                 },
             ).catch((e) => {
@@ -227,7 +248,7 @@ export class SchedulerClient {
         queueName?: string,
     ) {
         const messageId = nanoid();
-        const jobId = await Sentry.startSpan(
+        const jobId = await traceSpan(
             {
                 name: 'queue_producer',
                 op: 'queue.publish',
@@ -242,11 +263,14 @@ export class SchedulerClient {
             async (span) => {
                 const traceHeader = Sentry.spanToTraceHeader(span);
                 const baggageHeader = Sentry.spanToBaggageHeader(span);
+                const otelTraceHeaders = getOtelTraceHeaders();
                 const payloadWithSentryHeaders: TaskPayloadMap[T] &
                     QueueTraceProperties = {
                     ...payload,
                     traceHeader,
                     baggageHeader,
+                    otelTraceparent: otelTraceHeaders.traceparent,
+                    otelBaggage: otelTraceHeaders.baggage,
                     sentryMessageId: messageId,
                 };
 

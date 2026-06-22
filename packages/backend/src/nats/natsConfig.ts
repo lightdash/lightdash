@@ -3,6 +3,8 @@ import { z } from 'zod';
 export type NatsTraceProperties = {
     traceHeader?: string;
     baggageHeader?: string;
+    otelTraceparent?: string;
+    otelBaggage?: string;
     sentryMessageId?: string;
 };
 

@@ -24,6 +24,7 @@ import * as Sentry from '@sentry/node';
 import type { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import type { LightdashConfig } from '../../config/parseConfig';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { traceSpan } from '../../tracing/tracing';
 import { BaseService } from '../BaseService';
 import type { ProjectService } from '../ProjectService/ProjectService';
 
@@ -334,7 +335,7 @@ ORDER BY ${
         eventDimensionId: string,
         timestampFieldId: string,
     ): Promise<string[]> {
-        return Sentry.startSpan(
+        return traceSpan(
             {
                 op: 'FunnelService.getEventNames',
                 name: 'FunnelService.getEventNames',
@@ -430,7 +431,7 @@ ORDER BY ${
         projectUuid: string,
         request: FunnelQueryRequest,
     ): Promise<FunnelQueryResult> {
-        return Sentry.startSpan(
+        return traceSpan(
             {
                 op: 'FunnelService.runFunnelQuery',
                 name: 'FunnelService.runFunnelQuery',
