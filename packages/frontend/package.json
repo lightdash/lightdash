@@ -119,7 +119,7 @@
         "react-leaflet": "4.2.1",
         "react-redux": "9.2.0",
         "react-resizable-panels": "2.1.7",
-        "react-router": "7.15.0",
+        "react-router": "7.15.1",
         "react-use": "17.6.0",
         "react-use-intercom": "4.1.0",
         "react-vega": "8.0.0",
