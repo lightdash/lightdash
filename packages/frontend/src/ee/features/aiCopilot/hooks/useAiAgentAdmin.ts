@@ -25,6 +25,7 @@ import {
     useQuery,
     useQueryClient,
     type QueryClient,
+    type QueryKey,
     type UseInfiniteQueryOptions,
     type UseQueryOptions,
 } from '@tanstack/react-query';
@@ -499,23 +500,70 @@ const reorderAiAgentReviewItems = async (orderedFingerprints: string[]) => {
     });
 };
 
-// Silent on success (fires on every drop); the board updates optimistically and
-// a failure re-fetches the authoritative order.
+// Reorders the cached review-item lists so the dragged fingerprints take the
+// given order at the slots they already occupy (other items stay put). Since
+// the board buckets a flat array into lanes by array order, this reflects a
+// drag-reorder without refetching.
+const reorderCachedItems = (
+    items: AiAgentReviewItemSummary[],
+    orderedFingerprints: string[],
+): AiAgentReviewItemSummary[] => {
+    const orderSet = new Set(orderedFingerprints);
+    const byFingerprint = new Map(
+        items
+            .filter((item) => orderSet.has(item.fingerprint))
+            .map((item) => [item.fingerprint, item]),
+    );
+    let next = 0;
+    return items.map((item) => {
+        if (!orderSet.has(item.fingerprint)) return item;
+        const replacement = byFingerprint.get(orderedFingerprints[next]);
+        next += 1;
+        return replacement ?? item;
+    });
+};
+
+// Optimistic + silent: applies the new order to the cache immediately (rolling
+// back on error), so the board never flashes back while the request is in
+// flight. onSettled re-fetches the authoritative order.
 export const useReorderReviewItems = () => {
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
 
-    return useMutation<undefined, ApiError, string[]>({
+    return useMutation<
+        undefined,
+        ApiError,
+        string[],
+        { previous: [QueryKey, AiAgentReviewItemSummary[] | undefined][] }
+    >({
         mutationFn: reorderAiAgentReviewItems,
+        onMutate: async (orderedFingerprints) => {
+            await queryClient.cancelQueries({
+                queryKey: [AI_AGENT_ADMIN_REVIEW_ITEMS_QUERY_KEY],
+            });
+            const previous =
+                queryClient.getQueriesData<AiAgentReviewItemSummary[]>({
+                    queryKey: [AI_AGENT_ADMIN_REVIEW_ITEMS_QUERY_KEY],
+                });
+            queryClient.setQueriesData<AiAgentReviewItemSummary[]>(
+                { queryKey: [AI_AGENT_ADMIN_REVIEW_ITEMS_QUERY_KEY] },
+                (old) =>
+                    old ? reorderCachedItems(old, orderedFingerprints) : old,
+            );
+            return { previous };
+        },
+        onError: (error, _orderedFingerprints, context) => {
+            context?.previous.forEach(([key, data]) => {
+                queryClient.setQueryData(key, data);
+            });
+            showToastApiError({
+                title: 'Failed to reorder items',
+                apiError: error.error,
+            });
+        },
         onSettled: () => {
             void queryClient.invalidateQueries({
                 queryKey: [AI_AGENT_ADMIN_REVIEW_ITEMS_QUERY_KEY],
-            });
-        },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: 'Failed to reorder items',
-                apiError: error,
             });
         },
     });

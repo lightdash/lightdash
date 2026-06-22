@@ -358,20 +358,50 @@ export const ReviewKanbanBoard: FC<Props> = ({
         setActiveId(String(active.id));
     };
 
-    // Live cross-lane preview: move the dragged card into the lane it's hovering
-    // so the gap opens there before the drop.
+    // Reorder continuously while dragging — within a lane and across lanes — so
+    // the card already sits in its final slot on release. Without this, dnd-kit
+    // animates the drop back to the original index and the row flashes before
+    // the persisted order lands. Lanes are resolved from `prev` to dodge stale
+    // state across rapid dragOver events.
+    const laneOf = (
+        state: Record<ReviewLane, AiAgentReviewItemSummary[]>,
+        id: string,
+    ): ReviewLane | null => {
+        if (LANE_IDS.has(id)) return id as ReviewLane;
+        return (
+            REVIEW_LANES.find((lane) =>
+                state[lane.id].some((item) => item.uuid === id),
+            )?.id ?? null
+        );
+    };
+
     const handleDragOver = ({ active, over }: DragOverEvent) => {
         if (!over) return;
         const activeKey = String(active.id);
         const overKey = String(over.id);
-        const fromLane = findLane(activeKey);
-        const toLane = findLane(overKey);
-        if (!fromLane || !toLane || fromLane === toLane) return;
+        if (activeKey === overKey) return;
         setLaneItems((prev) => {
+            const fromLane = laneOf(prev, activeKey);
+            const toLane = laneOf(prev, overKey);
+            if (!fromLane || !toLane) return prev;
             const fromList = prev[fromLane];
-            const index = fromList.findIndex((item) => item.uuid === activeKey);
-            if (index < 0) return prev;
-            const moved = fromList[index];
+            const activeIndex = fromList.findIndex(
+                (item) => item.uuid === activeKey,
+            );
+            if (activeIndex < 0) return prev;
+
+            if (fromLane === toLane) {
+                const overIndex = fromList.findIndex(
+                    (item) => item.uuid === overKey,
+                );
+                if (overIndex < 0 || activeIndex === overIndex) return prev;
+                return {
+                    ...prev,
+                    [fromLane]: arrayMove(fromList, activeIndex, overIndex),
+                };
+            }
+
+            const moved = fromList[activeIndex];
             const toList = prev[toLane];
             const overIndex = toList.findIndex((item) => item.uuid === overKey);
             const insertAt = overIndex >= 0 ? overIndex : toList.length;
@@ -387,55 +417,42 @@ export const ReviewKanbanBoard: FC<Props> = ({
         });
     };
 
-    const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    // dragOver has already placed the card in its final slot/lane; here we just
+    // persist that order and apply the status change if it crossed lanes.
+    const handleDragEnd = ({ active }: DragEndEvent) => {
         const activeKey = String(active.id);
         draggingRef.current = false;
         setActiveId(null);
-        if (!over) {
-            setLaneItems(lanes);
-            return;
-        }
-        const toLane = findLane(String(over.id));
-        if (!toLane) {
-            setLaneItems(lanes);
-            return;
-        }
 
-        const list = laneItems[toLane];
-        const oldIndex = list.findIndex((item) => item.uuid === activeKey);
-        const overIndex = list.findIndex(
-            (item) => item.uuid === String(over.id),
-        );
-        const newList =
-            oldIndex >= 0 && overIndex >= 0 && oldIndex !== overIndex
-                ? arrayMove(list, oldIndex, overIndex)
-                : list;
-        const moved = newList.find((item) => item.uuid === activeKey);
+        const lane = findLane(activeKey);
+        if (!lane) {
+            setLaneItems(lanes);
+            return;
+        }
+        const laneList = laneItems[lane];
+        const moved = laneList.find((item) => item.uuid === activeKey);
         if (!moved) {
             setLaneItems(lanes);
             return;
         }
-        if (newList !== list) {
-            setLaneItems((prev) => ({ ...prev, [toLane]: newList }));
-        }
 
         // Status follows the lane. The deterministic writeback kicks off when a
         // card lands in In progress, same as before.
-        const targetStatus = LANE_TARGET_STATUS[toLane];
+        const targetStatus = LANE_TARGET_STATUS[lane];
         if (targetStatus !== null && moved.status !== targetStatus) {
             updateStatus.mutate({
                 fingerprint: moved.fingerprint,
                 body: { status: targetStatus, dismissedReason: null },
             });
-            if (toLane === 'in_progress') {
+            if (lane === 'in_progress') {
                 const kind = getStartWritebackKind(moved);
                 if (kind === 'mutate') createWriteback.mutate(moved.fingerprint);
             }
         }
 
-        // Persist the target lane's order (reindexes board_position). The source
-        // lane keeps its relative order, so only the target needs rewriting.
-        reorderItems.mutate(newList.map((item) => item.fingerprint));
+        // Persist the dropped lane's order (reindexes board_position). The source
+        // lane keeps its relative order, so only this lane needs rewriting.
+        reorderItems.mutate(laneList.map((item) => item.fingerprint));
     };
 
     const handleDragCancel = () => {
