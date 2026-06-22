@@ -1,3 +1,15 @@
+# [0.3206.0](https://github.com/lightdash/lightdash/compare/0.3205.0...0.3206.0) (2026-06-22)
+
+
+### Features
+
+* improved project selector for previews ([#24469](https://github.com/lightdash/lightdash/issues/24469)) ([e8d30c6](https://github.com/lightdash/lightdash/commit/e8d30c6ee10f18f14bf5ce97008389104fa61e65))
+
+
+### Performance Improvements
+
+* **frontend:** lazy split route bundles ([#24493](https://github.com/lightdash/lightdash/issues/24493)) ([edaeeb6](https://github.com/lightdash/lightdash/commit/edaeeb6107d0a05bc5b1f50598ab928f3797ac9d))
+
 # [0.3205.0](https://github.com/lightdash/lightdash/compare/0.3204.1...0.3205.0) (2026-06-22)
 
 
