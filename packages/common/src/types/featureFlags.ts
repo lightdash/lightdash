@@ -166,14 +166,6 @@ export enum FeatureFlags {
     LockDashboardFilters = 'lock-dashboard-filters',
 
     /**
-     * Show empty-state suggestion chips above the AI agent chat input. Each
-     * chip carries a tool hint that biases the agent toward the implied tool
-     * on the first turn. Gated for staged rollout while we tune the Haiku
-     * prompt and measure click-through.
-     */
-    AiAgentSuggestions = 'ai-agent-suggestions',
-
-    /**
      * Enable the new pivot-column-sort UI: per-pivot-column sort menu on
      * pivot table headers, sort-direction indicators, and the pinned
      * pivot-column entries in the Sort popover. Backend support

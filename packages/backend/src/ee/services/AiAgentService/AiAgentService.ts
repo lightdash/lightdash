@@ -1407,14 +1407,6 @@ export class AiAgentService extends BaseService {
             throw new ForbiddenError('Organization not found');
         }
 
-        const featureEnabled = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.AiAgentSuggestions,
-        });
-        if (!featureEnabled.enabled) {
-            return { chips: [] };
-        }
-
         const agent = await this.getAgent(user, agentUuid, projectUuid);
 
         if (threadUuid) {
