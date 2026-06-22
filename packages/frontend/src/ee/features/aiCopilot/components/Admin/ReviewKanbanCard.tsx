@@ -122,9 +122,6 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                             )}
                         </Stack>
                         <Group gap={8} wrap="nowrap" align="center">
-                            {isAgentRunning && (
-                                <AiAgentIcon size={14} animated />
-                            )}
                             {isRecurring && (
                                 <Tooltip
                                     variant="xs"
@@ -200,14 +197,18 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                 (activityLabel ? (
                     <Box className={styles.cardFooter}>
                         <Group gap={6} align="center">
-                            <Box
-                                pos="relative"
-                                w={7}
-                                h={7}
-                                bg="indigo.5"
-                                className={styles.pulse}
-                                style={{ borderRadius: '50%' }}
-                            />
+                            {isAgentRunning ? (
+                                <AiAgentIcon size={14} animated />
+                            ) : (
+                                <Box
+                                    pos="relative"
+                                    w={7}
+                                    h={7}
+                                    bg="indigo.5"
+                                    className={styles.pulse}
+                                    style={{ borderRadius: '50%' }}
+                                />
+                            )}
                             <Text fz="xs" c="dimmed">
                                 {activityLabel}
                             </Text>
