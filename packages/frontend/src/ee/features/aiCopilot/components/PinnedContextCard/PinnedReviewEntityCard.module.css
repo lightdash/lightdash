@@ -1,0 +1,20 @@
+.card {
+    border: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-ldGray-3));
+    border-radius: 8px;
+    background-color: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-6)
+    );
+    max-width: 100%;
+}
+
+.evidenceText {
+    font-family: var(--mantine-font-family-monospace);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.redacted {
+    font-style: italic;
+}

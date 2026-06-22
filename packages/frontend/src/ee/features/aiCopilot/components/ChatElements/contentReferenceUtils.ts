@@ -24,10 +24,25 @@ export const getPromptContextItemKey = (item: AiPromptContextItem) => {
             return `file:${item.path}`;
         case 'repository':
             return `repository:${item.fullName}`;
+        case 'pull_request':
+            return `pull_request:${item.prUrl}`;
+        case 'proposed_change':
+            return `proposed_change:${item.fingerprint}`;
+        case 'review_finding':
+            return `review_finding:${item.fingerprint}`;
+        case 'preview_environment':
+            return `preview_environment:${item.previewProjectUuid}`;
         default:
             return assertUnreachable(item, 'Unknown AiPromptContextItem type');
     }
 };
+
+const getProposedChangeLabel = (
+    item: Extract<AiPromptContextItem, { type: 'proposed_change' }>,
+): string =>
+    item.payload.changeKind === 'project_context'
+        ? item.payload.entry.content
+        : item.payload.recommendation.title;
 
 const getPromptContextItemLabel = (item: AiPromptContextItem) => {
     switch (item.type) {
@@ -41,6 +56,14 @@ const getPromptContextItemLabel = (item: AiPromptContextItem) => {
             return item.path;
         case 'repository':
             return item.fullName;
+        case 'pull_request':
+            return item.title ?? `PR #${item.prNumber ?? ''}`.trim();
+        case 'proposed_change':
+            return getProposedChangeLabel(item);
+        case 'review_finding':
+            return item.title;
+        case 'preview_environment':
+            return item.projectName ?? 'Preview environment';
         default:
             return assertUnreachable(item, 'Unknown AiPromptContextItem type');
     }
@@ -63,6 +86,16 @@ export const getPromptContextItemHref = (
         // an in-app route, so there is no link to offer.
         case 'file':
         case 'repository':
+            return null;
+        case 'pull_request':
+            return item.prUrl;
+        case 'preview_environment':
+            return item.previewThreadUuid
+                ? `/projects/${item.previewProjectUuid}/ai-agents/threads/${item.previewThreadUuid}`
+                : `/projects/${item.previewProjectUuid}/home`;
+        // Finding / proposed-change render as rich cards, not navigable chips.
+        case 'review_finding':
+        case 'proposed_change':
             return null;
         default:
             return assertUnreachable(item, 'Unknown AiPromptContextItem type');

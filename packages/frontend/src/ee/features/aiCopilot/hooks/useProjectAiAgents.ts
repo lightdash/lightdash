@@ -634,6 +634,30 @@ const toOptimisticContextItem = (
             return { type: 'file', path: item.path };
         case 'repository':
             return { type: 'repository', fullName: item.fullName };
+        case 'pull_request':
+            return {
+                type: 'pull_request',
+                prUrl: item.prUrl,
+                prNumber: null,
+                provider: null,
+                status: null,
+                title: null,
+            };
+        case 'preview_environment':
+            return {
+                type: 'preview_environment',
+                previewProjectUuid: item.previewProjectUuid,
+                previewThreadUuid: null,
+                status: null,
+                projectName: null,
+            };
+        // System-only pins are seeded by the remediation flow, never optimistically
+        // attached from the UI, so they have no client-resolvable shape.
+        case 'proposed_change':
+        case 'review_finding':
+            throw new Error(
+                `Cannot optimistically resolve system-only context item: ${item.type}`,
+            );
         default:
             return assertUnreachable(
                 item,
