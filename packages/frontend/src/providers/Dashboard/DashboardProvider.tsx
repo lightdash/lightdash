@@ -9,6 +9,7 @@ import {
     getItemId,
     isDashboardChartTileType,
     isFilterLockedOnTab,
+    isReservedParameterName,
     isStandardDateGranularity,
     isSubDayGranularity,
     stripOverridesForLockedFiltersOnTab,
@@ -540,9 +541,11 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         // If no parameter references, return empty array
         if (!dashboardParameterReferences.size) return [];
 
-        // Missing required parameters are the ones that are not set and don't have a default value
+        // Missing required parameters are the ones that are not set and don't have a
+        // default value. Reserved parameters are resolved server-side, never user-set.
         return Array.from(dashboardParameterReferences).filter(
             (parameterName) =>
+                !isReservedParameterName(parameterName) &&
                 !parameters[parameterName] &&
                 !parameterDefinitions[parameterName]?.default,
         );

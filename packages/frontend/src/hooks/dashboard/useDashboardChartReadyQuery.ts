@@ -1,6 +1,7 @@
 import {
     getAvailableParametersFromTables,
     getDateZoomCapabilities,
+    hasReservedParameterReference,
     QueryExecutionContext,
     type ApiError,
     type ApiExecuteAsyncDashboardChartQueryResults,
@@ -151,6 +152,20 @@ export const useDashboardChartReadyQuery = (
           dateZoomCapabilities.hasTimestampDimension
         : false;
 
+    // A chart is also affected by date zoom when its custom SQL references a reserved
+    // date-zoom parameter (e.g. ${ld.parameters.date_zoom}), even with no date dimension
+    // on the axis. All reserved parameters are currently date-zoom values.
+    const referencesDateZoomReservedParam = useMemo(
+        () =>
+            hasReservedParameterReference(
+                tileParameterReferences?.[tileUuid] ?? [],
+            ),
+        [tileParameterReferences, tileUuid],
+    );
+
+    const isAffectedByDateZoom =
+        hasADateDimension || referencesDateZoomReservedParam;
+
     const chartParameterValues = useMemo(() => {
         if (!tileParameterReferences || !tileParameterReferences[tileUuid])
             return {};
@@ -165,7 +180,7 @@ export const useDashboardChartReadyQuery = (
     // single source of truth for whether zoom was actually applied.
     // We still need a pre-query estimate for the query key so we avoid
     // unnecessary refetches when zoom won't have an effect.
-    const isZoomLikelyApplied = hasADateDimension && !!granularity;
+    const isZoomLikelyApplied = isAffectedByDateZoom && !!granularity;
 
     const queryKey = useMemo(
         () => [
@@ -264,12 +279,15 @@ export const useDashboardChartReadyQuery = (
         refetchOnMount: false,
     });
 
-    // Update chartsWithDateZoomApplied based on the backend's dateZoomApplied
+    // Whether date zoom is in effect for this chart: the backend reports it for charts
+    // whose date dimension was overridden; charts that only reference a reserved date-zoom
+    // parameter are in effect whenever a grain is selected.
     const dateZoomApplied =
-        queryResult.data?.executeQueryResponse?.dateZoomApplied ?? false;
+        (queryResult.data?.executeQueryResponse?.dateZoomApplied ?? false) ||
+        (referencesDateZoomReservedParam && !!granularity);
 
     useEffect(() => {
-        if (!chartUuid || !hasADateDimension) return;
+        if (!chartUuid || !isAffectedByDateZoom) return;
 
         setChartsWithDateZoomApplied((prev) => {
             const nextSet = new Set(prev ?? []);
@@ -282,7 +300,7 @@ export const useDashboardChartReadyQuery = (
         });
     }, [
         dateZoomApplied,
-        hasADateDimension,
+        isAffectedByDateZoom,
         chartUuid,
         setChartsWithDateZoomApplied,
     ]);
