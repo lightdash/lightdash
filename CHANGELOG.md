@@ -1,3 +1,17 @@
+# [0.3210.0](https://github.com/lightdash/lightdash/compare/0.3209.0...0.3210.0) (2026-06-22)
+
+
+### Bug Fixes
+
+* **data-apps:** make external-fetch path semantics unambiguous in agent metadata ([#24529](https://github.com/lightdash/lightdash/issues/24529)) ([6c11b12](https://github.com/lightdash/lightdash/commit/6c11b127180d9363abe30df92c865354c491e95f))
+* **pivot:** keep hidden row-index dim context in pivot drill-down ([#24568](https://github.com/lightdash/lightdash/issues/24568)) ([c58285a](https://github.com/lightdash/lightdash/commit/c58285a448fae39ab5fdddab732e9928c7b87a79))
+
+
+### Features
+
+* **navbar:** move theme switcher into user popover menu ([#24571](https://github.com/lightdash/lightdash/issues/24571)) ([1bd1ee3](https://github.com/lightdash/lightdash/commit/1bd1ee30dd92270117c49265e9c670966473c02e))
+* **reviews:** sortable board with reorder + persisted order (ZAP-525) ([#24549](https://github.com/lightdash/lightdash/issues/24549)) ([fee24f1](https://github.com/lightdash/lightdash/commit/fee24f1b19d1e498d13eda5bb7ca4c881a35951e))
+
 # [0.3209.0](https://github.com/lightdash/lightdash/compare/0.3208.1...0.3209.0) (2026-06-22)
 
 
