@@ -1,5 +1,6 @@
 import {
     getParameterReferences,
+    isReservedParameterName,
     parameterRegex,
     renderLiquidSql,
     UnexpectedServerError,
@@ -201,6 +202,16 @@ export const safeReplaceParametersWithTypes = ({
         allParametersResult.references.add(ref);
     });
 
+    // Reserved (system-owned) parameters always carry a system-provided value. An empty
+    // value (e.g. no date zoom applied) is valid, not missing: substitute its token as an
+    // empty value below and drop it from the missing set so it isn't reported or stranded.
+    const emptyReservedParameterNames = Object.keys(parameterValuesMap).filter(
+        (key) => isReservedParameterName(key) && parameterValuesMap[key] === '',
+    );
+    emptyReservedParameterNames.forEach((key) =>
+        allParametersResult.missingReferences.delete(key),
+    );
+
     // If no parameter definitions are provided, use the standard replacement
     if (!parameterDefinitions) {
         return allParametersResult;
@@ -212,6 +223,11 @@ export const safeReplaceParametersWithTypes = ({
     const dateParameters: ParametersValuesMap = {};
 
     Object.entries(parameterValuesMap).forEach(([key, value]) => {
+        // Empty reserved parameters are substituted as an empty value separately below.
+        if (emptyReservedParameterNames.includes(key)) {
+            return;
+        }
+
         const paramDef = parameterDefinitions?.[key];
         const paramType = paramDef?.type;
 
@@ -270,6 +286,22 @@ export const safeReplaceParametersWithTypes = ({
             sqlBuilder,
         );
         processedSql = numberResult.replacedSql;
+    }
+
+    // Substitute empty reserved parameters as an empty quoted value (e.g. '') so the
+    // token isn't left stranded in the SQL when the system value is empty.
+    if (emptyReservedParameterNames.length > 0) {
+        const quoteChar = sqlBuilder.getStringQuoteChar();
+        emptyReservedParameterNames.forEach((key) => {
+            const tokenRegex = new RegExp(
+                `\\$\\{(?:lightdash|ld)\\.parameters\\.${key}\\}`,
+                'g',
+            );
+            processedSql = processedSql.replace(
+                tokenRegex,
+                `${quoteChar}${quoteChar}`,
+            );
+        });
     }
 
     // Return the processed SQL but use the original references from the full parameter scan

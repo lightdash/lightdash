@@ -511,4 +511,37 @@ describe('safeReplaceParametersWithTypes', () => {
             "SELECT * FROM orders WHERE user_id = 42 AND order_date >= CAST('2025-01-01' AS DATE) AND status = 'active'",
         );
     });
+
+    it('substitutes an empty reserved parameter as an empty value, not missing', () => {
+        // date_zoom is a reserved (system-owned) parameter. When no date zoom is applied
+        // it resolves to an empty string, which is a valid value, not a missing one.
+        const sql = 'SELECT ${ld.parameters.date_zoom} AS grain';
+
+        const result = safeReplaceParametersWithTypes({
+            sql,
+            parameterValuesMap: { date_zoom: '' },
+            parameterDefinitions: {
+                date_zoom: { label: 'Date zoom', type: 'string' as const },
+            },
+            sqlBuilder: mockSqlBuilder,
+        });
+
+        expect(result.replacedSql).toBe("SELECT '' AS grain");
+        expect(result.missingReferences.has('date_zoom')).toBe(false);
+    });
+
+    it('still treats an empty non-reserved parameter as missing', () => {
+        const sql = 'SELECT ${ld.parameters.region} AS region';
+
+        const result = safeReplaceParametersWithTypes({
+            sql,
+            parameterValuesMap: { region: '' },
+            parameterDefinitions: {
+                region: { label: 'Region', type: 'string' as const },
+            },
+            sqlBuilder: mockSqlBuilder,
+        });
+
+        expect(result.missingReferences.has('region')).toBe(true);
+    });
 });

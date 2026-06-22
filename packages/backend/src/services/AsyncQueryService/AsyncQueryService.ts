@@ -54,6 +54,7 @@ import {
     getMetricOverridesWithPopInheritance,
     getMetrics,
     getMetricsWithValidParameters,
+    hasReservedParameterReference,
     isCartesianChartConfig,
     isCustomBinDimension,
     isCustomDimension,
@@ -5316,7 +5317,12 @@ export class AsyncQueryService extends ProjectService {
             fields: fieldsWithOverrides,
             parameterReferences,
             usedParametersValues: usedParameters,
-            dateZoomApplied,
+            // Date zoom is in effect when its date dimension was overridden, or when a
+            // grain is selected and the chart references a reserved date-zoom parameter.
+            dateZoomApplied:
+                dateZoomApplied ||
+                (!!dateZoom?.granularity &&
+                    hasReservedParameterReference(parameterReferences)),
             resolvedTimezone: displayTimezone,
         };
     }

@@ -3875,11 +3875,13 @@ export class ProjectService extends BaseService {
             dateZoom,
         );
 
-        // Resolve reserved parameter values from the query context. Reserved values win
-        // over any same-named user value.
+        // Resolve reserved parameter values from the query context. The date zoom value
+        // reflects the selected grain whenever a zoom reaches the query, independent of
+        // whether a date dimension was physically overridden. Reserved values win over
+        // any same-named user value.
         const parametersWithReserved: ParametersValuesMap = {
             ...(parameters ?? {}),
-            ...resolveReservedParameterValues({ dateZoom, dateZoomApplied }),
+            ...resolveReservedParameterValues({ dateZoom }),
         };
 
         const compiledMetricQuery = compileMetricQuery({
