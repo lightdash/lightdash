@@ -10,7 +10,6 @@ import {
     Tooltip,
 } from '@mantine-8/core';
 import {
-    IconArrowRight,
     IconArrowUpRight,
     IconBox,
     IconLayoutColumns,
@@ -29,7 +28,6 @@ import { ReviewAssigneeMenu } from './ReviewAssigneeMenu';
 import {
     formatRelativeReviewDate,
     formatReviewDate,
-    getFixReadyText,
     getIssueTitle,
     getTargetAnchor,
     reviewRootCauseColors,
@@ -57,9 +55,6 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
     const title = getIssueTitle(item);
     const targetAnchor = getTargetAnchor(item);
     const isRecurring = item.findingCount > 1;
-    // The fix row would just echo a fix-framed title; only surface it when it adds something.
-    const fixReadyText = getFixReadyText(item);
-    const showFixReady = fixReadyText !== null && fixReadyText !== title;
 
     const startKind = getStartWritebackKind(item);
 
@@ -159,26 +154,6 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                             </Tooltip>
                         </Group>
                     </Group>
-
-                    {showFixReady && (
-                        <Box className={styles.fixReadyWrap}>
-                            <Group
-                                gap={6}
-                                wrap="nowrap"
-                                align="flex-start"
-                                className={styles.fixReadyRow}
-                            >
-                                <MantineIcon
-                                    icon={IconArrowRight}
-                                    size={13}
-                                    color="indigo"
-                                />
-                                <Text fz="xs" c="dimmed" lineClamp={2}>
-                                    {fixReadyText}
-                                </Text>
-                            </Group>
-                        </Box>
-                    )}
 
                     <Group
                         gap={6}

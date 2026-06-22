@@ -2,7 +2,6 @@ import { type AiAgentReviewItemSummary } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
     formatRelativeReviewDate,
-    getFixReadyText,
     getIssueTitle,
     getTargetAnchor,
 } from './reviewItemDetails';
@@ -83,50 +82,6 @@ describe('getTargetAnchor', () => {
 
     it('returns null when there are no target refs', () => {
         expect(getTargetAnchor(makeItem({ latestFinding: null }))).toBeNull();
-    });
-});
-
-describe('getFixReadyText', () => {
-    it('uses the literal project-context sentence when present', () => {
-        const item = makeItem({
-            primaryRootCause: 'project_context',
-            latestFinding: {
-                projectContextEntry: {
-                    op: 'create',
-                    id: null,
-                    kind: 'definition',
-                    content: 'Active user means signed in within 28 days.',
-                    terms: [],
-                    objects: [],
-                },
-            },
-        });
-        expect(getFixReadyText(item)).toBe(
-            'Active user means signed in within 28 days.',
-        );
-    });
-
-    it('falls back to the recommendation title for semantic-layer fixes', () => {
-        const item = makeItem({
-            latestFinding: {
-                recommendation: {
-                    actionType: 'update_semantic_yaml',
-                    title: 'Add weekly_active_users metric',
-                    rationale: 'because',
-                    targetRefs: [],
-                },
-            },
-        });
-        expect(getFixReadyText(item)).toBe('Add weekly_active_users metric');
-    });
-
-    it('returns null when the finding is too thin to promise a fix', () => {
-        expect(getFixReadyText(makeItem({ latestFinding: null }))).toBeNull();
-        expect(
-            getFixReadyText(
-                makeItem({ latestFinding: { recommendation: null } }),
-            ),
-        ).toBeNull();
     });
 });
 
