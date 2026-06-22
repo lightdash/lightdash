@@ -2,6 +2,7 @@ import {
     AgentToolOutput,
     AiAgentAdminConversationsSummary,
     AiAgentAdminFilters,
+    AiAgentAdminPromptActivityPoint,
     AiAgentAdminSort,
     AiAgentAdminThreadSummary,
     AiAgentEvaluation,
@@ -3025,6 +3026,54 @@ export class AiAgentModel {
             },
             pagination,
         };
+    }
+
+    async findAdminPromptActivity({
+        organizationUuid,
+        projectUuid,
+        days,
+    }: {
+        organizationUuid: string;
+        projectUuid: string;
+        days: number;
+    }): Promise<AiAgentAdminPromptActivityPoint[]> {
+        const startDate = new Date();
+        startDate.setUTCHours(0, 0, 0, 0);
+        startDate.setUTCDate(startDate.getUTCDate() - (days - 1));
+
+        const rows = await this.database(AiPromptTableName)
+            .join(
+                AiThreadTableName,
+                `${AiPromptTableName}.ai_thread_uuid`,
+                `${AiThreadTableName}.ai_thread_uuid`,
+            )
+            .where(`${AiThreadTableName}.organization_uuid`, organizationUuid)
+            .where(`${AiThreadTableName}.project_uuid`, projectUuid)
+            .whereIn(`${AiThreadTableName}.created_from`, ['web_app', 'slack'])
+            .where(`${AiPromptTableName}.created_at`, '>=', startDate)
+            .groupBy('date')
+            .orderBy('date', 'asc')
+            .select<{ date: string; prompt_count: number }[]>([
+                this.database.raw(
+                    `to_char(${AiPromptTableName}.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') as date`,
+                ),
+                this.database.raw('COUNT(*)::integer as prompt_count'),
+            ]);
+
+        const promptCountByDate = new Map(
+            rows.map((row) => [row.date, row.prompt_count]),
+        );
+
+        return Array.from({ length: days }, (_, index) => {
+            const date = new Date(startDate);
+            date.setUTCDate(startDate.getUTCDate() + index);
+            const dateKey = date.toISOString().slice(0, 10);
+
+            return {
+                date: dateKey,
+                promptCount: promptCountByDate.get(dateKey) ?? 0,
+            };
+        });
     }
 
     async getThread({

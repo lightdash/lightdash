@@ -4,6 +4,7 @@ import {
     type AiAgentReviewItemSummary,
     type AiAgentReviewItemStatus,
     type ApiAiAgentAdminConversationsResponse,
+    type ApiAiAgentAdminPromptActivityResponse,
     type ApiAiAgentReviewItemActivityResponse,
     type ApiAiAgentReviewItemPrDiffResponse,
     type ApiAiAgentReviewItemResponse,
@@ -105,6 +106,39 @@ export const useInfiniteAiAgentAdminThreads = (
         ...infinityQueryOpts,
     });
 };
+
+const getAiAgentAdminProjectPromptActivity = async ({
+    projectUuid,
+    days,
+}: {
+    projectUuid: string;
+    days: number;
+}) => {
+    const params = createQueryString({ days });
+
+    return lightdashApi<ApiAiAgentAdminPromptActivityResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/projects/${encodeURIComponent(
+            projectUuid,
+        )}/prompt-activity?${params}`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+export const useAiAgentAdminProjectPromptActivity = (
+    projectUuid: string,
+    days: number,
+    options?: { enabled?: boolean },
+) =>
+    useQuery<ApiAiAgentAdminPromptActivityResponse['results'], ApiError>({
+        queryKey: ['ai-agent-admin-project-prompt-activity', projectUuid, days],
+        queryFn: () =>
+            getAiAgentAdminProjectPromptActivity({ projectUuid, days }),
+        keepPreviousData: true,
+        staleTime: 60 * 1000,
+        enabled: options?.enabled ?? true,
+    });
 
 const getAiAgentAdminAgents = async () => {
     return lightdashApi<ApiAiAgentSummaryResponse['results']>({

@@ -8,9 +8,11 @@ import {
     Text,
 } from '@mantine-8/core';
 import { IconArrowRight } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { type EChartsOption } from 'echarts';
+import { useMemo, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import EChartsReact from '../../../../components/EChartsReactWrapper';
 import {
     reviewRootCauseColors,
     reviewRootCauseLabels,
@@ -21,37 +23,71 @@ type Props = {
     items: AiAgentReviewItemSummary[];
     totalOpen: number;
     reviewsUrl: string;
-    promptTrend: { label: string; prompts: number }[];
+    promptTrend: { date: string; promptCount: number }[];
     isLoadingPromptTrend?: boolean;
 };
 
-const PromptSparkline: FC<{ data: { prompts: number }[] }> = ({ data }) => {
-    const width = 244;
-    const height = 42;
-    const padding = 3;
-    const max = Math.max(1, ...data.map((point) => point.prompts));
-    const lastIndex = Math.max(1, data.length - 1);
-    const points = data
-        .map((point, index) => {
-            const x = padding + (index / lastIndex) * (width - padding * 2);
-            const y =
-                height -
-                padding -
-                (point.prompts / max) * (height - padding * 2);
+const formatPromptDate = (date: string) => {
+    const [year, month, day] = date.split('-').map(Number);
 
-            return `${x.toFixed(1)},${y.toFixed(1)}`;
-        })
-        .join(' ');
+    return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+    });
+};
+
+const PromptSparkline: FC<{ data: { promptCount: number }[] }> = ({ data }) => {
+    const option = useMemo<EChartsOption>(
+        () => ({
+            animation: false,
+            grid: {
+                left: 2,
+                right: 2,
+                top: 4,
+                bottom: 4,
+            },
+            xAxis: {
+                type: 'category',
+                show: false,
+                boundaryGap: false,
+                data: data.map((_, index) => index),
+            },
+            yAxis: {
+                type: 'value',
+                show: false,
+                min: 0,
+                splitLine: { show: false },
+            },
+            series: [
+                {
+                    type: 'line',
+                    data: data.map((point) => point.promptCount),
+                    smooth: true,
+                    silent: true,
+                    symbol: 'none',
+                    lineStyle: {
+                        width: 2,
+                        color: 'var(--mantine-color-violet-5)',
+                    },
+                    areaStyle: {
+                        opacity: 0.08,
+                        color: 'var(--mantine-color-violet-5)',
+                    },
+                },
+            ],
+            tooltip: { show: false },
+        }),
+        [data],
+    );
 
     return (
-        <svg
+        <EChartsReact
             className={classes.sparkline}
-            viewBox={`0 0 ${width} ${height}`}
-            role="img"
-            aria-label="Prompts over time"
-        >
-            <polyline points={points} />
-        </svg>
+            option={option}
+            notMerge
+            opts={{ renderer: 'svg' }}
+            style={{ height: 42, width: '100%' }}
+        />
     );
 };
 
@@ -63,11 +99,15 @@ export const ReviewFindingsPreview: FC<Props> = ({
     isLoadingPromptTrend = false,
 }) => {
     const totalPrompts = promptTrend.reduce(
-        (total, point) => total + point.prompts,
+        (total, point) => total + point.promptCount,
         0,
     );
-    const firstPromptTrendLabel = promptTrend[0]?.label;
-    const lastPromptTrendLabel = promptTrend[promptTrend.length - 1]?.label;
+    const firstPromptTrendLabel = promptTrend[0]
+        ? formatPromptDate(promptTrend[0].date)
+        : null;
+    const lastPromptTrendLabel = promptTrend[promptTrend.length - 1]
+        ? formatPromptDate(promptTrend[promptTrend.length - 1].date)
+        : null;
 
     return (
         <Stack gap={2}>

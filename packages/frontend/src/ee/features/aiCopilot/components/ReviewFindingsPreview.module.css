@@ -10,14 +10,6 @@
     display: block;
     width: 100%;
     height: 42px;
-
-    polyline {
-        fill: none;
-        stroke: var(--mantine-color-violet-5);
-        stroke-width: 2;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-    }
 }
 
 .axisLabel {

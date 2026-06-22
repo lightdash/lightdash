@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     AiAgentAdminConversationsSummary,
     AiAgentAdminFilters,
+    AiAgentAdminPromptActivityPoint,
     AiAgentAdminSort,
     AiAgentReviewItemActivity,
     AiAgentReviewItemPrDiff,
@@ -382,6 +383,27 @@ export class AiAgentAdminService extends BaseService {
             paginateArgs,
             filters,
             sort,
+        });
+    }
+
+    async getPromptActivity(
+        user: SessionUser,
+        projectUuid: string,
+        days: number = 14,
+    ): Promise<AiAgentAdminPromptActivityPoint[]> {
+        const { organizationUuid } = user;
+
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkOrganizationAdminAccess(user);
+
+        const boundedDays = Math.max(1, Math.min(days, 30));
+
+        return this.aiAgentModel.findAdminPromptActivity({
+            organizationUuid,
+            projectUuid,
+            days: boundedDays,
         });
     }
 

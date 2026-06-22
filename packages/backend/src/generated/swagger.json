@@ -21399,6 +21399,39 @@
             "ApiAiAgentAdminConversationsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_AiAgentAdminConversationsSummary__"
             },
+            "AiAgentAdminPromptActivityPoint": {
+                "properties": {
+                    "promptCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "date": {
+                        "type": "string"
+                    }
+                },
+                "required": ["date", "promptCount"],
+                "type": "object"
+            },
+            "ApiSuccess_Array_AiAgentAdminPromptActivityPoint__": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentAdminPromptActivityPoint"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentAdminPromptActivityResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_Array_AiAgentAdminPromptActivityPoint__"
+            },
             "AiAgentAdminSortField": {
                 "type": "string",
                 "enum": ["createdAt", "title"]
@@ -47239,6 +47272,56 @@
                         "schema": {
                             "type": "string",
                             "enum": ["asc", "desc"]
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/aiAgents/admin/projects/{projectUuid}/prompt-activity": {
+            "get": {
+                "operationId": "getProjectPromptActivity",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentAdminPromptActivityResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get prompt activity for one project",
+                "summary": "Get project AI agent prompt activity",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "days",
+                        "required": false,
+                        "schema": {
+                            "default": 14,
+                            "format": "double",
+                            "type": "number"
                         }
                     }
                 ]
