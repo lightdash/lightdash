@@ -479,7 +479,30 @@ const withEarlyToolProgress = (
         }),
     ) as ToolSet;
 
-const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
+const getUnauthenticatedMcpServerNames = (
+    args: AiAgentArgs,
+    mcpToolSetup: AgentMcpToolSetup,
+) => {
+    const oauthServerUuids = new Set(
+        args.mcpServers
+            .filter((server) => server.authType === 'oauth')
+            .map((server) => server.uuid),
+    );
+
+    return mcpToolSetup.unavailableMcpServers
+        .filter(
+            (server) =>
+                server.status === 'not_connected' &&
+                oauthServerUuids.has(server.serverUuid),
+        )
+        .map((server) => server.serverName);
+};
+
+const getAgentMessages = (
+    args: AiAgentArgs,
+    availableExplores: Explore[],
+    mcpToolSetup: AgentMcpToolSetup,
+) => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger('Agent Messages', 'Getting agent messages.');
 
@@ -513,6 +536,10 @@ const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
             canRunSql: args.canRunSql,
             warehouseType: args.warehouseType,
             warehouseSchema: args.warehouseSchema,
+            unauthenticatedMcpServerNames: getUnauthenticatedMcpServerNames(
+                args,
+                mcpToolSetup,
+            ),
         }),
         ...messageHistory,
     ];
@@ -571,7 +598,11 @@ export const generateAgentResponse = async ({
             getAgentTools(args, dependencies, availableExplores, mcpToolSetup),
             dependencies.updateProgress,
         );
-        const messages = getAgentMessages(args, availableExplores);
+        const messages = getAgentMessages(
+            args,
+            availableExplores,
+            mcpToolSetup,
+        );
         logger(
             'Generate Agent Response',
             `Calling generateText with model: ${modelName}`,
@@ -803,7 +834,11 @@ export const streamAgentResponse = async ({
             availableExplores,
             mcpToolSetup,
         );
-        const messages = getAgentMessages(args, availableExplores);
+        const messages = getAgentMessages(
+            args,
+            availableExplores,
+            mcpToolSetup,
+        );
         logger(
             'Stream Agent Response',
             `Calling streamText with model: ${modelName}`,
