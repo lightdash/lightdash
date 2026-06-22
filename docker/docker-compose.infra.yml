@@ -73,6 +73,10 @@ services:
         restart: always
         environment:
             - COLLECTOR_OTLP_ENABLED=true
+            # Enables the dark/light theme toggle in the Jaeger UI
+            - QUERY_UI_CONFIG=/etc/jaeger/ui-config.json
+        volumes:
+            - ./dev-configs/jaeger-ui.json:/etc/jaeger/ui-config.json
         ports:
             - '16686:16686' # Jaeger UI
             - '4317:4317' # OTLP gRPC receiver
