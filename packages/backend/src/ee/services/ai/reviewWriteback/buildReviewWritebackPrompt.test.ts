@@ -3,8 +3,8 @@ import {
     type AiAgentReviewItemSummary,
 } from '@lightdash/common';
 import {
-    buildProjectContextWorkThreadPrompt,
     planReviewWriteback,
+    PROJECT_CONTEXT_WORK_THREAD_INSTRUCTION,
 } from './buildReviewWritebackPrompt';
 
 const baseItem = (
@@ -150,34 +150,16 @@ describe('planReviewWriteback', () => {
     });
 });
 
-describe('buildProjectContextWorkThreadPrompt', () => {
-    const entry = {
-        op: 'create' as const,
-        id: null,
-        kind: 'definition' as const,
-        content: '"HR" = high-risk cohort.',
-        terms: ['HR', 'high risk'],
-        objects: ['patients'],
-    };
-
-    it('states the applied entry and points at the editProjectContext tool', () => {
-        const prompt = buildProjectContextWorkThreadPrompt(
-            baseItem({ primaryRootCause: 'project_context' }),
-            entry,
+describe('PROJECT_CONTEXT_WORK_THREAD_INSTRUCTION', () => {
+    it('is a one-line instruction pointing at the editProjectContext tool', () => {
+        // The finding/change/conversation now travel as pinned context, so the
+        // seed prompt no longer renders the entry inline.
+        expect(PROJECT_CONTEXT_WORK_THREAD_INSTRUCTION).toContain(
+            'editProjectContext',
         );
-        expect(prompt).toContain('Applied project context definition');
-        expect(prompt).toContain('"HR" = high-risk cohort.');
-        expect(prompt).toContain('Triggers: HR, high risk');
-        expect(prompt).toContain('Related objects: patients');
-        expect(prompt).toContain('editProjectContext tool');
-    });
-
-    it('omits the triggers/objects lines when empty', () => {
-        const prompt = buildProjectContextWorkThreadPrompt(
-            baseItem({ primaryRootCause: 'project_context' }),
-            { ...entry, terms: [], objects: [] },
+        expect(PROJECT_CONTEXT_WORK_THREAD_INSTRUCTION).toContain(
+            'project context',
         );
-        expect(prompt).not.toContain('Triggers:');
-        expect(prompt).not.toContain('Related objects:');
+        expect(PROJECT_CONTEXT_WORK_THREAD_INSTRUCTION).not.toContain('\n\n');
     });
 });
