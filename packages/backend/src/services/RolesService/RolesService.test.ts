@@ -87,6 +87,7 @@ describe('RolesService', () => {
                     {
                         name: newRoleName.name,
                         description: newRoleName.description,
+                        level: 'project',
                         created_by: mockAccount.user?.id,
                     },
                     {}, // transaction object
@@ -169,6 +170,7 @@ describe('RolesService', () => {
                     {
                         name: newRoleName.name,
                         description: newRoleName.description,
+                        level: 'project',
                         created_by: mockAccount.user?.id,
                     },
                     {}, // transaction object
@@ -198,6 +200,31 @@ describe('RolesService', () => {
                 expect(result.roleUuid).toBe(mockNewRole.roleUuid);
                 expect(result.name).toBe(newRoleName.name);
                 expect(result.scopes).toEqual(mockCustomRoleWithScopes.scopes);
+            });
+
+            it('should preserve the duplicated custom role level', async () => {
+                const organizationRole = {
+                    ...mockCustomRoleWithScopes,
+                    level: 'organization' as const,
+                };
+                mockRolesModel.getRoleWithScopesByUuid.mockResolvedValue(
+                    organizationRole,
+                );
+
+                await service.duplicateRole(
+                    mockAccount,
+                    organizationUuid,
+                    customRoleId,
+                    newRoleName,
+                );
+
+                expect(mockRolesModel.createRole).toHaveBeenCalledWith(
+                    organizationUuid,
+                    expect.objectContaining({
+                        level: 'organization',
+                    }),
+                    {},
+                );
             });
 
             it('should forbid duplicating role from different organization', async () => {
@@ -277,6 +304,7 @@ describe('RolesService', () => {
                     organizationUuid,
                     expect.objectContaining({
                         name: validName,
+                        level: 'project',
                     }),
                     {}, // transaction object
                 );
@@ -469,6 +497,74 @@ describe('RolesService', () => {
                     ),
                 ).resolves.not.toThrow();
             });
+
+            it('should assign an organization-level custom role to a user', async () => {
+                mockRolesModel.getRoleWithScopesByUuid.mockResolvedValue({
+                    ...mockCustomRoleWithScopes,
+                    level: 'organization',
+                    scopes: ['manage:OrganizationDesign'],
+                });
+
+                const result =
+                    await service.upsertOrganizationUserRoleAssignment(
+                        mockAccount,
+                        organizationUuid,
+                        userUuid,
+                        { roleId: mockCustomRoleWithScopes.roleUuid },
+                    );
+
+                expect(
+                    mockRolesModel.upsertOrganizationUserRoleAssignment,
+                ).toHaveBeenCalledWith(
+                    organizationUuid,
+                    userUuid,
+                    mockCustomRoleWithScopes.roleUuid,
+                );
+                expect(result).toMatchObject({
+                    roleId: mockCustomRoleWithScopes.roleUuid,
+                    roleName: mockCustomRoleWithScopes.name,
+                    ownerType: 'user',
+                    assigneeType: 'user',
+                });
+                expect(
+                    mockAdminNotificationService.notifyOrgAdminRoleChange,
+                ).not.toHaveBeenCalled();
+            });
+
+            it('should reject project-level custom roles at organization level', async () => {
+                mockRolesModel.getRoleWithScopesByUuid.mockResolvedValue({
+                    ...mockCustomRoleWithScopes,
+                    level: 'project',
+                    scopes: ['view:Dashboard'],
+                });
+
+                await expect(
+                    service.upsertOrganizationUserRoleAssignment(
+                        mockAccount,
+                        organizationUuid,
+                        userUuid,
+                        { roleId: mockCustomRoleWithScopes.roleUuid },
+                    ),
+                ).rejects.toThrow(ParameterError);
+            });
+
+            it('should reject custom roles belonging to another organization', async () => {
+                mockRolesModel.getRoleWithScopesByUuid.mockResolvedValue({
+                    ...mockCustomRoleWithScopes,
+                    level: 'organization',
+                    organizationUuid: 'another-org-uuid',
+                    scopes: ['manage:OrganizationDesign'],
+                });
+
+                await expect(
+                    service.upsertOrganizationUserRoleAssignment(
+                        mockAccount,
+                        organizationUuid,
+                        userUuid,
+                        { roleId: mockCustomRoleWithScopes.roleUuid },
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+            });
         });
 
         describe('upsertProjectUserRoleAssignment', () => {
@@ -505,6 +601,23 @@ describe('RolesService', () => {
                         { roleId: ProjectMemberRole.ADMIN },
                     ),
                 ).resolves.not.toThrow();
+            });
+
+            it('should reject organization-level custom roles at project level', async () => {
+                mockRolesModel.getRoleWithScopesByUuid.mockResolvedValue({
+                    ...mockCustomRoleWithScopes,
+                    level: 'organization',
+                    scopes: ['manage:OrganizationDesign'],
+                });
+
+                await expect(
+                    service.upsertProjectUserRoleAssignment(
+                        mockAccount,
+                        projectUuid,
+                        userUuid,
+                        { roleId: mockCustomRoleWithScopes.roleUuid },
+                    ),
+                ).rejects.toThrow(ParameterError);
             });
         });
     });

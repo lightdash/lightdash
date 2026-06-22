@@ -23,6 +23,7 @@ export type Role = {
     roleUuid: string;
     name: string;
     description: string | null;
+    level: RoleLevel;
     organizationUuid: string | null; // System roles don't have an organization
     ownerType: 'user' | 'system';
     createdBy: string | null;
@@ -37,6 +38,7 @@ export type RoleWithScopes = Role & {
 export type CreateRole = {
     name: string;
     description?: string;
+    level?: RoleLevel;
     scopes?: string[];
 };
 

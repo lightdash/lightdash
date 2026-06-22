@@ -4,6 +4,7 @@ import {
     AddScopesToRole,
     CreateRole,
     ForbiddenError,
+    isScopeAssignableAtLevel,
     isSystemRole,
     NotFoundError,
     OrganizationMemberRole,
@@ -12,6 +13,7 @@ import {
     Role,
     RoleAssignee,
     RoleAssignment,
+    RoleLevel,
     RoleWithScopes,
     UpdateRole,
     UpdateRoleAssignmentRequest,
@@ -233,6 +235,34 @@ export class RolesService extends BaseService {
         }
     }
 
+    private static validateScopesLevel(
+        scopeNames: string[],
+        level: RoleLevel,
+    ): void {
+        const invalidScopeNames = scopeNames.filter(
+            (scopeName) => !isScopeAssignableAtLevel(scopeName, level),
+        );
+
+        if (invalidScopeNames.length > 0) {
+            throw new ParameterError(
+                `Scopes are not assignable at ${level} level: ${invalidScopeNames.join(
+                    ', ',
+                )}`,
+            );
+        }
+    }
+
+    private static validateCustomRoleLevel(
+        role: Pick<Role, 'name' | 'level'>,
+        level: RoleLevel,
+    ): void {
+        if (role.level !== level) {
+            throw new ParameterError(
+                `Custom role "${role.name}" can only be assigned at ${role.level} level`,
+            );
+        }
+    }
+
     async getRolesByOrganizationUuid(
         account: Account,
         organizationUuid: string,
@@ -265,7 +295,7 @@ export class RolesService extends BaseService {
         organizationUuid: string,
         createRoleData: CreateRole,
     ): Promise<Role> {
-        const { scopes, name, description } = createRoleData;
+        const { scopes, name, description, level = 'project' } = createRoleData;
         if (isSystemRole(name)) {
             throw new ParameterError(
                 `Cannot create role with name "${name}", this is reserved for system roles`,
@@ -287,6 +317,7 @@ export class RolesService extends BaseService {
                     {
                         name,
                         description: description || null,
+                        level,
                         created_by: account.user?.id,
                     },
                     tx,
@@ -398,7 +429,8 @@ export class RolesService extends BaseService {
     // =====================================
 
     /*
-    At the organization level, we only support system role assignments
+    At the organization level, we support system roles and organization-level
+    custom roles.
     */
     async getOrganizationRoleAssignments(
         account: Account,
@@ -417,8 +449,8 @@ export class RolesService extends BaseService {
     }
 
     /**
-     * Assign system role to user at organization level
-     * Only system roles are allowed at organization level
+     * Assign a system role or an organization-level custom role to a user at
+     * the organization level.
      */
     async upsertOrganizationUserRoleAssignment(
         account: Account,
@@ -436,13 +468,6 @@ export class RolesService extends BaseService {
             orgUuid,
         );
 
-        // Ensure only system roles can be assigned at organization level
-        if (roleId !== OrganizationMemberRole.MEMBER && !isSystemRole(roleId)) {
-            throw new ParameterError(
-                'Only system roles can be assigned at organization level',
-            );
-        }
-
         const user = await this.userModel.getUserDetailsByUuid(userUuid);
         const previousRole = user.role;
 
@@ -458,7 +483,27 @@ export class RolesService extends BaseService {
             }
         }
 
-        // Assign the system role at organization level
+        const isCustomRole =
+            roleId !== OrganizationMemberRole.MEMBER && !isSystemRole(roleId);
+
+        let roleName = roleId;
+        let ownerType: Role['ownerType'] = 'system';
+
+        if (isCustomRole) {
+            const role = await this.rolesModel.getRoleWithScopesByUuid(roleId);
+            RolesService.validateRoleOwnership(account, auditedAbility, role);
+            RolesService.validateCustomRoleLevel(role, 'organization');
+
+            if (role.scopes.length === 0) {
+                throw new ParameterError(
+                    'Custom role must have at least one scope',
+                );
+            }
+
+            roleName = role.name;
+            ownerType = 'user';
+        }
+
         await this.rolesModel.upsertOrganizationUserRoleAssignment(
             orgUuid,
             userUuid,
@@ -472,33 +517,34 @@ export class RolesService extends BaseService {
                 organizationUuid: orgUuid,
                 userUuid,
                 roleId,
-                isSystemRole: true,
+                isSystemRole: !isCustomRole,
             },
         });
 
-        // Safe cast: org-level assignments are validated as system roles above
-        this.adminNotificationService
-            .notifyOrgAdminRoleChange(
-                account,
-                userUuid,
-                orgUuid,
-                previousRole,
-                roleId as OrganizationMemberRole,
-            )
-            .catch((err) => {
-                this.logger.error(
-                    'Failed to send org admin role change notification',
-                    {
-                        error: err,
-                    },
-                );
-            });
+        if (!isCustomRole) {
+            // Safe cast: only system roles reach this branch
+            this.adminNotificationService
+                .notifyOrgAdminRoleChange(
+                    account,
+                    userUuid,
+                    orgUuid,
+                    previousRole,
+                    roleId as OrganizationMemberRole,
+                )
+                .catch((err) => {
+                    this.logger.error(
+                        'Failed to send org admin role change notification',
+                        {
+                            error: err,
+                        },
+                    );
+                });
+        }
 
-        // Build response
         return {
             roleId,
-            roleName: roleId,
-            ownerType: 'system',
+            roleName,
+            ownerType,
             assigneeType: 'user',
             assigneeId: userUuid,
             assigneeName: `${user.firstName} ${user.lastName}`,
@@ -652,6 +698,8 @@ export class RolesService extends BaseService {
                 );
             }
 
+            RolesService.validateCustomRoleLevel(role, 'project');
+
             await this.rolesModel.upsertCustomRoleProjectAccess(
                 projectUuid,
                 userUuid,
@@ -763,6 +811,8 @@ export class RolesService extends BaseService {
                     'Custom role must have at least one scope',
                 );
             }
+
+            RolesService.validateCustomRoleLevel(role, 'project');
 
             await this.rolesModel.upsertCustomRoleGroupAccess(
                 groupUuid,
@@ -887,6 +937,7 @@ export class RolesService extends BaseService {
         const role = await this.rolesModel.getRoleByUuid(roleUuid);
         const auditedAbility = this.createAuditedAbility(account);
         RolesService.validateRoleOwnership(account, auditedAbility, role);
+        RolesService.validateCustomRoleLevel(role, 'project');
         await this.validateProjectAccess(account, projectUuid);
 
         await this.rolesModel.assignRoleToGroup(
@@ -986,6 +1037,7 @@ export class RolesService extends BaseService {
             role || (await this.rolesModel.getRoleByUuid(roleUuid));
         const auditedAbility = this.createAuditedAbility(account);
         RolesService.validateRoleOwnership(account, auditedAbility, foundRole);
+        RolesService.validateScopesLevel(scopeData.scopeNames, foundRole.level);
 
         await this.rolesModel.addScopesToRole(
             roleUuid,
@@ -1092,6 +1144,9 @@ export class RolesService extends BaseService {
         const copyOfRoleName = `Copy of: ${sourceRole.name}`;
         const newDescription =
             description || sourceRole.description || copyOfRoleName;
+        const scopeNames = sourceRole.scopes.filter((scopeName) =>
+            isScopeAssignableAtLevel(scopeName, sourceRole.level),
+        );
         const newRole = await this.rolesModel.db.transaction(
             async (tx: Knex.Transaction) => {
                 const role = await this.rolesModel.createRole(
@@ -1099,16 +1154,17 @@ export class RolesService extends BaseService {
                     {
                         name,
                         description: newDescription,
+                        level: sourceRole.level,
                         created_by: account.user?.id,
                     },
                     tx,
                 );
 
-                if (sourceRole.scopes.length > 0) {
+                if (scopeNames.length > 0) {
                     await this.addScopesToRole(
                         account,
                         role.roleUuid,
-                        { scopeNames: sourceRole.scopes },
+                        { scopeNames },
                         { tx, role },
                     );
                 }
@@ -1125,13 +1181,13 @@ export class RolesService extends BaseService {
                 newRoleName: newRole.name,
                 isSourceSystemRole: isSystemRole(roleUuid),
                 organizationUuid,
-                scopeCount: sourceRole.scopes.length,
+                scopeCount: scopeNames.length,
             },
         });
 
         return {
             ...newRole,
-            scopes: sourceRole.scopes,
+            scopes: scopeNames,
         };
     }
 }

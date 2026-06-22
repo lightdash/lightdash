@@ -1,6 +1,7 @@
 import {
     getSystemRoles,
     GroupProjectAccess,
+    isOrganizationMemberRole,
     isSystemRole,
     NotFoundError,
     OrganizationMemberRole,
@@ -112,6 +113,7 @@ export class RolesModel {
             roleUuid: dbRole.role_uuid,
             name: dbRole.name,
             description: dbRole.description,
+            level: dbRole.level,
             organizationUuid: dbRole.organization_uuid,
             createdBy: dbRole.created_by,
             createdAt: dbRole.created_at,
@@ -250,6 +252,7 @@ export class RolesModel {
             .insert({
                 name: roleData.name,
                 description: roleData.description,
+                level: roleData.level,
                 organization_uuid: organizationUuid,
                 created_by: roleData.created_by,
             })
@@ -869,11 +872,13 @@ export class RolesModel {
     async upsertOrganizationUserRoleAssignment(
         orgUuid: string,
         userUuid: string,
-        systemRoleId: string,
+        roleId: string,
         tx?: Knex.Transaction,
     ): Promise<void> {
         const userId = await this.getUserId(userUuid, tx);
         const orgId = await this.getOrganizationId(orgUuid, tx);
+
+        const isSystemOrganizationRole = isOrganizationMemberRole(roleId);
 
         await (tx || this.database)(OrganizationMembershipsTableName)
             .where({
@@ -881,8 +886,10 @@ export class RolesModel {
                 user_id: userId,
             })
             .update({
-                role: systemRoleId as OrganizationMemberRole,
-                role_uuid: null, // Clear any custom role assignment
+                role: isSystemOrganizationRole
+                    ? roleId
+                    : OrganizationMemberRole.MEMBER,
+                role_uuid: isSystemOrganizationRole ? null : roleId,
             });
     }
 

@@ -7,6 +7,7 @@ export type DbRole = {
     role_uuid: string;
     name: string;
     description: string | null;
+    level: 'project' | 'organization';
     organization_uuid: string;
     created_by: string | null;
     owner_type: 'user' | 'system';
@@ -16,7 +17,7 @@ export type DbRole = {
 
 export type DbRoleInsert = Pick<
     DbRole,
-    'name' | 'description' | 'organization_uuid'
+    'name' | 'description' | 'level' | 'organization_uuid'
 > & {
     created_by: string; // Required on insert, but can become null later
 };
