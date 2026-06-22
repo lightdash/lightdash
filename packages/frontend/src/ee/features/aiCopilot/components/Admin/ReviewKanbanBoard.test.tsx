@@ -26,6 +26,11 @@ vi.mock('../../../../../hooks/useProjectUsersWithRolesV2', () => ({
     useProjectUsersWithRoles: () => ({ usersWithProjectRole: [] }),
 }));
 
+vi.mock('../../../../../hooks/useOrganizationUsers', () => ({
+    useOrganizationUsers: () => ({ data: [] }),
+    useOrgUsersByUuid: () => new Map(),
+}));
+
 vi.mock('../AgentNamePill', () => ({ AgentNamePill: () => null }));
 
 const items = [

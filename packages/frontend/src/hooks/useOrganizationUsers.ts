@@ -13,9 +13,13 @@ import {
     type UseInfiniteQueryOptions,
 } from '@tanstack/react-query';
 import Fuse from 'fuse.js';
+import { useMemo } from 'react';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
+
+type OrganizationUser =
+    ApiOrganizationMemberProfiles['results']['data'][number];
 
 const getOrganizationUsersQuery = async (params?: {
     includeGroups?: number;
@@ -95,6 +99,18 @@ export const useOrganizationUsers = (params?: {
                 return data;
             },
         },
+    );
+};
+
+export const useOrgUsersByUuid = () => {
+    const { data: orgUsers = [] } = useOrganizationUsers();
+
+    return useMemo(
+        () =>
+            new Map<string, OrganizationUser>(
+                orgUsers.map((orgUser) => [orgUser.userUuid, orgUser]),
+            ),
+        [orgUsers],
     );
 };
 
