@@ -5076,11 +5076,25 @@ const models: TsoaRoute.Models = {
         enums: ['cell', 'text', 'row'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ConditionalFormattingTextStyle: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                underline: { dataType: 'boolean' },
+                italic: { dataType: 'boolean' },
+                bold: { dataType: 'boolean' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ConditionalFormattingConfigWithSingleColor: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                textStyle: { ref: 'ConditionalFormattingTextStyle' },
                 applyTo: { ref: 'ConditionalFormattingColorApplyTo' },
                 rules: {
                     dataType: 'array',
@@ -5148,6 +5162,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                textStyle: { ref: 'ConditionalFormattingTextStyle' },
                 applyTo: { ref: 'ConditionalFormattingColorApplyTo' },
                 rule: {
                     ref: 'ConditionalFormattingMinMax_number-or-auto_',

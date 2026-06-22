@@ -15,6 +15,15 @@ export type ConditionalFormattingColorRange = {
     end: string;
 };
 
+export type ConditionalFormattingTextStyle = {
+    /** Render matching cell text in bold */
+    bold?: boolean;
+    /** Render matching cell text in italics */
+    italic?: boolean;
+    /** Underline matching cell text */
+    underline?: boolean;
+};
+
 export type ConditionalFormattingWithValues<T = number | string> =
     BaseFilterRule<FilterOperator, T> & {
         /** Values to compare against */
@@ -52,6 +61,8 @@ export type ConditionalFormattingConfigWithSingleColor = {
     rules: ConditionalFormattingWithFilterOperator[];
     /** Apply formatting to cell background or text */
     applyTo?: ConditionalFormattingColorApplyTo;
+    /** Text styling (bold/italic/underline) applied to matching cell text */
+    textStyle?: ConditionalFormattingTextStyle;
 };
 
 export const isConditionalFormattingConfigWithSingleColor = (
@@ -68,6 +79,8 @@ export type ConditionalFormattingConfigWithColorRange = {
     rule: ConditionalFormattingMinMax<number | 'auto'>;
     /** Apply formatting to cell background or text */
     applyTo?: ConditionalFormattingColorApplyTo;
+    /** Text styling (bold/italic/underline) applied to matching cell text */
+    textStyle?: ConditionalFormattingTextStyle;
 };
 
 export const isConditionalFormattingConfigWithColorRange = (

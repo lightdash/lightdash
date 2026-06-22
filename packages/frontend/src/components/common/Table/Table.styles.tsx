@@ -1,3 +1,4 @@
+import { type ConditionalFormattingTextStyle } from '@lightdash/common';
 import { forwardRef, type ComponentPropsWithRef, type ReactNode } from 'react';
 import styled, { css } from 'styled-components';
 import {
@@ -204,6 +205,7 @@ export const Td = styled.td<{
     $isCopying: boolean;
     $backgroundColor?: string;
     $fontColor?: string;
+    $textStyle?: ConditionalFormattingTextStyle;
     $hasData: boolean;
     $isLargeText: boolean;
     $isMinimal: boolean;
@@ -261,6 +263,15 @@ export const Td = styled.td<{
         $fontColor
             ? `
                 color: ${$fontColor} !important;
+            `
+            : ''}
+
+    ${({ $textStyle }) =>
+        $textStyle
+            ? `
+                ${$textStyle.bold ? 'font-weight: 700;' : ''}
+                ${$textStyle.italic ? 'font-style: italic;' : ''}
+                ${$textStyle.underline ? 'text-decoration: underline;' : ''}
             `
             : ''}
 

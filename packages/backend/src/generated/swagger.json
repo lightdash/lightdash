@@ -5740,8 +5740,29 @@
                 "enum": ["cell", "text", "row"],
                 "type": "string"
             },
+            "ConditionalFormattingTextStyle": {
+                "properties": {
+                    "underline": {
+                        "type": "boolean",
+                        "description": "Underline matching cell text"
+                    },
+                    "italic": {
+                        "type": "boolean",
+                        "description": "Render matching cell text in italics"
+                    },
+                    "bold": {
+                        "type": "boolean",
+                        "description": "Render matching cell text in bold"
+                    }
+                },
+                "type": "object"
+            },
             "ConditionalFormattingConfigWithSingleColor": {
                 "properties": {
+                    "textStyle": {
+                        "$ref": "#/components/schemas/ConditionalFormattingTextStyle",
+                        "description": "Text styling (bold/italic/underline) applied to matching cell text"
+                    },
                     "applyTo": {
                         "$ref": "#/components/schemas/ConditionalFormattingColorApplyTo",
                         "description": "Apply formatting to cell background or text"
@@ -5822,6 +5843,10 @@
             },
             "ConditionalFormattingConfigWithColorRange": {
                 "properties": {
+                    "textStyle": {
+                        "$ref": "#/components/schemas/ConditionalFormattingTextStyle",
+                        "description": "Text styling (bold/italic/underline) applied to matching cell text"
+                    },
                     "applyTo": {
                         "$ref": "#/components/schemas/ConditionalFormattingColorApplyTo",
                         "description": "Apply formatting to cell background or text"
