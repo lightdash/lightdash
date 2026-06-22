@@ -1,6 +1,7 @@
 import {
     ServiceAccountScope,
     type ProjectMemberRole,
+    type RoleLevel,
     type ServiceAccountProjectGrant,
     type ServiceAccountScope as ServiceAccountScopeType,
     type ServiceAccountWithProjectAccessCount,
@@ -116,9 +117,10 @@ const grantsToRows = (grants: ServiceAccountProjectGrant[]): ProjectRoleRow[] =>
 // showing that role even if the flag is off.
 const useCustomRoleOptions = () => {
     const { listRoles } = useCustomRoles();
-    const options = useMemo(
-        () =>
+    const options = useMemo(() => {
+        const buildOptions = (level: RoleLevel) =>
             (listRoles.data ?? [])
+                .filter((role) => role.level === level)
                 .map((role) => ({
                     value: `role:${role.roleUuid}`,
                     label: role.name,
@@ -127,9 +129,13 @@ const useCustomRoleOptions = () => {
                     a.label.localeCompare(b.label, undefined, {
                         sensitivity: 'base',
                     }),
-                ),
-        [listRoles.data],
-    );
+                );
+
+        return {
+            organization: buildOptions('organization'),
+            project: buildOptions('project'),
+        };
+    }, [listRoles.data]);
     return { options, isLoading: listRoles.isLoading };
 };
 
@@ -146,6 +152,8 @@ const EditForm: FC<{
     const { data: projects = [] } = useProjects();
     const { options: customRoleOptions, isLoading: rolesLoading } =
         useCustomRoleOptions();
+    const organizationCustomRoleOptions = customRoleOptions.organization;
+    const projectCustomRoleOptions = customRoleOptions.project;
 
     const initialScope: ScopeMode = isProjectScoped(serviceAccount)
         ? 'project'
@@ -158,22 +166,28 @@ const EditForm: FC<{
         }[] = [
             { group: 'Organization system roles', items: SYSTEM_ROLE_OPTIONS },
         ];
-        if (customRoleOptions.length > 0) {
-            groups.push({ group: 'Custom roles', items: customRoleOptions });
+        if (organizationCustomRoleOptions.length > 0) {
+            groups.push({
+                group: 'Custom roles',
+                items: organizationCustomRoleOptions,
+            });
         }
         return groups;
-    }, [customRoleOptions]);
+    }, [organizationCustomRoleOptions]);
 
     const projectRoleOptions = useMemo(() => {
         const groups: {
             group: string;
             items: { value: string; label: string }[];
         }[] = [{ group: 'System roles', items: SYSTEM_PROJECT_ROLE_OPTIONS }];
-        if (customRoleOptions.length > 0) {
-            groups.push({ group: 'Custom roles', items: customRoleOptions });
+        if (projectCustomRoleOptions.length > 0) {
+            groups.push({
+                group: 'Custom roles',
+                items: projectCustomRoleOptions,
+            });
         }
         return groups;
-    }, [customRoleOptions]);
+    }, [projectCustomRoleOptions]);
 
     const form = useForm({
         initialValues: {

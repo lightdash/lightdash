@@ -1,3 +1,4 @@
+import { type RoleLevel } from '@lightdash/common';
 import {
     Badge,
     Box,
@@ -33,9 +34,8 @@ import styles from './ScopeSelector.module.css';
 
 type ScopeSelectorProps = {
     form: UseFormReturnType<RoleFormValues>;
+    level: RoleLevel;
 };
-
-const ALL_GROUPED_SCOPES = getScopesByGroup(true);
 
 const GroupListItem: FC<{
     group: GroupedScopes;
@@ -156,16 +156,21 @@ const ScopePanel: FC<{
     );
 };
 
-export const ScopeSelector: FC<ScopeSelectorProps> = ({ form }) => {
+export const ScopeSelector: FC<ScopeSelectorProps> = ({ form, level }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearchTerm] = useDebouncedValue(searchTerm, 300);
     const [selectedGroup, setSelectedGroup] = useState<GroupedScopes | null>(
         null,
     );
 
+    const allGroupedScopes = useMemo(
+        () => getScopesByGroup(true, level),
+        [level],
+    );
+
     const filteredScopes = useMemo(
-        () => filterScopes(ALL_GROUPED_SCOPES, debouncedSearchTerm),
-        [debouncedSearchTerm],
+        () => filterScopes(allGroupedScopes, debouncedSearchTerm),
+        [allGroupedScopes, debouncedSearchTerm],
     );
 
     const effectiveSelectedGroup = useMemo(() => {
@@ -180,20 +185,33 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({ form }) => {
         return filteredScopes[0] || null;
     }, [selectedGroup, filteredScopes]);
 
-    const totalScopes = ALL_GROUPED_SCOPES.reduce(
+    const totalScopes = allGroupedScopes.reduce(
         (acc, group) => acc + group.scopes.length,
         0,
     );
 
-    const selectedCount = Object.values(form.values.scopes || {}).filter(
-        (isSelected) => isSelected,
+    const visibleScopeNames = useMemo(
+        () =>
+            new Set<string>(
+                allGroupedScopes.flatMap((group) =>
+                    group.scopes.map((scope) => scope.name),
+                ),
+            ),
+        [allGroupedScopes],
+    );
+
+    const selectedCount = Object.entries(form.values.scopes || {}).filter(
+        ([scopeName, isSelected]) =>
+            isSelected && visibleScopeNames.has(scopeName),
     ).length;
 
     const handleClickClearScopes = () => {
         const clearedScopes = Object.keys(form.values.scopes || {}).reduce(
             (acc, scope) => ({
                 ...acc,
-                [scope]: false,
+                [scope]: visibleScopeNames.has(scope)
+                    ? false
+                    : form.values.scopes[scope],
             }),
             {},
         );
@@ -201,15 +219,15 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({ form }) => {
     };
 
     const handleClickSelectAllScopes = () => {
-        const allScopesObject = ALL_GROUPED_SCOPES.flatMap(
-            (group) => group.scopes,
-        ).reduce(
-            (acc, scope) => ({
-                ...acc,
-                [scope.name]: true,
-            }),
-            {},
-        );
+        const allScopesObject = allGroupedScopes
+            .flatMap((group) => group.scopes)
+            .reduce(
+                (acc, scope) => ({
+                    ...acc,
+                    [scope.name]: true,
+                }),
+                { ...form.values.scopes },
+            );
         form.setFieldValue('scopes', allScopesObject);
     };
 

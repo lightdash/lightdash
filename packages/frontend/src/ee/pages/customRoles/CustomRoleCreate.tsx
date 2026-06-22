@@ -1,3 +1,4 @@
+import { type RoleLevel } from '@lightdash/common';
 import { Stack } from '@mantine-8/core';
 import { useNavigate } from 'react-router';
 import PageBreadcrumbs from '../../../components/common/PageBreadcrumbs';
@@ -11,11 +12,13 @@ export const CustomRoleCreate = () => {
     const handleCreateRole = async (values: {
         name: string;
         description: string;
+        level: RoleLevel;
         scopes: string[];
     }) => {
         await createRole.mutateAsync({
             name: values.name,
             description: values.description || undefined,
+            level: values.level,
             scopes: values.scopes,
         });
         void navigate('/generalSettings/customRoles');
@@ -24,6 +27,7 @@ export const CustomRoleCreate = () => {
     const initialValues = {
         name: '',
         description: '',
+        level: 'project' as const,
         scopes: [],
     };
 
