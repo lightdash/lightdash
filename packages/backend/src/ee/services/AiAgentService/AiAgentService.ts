@@ -245,7 +245,11 @@ import {
 import { RepoFs } from '../ai/repoFs/RepoFs';
 import { renderBlocks as renderSqlApprovalBlocks } from '../ai/tools/slackSqlAggregate';
 import { markSlackThreadAutoApproved } from '../ai/tools/sqlApprovals';
-import { AiAgentArgs, AiAgentDependencies } from '../ai/types/aiAgent';
+import {
+    AiAgentArgs,
+    AiAgentDependencies,
+    type AiAgentMcpServer,
+} from '../ai/types/aiAgent';
 import {
     DiscoverReposFn,
     EditDbtProjectFn,
@@ -3338,6 +3342,9 @@ export class AiAgentService extends BaseService {
         projectUuid: string,
         mcpServerUuid: string,
         body?: ApiAiMcpOAuthCredentialRequest,
+        options?: {
+            connectionStatusOnAuthorization?: 'connecting' | 'not_connected';
+        },
     ): Promise<string> {
         const server = await this.getProjectMcpServerOrThrow(
             projectUuid,
@@ -3369,6 +3376,8 @@ export class AiAgentService extends BaseService {
             userUuid: credentialScope === 'user' ? user.userUuid : undefined,
             actorUserUuid: user.userUuid,
             serverUrl: server.url,
+            connectionStatusOnAuthorization:
+                options?.connectionStatusOnAuthorization,
         });
     }
 
@@ -5357,6 +5366,123 @@ export class AiAgentService extends BaseService {
         );
     }
 
+    private static getSlackMcpOAuthLoginServers(
+        mcpServers: AiAgentMcpServer[],
+        mcpToolSetup: AgentMcpToolSetup,
+    ) {
+        const oauthServersByUuid = new Map(
+            mcpServers
+                .filter((server) => server.authType === 'oauth')
+                .map((server) => [server.uuid, server]),
+        );
+        const seenServerUuids = new Set<string>();
+
+        return mcpToolSetup.unavailableMcpServers.flatMap(
+            (unavailableServer) => {
+                const mcpServer = oauthServersByUuid.get(
+                    unavailableServer.serverUuid,
+                );
+
+                if (
+                    !mcpServer ||
+                    unavailableServer.status !== 'not_connected' ||
+                    seenServerUuids.has(unavailableServer.serverUuid)
+                ) {
+                    return [];
+                }
+
+                seenServerUuids.add(unavailableServer.serverUuid);
+                return [{ ...unavailableServer, mcpServer }];
+            },
+        );
+    }
+
+    private async postSlackMcpOAuthLoginMessages({
+        user,
+        prompt,
+        mcpServers,
+        mcpToolSetup,
+    }: {
+        user: SessionUser;
+        prompt: SlackPrompt;
+        mcpServers: AiAgentMcpServer[];
+        mcpToolSetup: AgentMcpToolSetup;
+    }) {
+        const loginServers = AiAgentService.getSlackMcpOAuthLoginServers(
+            mcpServers,
+            mcpToolSetup,
+        );
+
+        if (loginServers.length === 0) {
+            return;
+        }
+
+        let client: WebClient;
+        try {
+            client = await this.slackClient.getWebClient(
+                prompt.organizationUuid,
+            );
+        } catch (error) {
+            Logger.error(
+                'Failed to get Slack client for MCP OAuth login messages',
+                error,
+            );
+            return;
+        }
+
+        await Promise.all(
+            loginServers.map(async ({ serverName, serverUuid, mcpServer }) => {
+                try {
+                    const authorizationUrl = await this.startMcpOAuthConnection(
+                        user,
+                        prompt.projectUuid,
+                        serverUuid,
+                        undefined,
+                        {
+                            connectionStatusOnAuthorization: 'not_connected',
+                        },
+                    );
+                    const text = `${serverName} MCP needs you to log in before I can use it.`;
+
+                    await client.chat.postEphemeral({
+                        channel: prompt.slackChannelId,
+                        user: prompt.slackUserId,
+                        thread_ts: prompt.slackThreadTs || prompt.promptSlackTs,
+                        text,
+                        blocks: [
+                            {
+                                type: 'section',
+                                text: {
+                                    type: 'mrkdwn',
+                                    text,
+                                },
+                            },
+                            {
+                                type: 'actions',
+                                elements: [
+                                    {
+                                        type: 'button',
+                                        text: {
+                                            type: 'plain_text',
+                                            text: `Log in to ${serverName}`,
+                                        },
+                                        url: authorizationUrl,
+                                        style: 'primary',
+                                    },
+                                ],
+                            },
+                        ],
+                    });
+                } catch (error) {
+                    Logger.error(
+                        `Failed to post Slack MCP OAuth login message for ${mcpServer.name}`,
+                        error,
+                    );
+                }
+            }),
+        );
+    }
+
     async retrieveRelevantArtifacts({
         promptUuid,
         organizationUuid,
@@ -7056,6 +7182,20 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 debugLoggingEnabled:
                     this.lightdashConfig.ai.copilot.debugLoggingEnabled,
             });
+
+        if (isSlackPrompt(prompt) && hasTrustedPromptUserIdentity) {
+            void this.postSlackMcpOAuthLoginMessages({
+                user,
+                prompt,
+                mcpServers,
+                mcpToolSetup,
+            }).catch((error) => {
+                Logger.error(
+                    'Failed to post Slack MCP OAuth login messages',
+                    error,
+                );
+            });
+        }
 
         const dependencies: AiAgentDependencies = {
             listExplores,
