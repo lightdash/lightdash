@@ -64,9 +64,9 @@ const readS3ObjectAsBuffer = async (
  * Copy the resolved theme's files into the data-app sandbox and return
  * metadata for the system-prompt assembly + version-resources snapshot.
  *
- * When `designUuid` is null (no theme picked and no org default), this is
- * a no-op that returns an empty result — the pipeline continues exactly
- * as it would for a no-theme app.
+ * When `designUuid` is null (no theme picked and no org default), this
+ * clears any previous theme files from a warm sandbox and returns an empty
+ * result — the pipeline continues exactly as it would for a no-theme app.
  *
  * The destination directory is reset on every call (`rm -rf` then
  * `mkdir -p`) so a switched theme can never leave stale files from a
@@ -91,6 +91,15 @@ export async function copyDesignIntoSandbox(args: {
         logger,
     } = args;
 
+    // Reset-and-recreate the design tree. Idempotent and cheap on a warm
+    // sandbox; avoids tracking "what was there before".
+    await sandbox.commands.run(
+        designUuid
+            ? `rm -rf ${DESIGN_DIR} && mkdir -p ${DESIGN_DIR}/css ${DESIGN_DIR}/fonts ${DESIGN_DIR}/images`
+            : `rm -rf ${DESIGN_DIR}`,
+        { timeoutMs: 10_000 },
+    );
+
     if (!designUuid) {
         return EMPTY_RESULT;
     }
@@ -108,13 +117,6 @@ export async function copyDesignIntoSandbox(args: {
         );
         return EMPTY_RESULT;
     }
-
-    // Reset-and-recreate the design tree. Idempotent and cheap on a warm
-    // sandbox; avoids tracking "what was there before".
-    await sandbox.commands.run(
-        `rm -rf ${DESIGN_DIR} && mkdir -p ${DESIGN_DIR}/css ${DESIGN_DIR}/fonts ${DESIGN_DIR}/images`,
-        { timeoutMs: 10_000 },
-    );
 
     const cssEntrypoints: string[] = [];
     const imagePaths: string[] = [];

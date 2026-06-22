@@ -17,9 +17,8 @@ type Props = {
     onSelect: (template: DataAppTemplate) => void;
     /**
      * Theme (org design) selection — picked at the same moment as the
-     * template and frozen into the app at creation time. The picker is
-     * inlined here so users see both the structural starting point and the
-     * brand context in one step.
+     * template. The picker is inlined here so users see both the structural
+     * starting point and the brand context in one step.
      */
     selectedThemeUuid: string | null;
     onThemeChange: (designUuid: string | null) => void;

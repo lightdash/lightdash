@@ -130,6 +130,11 @@ type AppGenerateServiceDeps = {
     externalConnectionModel: ExternalConnectionModel;
 };
 
+type GenerateAppOptions = {
+    designUuidInput?: string | null;
+    externalConnections?: AppExternalConnectionReference[];
+};
+
 type GenerateAppResult = {
     appUuid: string;
     version: number;
@@ -1515,6 +1520,19 @@ export class AppGenerateService extends BaseService {
         ];
     }
 
+    private static buildThemeChangePrompt(themeName: string | null): string {
+        const target = themeName
+            ? `the active organization theme "${themeName}"`
+            : 'the Lightdash default styling with no organization theme';
+
+        return [
+            `Restyle the current app to follow ${target}.`,
+            'Preserve the app content exactly: do not change text, metrics, queries, filters, chart semantics, layout intent, or interactions.',
+            'Only change visual styling needed for the theme: colors, typography, spacing, borders, shadows, chart palette, and appropriate theme asset usage.',
+            'If a theme is active, read and use the files under /app/src/design/ and follow the organization theme instructions. Do not edit files under /app/src/design/.',
+        ].join('\n');
+    }
+
     /**
      * Convert an internal tool description (e.g. "Write /app/src/Dashboard.tsx")
      * into a user-friendly status message (e.g. "Creating Dashboard.tsx").
@@ -1580,9 +1598,19 @@ export class AppGenerateService extends BaseService {
 
         const sections: string[] = [];
         if (designCopy.designSnapshot) {
+            const manifestLines = [
+                ...designCopy.cssEntrypoints.map((path) => `- CSS: ${path}`),
+                ...designCopy.fontPaths.map((path) => `- Font: ${path}`),
+                ...designCopy.imagePaths.map((path) => `- Image: ${path}`),
+            ];
+            const manifest =
+                manifestLines.length > 0
+                    ? `\n\nAvailable theme files:\n${manifestLines.join('\n')}`
+                    : '\n\nNo CSS, font, or image files were copied for this theme.';
+
             sections.push(
                 `## Active organization theme: ${designCopy.designSnapshot.name}\n\n` +
-                    `Theme assets are loaded in \`/app/src/design/\` (${designCopy.designSnapshot.fileCount} file(s)). Follow the rules under "Organization themes" in the main skill — they override your defaults for colors, typography, and chart palette where applicable.`,
+                    `Theme assets are loaded in \`/app/src/design/\` (${designCopy.designSnapshot.fileCount} file(s)). Follow the rules under "Organization themes" in the main skill — they override your defaults for colors, typography, and chart palette where applicable.${manifest}\n\nBefore saying a theme asset is unavailable, inspect \`/app/src/design/\` with Glob or Read.`,
             );
         }
         if (designCopy.instructionMarkdown) {
@@ -2356,7 +2384,7 @@ export class AppGenerateService extends BaseService {
         this.logger.info(
             `App ${appUuid}: pipeline started (version=${version}, status=${currentStatus}, isIteration=${isIteration}, model=${
                 payload.claudeModel ?? DEFAULT_DATA_APP_CLAUDE_MODEL
-            }, llm=${describeClaudeCodeEnv(claudeCodeEnv)})`,
+            }, designUuid=${payload.designUuid ?? 'none'}, llm=${describeClaudeCodeEnv(claudeCodeEnv)})`,
         );
 
         // --- Stage: sandbox ---
@@ -3464,9 +3492,9 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         clarifications?: AppClarification[],
         spaceUuid?: string,
         claudeModelInput?: DataAppClaudeModel,
-        designUuidInput?: string | null,
-        externalConnections?: AppExternalConnectionReference[],
+        options: GenerateAppOptions = {},
     ): Promise<GenerateAppResult> {
+        const { designUuidInput, externalConnections } = options;
         await this.assertDataAppsEnabled(user);
         const organizationUuid = await this.getProjectOrgUuid(projectUuid);
         this.assertDataAppAbility(
@@ -3653,8 +3681,9 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         charts?: AppChartReference[],
         dashboard?: AppDashboardReference,
         claudeModelInput?: DataAppClaudeModel,
-        externalConnections?: AppExternalConnectionReference[],
+        options: GenerateAppOptions = {},
     ): Promise<GenerateAppResult> {
+        const { designUuidInput, externalConnections } = options;
         await this.assertDataAppsEnabled(user);
 
         AppGenerateService.validateImageIds(imageIds);
@@ -3688,7 +3717,11 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         const newVersion = (latestVersion?.version ?? 0) + 1;
 
         this.logger.info(
-            `App ${appUuid}: iteration started (version=${newVersion}, model=${claudeModel}, promptLength=${prompt.length})`,
+            `App ${appUuid}: iteration started (version=${newVersion}, model=${claudeModel}, promptLength=${prompt.length}, designUuidInput=${
+                designUuidInput === undefined
+                    ? 'inherit'
+                    : (designUuidInput ?? 'none')
+            })`,
         );
 
         const { refs, dashboardName } = await this.collectChartReferences(
@@ -3702,32 +3735,43 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             sampleStats,
         } = await this.resolveChartReferences(refs, user);
 
-        // Iterations always inherit theme from the parent app — the user
-        // can't switch themes after creation (yet). Re-fetch the current
-        // design state so the snapshot reflects any edits/renames since the
-        // last version. If the design was deleted, `apps.design_uuid` was
-        // set to NULL by the FK cascade and we proceed without a theme.
-        let inheritedDesignUuid: string | null = app.design_uuid;
+        // Omitted designUuid means a normal content iteration that inherits
+        // the app's current theme. Explicit string/null means "change the
+        // app theme and run a style-only iteration".
+        const isThemeChange = designUuidInput !== undefined;
+        let effectiveDesignUuid: string | null = isThemeChange
+            ? designUuidInput
+            : app.design_uuid;
         let designSnapshot: AppVersionResources['design'] = null;
-        if (inheritedDesignUuid) {
-            const inherited =
+        if (effectiveDesignUuid) {
+            const design =
                 await this.organizationDesignModel.findInOrganization(
                     app.organization_uuid,
-                    inheritedDesignUuid,
+                    effectiveDesignUuid,
                 );
-            if (inherited) {
+            if (design) {
                 designSnapshot = {
-                    designUuid: inherited.designUuid,
-                    name: inherited.name,
-                    fileCount: inherited.files.length,
+                    designUuid: design.designUuid,
+                    name: design.name,
+                    fileCount: design.files.length,
                 };
+            } else if (isThemeChange) {
+                throw new ParameterError(
+                    `Theme not found: ${effectiveDesignUuid}`,
+                );
             } else {
-                // Defensive: app.design_uuid points at a row that no longer
-                // exists. Should never happen given the FK is ON DELETE SET
-                // NULL, but if it does, treat as untheme rather than fail.
-                inheritedDesignUuid = null;
+                // Defensive: app.design_uuid points at a missing row. Should
+                // never happen given the FK is ON DELETE SET NULL, but if it
+                // does, treat inherited theme as absent rather than fail.
+                effectiveDesignUuid = null;
             }
         }
+
+        const pipelinePrompt = isThemeChange
+            ? AppGenerateService.buildThemeChangePrompt(
+                  designSnapshot?.name ?? null,
+              )
+            : prompt;
 
         const resources: AppVersionResources = {
             images: imageIds.map((id) => ({ imageId: id })),
@@ -3746,6 +3790,14 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             resources,
         );
 
+        if (isThemeChange) {
+            await this.appModel.updateDesignUuid(
+                appUuid,
+                projectUuid,
+                effectiveDesignUuid,
+            );
+        }
+
         this.analytics.track({
             event: 'data_app.iterated',
             userId: user.userUuid,
@@ -3758,6 +3810,8 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 promptLength: prompt.length,
                 imageCount: imageIds.length,
                 claudeModel,
+                themeChanged: isThemeChange,
+                designUuid: effectiveDesignUuid,
                 previousVersionStatus: latestVersion?.status ?? null,
                 msSinceLastVersion: latestVersion?.created_at
                     ? Date.now() - latestVersion.created_at.getTime()
@@ -3773,13 +3827,13 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             projectUuid,
             organizationUuid: user.organizationUuid!,
             userUuid: user.userUuid,
-            prompt,
+            prompt: pipelinePrompt,
             imageIds: imageIds.length > 0 ? imageIds : undefined,
             isIteration: true,
             chartReferences:
                 chartReferences.length > 0 ? chartReferences : undefined,
             claudeModel,
-            designUuid: inheritedDesignUuid,
+            designUuid: effectiveDesignUuid,
         });
 
         return { appUuid, version: newVersion };
