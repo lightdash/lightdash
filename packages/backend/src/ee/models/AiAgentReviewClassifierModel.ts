@@ -1660,7 +1660,11 @@ export class AiAgentReviewClassifierModel {
     // never-triaged card can still be ordered).
     async setReviewItemBoardPositions(args: {
         organizationUuid: string;
-        items: { fingerprint: string; projectUuid: string; agentUuid: string }[];
+        items: {
+            fingerprint: string;
+            projectUuid: string;
+            agentUuid: string;
+        }[];
     }): Promise<void> {
         if (args.items.length === 0) return;
         await this.database.transaction(async (trx) => {
