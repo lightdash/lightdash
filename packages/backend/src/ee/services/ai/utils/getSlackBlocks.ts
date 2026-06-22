@@ -108,8 +108,10 @@ export type SlackMarkdownMessages = {
     truncated: boolean;
 };
 
+// Markdown blocks carry their content as a top-level string `text`, which isn't
+// in the Slack block union — read it loosely and verify the type at runtime.
 const getBlockTextLength = (block: Block | KnownBlock): number => {
-    const { text } = block as unknown as { text?: string };
+    const { text } = block as { text?: unknown };
     return typeof text === 'string' ? text.length : 0;
 };
 
