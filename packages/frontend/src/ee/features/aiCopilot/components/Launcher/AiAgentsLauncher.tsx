@@ -10,6 +10,10 @@ import {
     useAiAgentStoreSelector,
 } from '../../store/hooks';
 import styles from './AiAgentsLauncher.module.css';
+import {
+    getLauncherPanelAgent,
+    isLauncherAgentAvailable,
+} from './launcherAgentSelection';
 import { LauncherDock } from './LauncherDock';
 import { LauncherPanel } from './LauncherPanel';
 import { useDefaultAiAgent } from './useDefaultAiAgent';
@@ -39,7 +43,7 @@ const AiAgentsLauncherInner: FC = () => {
 
     const isAiAgentEnabled = useAiAgentButtonVisibility();
 
-    const { agents } = useDefaultAiAgent(activeProjectUuid);
+    const { agents, selectedAgent } = useDefaultAiAgent(activeProjectUuid);
 
     const dispatch = useAiAgentStoreDispatch();
     const mode = useAiAgentStoreSelector((state) => state.aiAgentLauncher.mode);
@@ -66,19 +70,27 @@ const AiAgentsLauncherInner: FC = () => {
     // current project, e.g. after a project change while the launcher was hidden.
     useEffect(() => {
         if (!activeAgentUuid || agents.length === 0) return;
-        if (!agents.some((a) => a.uuid === activeAgentUuid)) {
+        if (
+            !isLauncherAgentAvailable({
+                activeAgentUuid,
+                agents,
+                selectedAgent,
+            })
+        ) {
             dispatch(resetActivePanel());
         }
-    }, [activeAgentUuid, agents, dispatch]);
+    }, [activeAgentUuid, agents, dispatch, selectedAgent]);
 
     const isAllowed =
         Boolean(activeProjectUuid) && isAiAgentEnabled && agents.length > 0;
 
     // Only mount the panel when the active agent/thread belongs to this project;
     // mounting an existing-thread panel starts the thread query.
-    const activeAgentBelongsToProject =
-        activeAgentUuid !== null &&
-        agents.some((a) => a.uuid === activeAgentUuid);
+    const activeAgentBelongsToProject = isLauncherAgentAvailable({
+        activeAgentUuid,
+        agents,
+        selectedAgent,
+    });
     const activeThreadBelongsToProject =
         activeThreadId !== null &&
         dock.some((item) => item.threadId === activeThreadId);
@@ -100,8 +112,7 @@ const AiAgentsLauncherInner: FC = () => {
     if (!isAllowed || !activeProjectUuid) return null;
     if (!isPanelOpenSafe && dock.length === 0) return null;
 
-    const panelAgent =
-        agents.find((a) => a.uuid === safeActiveAgentUuid) ?? null;
+    const panelAgent = getLauncherPanelAgent(safeActiveAgentUuid, agents);
 
     return (
         <div className={styles.root}>

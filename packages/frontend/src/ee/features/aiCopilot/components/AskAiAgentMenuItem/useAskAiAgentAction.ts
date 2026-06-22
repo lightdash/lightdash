@@ -5,6 +5,7 @@ import { EventName } from '../../../../../types/Events';
 import { useAiAgentButtonVisibility } from '../../hooks/useAiAgentsButtonVisibility';
 import { store as aiAgentStore } from '../../store';
 import { openPanel } from '../../store/aiAgentLauncherSlice';
+import { getLauncherAgentUuid } from '../Launcher/launcherAgentSelection';
 import { useDefaultAiAgent } from '../Launcher/useDefaultAiAgent';
 
 type Args = {
@@ -27,14 +28,14 @@ export const useAskAiAgentAction = ({
     clickedFrom,
 }: Args) => {
     const isVisible = useAiAgentButtonVisibility();
-    const { agent } = useDefaultAiAgent(projectUuid);
+    const { selectedAgent } = useDefaultAiAgent(projectUuid);
     const { user } = useApp();
     const { track } = useTracking();
 
-    const canAsk = isVisible && !!agent;
+    const canAsk = isVisible && !!selectedAgent;
 
     const handleClick = () => {
-        if (!agent) return;
+        if (!selectedAgent) return;
         track({
             name: EventName.AI_AGENT_ASK_CLICKED,
             properties: {
@@ -49,7 +50,7 @@ export const useAskAiAgentAction = ({
         aiAgentStore.dispatch(
             openPanel({
                 threadId: null,
-                agentUuid: agent.uuid,
+                agentUuid: getLauncherAgentUuid(selectedAgent),
                 pendingContext,
             }),
         );

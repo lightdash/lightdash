@@ -1,4 +1,5 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import { type LauncherActiveAgentUuid } from '../components/Launcher/launcherAgentSelection';
 
 export type LauncherDockItem = {
     threadId: string;
@@ -29,7 +30,7 @@ type LauncherMode = 'collapsed' | 'panel-open';
 export interface AiAgentLauncherState {
     mode: LauncherMode;
     activeThreadId: string | null;
-    activeAgentUuid: string | null;
+    activeAgentUuid: LauncherActiveAgentUuid | null;
     pendingContext: LauncherPendingContext | null;
     currentDashboard: LauncherCurrentDashboard | null;
     dashboardRefreshRequest: DashboardRefreshRequest | null;
@@ -52,7 +53,7 @@ export const aiAgentLauncherSlice = createSlice({
             state,
             action: PayloadAction<{
                 threadId: string | null;
-                agentUuid: string | null;
+                agentUuid: LauncherActiveAgentUuid | null;
                 pendingContext?: LauncherPendingContext | null;
             }>,
         ) => {
