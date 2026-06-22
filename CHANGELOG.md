@@ -1,3 +1,10 @@
+# [0.3205.0](https://github.com/lightdash/lightdash/compare/0.3204.1...0.3205.0) (2026-06-22)
+
+
+### Features
+
+* add OpenTelemetry semconv HTTP server metric on /metrics ([#24532](https://github.com/lightdash/lightdash/issues/24532)) ([ccfc9a6](https://github.com/lightdash/lightdash/commit/ccfc9a675ec05a646f28a2b07d3a592932b89852))
+
 ## [0.3204.1](https://github.com/lightdash/lightdash/compare/0.3204.0...0.3204.1) (2026-06-19)
 
 
