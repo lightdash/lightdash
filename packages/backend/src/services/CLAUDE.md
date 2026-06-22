@@ -122,6 +122,7 @@ export class MyNewService extends BaseService {
 <importantToKnow>
 - Services are responsible for business logic, while models handle data persistence.
 - Services should validate inputs and enforce access control before performing operations.
+- An arg that accepts a uuid **or** a slug must be typed `UuidOrSlug` (from `@lightdash/common`) and named `*UuidOrSlug`. Resolve it to `entity.uuid` (via `getByIdOrSlug`) before using it as a key, FK, comparison, or passing it downstream — never reuse the raw arg. Args that are already resolved uuids must be typed `UUID` (not `string`) and named `*Uuid`.
 - Service methods should accept `account: RegisteredAccount` (or `Account` if the method legitimately serves embed/JWT callers) — not `user: SessionUser`. Use `account.user.userUuid` for ids and `account.organization.organizationUuid` for org context. Build CASL checks via `this.createAuditedAbility(account)`. See `docs/account-patterns.md` for the migration cheat sheet.
 - Use the logger provided by BaseService for consistent logging across services instead of importing Logger from 'logging/logger'. The logger is available as `this.logger` and supports debug, info, warn, and error levels.
 - Logger best practices:

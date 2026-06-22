@@ -351,6 +351,24 @@ Slugs are human-readable URL identifiers for charts, dashboards, and spaces (e.g
 - **Never use slugs as unique keys** in new code. Use UUIDs for any operation that requires uniqueness. Slugs are for URL display only.
 - **A REPL script exists** to fix duplicates: `packages/backend/src/ee/repl/scripts/fixDuplicateSlugs.ts`
 
+### Make uuid vs uuid-or-slug explicit (endpoints & service args)
+
+A whole class of bug comes from a param named `*Uuid` that actually carries a
+uuid *or* a slug (routes that accept either resolve via `getByIdOrSlug`), then
+using the raw value as a real UUID downstream (DB write, FK, comparison). Make
+the contract explicit instead of relying on the name:
+
+- **Path params that accept either** must be typed `UuidOrSlug` and named
+  `*UuidOrSlug` (e.g. `@Path() dashboardUuidOrSlug: UuidOrSlug`). This documents
+  the dual contract in the OpenAPI spec.
+- **Uuid-only path params** must be typed `UUID` (e.g. `@Path() versionUuid: UUID`).
+  TSOA emits the uuid pattern validator for `UUID`, so non-uuid values are
+  rejected at the request boundary (422). Both types live in
+  `packages/common/src/types/api/uuid.ts`.
+- **Service args** mirror the same names: a `UuidOrSlug` arg must be resolved to
+  `entity.uuid` (via `getByIdOrSlug`) before being used as a key, FK, or in any
+  comparison — never pass the raw arg downstream.
+
 ## Development Troubleshooting
 
 -   If there are issues running dbt, make sure there is a python3 venv in the root of the repo, which has dbt-core and dbt-postgres installed

@@ -55,6 +55,8 @@ import {
     type DuplicateDashboardParams,
     type Explore,
     type ExploreError,
+    type UUID,
+    type UuidOrSlug,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
 import { type Knex } from 'knex';
@@ -161,11 +163,11 @@ export class DashboardService
 
     async scheduleExportContent(
         user: SessionUser,
-        dashboardUuid: string,
+        dashboardUuidOrSlug: UuidOrSlug,
         data: ExportContentRequest,
     ) {
         const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
 
         if (
             ![
@@ -220,7 +222,7 @@ export class DashboardService
 
         const payload: ExportContentPayload = {
             resourceType: SchedulerResourceType.DASHBOARD,
-            resourceUuid: dashboardUuid,
+            resourceUuid: dashboard.uuid,
             format: data.format,
             options: data.options ?? {},
             dashboardFilters: data.dashboardFilters,
@@ -286,7 +288,7 @@ export class DashboardService
 
     async verifyDashboard(
         user: SessionUser,
-        dashboardUuidOrSlug: string,
+        dashboardUuidOrSlug: UuidOrSlug,
     ): Promise<ContentVerificationInfo> {
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
@@ -339,7 +341,7 @@ export class DashboardService
 
     async unverifyDashboard(
         user: SessionUser,
-        dashboardUuidOrSlug: string,
+        dashboardUuidOrSlug: UuidOrSlug,
     ): Promise<void> {
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
@@ -412,7 +414,7 @@ export class DashboardService
 
     private async deleteOrphanedChartsInDashboards(
         user: SessionUser,
-        dashboardUuid: string,
+        dashboardUuid: UUID,
     ) {
         const orphanedCharts =
             await this.dashboardModel.getOrphanedCharts(dashboardUuid);
@@ -456,9 +458,9 @@ export class DashboardService
         dashboardUuid,
         user,
     }: {
-        chartUuid: string;
-        projectUuid: string;
-        dashboardUuid: string;
+        chartUuid: UUID;
+        projectUuid: UUID;
+        dashboardUuid: UUID;
         user: SessionUser;
     }): Promise<string> {
         const chartToDuplicate = await this.savedChartModel.get(chartUuid);
@@ -531,7 +533,7 @@ export class DashboardService
 
     async getAllByProject(
         user: SessionUser,
-        projectUuid: string,
+        projectUuid: UUID,
         chartUuid?: string,
         includePrivate?: boolean,
     ): Promise<DashboardBasicDetailsWithTileTypes[]> {
@@ -567,7 +569,7 @@ export class DashboardService
 
     async getByIdOrSlug(
         user: SessionUser,
-        dashboardUuidOrSlug: string,
+        dashboardUuidOrSlug: UuidOrSlug,
         options?: { projectUuid?: string },
     ): Promise<Dashboard> {
         const dashboardDao = await this.dashboardModel.getByIdOrSlug(
@@ -641,13 +643,13 @@ export class DashboardService
 
     async getDashboardCharts(
         user: SessionUser,
-        projectUuid: string,
-        dashboardUuid: string,
+        projectUuid: UUID,
+        dashboardUuidOrSlug: UuidOrSlug,
         page: number,
         pageSize: number,
     ): ReturnType<SearchModel['getDashboardCharts']> {
         const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
+            dashboardUuidOrSlug,
             { projectUuid },
         );
         const spaceContext =
@@ -822,7 +824,7 @@ export class DashboardService
     }
 
     private async updateChartFieldUsage(
-        projectUuid: string,
+        projectUuid: UUID,
         chartExplore: Explore | ExploreError,
         chartFields: ChartFieldUpdates,
     ) {
@@ -842,8 +844,8 @@ export class DashboardService
     }
 
     private async assertWriteSpaceBelongsToProject(
-        projectUuid: string,
-        spaceUuid: string,
+        projectUuid: UUID,
+        spaceUuid: UUID,
     ) {
         const space = await this.spaceModel.get(spaceUuid);
 
@@ -859,8 +861,8 @@ export class DashboardService
     private async assertDashboardTilesBelongToWriteSpace(
         user: SessionUser,
         tiles: CreateDashboard['tiles'],
-        writeSpaceUuid: string,
-        projectUuid: string,
+        writeSpaceUuid: UUID,
+        projectUuid: UUID,
     ) {
         const savedChartUuids = [
             ...new Set(
@@ -970,7 +972,7 @@ export class DashboardService
 
     private async getCreateDashboardContext(
         account: Account,
-        projectUuid: string,
+        projectUuid: UUID,
         dashboard: CreateDashboard,
     ): Promise<{ user: SessionUser; dashboard: CreateDashboard }> {
         const { user, embedWriteActions } = getAccountWriteContext(account);
@@ -1001,10 +1003,10 @@ export class DashboardService
 
     private async getDashboardWriteContext(
         account: Account,
-        projectUuid: string | undefined,
+        projectUuid: UUID | undefined,
     ): Promise<{
         user: SessionUser;
-        embedWriteActions?: { spaceUuid: string };
+        embedWriteActions?: { spaceUuid: UUID };
     }> {
         const context = getAccountWriteContext(account);
 
@@ -1026,7 +1028,7 @@ export class DashboardService
 
     async createFromAccount(
         account: Account,
-        projectUuid: string,
+        projectUuid: UUID,
         dashboard: CreateDashboard,
     ): Promise<Dashboard> {
         const { user, dashboard: dashboardToCreate } =
@@ -1040,7 +1042,7 @@ export class DashboardService
 
     async create(
         user: SessionUser,
-        projectUuid: string,
+        projectUuid: UUID,
         dashboard: CreateDashboard,
     ): Promise<Dashboard> {
         const resolvedSpaceUuid =
@@ -1109,15 +1111,15 @@ export class DashboardService
 
     async duplicateFromAccount(
         account: Account,
-        projectUuid: string,
-        dashboardUuid: string,
+        projectUuid: UUID,
+        dashboardUuidOrSlug: UuidOrSlug,
         data: DuplicateDashboardParams,
     ): Promise<Dashboard> {
         const { user, embedWriteActions } = await this.getDashboardWriteContext(
             account,
             projectUuid,
         );
-        return this.duplicate(user, projectUuid, dashboardUuid, data, {
+        return this.duplicate(user, projectUuid, dashboardUuidOrSlug, data, {
             targetSpaceUuid: embedWriteActions?.spaceUuid,
             sourceSpaceUuid: embedWriteActions?.spaceUuid,
         });
@@ -1125,13 +1127,13 @@ export class DashboardService
 
     async duplicate(
         user: SessionUser,
-        projectUuid: string,
-        dashboardUuid: string,
+        projectUuid: UUID,
+        dashboardUuidOrSlug: UuidOrSlug,
         data: DuplicateDashboardParams,
         options?: { targetSpaceUuid?: string; sourceSpaceUuid?: string },
     ): Promise<Dashboard> {
         const dashboardDao = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
+            dashboardUuidOrSlug,
             { projectUuid },
         );
         if (
@@ -1345,7 +1347,7 @@ export class DashboardService
 
     async updateFromAccount(
         account: Account,
-        dashboardUuidOrSlug: string,
+        dashboardUuidOrSlug: UuidOrSlug,
         dashboard: UpdateDashboard,
         options?: { projectUuid?: string },
     ): Promise<Dashboard> {
@@ -1395,7 +1397,7 @@ export class DashboardService
 
     async update(
         user: SessionUser,
-        dashboardUuidOrSlug: string,
+        dashboardUuidOrSlug: UuidOrSlug,
         dashboard: UpdateDashboard,
         options?: { projectUuid?: string },
     ): Promise<Dashboard> {
@@ -1527,7 +1529,7 @@ export class DashboardService
             const seenChartUuids = new Set<string>();
             const chartDuplicationPromises: Promise<{
                 tileIndex: number;
-                newChartUuid: string;
+                newChartUuid: UUID;
             }>[] = [];
 
             dashboard.tiles.forEach((tile, index) => {
@@ -1631,7 +1633,7 @@ export class DashboardService
 
     async togglePinning(
         user: SessionUser,
-        dashboardUuidOrSlug: string,
+        dashboardUuidOrSlug: UuidOrSlug,
     ): Promise<TogglePinnedItemInfo> {
         const existingDashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
@@ -1719,7 +1721,7 @@ export class DashboardService
 
     async updateMultiple(
         user: SessionUser,
-        projectUuid: string,
+        projectUuid: UUID,
         dashboards: UpdateMultipleDashboards[],
     ): Promise<Dashboard[]> {
         const auditedAbility = this.createAuditedAbility(user);
@@ -1800,11 +1802,11 @@ export class DashboardService
 
     async delete(
         user: SessionUser,
-        dashboardUuid: string,
+        dashboardUuidOrSlug: UuidOrSlug,
         options?: SoftDeleteOptions & { projectUuid?: string },
     ): Promise<void> {
         const dashboardToDelete = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
+            dashboardUuidOrSlug,
             {
                 projectUuid: options?.projectUuid,
             },
@@ -1827,7 +1829,7 @@ export class DashboardService
                         projectUuid,
                         inheritsFromOrgOrProject,
                         access,
-                        metadata: { dashboardUuid },
+                        metadata: { dashboardUuid: dashboardToDelete.uuid },
                     }),
                 )
             ) {
@@ -1880,7 +1882,7 @@ export class DashboardService
                 );
             } catch (error) {
                 this.logger.error(
-                    `Error updating chart field usage for dashboard ${dashboardUuid}`,
+                    `Error updating chart field usage for dashboard ${dashboardToDelete.uuid}`,
                     error,
                 );
             }
@@ -1910,7 +1912,7 @@ export class DashboardService
 
     async softDelete(
         user: SessionUser,
-        dashboardUuidOrSlug: string,
+        dashboardUuidOrSlug: UuidOrSlug,
         options?: SoftDeleteOptions,
     ): Promise<void> {
         const dashboard =
@@ -1964,7 +1966,7 @@ export class DashboardService
 
     async restore(
         user: SessionUser,
-        dashboardUuidOrSlug: string,
+        dashboardUuidOrSlug: UuidOrSlug,
         options?: SoftDeleteOptions,
     ): Promise<void> {
         const dashboard = await this.dashboardModel.getByIdOrSlug(
@@ -2019,7 +2021,7 @@ export class DashboardService
 
     async permanentDelete(
         user: SessionUser,
-        dashboardUuidOrSlug: string,
+        dashboardUuidOrSlug: UuidOrSlug,
         options?: SoftDeleteOptions,
     ): Promise<void> {
         // 'any' so this works whether called directly on a soft-deleted
@@ -2056,14 +2058,14 @@ export class DashboardService
 
     async getSchedulers(
         user: SessionUser,
-        dashboardUuid: string,
+        dashboardUuidOrSlug: UuidOrSlug,
         searchQuery?: string,
         paginateArgs?: KnexPaginateArgs,
         includeLatestRun?: boolean,
     ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
         const dashboard = await this.checkCreateScheduledDeliveryAccess(
             user,
-            dashboardUuid,
+            dashboardUuidOrSlug,
         );
         const auditedAbility = this.createAuditedAbility(user);
         const canManageAll = auditedAbility.can(
@@ -2096,8 +2098,8 @@ export class DashboardService
 
     async getSchedulerRuns(
         user: SessionUser,
-        dashboardUuid: string,
-        schedulerUuid: string,
+        dashboardUuidOrSlug: UuidOrSlug,
+        schedulerUuid: UUID,
         paginateArgs?: KnexPaginateArgs,
         searchQuery?: string,
         sort?: { column: string; direction: 'asc' | 'desc' },
@@ -2108,7 +2110,7 @@ export class DashboardService
     ): Promise<KnexPaginatedData<SchedulerRun[]>> {
         const scheduler = await this.schedulerModel.getScheduler(schedulerUuid);
         const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
         const auditedAbility = this.createAuditedAbility(user);
         // Authorize before revealing whether the scheduler belongs to this
         // dashboard, so unauthorized callers can't distinguish 404 (wrong
@@ -2147,7 +2149,7 @@ export class DashboardService
 
     async createScheduler(
         user: SessionUser,
-        dashboardUuid: string,
+        dashboardUuidOrSlug: UuidOrSlug,
         newScheduler: CreateSchedulerAndTargetsWithoutIds,
     ): Promise<SchedulerAndTargets> {
         if (!isUserWithOrg(user)) {
@@ -2172,7 +2174,7 @@ export class DashboardService
 
         const dashboard = await this.checkCreateScheduledDeliveryAccess(
             user,
-            dashboardUuid,
+            dashboardUuidOrSlug,
         );
         const { projectUuid, organizationUuid } = dashboard;
 
@@ -2248,10 +2250,10 @@ export class DashboardService
 
     private async checkCreateScheduledDeliveryAccess(
         user: SessionUser,
-        dashboardUuid: string,
+        dashboardUuidOrSlug: UuidOrSlug,
     ): Promise<Dashboard> {
         const dashboardDao =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
         const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
@@ -2304,10 +2306,10 @@ export class DashboardService
         action: AbilityAction,
         actor: {
             user: SessionUser;
-            projectUuid: string;
+            projectUuid: UUID;
         },
         resource: {
-            dashboardUuid: string;
+            dashboardUuid: UUID;
             spaceUuid?: string;
         },
     ) {
@@ -2369,7 +2371,7 @@ export class DashboardService
 
     async getHistory(
         user: SessionUser,
-        dashboardUuidOrSlug: string,
+        dashboardUuidOrSlug: UuidOrSlug,
     ): Promise<DashboardHistory> {
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
@@ -2417,8 +2419,8 @@ export class DashboardService
 
     async getVersion(
         user: SessionUser,
-        dashboardUuidOrSlug: string,
-        versionUuid: string,
+        dashboardUuidOrSlug: UuidOrSlug,
+        versionUuid: UUID,
     ): Promise<DashboardVersion> {
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
@@ -2557,8 +2559,8 @@ export class DashboardService
 
     async rollback(
         user: SessionUser,
-        dashboardUuidOrSlug: string,
-        versionUuid: string,
+        dashboardUuidOrSlug: UuidOrSlug,
+        versionUuid: UUID,
     ): Promise<void> {
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
@@ -2689,9 +2691,9 @@ export class DashboardService
             itemUuid: dashboardUuid,
             targetSpaceUuid,
         }: {
-            projectUuid: string;
-            itemUuid: string;
-            targetSpaceUuid: string | null;
+            projectUuid: UUID;
+            itemUuid: UUID;
+            targetSpaceUuid: UUID | null;
         },
         {
             tx,
@@ -2740,7 +2742,7 @@ export class DashboardService
 
     async createDashboardWithCharts(
         account: RegisteredAccount,
-        projectUuid: string,
+        projectUuid: UUID,
         data: CreateDashboardWithCharts,
     ): Promise<Dashboard> {
         const user = toSessionUser(account);

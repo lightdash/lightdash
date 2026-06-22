@@ -94,6 +94,7 @@ export class ProjectController extends BaseController {
 - Consistent response format: `{status: 'ok', results: T}`
 - Authenticated caller available as `req.account`. Narrow with `assertRegisteredAccount(req.account)` for registered-only endpoints. `req.user!` is the legacy shape — see `docs/account-patterns.md`.
 - All endpoints must have JSDoc comments with description first, then `@summary` tag (2-3 words)
+- Type `@Path()` params by what they accept (from `@lightdash/common`): uuid-only params as `UUID` (TSOA validates the format → 422 on a non-uuid); params that accept a uuid **or** a slug (resolved via `getByIdOrSlug`) as `UuidOrSlug`, named `*UuidOrSlug`. Never label a uuid-or-slug param `*Uuid`.
 
 **V2 Differences:**
 
