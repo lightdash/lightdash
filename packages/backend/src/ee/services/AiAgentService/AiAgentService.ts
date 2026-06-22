@@ -249,6 +249,7 @@ import { AiAgentArgs, AiAgentDependencies } from '../ai/types/aiAgent';
 import {
     DiscoverReposFn,
     EditDbtProjectFn,
+    EditProjectContextFn,
     ExploreRepoFn,
     GetPromptFn,
     SendFileFn,
@@ -288,6 +289,7 @@ import { validateSelectedFieldsExistence } from '../ai/utils/validators';
 import { AiAgentToolsService } from '../AiAgentToolsService/AiAgentToolsService';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
+import { ProjectContextService } from '../ProjectContextService/ProjectContextService';
 import { buildChangesetWritebackPrompt } from '../AiWritebackService/changesetPrompt';
 import type { AiWritebackSource } from '../AiWritebackService/types';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
@@ -373,6 +375,7 @@ type AiAgentServiceDependencies = {
     persistentDownloadFileService: PersistentDownloadFileService;
     aiAgentContentValidation: AiAgentContentValidation;
     aiWritebackService: AiWritebackService;
+    projectContextService: ProjectContextService;
     previewDeploySetupService: PreviewDeploySetupService;
     writebackPreviewService: WritebackPreviewService;
     githubAppInstallationsModel: GithubAppInstallationsModel;
@@ -622,6 +625,8 @@ export class AiAgentService extends BaseService {
     private readonly aiAgentContentValidation: AiAgentContentValidation;
 
     private readonly aiWritebackService: AiWritebackService;
+
+    private readonly projectContextService: ProjectContextService;
 
     private readonly previewDeploySetupService: PreviewDeploySetupService;
 
@@ -877,6 +882,7 @@ export class AiAgentService extends BaseService {
             dependencies.persistentDownloadFileService;
         this.aiAgentContentValidation = dependencies.aiAgentContentValidation;
         this.aiWritebackService = dependencies.aiWritebackService;
+        this.projectContextService = dependencies.projectContextService;
         this.previewDeploySetupService = dependencies.previewDeploySetupService;
         this.writebackPreviewService = dependencies.writebackPreviewService;
         this.githubAppInstallationsModel =
@@ -4269,6 +4275,7 @@ export class AiAgentService extends BaseService {
             forceToolHints,
             onStepProgress,
             suppressWritebackPreview,
+            isReviewRemediationWorkThread,
         }: {
             agentUuid: string;
             threadUuid: string;
@@ -4282,6 +4289,9 @@ export class AiAgentService extends BaseService {
                 progressStatus?: 'in_progress' | 'complete' | 'error',
             ) => void;
             suppressWritebackPreview?: boolean;
+            // Enables the work-thread-only editProjectContext tool so the agent
+            // can open/change the project_context PR from this thread.
+            isReviewRemediationWorkThread?: boolean;
         },
     ): Promise<string> {
         try {
@@ -4323,6 +4333,7 @@ export class AiAgentService extends BaseService {
                     forceToolHints,
                     onSlackStepProgress: onStepProgress,
                     suppressWritebackPreview,
+                    isReviewRemediationWorkThread,
                 },
             );
             return response;
@@ -6416,6 +6427,29 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             return (await getInstallationAccess()).listRepos();
         };
 
+        // Deterministic project_context.yml writeback (no sandbox). Only wired
+        // into review-remediation work threads; the source thread is linked
+        // from the PR body so a reviewer can trace the entry.
+        const editProjectContext: EditProjectContextFn = async (entry) => {
+            const sourceThread = prompt.agentUuid
+                ? {
+                      threadUrl: `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/ai-agents/${prompt.agentUuid}/threads/${prompt.threadUuid}`,
+                      promptUuid: prompt.promptUuid,
+                      threadUuid: prompt.threadUuid,
+                  }
+                : null;
+            const writeback = await this.projectContextService.writebackEntry({
+                projectUuid,
+                entry,
+                branchTimestamp: Date.now(),
+                sourceThread,
+            });
+            return {
+                prUrl: writeback.prUrl,
+                prAction: writeback.op === 'update' ? 'updated' : 'opened',
+            };
+        };
+
         return {
             listExplores: toolsRuntime.listExplores,
             getProjectContextDocument,
@@ -6451,6 +6485,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             storeReasoning,
             searchFieldValues: toolsRuntime.searchFieldValues,
             editDbtProject,
+            editProjectContext,
             setupPreviewDeploy: toolsRuntime.setupPreviewDeploy,
             exploreRepo,
             discoverRepos,
@@ -6495,6 +6530,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             // Forces the first tool hint on the opening step instead of merely
             // suggesting it (review Build-fix guarantees editDbtProject runs).
             forceToolHints?: boolean;
+            // Enables the work-thread-only editProjectContext tool.
+            isReviewRemediationWorkThread?: boolean;
             toolHints?: string[];
             onSlackStepProgress?: (
                 progress: string,
@@ -6534,6 +6571,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             autoApproveSql?: boolean;
             suppressWritebackPreview?: boolean;
             forceToolHints?: boolean;
+            isReviewRemediationWorkThread?: boolean;
             toolHints?: string[];
             onSlackStepProgress?: (
                 progress: string,
@@ -6612,6 +6650,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             storeReasoning,
             searchFieldValues,
             editDbtProject,
+            editProjectContext,
             setupPreviewDeploy,
             exploreRepo,
             discoverRepos,
@@ -6878,6 +6917,21 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             provider: prompt.modelConfig?.modelProvider as AnyType,
         });
 
+        // editProjectContext is scoped to review-remediation work threads, so a
+        // normal chat never exposes it. Resolve from the thread (not just the
+        // explicit option) so user-driven follow-ups in the workspace — where
+        // people actually change the PR — also get the tool.
+        const isReviewRemediationWorkThread =
+            options.isReviewRemediationWorkThread ??
+            (isSlackPrompt(prompt)
+                ? false
+                : !!(await this.aiAgentReviewClassifierModel.findReviewRemediationByWorkThread(
+                      {
+                          organizationUuid: user.organizationUuid,
+                          workThreadUuid: prompt.threadUuid,
+                      },
+                  )));
+
         const args: AiAgentArgs = {
             organizationId: user.organizationUuid,
             userId: user.userUuid,
@@ -6902,6 +6956,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableContentTools: canUseContentTools,
             enableSearchSemanticLayer: searchSemanticLayerEnabled,
             enableAiWriteback: aiWritebackEnabled,
+            enableEditProjectContext: isReviewRemediationWorkThread,
             writebackAttribution,
             enablePreviewDeploySetup: aiPreviewDeploySetupEnabled,
             enableRepoDiscovery: repoDiscoveryEnabled,
@@ -6992,6 +7047,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             storeReasoning,
             searchFieldValues,
             editDbtProject,
+            editProjectContext,
             setupPreviewDeploy,
             exploreRepo,
             discoverRepos,

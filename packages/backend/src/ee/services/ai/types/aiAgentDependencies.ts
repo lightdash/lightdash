@@ -3,6 +3,7 @@ import {
     AgentToolOutput,
     AiAgentDocumentContent,
     AiAgentDocumentSummary,
+    AiAgentJudgeProjectContextEntry,
     AiArtifact,
     AiMetricQueryWithFilters,
     AiWebAppPrompt,
@@ -455,6 +456,12 @@ export type EditDbtProjectFn = (args: {
         previewUrl: string | null;
     }
 >;
+
+// Applies a structured project-context entry to lightdash.project_context.yml
+// via the deterministic GitHub-API merge (no sandbox) and opens/updates a PR.
+export type EditProjectContextFn = (
+    entry: AiAgentJudgeProjectContextEntry,
+) => Promise<{ prUrl: string; prAction: 'opened' | 'updated' }>;
 
 export type SetupPreviewDeployFn = () => Promise<PreviewDeploySetupResult>;
 

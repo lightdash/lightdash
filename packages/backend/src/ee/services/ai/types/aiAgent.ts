@@ -21,6 +21,7 @@ import {
     DiscoverReposFn,
     EditContentFn,
     EditDbtProjectFn,
+    EditProjectContextFn,
     ExploreRepoFn,
     FindContentFn,
     FindExploresFn,
@@ -95,6 +96,9 @@ export type AiAgentArgs = AnyAiModel & {
     enableContentTools: boolean;
     enableSearchSemanticLayer: boolean;
     enableAiWriteback: boolean;
+    // Only on inside review-remediation work threads: lets the agent open/update
+    // the project_context.yml PR via the deterministic editProjectContext tool.
+    enableEditProjectContext: boolean;
     // Which GitHub identity a writeback PR would be attributed to (advisory,
     // resolved at prompt-assembly time). null when not applicable/unresolved.
     writebackAttribution: AiWritebackAttribution | null;
@@ -182,6 +186,7 @@ export type AiAgentDependencies = {
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     editDbtProject: EditDbtProjectFn;
+    editProjectContext: EditProjectContextFn;
     syncDbtProject: SyncDbtProjectFn;
     setupPreviewDeploy: SetupPreviewDeployFn;
     exploreRepo: ExploreRepoFn;

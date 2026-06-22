@@ -312,6 +312,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentContentValidation: new AiAgentContentValidation(),
                     aiWritebackService:
                         repository.getAiWritebackService<AiWritebackService>(),
+                    projectContextService:
+                        repository.getProjectContextService<ProjectContextService>(),
                     writebackPreviewService:
                         repository.getWritebackPreviewService<WritebackPreviewService>(),
                     previewDeploySetupService:

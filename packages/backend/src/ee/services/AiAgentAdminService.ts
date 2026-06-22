@@ -66,6 +66,7 @@ import { AiAgentModel } from '../models/AiAgentModel';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type CommercialSchedulerClient } from '../scheduler/SchedulerClient';
 import {
+    buildProjectContextWorkThreadPrompt,
     buildYmlPathByModel,
     planReviewWriteback,
 } from './ai/reviewWriteback/buildReviewWritebackPrompt';
@@ -1049,40 +1050,42 @@ export class AiAgentAdminService extends BaseService {
                 promptUuid: finding.promptUuid,
             });
 
-        // Create the Build-fix thread before the remediation row so a failed
+        // Create the work thread before the remediation row so a failed
         // unique-index insert leaves only a harmless orphan thread, never a
         // remediation pointing at a thread that doesn't exist. The source
         // project/agent were validated above (eligibility + scope), so the
-        // auth-bypassing model call is safe.
-        let workThreadUuid: string | null = null;
-        if (plan.strategy === 'prompt') {
-            const created =
-                await this.aiAgentModel.createWebAppThreadWithPrompt({
-                    thread: {
-                        organizationUuid,
-                        projectUuid: scope.projectUuid,
-                        userUuid: user.userUuid,
-                        createdFrom: 'web_app' as const,
-                        agentUuid: scope.agentUuid,
-                    },
-                    prompt: {
-                        createdByUserUuid: user.userUuid,
-                        prompt: plan.promptText,
-                        context: [
-                            {
-                                type: 'thread',
-                                threadUuid: finding.threadUuid,
-                                promptUuid: finding.promptUuid,
-                            },
-                        ],
-                    },
-                });
-            workThreadUuid = created.threadUuid;
-            await this.aiAgentModel.updateThreadTitle({
-                threadUuid: workThreadUuid,
-                title: `Fix review: ${reviewItem.title}`,
+        // auth-bypassing model call is safe. semantic_layer seeds a Build-fix
+        // prompt the job runs; project_context seeds a refine-context prompt the
+        // user drives in the workspace (the initial PR is deterministic).
+        const workThreadPrompt =
+            plan.strategy === 'project_context'
+                ? buildProjectContextWorkThreadPrompt(reviewItem, plan.entry)
+                : plan.promptText;
+        const { threadUuid: workThreadUuid } =
+            await this.aiAgentModel.createWebAppThreadWithPrompt({
+                thread: {
+                    organizationUuid,
+                    projectUuid: scope.projectUuid,
+                    userUuid: user.userUuid,
+                    createdFrom: 'web_app' as const,
+                    agentUuid: scope.agentUuid,
+                },
+                prompt: {
+                    createdByUserUuid: user.userUuid,
+                    prompt: workThreadPrompt,
+                    context: [
+                        {
+                            type: 'thread',
+                            threadUuid: finding.threadUuid,
+                            promptUuid: finding.promptUuid,
+                        },
+                    ],
+                },
             });
-        }
+        await this.aiAgentModel.updateThreadTitle({
+            threadUuid: workThreadUuid,
+            title: `Fix review: ${reviewItem.title}`,
+        });
 
         // The one-active-per-fingerprint index can still reject the insert in
         // a race (concurrent retry, or a worker reviving the row between the

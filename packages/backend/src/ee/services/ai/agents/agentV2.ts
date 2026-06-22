@@ -23,6 +23,7 @@ import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
 import { getDiscoverRepos } from '../tools/discoverRepos';
 import { getEditContent } from '../tools/editContent';
 import { getEditDbtProject } from '../tools/editDbtProject';
+import { getEditProjectContext } from '../tools/editProjectContext';
 import { getExploreRepo } from '../tools/exploreRepo';
 import { getFindContent } from '../tools/findContent';
 import { getGenerateDashboardV2 } from '../tools/generateDashboardV2';
@@ -307,6 +308,14 @@ const getAgentTools = (
           })
         : null;
 
+    // Only present in review-remediation work threads, where the user can
+    // rebuild/change the project_context PR conversationally.
+    const editProjectContext = args.enableEditProjectContext
+        ? getEditProjectContext({
+              editProjectContext: dependencies.editProjectContext,
+          })
+        : null;
+
     const syncDbtProject = args.enableAiWriteback
         ? getSyncDbtProject({
               syncDbtProject: dependencies.syncDbtProject,
@@ -418,6 +427,7 @@ const getAgentTools = (
         generateUuids,
         ...(args.canManageAgent ? { improveContext } : {}),
         ...(editDbtProject ? { editDbtProject } : {}),
+        ...(editProjectContext ? { editProjectContext } : {}),
         ...(syncDbtProject ? { syncDbtProject } : {}),
         ...(setupPreviewDeploy ? { setupPreviewDeploy } : {}),
         ...(exploreRepo ? { exploreRepo } : {}),
