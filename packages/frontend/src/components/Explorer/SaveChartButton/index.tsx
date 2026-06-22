@@ -1,6 +1,10 @@
 import { getItemId, getMetrics } from '@lightdash/common';
-import { Button, rgba, Tooltip } from '@mantine-8/core';
-import { IconDeviceFloppy, IconPlus } from '@tabler/icons-react';
+import { Button, Group, rgba, Text, Tooltip } from '@mantine-8/core';
+import {
+    IconCircleCheckFilled,
+    IconDeviceFloppy,
+    IconPlus,
+} from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import {
     useAmbientAiEnabled,
@@ -27,12 +31,14 @@ import {
 } from '../../../hooks/useSavedQuery';
 import useSearchParams from '../../../hooks/useSearchParams';
 import MantineIcon from '../../common/MantineIcon';
+import MantineModal from '../../common/MantineModal';
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
 
 const SaveChartButton: FC<{
     disabled?: boolean;
     onSaveModalOpenChange?: (isOpen: boolean) => void;
-}> = ({ disabled, onSaveModalOpenChange }) => {
+    showVerificationSaveOptions?: boolean;
+}> = ({ disabled, onSaveModalOpenChange, showVerificationSaveOptions }) => {
     const isAmbientAiEnabled = useAmbientAiEnabled();
     const embed = useEmbed();
     const isEmbedded = embed.embedToken !== undefined;
@@ -63,6 +69,8 @@ const SaveChartButton: FC<{
 
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
     const [isSaveAsModal, setIsSaveAsModal] = useState(false);
+    const [isSaveVerificationModalOpen, setIsSaveVerificationModalOpen] =
+        useState(false);
     // Track if user clicked save while metadata is still loading
     const [isPendingOpen, setIsPendingOpen] = useState(false);
 
@@ -85,17 +93,24 @@ const SaveChartButton: FC<{
     );
     const hasVersionChanges = useExplorerSelector(selectHasVersionChanges);
     const hasPaletteChanges = useExplorerSelector(selectHasPaletteChanges);
-    const handleSavedQueryUpdate = () => {
+    const handleSavedQueryUpdate = (preserveVerification?: boolean) => {
         if (!savedChart?.uuid || !unsavedChartVersionForSave) return;
+        const verificationUpdate =
+            preserveVerification === undefined ? {} : { preserveVerification };
+
         if (hasPaletteChanges) {
             updateMetadata.mutate({
                 colorPaletteUuid: stagedColorPaletteUuid,
+                ...verificationUpdate,
             });
         }
         if (hasVersionChanges) {
             update.mutate({
                 uuid: savedChart.uuid,
-                payload: unsavedChartVersionForSave,
+                payload: {
+                    ...unsavedChartVersionForSave,
+                    ...verificationUpdate,
+                },
             });
         }
     };
@@ -140,6 +155,10 @@ const SaveChartButton: FC<{
 
     const handleSaveChart = () => {
         if (savedChart) {
+            if (showVerificationSaveOptions) {
+                setIsSaveVerificationModalOpen(true);
+                return;
+            }
             handleSavedQueryUpdate();
         } else if (isGeneratingMetadata) {
             // Metadata still loading - wait for it to complete
@@ -254,6 +273,37 @@ const SaveChartButton: FC<{
                     }
                 />
             )}
+
+            <MantineModal
+                opened={isSaveVerificationModalOpen}
+                onClose={() => setIsSaveVerificationModalOpen(false)}
+                title="Save verified chart"
+            >
+                <Text mb="md">Keep this chart verified after saving?</Text>
+                <Group justify="flex-end">
+                    <Button
+                        variant="default"
+                        loading={update.isLoading || updateMetadata.isLoading}
+                        onClick={() => {
+                            setIsSaveVerificationModalOpen(false);
+                            handleSavedQueryUpdate(false);
+                        }}
+                    >
+                        Save
+                    </Button>
+                    <Button
+                        color="green.7"
+                        leftSection={<IconCircleCheckFilled size={16} />}
+                        loading={update.isLoading || updateMetadata.isLoading}
+                        onClick={() => {
+                            setIsSaveVerificationModalOpen(false);
+                            handleSavedQueryUpdate(true);
+                        }}
+                    >
+                        Save & verify
+                    </Button>
+                </Group>
+            </MantineModal>
         </>
     );
 };

@@ -81,6 +81,7 @@ const updateSavedQuery = async (
             description: data.description,
             spaceUuid: data.spaceUuid,
             colorPaletteUuid: data.colorPaletteUuid,
+            preserveVerification: data.preserveVerification,
         }),
     });
 };
@@ -284,7 +285,10 @@ export const useUpdateMutation = (
     return useMutation<
         SavedChart,
         ApiError,
-        Pick<UpdateSavedChart, 'name' | 'description' | 'colorPaletteUuid'>
+        Pick<
+            UpdateSavedChart,
+            'name' | 'description' | 'colorPaletteUuid' | 'preserveVerification'
+        >
     >(
         (data) => {
             if (savedQueryUuid) {

@@ -1,16 +1,18 @@
+import { subject } from '@casl/ability';
 import {
     ContentType,
     DateGranularity,
+    type UpdateDashboard,
     type DashboardTile,
     type Dashboard as IDashboard,
 } from '@lightdash/common';
-import { Button, Text } from '@mantine-8/core';
+import { Button, Group, Text } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
 import {
     ErrorBoundary as SentryErrorBoundary,
     captureException,
 } from '@sentry/react';
-import { IconAlertCircle } from '@tabler/icons-react';
+import { IconAlertCircle, IconCircleCheckFilled } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { type Layout } from 'react-grid-layout';
 import { useBlocker, useNavigate, useParams } from 'react-router';
@@ -194,6 +196,7 @@ const Dashboard: FC = () => {
         isFullscreen,
         toggleFullscreen,
     } = useFullscreen();
+    const { user } = useApp();
     const { showToastError } = useToaster();
 
     const { data: organization } = useOrganization();
@@ -231,6 +234,8 @@ const Dashboard: FC = () => {
     const [isDeleteModalOpen, deleteModalHandlers] = useDisclosure();
     const [isDuplicateModalOpen, duplicateModalHandlers] = useDisclosure();
     const [isExportDashboardModalOpen, exportDashboardModalHandlers] =
+        useDisclosure();
+    const [isSaveVerificationModalOpen, saveVerificationModalHandlers] =
         useDisclosure();
 
     // tabs state
@@ -692,7 +697,19 @@ const Dashboard: FC = () => {
         );
     }
 
-    const handleSaveDashboard = () => {
+    const canManageContentVerification =
+        user.data?.ability?.can(
+            'manage',
+            subject('ContentVerification', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid,
+            }),
+        ) === true;
+
+    const shouldShowVerificationSaveOptions =
+        !!dashboard?.verification && canManageContentVerification;
+
+    const handleSaveDashboard = (preserveVerification?: boolean) => {
         const dimensionFilters = [
             ...dashboardFilters.dimensions,
             ...dashboardTemporaryFilters.dimensions,
@@ -709,7 +726,7 @@ const Dashboard: FC = () => {
             return filter;
         });
 
-        mutate({
+        const dashboardUpdate: UpdateDashboard = {
             tiles: dashboardTiles,
             filters: {
                 dimensions: requiredFiltersWithoutValues,
@@ -739,7 +756,12 @@ const Dashboard: FC = () => {
                     : dashboard.config?.defaultDateZoomGranularity,
             },
             parameters: dashboardParameters,
-        });
+            ...(preserveVerification !== undefined
+                ? { preserveVerification }
+                : {}),
+        };
+
+        mutate(dashboardUpdate);
     };
 
     const dashboardHeaderProps = {
@@ -769,7 +791,13 @@ const Dashboard: FC = () => {
             haveDateZoomGranularitiesChanged ||
             hasDefaultDateZoomGranularityChanged,
         onAddTiles: handleAddTiles,
-        onSaveDashboard: handleSaveDashboard,
+        onSaveDashboard: () => {
+            if (shouldShowVerificationSaveOptions) {
+                saveVerificationModalHandlers.open();
+                return;
+            }
+            handleSaveDashboard();
+        },
         onCancel: handleCancel,
         onMoveToSpace: handleMoveDashboardToSpace,
         isMovingDashboardToSpace: isContentActionLoading,
@@ -811,6 +839,37 @@ const Dashboard: FC = () => {
                     </Text>
                 </MantineModal>
             )}
+
+            <MantineModal
+                opened={isSaveVerificationModalOpen}
+                onClose={saveVerificationModalHandlers.close}
+                title="Save verified dashboard"
+            >
+                <Text mb="md">Keep this dashboard verified after saving?</Text>
+                <Group justify="flex-end">
+                    <Button
+                        variant="default"
+                        loading={isSaving}
+                        onClick={() => {
+                            saveVerificationModalHandlers.close();
+                            handleSaveDashboard(false);
+                        }}
+                    >
+                        Save
+                    </Button>
+                    <Button
+                        color="green.7"
+                        leftSection={<IconCircleCheckFilled size={16} />}
+                        loading={isSaving}
+                        onClick={() => {
+                            saveVerificationModalHandlers.close();
+                            handleSaveDashboard(true);
+                        }}
+                    >
+                        Save & verify
+                    </Button>
+                </Group>
+            </MantineModal>
 
             <Page
                 title={dashboard.name}
