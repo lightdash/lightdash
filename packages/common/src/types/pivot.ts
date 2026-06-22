@@ -132,5 +132,13 @@ export type PivotData = {
      * Absent when no metrics are hidden.
      */
     hiddenContextValues?: Record<string, Record<string, ResultValue>>;
+    /**
+     * Per-row values for row-index dims hidden via `hiddenDimensionFieldIds`.
+     * These are excluded from the rendered `indexValues`, but interactive
+     * drill-down ("View underlying data" / "Drill into") needs them to scope
+     * correctly (PROD-7841). Aligned by row index with `indexValues`. Absent
+     * when no index dim is hidden.
+     */
+    hiddenIndexValues?: FieldValue[][];
     groupedSubtotals?: Record<string, Record<string, number>[]>;
 };

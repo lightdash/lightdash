@@ -88,6 +88,7 @@ import {
     type FrozenColumnEntry,
 } from './getFrozenColumnLayout';
 import { getGroupedDimColumnIds, getRowSpanMerges } from './getRowSpanMerges';
+import { collectPivotUnderlyingValues } from './getUnderlyingFieldValues';
 import pivotStyles from './PivotTable.module.css';
 import TotalCellMenu from './TotalCellMenu';
 import ValueCellMenu from './ValueCellMenu';
@@ -733,44 +734,34 @@ const PivotTable: FC<PivotTableProps> = ({
     const getUnderlyingFieldValues = useCallback(
         (rowIndex: number, colIndex: number) => {
             const visibleCells = rows[rowIndex].getVisibleCells();
-            const visibleCell = visibleCells[colIndex];
-            const item = visibleCell.column.columnDef.meta?.item;
-            const fullItemValue = visibleCell.getValue() as ResultRow[0];
-            const itemValue = fullItemValue.value;
-            let underlyingValues =
-                isField(item) && itemValue
-                    ? { [getItemId(item)]: itemValue }
-                    : {};
-            visibleCells.forEach((cell, cellIndex) => {
-                if (cell.column.columnDef.meta?.type === 'indexValue') {
-                    if (cell.column.columnDef.id) {
-                        const fullValue = cell.getValue() as
-                            | ResultRow[0]
-                            | undefined;
-
-                        if (fullValue) {
-                            underlyingValues[cell.column.columnDef.id] =
-                                fullValue.value;
-                        }
-                    }
-                } else if (cell.column.columnDef.meta?.type === 'label') {
-                    const info = data.indexValues[rowIndex].find(
-                        (indexValue) => indexValue.type === 'label',
-                    );
-                    if (info) underlyingValues[info.fieldId] = itemValue;
-                } else if (
-                    colIndex === cellIndex &&
-                    cell.column.columnDef.meta?.headerInfo
-                ) {
-                    underlyingValues = {
-                        ...underlyingValues,
-                        ...cell.column.columnDef.meta.headerInfo,
-                    };
-                }
+            const clickedItem =
+                visibleCells[colIndex].column.columnDef.meta?.item;
+            const clickedValue = (
+                visibleCells[colIndex].getValue() as
+                    | ResultRow[string]
+                    | undefined
+            )?.value;
+            return collectPivotUnderlyingValues({
+                cells: visibleCells.map((cell) => ({
+                    type: cell.column.columnDef.meta?.type,
+                    id: cell.column.columnDef.id,
+                    value: cell.getValue() as ResultRow[string] | undefined,
+                    headerInfo: cell.column.columnDef.meta?.headerInfo,
+                })),
+                clickedColIndex: colIndex,
+                clickedItemId: isField(clickedItem)
+                    ? getItemId(clickedItem)
+                    : undefined,
+                clickedValue,
+                labelFieldId: data.indexValues[rowIndex].find(
+                    (indexValue) => indexValue.type === 'label',
+                )?.fieldId,
+                // Hidden row-index dims are excluded from the rendered cells;
+                // merge them so drill-down stays scoped (PROD-7841).
+                hiddenIndexCells: data.hiddenIndexValues?.[rowIndex] ?? [],
             });
-            return underlyingValues;
         },
-        [rows, data.indexValues],
+        [rows, data.indexValues, data.hiddenIndexValues],
     );
 
     // Find the data column index from headerInfo by matching against headerValues
@@ -1519,9 +1510,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                               }
                                           >
                                               {totalLabel.fieldId
-                                                  ? `Total ${getFieldLabel(
-                                                        totalLabel.fieldId,
-                                                    )}`
+                                                  ? `Total ${getFieldLabel(totalLabel.fieldId)}`
                                                   : `Total`}
                                           </Table.CellHead>
                                       ) : (
@@ -2126,9 +2115,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 withBoldFont
                                             >
                                                 {totalLabel.fieldId
-                                                    ? `Total ${getFieldLabel(
-                                                          totalLabel.fieldId,
-                                                      )}`
+                                                    ? `Total ${getFieldLabel(totalLabel.fieldId)}`
                                                     : `Total`}
                                             </Table.CellHead>
                                         ) : (
