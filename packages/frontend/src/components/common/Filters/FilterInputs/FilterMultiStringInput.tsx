@@ -16,6 +16,7 @@ const FilterMultiStringInput: FC<Props> = ({
     disabled,
     onChange,
     placeholder,
+    onBlur: onInputBlur,
     ...rest
 }) => {
     const [search, setSearch] = useState('');
@@ -53,6 +54,17 @@ const FilterMultiStringInput: FC<Props> = ({
             return newValues;
         },
         [handleChange, values],
+    );
+
+    const handleBlur = useCallback(
+        (event: React.FocusEvent<HTMLInputElement>) => {
+            if (search !== '') {
+                handleAdd(search);
+                handleResetSearch();
+            }
+            onInputBlur?.(event);
+        },
+        [handleAdd, handleResetSearch, onInputBlur, search],
     );
 
     const handlePaste = useCallback(
@@ -148,6 +160,7 @@ const FilterMultiStringInput: FC<Props> = ({
                 onDropdownClose={handleResetSearch}
                 onChange={handleChange}
                 onCreate={handleAdd}
+                onBlur={handleBlur}
             />
         </MultiValuePastePopover>
     );

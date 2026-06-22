@@ -298,6 +298,17 @@ const FilterStringAutoComplete: FC<Props> = ({
         [handleAdd, handleResetSearch, search],
     );
 
+    const handleBlur = useCallback(
+        (event: React.FocusEvent<HTMLInputElement>) => {
+            if (search !== '') {
+                handleAdd(search);
+                handleResetSearch();
+            }
+            onInputBlur?.(event);
+        },
+        [handleAdd, handleResetSearch, onInputBlur, search],
+    );
+
     const ValueComponent = useCallback(
         (props: MultiSelectValueProps & { value: string }) => {
             if (props.value === MORE_VALUES_TOKEN) {
@@ -597,6 +608,8 @@ const FilterStringAutoComplete: FC<Props> = ({
                         }}
                         onCreate={handleAdd}
                         onKeyDown={handleKeyDown}
+                        onFocus={onInputFocus}
+                        onBlur={handleBlur}
                     />
                 )}
             </MultiValuePastePopover>

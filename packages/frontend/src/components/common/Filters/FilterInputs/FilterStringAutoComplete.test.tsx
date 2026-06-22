@@ -175,6 +175,59 @@ describe('FilterStringAutoComplete', () => {
         });
     });
 
+    describe('commit on blur', () => {
+        it('adds the typed value when the input loses focus without pressing Enter', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const values = createValues(2);
+            const onChange = vi.fn();
+
+            renderWithProviders(
+                <FilterStringAutoComplete
+                    filterId="test-filter"
+                    field={mockField}
+                    values={values}
+                    suggestions={[]}
+                    onChange={onChange}
+                />,
+            );
+
+            const input = screen.getByRole('searchbox');
+            fireEvent.focus(input);
+            await user.type(input, 'typed-but-not-entered');
+            fireEvent.blur(input);
+
+            await waitFor(() => {
+                expect(onChange).toHaveBeenCalled();
+            });
+
+            const calledWith = onChange.mock.calls[0][0];
+            expect(calledWith).toContain('typed-but-not-entered');
+            expect(calledWith).toContain('value-0');
+            expect(calledWith).toContain('value-1');
+        });
+
+        it('does not call onChange when blurring with an empty input', async () => {
+            const values = createValues(2);
+            const onChange = vi.fn();
+
+            renderWithProviders(
+                <FilterStringAutoComplete
+                    filterId="test-filter"
+                    field={mockField}
+                    values={values}
+                    suggestions={[]}
+                    onChange={onChange}
+                />,
+            );
+
+            const input = screen.getByRole('searchbox');
+            fireEvent.focus(input);
+            fireEvent.blur(input);
+
+            expect(onChange).not.toHaveBeenCalled();
+        });
+    });
+
     describe('summary mode', () => {
         it('shows summary text input when values exceed summary threshold', async () => {
             const values = createValues(600);
