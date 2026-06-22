@@ -8421,7 +8421,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     'Slack agent answer too long to deliver; linked to Lightdash instead',
                     error,
                 );
-                return true;
+                return;
             }
             const userFacingMessage = getUserFacingErrorMessage(
                 error,
