@@ -6,6 +6,25 @@
     color: var(--mantine-color-dimmed);
 }
 
+.sparkline {
+    display: block;
+    width: 100%;
+    height: 42px;
+
+    polyline {
+        fill: none;
+        stroke: var(--mantine-color-violet-5);
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+}
+
+.axisLabel {
+    font-size: 10px;
+    color: var(--mantine-color-dimmed);
+}
+
 .row {
     display: flex;
     align-items: center;
