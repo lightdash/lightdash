@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     type AgentSuggestion,
     type AiPromptContextInput,
     type AiPromptContextItem,
@@ -17,7 +16,6 @@ import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { ModelSelector } from '../../../../../components/common/ModelSelector/ModelSelector';
 import useUser from '../../../../../hooks/user/useUser';
-import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import { useAgentSuggestions } from '../../hooks/useAgentSuggestions';
@@ -214,18 +212,13 @@ export const AgentChatInput = ({
     );
     const isMinimalMode = !showModelSelector && !showAgentSelector;
 
-    const suggestionsFlag = useServerFeatureFlag(
-        FeatureFlags.AiAgentSuggestions,
-    );
-
     const { emptyStateMode, postResponseMode } = getAgentSuggestionModes({
         disabled,
         isMinimalMode,
         loading,
         messageCount,
         latestAssistantMessageUuid,
-        suggestionsEnabled:
-            showSuggestions && suggestionsFlag.data?.enabled === true,
+        suggestionsEnabled: showSuggestions,
         threadUuid,
     });
 
