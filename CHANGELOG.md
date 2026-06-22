@@ -1,3 +1,17 @@
+# [0.3207.0](https://github.com/lightdash/lightdash/compare/0.3206.0...0.3207.0) (2026-06-22)
+
+
+### Bug Fixes
+
+* **reviews:** default SQL mode on in workspace build threads (ZAP-517) ([#24538](https://github.com/lightdash/lightdash/issues/24538)) ([00c309c](https://github.com/lightdash/lightdash/commit/00c309c2d79f8f147625be03dc13c30b8b7372c0))
+* **reviews:** source review-item assignees from project users-with-roles (ZAP-520) ([#24536](https://github.com/lightdash/lightdash/issues/24536)) ([ea22509](https://github.com/lightdash/lightdash/commit/ea22509e478646d881054b63de06360e7223ef5f))
+
+
+### Features
+
+* **reviews:** allow dismissing a review item past triage (ZAP-519) ([#24537](https://github.com/lightdash/lightdash/issues/24537)) ([617c592](https://github.com/lightdash/lightdash/commit/617c5920427990a511bdb0a18f3c438d3db4254e))
+* **reviews:** mark a review item resolved from the workspace (ZAP-522) ([#24539](https://github.com/lightdash/lightdash/issues/24539)) ([1787015](https://github.com/lightdash/lightdash/commit/1787015c1774f26f66a6a32944c1cfbd58697244))
+
 # [0.3206.0](https://github.com/lightdash/lightdash/compare/0.3205.0...0.3206.0) (2026-06-22)
 
 
