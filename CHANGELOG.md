@@ -1,3 +1,11 @@
+# [0.3216.0](https://github.com/lightdash/lightdash/compare/0.3215.0...0.3216.0) (2026-06-22)
+
+
+### Features
+
+* **roles:** add org/project level to the custom role UI ([#24590](https://github.com/lightdash/lightdash/issues/24590)) ([6fca142](https://github.com/lightdash/lightdash/commit/6fca142410a0887f89e4f959630d24e6c9c0cee4)), closes [#24589](https://github.com/lightdash/lightdash/issues/24589)
+* **roles:** assign custom roles at the organization level (backend) ([#24589](https://github.com/lightdash/lightdash/issues/24589)) ([d9ee178](https://github.com/lightdash/lightdash/commit/d9ee178d025e16360129b9261d9a8ea1883d2b72)), closes [#24588](https://github.com/lightdash/lightdash/issues/24588)
+
 # [0.3215.0](https://github.com/lightdash/lightdash/compare/0.3214.0...0.3215.0) (2026-06-22)
 
 
