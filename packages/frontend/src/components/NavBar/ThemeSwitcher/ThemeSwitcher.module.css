@@ -4,6 +4,8 @@
 }
 
 .themeToggleIcon {
+    font-size: 16px;
+    stroke-width: 2;
     --theme-toggle__classic--duration: 750ms;
 }
 

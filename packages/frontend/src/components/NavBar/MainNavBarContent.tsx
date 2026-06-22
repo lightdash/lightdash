@@ -14,7 +14,6 @@ import { MetricsLink } from './MetricsLink';
 import { NotificationsMenu } from './NotificationsMenu';
 import ProjectSwitcher from './ProjectSwitcher';
 import SettingsMenu from './SettingsMenu';
-import { ThemeSwitcher } from './ThemeSwitcher';
 import UserCredentialsSwitcher from './UserCredentialsSwitcher';
 import UserMenu from './UserMenu';
 
@@ -75,8 +74,6 @@ export const MainNavBarContent: FC<Props> = ({
 
             <Group className={classes.rightGroup}>
                 <Button.Group>
-                    <ThemeSwitcher />
-
                     <SettingsMenu />
 
                     {!isLoadingActiveProject && activeProjectUuid && (
