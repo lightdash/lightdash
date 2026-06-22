@@ -1,3 +1,11 @@
+## [0.3208.1](https://github.com/lightdash/lightdash/compare/0.3208.0...0.3208.1) (2026-06-22)
+
+
+### Bug Fixes
+
+* **ai-agents:** deliver long Slack agent answers without `msg_too_long` ([#24534](https://github.com/lightdash/lightdash/issues/24534)) ([862fe4f](https://github.com/lightdash/lightdash/commit/862fe4f025ce1f01e20b78d09bec91f589cd6505))
+* **pivot:** carry bin _order column through group_by_query for sort-only dims ([#24561](https://github.com/lightdash/lightdash/issues/24561)) ([c6ecb64](https://github.com/lightdash/lightdash/commit/c6ecb6489399bed5eba5cbc0f9b7477d1da1c6eb))
+
 # [0.3208.0](https://github.com/lightdash/lightdash/compare/0.3207.0...0.3208.0) (2026-06-22)
 
 
