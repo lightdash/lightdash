@@ -29,7 +29,7 @@ import { type FC, useDeferredValue, useMemo, useState } from 'react';
 import FilterFacet, {
     type FilterFacetOption,
 } from '../../../../../components/common/FilterFacet';
-import { useOrganizationUsers } from '../../../../../hooks/useOrganizationUsers';
+import { useOrgUsersByUuid } from '../../../../../hooks/useOrganizationUsers';
 import { useProjects } from '../../../../../hooks/useProjects';
 import useApp from '../../../../../providers/App/useApp';
 import {
@@ -163,11 +163,7 @@ export const ReviewKanbanBoard: FC<Props> = ({
     const { data: projects } = useProjects();
     const { user } = useApp();
     const currentUserUuid = user.data?.userUuid ?? null;
-    const { data: orgUsers = [] } = useOrganizationUsers();
-    const orgUsersByUuid = useMemo(
-        () => new Map(orgUsers.map((orgUser) => [orgUser.userUuid, orgUser])),
-        [orgUsers],
-    );
+    const orgUsersByUuid = useOrgUsersByUuid();
     const [expandedLanes, setExpandedLanes] = useState<
         Partial<Record<ReviewLane, boolean>>
     >({});

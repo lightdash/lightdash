@@ -54,7 +54,7 @@ import FilterFacet, {
 } from '../../../../../components/common/FilterFacet';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useOnboardingMock } from '../../../../../hooks/useOnboardingMock';
-import { useOrganizationUsers } from '../../../../../hooks/useOrganizationUsers';
+import { useOrgUsersByUuid } from '../../../../../hooks/useOrganizationUsers';
 import { useProjects } from '../../../../../hooks/useProjects';
 import useApp from '../../../../../providers/App/useApp';
 import {
@@ -395,11 +395,7 @@ const AiAgentAdminReviewItemsTable = ({
 
     const { user } = useApp();
     const currentUserUuid = user.data?.userUuid ?? null;
-    const { data: orgUsers = [] } = useOrganizationUsers();
-    const orgUsersByUuid = useMemo(
-        () => new Map(orgUsers.map((orgUser) => [orgUser.userUuid, orgUser])),
-        [orgUsers],
-    );
+    const orgUsersByUuid = useOrgUsersByUuid();
 
     // While the tour is running the table always shows the sample rows so the
     // tour is deterministic; otherwise it passes real data straight through
