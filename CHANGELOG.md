@@ -1,3 +1,10 @@
+# [0.3217.0](https://github.com/lightdash/lightdash/compare/0.3216.0...0.3217.0) (2026-06-22)
+
+
+### Features
+
+* preserve verification when updating dashboards and charts ([#24592](https://github.com/lightdash/lightdash/issues/24592)) ([9dd9c98](https://github.com/lightdash/lightdash/commit/9dd9c98f95d1ee329552a832c00c323910d229ee))
+
 # [0.3216.0](https://github.com/lightdash/lightdash/compare/0.3215.0...0.3216.0) (2026-06-22)
 
 
