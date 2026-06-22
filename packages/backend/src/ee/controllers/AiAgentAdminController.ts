@@ -3,6 +3,7 @@ import {
     AiAgentAdminSort,
     AiAgentReviewItemStatus,
     ApiAiAgentAdminConversationsResponse,
+    ApiAiAgentAdminPromptActivityResponse,
     ApiAiAgentReviewItemActivityResponse,
     ApiAiAgentReviewItemPrDiffResponse,
     ApiAiAgentReviewItemResponse,
@@ -117,6 +118,31 @@ export class AiAgentAdminController extends BaseController {
         return {
             status: 'ok',
             results: threads,
+        };
+    }
+
+    /**
+     * Get prompt activity for one project
+     * @summary Get project AI agent prompt activity
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/projects/{projectUuid}/prompt-activity')
+    @OperationId('getProjectPromptActivity')
+    async getProjectPromptActivity(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Query() days: number = 30,
+    ): Promise<ApiAiAgentAdminPromptActivityResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentAdminService().getPromptActivity(
+                toSessionUser(req.account),
+                projectUuid,
+                days,
+            ),
         };
     }
 

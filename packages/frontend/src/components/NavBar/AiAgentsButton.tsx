@@ -1,15 +1,18 @@
 import { Button, HoverCard, Text } from '@mantine-8/core';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { AiAgentIcon } from '../../ee/features/aiCopilot/components/AiAgentIcon';
 import { ReviewFindingsPreview } from '../../ee/features/aiCopilot/components/ReviewFindingsPreview';
-import { useAiAgentAdminReviewItems } from '../../ee/features/aiCopilot/hooks/useAiAgentAdmin';
+import {
+    useAiAgentAdminProjectPromptActivity,
+    useAiAgentAdminReviewItems,
+} from '../../ee/features/aiCopilot/hooks/useAiAgentAdmin';
 import { useAiAgentPermission } from '../../ee/features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentButtonVisibility } from '../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
-import classes from './AiAgentsButton.module.css';
 
 const PREVIEW_LIMIT = 3;
+const PROMPT_TREND_DAYS = 30;
 
 type Props = {
     projectUuid: string;
@@ -17,6 +20,7 @@ type Props = {
 
 export const AiAgentsButton = ({ projectUuid }: Props) => {
     const navigate = useNavigate();
+    const [isPreviewOpen, setIsPreviewOpen] = useState(false);
     const isVisible = useAiAgentButtonVisibility();
     const canViewReviews = useAiAgentPermission({ action: 'manage' });
     const aiOrganizationSettingsQuery = useAiOrganizationSettings();
@@ -24,7 +28,7 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
         aiOrganizationSettingsQuery.data?.aiAgentReviewsEnabled === true;
     const showReviews = !!canViewReviews && reviewsEnabled;
     const { data: reviewItems } = useAiAgentAdminReviewItems(
-        { statuses: ['open'] },
+        { statuses: ['triage', 'open', 'in_progress'] },
         { enabled: showReviews },
     );
 
@@ -45,13 +49,18 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
     );
 
     const reviewCount = projectReviewItems.length;
+    const promptActivityQuery = useAiAgentAdminProjectPromptActivity(
+        projectUuid,
+        PROMPT_TREND_DAYS,
+        { enabled: showReviews && reviewCount > 0 && isPreviewOpen },
+    );
     const goToAskAi = () => navigate(`/projects/${projectUuid}/ai-agents`);
 
     if (!isVisible) {
         return null;
     }
 
-    // Original button — nothing to surface (no review access, or no open findings).
+    // Original button — nothing to surface (no review access, or no active findings).
     if (!showReviews || reviewCount === 0) {
         return (
             <Button
@@ -71,7 +80,6 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
     const reviewsUrl = `/generalSettings/ai/reviews?projects=${encodeURIComponent(
         projectUuid,
     )}`;
-    const countLabel = reviewCount > 99 ? '99+' : `${reviewCount}`;
 
     return (
         <HoverCard
@@ -83,6 +91,8 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
             closeDelay={80}
             withinPortal
             portalProps={{ target: '#navbar-header' }}
+            onOpen={() => setIsPreviewOpen(true)}
+            onClose={() => setIsPreviewOpen(false)}
         >
             <HoverCard.Target>
                 <Button
@@ -90,9 +100,6 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
                     variant="default"
                     fz="sm"
                     leftSection={<AiAgentIcon size={15} animated calm />}
-                    rightSection={
-                        <span className={classes.countBadge}>{countLabel}</span>
-                    }
                     onClick={goToAskAi}
                 >
                     <Text span truncate="end" maw={150} size="sm">
@@ -105,6 +112,9 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
                     items={projectReviewItems.slice(0, PREVIEW_LIMIT)}
                     totalOpen={reviewCount}
                     reviewsUrl={reviewsUrl}
+                    promptTrend={promptActivityQuery.data ?? []}
+                    promptTrendDays={PROMPT_TREND_DAYS}
+                    isLoadingPromptTrend={promptActivityQuery.isFetching}
                 />
             </HoverCard.Dropdown>
         </HoverCard>

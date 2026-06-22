@@ -60,6 +60,15 @@ export type ApiAiAgentAdminConversationsResponse = ApiSuccess<
     KnexPaginatedData<AiAgentAdminConversationsSummary>
 >;
 
+export type AiAgentAdminPromptActivityPoint = {
+    date: string;
+    promptCount: number;
+};
+
+export type ApiAiAgentAdminPromptActivityResponse = ApiSuccess<
+    AiAgentAdminPromptActivityPoint[]
+>;
+
 export type ComputedAiOrganizationSettings = {
     isCopilotEnabled: boolean;
     isTrial: boolean;

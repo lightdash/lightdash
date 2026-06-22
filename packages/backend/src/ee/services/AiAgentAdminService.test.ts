@@ -288,6 +288,49 @@ const makeService = ({
         },
     } as unknown as ConstructorParameters<typeof AiAgentAdminService>[0]);
 
+describe('AiAgentAdminService.getPromptActivity', () => {
+    it('delegates to the model with bounded days', async () => {
+        const findAdminPromptActivity = jest.fn().mockResolvedValue([
+            { date: '2026-06-01', promptCount: 2 },
+            { date: '2026-06-02', promptCount: 0 },
+        ]);
+        const service = makeService({
+            aiAgentModel: { findAdminPromptActivity },
+        });
+
+        await expect(
+            service.getPromptActivity(makeAdminUser(), PROJECT_UUID, 100),
+        ).resolves.toEqual([
+            { date: '2026-06-01', promptCount: 2 },
+            { date: '2026-06-02', promptCount: 0 },
+        ]);
+
+        expect(findAdminPromptActivity).toHaveBeenCalledWith({
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PROJECT_UUID,
+            days: 30,
+        });
+    });
+
+    it('rejects non-admin users', async () => {
+        const findAdminPromptActivity = jest.fn();
+        const service = makeService({
+            aiAgentModel: { findAdminPromptActivity },
+        });
+        const user = {
+            ...makeAdminUser(),
+            ability: new Ability<PossibleAbilities>([]),
+        };
+
+        await expect(
+            service.getPromptActivity(user, PROJECT_UUID, 14),
+        ).rejects.toThrow(
+            'Insufficient permissions to access organization-wide AI agent data',
+        );
+        expect(findAdminPromptActivity).not.toHaveBeenCalled();
+    });
+});
+
 describe('getAiAgentReviewItemWritebackEligibility', () => {
     it('allows semantic layer writeback on GitHub when configured', () => {
         expect(
