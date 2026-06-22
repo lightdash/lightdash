@@ -2579,8 +2579,9 @@ export class AppGenerateService extends BaseService {
                 async () => {
                     // Turn on Claude Code's native OTEL tracing inside the
                     // sandbox and nest its spans under this backend parent via
-                    // the active trace context's TRACEPARENT (shared with the
-                    // backend's OTLP exporter). No-op when OTEL tracing is off.
+                    // the active trace context's W3C TRACEPARENT, so the whole
+                    // generation is one cross-service trace. No-op when OTEL
+                    // tracing is off.
                     const installId = process.env.LIGHTDASH_INSTALL_ID;
                     const claudeCodeEnvWithTelemetry = {
                         ...claudeCodeEnv,
