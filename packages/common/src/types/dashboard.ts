@@ -304,10 +304,16 @@ export type DashboardVersionedFields = Pick<
 
 export type UpdateDashboardDetails = Pick<Dashboard, 'name' | 'description'>;
 
-export type UpdateDashboard =
+type PreserveContentVerification = {
+    preserveVerification?: boolean;
+};
+
+export type UpdateDashboard = (
     | DashboardUnversionedFields
     | DashboardVersionedFields
-    | (DashboardUnversionedFields & DashboardVersionedFields);
+    | (DashboardUnversionedFields & DashboardVersionedFields)
+) &
+    PreserveContentVerification;
 
 export type UpdateMultipleDashboards = Pick<
     Dashboard,

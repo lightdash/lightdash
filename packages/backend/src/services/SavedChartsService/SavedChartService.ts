@@ -543,6 +543,7 @@ export class SavedChartService
         savedChartUuid: string,
         data: CreateSavedChartVersion,
     ): Promise<SavedChart> {
+        const { preserveVerification, ...chartVersion } = data;
         const {
             organizationUuid,
             projectUuid,
@@ -583,7 +584,7 @@ export class SavedChartService
                 .map((dim) => [dim.id, dim]),
         );
         const hasModifiedSqlCustomDimension = (
-            data.metricQuery.customDimensions ?? []
+            chartVersion.metricQuery.customDimensions ?? []
         )
             .filter(isCustomSqlDimension)
             .some((dim) => {
@@ -613,7 +614,7 @@ export class SavedChartService
                 .map((tc) => [tc.name, tc]),
         );
         const hasModifiedSqlTableCalculation = (
-            data.metricQuery.tableCalculations ?? []
+            chartVersion.metricQuery.tableCalculations ?? []
         )
             .filter(isSqlTableCalculation)
             .some((tc) => {
@@ -637,17 +638,27 @@ export class SavedChartService
             );
         }
 
+        const verificationAfterUpdate =
+            await this.getVerificationAfterChartUpdate({
+                user,
+                chartUuid: savedChartUuid,
+                projectUuid,
+                organizationUuid,
+                preserveVerification,
+            });
+
         const savedChart = await this.savedChartModel.createVersion(
             savedChartUuid,
-            data,
+            chartVersion,
             user,
         );
 
-        // Auto-remove verification when chart content is edited
-        await this.contentVerificationModel.unverify(
-            ContentType.CHART,
-            savedChartUuid,
-        );
+        if (!verificationAfterUpdate) {
+            await this.contentVerificationModel.unverify(
+                ContentType.CHART,
+                savedChartUuid,
+            );
+        }
 
         this.analytics.track({
             event: 'saved_chart_version.created',
@@ -716,8 +727,8 @@ export class SavedChartService
                     dimensions: oldChartDimensions,
                 },
                 newChartFields: {
-                    metrics: data.metricQuery.metrics,
-                    dimensions: data.metricQuery.dimensions,
+                    metrics: chartVersion.metricQuery.metrics,
+                    dimensions: chartVersion.metricQuery.dimensions,
                 },
             });
         } catch (error) {
@@ -729,7 +740,7 @@ export class SavedChartService
 
         return {
             ...savedChart,
-            verification: null,
+            verification: verificationAfterUpdate,
             inheritsFromOrgOrProject,
             access,
         };
@@ -740,6 +751,7 @@ export class SavedChartService
         savedChartUuid: string,
         data: UpdateSavedChart,
     ): Promise<SavedChart> {
+        const { preserveVerification, ...chartUpdate } = data;
         const {
             organizationUuid,
             projectUuid,
@@ -772,10 +784,10 @@ export class SavedChartService
             );
         }
 
-        if (data.colorPaletteUuid) {
+        if (chartUpdate.colorPaletteUuid) {
             const palette = await this.organizationModel.findColorPalette(
                 organizationUuid,
-                data.colorPaletteUuid,
+                chartUpdate.colorPaletteUuid,
             );
             if (!palette) {
                 throw new ParameterError(
@@ -784,16 +796,26 @@ export class SavedChartService
             }
         }
 
+        const verificationAfterUpdate =
+            await this.getVerificationAfterChartUpdate({
+                user,
+                chartUuid: savedChartUuid,
+                projectUuid,
+                organizationUuid,
+                preserveVerification,
+            });
+
         const savedChart = await this.savedChartModel.update(
             savedChartUuid,
-            data,
+            chartUpdate,
         );
 
-        // Auto-remove verification when chart metadata is edited
-        await this.contentVerificationModel.unverify(
-            ContentType.CHART,
-            savedChartUuid,
-        );
+        if (!verificationAfterUpdate) {
+            await this.contentVerificationModel.unverify(
+                ContentType.CHART,
+                savedChartUuid,
+            );
+        }
 
         const cachedExplore = await this.projectModel.getExploreFromCache(
             projectUuid,
@@ -826,10 +848,51 @@ export class SavedChartService
         }
         return {
             ...savedChart,
-            verification: null,
+            verification: verificationAfterUpdate,
             inheritsFromOrgOrProject,
             access,
         };
+    }
+
+    private async getVerificationAfterChartUpdate({
+        user,
+        chartUuid,
+        projectUuid,
+        organizationUuid,
+        preserveVerification,
+    }: {
+        user: SessionUser;
+        chartUuid: string;
+        projectUuid: string;
+        organizationUuid: string;
+        preserveVerification?: boolean;
+    }): Promise<ContentVerificationInfo | null> {
+        const verification = await this.contentVerificationModel.getByContent(
+            ContentType.CHART,
+            chartUuid,
+        );
+        if (!verification || preserveVerification === false) return null;
+
+        const auditedAbility = this.createAuditedAbility(user);
+        const canManageVerification = auditedAbility.can(
+            'manage',
+            subject('ContentVerification', {
+                organizationUuid,
+                projectUuid,
+                metadata: { chartUuid },
+            }),
+        );
+        const isVerifier = verification.verifiedBy.userUuid === user.userUuid;
+
+        if (canManageVerification || isVerifier) return verification;
+
+        if (preserveVerification === true) {
+            throw new ForbiddenError(
+                'Only admins or the verifier can preserve chart verification',
+            );
+        }
+
+        return null;
     }
 
     async togglePinning(

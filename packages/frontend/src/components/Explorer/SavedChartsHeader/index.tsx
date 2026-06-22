@@ -585,6 +585,10 @@ const SavedChartsHeader: FC = () => {
                                             onSaveModalOpenChange={
                                                 setIsSaveModalOpen
                                             }
+                                            showVerificationSaveOptions={
+                                                isChartVerified &&
+                                                canManageContentVerification
+                                            }
                                         />
                                         <Button
                                             variant="default"

@@ -12,6 +12,7 @@ import {
     SchedulerFormat,
     SessionUser,
     type Account,
+    type ContentVerificationInfo,
     type Dashboard,
     type DashboardChartTile,
     type DashboardFilterRule,
@@ -129,6 +130,9 @@ const searchModel = {
 };
 
 const contentVerificationModel = {
+    getByContent: jest.fn(
+        async (): Promise<ContentVerificationInfo | null> => null,
+    ),
     unverify: jest.fn(async () => undefined),
 };
 
@@ -642,7 +646,21 @@ describe('DashboardService', () => {
 
         expect(result).toEqual([]);
     });
-    test('should auto-unverify dashboard when details are updated', async () => {
+    test('should preserve dashboard verification when verifier updates details', async () => {
+        contentVerificationModel.getByContent.mockResolvedValueOnce({
+            verifiedBy: {
+                userUuid: user.userUuid,
+                firstName: user.firstName,
+                lastName: user.lastName,
+            },
+            verifiedAt: new Date(),
+        });
+
+        await service.update(user, dashboardUuid, updateDashboard);
+
+        expect(contentVerificationModel.unverify).not.toHaveBeenCalled();
+    });
+    test('should auto-unverify dashboard when details are updated without preserving', async () => {
         await service.update(user, dashboardUuid, updateDashboard);
 
         expect(contentVerificationModel.unverify).toHaveBeenCalledWith(
@@ -650,7 +668,7 @@ describe('DashboardService', () => {
             dashboardUuid,
         );
     });
-    test('should auto-unverify dashboard when tiles are updated', async () => {
+    test('should auto-unverify dashboard when tiles are updated without preserving', async () => {
         await service.update(user, dashboardUuid, updateDashboardTiles);
 
         expect(contentVerificationModel.unverify).toHaveBeenCalledWith(

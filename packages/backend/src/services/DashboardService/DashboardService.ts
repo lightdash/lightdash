@@ -1361,7 +1361,6 @@ export class DashboardService
                 projectUuid: options?.projectUuid,
             },
         );
-
         if (
             embedWriteActions &&
             existingDashboardDao.spaceUuid !== embedWriteActions.spaceUuid
@@ -1407,6 +1406,7 @@ export class DashboardService
                 projectUuid: options?.projectUuid,
             },
         );
+        const { preserveVerification, ...dashboardFields } = dashboard;
 
         const currentSpace =
             await this.spacePermissionService.getSpaceAccessContext(
@@ -1428,12 +1428,21 @@ export class DashboardService
             );
         }
 
-        if (isDashboardUnversionedFields(dashboard)) {
-            if (dashboard.spaceUuid) {
+        const verificationAfterUpdate =
+            await this.getVerificationAfterDashboardUpdate({
+                user,
+                dashboardUuid: existingDashboardDao.uuid,
+                projectUuid: existingDashboardDao.projectUuid,
+                organizationUuid: existingDashboardDao.organizationUuid,
+                preserveVerification,
+            });
+
+        if (isDashboardUnversionedFields(dashboardFields)) {
+            if (dashboardFields.spaceUuid) {
                 const newSpace =
                     await this.spacePermissionService.getSpaceAccessContext(
                         user.userUuid,
-                        dashboard.spaceUuid,
+                        dashboardFields.spaceUuid,
                     );
                 const canUpdateDashboardInNewSpace = auditedAbility.can(
                     'update',
@@ -1449,10 +1458,10 @@ export class DashboardService
                 }
             }
 
-            if (dashboard.colorPaletteUuid) {
+            if (dashboardFields.colorPaletteUuid) {
                 const palette = await this.organizationModel.findColorPalette(
                     existingDashboardDao.organizationUuid,
-                    dashboard.colorPaletteUuid,
+                    dashboardFields.colorPaletteUuid,
                 );
                 if (!palette) {
                     throw new ParameterError(
@@ -1464,10 +1473,10 @@ export class DashboardService
             const updatedDashboard = await this.dashboardModel.update(
                 existingDashboardDao.uuid,
                 {
-                    name: dashboard.name,
-                    description: dashboard.description,
-                    spaceUuid: dashboard.spaceUuid,
-                    colorPaletteUuid: dashboard.colorPaletteUuid,
+                    name: dashboardFields.name,
+                    description: dashboardFields.description,
+                    spaceUuid: dashboardFields.spaceUuid,
+                    colorPaletteUuid: dashboardFields.colorPaletteUuid,
                 },
             );
 
@@ -1494,9 +1503,9 @@ export class DashboardService
             });
         }
 
-        if (isDashboardVersionedFields(dashboard)) {
+        if (isDashboardVersionedFields(dashboardFields)) {
             const dashboardTileTypes = Array.from(
-                new Set(dashboard.tiles.map((t) => t.type)),
+                new Set(dashboardFields.tiles.map((t) => t.type)),
             );
 
             // Handle chart duplication for dashboard charts that appear multiple times
@@ -1504,7 +1513,7 @@ export class DashboardService
             // We detect duplicates by finding chart UUIDs that appear more than once
             // Step 1: Count occurrences of each chart UUID for dashboard charts
             const chartUuidOccurrences = new Map<string, number>();
-            dashboard.tiles.forEach((tile) => {
+            dashboardFields.tiles.forEach((tile) => {
                 if (
                     tile.type === DashboardTileTypes.SAVED_CHART &&
                     tile.properties.belongsToDashboard &&
@@ -1532,7 +1541,7 @@ export class DashboardService
                 newChartUuid: UUID;
             }>[] = [];
 
-            dashboard.tiles.forEach((tile, index) => {
+            dashboardFields.tiles.forEach((tile, index) => {
                 if (
                     tile.type === DashboardTileTypes.SAVED_CHART &&
                     tile.properties.belongsToDashboard &&
@@ -1568,7 +1577,7 @@ export class DashboardService
                 duplicatedCharts.map((d) => [d.tileIndex, d.newChartUuid]),
             );
 
-            const tilesToSave = dashboard.tiles.map((tile, index) => {
+            const tilesToSave = dashboardFields.tiles.map((tile, index) => {
                 const newChartUuid = duplicatedChartsByTileIndex.get(index);
                 if (
                     newChartUuid &&
@@ -1589,10 +1598,10 @@ export class DashboardService
                 existingDashboardDao.uuid,
                 {
                     tiles: tilesToSave,
-                    filters: dashboard.filters,
-                    parameters: dashboard.parameters,
-                    tabs: dashboard.tabs || [],
-                    config: dashboard.config,
+                    filters: dashboardFields.filters,
+                    parameters: dashboardFields.parameters,
+                    tabs: dashboardFields.tabs || [],
+                    config: dashboardFields.config,
                 },
                 user,
                 existingDashboardDao.projectUuid,
@@ -1609,11 +1618,12 @@ export class DashboardService
             );
         }
 
-        // Auto-remove verification when dashboard is edited
-        await this.contentVerificationModel.unverify(
-            ContentType.DASHBOARD,
-            existingDashboardDao.uuid,
-        );
+        if (!verificationAfterUpdate) {
+            await this.contentVerificationModel.unverify(
+                ContentType.DASHBOARD,
+                existingDashboardDao.uuid,
+            );
+        }
 
         const updatedNewDashboard = await this.dashboardModel.getByIdOrSlug(
             existingDashboardDao.uuid,
@@ -1629,6 +1639,47 @@ export class DashboardService
             inheritsFromOrgOrProject: updatedSpace.inheritsFromOrgOrProject,
             access: updatedSpace.access,
         };
+    }
+
+    private async getVerificationAfterDashboardUpdate({
+        user,
+        dashboardUuid,
+        projectUuid,
+        organizationUuid,
+        preserveVerification,
+    }: {
+        user: SessionUser;
+        dashboardUuid: string;
+        projectUuid: string;
+        organizationUuid: string;
+        preserveVerification?: boolean;
+    }): Promise<ContentVerificationInfo | null> {
+        const verification = await this.contentVerificationModel.getByContent(
+            ContentType.DASHBOARD,
+            dashboardUuid,
+        );
+        if (!verification || preserveVerification === false) return null;
+
+        const auditedAbility = this.createAuditedAbility(user);
+        const canManageVerification = auditedAbility.can(
+            'manage',
+            subject('ContentVerification', {
+                organizationUuid,
+                projectUuid,
+                metadata: { dashboardUuid },
+            }),
+        );
+        const isVerifier = verification.verifiedBy.userUuid === user.userUuid;
+
+        if (canManageVerification || isVerifier) return verification;
+
+        if (preserveVerification === true) {
+            throw new ForbiddenError(
+                'Only admins or the verifier can preserve dashboard verification',
+            );
+        }
+
+        return null;
     }
 
     async togglePinning(
