@@ -1,10 +1,21 @@
 const CHUNK_ERROR_RELOAD_KEY = 'lightdash-chunk-error-reload';
 const RELOAD_COOLDOWN_MS = 60_000; // 60 seconds before allowing another auto-reload
 
-const CHUNK_ERROR_MESSAGE = 'Failed to fetch dynamically imported module';
+const CHUNK_ERROR_MESSAGES = [
+    'Failed to fetch dynamically imported module',
+    'error loading dynamically imported module',
+    'Importing a module script failed',
+    'Failed to load module script',
+    'Unable to preload CSS',
+];
+
+let isChunkLoadErrorHandlerInstalled = false;
 
 export const isChunkLoadError = (message: string): boolean => {
-    return message.includes(CHUNK_ERROR_MESSAGE);
+    const normalizedMessage = message.toLowerCase();
+    return CHUNK_ERROR_MESSAGES.some((chunkErrorMessage) =>
+        normalizedMessage.includes(chunkErrorMessage.toLowerCase()),
+    );
 };
 
 export const isChunkLoadErrorObject = (error: unknown): boolean => {
@@ -52,4 +63,37 @@ export const triggerChunkErrorReload = (): void => {
         // Proceed with reload anyway - worst case user sees manual refresh UI.
     }
     window.location.reload();
+};
+
+const reloadOnceForChunkError = (): boolean => {
+    if (hasRecentChunkReload()) {
+        return false;
+    }
+
+    triggerChunkErrorReload();
+    return true;
+};
+
+export const installChunkLoadErrorHandler = (): void => {
+    if (typeof window === 'undefined' || isChunkLoadErrorHandlerInstalled) {
+        return;
+    }
+
+    isChunkLoadErrorHandlerInstalled = true;
+
+    window.addEventListener('vite:preloadError', (event) => {
+        if (reloadOnceForChunkError()) {
+            event.preventDefault();
+        }
+    });
+
+    window.addEventListener('unhandledrejection', (event) => {
+        if (!isChunkLoadErrorObject(event.reason)) {
+            return;
+        }
+
+        if (reloadOnceForChunkError()) {
+            event.preventDefault();
+        }
+    });
 };

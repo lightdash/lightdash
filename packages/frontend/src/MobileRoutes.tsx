@@ -17,7 +17,7 @@ import {
     IconLayoutDashboard,
     IconLogout,
 } from '@tabler/icons-react';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import { lazy, Suspense, useCallback, useMemo, useState, type FC } from 'react';
 import {
     Link,
     Navigate,
@@ -34,29 +34,16 @@ import ProjectSwitcher from './components/NavBar/ProjectSwitcher';
 import { ThemeSwitcher } from './components/NavBar/ThemeSwitcher';
 import PrivateRoute from './components/PrivateRoute';
 import ProjectRoute from './components/ProjectRoute';
-import { AiAgentIcon } from './ee/features/aiCopilot/components/AiAgentIcon';
-import { useAiAgentButtonVisibility } from './ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useActiveProjectUuid } from './hooks/useActiveProject';
 import useLogoutMutation from './hooks/user/useUserLogoutMutation';
 import { getMantineThemeOverride } from './mantineTheme';
-import AppPreviewTest from './pages/AppPreviewTest';
-import AuthPopupResult, {
-    SuccessAuthPopupResult,
-} from './pages/AuthPopupResult';
-import Login from './pages/Login';
-import MinimalDashboard from './pages/MinimalDashboard';
-import MinimalSavedExplorer from './pages/MinimalSavedExplorer';
-import MinimalSqlChart from './pages/MinimalSqlChart';
-import MobileCharts from './pages/MobileCharts';
-import MobileDashboards from './pages/MobileDashboards';
-import MobileHome from './pages/MobileHome';
-import MobileSpace from './pages/MobileSpace';
-import MobileSpaces from './pages/MobileSpaces';
-import Projects from './pages/Projects';
-import ShareRedirect from './pages/ShareRedirect';
 import { TrackPage } from './providers/Tracking/TrackingProvider';
 import Logo from './svgs/logo-icon.svg?react';
 import { PageName } from './types/Events';
+
+const MobileAiAgentsNavLink = lazy(
+    () => import('./components/Mobile/MobileAiAgentsNavLink'),
+);
 
 const RedirectToResource: FC = () => {
     const { projectUuid, savedQueryUuid, dashboardUuid } = useParams();
@@ -93,8 +80,6 @@ export const MobileNavBar: FC = () => {
             window.location.href = '/login';
         },
     });
-
-    const isAiAgentButtonVisible = useAiAgentButtonVisibility();
 
     // Force dark theme for navbar (excluding global styles)
     const darkTheme = useMemo(() => {
@@ -167,14 +152,13 @@ export const MobileNavBar: FC = () => {
                     leftSection={<MantineIcon icon={IconChartAreaLine} />}
                     onClick={toggleMenu}
                 />
-                {isAiAgentButtonVisible && (
-                    <RouterNavLink
-                        exact
-                        label="Ask AI"
-                        to={`/projects/${activeProjectUuid}/ai-agents`}
-                        leftSection={<AiAgentIcon size={16} />}
-                        onClick={toggleMenu}
-                    />
+                {isMenuOpen && (
+                    <Suspense fallback={null}>
+                        <MobileAiAgentsNavLink
+                            activeProjectUuid={activeProjectUuid}
+                            onClick={toggleMenu}
+                        />
+                    </Suspense>
                 )}
                 <Divider my="lg" />
 
@@ -217,15 +201,24 @@ const FALLBACK_ROUTE: RouteObject = {
 const PUBLIC_ROUTES: RouteObject[] = [
     {
         path: '/auth/popup/:status',
-        element: <AuthPopupResult />,
+        lazy: async () => {
+            const { default: AuthPopupResult } =
+                await import('./pages/AuthPopupResult');
+            return { Component: AuthPopupResult };
+        },
     },
     {
         path: '/login',
-        element: (
-            <TrackPage name={PageName.LOGIN}>
-                <Login minimal={true} />
-            </TrackPage>
-        ),
+        lazy: async () => {
+            const { default: Login } = await import('./pages/Login');
+            return {
+                Component: () => (
+                    <TrackPage name={PageName.LOGIN}>
+                        <Login minimal={true} />
+                    </TrackPage>
+                ),
+            };
+        },
     },
     {
         path: '/no-mobile-page',
@@ -234,7 +227,11 @@ const PUBLIC_ROUTES: RouteObject[] = [
     {
         // Autoclose popup after github installation
         path: '/generalSettings/integrations',
-        element: <SuccessAuthPopupResult />,
+        lazy: async () => {
+            const { default: SuccessAuthPopupResult } =
+                await import('./pages/SuccessAuthPopupResult');
+            return { Component: SuccessAuthPopupResult };
+        },
     },
     ...routesNotSupportedInMobile.map((route) => ({
         path: route,
@@ -248,27 +245,47 @@ const MINIMAL_ROUTES: RouteObject[] = [
         children: [
             {
                 path: '/minimal/projects/:projectUuid/saved/:savedQueryUuid',
-                element: (
-                    <Stack p="lg" h="90vh">
-                        <MinimalSavedExplorer />
-                    </Stack>
-                ),
+                lazy: async () => {
+                    const { default: MinimalSavedExplorer } =
+                        await import('./pages/MinimalSavedExplorer');
+                    return {
+                        Component: () => (
+                            <Stack p="lg" h="90vh">
+                                <MinimalSavedExplorer />
+                            </Stack>
+                        ),
+                    };
+                },
             },
             {
                 path: '/minimal/projects/:projectUuid/dashboards/:dashboardUuid',
-                element: <MinimalDashboard />,
+                lazy: async () => {
+                    const { default: MinimalDashboard } =
+                        await import('./pages/MinimalDashboard');
+                    return { Component: MinimalDashboard };
+                },
             },
             {
                 path: '/minimal/projects/:projectUuid/dashboards/:dashboardUuid/view/tabs/:tabUuid',
-                element: <MinimalDashboard />,
+                lazy: async () => {
+                    const { default: MinimalDashboard } =
+                        await import('./pages/MinimalDashboard');
+                    return { Component: MinimalDashboard };
+                },
             },
             {
                 path: '/minimal/projects/:projectUuid/sql-runner/:savedSqlUuid',
-                element: (
-                    <Stack p="lg" h="90vh">
-                        <MinimalSqlChart />
-                    </Stack>
-                ),
+                lazy: async () => {
+                    const { default: MinimalSqlChart } =
+                        await import('./pages/MinimalSqlChart');
+                    return {
+                        Component: () => (
+                            <Stack p="lg" h="90vh">
+                                <MinimalSqlChart />
+                            </Stack>
+                        ),
+                    };
+                },
             },
         ],
     },
@@ -285,7 +302,11 @@ const APP_ROUTES: RouteObject[] = [
         children: [
             {
                 path: '/projects',
-                element: <Projects />,
+                lazy: async () => {
+                    const { default: Projects } =
+                        await import('./pages/Projects');
+                    return { Component: Projects };
+                },
             },
             {
                 path: '/projects/:projectUuid',
@@ -298,11 +319,17 @@ const APP_ROUTES: RouteObject[] = [
                     { index: true, element: <Navigate to="home" replace /> },
                     {
                         path: '/projects/:projectUuid/home',
-                        element: (
-                            <TrackPage name={PageName.HOME}>
-                                <MobileHome />
-                            </TrackPage>
-                        ),
+                        lazy: async () => {
+                            const { default: MobileHome } =
+                                await import('./pages/MobileHome');
+                            return {
+                                Component: () => (
+                                    <TrackPage name={PageName.HOME}>
+                                        <MobileHome />
+                                    </TrackPage>
+                                ),
+                            };
+                        },
                     },
                     {
                         path: '/projects/:projectUuid/saved/:savedQueryUuid/:mode?',
@@ -314,43 +341,75 @@ const APP_ROUTES: RouteObject[] = [
                     },
                     {
                         path: '/projects/:projectUuid/saved',
-                        element: (
-                            <TrackPage name={PageName.SAVED_QUERIES}>
-                                <MobileCharts />
-                            </TrackPage>
-                        ),
+                        lazy: async () => {
+                            const { default: MobileCharts } =
+                                await import('./pages/MobileCharts');
+                            return {
+                                Component: () => (
+                                    <TrackPage name={PageName.SAVED_QUERIES}>
+                                        <MobileCharts />
+                                    </TrackPage>
+                                ),
+                            };
+                        },
                     },
                     {
                         path: '/projects/:projectUuid/dashboards',
-                        element: (
-                            <TrackPage name={PageName.SAVED_DASHBOARDS}>
-                                <MobileDashboards />
-                            </TrackPage>
-                        ),
+                        lazy: async () => {
+                            const { default: MobileDashboards } =
+                                await import('./pages/MobileDashboards');
+                            return {
+                                Component: () => (
+                                    <TrackPage name={PageName.SAVED_DASHBOARDS}>
+                                        <MobileDashboards />
+                                    </TrackPage>
+                                ),
+                            };
+                        },
                     },
                     {
                         path: '/projects/:projectUuid/spaces/:spaceUuid',
-                        element: (
-                            <TrackPage name={PageName.SPACE}>
-                                <MobileSpace />
-                            </TrackPage>
-                        ),
+                        lazy: async () => {
+                            const { default: MobileSpace } =
+                                await import('./pages/MobileSpace');
+                            return {
+                                Component: () => (
+                                    <TrackPage name={PageName.SPACE}>
+                                        <MobileSpace />
+                                    </TrackPage>
+                                ),
+                            };
+                        },
                     },
                     {
                         path: '/projects/:projectUuid/spaces',
-                        element: (
-                            <TrackPage name={PageName.SPACES}>
-                                <MobileSpaces />
-                            </TrackPage>
-                        ),
+                        lazy: async () => {
+                            const { default: MobileSpaces } =
+                                await import('./pages/MobileSpaces');
+                            return {
+                                Component: () => (
+                                    <TrackPage name={PageName.SPACES}>
+                                        <MobileSpaces />
+                                    </TrackPage>
+                                ),
+                            };
+                        },
                     },
                     {
                         path: '/projects/:projectUuid/apps/:appUuid/preview',
-                        element: <AppPreviewTest />,
+                        lazy: async () => {
+                            const { default: AppPreviewTest } =
+                                await import('./pages/AppPreviewTest');
+                            return { Component: AppPreviewTest };
+                        },
                     },
                     {
                         path: '/projects/:projectUuid/apps/:appUuid/versions/:version/preview',
-                        element: <AppPreviewTest />,
+                        lazy: async () => {
+                            const { default: AppPreviewTest } =
+                                await import('./pages/AppPreviewTest');
+                            return { Component: AppPreviewTest };
+                        },
                     },
                 ],
             },
@@ -400,11 +459,17 @@ const PRIVATE_ROUTES: RouteObject[] = [
             },
             {
                 path: '/share/:shareNanoid',
-                element: (
-                    <TrackPage name={PageName.SHARE}>
-                        <ShareRedirect />
-                    </TrackPage>
-                ),
+                lazy: async () => {
+                    const { default: ShareRedirect } =
+                        await import('./pages/ShareRedirect');
+                    return {
+                        Component: () => (
+                            <TrackPage name={PageName.SHARE}>
+                                <ShareRedirect />
+                            </TrackPage>
+                        ),
+                    };
+                },
             },
         ],
     },
