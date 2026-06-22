@@ -1,6 +1,6 @@
-import { type RoleWithScopes } from '@lightdash/common';
-import { Group, Stack } from '@mantine-8/core';
-import { IconIdBadge2 } from '@tabler/icons-react';
+import { type RoleLevel, type RoleWithScopes } from '@lightdash/common';
+import { Badge, Group, Stack, Tabs, Text } from '@mantine-8/core';
+import { IconBuilding, IconFolder, IconIdBadge2 } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { EmptyState } from '../../../components/common/EmptyState';
@@ -11,12 +11,14 @@ import { AddRoleButton } from '../../features/customRoles/components/AddRoleButt
 import { CustomRolesTable } from '../../features/customRoles/CustomRolesTable';
 import { DuplicateRoleModal } from '../../features/customRoles/DuplicateRoleModal';
 import { useCustomRoles } from '../../features/customRoles/useCustomRoles';
+import classes from './CustomRoles.module.css';
 
 export const CustomRoles = () => {
     const navigate = useNavigate();
     const { listRoles, deleteRole, getAllRoles, duplicateRole } =
         useCustomRoles();
     const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
+    const [level, setLevel] = useState<RoleLevel>('project');
 
     const handleEditRole = (role: RoleWithScopes) => {
         void navigate(`/generalSettings/customRoles/${role.roleUuid}`);
@@ -49,11 +51,36 @@ export const CustomRoles = () => {
         [listRoles.data],
     );
 
+    const projectRoles = useMemo(
+        () => sortedRoles.filter((role) => role.level === 'project'),
+        [sortedRoles],
+    );
+    const organizationRoles = useMemo(
+        () => sortedRoles.filter((role) => role.level === 'organization'),
+        [sortedRoles],
+    );
+
     if (listRoles.isLoading) {
         return <PageSpinner />;
     }
 
     const hasRoles = sortedRoles.length > 0;
+
+    const renderRolesTable = (roles: RoleWithScopes[], level: RoleLevel) =>
+        roles.length > 0 ? (
+            <CustomRolesTable
+                roles={roles}
+                onDelete={handleDeleteRole}
+                onEdit={handleEditRole}
+                isDeleting={deleteRole.isLoading}
+            />
+        ) : (
+            <Text c="dimmed" fz="sm">
+                {level === 'organization'
+                    ? 'No organization-level roles yet.'
+                    : 'No project-level roles yet.'}
+            </Text>
+        );
 
     return (
         <Stack mb="lg" gap="md">
@@ -75,14 +102,78 @@ export const CustomRoles = () => {
             </Group>
 
             {hasRoles ? (
-                <>
-                    <CustomRolesTable
-                        roles={sortedRoles}
-                        onDelete={handleDeleteRole}
-                        onEdit={handleEditRole}
-                        isDeleting={deleteRole.isLoading}
-                    />
-                </>
+                <Stack gap="md">
+                    <Text c="dimmed" fz="sm">
+                        Roles you create here can be assigned to users, groups
+                        and service accounts
+                    </Text>
+
+                    <Tabs
+                        keepMounted={false}
+                        value={level}
+                        onChange={(value) => setLevel(value as RoleLevel)}
+                        variant="pills"
+                        classNames={{
+                            list: classes.tabsList,
+                            tab: classes.tab,
+                            panel: classes.panel,
+                        }}
+                    >
+                        <Tabs.List>
+                            <Tabs.Tab
+                                value="project"
+                                leftSection={
+                                    <MantineIcon icon={IconFolder} size="sm" />
+                                }
+                            >
+                                <Group gap="xs" wrap="nowrap">
+                                    <Text span inherit>
+                                        Project
+                                    </Text>
+                                    <Badge
+                                        className={classes.tabBadge}
+                                        variant="light"
+                                        radius="sm"
+                                    >
+                                        {projectRoles.length}
+                                    </Badge>
+                                </Group>
+                            </Tabs.Tab>
+                            <Tabs.Tab
+                                value="organization"
+                                leftSection={
+                                    <MantineIcon
+                                        icon={IconBuilding}
+                                        size="sm"
+                                    />
+                                }
+                            >
+                                <Group gap="xs" wrap="nowrap">
+                                    <Text span inherit>
+                                        Organization
+                                    </Text>
+                                    <Badge
+                                        className={classes.tabBadge}
+                                        variant="light"
+                                        radius="sm"
+                                    >
+                                        {organizationRoles.length}
+                                    </Badge>
+                                </Group>
+                            </Tabs.Tab>
+                        </Tabs.List>
+
+                        <Tabs.Panel value="project">
+                            {renderRolesTable(projectRoles, 'project')}
+                        </Tabs.Panel>
+                        <Tabs.Panel value="organization">
+                            {renderRolesTable(
+                                organizationRoles,
+                                'organization',
+                            )}
+                        </Tabs.Panel>
+                    </Tabs>
+                </Stack>
             ) : (
                 <EmptyState
                     icon={

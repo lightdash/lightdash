@@ -1,6 +1,7 @@
 import { formatDate, type RoleWithScopes } from '@lightdash/common';
 import {
     ActionIcon,
+    Badge,
     Box,
     Menu,
     Paper,
@@ -22,7 +23,7 @@ const TableRow: FC<{
     onClickEdit: (role: RoleWithScopes) => void;
     onClickDelete: (role: RoleWithScopes) => void;
 }> = ({ role, onClickDelete }) => {
-    const { name, description, createdAt } = role;
+    const { name, description, level, createdAt } = role;
     const { ref: nameRef, isTruncated: isNameTruncated } =
         useIsTruncated<HTMLDivElement>();
     const { ref: descriptionRef, isTruncated: isDescriptionTruncated } =
@@ -56,6 +57,11 @@ const TableRow: FC<{
                         </Text>
                     </Box>
                 </Tooltip>
+            </Table.Td>
+            <Table.Td>
+                <Badge variant="light" color="gray">
+                    {level === 'organization' ? 'Organization' : 'Project'}
+                </Badge>
             </Table.Td>
             <Table.Td>{createdAt ? formatDate(createdAt) : '-'}</Table.Td>
             <Table.Td w="1%">
@@ -137,6 +143,7 @@ export const CustomRolesTable: FC<TableProps> = ({
                         <Table.Tr>
                             <Table.Th>Name</Table.Th>
                             <Table.Th>Description</Table.Th>
+                            <Table.Th>Level</Table.Th>
                             <Table.Th>Created</Table.Th>
                             <Table.Th></Table.Th>
                         </Table.Tr>

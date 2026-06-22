@@ -1,3 +1,4 @@
+import { type RoleLevel } from '@lightdash/common';
 import { Center, Loader, Stack } from '@mantine-8/core';
 import { useNavigate, useParams } from 'react-router';
 import PageBreadcrumbs from '../../../components/common/PageBreadcrumbs';
@@ -16,6 +17,7 @@ export const CustomRoleEdit = () => {
     const handleUpdateRole = async (values: {
         name: string;
         description: string;
+        level: RoleLevel;
         scopes: string[];
     }) => {
         if (!roleId || !role) return;
@@ -76,6 +78,7 @@ export const CustomRoleEdit = () => {
                 initialValues={{
                     name: role.name,
                     description: role.description || '',
+                    level: role.level,
                     scopes: role.scopes || [],
                 }}
                 onSubmit={handleUpdateRole}

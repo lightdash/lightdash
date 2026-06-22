@@ -166,14 +166,17 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
     });
 
     const rolesData = useMemo(() => {
-        return organizationRoles?.map(
-            (role: Pick<Role, 'roleUuid' | 'name' | 'ownerType'>) => ({
+        return organizationRoles
+            ?.filter(
+                (role: Role) =>
+                    role.ownerType === 'system' || role.level === 'project',
+            )
+            .map((role: Pick<Role, 'roleUuid' | 'name' | 'ownerType'>) => ({
                 value: role.roleUuid,
                 label: role.name,
                 group:
                     role.ownerType === 'system' ? 'System role' : 'Custom role',
-            }),
-        );
+            }));
     }, [organizationRoles]);
 
     // Convert flat grouped format (v6) to nested grouped format (v8) for Select
