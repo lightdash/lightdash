@@ -147,6 +147,8 @@ export const useSettingsContext = (): SettingsContext => {
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
         shouldShowAiAgentReviews,
+        isAiOrganizationSettingsLoading:
+            aiOrganizationSettingsQuery.isInitialLoading,
         dataAppsFlag,
         dataAppExternalAccessFlag,
         embeddingEnabled,

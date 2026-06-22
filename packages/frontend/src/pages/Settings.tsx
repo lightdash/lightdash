@@ -122,6 +122,7 @@ const Settings: FC = () => {
         dataAppsFlag,
         isAiCopilotEnabledOrTrial,
         shouldShowAiAgentReviews,
+        isAiOrganizationSettingsLoading,
         showImpersonationPanel,
         isLeaveOrganizationEnabled,
         isCustomRolesEnabled,
@@ -736,7 +737,10 @@ const Settings: FC = () => {
         isUserLoading ||
         isOrganizationLoading ||
         isActiveProjectUuidLoading ||
-        isProjectLoading
+        isProjectLoading ||
+        // Wait for AI org settings so the /ai/reviews route is registered before
+        // routing — otherwise a hard refresh there falls through to the default.
+        isAiOrganizationSettingsLoading
     ) {
         return <PageSpinner />;
     }
