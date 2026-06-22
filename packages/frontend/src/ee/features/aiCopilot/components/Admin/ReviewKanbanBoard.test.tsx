@@ -22,8 +22,8 @@ vi.mock('../../hooks/useAiAgentAdmin', () => ({
     }),
 }));
 
-vi.mock('../../../../../hooks/useProjectAccess', () => ({
-    useProjectAccess: () => ({ data: [] }),
+vi.mock('../../../../../hooks/useProjectUsersWithRolesV2', () => ({
+    useProjectUsersWithRoles: () => ({ usersWithProjectRole: [] }),
 }));
 
 vi.mock('../AgentNamePill', () => ({ AgentNamePill: () => null }));
