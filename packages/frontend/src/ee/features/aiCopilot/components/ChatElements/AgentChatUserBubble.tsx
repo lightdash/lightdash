@@ -26,6 +26,9 @@ import {
 type Props = {
     message: AiAgentMessageUser<AiAgentUser>;
     isActive?: boolean;
+    // Explicit for routes where projectUuid isn't a URL param (the review
+    // remediation workspace); falls back to params for the normal agent chat.
+    projectUuid?: string;
 };
 
 const getVisibleUserName = (name: string) => {
@@ -37,8 +40,13 @@ const getVisibleUserName = (name: string) => {
     return trimmedName;
 };
 
-export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
-    const { projectUuid, agentUuid } = useParams();
+export const UserBubble: FC<Props> = ({
+    message,
+    isActive = false,
+    projectUuid: projectUuidProp,
+}) => {
+    const { projectUuid: paramsProjectUuid, agentUuid } = useParams();
+    const projectUuid = projectUuidProp ?? paramsProjectUuid;
     const timeAgo = useTimeAgo(message.createdAt);
     const name = getVisibleUserName(message.user.name);
     const app = useApp();
