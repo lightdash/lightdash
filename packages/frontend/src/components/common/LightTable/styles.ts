@@ -1,4 +1,7 @@
-import { assertUnreachable } from '@lightdash/common';
+import {
+    assertUnreachable,
+    type ConditionalFormattingTextStyle,
+} from '@lightdash/common';
 import { createStyles, type MantineTheme } from '@mantine/core';
 import { darken, rgba } from 'polished';
 import { CELL_HEIGHT } from './constants';
@@ -245,6 +248,7 @@ export const useTableCellStyles = createStyles<
         index: number;
         withColor: string | false;
         withBackground: string | false;
+        withTextStyle?: ConditionalFormattingTextStyle | false;
     }
 >(
     (
@@ -255,6 +259,7 @@ export const useTableCellStyles = createStyles<
             index,
             withColor = false,
             withBackground = false,
+            withTextStyle = false,
         },
     ) => {
         const cellHeadBackground = theme.colors.ldGray[0];
@@ -352,6 +357,18 @@ export const useTableCellStyles = createStyles<
             withBoldFont: {
                 fontWeight: 600,
             },
+
+            withTextStyle: withTextStyle
+                ? {
+                      ...(withTextStyle.bold ? { fontWeight: 700 } : {}),
+                      ...(withTextStyle.italic
+                          ? { fontStyle: 'italic' as const }
+                          : {}),
+                      ...(withTextStyle.underline
+                          ? { textDecoration: 'underline' }
+                          : {}),
+                  }
+                : {},
 
             withCopying: {
                 backgroundColor: copyingBackground,

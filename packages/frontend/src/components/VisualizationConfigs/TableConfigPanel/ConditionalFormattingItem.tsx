@@ -20,19 +20,27 @@ import {
     type ConditionalFormattingColorRange,
     type ConditionalFormattingConfig,
     type ConditionalFormattingConfigWithColorRange,
+    type ConditionalFormattingTextStyle,
     type ConditionalFormattingWithFilterOperator,
     type FilterableItem,
     type FilterOperator,
 } from '@lightdash/common';
 import {
     Accordion,
+    ActionIcon,
     Button,
     Flex,
     Group,
     SegmentedControl,
     Stack,
+    Tooltip,
 } from '@mantine-8/core';
-import { IconPlus } from '@tabler/icons-react';
+import {
+    IconBold,
+    IconItalic,
+    IconPlus,
+    IconUnderline,
+} from '@tabler/icons-react';
 import { produce } from 'immer';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
@@ -63,6 +71,16 @@ const ConditionalFormattingRuleLabels = {
     [ConditionalFormattingConfigType.Single]: 'Single',
     [ConditionalFormattingConfigType.Range]: 'Range',
 };
+
+const TEXT_STYLE_TOGGLES: {
+    key: keyof ConditionalFormattingTextStyle;
+    label: string;
+    icon: typeof IconBold;
+}[] = [
+    { key: 'bold', label: 'Bold', icon: IconBold },
+    { key: 'italic', label: 'Italic', icon: IconItalic },
+    { key: 'underline', label: 'Underline', icon: IconUnderline },
+];
 
 export const ConditionalFormattingItem: FC<Props> = ({
     colorPalette,
@@ -345,6 +363,18 @@ export const ConditionalFormattingItem: FC<Props> = ({
         [handleChange, config],
     );
 
+    const handleToggleTextStyle = useCallback(
+        (key: keyof ConditionalFormattingTextStyle) => {
+            handleChange(
+                produce(config, (draft) => {
+                    const current = draft.textStyle ?? {};
+                    draft.textStyle = { ...current, [key]: !current[key] };
+                }),
+            );
+        },
+        [handleChange, config],
+    );
+
     const controlLabel = `Rule ${configIndex}`;
     const accordionValue = `${configIndex}`;
 
@@ -499,6 +529,38 @@ export const ConditionalFormattingItem: FC<Props> = ({
                                     )
                                 }
                             />
+                        </Group>
+
+                        <Group gap="xs">
+                            <Config.Label>Text style</Config.Label>
+                            <ActionIcon.Group>
+                                {TEXT_STYLE_TOGGLES.map(
+                                    ({ key, label, icon }) => (
+                                        <Tooltip
+                                            key={key}
+                                            label={label}
+                                            withinPortal
+                                        >
+                                            <ActionIcon
+                                                variant={
+                                                    config.textStyle?.[key]
+                                                        ? 'filled'
+                                                        : 'default'
+                                                }
+                                                aria-label={label}
+                                                onClick={() =>
+                                                    handleToggleTextStyle(key)
+                                                }
+                                            >
+                                                <MantineIcon
+                                                    icon={icon}
+                                                    size="sm"
+                                                />
+                                            </ActionIcon>
+                                        </Tooltip>
+                                    ),
+                                )}
+                            </ActionIcon.Group>
                         </Group>
 
                         {isConditionalFormattingConfigWithSingleColor(

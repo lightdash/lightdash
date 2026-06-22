@@ -222,6 +222,7 @@ export type DbAiAgentReviewItem = {
     pr_writeback_message: string | null;
     status_updated_at: Date | null;
     status_updated_by_user_uuid: string | null;
+    board_position: number | null;
     created_at: Date;
     updated_at: Date;
 };

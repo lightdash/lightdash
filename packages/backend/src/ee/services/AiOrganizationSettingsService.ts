@@ -60,10 +60,7 @@ export class AiOrganizationSettingsService extends BaseService {
     }
 
     private async getIsCopilotEnabled(
-        user: Pick<
-            LightdashUser,
-            'userUuid' | 'organizationUuid' | 'organizationName'
-        >,
+        user: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>,
     ): Promise<boolean> {
         const isCopilotEnabled = await this.commercialFeatureFlagModel.get({
             user,

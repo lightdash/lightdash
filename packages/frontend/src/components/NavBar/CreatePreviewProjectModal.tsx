@@ -196,9 +196,14 @@ const EnvironmentVariablesInput: FC<EnvironmentVariablesInputProps> = ({
 type Props = {
     isOpened: boolean;
     onClose: () => void;
+    preselectedProjectUuid?: string;
 };
 
-const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
+const CreatePreviewModal: FC<Props> = ({
+    isOpened,
+    onClose,
+    preselectedProjectUuid,
+}) => {
     const { user } = useApp();
 
     const { isInitialLoading: isLoadingProjects, data: projects } =
@@ -285,23 +290,25 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
     }, [projectDetails?.dbtConnection?.type]);
 
     useEffect(() => {
+        const initialProjectUuid = preselectedProjectUuid ?? activeProjectUuid;
         if (
             !isLoadingActiveProjectUuid &&
-            activeProjectUuid &&
+            initialProjectUuid &&
             !selectedProjectUuid &&
             projects
         ) {
-            const activeProjectValue = regularProjectList.find(
-                (project) => project.value === activeProjectUuid,
+            const initialProjectValue = regularProjectList.find(
+                (project) => project.value === initialProjectUuid,
             );
 
-            if (activeProjectValue && !activeProjectValue.disabled) {
-                setSelectedProjectUuid(activeProjectUuid);
+            if (initialProjectValue && !initialProjectValue.disabled) {
+                setSelectedProjectUuid(initialProjectUuid);
                 setPreviewName(handleGeneratePreviewName());
             }
         }
     }, [
         activeProjectUuid,
+        preselectedProjectUuid,
         handleGeneratePreviewName,
         isLoadingActiveProjectUuid,
         projects,

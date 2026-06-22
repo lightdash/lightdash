@@ -1,5 +1,19 @@
-import { type AiAgentSummary } from '@lightdash/common';
-import { Center, Group, Loader, Stack, Text } from '@mantine-8/core';
+import {
+    type AiAgentSummary,
+    type AiPromptContext,
+    type AiPromptContextInput,
+} from '@lightdash/common';
+import {
+    Avatar,
+    Badge,
+    Box,
+    Button,
+    Center,
+    Group,
+    Loader,
+    Stack,
+    Text,
+} from '@mantine-8/core';
 import {
     useCallback,
     useMemo,
@@ -32,20 +46,25 @@ import { getDashboardNavigationUrlFromContentToolResult } from '../../utils/cont
 import { AiAgentNewThreadMcpConnections } from '../AiAgentNewThreadMcpConnections';
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../ChatElements/AgentChatInput';
-import {
-    contextItemsToContentMentionSuggestions,
-    mergeAiPromptContextInput,
-    mergeAiPromptContextItems,
-} from '../ChatElements/contentMentions';
+import { contextItemsToContentMentionSuggestions } from '../ChatElements/contentMentions';
 import { getPromptContextItemKey } from '../ChatElements/contentReferenceUtils';
 import { PinnedContextCard } from '../PinnedContextCard/PinnedContextCard';
 import styles from './AiAgentsLauncher.module.css';
+import {
+    getConcreteLauncherAgent,
+    isLauncherAutoAgent,
+    type LauncherSelectedAgent,
+} from './launcherAgentSelection';
 import { PanelHeader } from './PanelHeader';
+import {
+    useAiAgentLauncherRouter,
+    type LauncherRouterCandidate,
+} from './useAiAgentLauncherRouter';
 import { useLauncherDock } from './useLauncherDock';
 
 type Props = {
     projectUuid: string;
-    agent: AiAgentSummary | null;
+    agent: LauncherSelectedAgent;
     agents: AiAgentSummary[];
     activeThreadId: string | null;
     style?: CSSProperties;
@@ -75,7 +94,7 @@ export const LauncherPanel: FC<Props> = ({
         );
     }
 
-    return activeThreadId ? (
+    return activeThreadId && !isLauncherAutoAgent(agent) ? (
         <ExistingThreadPanel
             projectUuid={projectUuid}
             agent={agent}
@@ -95,7 +114,7 @@ export const LauncherPanel: FC<Props> = ({
 
 const NewThreadPanel: FC<{
     projectUuid: string;
-    agent: AiAgentSummary;
+    agent: NonNullable<LauncherSelectedAgent>;
     agents: AiAgentSummary[];
     style?: CSSProperties;
 }> = ({ projectUuid, agent, agents, style }) => {
@@ -109,6 +128,8 @@ const NewThreadPanel: FC<{
     const dashboardUuid = pendingContext?.dashboardUuid;
 
     const { addItem: addDockItem } = useLauncherDock(projectUuid);
+    const isAuto = isLauncherAutoAgent(agent);
+    const concreteAgent = getConcreteLauncherAgent(agent);
 
     const {
         contextInput,
@@ -148,13 +169,13 @@ const NewThreadPanel: FC<{
             onCreated: (thread) => {
                 addDockItem({
                     threadId: thread.uuid,
-                    agentUuid: agent.uuid,
+                    agentUuid: thread.agentUuid,
                     title: thread.firstMessage.message,
                 });
                 dispatch(
                     openPanel({
                         threadId: thread.uuid,
-                        agentUuid: agent.uuid,
+                        agentUuid: thread.agentUuid,
                     }),
                 );
                 // Seed the per-thread mode slice with the user's choice so
@@ -169,32 +190,52 @@ const NewThreadPanel: FC<{
             onToolResult: handleToolResult,
         });
 
-    const handleSubmit = ({
-        message,
-        toolHints,
-        context,
-        optimisticContext,
-    }: {
-        message: string;
-        toolHints: string[];
-        context?: typeof contextInput;
-        optimisticContext?: typeof previewItems;
-    }) => {
-        if (!isPinnedContextReady) return;
-        const mergedContext = mergeAiPromptContextInput(contextInput, context);
-        const mergedOptimisticContext = mergeAiPromptContextItems(
-            previewItems,
+    const createThreadForAgent = useCallback(
+        async ({
+            agentUuid,
+            context,
+            message,
             optimisticContext,
-        );
-        void createAgentThread({
-            agentUuid: agent.uuid,
-            prompt: message,
-            context: mergedContext,
-            optimisticContext: mergedOptimisticContext,
-            enableSqlMode: sqlModeAvailable && sqlMode,
             toolHints,
-        });
-    };
+        }: {
+            agentUuid: string;
+            context?: AiPromptContextInput;
+            message: string;
+            optimisticContext?: AiPromptContext;
+            toolHints: string[];
+        }) => {
+            return createAgentThread({
+                agentUuid,
+                prompt: message,
+                context,
+                optimisticContext,
+                enableSqlMode: sqlModeAvailable && sqlMode,
+                toolHints,
+            });
+        },
+        [createAgentThread, sqlMode, sqlModeAvailable],
+    );
+
+    const {
+        confirmPick,
+        handleSubmit,
+        isLocked,
+        isPickingAgent,
+        sortedCandidates,
+    } = useAiAgentLauncherRouter({
+        agent,
+        agents,
+        contextInput,
+        createThreadForAgent,
+        isCreatingThread,
+        isPinnedContextReady,
+        previewItems,
+        projectUuid,
+    });
+    const displayName = isAuto ? 'Auto' : agent.name;
+    const description = isAuto
+        ? 'Routes each new question to the best-fit agent'
+        : agent.description;
 
     return (
         <div className={styles.panel} style={style}>
@@ -202,7 +243,7 @@ const NewThreadPanel: FC<{
                 projectUuid={projectUuid}
                 agent={agent}
                 agents={agents}
-                title={agent.name}
+                title={displayName}
                 threadId={null}
             />
             <div className={styles.panelBody}>
@@ -213,27 +254,37 @@ const NewThreadPanel: FC<{
                     gap="xs"
                     px="md"
                 >
-                    <LightdashUserAvatar
-                        size="lg"
-                        name={agent.name}
-                        src={agent.imageUrl}
-                    />
+                    {isAuto ? (
+                        <Avatar size="lg" color="ldGray" radius="xl">
+                            <Text size="sm" fw={700} c="ldGray.6">
+                                AI
+                            </Text>
+                        </Avatar>
+                    ) : (
+                        <LightdashUserAvatar
+                            size="lg"
+                            name={agent.name}
+                            src={agent.imageUrl}
+                        />
+                    )}
                     <Text size="sm" fw={500}>
-                        {agent.name}
+                        {displayName}
                     </Text>
-                    {agent.description && (
+                    {description && (
                         <Text size="xs" c="dimmed" ta="center" maw={360}>
-                            {agent.description}
+                            {description}
                         </Text>
                     )}
                 </Stack>
-                <Stack px="md" pb="xs">
-                    <AiAgentNewThreadMcpConnections
-                        projectUuid={projectUuid}
-                        agentUuid={agent.uuid}
-                        onSuggestedPrompt={setComposerSeed}
-                    />
-                </Stack>
+                {concreteAgent && (
+                    <Stack px="md" pb="xs">
+                        <AiAgentNewThreadMcpConnections
+                            projectUuid={projectUuid}
+                            agentUuid={concreteAgent.uuid}
+                            onSuggestedPrompt={setComposerSeed}
+                        />
+                    </Stack>
+                )}
                 {previewItems.length > 0 && (
                     <Stack gap="xxs" px="md" pb="xs">
                         <Text size="xs" fw={600} c="dimmed" tt="uppercase">
@@ -250,15 +301,21 @@ const NewThreadPanel: FC<{
                         </Group>
                     </Stack>
                 )}
+                {isPickingAgent && (
+                    <LauncherAgentPicker
+                        candidates={sortedCandidates}
+                        onPick={confirmPick}
+                    />
+                )}
                 <AgentChatInput
                     key={composerSeed ?? 'composer'}
                     defaultValue={composerSeed ?? undefined}
                     onSubmit={handleSubmit}
-                    loading={isCreatingThread}
-                    disabled={!isPinnedContextReady}
-                    placeholder={`Ask ${agent.name} anything...`}
+                    loading={isLocked}
+                    disabled={!isPinnedContextReady || isPickingAgent}
+                    placeholder={`Ask ${displayName} anything...`}
                     projectUuid={projectUuid}
-                    agentUuid={agent.uuid}
+                    agentUuid={concreteAgent?.uuid}
                     fullWidth
                     sqlMode={sqlModeAvailable ? sqlMode : undefined}
                     onSqlModeChange={sqlModeAvailable ? setSqlMode : undefined}
@@ -268,6 +325,50 @@ const NewThreadPanel: FC<{
         </div>
     );
 };
+
+const LauncherAgentPicker: FC<{
+    candidates: LauncherRouterCandidate[];
+    onPick: (agentUuid: string) => void;
+}> = ({ candidates, onPick }) => (
+    <Stack gap="xs" px="md" pb="xs">
+        <Text size="xs" fw={600} c="dimmed" tt="uppercase">
+            Choose agent
+        </Text>
+        <Stack gap="xxs">
+            {candidates.map((candidate) => (
+                <Button
+                    key={candidate.agentUuid}
+                    variant="default"
+                    justify="start"
+                    leftSection={
+                        <LightdashUserAvatar
+                            size="xs"
+                            name={candidate.name}
+                            src={candidate.agent?.imageUrl}
+                        />
+                    }
+                    onClick={() => onPick(candidate.agentUuid)}
+                >
+                    <Box className={styles.candidateContent}>
+                        <Box className={styles.candidateText}>
+                            {candidate.name}
+                        </Box>
+                        {candidate.isRecommended && (
+                            <Badge
+                                size="xs"
+                                color="violet"
+                                variant="light"
+                                radius="sm"
+                            >
+                                Recommended
+                            </Badge>
+                        )}
+                    </Box>
+                </Button>
+            ))}
+        </Stack>
+    </Stack>
+);
 
 const ExistingThreadPanel: FC<{
     projectUuid: string;

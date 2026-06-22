@@ -1,7 +1,12 @@
 import { useMemo } from 'react';
 import { useAiOrganizationSettings } from '../../hooks/useAiOrganizationSettings';
+import { useAiRouterConfig } from '../../hooks/useAiRouter';
 import { useProjectAiAgents } from '../../hooks/useProjectAiAgents';
 import { useGetUserAgentPreferences } from '../../hooks/useUserAgentPreferences';
+import {
+    getConcreteLauncherAgent,
+    resolveLauncherDefaultAgent,
+} from './launcherAgentSelection';
 
 export const useDefaultAiAgent = (projectUuid: string | undefined) => {
     const aiOrganizationSettingsQuery = useAiOrganizationSettings();
@@ -15,14 +20,27 @@ export const useDefaultAiAgent = (projectUuid: string | undefined) => {
         redirectOnUnauthorized: false,
     });
     const { data: preferences } = useGetUserAgentPreferences(projectUuid);
+    const aiRouterConfigQuery = useAiRouterConfig();
 
-    const agent = useMemo(() => {
-        if (!agents || agents.length === 0) return null;
-        return (
-            agents.find((a) => a.uuid === preferences?.defaultAgentUuid) ??
-            agents[0]
-        );
-    }, [agents, preferences?.defaultAgentUuid]);
+    const selectedAgent = useMemo(
+        () =>
+            resolveLauncherDefaultAgent({
+                agents,
+                defaultAgentUuid: preferences?.defaultAgentUuid,
+                isRouterEnabled: aiRouterConfigQuery.data?.enabled === true,
+                isRouterLoading: aiRouterConfigQuery.isLoading,
+            }),
+        [
+            agents,
+            aiRouterConfigQuery.data?.enabled,
+            aiRouterConfigQuery.isLoading,
+            preferences?.defaultAgentUuid,
+        ],
+    );
 
-    return { agent, agents: agents ?? [] };
+    return {
+        agent: getConcreteLauncherAgent(selectedAgent),
+        selectedAgent,
+        agents: agents ?? [],
+    };
 };

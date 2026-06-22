@@ -1248,3 +1248,140 @@ describe('hidden-metric conditional-formatting side-channel (PROD-2372)', () => 
         expect(result.hiddenContextValues).toBeUndefined();
     });
 });
+
+describe('hidden row-index dim drill-down side-channel (PROD-7841)', () => {
+    // Two index dims: a visible one (year) and a hidden one (cost tier). The
+    // hidden index dim is dropped from the rendered `indexValues`, but its
+    // per-row value must be stashed on `hiddenIndexValues` so interactive
+    // drill-down can still scope by it.
+    const rows: ResultRow[] = [
+        {
+            orders_order_date_year: {
+                value: { raw: '2025-01-01T00:00:00Z', formatted: '2025' },
+            },
+            orders_shipping_cost_tier: {
+                value: { raw: 'high', formatted: 'High ($20-$30)' },
+            },
+            orders_total_order_amount_any_bank_transfer: {
+                value: { raw: 200, formatted: '200' },
+            },
+        },
+        {
+            orders_order_date_year: {
+                value: { raw: '2024-01-01T00:00:00Z', formatted: '2024' },
+            },
+            orders_shipping_cost_tier: {
+                value: { raw: 'low', formatted: 'Low (<$10)' },
+            },
+            orders_total_order_amount_any_bank_transfer: {
+                value: { raw: 75, formatted: '75' },
+            },
+        },
+    ];
+
+    const pivotDetails = {
+        totalColumnCount: 1,
+        valuesColumns: [
+            {
+                aggregation: VizAggregationOptions.ANY,
+                pivotValues: [
+                    {
+                        value: 'bank_transfer',
+                        referenceField: 'payments_payment_method',
+                    },
+                ],
+                referenceField: 'orders_total_order_amount',
+                pivotColumnName: 'orders_total_order_amount_any_bank_transfer',
+            },
+        ],
+        indexColumn: [
+            { type: VizIndexType.TIME, reference: 'orders_order_date_year' },
+            {
+                type: VizIndexType.CATEGORY,
+                reference: 'orders_shipping_cost_tier',
+            },
+        ],
+        groupByColumns: [{ reference: 'payments_payment_method' }],
+        sortBy: [
+            {
+                direction: SortByDirection.DESC,
+                reference: 'orders_order_date_year',
+            },
+        ],
+        originalColumns: {},
+    };
+
+    const pivotConfig = {
+        rowTotals: false,
+        columnTotals: false,
+        metricsAsRows: false,
+        columnOrder: [
+            'orders_order_date_year',
+            'orders_shipping_cost_tier',
+            'payments_payment_method',
+            'orders_total_order_amount',
+        ],
+        hiddenDimensionFieldIds: ['orders_shipping_cost_tier'],
+    };
+
+    it('stashes hidden index dim values on hiddenIndexValues, aligned by row, and excludes them from indexValues', () => {
+        const result = convertSqlPivotedRowsToPivotData({
+            rows,
+            pivotDetails,
+            pivotConfig,
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => fieldId,
+            groupedSubtotals: undefined,
+        });
+
+        // Rendered index values carry only the visible dim (year), never the
+        // hidden cost tier.
+        result.indexValues.forEach((indexRow) => {
+            expect(indexRow.map((cell) => cell.fieldId)).not.toContain(
+                'orders_shipping_cost_tier',
+            );
+        });
+        expect(result.indexValues[0]).toEqual([
+            {
+                type: 'value',
+                fieldId: 'orders_order_date_year',
+                value: { raw: '2025-01-01T00:00:00Z', formatted: '2025' },
+                colSpan: 1,
+            },
+        ]);
+
+        // Hidden index dim values are stashed, aligned by row index, so
+        // drill-down can scope by them.
+        expect(result.hiddenIndexValues).toEqual([
+            [
+                {
+                    type: 'value',
+                    fieldId: 'orders_shipping_cost_tier',
+                    value: { raw: 'high', formatted: 'High ($20-$30)' },
+                    colSpan: 1,
+                },
+            ],
+            [
+                {
+                    type: 'value',
+                    fieldId: 'orders_shipping_cost_tier',
+                    value: { raw: 'low', formatted: 'Low (<$10)' },
+                    colSpan: 1,
+                },
+            ],
+        ]);
+    });
+
+    it('omits hiddenIndexValues entirely when no index dim is hidden', () => {
+        const result = convertSqlPivotedRowsToPivotData({
+            rows,
+            pivotDetails,
+            pivotConfig: { ...pivotConfig, hiddenDimensionFieldIds: [] },
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => fieldId,
+            groupedSubtotals: undefined,
+        });
+
+        expect(result.hiddenIndexValues).toBeUndefined();
+    });
+});

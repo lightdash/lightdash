@@ -1322,6 +1322,34 @@ export const convertSqlPivotedRowsToPivotData = ({
         }
     }
 
+    // Row-index dims hidden via hiddenDimensionFieldIds are dropped from the
+    // rendered `indexValues`, but interactive drill-down ("View underlying
+    // data" / "Drill into") needs their per-row values to scope correctly
+    // (PROD-7841). `allIndexColumnRefs` includes hidden dims; `indexColumns`
+    // is visible-only, so the difference is the hidden set. Stash them in a
+    // parallel array aligned by row index with `indexValues`.
+    const hiddenIndexColumns = allIndexColumnRefs.filter(
+        (ref) => !indexColumns.includes(ref),
+    );
+    if (hiddenIndexColumns.length > 0) {
+        const buildHiddenCells = (row: (typeof rows)[number]) =>
+            hiddenIndexColumns.map((col) => ({
+                type: 'value' as const,
+                fieldId: col,
+                value: row[col].value,
+                colSpan: 1,
+            }));
+        retrofitted.hiddenIndexValues = pivotConfig.metricsAsRows
+            ? rows.reduce<PivotData['indexValues']>((acc, row) => {
+                  // mirror the per-metric row multiplication of `indexValues`
+                  baseMetricsArray.forEach(() => {
+                      acc.push(buildHiddenCells(row));
+                  });
+                  return acc;
+              }, [])
+            : rows.map((row) => buildHiddenCells(row));
+    }
+
     return retrofitted;
 };
 

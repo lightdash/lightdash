@@ -1,5 +1,6 @@
 import {
     getSlackErrorCode,
+    isSlackMessageTooLongError,
     isSlackRateLimitedError,
     isUnrecoverableSlackError,
     SLACK_USER_FACING_ERROR_MESSAGES,
@@ -37,6 +38,27 @@ describe('isUnrecoverableSlackError', () => {
             isUnrecoverableSlackError({ data: { error: 'invalid_blocks' } }),
         ).toBe(false);
         expect(isUnrecoverableSlackError(new Error('boom'))).toBe(false);
+    });
+});
+
+describe('isSlackMessageTooLongError', () => {
+    it('returns true for oversized-message codes', () => {
+        expect(
+            isSlackMessageTooLongError({ data: { error: 'msg_too_long' } }),
+        ).toBe(true);
+        expect(
+            isSlackMessageTooLongError({
+                data: { error: 'msg_blocks_too_long' },
+            }),
+        ).toBe(true);
+    });
+
+    it('returns false for other Slack errors and non-Slack errors', () => {
+        expect(
+            isSlackMessageTooLongError({ data: { error: 'invalid_blocks' } }),
+        ).toBe(false);
+        expect(isSlackMessageTooLongError(new Error('boom'))).toBe(false);
+        expect(isSlackMessageTooLongError(undefined)).toBe(false);
     });
 });
 

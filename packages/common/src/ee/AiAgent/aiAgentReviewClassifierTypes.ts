@@ -612,6 +612,8 @@ export type AiAgentReviewItem = {
     prState: AiAgentReviewItemPrState | null;
     prWritebackStatus: AiAgentReviewItemWritebackStatus | null;
     prWritebackMessage: string | null;
+    // Manual board sort key; null = default (last-seen) order.
+    boardPosition: number | null;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -647,10 +649,19 @@ export type ApiAiAgentReviewItemsResponse = ApiSuccess<
 export type UpdateAiAgentReviewItemStatus = {
     status: AiAgentReviewItemStatus;
     dismissedReason: AiAgentReviewItemDismissedReason | null;
+    // Optional manual board sort key set on drag-reorder (midpoint between
+    // neighbours). Omitted for plain status changes.
+    boardPosition?: number | null;
 };
 
 export type UpdateAiAgentReviewItemAssignee = {
     assignedToUserUuid: string | null;
+};
+
+// Persists the board's manual card order: the fingerprints of one lane in their
+// new top-to-bottom order (board_position = array index).
+export type ReorderAiAgentReviewItems = {
+    orderedFingerprints: string[];
 };
 
 export type ApiAiAgentReviewItemResponse = ApiSuccess<AiAgentReviewItemSummary>;

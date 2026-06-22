@@ -13,6 +13,7 @@ import {
 import { useDisclosure } from '@mantine-8/hooks';
 import {
     IconArrowRight,
+    IconCircleCheck,
     IconExternalLink,
     IconFileDiff,
     IconGitPullRequest,
@@ -32,6 +33,7 @@ import {
     useRetestAiAgentReviewRemediation,
 } from '../../hooks/useAiAgentAdmin';
 import { AgentNamePill } from '../AgentNamePill';
+import { MarkResolvedModal } from './MarkResolvedModal';
 import {
     reviewRootCauseColors,
     reviewRootCauseLabels,
@@ -71,6 +73,7 @@ export const ReviewRemediationWorkspace = () => {
         enabled: !!reviewItem?.linkedPrUrl,
     });
     const [diffOpen, diffHandlers] = useDisclosure(false);
+    const [resolveOpen, resolveHandlers] = useDisclosure(false);
 
     const retest = useRetestAiAgentReviewRemediation();
 
@@ -308,6 +311,18 @@ export const ReviewRemediationWorkspace = () => {
                             View PR
                         </Button>
                     )}
+                    {reviewItem.status !== 'resolved' && (
+                        <Button
+                            color="green"
+                            size="xs"
+                            leftSection={
+                                <MantineIcon icon={IconCircleCheck} size={18} />
+                            }
+                            onClick={resolveHandlers.open}
+                        >
+                            Resolve
+                        </Button>
+                    )}
                 </Group>
             </Group>
 
@@ -409,6 +424,14 @@ export const ReviewRemediationWorkspace = () => {
                 onClose={diffHandlers.close}
                 diff={prDiff.data}
                 isLoading={prDiff.isLoading}
+            />
+
+            <MarkResolvedModal
+                opened={resolveOpen}
+                onClose={resolveHandlers.close}
+                fingerprint={reviewItem.fingerprint}
+                projectUuid={remediation.sourceProjectUuid}
+                prUrl={reviewItem.linkedPrUrl}
             />
         </Stack>
     );

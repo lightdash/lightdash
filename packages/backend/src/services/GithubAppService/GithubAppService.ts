@@ -100,7 +100,6 @@ export class GithubAppService extends BaseService {
             user: {
                 userUuid: user.userUuid,
                 organizationUuid: user.organizationUuid,
-                organizationName: undefined,
             },
             featureFlagId: FeatureFlags.GithubUserCredentials,
         });

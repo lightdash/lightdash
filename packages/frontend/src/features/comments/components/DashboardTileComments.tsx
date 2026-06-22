@@ -9,6 +9,7 @@ import {
     Popover,
     Stack,
     Text,
+    Tooltip,
     type PopoverProps,
 } from '@mantine-8/core';
 import { useDisclosure, useScrollIntoView } from '@mantine/hooks';
@@ -136,6 +137,16 @@ export const DashboardTileComments: FC<
 
         return 'gray';
     }, [unreadNotificationsForTile]);
+
+    const handleTargetClick = useCallback(() => {
+        if (openedComments) {
+            onClose?.();
+        } else {
+            onOpen?.();
+        }
+
+        setOpenedComments((prev) => !prev);
+    }, [onClose, onOpen, openedComments]);
 
     const handleOnOpen = useCallback(() => {
         track({
@@ -276,34 +287,36 @@ export const DashboardTileComments: FC<
 
             <Popover.Target ref={targetRefComments}>
                 <Indicator
+                    inline
                     label={comments && comments.length}
                     size={12}
                     disabled={!showIndicator}
-                    offset={4}
+                    offset={3}
                     color={indicatorColor}
                     styles={{
                         indicator: {
-                            fontSize: 11,
+                            fontSize: 10,
                             padding: 0,
                         },
                     }}
                 >
-                    <ActionIcon
-                        size="sm"
-                        variant="light"
-                        color="gray"
-                        onClick={() => {
-                            if (openedComments) {
-                                onClose?.();
-                            } else {
-                                onOpen?.();
-                            }
-
-                            setOpenedComments((prev) => !prev);
-                        }}
+                    <Tooltip
+                        label="Comments"
+                        withArrow
+                        withinPortal
+                        position="top"
+                        disabled={openedComments}
                     >
-                        <MantineIcon icon={IconMessage} />
-                    </ActionIcon>
+                        <ActionIcon
+                            display="block"
+                            size="sm"
+                            variant="subtle"
+                            color="gray"
+                            onClick={handleTargetClick}
+                        >
+                            <MantineIcon icon={IconMessage} />
+                        </ActionIcon>
+                    </Tooltip>
                 </Indicator>
             </Popover.Target>
         </Popover>

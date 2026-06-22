@@ -1,3 +1,84 @@
+# [0.3211.0](https://github.com/lightdash/lightdash/compare/0.3210.0...0.3211.0) (2026-06-22)
+
+
+### Features
+
+* **ai-copilot:** reframe review cards around impact + ready fix ([#24570](https://github.com/lightdash/lightdash/issues/24570)) ([873abd3](https://github.com/lightdash/lightdash/commit/873abd38eee3741261abead1d94cbe8a6d409c03))
+
+# [0.3210.0](https://github.com/lightdash/lightdash/compare/0.3209.0...0.3210.0) (2026-06-22)
+
+
+### Bug Fixes
+
+* **data-apps:** make external-fetch path semantics unambiguous in agent metadata ([#24529](https://github.com/lightdash/lightdash/issues/24529)) ([6c11b12](https://github.com/lightdash/lightdash/commit/6c11b127180d9363abe30df92c865354c491e95f))
+* **pivot:** keep hidden row-index dim context in pivot drill-down ([#24568](https://github.com/lightdash/lightdash/issues/24568)) ([c58285a](https://github.com/lightdash/lightdash/commit/c58285a448fae39ab5fdddab732e9928c7b87a79))
+
+
+### Features
+
+* **navbar:** move theme switcher into user popover menu ([#24571](https://github.com/lightdash/lightdash/issues/24571)) ([1bd1ee3](https://github.com/lightdash/lightdash/commit/1bd1ee30dd92270117c49265e9c670966473c02e))
+* **reviews:** sortable board with reorder + persisted order (ZAP-525) ([#24549](https://github.com/lightdash/lightdash/issues/24549)) ([fee24f1](https://github.com/lightdash/lightdash/commit/fee24f1b19d1e498d13eda5bb7ca4c881a35951e))
+
+# [0.3209.0](https://github.com/lightdash/lightdash/compare/0.3208.1...0.3209.0) (2026-06-22)
+
+
+### Bug Fixes
+
+* **data-apps:** send a default User-Agent from the external-fetch proxy ([#24528](https://github.com/lightdash/lightdash/issues/24528)) ([df344ed](https://github.com/lightdash/lightdash/commit/df344edc741180d76292e4ccf12491ced3c95877))
+* share ai agent router flow ([#24565](https://github.com/lightdash/lightdash/issues/24565)) ([72fe0f2](https://github.com/lightdash/lightdash/commit/72fe0f29c1e99fef34bacfca51916c0d55b5df68))
+
+
+### Features
+
+* add gpt-5.5 ai model preset ([#24560](https://github.com/lightdash/lightdash/issues/24560)) ([f84c645](https://github.com/lightdash/lightdash/commit/f84c645c9e0e20de40e973e778d2485839017880)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* route ask ai launcher through ai router ([#24564](https://github.com/lightdash/lightdash/issues/24564)) ([6d9941e](https://github.com/lightdash/lightdash/commit/6d9941eaede3e6925eb003d573b9d41e864abcfa))
+
+## [0.3208.1](https://github.com/lightdash/lightdash/compare/0.3208.0...0.3208.1) (2026-06-22)
+
+
+### Bug Fixes
+
+* **ai-agents:** deliver long Slack agent answers without `msg_too_long` ([#24534](https://github.com/lightdash/lightdash/issues/24534)) ([862fe4f](https://github.com/lightdash/lightdash/commit/862fe4f025ce1f01e20b78d09bec91f589cd6505))
+* **pivot:** carry bin _order column through group_by_query for sort-only dims ([#24561](https://github.com/lightdash/lightdash/issues/24561)) ([c6ecb64](https://github.com/lightdash/lightdash/commit/c6ecb6489399bed5eba5cbc0f9b7477d1da1c6eb))
+
+# [0.3208.0](https://github.com/lightdash/lightdash/compare/0.3207.0...0.3208.0) (2026-06-22)
+
+
+### Bug Fixes
+
+* **dashboard:** polish tile toolbar icons ([#24543](https://github.com/lightdash/lightdash/issues/24543)) ([1924835](https://github.com/lightdash/lightdash/commit/1924835d09f2b2ac7ace4b1996e4c6fd6308f240))
+
+
+### Features
+
+* **reviews:** filter review items by assignee (ZAP-524) ([#24547](https://github.com/lightdash/lightdash/issues/24547)) ([fb3b06c](https://github.com/lightdash/lightdash/commit/fb3b06c1292fbccf1d3988715b7c4a8c4b780dcd))
+
+# [0.3207.0](https://github.com/lightdash/lightdash/compare/0.3206.0...0.3207.0) (2026-06-22)
+
+
+### Bug Fixes
+
+* **reviews:** default SQL mode on in workspace build threads (ZAP-517) ([#24538](https://github.com/lightdash/lightdash/issues/24538)) ([00c309c](https://github.com/lightdash/lightdash/commit/00c309c2d79f8f147625be03dc13c30b8b7372c0))
+* **reviews:** source review-item assignees from project users-with-roles (ZAP-520) ([#24536](https://github.com/lightdash/lightdash/issues/24536)) ([ea22509](https://github.com/lightdash/lightdash/commit/ea22509e478646d881054b63de06360e7223ef5f))
+
+
+### Features
+
+* **reviews:** allow dismissing a review item past triage (ZAP-519) ([#24537](https://github.com/lightdash/lightdash/issues/24537)) ([617c592](https://github.com/lightdash/lightdash/commit/617c5920427990a511bdb0a18f3c438d3db4254e))
+* **reviews:** mark a review item resolved from the workspace (ZAP-522) ([#24539](https://github.com/lightdash/lightdash/issues/24539)) ([1787015](https://github.com/lightdash/lightdash/commit/1787015c1774f26f66a6a32944c1cfbd58697244))
+
+# [0.3206.0](https://github.com/lightdash/lightdash/compare/0.3205.0...0.3206.0) (2026-06-22)
+
+
+### Features
+
+* improved project selector for previews ([#24469](https://github.com/lightdash/lightdash/issues/24469)) ([e8d30c6](https://github.com/lightdash/lightdash/commit/e8d30c6ee10f18f14bf5ce97008389104fa61e65))
+
+
+### Performance Improvements
+
+* **frontend:** lazy split route bundles ([#24493](https://github.com/lightdash/lightdash/issues/24493)) ([edaeeb6](https://github.com/lightdash/lightdash/commit/edaeeb6107d0a05bc5b1f50598ab928f3797ac9d))
+
 # [0.3205.0](https://github.com/lightdash/lightdash/compare/0.3204.1...0.3205.0) (2026-06-22)
 
 

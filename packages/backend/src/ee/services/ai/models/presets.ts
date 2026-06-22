@@ -28,6 +28,22 @@ export const MODEL_PRESETS: {
 } = {
     openai: [
         {
+            name: 'gpt-5.5',
+            provider: 'openai',
+            modelId: 'gpt-5.5-2026-04-23',
+            displayName: 'GPT-5.5',
+            description: 'Newest frontier model for complex professional work',
+            // Cap below the long-context pricing threshold for now:
+            // https://developers.openai.com/api/docs/models/gpt-5.5
+            contextWindowTokens: 265000,
+            supportsReasoning: true,
+            callOptions: {},
+            providerOptions: {
+                // strictJsonSchema: provider default is true
+                parallelToolCalls: true,
+            },
+        },
+        {
             name: 'gpt-5.4',
             provider: 'openai',
             modelId: 'gpt-5.4-2026-03-05',

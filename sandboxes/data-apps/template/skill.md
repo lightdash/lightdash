@@ -168,11 +168,12 @@ If the app is linked to one or more **external connections** (third-party HTTP A
 
 Each file documents one connection:
 - `signature` / `howToCall` — the exact typed SDK call. Auth is injected by Lightdash — never include credentials or API keys.
-- `rules` — hard requirements. The big one: **`query` is `Record<string, string>` — every query value MUST be a string** (`{ latitude: '52.52' }`, never `{ latitude: 52.52 }`); numbers and booleans are rejected with a 422. Read the response from `result.body`.
+- `origin` / `requestUrl` — the connection's base origin (host only) and how the URL is formed: **the full request URL is `origin + path`.** Your `path` is appended to the origin verbatim — the origin and the path prefix are NOT auto-prepended.
+- `rules` — hard requirements. The big ones: (1) **`path` is the COMPLETE path from the origin** — pass the whole path (e.g. `/repos/owner/repo/issues`, never a shortened `/issues`) and make sure it starts with one of `allowedPathPrefixes`. (2) **`query` is `Record<string, string>` — every query value MUST be a string** (`{ latitude: '52.52' }`, never `{ latitude: 52.52 }`); numbers and booleans are rejected with a 422. Read the response from `result.body`.
 - `allowedMethods` / `allowedPathPrefixes` — the methods and path prefixes the admin has permitted; only call within these bounds.
-- `samples` — example `{ request, response }` pairs. Copy the request shape (path + query) when building your `externalFetch` calls. Treat response values as illustrative of shape, not exhaustive.
+- `samples` — example `{ request, response }` pairs. Copy the request shape — including the FULL `request.path` — when building your `externalFetch` calls. Treat response values as illustrative of shape, not exhaustive.
 
-A connection with no saved samples still has a file (with an empty `samples` array) — use `allowedMethods` and `allowedPathPrefixes` to infer what the API supports.
+A connection with no saved samples still has a file (with an empty `samples` array) — use `origin`, `allowedMethods`, and `allowedPathPrefixes` to infer what the API supports. The path must still be the complete path from the origin, starting with an allowed prefix.
 
 ## Attached images
 
@@ -935,13 +936,13 @@ const user = await client.auth.getUser();
 
 When an app needs data from an external HTTP API (Stripe, a CRM, a weather
 service, etc.), the workspace admin configures a named **connection** in
-Lightdash that stores the base URL and credentials. The app references it by
+Lightdash that stores the origin (host) and credentials. The app references it by
 **alias** only:
 
 ```tsx
 const res = await lightdash.externalFetch('stripe', {
     method: 'GET',          // 'GET' | 'POST' — defaults to 'GET'
-    path: '/v1/charges',    // relative path appended to the connection's base URL
+    path: '/v1/charges',    // COMPLETE path appended to the connection's origin (host). Full URL = origin + path. Must start with an allowed prefix; it is NOT relative to the prefix.
     query: { limit: '10' }, // Record<string, string> — values MUST be strings
     // body: { ... },       // JSON body (POST only)
 });
@@ -967,6 +968,11 @@ credentials, makes the request server-side, and returns the response.
   the admin to configure the connection — do not work around it.
 - **Never** put a full URL, host, or HTTP header in the call. Only `alias`,
   `path`, `query`, `method`, and `body` are accepted.
+- **`path` is the COMPLETE path appended to the connection's origin** — the full
+  request URL is `origin + path`. The origin and any allowed path prefix are NOT
+  auto-prepended, so pass the whole path (e.g. `/repos/owner/repo/issues`, never a
+  shortened `/issues`). It must start with one of `allowedPathPrefixes`, and when
+  a sample exists, copy its `request.path` structure exactly.
 - **`query` values must be strings.** `query` is `Record<string, string>` —
   stringify every value: `{ latitude: '52.52', limit: '10' }`, never
   `{ latitude: 52.52, limit: 10 }`. Numeric or boolean query values are

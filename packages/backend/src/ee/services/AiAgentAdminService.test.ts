@@ -61,6 +61,7 @@ const makeReviewItem = (
     prState: null,
     prWritebackStatus: null,
     prWritebackMessage: null,
+    boardPosition: null,
     createdAt: NOW,
     updatedAt: NOW,
     writebackEligible: false,

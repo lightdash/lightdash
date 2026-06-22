@@ -94,6 +94,31 @@ export const formatReviewDate = (date: Date): string => {
     });
 };
 
+/**
+ * Coarse "last seen 2h ago" recency, falling back to an absolute date once the
+ * finding is more than a week old (where relative phrasing stops being useful).
+ */
+export const formatRelativeReviewDate = (date: Date): string => {
+    const parsedDate = new Date(date);
+    const diffMs = new Date().getTime() - parsedDate.getTime();
+    const diffMinutes = Math.floor(diffMs / 60_000);
+
+    if (diffMinutes < 1) return 'just now';
+    if (diffMinutes < 60) return `${diffMinutes}m ago`;
+
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays}d ago`;
+
+    return formatReviewDate(parsedDate);
+};
+
+export const getTargetAnchor = (
+    reviewItem: AiAgentReviewItemSummary,
+): string | null => getTargetLabel(reviewItem.latestFinding?.targetRefs ?? []);
+
 const getTargetLabel = (targetRefs: AiAgentTargetRef[]): string | null => {
     const targetRef = targetRefs[0];
     if (!targetRef) return null;
@@ -129,14 +154,27 @@ export const getIssueTitle = (reviewItem: AiAgentReviewItemSummary): string => {
         return 'Triage correction signal';
     }
 
-    const targetLabel = getTargetLabel(
-        reviewItem.latestFinding?.targetRefs ?? [],
-    );
-    if (targetLabel && reviewItem.primaryRootCause === 'semantic_layer') {
-        return `Review ${targetLabel}`;
+    return reviewItem.latestFinding?.recommendation?.title ?? reviewItem.title;
+};
+
+/**
+ * The concrete change a writeback would make, used for the card's fix-ready row:
+ * the literal project-context sentence, or the semantic-layer recommendation.
+ * Returns null when the data is too thin to promise a fix.
+ */
+export const getFixReadyText = (
+    reviewItem: AiAgentReviewItemSummary,
+): string | null => {
+    if (isTriageReviewItem(reviewItem)) return null;
+
+    const finding = reviewItem.latestFinding;
+    if (!finding) return null;
+
+    if (finding.projectContextEntry) {
+        return finding.projectContextEntry.content;
     }
 
-    return reviewItem.latestFinding?.recommendation?.title ?? reviewItem.title;
+    return finding.recommendation?.title ?? null;
 };
 
 export const getWhatHappened = (

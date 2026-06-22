@@ -593,6 +593,10 @@
                             "type": "null"
                         }
                     ]
+                },
+                "textStyle": {
+                    "$ref": "#/$defs/ConditionalFormattingTextStyle",
+                    "description": "Text styling (bold/italic/underline) applied to matching cell text"
                 }
             },
             "required": ["rule", "color", "target"],
@@ -633,6 +637,10 @@
                             "type": "null"
                         }
                     ]
+                },
+                "textStyle": {
+                    "$ref": "#/$defs/ConditionalFormattingTextStyle",
+                    "description": "Text styling (bold/italic/underline) applied to matching cell text"
                 }
             },
             "required": ["rules", "color", "target"],
@@ -668,6 +676,23 @@
                 }
             },
             "required": ["max", "min"],
+            "type": "object"
+        },
+        "ConditionalFormattingTextStyle": {
+            "properties": {
+                "bold": {
+                    "description": "Render matching cell text in bold",
+                    "type": "boolean"
+                },
+                "italic": {
+                    "description": "Render matching cell text in italics",
+                    "type": "boolean"
+                },
+                "underline": {
+                    "description": "Underline matching cell text",
+                    "type": "boolean"
+                }
+            },
             "type": "object"
         },
         "ConditionalFormattingWithCompareTarget_number-or-string_": {

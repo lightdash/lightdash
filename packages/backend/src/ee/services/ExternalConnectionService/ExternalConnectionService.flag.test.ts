@@ -188,7 +188,6 @@ describe('ExternalConnectionService feature flag gate', () => {
                 user: {
                     userUuid: USER_UUID,
                     organizationUuid: ORG_UUID,
-                    organizationName: 'Test Org',
                 },
                 featureFlagId: FeatureFlags.EnableDataAppExternalAccess,
             });

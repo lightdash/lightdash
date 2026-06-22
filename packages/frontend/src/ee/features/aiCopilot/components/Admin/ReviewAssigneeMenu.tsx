@@ -1,4 +1,3 @@
-import { ProjectMemberRole } from '@lightdash/common';
 import {
     Box,
     Menu,
@@ -12,7 +11,7 @@ import { IconSearch, IconUserMinus, IconUserPlus } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { useProjectAccess } from '../../../../../hooks/useProjectAccess';
+import { useProjectUsersWithRoles } from '../../../../../hooks/useProjectUsersWithRolesV2';
 import { useUpdateAiAgentReviewItemAssignee } from '../../hooks/useAiAgentAdmin';
 import classes from './ReviewKanbanBoard.module.css';
 
@@ -24,31 +23,26 @@ type Props = {
     className?: string;
 };
 
-const ASSIGNABLE_ROLES = new Set([
-    ProjectMemberRole.ADMIN,
-    ProjectMemberRole.DEVELOPER,
-]);
-
 export const ReviewAssigneeMenu: FC<Props> = ({
     projectUuid,
     fingerprint,
     assignedToUserUuid,
     className,
 }) => {
-    const { data: members } = useProjectAccess(projectUuid ?? '');
+    // Source the candidate list from the same hook the project users & groups
+    // table uses, so anyone who can access the project is assignable — not just
+    // users with a direct project membership (which excluded group- and
+    // org-inherited access).
+    const { usersWithProjectRole } = useProjectUsersWithRoles(
+        projectUuid ?? '',
+    );
     const updateAssignee = useUpdateAiAgentReviewItemAssignee();
     const [search, setSearch] = useState('');
 
     if (!projectUuid) return null;
 
-    const allMembers = members ?? [];
-    const assignable = allMembers
-        .filter((m) => ASSIGNABLE_ROLES.has(m.role))
-        .sort((a, b) =>
-            `${a.firstName} ${a.lastName}`.localeCompare(
-                `${b.firstName} ${b.lastName}`,
-            ),
-        );
+    const allMembers = usersWithProjectRole;
+    const assignable = allMembers;
 
     const query = search.trim().toLowerCase();
     const filtered = query

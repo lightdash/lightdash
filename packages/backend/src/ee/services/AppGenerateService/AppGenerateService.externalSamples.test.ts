@@ -19,6 +19,7 @@ jest.mock('ai', () => ({
 
 type AppExternalConnectionDoc = {
     alias: string;
+    origin: string;
     allowedMethods: string[];
     allowedPathPrefixes: string[];
     samples: ExternalConnectionSample[];
@@ -120,12 +121,14 @@ describe('AppGenerateService.writeExternalConnectionSamples', () => {
         const docs: AppExternalConnectionDoc[] = [
             {
                 alias: 'weather',
+                origin: 'https://api.weather.test',
                 allowedMethods: ['GET'],
                 allowedPathPrefixes: ['/v1/'],
                 samples: [makeSample('weather', 1)],
             },
             {
                 alias: 'crm',
+                origin: 'https://api.crm.test',
                 allowedMethods: ['GET', 'POST'],
                 allowedPathPrefixes: ['/api/'],
                 samples: [makeSample('crm', 1), makeSample('crm', 2)],
@@ -156,6 +159,10 @@ describe('AppGenerateService.writeExternalConnectionSamples', () => {
         const weatherDoc = JSON.parse(weatherCall[1]);
         expect(weatherDoc.howToCall).toContain('weather');
         expect(weatherDoc.howToCall).toContain('externalFetch');
+        // The doc must spell out origin + the full request URL so the agent
+        // never guesses that the path is relative to the prefix.
+        expect(weatherDoc.origin).toBe('https://api.weather.test');
+        expect(weatherDoc.requestUrl).toContain('https://api.weather.test');
         expect(weatherDoc.allowedMethods).toEqual(['GET']);
         expect(weatherDoc.allowedPathPrefixes).toEqual(['/v1/']);
         expect(weatherDoc.samples).toHaveLength(1);
@@ -182,6 +189,7 @@ describe('AppGenerateService.writeExternalConnectionSamples', () => {
         const docs: AppExternalConnectionDoc[] = [
             {
                 alias: 'weather',
+                origin: 'https://api.weather.test',
                 allowedMethods: ['GET'],
                 allowedPathPrefixes: ['/v1/'],
                 samples: [],
@@ -240,6 +248,7 @@ describe('AppGenerateService pipeline external-access flag gate', () => {
             .mockResolvedValue([
                 {
                     alias: 'weather',
+                    origin: 'https://api.weather.test',
                     allowedMethods: ['GET'],
                     allowedPathPrefixes: ['/v1/'],
                     samples: [makeSample('weather', 1)],

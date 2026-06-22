@@ -520,7 +520,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                     user: {
                                         userUuid: user.userUuid,
                                         organizationUuid,
-                                        organizationName: user.organizationName,
                                     },
                                 }),
                             ]);

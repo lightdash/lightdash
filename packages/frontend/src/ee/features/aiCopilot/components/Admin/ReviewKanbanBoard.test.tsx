@@ -5,6 +5,7 @@ import { renderWithProviders } from '../../../../../testing/testUtils';
 import { ReviewKanbanBoard } from './ReviewKanbanBoard';
 
 vi.mock('../../hooks/useAiAgentAdmin', () => ({
+    applyOptimisticReviewBoardOrder: vi.fn(),
     useAiAgentAdminReviewItems: () => ({ data: items }),
     useAiAgentAdminAgents: () => ({ data: [] }),
     useAiAgentReviewItemPrDiff: () => ({ data: null }),
@@ -16,14 +17,23 @@ vi.mock('../../hooks/useAiAgentAdmin', () => ({
         mutate: vi.fn(),
         isLoading: false,
     }),
+    useReorderReviewItems: () => ({
+        mutate: vi.fn(),
+        isLoading: false,
+    }),
     useUpdateAiAgentReviewItemAssignee: () => ({
         mutate: vi.fn(),
         isLoading: false,
     }),
 }));
 
-vi.mock('../../../../../hooks/useProjectAccess', () => ({
-    useProjectAccess: () => ({ data: [] }),
+vi.mock('../../../../../hooks/useProjectUsersWithRolesV2', () => ({
+    useProjectUsersWithRoles: () => ({ usersWithProjectRole: [] }),
+}));
+
+vi.mock('../../../../../hooks/useOrganizationUsers', () => ({
+    useOrganizationUsers: () => ({ data: [] }),
+    useOrgUsersByUuid: () => new Map(),
 }));
 
 vi.mock('../AgentNamePill', () => ({ AgentNamePill: () => null }));
@@ -39,6 +49,8 @@ const items = [
         linkedPrUrl: null,
         agentUuid: null,
         firstSeenAt: new Date('2026-06-01'),
+        lastSeenAt: new Date('2026-06-01'),
+        findingCount: 1,
         writebackEligibility: { eligible: false, reason: 'no_fix_targets' },
         latestFinding: {
             fixTargets: [],
@@ -57,6 +69,8 @@ const items = [
         linkedPrUrl: null,
         agentUuid: null,
         firstSeenAt: new Date('2026-06-01'),
+        lastSeenAt: new Date('2026-06-01'),
+        findingCount: 1,
         writebackEligibility: { eligible: false, reason: 'no_fix_targets' },
         latestFinding: {
             fixTargets: [],

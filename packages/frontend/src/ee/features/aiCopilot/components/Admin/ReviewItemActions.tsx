@@ -56,6 +56,13 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
     });
     const current = polled ?? reviewItem;
 
+    // Terminal items are already closed; everything before that (To Do, In
+    // Progress, …) can still be dismissed.
+    const isTerminal =
+        current.status === 'resolved' ||
+        current.status === 'dismissed' ||
+        current.status === 'duplicate';
+
     const isWritebackInFlight =
         current.prWritebackStatus === 'queued' ||
         current.prWritebackStatus === 'running';
@@ -228,6 +235,31 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                                     />
                                 </ActionIcon>
                             </Tooltip>
+                        )}
+
+                        {/* Dismiss stays available past triage so an item can be
+                            closed at any stage (the triage lane has its own
+                            Accept/Dismiss pair above). */}
+                        {!isTerminal && (
+                            <Button
+                                size={buttonSize}
+                                radius="md"
+                                variant="subtle"
+                                color="gray"
+                                loading={updateStatus.isLoading}
+                                onClick={(event) => {
+                                    stopPropagation(event);
+                                    updateStatus.mutate({
+                                        fingerprint: current.fingerprint,
+                                        body: {
+                                            status: 'dismissed',
+                                            dismissedReason: 'not_actionable',
+                                        },
+                                    });
+                                }}
+                            >
+                                Dismiss
+                            </Button>
                         )}
                     </Group>
 
