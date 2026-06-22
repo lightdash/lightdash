@@ -145,7 +145,10 @@ const credentialsTarget = (
                         ...(credentials.isServerless
                             ? {}
                             : { cluster_id: credentials.clusterIdentifier }),
-                        user: credentials.user || undefined,
+                        // dbt-redshift requires `user` in the profile even for
+                        // serverless (where it is ignored at runtime), so fall
+                        // back to a placeholder when none is provided.
+                        user: credentials.user || 'iam',
                         autocreate: credentials.autoCreate || undefined,
                         db_groups:
                             credentials.dbGroups &&
