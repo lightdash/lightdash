@@ -266,9 +266,7 @@ import {
     buildSlackTaskUpdate,
     getAgentConfirmationBlocks,
     getAgentSelectionBlocks,
-    getArtifactBlocks,
     getDeepLinkBlocks,
-    getEditDbtProjectBlocks,
     getFeedbackBlocks,
     getFollowUpToolBlocks,
     getMarkdownBlocks,
@@ -7380,12 +7378,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         user,
         slackPrompt,
         agent,
-        useModernFeedback,
     }: {
         user: SessionUser;
         slackPrompt: SlackPrompt;
         agent: AiAgent | undefined;
-        useModernFeedback: boolean;
     }): Promise<(Block | KnownBlock)[]> {
         const referencedArtifactsMap =
             await this.aiAgentModel.findThreadReferencedArtifacts({
@@ -7415,7 +7411,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
               )
             : [];
         const feedbackBlocks =
-            useModernFeedback && legacyFeedbackBlocks.length > 0
+            legacyFeedbackBlocks.length > 0
                 ? buildFeedbackContextActions(slackPrompt.promptUuid)
                 : legacyFeedbackBlocks;
         const followUpToolBlocks = getFollowUpToolBlocks(
@@ -7435,45 +7431,29 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             return `${this.lightdashConfig.siteUrl}/share/${result.nanoid}`;
         };
 
-        const exploreBlocks = useModernFeedback
-            ? await getModernArtifactCardBlocks(
-                  slackPrompt,
-                  this.lightdashConfig.siteUrl,
-                  this.lightdashConfig.ai.copilot.maxQueryLimit,
-                  createShareUrl,
-                  (exploreName) =>
-                      this.getExplore(
-                          user,
-                          slackPrompt.projectUuid,
-                          null,
-                          exploreName,
-                      ),
-                  agent?.uuid,
-                  promptArtifacts,
-                  toolResults,
-              )
-            : await getArtifactBlocks(
-                  slackPrompt,
-                  this.lightdashConfig.siteUrl,
-                  this.lightdashConfig.ai.copilot.maxQueryLimit,
-                  createShareUrl,
-                  (exploreName) =>
-                      this.getExplore(
-                          user,
-                          slackPrompt.projectUuid,
-                          null,
-                          exploreName,
-                      ),
-                  promptArtifacts,
-              );
+        const exploreBlocks = await getModernArtifactCardBlocks(
+            slackPrompt,
+            this.lightdashConfig.siteUrl,
+            this.lightdashConfig.ai.copilot.maxQueryLimit,
+            createShareUrl,
+            (exploreName) =>
+                this.getExplore(
+                    user,
+                    slackPrompt.projectUuid,
+                    null,
+                    exploreName,
+                ),
+            agent?.uuid,
+            promptArtifacts,
+            toolResults,
+        );
         const proposeChangeBlocks = getProposeChangeBlocks(
             slackPrompt,
             this.lightdashConfig.siteUrl,
             toolResults,
         );
-        const editDbtProjectBlocks = useModernFeedback
-            ? getModernPullRequestCardBlocks(toolResults)
-            : getEditDbtProjectBlocks(toolResults);
+        const editDbtProjectBlocks =
+            getModernPullRequestCardBlocks(toolResults);
         const historyBlocks = agent
             ? getDeepLinkBlocks(
                   agent.uuid,
@@ -7747,30 +7727,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         return `${this.lightdashConfig.siteUrl}${path}?share=${nanoid}`;
     }
 
-    private static isSlackModernStreamUnsupported(error: unknown) {
-        const errorCode =
-            typeof error === 'object' && error !== null && 'data' in error
-                ? (error as { data?: { error?: string } }).data?.error
-                : undefined;
-        const message = getErrorMessage(error).toLowerCase();
-        return [
-            errorCode,
-            message.includes('missing_scope') ? 'missing_scope' : undefined,
-            message.includes('unknown_method') ? 'unknown_method' : undefined,
-            message.includes('not_allowed') ? 'not_allowed' : undefined,
-            message.includes('unsupported') ? 'unsupported' : undefined,
-        ].some((code) =>
-            [
-                'missing_scope',
-                'unknown_method',
-                'invalid_arguments',
-                'not_allowed_token_type',
-                'method_not_supported_for_channel_type',
-                'unsupported',
-            ].includes(code ?? ''),
-        );
-    }
-
     // Posts the SQL approval card as its own message after the task-list card
     // so the run can suspend and resume on the user's decision.
     private async postSqlApprovalCard(input: {
@@ -7856,6 +7812,30 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         });
     }
 
+    private static isSlackModernStreamUnsupported(error: unknown) {
+        const errorCode =
+            typeof error === 'object' && error !== null && 'data' in error
+                ? (error as { data?: { error?: string } }).data?.error
+                : undefined;
+        const message = getErrorMessage(error).toLowerCase();
+        return [
+            errorCode,
+            message.includes('missing_scope') ? 'missing_scope' : undefined,
+            message.includes('unknown_method') ? 'unknown_method' : undefined,
+            message.includes('not_allowed') ? 'not_allowed' : undefined,
+            message.includes('unsupported') ? 'unsupported' : undefined,
+        ].some((code) =>
+            [
+                'missing_scope',
+                'unknown_method',
+                'invalid_arguments',
+                'not_allowed_token_type',
+                'method_not_supported_for_channel_type',
+                'unsupported',
+            ].includes(code ?? ''),
+        );
+    }
+
     private async replyToSlackPromptWithModernBlocks({
         user,
         slackPrompt,
@@ -7870,7 +7850,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         agent: AiAgent | undefined;
         chatHistoryMessages: ModelMessage[];
         canManageAgent: boolean;
-    }): Promise<boolean> {
+    }): Promise<void> {
         const threadTs = slackPrompt.slackThreadTs || slackPrompt.promptSlackTs;
         const reasoningTaskId = 'agent_reasoning';
         let streamTs: string | undefined;
@@ -7969,12 +7949,25 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             }
         } catch (error) {
             if (AiAgentService.isSlackModernStreamUnsupported(error)) {
-                Logger.info(
-                    'Slack modern AI stream unavailable, falling back to classic blocks',
+                Sentry.captureException(error, {
+                    tags: { tag: 'slack.modernStreamUnsupported' },
+                });
+                Logger.warn(
+                    'Slack modern AI stream unsupported; asking workspace admin to reconnect Slack',
                     error,
                 );
-                return false;
+                const reconnectNotice =
+                    '⚠️ Lightdash AI cannot reply here yet. A workspace admin needs to reconnect Slack in Lightdash (Integrations → Slack) so the app has the latest permissions.';
+                await this.slackClient.updateMessage({
+                    organizationUuid: slackPrompt.organizationUuid,
+                    text: reconnectNotice,
+                    blocks: getMarkdownBlocks(reconnectNotice),
+                    channelId: slackPrompt.slackChannelId,
+                    messageTs: slackPrompt.response_slack_ts,
+                });
+                return;
             }
+            Logger.error('Failed to start Slack modern AI stream', error);
             throw error;
         }
 
@@ -8316,7 +8309,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     agentName: agent?.name,
                 });
                 await persistStreamResponseTsAndDeletePlaceholder();
-                return true;
+                return;
             }
 
             if (!response) {
@@ -8341,14 +8334,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     ],
                 });
                 await persistStreamResponseTsAndDeletePlaceholder();
-                return true;
+                return;
             }
 
             const blocks = await this.getSlackAgentFinalBlocks({
                 user,
                 slackPrompt,
                 agent,
-                useModernFeedback: true,
             });
             enqueueTaskUpdate(() =>
                 updatePlanTitle('Preparing the final answer...'),
@@ -8392,7 +8384,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 threadMessages,
                 agent,
             );
-            return true;
         } catch (error) {
             // Delivery failure on an already-persisted answer: link, don't fail.
             if (isSlackMessageTooLongError(error)) {
@@ -8430,7 +8421,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     'Slack agent answer too long to deliver; linked to Lightdash instead',
                     error,
                 );
-                return true;
+                return;
             }
             const userFacingMessage = getUserFacingErrorMessage(
                 error,
@@ -8468,7 +8459,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 'Failed to generate modern Slack agent response',
                 error,
             );
-            return true;
+            return;
         } finally {
             void this.slackClient
                 .setAssistantStatus({
@@ -8518,7 +8509,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         promptUuid: string,
         initialSlackPrompt: SlackPrompt,
     ): Promise<void> {
-        let slackPrompt: SlackPrompt | undefined = initialSlackPrompt;
+        const slackPrompt: SlackPrompt = initialSlackPrompt;
 
         const user = await this.userModel.findSessionUserAndOrgByUuid(
             slackPrompt.createdByUserUuid,
@@ -8568,7 +8559,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             return;
         }
 
-        let response: string | undefined;
         try {
             const chatHistoryMessages =
                 await this.getChatHistoryFromThreadMessages(threadMessages, {
@@ -8583,42 +8573,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     compaction: null,
                 });
 
-            const { enabled: modernSlackBlocksEnabled } =
-                await this.featureFlagService.get({
-                    user,
-                    featureFlagId: FeatureFlags.AiAgentSlackModernBlocks,
-                });
-            if (modernSlackBlocksEnabled) {
-                const handledByModernSlack =
-                    await this.replyToSlackPromptWithModernBlocks({
-                        user,
-                        slackPrompt,
-                        threadMessages,
-                        agent,
-                        chatHistoryMessages,
-                        canManageAgent,
-                    });
-                if (handledByModernSlack) {
-                    return;
-                }
-            }
-
-            await this.updateSlackResponseWithProgress(
-                slackPrompt,
-                'Thinking...',
-            );
-
-            response = await this.generateOrStreamAgentResponse(
+            await this.replyToSlackPromptWithModernBlocks({
                 user,
+                slackPrompt,
+                threadMessages,
+                agent,
                 chatHistoryMessages,
-                {
-                    prompt: slackPrompt,
-                    stream: false,
-                    canManageAgent,
-                    // Slack uses flag-only gating (no per-prompt toggle yet).
-                    enableSqlMode: true,
-                },
-            );
+                canManageAgent,
+            });
         } catch (e) {
             const userFacingMessage = getUserFacingErrorMessage(
                 e,
@@ -8634,235 +8596,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
             Logger.error('Failed to generate response:', e);
             throw new Error('Failed to generate response');
-        }
-
-        if (!response) {
-            return;
-        }
-
-        // reload the slack prompt in case it was updated
-        slackPrompt = await this.aiAgentModel.findSlackPrompt(promptUuid);
-
-        if (slackPrompt === undefined) {
-            throw new Error('Could not reload slack prompt.');
-        }
-
-        // Fetch referenced artifacts for this prompt
-        const referencedArtifactsMap =
-            await this.aiAgentModel.findThreadReferencedArtifacts({
-                promptUuids: [slackPrompt.promptUuid],
-            });
-        const referencedArtifacts =
-            referencedArtifactsMap.get(slackPrompt.promptUuid) ?? [];
-
-        await this.slackClient.deleteMessage({
-            organizationUuid: slackPrompt.organizationUuid,
-            channelId: slackPrompt.slackChannelId,
-            messageTs: slackPrompt.response_slack_ts,
-        });
-
-        // Get artifacts for the thread to populate Slack blocks
-        const threadArtifacts =
-            await this.aiAgentModel.findArtifactsByThreadUuid(
-                slackPrompt.threadUuid,
-            );
-        const promptArtifacts = threadArtifacts.filter(
-            (artifact) => artifact.promptUuid === slackPrompt.promptUuid,
-        );
-
-        // Get tool results to check for proposeChange results
-        const toolResults = await this.aiAgentModel.getToolResultsForPrompt(
-            slackPrompt.promptUuid,
-        );
-
-        const feedbackBlocks = agent
-            ? getFeedbackBlocks(
-                  slackPrompt,
-                  toolResults,
-                  agent.uuid,
-                  this.lightdashConfig.siteUrl,
-              )
-            : [];
-        const followUpToolBlocks = getFollowUpToolBlocks(
-            slackPrompt,
-            promptArtifacts,
-        );
-
-        // Generates short share URLs for Slack (so that we can avoid the 3000 char URL limit)
-        const createShareUrl = async (
-            path: string,
-            params: string,
-        ): Promise<string> => {
-            const result = await this.shareService.createShareUrl(
-                user,
-                path,
-                params,
-            );
-            return `${this.lightdashConfig.siteUrl}/share/${result.nanoid}`;
-        };
-
-        const exploreBlocks = await getArtifactBlocks(
-            slackPrompt,
-            this.lightdashConfig.siteUrl,
-            this.lightdashConfig.ai.copilot.maxQueryLimit,
-            createShareUrl,
-            (exploreName) =>
-                this.getExplore(
-                    user,
-                    slackPrompt.projectUuid,
-                    null,
-                    exploreName,
-                ),
-            promptArtifacts,
-        );
-        const proposeChangeBlocks = getProposeChangeBlocks(
-            slackPrompt,
-            this.lightdashConfig.siteUrl,
-            toolResults,
-        );
-        const editDbtProjectBlocks = getEditDbtProjectBlocks(toolResults);
-        const historyBlocks = agent
-            ? getDeepLinkBlocks(
-                  agent.uuid,
-                  slackPrompt,
-                  this.lightdashConfig.siteUrl,
-                  promptArtifacts,
-              )
-            : undefined;
-
-        const referencedArtifactsBlocks =
-            agent && referencedArtifacts.length > 0
-                ? getReferencedArtifactsBlocks(
-                      agent.uuid,
-                      slackPrompt.projectUuid,
-                      this.lightdashConfig.siteUrl,
-                      referencedArtifacts,
-                      slackPrompt.threadUuid,
-                      slackPrompt.promptUuid,
-                  )
-                : [];
-
-        // Slack's `markdown` block renders GitHub-flavoured markdown natively,
-        // including tables — which the older mrkdwn-via-section path strips
-        // into pipe-text. We pass the agent's raw response straight through
-        // for the rich rendering, and keep slackifyMarkdown for the message-
-        // level `text` field that drives notifications + older client fallback.
-        const sqlRunnerUrl = await this.getSqlRunnerShareUrl(user, slackPrompt);
-        const slackResponse = AiAgentService.applySqlRunnerLinkForSlack(
-            response,
-            sqlRunnerUrl,
-        );
-        const slackifiedMarkdown = slackifyMarkdown(slackResponse).replace(
-            /\\\n/g,
-            '\n',
-        );
-
-        const blocks = [
-            ...getMarkdownBlocks(slackResponse),
-            ...exploreBlocks,
-            ...proposeChangeBlocks,
-            ...editDbtProjectBlocks,
-            ...referencedArtifactsBlocks,
-            ...followUpToolBlocks,
-            ...feedbackBlocks,
-            ...(historyBlocks || []),
-        ];
-
-        let newResponse;
-        try {
-            newResponse = await this.slackClient.postMessage({
-                organizationUuid: slackPrompt.organizationUuid,
-                text: slackifiedMarkdown,
-                username: agent?.name,
-                channel: slackPrompt.slackChannelId,
-                thread_ts: slackPrompt.slackThreadTs,
-                unfurl_links: false,
-                blocks,
-            });
-        } catch (error) {
-            Sentry.captureException(error, {
-                tags: {
-                    tag: 'replyToSlackPrompt.postMessage',
-                },
-                extra: { responseLength: slackifiedMarkdown.length },
-            });
-
-            const threadUrl = thread.agentUuid
-                ? `${this.lightdashConfig.siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${thread.agentUuid}/threads/${slackPrompt.threadUuid}`
-                : this.lightdashConfig.siteUrl;
-
-            newResponse = await this.slackClient.postMessage({
-                organizationUuid: slackPrompt.organizationUuid,
-                text: `⚠️ The response couldn't be displayed here. <${threadUrl}|View it in Lightdash>.`,
-                username: agent?.name,
-                channel: slackPrompt.slackChannelId,
-                thread_ts: slackPrompt.slackThreadTs,
-                unfurl_links: false,
-            });
-        }
-
-        await this.aiAgentModel.updateModelResponse({
-            promptUuid: slackPrompt.promptUuid,
-            response,
-        });
-
-        if (newResponse.ts) {
-            await this.aiAgentModel.updateSlackResponseTs({
-                promptUuid: slackPrompt.promptUuid,
-                responseSlackTs: newResponse.ts,
-            });
-        }
-
-        // Post helpful tip for multi-agent channel after first AI response
-        const slackSettings =
-            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
-                slackPrompt.organizationUuid,
-            );
-
-        const isMultiAgentChannel =
-            slackSettings?.aiMultiAgentChannelId === slackPrompt.slackChannelId;
-
-        // Only show tip for the first message in the thread
-        const isFirstMessage = threadMessages.length === 1;
-
-        if (isMultiAgentChannel && isFirstMessage && agent) {
-            // Get bot user ID from Slack client to create proper mention
-            const slackApp = this.slackClient.getApp();
-            let botMention = 'the app';
-
-            if (slackApp) {
-                try {
-                    const authTest = await slackApp.client.auth.test({
-                        token: slackSettings?.token,
-                    });
-                    if (authTest.user_id) {
-                        botMention = `<@${authTest.user_id}>`;
-                    }
-                } catch (error) {
-                    Logger.error(
-                        'Failed to get bot user ID for tip message',
-                        error,
-                    );
-                }
-            }
-
-            await this.slackClient.postMessage({
-                organizationUuid: slackPrompt.organizationUuid,
-                text: `💬 To continue this conversation, just tag ${botMention} in this thread!`,
-                channel: slackPrompt.slackChannelId,
-                thread_ts: slackPrompt.slackThreadTs,
-                blocks: [
-                    {
-                        type: 'context',
-                        elements: [
-                            {
-                                type: 'mrkdwn',
-                                text: `💬 *Tip:* To continue this conversation, just tag ${botMention} in this thread!`,
-                            },
-                        ],
-                    },
-                ],
-            });
         }
     }
 
