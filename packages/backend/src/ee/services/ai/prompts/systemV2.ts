@@ -46,6 +46,7 @@ export const getSystemPromptV2 = (args: {
     canRunSql?: boolean;
     warehouseType?: WarehouseTypes | null;
     warehouseSchema?: string | null;
+    unauthenticatedMcpServerNames?: string[];
 }): SystemModelMessage => {
     const {
         instructions,
@@ -63,6 +64,7 @@ export const getSystemPromptV2 = (args: {
         canRunSql = false,
         warehouseType = null,
         warehouseSchema = null,
+        unauthenticatedMcpServerNames = [],
     } = args;
 
     const crossExploreJoinRule = canRunSql
@@ -187,10 +189,23 @@ export const getSystemPromptV2 = (args: {
         .replace('{{project_context}}', projectContextContent);
 
     const skillsSection = renderAvailableSkills(args.availableSkills ?? []);
+    const mcpConnectionsSection =
+        unauthenticatedMcpServerNames.length > 0
+            ? `## MCP connections\n${unauthenticatedMcpServerNames
+                  .map(
+                      (name) =>
+                          `${name} MCP connection is setup, but the current user is not logged in`,
+                  )
+                  .join('\n')}`
+            : '';
+
+    const finalContent = [content, mcpConnectionsSection, skillsSection]
+        .filter(Boolean)
+        .join('\n\n');
 
     return {
         role: 'system',
-        content: skillsSection ? `${content}\n\n${skillsSection}` : content,
+        content: finalContent,
         providerOptions: {
             anthropic: { cacheControl: { type: 'ephemeral' } },
         },

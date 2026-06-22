@@ -33,6 +33,20 @@ describe('getSystemPromptV2 project context', () => {
     });
 });
 
+describe('getSystemPromptV2 MCP connections', () => {
+    test('lists unauthenticated MCP server login status', () => {
+        const content = promptText({
+            availableExplores: [],
+            unauthenticatedMcpServerNames: ['Linear'],
+        });
+
+        expect(content).toContain('## MCP connections');
+        expect(content).toContain(
+            'Linear MCP connection is setup, but the current user is not logged in',
+        );
+    });
+});
+
 describe('getSystemPromptV2 writeback attribution', () => {
     test('omits the writeback section entirely when writeback is disabled', () => {
         const content = promptText({
