@@ -1,3 +1,10 @@
+# [0.3213.0](https://github.com/lightdash/lightdash/compare/0.3212.0...0.3213.0) (2026-06-22)
+
+
+### Features
+
+* surface unauthenticated MCP connections ([#24567](https://github.com/lightdash/lightdash/issues/24567)) ([e9ddc16](https://github.com/lightdash/lightdash/commit/e9ddc1699e045e481e4ea7d5502318d06879b9da))
+
 # [0.3212.0](https://github.com/lightdash/lightdash/compare/0.3211.0...0.3212.0) (2026-06-22)
 
 
