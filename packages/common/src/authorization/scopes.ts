@@ -1,5 +1,6 @@
 import flow from 'lodash/flow';
 import { ProjectType } from '../types/projects';
+import type { RoleLevel } from '../types/roles';
 import {
     ScopeGroup,
     type Scope,
@@ -510,6 +511,7 @@ const scopes: Scope[] = [
         description: 'View organization details',
         isEnterprise: false,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        level: 'organization',
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -517,6 +519,7 @@ const scopes: Scope[] = [
         description: 'Manage organization settings',
         isEnterprise: false,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        level: 'organization',
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -524,6 +527,7 @@ const scopes: Scope[] = [
         description: 'View organization member profiles',
         isEnterprise: false,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        level: 'organization',
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -531,6 +535,7 @@ const scopes: Scope[] = [
         description: 'Manage organization member profiles and roles',
         isEnterprise: false,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        level: 'organization',
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -538,6 +543,7 @@ const scopes: Scope[] = [
         description: 'Create and manage invite links',
         isEnterprise: false,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        level: 'organization',
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -545,6 +551,7 @@ const scopes: Scope[] = [
         description: 'Manage user groups',
         isEnterprise: false,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        level: 'organization',
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -552,6 +559,7 @@ const scopes: Scope[] = [
         description: 'Manage Git integration settings and create repositories',
         isEnterprise: false,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        level: 'organization',
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -559,6 +567,7 @@ const scopes: Scope[] = [
         description: 'View organization warehouse credentials',
         isEnterprise: true,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        level: 'organization',
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -566,6 +575,7 @@ const scopes: Scope[] = [
         description: 'Manage organization warehouse credentials',
         isEnterprise: true,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        level: 'organization',
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -595,6 +605,7 @@ const scopes: Scope[] = [
         description: 'Create and manage personal access tokens',
         isEnterprise: true,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        level: 'organization',
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -602,6 +613,7 @@ const scopes: Scope[] = [
         description: 'Impersonate other users in the organization',
         isEnterprise: false,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        level: 'organization',
         getConditions: (context) => [
             { ...addUuidCondition(context), isActive: true },
         ],
@@ -889,6 +901,7 @@ const scopes: Scope[] = [
         description: 'View organization design assets',
         isEnterprise: false,
         group: ScopeGroup.AI,
+        level: 'organization',
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -896,6 +909,7 @@ const scopes: Scope[] = [
         description: 'Create, edit, and delete organization design assets',
         isEnterprise: false,
         group: ScopeGroup.AI,
+        level: 'organization',
         getConditions: addDefaultUuidCondition,
     },
 
@@ -929,6 +943,27 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
 ] as const;
+
+const isOrgAssignableScopeDefinition = (scope: Scope): boolean =>
+    scope.level === 'organization';
+
+const ORG_ASSIGNABLE_SCOPE_NAMES = new Set<string>(
+    scopes.filter(isOrgAssignableScopeDefinition).map((scope) => scope.name),
+);
+
+export const getOrgAssignableScopes = (): ScopeName[] =>
+    scopes.filter(isOrgAssignableScopeDefinition).map((scope) => scope.name);
+
+export const isOrgAssignableScope = (scopeName: string): boolean =>
+    ORG_ASSIGNABLE_SCOPE_NAMES.has(scopeName);
+
+export const isScopeAssignableAtLevel = (
+    scopeName: string,
+    level: RoleLevel,
+): boolean =>
+    level === 'organization'
+        ? isOrgAssignableScope(scopeName)
+        : !isOrgAssignableScope(scopeName);
 
 const getNonEnterpriseScopes = (): Scope[] =>
     scopes.filter((scope) => !scope.isEnterprise);

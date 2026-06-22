@@ -1,5 +1,7 @@
 import type { ApiSuccessEmpty } from './api/success';
 
+export type RoleLevel = 'project' | 'organization';
+
 export type ProjectAccess = {
     projectUuid: string;
     userUuid: string;
