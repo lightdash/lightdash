@@ -105,6 +105,7 @@ import { getTemplateInstructions } from './templates';
 
 type AppExternalConnectionDoc = {
     alias: string;
+    origin: string;
     allowedMethods: ExternalConnectionMethod[];
     allowedPathPrefixes: string[];
     samples: ExternalConnectionSample[];
@@ -1204,15 +1205,27 @@ export class AppGenerateService extends BaseService {
 
         const fileEntries: string[] = [];
         for (const doc of docs) {
+            const firstPrefix = doc.allowedPathPrefixes[0];
+            const exampleMethod = doc.allowedMethods[0] ?? 'GET';
+            // Prefer a real saved sample path; otherwise derive one from the first
+            // allowed prefix. Either way it is the COMPLETE path from the origin.
+            const examplePath =
+                doc.samples[0]?.request.path ??
+                `${firstPrefix ?? '/'}<resource>`;
             const fileContent = JSON.stringify(
                 {
                     alias: doc.alias,
                     signature:
                         "externalFetch(alias: string, opts: { method?: 'GET' | 'POST'; path: string; query?: Record<string, string>; body?: unknown }): Promise<{ status: number; contentType: string; body: unknown; truncated: boolean }>",
-                    howToCall: `const result = await client.externalFetch('${doc.alias}', { method: 'GET', path: '<a path under allowedPathPrefixes>', query: { /* string values only */ } });\nconst data = result.body;`,
+                    origin: doc.origin,
+                    // The single most-misread thing: `path` is the COMPLETE path from
+                    // the origin, not relative to the prefix. Spell out origin + path.
+                    requestUrl: `${doc.origin} + path  (your path is appended to the origin verbatim — the origin and path prefix are NEVER auto-prepended). Example full URL: ${doc.origin}${examplePath}`,
+                    howToCall: `const result = await client.externalFetch('${doc.alias}', { method: '${exampleMethod}', path: '${examplePath}', query: { /* string values only */ } });\nconst data = result.body;`,
                     rules: [
                         "query is Record<string, string> — EVERY value must be a string. Write { latitude: '52.52' }, never { latitude: 52.52 }. Numbers and booleans are rejected with a 422.",
-                        'method must be one of allowedMethods; path must start with one of allowedPathPrefixes.',
+                        `path is the COMPLETE path appended to the origin (requestUrl = origin + path). Pass the full path starting from the origin — e.g. "${examplePath}" — and make sure it starts with one of allowedPathPrefixes. Do NOT shorten it to the trailing segment and do NOT assume the origin or prefix is auto-prepended.`,
+                        'method must be one of allowedMethods.',
                         'Read the response from result.body. result.status is the upstream HTTP status; result.truncated is true if the response was capped.',
                         'Auth is injected by Lightdash — never include credentials, API keys, or headers.',
                     ],
@@ -1243,7 +1256,8 @@ export class AppGenerateService extends BaseService {
 
         return (
             `[Linked external connections — the app can call these external APIs via client.externalFetch(alias, opts). ` +
-            `Each /tmp/external-data/{alias}.json documents one connection: its signature, allowedMethods/allowedPathPrefixes, rules, and example request/response pairs. ` +
+            `Each /tmp/external-data/{alias}.json documents one connection: its signature, origin, requestUrl, allowedMethods/allowedPathPrefixes, rules, and example request/response pairs. ` +
+            `IMPORTANT: path is the COMPLETE path appended to the connection's origin (requestUrl = origin + path) — the origin and prefix are NOT auto-prepended. Always pass the full path from the doc's howToCall or a saved sample (e.g. "/repos/owner/repo/issues", never a shortened "/issues"). ` +
             `IMPORTANT: query is Record<string, string> — every query value must be a string (e.g. { latitude: '52.52' }, not 52.52); numbers are rejected with a 422. Read the response from result.body. ` +
             `Auth is handled by Lightdash — never send credentials. Treat sample values as illustrative of shape, not exhaustive.]\n` +
             `${fileEntries.join('\n')}\n\n`
@@ -1261,6 +1275,7 @@ export class AppGenerateService extends BaseService {
         return Promise.all(
             links.map(async (link) => ({
                 alias: link.alias,
+                origin: link.connection.origin,
                 allowedMethods: link.connection.allowedMethods,
                 allowedPathPrefixes: link.connection.allowedPathPrefixes,
                 // Cap at 5 samples — enough to illustrate the API shape without bloating the prompt
