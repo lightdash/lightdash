@@ -284,6 +284,7 @@ export const getSystemRoles = (): RoleWithScopes[] =>
         name: ProjectMemberRoleLabels[role],
         description: ProjectMemberRoleLabels[role],
         ownerType: 'system',
+        level: 'project',
         scopes: getAllScopesForRole(role),
         organizationUuid: null,
         createdAt: null,

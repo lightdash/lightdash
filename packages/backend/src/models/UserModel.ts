@@ -110,6 +110,7 @@ export const mapDbUserDetailsToLightdashUser = (
     isMarketingOptedIn: user.is_marketing_opted_in,
     isSetupComplete: user.is_setup_complete,
     role: user.role,
+    roleUuid: user.role_uuid,
     isActive: user.is_active,
     timezone: user.timezone,
     isPending: !hasAuthentication,
@@ -732,10 +733,14 @@ export class UserModel {
             }
         }
 
-        // Fetch scopes for custom roles
-        const customRoleUuids = [...projectRoles, ...groupProjectRoles]
-            .map((role) => role.roleUuid)
-            .filter(Boolean) as string[];
+        // Fetch scopes for custom roles. Includes the org-membership role_uuid
+        // so org-level custom roles assigned to human users are realized at
+        // runtime (getUserAbilityBuilder reads customRoleScopes[user.roleUuid]).
+        const customRoleUuids = [
+            lightdashUser.roleUuid,
+            ...projectRoles.map((role) => role.roleUuid),
+            ...groupProjectRoles.map((role) => role.roleUuid),
+        ].filter((roleUuid): roleUuid is string => Boolean(roleUuid));
         const [customRoleScopes, customRolesFlag] = await Promise.all([
             this.customRoleScopes(customRoleUuids),
             this.featureFlagModel.get({
