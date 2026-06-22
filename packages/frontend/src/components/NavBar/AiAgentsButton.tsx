@@ -1,14 +1,15 @@
-import { Button, getDefaultZIndex, Group, Menu, Text } from '@mantine-8/core';
-import { IconChevronDown, IconGitPullRequest } from '@tabler/icons-react';
+import { Button, HoverCard, Text } from '@mantine-8/core';
 import { useMemo } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { useNavigate } from 'react-router';
 import { AiAgentIcon } from '../../ee/features/aiCopilot/components/AiAgentIcon';
+import { ReviewFindingsPreview } from '../../ee/features/aiCopilot/components/ReviewFindingsPreview';
 import { useAiAgentAdminReviewItems } from '../../ee/features/aiCopilot/hooks/useAiAgentAdmin';
-import { useAiAgentButtonVisibility } from '../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useAiAgentPermission } from '../../ee/features/aiCopilot/hooks/useAiAgentPermission';
+import { useAiAgentButtonVisibility } from '../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
-import MantineIcon from '../common/MantineIcon';
 import classes from './AiAgentsButton.module.css';
+
+const PREVIEW_LIMIT = 3;
 
 type Props = {
     projectUuid: string;
@@ -27,34 +28,38 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
         { enabled: showReviews },
     );
 
-    const projectReviewCount = useMemo(
+    const projectReviewItems = useMemo(
         () =>
-            (reviewItems ?? []).filter(
-                (item) =>
-                    item.projectUuid === projectUuid ||
-                    item.latestFinding?.projectUuid === projectUuid,
-            ).length,
+            (reviewItems ?? [])
+                .filter(
+                    (item) =>
+                        item.projectUuid === projectUuid ||
+                        item.latestFinding?.projectUuid === projectUuid,
+                )
+                .sort(
+                    (a, b) =>
+                        new Date(b.lastSeenAt).getTime() -
+                        new Date(a.lastSeenAt).getTime(),
+                ),
         [projectUuid, reviewItems],
     );
 
-    const reviewsUrl = `/generalSettings/ai/reviews?projects=${encodeURIComponent(
-        projectUuid,
-    )}`;
-    const reviewCountLabel =
-        projectReviewCount > 99 ? '99+' : `${projectReviewCount}`;
+    const reviewCount = projectReviewItems.length;
+    const goToAskAi = () => navigate(`/projects/${projectUuid}/ai-agents`);
 
     if (!isVisible) {
         return null;
     }
 
-    if (!showReviews) {
+    // Original button — nothing to surface (no review access, or no open findings).
+    if (!showReviews || reviewCount === 0) {
         return (
             <Button
                 size="xs"
                 variant="default"
                 fz="sm"
                 leftSection={<AiAgentIcon size={14} />}
-                onClick={() => navigate(`/projects/${projectUuid}/ai-agents`)}
+                onClick={goToAskAi}
             >
                 <Text span truncate="end" maw={150} size="sm">
                     Ask AI
@@ -63,69 +68,45 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
         );
     }
 
+    const reviewsUrl = `/generalSettings/ai/reviews?projects=${encodeURIComponent(
+        projectUuid,
+    )}`;
+    const countLabel = reviewCount > 99 ? '99+' : `${reviewCount}`;
+
     return (
-        <Menu
-            withArrow
+        <HoverCard
+            width={290}
             shadow="lg"
             position="bottom-start"
-            arrowOffset={28}
-            offset={-2}
-            zIndex={getDefaultZIndex('max')}
+            offset={6}
+            openDelay={120}
+            closeDelay={80}
+            withinPortal
             portalProps={{ target: '#navbar-header' }}
         >
-            <Menu.Target>
+            <HoverCard.Target>
                 <Button
                     size="xs"
                     variant="default"
                     fz="sm"
-                    leftSection={
-                        <AiAgentIcon
-                            size={15}
-                            animated={projectReviewCount > 0}
-                            className={classes.reviewIcon}
-                        />
-                    }
+                    leftSection={<AiAgentIcon size={15} animated calm />}
                     rightSection={
-                        <Group gap={4} wrap="nowrap">
-                            {projectReviewCount > 0 && (
-                                <span className={classes.reviewCount}>
-                                    {reviewCountLabel}
-                                </span>
-                            )}
-                            <MantineIcon icon={IconChevronDown} size={12} />
-                        </Group>
+                        <span className={classes.countBadge}>{countLabel}</span>
                     }
-                    className={classes.reviewButton}
+                    onClick={goToAskAi}
                 >
-                    <Group gap={6} wrap="nowrap">
-                        <Text span truncate="end" maw={88} size="sm">
-                            Ask AI
-                        </Text>
-                        <span className={classes.reviewPill}>Reviews</span>
-                    </Group>
+                    <Text span truncate="end" maw={150} size="sm">
+                        Ask AI
+                    </Text>
                 </Button>
-            </Menu.Target>
-
-            <Menu.Dropdown>
-                <Menu.Item
-                    leftSection={<AiAgentIcon size={14} />}
-                    onClick={() =>
-                        navigate(`/projects/${projectUuid}/ai-agents`)
-                    }
-                >
-                    Ask AI
-                </Menu.Item>
-                <Menu.Item
-                    component={Link}
-                    to={reviewsUrl}
-                    leftSection={
-                        <MantineIcon icon={IconGitPullRequest} size={14} />
-                    }
-                >
-                    Review findings
-                    {projectReviewCount > 0 && ` (${projectReviewCount} open)`}
-                </Menu.Item>
-            </Menu.Dropdown>
-        </Menu>
+            </HoverCard.Target>
+            <HoverCard.Dropdown p="xs">
+                <ReviewFindingsPreview
+                    items={projectReviewItems.slice(0, PREVIEW_LIMIT)}
+                    totalOpen={reviewCount}
+                    reviewsUrl={reviewsUrl}
+                />
+            </HoverCard.Dropdown>
+        </HoverCard>
     );
 };

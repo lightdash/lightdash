@@ -149,6 +149,37 @@
     animation-direction: alternate-reverse;
 }
 
+/* Calmer variant — slower morph, softer drift, gentler glow. */
+.calm.animated {
+    animation-duration: 8s;
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.62),
+        inset 0 -4px 10px rgba(94, 76, 255, 0.2),
+        0 1px 4px rgba(152, 54, 255, 0.16),
+        0 0 0 1px color-mix(in oklch, #9836ff 30%, transparent);
+}
+
+.calm.animated::before,
+.calm.animated::after {
+    opacity: 0.85;
+    animation-name: ai-agent-icon-drift-calm;
+    animation-duration: 3.6s;
+}
+
+.calm.animated::after {
+    animation-duration: 3.9s;
+}
+
+@keyframes ai-agent-icon-drift-calm {
+    from {
+        transform: translate3d(-1%, -1%, 0) rotate(-2deg) scale(1);
+    }
+
+    to {
+        transform: translate3d(3%, 2%, 0) rotate(7deg) scale(1.03);
+    }
+}
+
 @keyframes ai-agent-icon-morph {
     0% {
         background-position: 43% 0%;
