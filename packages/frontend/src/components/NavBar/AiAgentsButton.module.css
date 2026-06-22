@@ -1,0 +1,111 @@
+.reviewButton {
+    position: relative;
+    overflow: hidden;
+    border-color: color-mix(in oklch, #b6eee4 70%, #aae972);
+    color: #18322f;
+    background:
+        radial-gradient(
+            100% 140% at 16% 0%,
+            rgba(255, 255, 255, 0.78),
+            transparent 44%
+        ),
+        linear-gradient(135deg, #b6eee4 0%, #c9f2f4 52%, #aae972 100%);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.74),
+        0 0 0 1px rgba(182, 238, 228, 0.18),
+        0 6px 18px rgba(170, 233, 114, 0.16);
+    transition:
+        filter 180ms ease,
+        box-shadow 180ms ease,
+        transform 180ms ease;
+}
+
+.reviewButton:hover {
+    filter: saturate(1.06) brightness(1.02);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.8),
+        0 0 0 1px rgba(201, 242, 244, 0.3),
+        0 8px 22px rgba(170, 233, 114, 0.22);
+    transform: translateY(-1px);
+}
+
+.reviewButton:active {
+    transform: translateY(0);
+}
+
+.reviewIcon {
+    --ai-agent-icon-shadow: color-mix(in oklch, #b6eee4 42%, transparent);
+
+    background:
+        radial-gradient(
+            120% 120% at 28% 22%,
+            rgba(255, 255, 255, 0.76) 0%,
+            transparent 40%
+        ),
+        radial-gradient(115% 130% at 82% 24%, #c9f2f4 0%, transparent 52%),
+        radial-gradient(130% 120% at 84% 84%, #b6eee4 0%, transparent 56%),
+        radial-gradient(120% 130% at 16% 82%, #aae972 0%, transparent 56%),
+        conic-gradient(
+            from 210deg at 50% 50%,
+            #b6eee4,
+            #c9f2f4,
+            #aae972,
+            #75d9c8,
+            #b6eee4
+        );
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.66),
+        inset 0 -4px 10px rgba(117, 217, 200, 0.24),
+        0 2px 6px rgba(170, 233, 114, 0.2),
+        0 0 0 1px color-mix(in oklch, #b6eee4 38%, transparent);
+}
+
+.reviewButton .reviewIcon::before {
+    background:
+        radial-gradient(46% 56% at 30% 28%, #f4fffb 0%, transparent 60%),
+        radial-gradient(48% 60% at 66% 34%, #c9f2f4 0%, transparent 64%),
+        radial-gradient(46% 58% at 60% 70%, #aae972 0%, transparent 64%),
+        radial-gradient(44% 56% at 24% 66%, #75d9c8 0%, transparent 62%);
+}
+
+.reviewButton .reviewIcon::after {
+    background: conic-gradient(
+        from 90deg,
+        transparent,
+        rgba(255, 255, 255, 0.72),
+        rgba(201, 242, 244, 0.58),
+        transparent,
+        rgba(170, 233, 114, 0.62),
+        rgba(117, 217, 200, 0.62),
+        transparent
+    );
+}
+
+.reviewPill,
+.reviewCount {
+    display: inline-flex;
+    align-items: center;
+    height: 16px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.reviewPill {
+    padding: 0 6px;
+    color: #1d3d37;
+    background: rgba(255, 255, 255, 0.48);
+    box-shadow: inset 0 0 0 1px rgba(24, 50, 47, 0.08);
+}
+
+.reviewCount {
+    min-width: 16px;
+    justify-content: center;
+    padding: 0 5px;
+    color: #18322f;
+    background: #aae972;
+    box-shadow:
+        inset 0 0 0 1px rgba(24, 50, 47, 0.1),
+        0 1px 4px rgba(170, 233, 114, 0.34);
+}

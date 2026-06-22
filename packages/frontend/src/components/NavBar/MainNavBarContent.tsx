@@ -62,7 +62,9 @@ export const MainNavBarContent: FC<Props> = ({
                                 <MetricsLink projectUuid={activeProjectUuid} />
                             )}
                             <Suspense fallback={null}>
-                                <AiAgentsButton />
+                                <AiAgentsButton
+                                    projectUuid={activeProjectUuid}
+                                />
                             </Suspense>
                         </Button.Group>
                         <Omnibar projectUuid={activeProjectUuid} />
