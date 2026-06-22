@@ -92,6 +92,8 @@ import {
 } from './authentication';
 import { BaseController } from './baseController';
 
+const isPositiveIntegerString = (value: string): boolean => /^\d+$/.test(value);
+
 @Route('/api/v1/projects')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Projects')
@@ -1636,13 +1638,14 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
             throw new ParameterError('Invalid body');
         }
         if (body.eventType === 'job.run.completed') {
-            const isPositiveInteger = (value: unknown): boolean =>
-                /^\d+$/.test(String(value));
+            const accountId = String(body.accountId);
+            const runId =
+                typeof body.data === 'object' && body.data !== null
+                    ? String(body.data.runId)
+                    : '';
             if (
-                typeof body.data !== 'object' ||
-                body.data === null ||
-                !isPositiveInteger(body.accountId) ||
-                !isPositiveInteger(body.data.runId)
+                !isPositiveIntegerString(accountId) ||
+                !isPositiveIntegerString(runId)
             ) {
                 throw new ParameterError('Invalid accountId or runId');
             }
@@ -1650,8 +1653,8 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
                 .getProjectService()
                 .createPreviewFromDbtCloudWebhook(
                     projectUuid,
-                    Number(body.accountId),
-                    Number(body.data.runId),
+                    Number(accountId),
+                    Number(runId),
                     {
                         rawBody: req.rawBody ?? null,
                         signature: req.header('authorization') ?? null,
