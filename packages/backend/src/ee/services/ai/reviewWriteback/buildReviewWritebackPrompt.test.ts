@@ -95,15 +95,19 @@ describe('planReviewWriteback', () => {
 
         expect(plan.aggregationKey).toBeNull();
         expect(plan.promptText).toContain(
-            'Agent picked the wrong revenue metric',
+            'Add an ai_hint to average_order_size',
         );
         expect(plan.promptText).toContain(
-            'Add an ai_hint to average_order_size',
+            'Disambiguate it from total_order_amount.',
         );
         expect(plan.promptText).toContain(
             'metric "orders.average_order_size" (yaml: models/orders.yml)',
         );
-        expect(plan.promptText).toContain(
+        // The finding title and raw evidence now travel as pins, not prose.
+        expect(plan.promptText).not.toContain(
+            'Agent picked the wrong revenue metric',
+        );
+        expect(plan.promptText).not.toContain(
             'use average_order_size, not total_order_amount',
         );
     });

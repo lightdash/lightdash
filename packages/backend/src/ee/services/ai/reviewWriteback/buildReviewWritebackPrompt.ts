@@ -90,24 +90,16 @@ const buildSemanticLayerWritebackPrompt = (
     const targetLines = (finding?.targetRefs ?? [])
         .filter(isSemanticTargetRef)
         .map((ref) => `- ${formatSemanticTargetRef(ref, ymlPathByModel)}`);
-    const evidenceLines = (finding?.evidenceExcerpts ?? []).map(
-        (excerpt) => `- (${excerpt.source}) "${excerpt.text}"`,
-    );
     const recommendation = finding?.recommendation ?? null;
 
     const sections = [
         'You are improving the dbt/Lightdash semantic layer YAML to fix a recurring issue surfaced by AI agent review. Make the smallest change that resolves it.',
-        'The original conversation where the agent gave a wrong or insufficient answer is attached to this thread as pinned context. Read it first to understand exactly what was missing, then open a pull request that closes that gap.',
-        `Issue: ${item.title}`,
-        item.description ? item.description : null,
+        'The pinned review finding, the proposed change, and the original conversation are attached to this thread as context — read them first to understand exactly what was missing, then open a pull request that closes the gap.',
         recommendation
             ? `Recommended change: ${recommendation.title}\nRationale: ${recommendation.rationale}`
             : null,
         targetLines.length > 0
             ? `Target(s) to edit:\n${targetLines.join('\n')}`
-            : null,
-        evidenceLines.length > 0
-            ? `Evidence from the conversation:\n${evidenceLines.join('\n')}`
             : null,
         'Apply the change by updating field descriptions, ai_hint, or labels, or by adding a missing model, join, dimension, or metric as appropriate. Do not change SQL logic or unrelated fields. If the data needed to answer this is genuinely not present in the warehouse/dbt project and cannot be exposed by a semantic-layer edit, do not fabricate fields or invent data — open no pull request and report that upstream dbt modeling or ingestion is required. Otherwise open a pull request describing the change and referencing this review finding.',
     ].filter((section): section is string => section !== null);
