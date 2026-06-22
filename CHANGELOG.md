@@ -1,3 +1,10 @@
+# [0.3211.0](https://github.com/lightdash/lightdash/compare/0.3210.0...0.3211.0) (2026-06-22)
+
+
+### Features
+
+* **ai-copilot:** reframe review cards around impact + ready fix ([#24570](https://github.com/lightdash/lightdash/issues/24570)) ([873abd3](https://github.com/lightdash/lightdash/commit/873abd38eee3741261abead1d94cbe8a6d409c03))
+
 # [0.3210.0](https://github.com/lightdash/lightdash/compare/0.3209.0...0.3210.0) (2026-06-22)
 
 
