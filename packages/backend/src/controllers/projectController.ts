@@ -1632,17 +1632,31 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         @Path() projectUuid: string,
         @Body() body: AnyType,
     ) {
-        // TODO validate webhook signature https://docs.getdbt.com/docs/deploy/webhooks#validate-a-webhook
         if (!body) {
             throw new ParameterError('Invalid body');
         }
         if (body.eventType === 'job.run.completed') {
-            // TODO: validate body is an object and has the account id and run id
-            const accountId: string = body.accountId as string;
-            const runId: string = body.data.runId as string;
+            const isPositiveInteger = (value: unknown): boolean =>
+                /^\d+$/.test(String(value));
+            if (
+                typeof body.data !== 'object' ||
+                body.data === null ||
+                !isPositiveInteger(body.accountId) ||
+                !isPositiveInteger(body.data.runId)
+            ) {
+                throw new ParameterError('Invalid accountId or runId');
+            }
             await this.services
                 .getProjectService()
-                .createPreviewWithExplores(projectUuid, accountId, runId);
+                .createPreviewFromDbtCloudWebhook(
+                    projectUuid,
+                    Number(body.accountId),
+                    Number(body.data.runId),
+                    {
+                        rawBody: req.rawBody ?? null,
+                        signature: req.header('authorization') ?? null,
+                    },
+                );
         }
 
         this.setStatus(200);

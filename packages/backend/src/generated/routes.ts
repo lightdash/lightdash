@@ -28126,6 +28126,7 @@ const models: TsoaRoute.Models = {
             environment_id: { dataType: 'string', required: true },
             discovery_api_endpoint: { dataType: 'string' },
             tags: { dataType: 'array', array: { dataType: 'string' } },
+            webhook_hmac_secret: { dataType: 'string' },
         },
         additionalProperties: true,
     },

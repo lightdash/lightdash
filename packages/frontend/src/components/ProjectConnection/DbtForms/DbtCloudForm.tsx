@@ -1,13 +1,16 @@
 import { DbtProjectType } from '@lightdash/common';
 import {
+    ActionIcon,
     Alert,
     Anchor,
+    CopyButton,
     MultiSelect,
     PasswordInput,
     Stack,
     TextInput,
+    Tooltip,
 } from '@mantine/core';
-import { IconInfoCircle } from '@tabler/icons-react';
+import { IconCheck, IconCopy, IconInfoCircle } from '@tabler/icons-react';
 import React, { useCallback, useState, type FC } from 'react';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
@@ -30,6 +33,10 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const form = useFormContext();
 
     const dbtTagsField = form.getInputProps('dbt.tags');
+
+    const webhookUrl = savedProject?.projectUuid
+        ? `${health?.data?.siteUrl}/api/v1/projects/${savedProject.projectUuid}/dbt-cloud/webhook`
+        : undefined;
 
     return (
         <Stack>
@@ -55,8 +62,7 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 label="Service token"
                 description={
                     <p>
-                        The service token must have the "Metadata Only"
-                        permission.
+                        Needs the "Metadata Only" and "Job Viewer" permissions.
                         <DocumentationHelpButton href="https://docs.getdbt.com/docs/dbt-cloud-apis/service-tokens" />
                     </p>
                 }
@@ -81,13 +87,59 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 required
                 disabled={disabled}
             />
-            {savedProject?.projectUuid && (
+            {webhookUrl && (
                 <TextInput
                     label="Webhook for dbt"
-                    value={`${health?.data?.siteUrl}/api/v1/projects/${savedProject?.projectUuid}/dbt-cloud/webhook`}
+                    description={
+                        <p>
+                            Add this URL as a webhook in dbt Cloud (triggered on
+                            job completion) so Lightdash can build a preview
+                            when your dbt job finishes.
+                            <DocumentationHelpButton href="https://docs.getdbt.com/docs/deploy/webhooks" />
+                        </p>
+                    }
+                    value={webhookUrl}
                     readOnly
+                    rightSection={
+                        <CopyButton value={webhookUrl}>
+                            {({ copied, copy }) => (
+                                <Tooltip
+                                    label={copied ? 'Copied' : 'Copy'}
+                                    withArrow
+                                    position="left"
+                                >
+                                    <ActionIcon
+                                        color={copied ? 'teal' : 'gray'}
+                                        onClick={copy}
+                                    >
+                                        <MantineIcon
+                                            icon={copied ? IconCheck : IconCopy}
+                                        />
+                                    </ActionIcon>
+                                </Tooltip>
+                            )}
+                        </CopyButton>
+                    }
                 />
             )}
+            <PasswordInput
+                name="dbt.webhook_hmac_secret"
+                {...form.getInputProps('dbt.webhook_hmac_secret')}
+                label="Webhook secret"
+                description={
+                    <p>
+                        Recommended if you use the dbt webhook above. Paste the
+                        secret that dbt Cloud generated for the webhook so
+                        Lightdash can verify that incoming requests are genuine.
+                        Without it, webhook requests cannot be authenticated.
+                        <DocumentationHelpButton href="https://docs.getdbt.com/docs/deploy/webhooks#validate-a-webhook" />
+                    </p>
+                }
+                placeholder={
+                    disabled || !requireSecrets ? '**************' : undefined
+                }
+                disabled={disabled}
+            />
             <TextInput
                 name="dbt.discovery_api_endpoint"
                 {...form.getInputProps('dbt.discovery_api_endpoint')}

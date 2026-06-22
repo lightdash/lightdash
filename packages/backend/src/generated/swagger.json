@@ -28754,6 +28754,9 @@
                             "type": "string"
                         },
                         "type": "array"
+                    },
+                    "webhook_hmac_secret": {
+                        "type": "string"
                     }
                 },
                 "required": ["type", "api_key", "environment_id"],
@@ -40403,7 +40406,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3204.0",
+        "version": "0.3205.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

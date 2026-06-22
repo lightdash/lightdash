@@ -28,9 +28,18 @@ const environmentValidator = (
     )}`;
 };
 
+const discoveryApiEndpointValidator = (value?: string): string | undefined => {
+    if (!value) return undefined;
+    if (value.includes('semantic-layer')) {
+        return 'This looks like the Semantic Layer endpoint. Use the Discovery API endpoint instead (e.g. https://metadata.cloud.getdbt.com/graphql).';
+    }
+    return undefined;
+};
+
 export const dbtFormValidators = {
     api_key: hasNoWhiteSpaces('API Key'),
     environment_id: hasNoWhiteSpaces('Environment ID'),
+    discovery_api_endpoint: discoveryApiEndpointValidator,
     environment: environmentValidator,
     selector: selectorValidator,
     // TODO :: improve this for github to detect the prefix

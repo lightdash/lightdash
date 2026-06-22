@@ -639,6 +639,7 @@ export enum DBFieldTypes {
 export const sensitiveDbtCredentialsFieldNames = [
     'personal_access_token',
     'api_key',
+    'webhook_hmac_secret',
 ] as const;
 
 export const DbtProjectTypeLabels: Record<DbtProjectType, string> = {

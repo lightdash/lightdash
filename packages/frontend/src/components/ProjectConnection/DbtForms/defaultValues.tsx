@@ -69,6 +69,7 @@ const dbtCloudIdeDefaultValues: DbtCloudIDEProjectConfig = {
     environment_id: '',
     discovery_api_endpoint: '',
     tags: [],
+    webhook_hmac_secret: '',
 } as const;
 
 // Local
