@@ -1,3 +1,15 @@
+# [0.3208.0](https://github.com/lightdash/lightdash/compare/0.3207.0...0.3208.0) (2026-06-22)
+
+
+### Bug Fixes
+
+* **dashboard:** polish tile toolbar icons ([#24543](https://github.com/lightdash/lightdash/issues/24543)) ([1924835](https://github.com/lightdash/lightdash/commit/1924835d09f2b2ac7ace4b1996e4c6fd6308f240))
+
+
+### Features
+
+* **reviews:** filter review items by assignee (ZAP-524) ([#24547](https://github.com/lightdash/lightdash/issues/24547)) ([fb3b06c](https://github.com/lightdash/lightdash/commit/fb3b06c1292fbccf1d3988715b7c4a8c4b780dcd))
+
 # [0.3207.0](https://github.com/lightdash/lightdash/compare/0.3206.0...0.3207.0) (2026-06-22)
 
 
