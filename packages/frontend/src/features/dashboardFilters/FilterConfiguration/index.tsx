@@ -33,7 +33,7 @@ import {
 } from '@mantine/core';
 import { IconRotate2, IconSql } from '@tabler/icons-react';
 import { produce } from 'immer';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../components/common/Filters/FieldLabel';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -348,6 +348,30 @@ const FilterConfiguration: FC<Props> = ({
         ],
     );
 
+    // Apply runs on mousedown (before the value input's blur grows the panel and
+    // shifts the button, which would swallow a click). Blurring here commits any
+    // typed-but-not-added value; the save is deferred to the effect below so it
+    // reads the committed draft rather than the stale one.
+    const [pendingSave, setPendingSave] = useState(false);
+
+    const handleApply = useCallback(() => {
+        setSelectedTabId(FilterTabs.SETTINGS);
+        const activeElement = document.activeElement;
+        if (
+            activeElement instanceof HTMLInputElement ||
+            activeElement instanceof HTMLTextAreaElement
+        ) {
+            activeElement.blur();
+        }
+        setPendingSave(true);
+    }, []);
+
+    useEffect(() => {
+        if (!pendingSave) return;
+        setPendingSave(false);
+        if (draftFilterRule) onSave(draftFilterRule);
+    }, [pendingSave, draftFilterRule, onSave]);
+
     const isApplyDisabled = !isFilterEnabled(
         draftFilterRule,
         isEditMode,
@@ -567,16 +591,11 @@ const FilterConfiguration: FC<Props> = ({
                             disabled={
                                 isApplyDisabled || isLockedRequiredMissingValue
                             }
-                            // We use onMouseDown instead of onClick: when an
-                            // inline dropdown (Select/MultiSelect) is open,
-                            // Mantine's click-outside detector fires on
-                            // mousedown and the subsequent click event never
-                            // reaches the Apply button — so a real-user click
-                            // would otherwise need two presses to apply.
-                            onMouseDown={() => {
-                                setSelectedTabId(FilterTabs.SETTINGS);
-                                if (!!draftFilterRule) onSave(draftFilterRule);
-                            }}
+                            // mousedown (not click): fires before the value
+                            // input's blur grows the panel and shifts the button,
+                            // which would otherwise swallow a click and force two
+                            // presses.
+                            onMouseDown={handleApply}
                         >
                             Apply
                         </Button>
