@@ -4,8 +4,10 @@ import {
     Button,
     Divider,
     Group,
+    HoverCard,
     Paper,
     Skeleton,
+    Stack,
     Text,
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
@@ -16,7 +18,7 @@ import {
     IconGitPullRequest,
     IconSettings,
 } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import { Provider } from 'react-redux';
 import { Link, useNavigate } from 'react-router';
 import { CategoryBadge } from '../../../../components/common/CategoryBadge';
@@ -29,7 +31,10 @@ import {
 } from '../../../features/aiCopilot/components/AgentSelector/AgentSelectorUtils';
 import { AiAgentIcon } from '../../../features/aiCopilot/components/AiAgentIcon';
 import { usePendingPrompt } from '../../../features/aiCopilot/components/PendingPromptContext/PendingPromptContext';
-import { useAiAgentAdminReviewItems } from '../../../features/aiCopilot/hooks/useAiAgentAdmin';
+import {
+    useAiAgentAdminReviewItems,
+    useInfiniteAiAgentAdminThreads,
+} from '../../../features/aiCopilot/hooks/useAiAgentAdmin';
 import { useAiAgentPermission } from '../../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiOrganizationSettings } from '../../../features/aiCopilot/hooks/useAiOrganizationSettings';
 import { useAiRouterConfig } from '../../../features/aiCopilot/hooks/useAiRouter';
@@ -46,6 +51,88 @@ import { SearchDropdown } from './SearchDropdown';
 type Props = {
     projectUuid: string;
     showAiReviewsPromo?: boolean;
+};
+
+const PROMPT_TREND_DAYS = 14;
+
+const formatDayKey = (date: Date) =>
+    [
+        date.getFullYear(),
+        String(date.getMonth() + 1).padStart(2, '0'),
+        String(date.getDate()).padStart(2, '0'),
+    ].join('-');
+
+const getPromptTrendStart = () => {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - (PROMPT_TREND_DAYS - 1));
+    return start;
+};
+
+const buildPromptTrend = (
+    threads:
+        | {
+              createdAt: string;
+              promptCount: number;
+          }[]
+        | undefined,
+    startDate: Date,
+) => {
+    const buckets = Array.from({ length: PROMPT_TREND_DAYS }, (_, index) => {
+        const date = new Date(startDate);
+        date.setDate(startDate.getDate() + index);
+
+        return {
+            key: formatDayKey(date),
+            label: date.toLocaleDateString(undefined, {
+                month: 'short',
+                day: 'numeric',
+            }),
+            prompts: 0,
+        };
+    });
+    const bucketByKey = new Map(buckets.map((bucket) => [bucket.key, bucket]));
+
+    threads?.forEach((thread) => {
+        const bucket = bucketByKey.get(
+            formatDayKey(new Date(thread.createdAt)),
+        );
+        if (bucket) {
+            bucket.prompts += thread.promptCount;
+        }
+    });
+
+    return buckets;
+};
+
+const PromptSparkline: FC<{ data: { prompts: number }[] }> = ({ data }) => {
+    const width = 164;
+    const height = 44;
+    const padding = 4;
+    const max = Math.max(1, ...data.map((point) => point.prompts));
+    const lastIndex = Math.max(1, data.length - 1);
+    const points = data
+        .map((point, index) => {
+            const x = padding + (index / lastIndex) * (width - padding * 2);
+            const y =
+                height -
+                padding -
+                (point.prompts / max) * (height - padding * 2);
+
+            return `${x.toFixed(1)},${y.toFixed(1)}`;
+        })
+        .join(' ');
+
+    return (
+        <svg
+            className={styles.promptSparkline}
+            viewBox={`0 0 ${width} ${height}`}
+            role="img"
+            aria-label="Prompts over time"
+        >
+            <polyline points={points} />
+        </svg>
+    );
 };
 
 const AiSearchBoxInner: FC<Props> = ({
@@ -84,6 +171,35 @@ const AiSearchBoxInner: FC<Props> = ({
         { statuses: ['open'] },
         { enabled: showReviewsPromo },
     );
+    const promptTrendStart = useMemo(() => getPromptTrendStart(), []);
+    const promptTrendQuery = useInfiniteAiAgentAdminThreads(
+        {
+            pagination: { pageSize: 100 },
+            filters: {
+                projectUuids: [projectUuid],
+                dateFrom: promptTrendStart.toISOString(),
+            },
+            sort: { field: 'createdAt', direction: 'desc' },
+        },
+        {
+            enabled: showReviewsPromo,
+            staleTime: 60 * 1000,
+        },
+    );
+    const promptTrendThreads = useMemo(
+        () =>
+            promptTrendQuery.data?.pages.flatMap((page) => page.data.threads) ??
+            [],
+        [promptTrendQuery.data],
+    );
+    const promptTrend = useMemo(
+        () => buildPromptTrend(promptTrendThreads, promptTrendStart),
+        [promptTrendStart, promptTrendThreads],
+    );
+    const totalPromptCount = promptTrend.reduce(
+        (total, bucket) => total + bucket.prompts,
+        0,
+    );
     const projectReviewItems =
         reviewItems?.filter(
             (item) =>
@@ -96,6 +212,8 @@ const AiSearchBoxInner: FC<Props> = ({
     const linkedPrCount = projectReviewItems.filter(
         (item) => !!item.linkedPrUrl,
     ).length;
+    const firstPromptTrendLabel = promptTrend[0]?.label;
+    const lastPromptTrendLabel = promptTrend[promptTrend.length - 1]?.label;
     const reviewsPromoLabel =
         prReadyCount > 0
             ? 'Review findings, ship PRs, improve agents'
@@ -329,56 +447,126 @@ const AiSearchBoxInner: FC<Props> = ({
                                 ) : null}
 
                                 {showReviewsPromo && (
-                                    <Button
-                                        size="compact-xs"
-                                        variant="transparent"
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconGitPullRequest}
-                                                color="ldGray.7"
-                                                strokeWidth={1.7}
-                                            />
-                                        }
-                                        rightSection={
-                                            <MantineIcon
-                                                icon={IconArrowRight}
-                                                size={13}
-                                                color="ldGray.7"
-                                            />
-                                        }
-                                        component={Link}
-                                        to={`/generalSettings/ai/reviews?projects=${projectUuid}`}
-                                        className={styles.reviewsPromoButton}
+                                    <HoverCard
+                                        withinPortal
+                                        position="top-start"
+                                        width={240}
+                                        shadow="md"
+                                        openDelay={120}
                                     >
-                                        <Group gap="xs" wrap="nowrap">
-                                            <Text span fz="xs" fw={700}>
-                                                {reviewsPromoLabel}
-                                            </Text>
-                                            <CategoryBadge
-                                                label={`${projectReviewItems.length} open`}
-                                                color="yellow.5"
-                                                className={
-                                                    styles.reviewsPromoBadge
+                                        <HoverCard.Target>
+                                            <Button
+                                                size="compact-xs"
+                                                variant="transparent"
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={
+                                                            IconGitPullRequest
+                                                        }
+                                                        color="ldGray.7"
+                                                        strokeWidth={1.7}
+                                                    />
                                                 }
-                                            />
-                                            <CategoryBadge
-                                                label={`${prReadyCount} PR-ready`}
-                                                color="green.5"
-                                                className={
-                                                    styles.reviewsPromoBadge
+                                                rightSection={
+                                                    <MantineIcon
+                                                        icon={IconArrowRight}
+                                                        size={13}
+                                                        color="ldGray.7"
+                                                    />
                                                 }
-                                            />
-                                            {linkedPrCount > 0 && (
-                                                <CategoryBadge
-                                                    label={`${linkedPrCount} linked`}
-                                                    color="blue.5"
-                                                    className={
-                                                        styles.reviewsPromoBadge
-                                                    }
-                                                />
-                                            )}
-                                        </Group>
-                                    </Button>
+                                                component={Link}
+                                                to={`/generalSettings/ai/reviews?projects=${projectUuid}`}
+                                                className={
+                                                    styles.reviewsPromoButton
+                                                }
+                                            >
+                                                <Text span fz="xs" fw={700}>
+                                                    {reviewsPromoLabel}
+                                                </Text>
+                                            </Button>
+                                        </HoverCard.Target>
+                                        <HoverCard.Dropdown p="sm">
+                                            <Stack gap="xs">
+                                                <Box>
+                                                    <Group
+                                                        justify="space-between"
+                                                        mb={4}
+                                                        wrap="nowrap"
+                                                    >
+                                                        <Text fz="xs" fw={700}>
+                                                            Prompts
+                                                        </Text>
+                                                        <Text
+                                                            fz="xs"
+                                                            c="ldGray.6"
+                                                        >
+                                                            {totalPromptCount}{' '}
+                                                            in 14d
+                                                        </Text>
+                                                    </Group>
+                                                    <PromptSparkline
+                                                        data={promptTrend}
+                                                    />
+                                                    <Group
+                                                        justify="space-between"
+                                                        mt={2}
+                                                    >
+                                                        <Text
+                                                            fz={10}
+                                                            c="ldGray.6"
+                                                        >
+                                                            {
+                                                                firstPromptTrendLabel
+                                                            }
+                                                        </Text>
+                                                        <Text
+                                                            fz={10}
+                                                            c="ldGray.6"
+                                                        >
+                                                            {
+                                                                lastPromptTrendLabel
+                                                            }
+                                                        </Text>
+                                                    </Group>
+                                                </Box>
+                                                <Divider color="ldGray.2" />
+                                                <Box>
+                                                    <Text
+                                                        fz="xs"
+                                                        fw={700}
+                                                        mb={6}
+                                                    >
+                                                        Reviews
+                                                    </Text>
+                                                    <Group gap="xs">
+                                                        <CategoryBadge
+                                                            label={`${projectReviewItems.length} open`}
+                                                            color="yellow.5"
+                                                            className={
+                                                                styles.reviewsPromoBadge
+                                                            }
+                                                        />
+                                                        <CategoryBadge
+                                                            label={`${prReadyCount} PR-ready`}
+                                                            color="green.5"
+                                                            className={
+                                                                styles.reviewsPromoBadge
+                                                            }
+                                                        />
+                                                        {linkedPrCount > 0 && (
+                                                            <CategoryBadge
+                                                                label={`${linkedPrCount} linked`}
+                                                                color="blue.5"
+                                                                className={
+                                                                    styles.reviewsPromoBadge
+                                                                }
+                                                            />
+                                                        )}
+                                                    </Group>
+                                                </Box>
+                                            </Stack>
+                                        </HoverCard.Dropdown>
+                                    </HoverCard>
                                 )}
                             </Group>
 
