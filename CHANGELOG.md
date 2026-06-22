@@ -1,3 +1,15 @@
+# [0.3212.0](https://github.com/lightdash/lightdash/compare/0.3211.0...0.3212.0) (2026-06-22)
+
+
+### Bug Fixes
+
+* **metrics:** keep List/Canvas toggle on metrics route when a tree is open ([#24576](https://github.com/lightdash/lightdash/issues/24576)) ([a94b436](https://github.com/lightdash/lightdash/commit/a94b43681b8c1ca0f9b7723f73dde2beda6924d5))
+
+
+### Features
+
+* **conditional-formatting:** support bold/italic/underline text styling ([#24510](https://github.com/lightdash/lightdash/issues/24510)) ([91b390d](https://github.com/lightdash/lightdash/commit/91b390d8d5dcc6eb37cdb8ab3f4c910b23e845f2))
+
 # [0.3211.0](https://github.com/lightdash/lightdash/compare/0.3210.0...0.3211.0) (2026-06-22)
 
 
