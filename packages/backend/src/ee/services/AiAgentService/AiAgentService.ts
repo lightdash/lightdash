@@ -65,6 +65,7 @@ import {
     GITHUB_MCP_SERVER_NAME,
     GITHUB_MCP_SERVER_URL,
     isGitProjectType,
+    isSlackMessageTooLongError,
     isSlackPrompt,
     isToolProposeChangeSuccessResult,
     KnexPaginateArgs,
@@ -278,6 +279,7 @@ import {
     getReferencedArtifactsBlocks,
     getTextBlocks,
     getThinkingBlocks,
+    splitMarkdownIntoMessages,
 } from '../ai/utils/getSlackBlocks';
 import { llmAsAJudge } from '../ai/utils/llmAsAJudge';
 import {
@@ -7512,6 +7514,155 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         ];
     }
 
+    private getAgentThreadUrl(
+        slackPrompt: SlackPrompt,
+        agentUuid: string | undefined,
+    ): string {
+        return agentUuid
+            ? `${this.lightdashConfig.siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${agentUuid}/threads/${slackPrompt.threadUuid}`
+            : this.lightdashConfig.siteUrl;
+    }
+
+    private static agentFailedMessage(agentName: string | undefined): string {
+        return `${
+            agentName ?? 'Agent'
+        } failed to generate a response. Please try again.`;
+    }
+
+    private static slackLinkSection(text: string, url: string): KnownBlock {
+        return {
+            type: 'section',
+            text: {
+                type: 'mrkdwn',
+                text: `${text} <${url}|View it in Lightdash>.`,
+            },
+        };
+    }
+
+    // Delivers a finished answer across one or more Slack messages (first
+    // finalizes the stream, rest post as replies), falling back to a Lightdash
+    // link if too large — the answer is already persisted, so this never fails.
+    private async deliverModernSlackAnswer({
+        slackPrompt,
+        threadTs,
+        streamTs,
+        agentUuid,
+        agentName,
+        slackResponse,
+        slackifiedMarkdown,
+        trailingBlocks,
+    }: {
+        slackPrompt: SlackPrompt;
+        threadTs: string;
+        streamTs: string;
+        agentUuid: string | undefined;
+        agentName: string | undefined;
+        slackResponse: string;
+        slackifiedMarkdown: string;
+        trailingBlocks: (Block | KnownBlock)[];
+    }): Promise<void> {
+        const { messages: answerMessages, truncated } =
+            splitMarkdownIntoMessages(slackResponse);
+        // Always ≥1 message so the stream closes and trailing cards attach.
+        const messages = answerMessages.length > 0 ? answerMessages : [[]];
+        const threadUrl = this.getAgentThreadUrl(slackPrompt, agentUuid);
+
+        // Cards + feedback + any truncation notice ride on the last message only.
+        const lastExtraBlocks: (Block | KnownBlock)[] = [
+            ...trailingBlocks,
+            ...(truncated
+                ? [
+                      AiAgentService.slackLinkSection(
+                          ':scroll: This answer was too long to show in full here.',
+                          threadUrl,
+                      ),
+                  ]
+                : []),
+        ];
+        const linkFallbackBlocks: (Block | KnownBlock)[] = [
+            AiAgentService.slackLinkSection(
+                ':scroll: This answer was too long to show in Slack.',
+                threadUrl,
+            ),
+        ];
+        // Notification fallback only; keep it small.
+        const notificationText = slackifiedMarkdown.slice(0, 3000);
+        const isLast = (index: number) => index === messages.length - 1;
+
+        try {
+            await this.slackClient.stopAgentStream({
+                organizationUuid: slackPrompt.organizationUuid,
+                channelId: slackPrompt.slackChannelId,
+                threadTs,
+                messageTs: streamTs,
+                chunks: [
+                    {
+                        type: 'blocks',
+                        blocks: [
+                            ...messages[0],
+                            ...(isLast(0) ? lastExtraBlocks : []),
+                        ],
+                    },
+                ],
+            });
+        } catch (error) {
+            if (!isSlackMessageTooLongError(error)) throw error;
+            await this.slackClient
+                .stopAgentStream({
+                    organizationUuid: slackPrompt.organizationUuid,
+                    channelId: slackPrompt.slackChannelId,
+                    threadTs,
+                    messageTs: streamTs,
+                    chunks: [{ type: 'blocks', blocks: linkFallbackBlocks }],
+                })
+                .catch((e) =>
+                    Logger.error(
+                        'Failed to post Slack answer link fallback',
+                        e,
+                    ),
+                );
+            return;
+        }
+
+        for (let index = 1; index < messages.length; index += 1) {
+            try {
+                // eslint-disable-next-line no-await-in-loop
+                await this.slackClient.postMessage({
+                    organizationUuid: slackPrompt.organizationUuid,
+                    channel: slackPrompt.slackChannelId,
+                    thread_ts: threadTs,
+                    text: notificationText,
+                    blocks: [
+                        ...messages[index],
+                        ...(isLast(index) ? lastExtraBlocks : []),
+                    ],
+                    unfurl_links: false,
+                    ...(agentName ? { username: agentName } : {}),
+                });
+            } catch (error) {
+                if (!isSlackMessageTooLongError(error)) throw error;
+                // eslint-disable-next-line no-await-in-loop
+                await this.slackClient
+                    .postMessage({
+                        organizationUuid: slackPrompt.organizationUuid,
+                        channel: slackPrompt.slackChannelId,
+                        thread_ts: threadTs,
+                        text: 'The rest of your answer is in Lightdash.',
+                        blocks: linkFallbackBlocks,
+                        unfurl_links: false,
+                        ...(agentName ? { username: agentName } : {}),
+                    })
+                    .catch((e) =>
+                        Logger.error(
+                            'Failed to post Slack answer link fallback',
+                            e,
+                        ),
+                    );
+                break;
+            }
+        }
+    }
+
     // Share URL for the latest successful runSql, used to resolve the model's
     // [..](#sql-runner-link) anchor into a real link for Slack.
     private async getSqlRunnerShareUrl(
@@ -7837,15 +7988,31 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         let taskUpdateChain: Promise<void> = Promise.resolve();
         let pendingTaskUpdateCount = 0;
+        // Keyed by tool type so repeated calls collapse into one counted block.
         const taskStates = new Map<
             string,
             {
                 toolName: string;
-                status: 'pending' | 'in_progress' | 'complete' | 'error';
+                calls: Map<string, 'in_progress' | 'complete' | 'error'>;
                 details?: string;
                 output?: string;
+                // Lines already streamed; Slack appends deltas, so send each once.
+                sent: Set<string>;
             }
         >();
+        const computeTaskAggregate = (
+            calls: Map<string, 'in_progress' | 'complete' | 'error'>,
+        ): { status: 'in_progress' | 'complete' | 'error'; count: number } => {
+            const statuses = [...calls.values()];
+            const count = statuses.length;
+            if (statuses.some((s) => s === 'in_progress')) {
+                return { status: 'in_progress', count };
+            }
+            if (statuses.some((s) => s === 'complete')) {
+                return { status: 'complete', count };
+            }
+            return { status: 'error', count };
+        };
         let currentReasoningStatus:
             | 'pending'
             | 'in_progress'
@@ -7944,40 +8111,48 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const finalizeToolTasksForSuccess = () => {
             if (!streamTs) return;
-            const unfinished = [...taskStates.entries()].filter(
-                ([, taskState]) => taskState.status !== 'complete',
-            );
-            for (const [taskId, taskState] of unfinished) {
-                const previousStatus = taskState.status;
-                taskState.status = 'complete';
-                enqueueTaskUpdate(() =>
-                    this.slackClient
-                        .appendAgentStream({
-                            organizationUuid: slackPrompt.organizationUuid,
-                            channelId: slackPrompt.slackChannelId,
-                            threadTs,
-                            messageTs: streamTs,
-                            chunks: [
-                                buildSlackTaskUpdate({
-                                    toolName: taskState.toolName,
-                                    taskId,
-                                    status: 'complete',
-                                    output:
-                                        taskState.output ??
-                                        (previousStatus === 'error'
-                                            ? 'Continued with another approach'
-                                            : (taskState.details ??
-                                              'Step finished')),
-                                }),
-                            ],
-                        })
-                        .catch((error) => {
-                            Logger.debug(
-                                'Failed to finalize Slack AI tool task:',
-                                error,
-                            );
-                        }),
-                );
+            for (const [taskId, taskState] of taskStates.entries()) {
+                const aggregate = computeTaskAggregate(taskState.calls);
+                if (aggregate.status !== 'complete') {
+                    const hadError = aggregate.status === 'error';
+                    for (const callId of taskState.calls.keys()) {
+                        taskState.calls.set(callId, 'complete');
+                    }
+                    const finalOutput =
+                        taskState.output ??
+                        (hadError
+                            ? 'Continued with another approach'
+                            : (taskState.details ?? 'Step finished'));
+                    // Skip if already streamed, else Slack appends a duplicate.
+                    const includeOutput = !taskState.sent.has(finalOutput);
+                    if (includeOutput) taskState.sent.add(finalOutput);
+                    enqueueTaskUpdate(() =>
+                        this.slackClient
+                            .appendAgentStream({
+                                organizationUuid: slackPrompt.organizationUuid,
+                                channelId: slackPrompt.slackChannelId,
+                                threadTs,
+                                messageTs: streamTs,
+                                chunks: [
+                                    buildSlackTaskUpdate({
+                                        toolName: taskState.toolName,
+                                        taskId,
+                                        status: 'complete',
+                                        count: aggregate.count,
+                                        ...(includeOutput
+                                            ? { output: finalOutput }
+                                            : {}),
+                                    }),
+                                ],
+                            })
+                            .catch((error) => {
+                                Logger.debug(
+                                    'Failed to finalize Slack AI tool task:',
+                                    error,
+                                );
+                            }),
+                    );
+                }
             }
         };
 
@@ -8022,13 +8197,25 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             ) {
                 resolvedStatus = 'complete';
             }
-            taskStates.set(progressId, {
+            const taskState = taskStates.get(resolvedToolName) ?? {
                 toolName: resolvedToolName,
-                status: resolvedStatus,
-                ...(resolvedStatus === 'complete' || resolvedStatus === 'error'
-                    ? { output: progress }
-                    : { details: progress }),
-            });
+                calls: new Map<string, 'in_progress' | 'complete' | 'error'>(),
+                sent: new Set<string>(),
+            };
+            taskState.calls.set(progressId, resolvedStatus);
+            const isDone =
+                resolvedStatus === 'complete' || resolvedStatus === 'error';
+            if (isDone) {
+                taskState.output = progress;
+            } else {
+                taskState.details = progress;
+            }
+            // Stream each distinct line at most once (Slack appends deltas).
+            const isNewLine =
+                progress.length > 0 && !taskState.sent.has(progress);
+            if (isNewLine) taskState.sent.add(progress);
+            taskStates.set(resolvedToolName, taskState);
+            const aggregate = computeTaskAggregate(taskState.calls);
             enqueueTaskUpdate(() =>
                 this.slackClient
                     .appendAgentStream({
@@ -8039,12 +8226,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         chunks: [
                             buildSlackTaskUpdate({
                                 toolName: resolvedToolName,
-                                taskId: progressId,
-                                status: resolvedStatus,
-                                ...(resolvedStatus === 'complete' ||
-                                resolvedStatus === 'error'
+                                taskId: resolvedToolName,
+                                status: aggregate.status,
+                                count: aggregate.count,
+                                ...(isNewLine && isDone
                                     ? { output: progress }
-                                    : { details: progress }),
+                                    : {}),
+                                ...(isNewLine && !isDone
+                                    ? { details: progress }
+                                    : {}),
                             }),
                         ],
                     })
@@ -8188,22 +8378,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             queueReasoningTaskUpdate({ status: 'complete' });
             await flushTaskUpdates();
             await updatePlanTitle('Answered');
-            await this.slackClient.stopAgentStream({
-                organizationUuid: slackPrompt.organizationUuid,
-                channelId: slackPrompt.slackChannelId,
+            await this.deliverModernSlackAnswer({
+                slackPrompt,
                 threadTs,
-                messageTs: streamTs,
-                text: slackifiedMarkdown,
-                chunks: [
-                    ...getMarkdownBlocks(slackResponse).map((block) => ({
-                        type: 'blocks' as const,
-                        blocks: [block],
-                    })),
-                    {
-                        type: 'blocks',
-                        blocks,
-                    },
-                ],
+                streamTs,
+                agentUuid: agent?.uuid,
+                agentName: agent?.name,
+                slackResponse,
+                slackifiedMarkdown,
+                trailingBlocks: blocks,
             });
 
             await persistStreamResponseTsAndDeletePlaceholder();
@@ -8219,9 +8402,47 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             );
             return true;
         } catch (error) {
+            // Delivery failure on an already-persisted answer: link, don't fail.
+            if (isSlackMessageTooLongError(error)) {
+                await flushTaskUpdates();
+                await updatePlanTitle('Answered');
+                await this.slackClient
+                    .stopAgentStream({
+                        organizationUuid: slackPrompt.organizationUuid,
+                        channelId: slackPrompt.slackChannelId,
+                        threadTs,
+                        messageTs: streamTs,
+                        chunks: [
+                            {
+                                type: 'blocks',
+                                blocks: [
+                                    AiAgentService.slackLinkSection(
+                                        ':scroll: This answer was too long to show in Slack.',
+                                        this.getAgentThreadUrl(
+                                            slackPrompt,
+                                            agent?.uuid,
+                                        ),
+                                    ),
+                                ],
+                            },
+                        ],
+                    })
+                    .catch((e) =>
+                        Logger.error(
+                            'Failed to finalize Slack stream after msg_too_long',
+                            e,
+                        ),
+                    );
+                await persistStreamResponseTsAndDeletePlaceholder();
+                Logger.warn(
+                    'Slack agent answer too long to deliver; linked to Lightdash instead',
+                    error,
+                );
+                return true;
+            }
             const userFacingMessage = getUserFacingErrorMessage(
                 error,
-                'Co-pilot failed to generate a response. Please try again.',
+                AiAgentService.agentFailedMessage(agent?.name),
             );
             queueReasoningTaskUpdate({
                 status: 'error',
@@ -8409,7 +8630,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         } catch (e) {
             const userFacingMessage = getUserFacingErrorMessage(
                 e,
-                'Co-pilot failed to generate a response. Please try again.',
+                AiAgentService.agentFailedMessage(agent?.name),
             );
             await this.slackClient.postMessage({
                 organizationUuid: slackPrompt.organizationUuid,
