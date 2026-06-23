@@ -1,3 +1,10 @@
+# [0.3227.0](https://github.com/lightdash/lightdash/compare/0.3226.2...0.3227.0) (2026-06-23)
+
+
+### Features
+
+* **metrics:** explore metrics from canvas nodes ([#24202](https://github.com/lightdash/lightdash/issues/24202)) ([b4a1141](https://github.com/lightdash/lightdash/commit/b4a1141aaf5538ff852843a4eee4adb98e637aec))
+
 ## [0.3226.2](https://github.com/lightdash/lightdash/compare/0.3226.1...0.3226.2) (2026-06-23)
 
 
