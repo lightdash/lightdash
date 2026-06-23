@@ -10,12 +10,17 @@ import {
     ActionIcon,
     Box,
     Button,
+    Group,
     Popover,
     Text,
     Tooltip,
 } from '@mantine-8/core';
 import { useId } from '@mantine-8/hooks';
-import { IconGripVertical, IconX } from '@tabler/icons-react';
+import {
+    IconAlertTriangle,
+    IconGripVertical,
+    IconX,
+} from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import styles from './Parameter.module.css';
@@ -36,6 +41,7 @@ type Props = {
     isDraggable?: boolean;
     triggerClassName?: string;
     dropdownClassName?: string;
+    shadowedReservedNames?: string[];
 };
 
 const Parameter: FC<Props> = ({
@@ -52,6 +58,7 @@ const Parameter: FC<Props> = ({
     isDraggable = false,
     triggerClassName,
     dropdownClassName,
+    shadowedReservedNames = [],
 }) => {
     const popoverId = useId();
     const isPopoverOpen = openPopoverId === popoverId;
@@ -93,6 +100,7 @@ const Parameter: FC<Props> = ({
 
     const hasValue = value !== null && value !== undefined && value !== '';
     const hasUnsetRequiredParameter = isRequired && !hasValue;
+    const hasShadowedReservedName = shadowedReservedNames.includes(paramKey);
 
     const handleClose = useCallback(() => {
         if (isPopoverOpen) onPopoverClose();
@@ -159,17 +167,33 @@ const Parameter: FC<Props> = ({
                             )
                         }
                         rightSection={
-                            hasValue && (
-                                <ActionIcon
-                                    onClick={handleClear}
-                                    size="xs"
-                                    color="dark"
-                                    radius="xl"
-                                    variant="subtle"
-                                >
-                                    <MantineIcon size="sm" icon={IconX} />
-                                </ActionIcon>
-                            )
+                            <Group gap={4} wrap="nowrap">
+                                {hasShadowedReservedName && (
+                                    <Tooltip
+                                        withinPortal
+                                        position="top"
+                                        maw={350}
+                                        label={`Parameter ${paramKey} overrides the system variable of the same name and takes priority over it.`}
+                                    >
+                                        <MantineIcon
+                                            size="sm"
+                                            icon={IconAlertTriangle}
+                                            color="yellow.7"
+                                        />
+                                    </Tooltip>
+                                )}
+                                {hasValue && (
+                                    <ActionIcon
+                                        onClick={handleClear}
+                                        size="xs"
+                                        color="dark"
+                                        radius="xl"
+                                        variant="subtle"
+                                    >
+                                        <MantineIcon size="sm" icon={IconX} />
+                                    </ActionIcon>
+                                )}
+                            </Group>
                         }
                         onClick={handleToggle}
                     >

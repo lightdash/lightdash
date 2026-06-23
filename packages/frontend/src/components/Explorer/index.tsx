@@ -1,5 +1,4 @@
 import { subject } from '@casl/ability';
-import { getAvailableParametersFromTables } from '@lightdash/common';
 import { Stack } from '@mantine-8/core';
 import {
     memo,
@@ -46,6 +45,7 @@ import { CustomMetricModal } from './CustomMetricModal';
 import ExplorerHeader from './ExplorerHeader';
 import FiltersCard from './FiltersCard/FiltersCard';
 import { FormatModal } from './FormatModal';
+import { getExploreParameterDefinitions } from './parameters';
 import ParametersCard from './ParametersCard/ParametersCard';
 import { PeriodOverPeriodComparisonModal } from './PeriodOverPeriodComparisonModal/PeriodOverPeriodComparisonModal';
 import ResultsCard from './ResultsCard/ResultsCard';
@@ -179,11 +179,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
         );
 
         const exploreParameterDefinitions = useMemo(() => {
-            return explore
-                ? getAvailableParametersFromTables(
-                      Object.values(explore.tables),
-                  )
-                : {};
+            return getExploreParameterDefinitions(explore);
         }, [explore]);
 
         const parameterDefinitions = useMemo(() => {

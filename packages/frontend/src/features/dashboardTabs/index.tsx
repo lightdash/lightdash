@@ -208,6 +208,7 @@ type DashboardTabsProps = {
     parameters: {
         [k: string]: LightdashProjectParameter;
     };
+    shadowedReservedNames: string[];
     isParameterLoading: boolean;
     missingRequiredParameters: string[];
     pinnedParameters: string[];
@@ -234,6 +235,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     hasTilesThatSupportFilters,
     parameterValues,
     parameters,
+    shadowedReservedNames,
     isParameterLoading,
     missingRequiredParameters,
     pinnedParameters,
@@ -1048,6 +1050,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                     }
                                                     parameters={
                                                         activeTabParameters
+                                                    }
+                                                    shadowedReservedNames={
+                                                        shadowedReservedNames
                                                     }
                                                     parameterValues={
                                                         parameterValues

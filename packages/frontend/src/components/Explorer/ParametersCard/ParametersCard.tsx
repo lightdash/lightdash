@@ -1,8 +1,5 @@
-import {
-    getReservedParameterDefinitions,
-    getShadowedReservedNames,
-} from '@lightdash/common';
-import { Box, Code, Stack, Text } from '@mantine-8/core';
+import { getShadowedReservedNames } from '@lightdash/common';
+import { Box } from '@mantine-8/core';
 import { memo, useCallback, useMemo } from 'react';
 import {
     explorerActions,
@@ -50,8 +47,8 @@ const ParametersCard = memo(
             );
         }, [parameterDefinitions, parameterReferences]);
 
-        // A user parameter sharing a reserved name takes priority (shadows it), so the
-        // reserved one is hidden from System variables and flagged as overridden instead.
+        // A user parameter sharing a reserved name takes priority (shadows it), so it is
+        // flagged as overriding the system variable of the same name.
         const shadowedReservedNames = useMemo(
             () =>
                 getShadowedReservedNames(
@@ -59,14 +56,6 @@ const ParametersCard = memo(
                 ),
             [filteredParameterDefinitions],
         );
-
-        const referencedReservedParameters = useMemo(() => {
-            return Object.entries(getReservedParameterDefinitions()).filter(
-                ([key]) =>
-                    parameterReferences?.includes(key) &&
-                    !shadowedReservedNames.includes(key),
-            );
-        }, [parameterReferences, shadowedReservedNames]);
 
         const setParameter = useCallback(
             (
@@ -110,37 +99,8 @@ const ParametersCard = memo(
                         cols={2}
                         projectUuid={projectUuid}
                         disabled={!isEditMode}
+                        shadowedReservedNames={shadowedReservedNames}
                     />
-
-                    {shadowedReservedNames.length > 0 && (
-                        <Text size="xs" c="yellow.7" mt="md">
-                            {shadowedReservedNames.length > 1
-                                ? `Parameters ${shadowedReservedNames.join(
-                                      ', ',
-                                  )} override system variables of the same name and take priority over them.`
-                                : `Parameter ${shadowedReservedNames[0]} overrides the system variable of the same name and takes priority over it.`}
-                        </Text>
-                    )}
-
-                    {referencedReservedParameters.length > 0 && (
-                        <Stack gap="xs" mt="md">
-                            <Text size="xs" fw={600} c="dimmed">
-                                System variables
-                            </Text>
-                            {referencedReservedParameters.map(
-                                ([name, definition]) => (
-                                    <Box key={name}>
-                                        <Code>{`\${ld.parameters.${name}}`}</Code>
-                                        {definition.description && (
-                                            <Text size="xs" c="dimmed" mt={2}>
-                                                {definition.description}
-                                            </Text>
-                                        )}
-                                    </Box>
-                                ),
-                            )}
-                        </Stack>
-                    )}
                 </Box>
             </CollapsableCard>
         );
