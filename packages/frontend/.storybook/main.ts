@@ -8,5 +8,8 @@ const config: StorybookConfig = {
         '@chromatic-com/storybook',
     ],
     framework: '@storybook/react-vite',
+    typescript: {
+        reactDocgen: false,
+    },
 };
 export default config;
