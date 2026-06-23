@@ -7,7 +7,6 @@ import {
     type ExternalFetchResponse,
     type RegisteredAccount,
 } from '@lightdash/common';
-import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { ExternalConnectionService } from './ExternalConnectionService';
 
 // -------------------------------------------------------------------
@@ -84,7 +83,6 @@ function buildService(opts: {
     getSampleConnectionUuidFn?: jest.Mock;
     linkToAppFn?: jest.Mock;
     findAppFn?: jest.Mock;
-    featureFlagEnabled?: boolean;
 }) {
     const model = {
         findByUuid: jest
@@ -116,22 +114,15 @@ function buildService(opts: {
                 organization_uuid: orgUuid,
             }),
     };
-    const featureFlagModel = {
-        get: jest.fn().mockResolvedValue({
-            id: 'enable-data-app-external-access',
-            enabled: opts.featureFlagEnabled ?? true,
-        }),
-    } as unknown as FeatureFlagModel;
     const service = new ExternalConnectionService({
         externalConnectionModel: model as never,
-        featureFlagModel,
         appModel: {} as never,
         spacePermissionService: {
             getSpaceAccessContext: jest.fn().mockResolvedValue({}),
         } as never,
         analytics: { track: jest.fn() } as never,
     });
-    return { service, model, featureFlagModel };
+    return { service, model };
 }
 
 // Spy on createAuditedAbility to control the CASL decision
@@ -634,90 +625,6 @@ describe('ExternalConnectionService.deleteSample', () => {
         ).resolves.toBeUndefined();
 
         expect(deleteSampleFn).toHaveBeenCalledWith(sampleUuid);
-    });
-});
-
-// -------------------------------------------------------------------
-// Feature flag OFF — testConnection and saveSample are gated
-// -------------------------------------------------------------------
-describe('ExternalConnectionService flag gate — testConnection / saveSample / listSamples / deleteSample', () => {
-    beforeEach(() => {
-        jest.clearAllMocks();
-    });
-
-    it('testConnection rejects with ForbiddenError when the flag is OFF', async () => {
-        const { service, model } = buildService({ featureFlagEnabled: false });
-        mockAbility(service, true);
-
-        const executeSpy = jest.spyOn(
-            service as unknown as {
-                executeExternalFetch: (...a: unknown[]) => Promise<unknown>;
-            },
-            'executeExternalFetch',
-        );
-
-        await expect(
-            service.testConnection(adminAccount, projectUuid, connectionUuid, {
-                method: 'GET',
-                path: '/v1/current',
-            }),
-        ).rejects.toThrow(ForbiddenError);
-
-        expect(executeSpy).not.toHaveBeenCalled();
-        expect(model.getDecryptedSecret).not.toHaveBeenCalled();
-    });
-
-    it('saveSample rejects with ForbiddenError when the flag is OFF', async () => {
-        const saveSampleFn = jest.fn();
-        const { service } = buildService({
-            featureFlagEnabled: false,
-            saveSampleFn,
-        });
-        mockAbility(service, true);
-
-        await expect(
-            service.saveSample(adminAccount, projectUuid, connectionUuid, {
-                request: sampleRequest,
-                response: { temp: 21 },
-            }),
-        ).rejects.toThrow(ForbiddenError);
-
-        expect(saveSampleFn).not.toHaveBeenCalled();
-    });
-
-    it('listSamples rejects with ForbiddenError when the flag is OFF', async () => {
-        const listSamplesFn = jest.fn();
-        const { service } = buildService({
-            featureFlagEnabled: false,
-            listSamplesFn,
-        });
-        mockAbility(service, true);
-
-        await expect(
-            service.listSamples(adminAccount, projectUuid, connectionUuid),
-        ).rejects.toThrow(ForbiddenError);
-
-        expect(listSamplesFn).not.toHaveBeenCalled();
-    });
-
-    it('deleteSample rejects with ForbiddenError when the flag is OFF', async () => {
-        const deleteSampleFn = jest.fn();
-        const { service } = buildService({
-            featureFlagEnabled: false,
-            deleteSampleFn,
-        });
-        mockAbility(service, true);
-
-        await expect(
-            service.deleteSample(
-                adminAccount,
-                projectUuid,
-                connectionUuid,
-                sampleUuid,
-            ),
-        ).rejects.toThrow(ForbiddenError);
-
-        expect(deleteSampleFn).not.toHaveBeenCalled();
     });
 });
 

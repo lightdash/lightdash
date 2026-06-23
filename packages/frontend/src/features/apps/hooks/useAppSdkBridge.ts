@@ -1,8 +1,4 @@
-import {
-    FeatureFlags,
-    JWT_HEADER_NAME,
-    type DashboardFilters,
-} from '@lightdash/common';
+import { JWT_HEADER_NAME, type DashboardFilters } from '@lightdash/common';
 import { useCallback, useEffect, useRef, type RefObject } from 'react';
 import { lightdashApi } from '../../../api';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
@@ -10,7 +6,6 @@ import {
     getGdriveAccessToken,
     triggerGdriveLogin,
 } from '../../../hooks/gdrive/useGdrive';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import {
     handleGsheetExport,
@@ -198,14 +193,6 @@ export function useAppSdkBridge(
     const { embedToken, projectUuid: embedProjectUuid } = useEmbed();
     const { health, user } = useApp();
 
-    const { data: externalAccessFlag } = useServerFeatureFlag(
-        FeatureFlags.EnableDataAppExternalAccess,
-    );
-    // Only short-circuit external fetch when the flag has *resolved* to
-    // disabled. While the query is still in flight, defer to the backend (which
-    // is authoritative) so an on-mount externalFetch is not falsely rejected.
-    const externalAccessDisabled = externalAccessFlag?.enabled === false;
-
     // Maps queryUuid → POST request id. The SDK transport assigns a fresh
     // request id to the POST (`/metric-query`) and again to each GET poll
     // (`/query/{uuid}`), so terminal events emitted from the GET handler
@@ -336,13 +323,6 @@ export function useAppSdkBridge(
                         '*',
                     );
                 };
-
-                if (externalAccessDisabled) {
-                    respondExternal({
-                        error: 'External data access is disabled for this organization',
-                    });
-                    return;
-                }
 
                 // External fetch is not available to embedded apps: the proxy
                 // endpoint requires a registered session, not an embed JWT.
@@ -677,7 +657,6 @@ export function useAppSdkBridge(
             capabilities,
             health.data,
             user.data,
-            externalAccessDisabled,
         ],
     );
 

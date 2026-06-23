@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    FeatureFlags,
     ForbiddenError,
     NotFoundError,
     ParameterError,
@@ -13,7 +12,6 @@ import {
     type ExternalConnectionSampleRequest,
     type ExternalFetchRequest,
     type ExternalFetchResponse,
-    type LightdashUser,
     type RegisteredAccount,
     type SessionUser,
     type UpdateExternalConnection,
@@ -21,7 +19,6 @@ import {
 import { performance } from 'node:perf_hooks';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { type AppModel } from '../../../models/AppModel';
-import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { BaseService } from '../../../services/BaseService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import {
@@ -42,7 +39,6 @@ import {
 type ExternalConnectionServiceArguments = {
     analytics: LightdashAnalytics;
     externalConnectionModel: ExternalConnectionModel;
-    featureFlagModel: FeatureFlagModel;
     appModel: AppModel;
     spacePermissionService: SpacePermissionService;
 };
@@ -51,8 +47,6 @@ export class ExternalConnectionService extends BaseService {
     private readonly analytics: LightdashAnalytics;
 
     private readonly externalConnectionModel: ExternalConnectionModel;
-
-    private readonly featureFlagModel: FeatureFlagModel;
 
     private readonly appModel: AppModel;
 
@@ -64,32 +58,8 @@ export class ExternalConnectionService extends BaseService {
         super();
         this.analytics = args.analytics;
         this.externalConnectionModel = args.externalConnectionModel;
-        this.featureFlagModel = args.featureFlagModel;
         this.appModel = args.appModel;
         this.spacePermissionService = args.spacePermissionService;
-    }
-
-    private async assertExternalAccessEnabledForUser(
-        user: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>,
-    ): Promise<void> {
-        const { enabled } = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.EnableDataAppExternalAccess,
-        });
-        if (!enabled) {
-            throw new ForbiddenError(
-                'Data app external access is not enabled for this organization',
-            );
-        }
-    }
-
-    private async assertExternalAccessEnabled(
-        account: RegisteredAccount,
-    ): Promise<void> {
-        return this.assertExternalAccessEnabledForUser({
-            userUuid: account.user.userUuid,
-            organizationUuid: account.organization.organizationUuid,
-        });
     }
 
     private assertCanManage(
@@ -164,7 +134,6 @@ export class ExternalConnectionService extends BaseService {
         projectUuid: string,
         data: CreateExternalConnection,
     ): Promise<ExternalConnection> {
-        await this.assertExternalAccessEnabled(account);
         // Derive the org from the project — never trust the caller's org — so an
         // org admin cannot create a connection against another org's project.
         const organizationUuid =
@@ -199,7 +168,6 @@ export class ExternalConnectionService extends BaseService {
         account: RegisteredAccount,
         projectUuid: string,
     ): Promise<ExternalConnection[]> {
-        await this.assertExternalAccessEnabled(account);
         // Derive the org from the project, not the caller, and filter by both,
         // so an org admin cannot list another org's project's connections.
         const organizationUuid =
@@ -236,7 +204,6 @@ export class ExternalConnectionService extends BaseService {
         projectUuid: string,
         connectionUuid: string,
     ): Promise<ExternalConnection> {
-        await this.assertExternalAccessEnabled(account);
         return this.getOwnedConnection(account, projectUuid, connectionUuid);
     }
 
@@ -246,7 +213,6 @@ export class ExternalConnectionService extends BaseService {
         connectionUuid: string,
         data: UpdateExternalConnection,
     ): Promise<ExternalConnection> {
-        await this.assertExternalAccessEnabled(account);
         const existing = await this.getOwnedConnection(
             account,
             projectUuid,
@@ -309,7 +275,6 @@ export class ExternalConnectionService extends BaseService {
         projectUuid: string,
         connectionUuid: string,
     ): Promise<void> {
-        await this.assertExternalAccessEnabled(account);
         const existing = await this.getOwnedConnection(
             account,
             projectUuid,
@@ -333,7 +298,6 @@ export class ExternalConnectionService extends BaseService {
         connectionUuid: string,
         secret: string,
     ): Promise<ExternalConnection> {
-        await this.assertExternalAccessEnabled(account);
         const existing = await this.getOwnedConnection(
             account,
             projectUuid,
@@ -357,7 +321,6 @@ export class ExternalConnectionService extends BaseService {
         projectUuid: string,
         appUuid: string,
     ): Promise<Array<{ alias: string; connection: ExternalConnection }>> {
-        await this.assertExternalAccessEnabled(account);
         const app = await this.assertCanManageApp(account, appUuid);
         if (app.project_uuid !== projectUuid) {
             throw new NotFoundError('Data app not found');
@@ -372,7 +335,6 @@ export class ExternalConnectionService extends BaseService {
         externalConnectionUuid: string,
         alias: string,
     ): Promise<void> {
-        await this.assertExternalAccessEnabled(account);
         const app = await this.assertCanManageApp(account, appUuid);
         if (app.project_uuid !== projectUuid) {
             throw new NotFoundError('Data app not found');
@@ -411,7 +373,6 @@ export class ExternalConnectionService extends BaseService {
         appUuid: string,
         alias: string,
     ): Promise<void> {
-        await this.assertExternalAccessEnabled(account);
         const app = await this.assertCanManageApp(account, appUuid);
         if (app.project_uuid !== projectUuid) {
             throw new NotFoundError('Data app not found');
@@ -443,8 +404,6 @@ export class ExternalConnectionService extends BaseService {
         appUuid: string,
         req: ExternalFetchRequest,
     ): Promise<ExternalFetchResponse> {
-        await this.assertExternalAccessEnabledForUser(user);
-
         const start = performance.now();
 
         // 1. Load app + authorize VIEW (same authz as reading the app).
@@ -953,7 +912,6 @@ export class ExternalConnectionService extends BaseService {
             body?: unknown;
         },
     ): Promise<ExternalFetchResponse> {
-        await this.assertExternalAccessEnabled(account);
         const conn = await this.loadConnectionForProject(
             connectionUuid,
             projectUuid,
@@ -987,7 +945,6 @@ export class ExternalConnectionService extends BaseService {
         connectionUuid: string,
         data: ApiSaveExternalConnectionSampleRequest,
     ): Promise<ExternalConnectionSample> {
-        await this.assertExternalAccessEnabled(account);
         const conn = await this.loadConnectionForProject(
             connectionUuid,
             projectUuid,
@@ -1041,7 +998,6 @@ export class ExternalConnectionService extends BaseService {
         projectUuid: string,
         connectionUuid: string,
     ): Promise<ExternalConnectionSample[]> {
-        await this.assertExternalAccessEnabled(account);
         const conn = await this.loadConnectionForProject(
             connectionUuid,
             projectUuid,
@@ -1060,7 +1016,6 @@ export class ExternalConnectionService extends BaseService {
         connectionUuid: string,
         sampleUuid: string,
     ): Promise<void> {
-        await this.assertExternalAccessEnabled(account);
         const conn = await this.loadConnectionForProject(
             connectionUuid,
             projectUuid,

@@ -79,14 +79,12 @@ export const useSettingsNavigation = (
         shouldShowAiAgentReviews,
         embeddingEnabled,
         dataAppsFlag,
-        dataAppExternalAccessFlag,
         isGitProject,
     } = context;
 
     const isEmbeddingEnabled = embeddingEnabled?.enabled ?? false;
     const isScimEnabled = isScimTokenManagementEnabled?.enabled ?? false;
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
-    const isExternalAccessEnabled = dataAppExternalAccessFlag?.enabled ?? false;
 
     return useMemo<SettingsNavigationSection[]>(() => {
         const ability = user?.ability;
@@ -625,7 +623,6 @@ export const useSettingsNavigation = (
 
             if (
                 isDataAppsEnabled &&
-                isExternalAccessEnabled &&
                 ability?.can(
                     'manage',
                     subject('ExternalConnection', {
@@ -800,7 +797,6 @@ export const useSettingsNavigation = (
         shouldShowAiAgentReviews,
         isEmbeddingEnabled,
         isDataAppsEnabled,
-        isExternalAccessEnabled,
         isGitProject,
         track,
     ]);
