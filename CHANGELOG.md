@@ -1,3 +1,10 @@
+# [0.3230.0](https://github.com/lightdash/lightdash/compare/0.3229.0...0.3230.0) (2026-06-23)
+
+
+### Features
+
+* surface reserved date zoom parameter in the UI ([#24586](https://github.com/lightdash/lightdash/issues/24586)) ([99769c9](https://github.com/lightdash/lightdash/commit/99769c97655df33797ff10961f2e834149d6b543))
+
 # [0.3229.0](https://github.com/lightdash/lightdash/compare/0.3228.0...0.3229.0) (2026-06-23)
 
 
