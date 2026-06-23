@@ -14,15 +14,11 @@ import {
     Text,
     Tooltip,
 } from '@mantine-8/core';
-import {
-    IconAlertTriangle,
-    IconInfoCircle,
-    IconPin,
-    IconPinFilled,
-} from '@tabler/icons-react';
+import { IconInfoCircle, IconPin, IconPinFilled } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ParameterInput } from './ParameterInput';
+import { ShadowedReservedNameWarning } from './ShadowedReservedNameWarning';
 
 type ParameterSelectionProps = {
     parameters?: Record<string, LightdashProjectParameter>;
@@ -129,18 +125,9 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
                                     {shadowedReservedNames.includes(
                                         paramKey,
                                     ) && (
-                                        <Tooltip
-                                            withinPortal
-                                            position="top"
-                                            maw={350}
-                                            label={`Parameter ${paramKey} overrides the system variable of the same name and takes priority over it.`}
-                                        >
-                                            <MantineIcon
-                                                icon={IconAlertTriangle}
-                                                color="yellow.7"
-                                                size="sm"
-                                            />
-                                        </Tooltip>
+                                        <ShadowedReservedNameWarning
+                                            paramKey={paramKey}
+                                        />
                                     )}
                                 </Group>
                                 {isEditMode && onParameterPin && (

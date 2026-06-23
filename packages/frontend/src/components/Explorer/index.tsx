@@ -1,4 +1,8 @@
 import { subject } from '@casl/ability';
+import {
+    getExploreParameterDefinitions,
+    getReferencedParameterDefinitions,
+} from '@lightdash/common';
 import { Stack } from '@mantine-8/core';
 import {
     memo,
@@ -45,10 +49,6 @@ import { CustomMetricModal } from './CustomMetricModal';
 import ExplorerHeader from './ExplorerHeader';
 import FiltersCard from './FiltersCard/FiltersCard';
 import { FormatModal } from './FormatModal';
-import {
-    getExploreParameterDefinitions,
-    getReferencedParameterDefinitions,
-} from './parameters';
 import ParametersCard from './ParametersCard/ParametersCard';
 import { PeriodOverPeriodComparisonModal } from './PeriodOverPeriodComparisonModal/PeriodOverPeriodComparisonModal';
 import ResultsCard from './ResultsCard/ResultsCard';

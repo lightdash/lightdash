@@ -1,6 +1,7 @@
 import {
     convertAdditionalMetric,
     getDimensions,
+    getExploreParameterDefinitions,
     getFieldRef,
     getItemId,
     getReservedParameterDefinitions,
@@ -319,7 +320,7 @@ export const useCustomDimensionsAceEditorCompleter = (): {
                 'Dimension',
             );
             const shadowedReservedNames = getShadowedReservedNames(
-                Object.keys(activeExplore.parameters ?? {}),
+                Object.keys(getExploreParameterDefinitions(activeExplore)),
             );
             langTools.setCompleters([
                 createCompleter([

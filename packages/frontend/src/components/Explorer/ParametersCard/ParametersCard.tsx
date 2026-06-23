@@ -1,4 +1,7 @@
-import { getShadowedReservedNames } from '@lightdash/common';
+import {
+    getReferencedParameterDefinitions,
+    getShadowedReservedNames,
+} from '@lightdash/common';
 import { Box } from '@mantine-8/core';
 import { memo, useCallback, useMemo } from 'react';
 import {
@@ -16,7 +19,6 @@ import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
-import { getReferencedParameterDefinitions } from '../parameters';
 
 const ParametersCard = memo(
     ({ parameterReferences }: { parameterReferences?: string[] }) => {

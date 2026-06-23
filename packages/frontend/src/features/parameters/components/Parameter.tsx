@@ -16,15 +16,12 @@ import {
     Tooltip,
 } from '@mantine-8/core';
 import { useId } from '@mantine-8/hooks';
-import {
-    IconAlertTriangle,
-    IconGripVertical,
-    IconX,
-} from '@tabler/icons-react';
+import { IconGripVertical, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import styles from './Parameter.module.css';
 import { ParameterInput } from './ParameterInput';
+import { ShadowedReservedNameWarning } from './ShadowedReservedNameWarning';
 
 type Props = {
     paramKey: string;
@@ -169,18 +166,9 @@ const Parameter: FC<Props> = ({
                         rightSection={
                             <Group gap={4} wrap="nowrap">
                                 {hasShadowedReservedName && (
-                                    <Tooltip
-                                        withinPortal
-                                        position="top"
-                                        maw={350}
-                                        label={`Parameter ${paramKey} overrides the system variable of the same name and takes priority over it.`}
-                                    >
-                                        <MantineIcon
-                                            size="sm"
-                                            icon={IconAlertTriangle}
-                                            color="yellow.7"
-                                        />
-                                    </Tooltip>
+                                    <ShadowedReservedNameWarning
+                                        paramKey={paramKey}
+                                    />
                                 )}
                                 {hasValue && (
                                     <ActionIcon
