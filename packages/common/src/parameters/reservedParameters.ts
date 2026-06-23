@@ -7,28 +7,20 @@ import {
 } from '../types/parameters';
 import { getGranularityReferenceValue } from '../types/timeFrames';
 
-/**
- * Context handed to reserved parameter resolvers. Each reserved parameter reads only
- * what it needs. Extend this as new system values are exposed as reserved parameters.
- */
+/** Context from which reserved parameters resolve their values. */
 export type ReservedParameterContext = {
     dateZoom: DateZoom | undefined;
 };
 
 /**
- * A reserved (system-owned) parameter. It shares the user-parameter definition shape so
- * it rides the existing substitution/Liquid/autocomplete pipeline, plus a `resolve`
- * function that computes its value from the query context.
+ * A reserved (system-owned) parameter: the user-parameter shape plus a `resolve` that
+ * computes its value from the query context, so it rides the existing parameter pipeline.
  */
 export type ReservedParameterDefinition = LightdashProjectParameter & {
     resolve: (context: ReservedParameterContext) => ParameterValue;
 };
 
-/**
- * The registry of reserved parameters. Add an entry here to expose a new system value;
- * everything else (availability during compilation, name collision rejection, value
- * injection, UI) is driven off this map.
- */
+/** Registry of reserved parameters. Add an entry here to expose a new system value. */
 export const RESERVED_PARAMETERS: Record<string, ReservedParameterDefinition> =
     {
         date_zoom: {
@@ -76,11 +68,7 @@ export const resolveReservedParameterValues = (
         {},
     );
 
-/**
- * Reserved names that are shadowed by a user/project/explore parameter of the same name.
- * A user-defined parameter always takes priority over a reserved one (collisions never
- * fail). Used to surface the override in the UI and as a non-fatal compile warning.
- */
+/** Reserved names shadowed by a same-named user parameter (used to surface the override). */
 export const getShadowedReservedNames = (
     userParameterNames: string[],
 ): string[] => {
@@ -88,11 +76,7 @@ export const getShadowedReservedNames = (
     return getReservedParameterNames().filter((name) => userNames.has(name));
 };
 
-/**
- * Shared precedence rule for name collisions: user parameters win, reserved names are
- * appended only when not already taken. Deduplicated. Used wherever reserved names join
- * the available-parameter set so availability never disagrees with values/definitions.
- */
+/** Append reserved names not already taken by a user parameter (deduped, user wins). */
 export const mergeReservedNames = (userParameterNames: string[]): string[] => {
     const userNames = new Set(userParameterNames);
     return [

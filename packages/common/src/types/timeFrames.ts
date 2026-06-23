@@ -75,10 +75,8 @@ export type DefaultTimeDimension = {
 };
 
 /**
- * Single source of truth for turning a date zoom granularity (a standard
- * `DateGranularity` or a custom-granularity string) into the value used to
- * reference it across surfaces (custom SQL parameters, chart labels). Lowercased
- * so the same grain reads identically everywhere it is referenced.
+ * Single source of truth for the value used to reference a date zoom granularity across
+ * surfaces (custom SQL parameters, chart labels). Lowercased so it reads the same everywhere.
  */
 export const getGranularityReferenceValue = (
     granularity: DateGranularity | string,

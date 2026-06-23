@@ -72,8 +72,7 @@ export const loadLightdashProjectConfig = async (
         );
     }
 
-    // A parameter colliding with a reserved (system-owned) name takes priority over the
-    // reserved one rather than failing config load. Warn so the override is visible.
+    // Collisions with a reserved name don't fail config load: the user param wins; warn.
     if (reservedParameters.length > 0) {
         console.warn(
             `lightdash.config.yml: parameter${

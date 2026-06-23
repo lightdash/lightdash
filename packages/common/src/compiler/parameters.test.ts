@@ -461,8 +461,7 @@ describe('getMissingRequiredParameters', () => {
     });
 
     it('never flags a reserved parameter as missing', () => {
-        // Reserved parameters are resolved server-side and are never present in the
-        // user-facing values map, so they must not be treated as required.
+        // Reserved parameters are resolved server-side, so never user-required.
         const result = getMissingRequiredParameters(['date_zoom'], {}, {});
         expect(result).toEqual([]);
     });

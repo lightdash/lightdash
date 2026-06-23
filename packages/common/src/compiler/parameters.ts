@@ -126,11 +126,7 @@ export const getAvailableParameterNames = (
         ),
     );
 
-/**
- * Whether any of the given parameter references is a reserved (system-owned) parameter.
- * Reserved parameters are currently all date-zoom values, so this doubles as "is this
- * query affected by date zoom through a parameter reference".
- */
+/** Whether any reference is a reserved (system-owned) parameter. */
 export const hasReservedParameterReference = (
     parameterReferences: string[],
 ): boolean => parameterReferences.some(isReservedParameterName);
@@ -191,13 +187,8 @@ export const getAvailableParametersFromTables = (
     }, {});
 
 /**
- * Validate parameter names. A name is invalid only when it doesn't match the valid
- * pattern. Names that collide with a reserved (system-owned) parameter are NOT invalid:
- * the user parameter takes priority (shadows the reserved one) and the collision is
- * surfaced as a non-fatal warning by callers, never as a failure.
- * @param parameters - The parameters to validate
- * @returns invalid names (bad pattern) and reserved names (collisions) separately so
- * callers can fail on the former and warn on the latter.
+ * Validate parameter names. Only bad-pattern names are invalid; names colliding with a
+ * reserved parameter are returned separately so callers can warn (the user param wins).
  */
 export const validateParameterNames = (
     parameters: Record<string, LightdashProjectParameter> | undefined,

@@ -472,8 +472,7 @@ export class ExploreCompiler {
             );
         }
 
-        // A parameter that collides with a reserved (system-owned) name doesn't fail
-        // compilation: the user parameter takes priority and shadows the reserved one.
+        // Collisions with a reserved name don't fail compilation: the user parameter wins.
         // Warn so the override is discoverable rather than silent.
         if (reservedParameters.length > 0) {
             exploreWarnings.push({
