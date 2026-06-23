@@ -479,8 +479,7 @@ describe('getMissingRequiredParameters', () => {
     });
 
     it('does not flag a parameter whose default is a falsy value (0 / empty string)', () => {
-        // A default counts as supplied whenever it is declared, matching the backend's
-        // `default !== undefined`. Truthiness would wrongly require a `default: 0` param.
+        // A declared default counts as supplied (backend uses `default !== undefined`).
         const result = getMissingRequiredParameters(
             ['count', 'note'],
             {},

@@ -540,10 +540,8 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     const missingRequiredParameters = useMemo(() => {
         if (!dashboardParameterReferences.size) return [];
 
-        // A dashboard parameter is "set" when its key exists (even with an empty value),
-        // so map by key presence rather than the empty-stripping `parameterValues`. The
-        // shared helper keeps the reserved-name and default semantics in sync with the
-        // Explorer and the backend (a declared falsy default counts as supplied).
+        // Map by key presence (a param is "set" even with an empty value), not the
+        // empty-stripping `parameterValues`, so dashboard semantics are unchanged.
         const dashboardParameterValues: ParametersValuesMap =
             Object.fromEntries(
                 Object.entries(parameters).map(([key, parameter]) => [
