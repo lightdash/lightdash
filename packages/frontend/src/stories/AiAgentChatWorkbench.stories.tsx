@@ -202,12 +202,16 @@ const suggestions: AgentSuggestion[] = [
 
 type ThreadTurn = {
     role: 'user' | 'assistant';
-    text: string;
+    text: string | null;
     context?: AiPromptContextItem[];
     activity?: LiveActivityToolGroup[];
     suggestions?: AgentSuggestion[];
     reasoning?: string[];
     status?: 'work' | 'verify' | 'done';
+    assistantStatus?: 'idle' | 'pending' | 'error';
+    errorMessage?: string | null;
+    humanScore?: number | null;
+    humanFeedback?: string | null;
 };
 
 type ThreadScenario = {
@@ -215,6 +219,33 @@ type ThreadScenario = {
     subtitle: string;
     badge: string;
     turns: ThreadTurn[];
+};
+
+type ThreadScenarioKey = 'analysis' | 'work' | 'verify';
+type PinnedContextDensity = 'none' | 'light' | 'heavy';
+type StreamingState =
+    | 'idle'
+    | 'thinking'
+    | 'tool-running'
+    | 'responding'
+    | 'error';
+type ToolDepth = 'minimal' | 'normal' | 'verbose';
+type FeedbackState = 'none' | 'positive' | 'negative';
+type RemediationStage =
+    | 'finding'
+    | 'proposed-change'
+    | 'pr-open'
+    | 'preview-ready'
+    | 'verified';
+
+type ScenarioPlaygroundArgs = {
+    threadType: ThreadScenarioKey;
+    pinnedContext: PinnedContextDensity;
+    streaming: StreamingState;
+    toolDepth: ToolDepth;
+    feedback: FeedbackState;
+    remediationStage: RemediationStage;
+    longThread: boolean;
 };
 
 const workContext: AiPromptContextItem[] = [
@@ -421,7 +452,7 @@ const verifySuggestions: AgentSuggestion[] = [
     },
 ];
 
-const threadScenarios: Record<string, ThreadScenario> = {
+const threadScenarios: Record<ThreadScenarioKey, ThreadScenario> = {
     analysis: {
         title: 'Revenue investigation',
         subtitle: 'Normal chat thread with pinned chart and dashboard context.',
@@ -583,6 +614,154 @@ const threadScenarios: Record<string, ThreadScenario> = {
     },
 };
 
+const getPinnedContext = (
+    threadType: ThreadScenarioKey,
+    density: PinnedContextDensity,
+    remediationStage: RemediationStage,
+) => {
+    if (density === 'none') return [];
+
+    const baseContext =
+        threadType === 'work'
+            ? workContext
+            : threadType === 'verify'
+              ? verifyContext
+              : contextItems;
+
+    if (density === 'light') return baseContext.slice(0, 2);
+
+    if (threadType === 'work') {
+        return remediationStage === 'finding'
+            ? workContext.filter((item) => item.type !== 'proposed_change')
+            : workContext;
+    }
+
+    if (threadType === 'verify') {
+        return remediationStage === 'pr-open'
+            ? verifyContext.filter(
+                  (item) => item.type !== 'preview_environment',
+              )
+            : verifyContext;
+    }
+
+    return [...contextItems, ...workContext.slice(0, 2)];
+};
+
+const getToolGroups = (
+    activity: LiveActivityToolGroup[] | undefined,
+    toolDepth: ToolDepth,
+) => {
+    if (!activity) return activity;
+    if (toolDepth === 'minimal') return activity.slice(0, 1);
+    if (toolDepth === 'normal') return activity;
+
+    return [
+        ...activity,
+        {
+            keyId: 'verbose-sql-check',
+            toolName: 'runSql',
+            calls: [runSqlCall],
+            display: {
+                liveLabel: 'Checking generated SQL',
+                doneLabel: 'Checked generated SQL',
+            },
+        },
+    ];
+};
+
+const getScenarioForControls = ({
+    threadType,
+    pinnedContext,
+    streaming,
+    toolDepth,
+    feedback,
+    remediationStage,
+    longThread,
+}: ScenarioPlaygroundArgs): ThreadScenario => {
+    const base = threadScenarios[threadType];
+    const turns = base.turns.map((turn, index): ThreadTurn => {
+        if (index === 0 && turn.role === 'user') {
+            return {
+                ...turn,
+                context: getPinnedContext(
+                    threadType,
+                    pinnedContext,
+                    remediationStage,
+                ),
+            };
+        }
+
+        if (turn.role === 'assistant') {
+            return {
+                ...turn,
+                activity: getToolGroups(turn.activity, toolDepth),
+                humanScore:
+                    feedback === 'positive'
+                        ? 1
+                        : feedback === 'negative'
+                          ? -1
+                          : null,
+                humanFeedback:
+                    feedback === 'negative'
+                        ? 'This needs clearer evidence.'
+                        : null,
+            };
+        }
+
+        return turn;
+    });
+
+    if (longThread) {
+        turns.push(
+            {
+                role: 'user',
+                text: 'Can you also explain the risk if we ship this?',
+            },
+            {
+                role: 'assistant',
+                text: 'The main risk is changing user expectations around metric wording. The underlying SQL is unchanged, so chart values should stay stable.',
+                activity: getToolGroups([groupedActivity[1]], toolDepth),
+                reasoning: ['Checked whether this changes SQL generation.'],
+                assistantStatus: 'idle',
+            },
+        );
+    }
+
+    if (streaming !== 'idle') {
+        turns.push({
+            role: 'assistant',
+            text:
+                streaming === 'thinking'
+                    ? null
+                    : streaming === 'responding'
+                      ? 'I have confirmed the affected chart renders with the preview metadata. I am checking the remaining validation output now.'
+                      : streaming === 'error'
+                        ? null
+                        : 'I am running the validation query against the preview project.',
+            activity:
+                streaming === 'tool-running'
+                    ? getToolGroups(verifyActivity, toolDepth)
+                    : undefined,
+            reasoning:
+                streaming === 'thinking'
+                    ? ['Reading pinned context before choosing tools.']
+                    : undefined,
+            assistantStatus: streaming === 'error' ? 'error' : 'pending',
+            errorMessage:
+                streaming === 'error'
+                    ? 'Permission denied while reading the preview project.'
+                    : null,
+        });
+    }
+
+    return {
+        ...base,
+        title: `${base.title} playground`,
+        subtitle: `${base.subtitle} Controls mutate typed thread data only.`,
+        turns,
+    };
+};
+
 const StorySurface = ({ children }: { children: ReactNode }) => (
     <Box p="xl" bg="ldGray.0" mih={640}>
         <Stack maw={1040} mx="auto" gap="lg">
@@ -652,7 +831,7 @@ const makeThread = (scenario: ThreadScenario): AiAgentThread => {
                 role: 'user',
                 uuid: promptUuid,
                 threadUuid,
-                message: turn.text,
+                message: turn.text ?? '',
                 createdAt: messageCreatedAt,
                 user: storyUser,
                 context: turn.context ?? [],
@@ -665,15 +844,15 @@ const makeThread = (scenario: ThreadScenario): AiAgentThread => {
         const calls = flattenToolCalls(turn.activity);
         return {
             role: 'assistant',
-            status: 'idle',
+            status: turn.assistantStatus ?? 'idle',
             uuid: `assistant-${index}`,
             threadUuid,
             message: turn.text,
-            errorMessage: null,
+            errorMessage: turn.errorMessage ?? null,
             interrupted: false,
             createdAt: messageCreatedAt,
-            humanScore: null,
-            humanFeedback: null,
+            humanScore: turn.humanScore ?? null,
+            humanFeedback: turn.humanFeedback ?? null,
             toolCalls: calls.map((call) => ({
                 uuid: `tool-${call.toolCallId}`,
                 promptUuid,
@@ -948,8 +1127,65 @@ const meta: Meta<typeof ComponentInventory> = {
 
 export default meta;
 type Story = StoryObj<typeof ComponentInventory>;
+type PlaygroundStory = StoryObj<ScenarioPlaygroundArgs>;
 
 export const Inventory: Story = {};
+
+export const ScenarioPlayground: PlaygroundStory = {
+    args: {
+        threadType: 'verify',
+        pinnedContext: 'heavy',
+        streaming: 'idle',
+        toolDepth: 'normal',
+        feedback: 'none',
+        remediationStage: 'preview-ready',
+        longThread: false,
+    },
+    argTypes: {
+        threadType: {
+            control: 'select',
+            options: ['analysis', 'work', 'verify'],
+        },
+        pinnedContext: {
+            control: 'select',
+            options: ['none', 'light', 'heavy'],
+        },
+        streaming: {
+            control: 'select',
+            options: [
+                'idle',
+                'thinking',
+                'tool-running',
+                'responding',
+                'error',
+            ],
+        },
+        toolDepth: {
+            control: 'select',
+            options: ['minimal', 'normal', 'verbose'],
+        },
+        feedback: {
+            control: 'select',
+            options: ['none', 'positive', 'negative'],
+        },
+        remediationStage: {
+            control: 'select',
+            options: [
+                'finding',
+                'proposed-change',
+                'pr-open',
+                'preview-ready',
+                'verified',
+            ],
+        },
+        longThread: {
+            control: 'boolean',
+        },
+    },
+    render: (args) => (
+        <ThreadScenarioView scenario={getScenarioForControls(args)} />
+    ),
+};
 
 export const PinnedContext: Story = {
     render: () => <PinnedContextScenario />,
