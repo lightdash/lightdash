@@ -36,6 +36,7 @@ import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassi
 import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
 import { defaultAgentOptions } from './ai/agents/agentV2';
 import { getModel } from './ai/models';
+import { type AiAgentReviewNotificationService } from './AiAgentReviewNotificationService';
 
 const REVIEW_AGENT_VERSION = 'llm-judge-v1';
 const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v3';
@@ -78,6 +79,7 @@ type AiAgentReviewClassifierServiceDependencies = {
     projectModel: Pick<ProjectModel, 'getSummary'>;
     featureFlagService: FeatureFlagService;
     lightdashConfig: LightdashConfig;
+    aiAgentReviewNotificationService: AiAgentReviewNotificationService;
     judgeTurn?: AiAgentReviewClassifierJudge;
 };
 
@@ -231,6 +233,8 @@ export class AiAgentReviewClassifierService extends BaseService {
 
     private readonly featureFlagService: FeatureFlagService;
 
+    private readonly aiAgentReviewNotificationService: AiAgentReviewNotificationService;
+
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly judgeTurn: AiAgentReviewClassifierJudge;
@@ -245,6 +249,8 @@ export class AiAgentReviewClassifierService extends BaseService {
         this.aiOrganizationSettingsModel =
             dependencies.aiOrganizationSettingsModel;
         this.featureFlagService = dependencies.featureFlagService;
+        this.aiAgentReviewNotificationService =
+            dependencies.aiAgentReviewNotificationService;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.judgeTurn =
             dependencies.judgeTurn ??
@@ -439,6 +445,7 @@ export class AiAgentReviewClassifierService extends BaseService {
         let findingCount = 0;
         let reviewItemCount = 0;
         const reviewItemFingerprints = new Set<string>();
+        const reviewItemFingerprintsByProject = new Map<string, Set<string>>();
         const shouldPersistSignals = args.persistSignals ?? !args.dryRun;
         const shouldPersistFindings = !args.dryRun && !!args.persistFindings;
         const shouldPromoteFindingsToReviewItems =
@@ -484,6 +491,17 @@ export class AiAgentReviewClassifierService extends BaseService {
                         reviewItemFingerprints.add(
                             classifiedTurn.finding.reviewItem.fingerprint,
                         );
+                        const projectFingerprints =
+                            reviewItemFingerprintsByProject.get(
+                                classifiedTurn.signal.subject.projectUuid,
+                            ) ?? new Set<string>();
+                        projectFingerprints.add(
+                            classifiedTurn.finding.reviewItem.fingerprint,
+                        );
+                        reviewItemFingerprintsByProject.set(
+                            classifiedTurn.signal.subject.projectUuid,
+                            projectFingerprints,
+                        );
                         reviewItemCount = reviewItemFingerprints.size;
                     }
                 }
@@ -509,6 +527,25 @@ export class AiAgentReviewClassifierService extends BaseService {
                 findingCount: reviewedFindingCount,
                 reviewItemCount,
             });
+
+            if (
+                shouldPromoteFindingsToReviewItems &&
+                reviewItemFingerprintsByProject.size > 0
+            ) {
+                await Promise.all(
+                    Array.from(reviewItemFingerprintsByProject.entries()).map(
+                        ([projectUuid, fingerprints]) =>
+                            this.aiAgentReviewNotificationService.notifyNeedsReview(
+                                {
+                                    organizationUuid: args.organizationUuid,
+                                    projectUuid,
+                                    reviewRunUuid: run.uuid,
+                                    fingerprints: Array.from(fingerprints),
+                                },
+                            ),
+                    ),
+                );
+            }
 
             return {
                 runUuid: run.uuid,

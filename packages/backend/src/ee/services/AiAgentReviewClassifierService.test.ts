@@ -301,6 +301,9 @@ describe('AiAgentReviewClassifierService', () => {
     const projectModel = {
         getSummary: jest.fn(),
     };
+    const aiAgentReviewNotificationService = {
+        notifyNeedsReview: jest.fn(),
+    };
     const judgeTurn = jest.fn();
 
     const service = new AiAgentReviewClassifierService({
@@ -312,6 +315,8 @@ describe('AiAgentReviewClassifierService', () => {
         featureFlagService,
         lightdashConfig: {} as never,
         judgeTurn,
+        aiAgentReviewNotificationService:
+            aiAgentReviewNotificationService as never,
     });
 
     beforeEach(() => {
@@ -330,6 +335,9 @@ describe('AiAgentReviewClassifierService', () => {
         model.updateRun.mockResolvedValue(makeRun({ status: 'completed' }));
         model.createTurnSignal.mockResolvedValue(SIGNAL_UUID);
         model.getThreadWritebackPullRequests.mockResolvedValue(new Map());
+        aiAgentReviewNotificationService.notifyNeedsReview.mockResolvedValue(
+            undefined,
+        );
         aiAgentModel.getAgent.mockResolvedValue({
             uuid: AGENT_UUID,
             organizationUuid: ORGANIZATION_UUID,
@@ -465,6 +473,14 @@ describe('AiAgentReviewClassifierService', () => {
                 }),
             }),
         );
+        expect(
+            aiAgentReviewNotificationService.notifyNeedsReview,
+        ).toHaveBeenCalledWith({
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PROJECT_UUID,
+            reviewRunUuid: RUN_UUID,
+            fingerprints: [expect.stringContaining('ai_agent_review_item:')],
+        });
     });
 
     it('does not promote turns where writeback already opened a pull request', async () => {
