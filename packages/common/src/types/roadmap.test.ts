@@ -17,9 +17,9 @@ describe('mapLinearStateToRoadmapStatus', () => {
         ['completed', RoadmapItemStatus.SHIPPED],
         ['canceled', RoadmapItemStatus.NOT_PLANNED],
     ])('maps canonical state type "%s" to %s', (type, expected) => {
-        expect(
-            mapLinearStateToRoadmapStatus({ name: 'ignored', type }),
-        ).toBe(expected);
+        expect(mapLinearStateToRoadmapStatus({ name: 'ignored', type })).toBe(
+            expected,
+        );
     });
 
     it('prefers the canonical type over a renamed state name', () => {
@@ -120,11 +120,7 @@ describe('redactRoadmapItem', () => {
             description: 'body',
             status: RoadmapItemStatus.SHIPPED,
         });
-        expect(Object.keys(result)).toEqual([
-            'title',
-            'description',
-            'status',
-        ]);
+        expect(Object.keys(result)).toEqual(['title', 'description', 'status']);
     });
 
     it('rejects payloads containing a forbidden field', () => {
@@ -149,15 +145,21 @@ describe('redactRoadmapItem', () => {
     });
 
     it.each([
-        ['missing title', { description: null, status: RoadmapItemStatus.BACKLOG }],
+        [
+            'missing title',
+            { description: null, status: RoadmapItemStatus.BACKLOG },
+        ],
         [
             'invalid description',
             { title: 't', description: 5, status: RoadmapItemStatus.BACKLOG },
         ],
-        ['invalid status', { title: 't', description: null, status: 'Whenever' }],
+        [
+            'invalid status',
+            { title: 't', description: null, status: 'Whenever' },
+        ],
     ])('rejects %s', (_label, raw) => {
-        expect(() =>
-            redactRoadmapItem(raw as Record<string, unknown>),
-        ).toThrow(ParameterError);
+        expect(() => redactRoadmapItem(raw as Record<string, unknown>)).toThrow(
+            ParameterError,
+        );
     });
 });
