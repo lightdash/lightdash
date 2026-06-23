@@ -68,6 +68,7 @@ import {
     ToolName,
     ToolNameSchema,
     toolProposeChangeOutputSchema,
+    UnexpectedServerError,
     UpdateSlackResponse,
     UpdateSlackResponseTs,
     UpdateWebAppResponse,
@@ -99,6 +100,7 @@ import {
     AiAgentToolResultTableName,
     AiPromptContextEntityType,
     AiPromptContextTableName,
+    AiPromptInterruptTableName,
     AiPromptTableName,
     AiSlackPromptTableName,
     AiSlackThreadTableName,
@@ -112,6 +114,7 @@ import {
     DbAiAgentToolResult,
     DbAiPrompt,
     DbAiPromptContext,
+    DbAiPromptInterrupt,
     DbAiSlackPrompt,
     DbAiSlackThread,
     DbAiSqlApproval,
@@ -3159,6 +3162,7 @@ export class AiAgentModel {
                     Pick<DbAiSlackPrompt, 'slack_user_id'> &
                     Pick<DbAiWebAppPrompt, 'user_uuid'> & {
                         user_name: string;
+                        interrupted: boolean;
                     })[]
             >(
                 `${AiPromptTableName}.ai_prompt_uuid`,
@@ -3181,6 +3185,9 @@ export class AiAgentModel {
                 `${AiSlackPromptTableName}.slack_user_id`,
                 `${AiWebAppPromptTableName}.user_uuid`,
                 this.database.raw(
+                    `${AiPromptInterruptTableName}.ai_prompt_uuid is not null as interrupted`,
+                ),
+                this.database.raw(
                     `COALESCE(NULLIF(TRIM(CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name)), ''), 'Unknown user') as user_name`,
                 ),
             )
@@ -3193,6 +3200,11 @@ export class AiAgentModel {
                 AiWebAppPromptTableName,
                 `${AiPromptTableName}.ai_prompt_uuid`,
                 `${AiWebAppPromptTableName}.ai_prompt_uuid`,
+            )
+            .leftJoin(
+                AiPromptInterruptTableName,
+                `${AiPromptTableName}.ai_prompt_uuid`,
+                `${AiPromptInterruptTableName}.ai_prompt_uuid`,
             )
             .where(`${AiPromptTableName}.ai_thread_uuid`, threadUuid)
             .andWhere(
@@ -3260,6 +3272,7 @@ export class AiAgentModel {
                 threadUuid: row.ai_thread_uuid,
                 message: row.response,
                 errorMessage: row.error_message,
+                interrupted: row.interrupted,
                 createdAt:
                     row.responded_at?.toISOString() ??
                     row.created_at.toISOString(),
@@ -3861,6 +3874,7 @@ export class AiAgentModel {
                     Pick<DbAiSlackPrompt, 'slack_user_id'> &
                     Pick<DbAiWebAppPrompt, 'user_uuid'> & {
                         user_name: string;
+                        interrupted: boolean;
                     })[]
             >(
                 `${AiPromptTableName}.ai_prompt_uuid`,
@@ -3882,6 +3896,9 @@ export class AiAgentModel {
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiSlackPromptTableName}.slack_user_id`,
                 `${AiWebAppPromptTableName}.user_uuid`,
+                this.database.raw(
+                    `${AiPromptInterruptTableName}.ai_prompt_uuid is not null as interrupted`,
+                ),
                 this.database.raw(
                     `COALESCE(NULLIF(TRIM(CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name)), ''), 'Unknown user') as user_name`,
                 ),
@@ -3905,6 +3922,11 @@ export class AiAgentModel {
                 AiWebAppPromptTableName,
                 `${AiPromptTableName}.ai_prompt_uuid`,
                 `${AiWebAppPromptTableName}.ai_prompt_uuid`,
+            )
+            .leftJoin(
+                AiPromptInterruptTableName,
+                `${AiPromptTableName}.ai_prompt_uuid`,
+                `${AiPromptInterruptTableName}.ai_prompt_uuid`,
             )
             .where(`${AiPromptTableName}.ai_thread_uuid`, threadUuid)
             .andWhere(
@@ -4001,6 +4023,7 @@ export class AiAgentModel {
                     threadUuid: row.ai_thread_uuid,
                     message: row.response ?? '',
                     errorMessage: row.error_message,
+                    interrupted: row.interrupted,
                     createdAt: row.responded_at?.toString() ?? '',
                     humanScore: row.human_score,
                     humanFeedback: row.human_feedback,
@@ -4323,6 +4346,42 @@ export class AiAgentModel {
                 ai_prompt_uuid: data.promptUuid,
             })
             .returning('ai_prompt_uuid');
+    }
+
+    async createAiPromptInterrupt(data: {
+        promptUuid: string;
+        createdByUserUuid: string;
+    }): Promise<DbAiPromptInterrupt> {
+        const [row] = await this.database(AiPromptInterruptTableName)
+            .insert({
+                ai_prompt_uuid: data.promptUuid,
+                created_by_user_uuid: data.createdByUserUuid,
+            })
+            .onConflict('ai_prompt_uuid')
+            .merge()
+            .returning([
+                'ai_prompt_interrupt_uuid',
+                'ai_prompt_uuid',
+                'created_by_user_uuid',
+                'created_at',
+            ]);
+
+        if (row === undefined) {
+            throw new UnexpectedServerError(
+                'Failed to create AI prompt interrupt',
+            );
+        }
+
+        return row;
+    }
+
+    async hasAiPromptInterrupt(promptUuid: string): Promise<boolean> {
+        const row = await this.database(AiPromptInterruptTableName)
+            .select('ai_prompt_uuid')
+            .where('ai_prompt_uuid', promptUuid)
+            .first();
+
+        return row !== undefined;
     }
 
     async createThreadCompaction(data: {

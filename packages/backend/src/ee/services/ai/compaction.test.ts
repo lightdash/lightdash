@@ -57,6 +57,7 @@ describe('AI context compaction helpers', () => {
                 threadUuid: 'thread-1',
                 message: 'Running checks',
                 errorMessage: null,
+                interrupted: false,
                 createdAt: new Date().toISOString(),
                 humanScore: null,
                 toolCalls: [

@@ -24,6 +24,7 @@ import {
     ApiAiAgentThreadGenerateTitleResponse,
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
+    ApiAiAgentThreadMessageInterruptResponse,
     ApiAiAgentThreadMessageVizQueryResponse,
     ApiAiAgentThreadPullRequestResponse,
     ApiAiAgentThreadResponse,
@@ -1112,6 +1113,33 @@ export class AiAgentController extends BaseController {
         req.res?.on('close', handleClientDisconnect);
         req.res?.on('error', handleClientDisconnect);
         req.on('aborted', handleClientDisconnect);
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/interrupt')
+    @OperationId('interruptAgentThreadMessage')
+    async interruptAgentThreadMessage(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Path() threadUuid: string,
+        @Path() messageUuid: string,
+    ): Promise<ApiAiAgentThreadMessageInterruptResponse> {
+        assertRegisteredAccount(req.account);
+        await this.getAiAgentService().interruptAgentThreadMessage(
+            toSessionUser(req.account),
+            {
+                agentUuid,
+                threadUuid,
+                messageUuid,
+            },
+        );
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: { interrupted: true },
+        };
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])

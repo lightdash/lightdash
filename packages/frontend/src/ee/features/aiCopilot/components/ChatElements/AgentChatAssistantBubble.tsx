@@ -387,7 +387,11 @@ const AssistantBubbleContent: FC<{
         [canOpenSqlRunner, projectUuid],
     );
     const hasNoResponse =
-        !isStreaming && !streamingError && !message.message && !isPending;
+        !isStreaming &&
+        !streamingError &&
+        !message.message &&
+        !isPending &&
+        !message.interrupted;
     const shouldShowRetry = hasError || hasNoResponse || !!streamingError;
 
     const isBenignEmptyResponse = hasNoResponse && !hasError && !streamingError;

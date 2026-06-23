@@ -6,7 +6,11 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, Paper, Text, Tooltip } from '@mantine-8/core';
 import { RichTextEditor } from '@mantine/tiptap';
-import { IconArrowUp, IconTerminal2 } from '@tabler/icons-react';
+import {
+    IconArrowUp,
+    IconPlayerStop,
+    IconTerminal2,
+} from '@tabler/icons-react';
 import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
 import { useEditor, type Editor } from '@tiptap/react';
@@ -19,6 +23,8 @@ import useUser from '../../../../../hooks/user/useUser';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import { useAgentSuggestions } from '../../hooks/useAgentSuggestions';
+import { useInterruptAiAgentThreadMessageMutation } from '../../hooks/useProjectAiAgents';
+import { useAiAgentThreadStreamQuery } from '../../streaming/useAiAgentThreadStreamQuery';
 import { AgentSelector } from '../AgentSelector';
 import { type Agent } from '../AgentSelector/AgentSelectorUtils';
 import styles from './AgentChatInput.module.css';
@@ -158,6 +164,9 @@ export const AgentChatInput = ({
     // Reappears as they scroll back toward the bottom of the thread — chips
     // are noise when reading history.
     const [chipsNearBottom, setChipsNearBottom] = useState(true);
+    const [hasRequestedInterrupt, setHasRequestedInterrupt] = useState(false);
+    const threadStream = useAiAgentThreadStreamQuery(threadUuid ?? '');
+    const interruptMutation = useInterruptAiAgentThreadMessageMutation();
     useEffect(() => {
         const el = rootRef.current;
         if (!el) return undefined;
@@ -318,6 +327,12 @@ export const AgentChatInput = ({
         editor.setEditable(!disabled);
     }, [editor, disabled]);
 
+    useEffect(() => {
+        if (hasRequestedInterrupt && !threadStream?.isStreaming) {
+            setHasRequestedInterrupt(false);
+        }
+    }, [hasRequestedInterrupt, threadStream?.isStreaming]);
+
     const handleChipClick = useCallback(
         (chip: AgentSuggestion, index: number) => {
             const trackClick = () => {
@@ -410,6 +425,16 @@ export const AgentChatInput = ({
     const showDisabledBanner = disabled && disabledReason;
     const isThreadInput = Boolean(threadUuid);
     const showSqlModeControl = Boolean(onSqlModeChange && !disabled);
+    const activeMessageUuid = threadStream?.isStreaming
+        ? threadStream.messageUuid
+        : undefined;
+    const canInterrupt = Boolean(
+        projectUuid &&
+        agentUuid &&
+        threadUuid &&
+        threadStream?.isStreaming &&
+        activeMessageUuid,
+    );
 
     const handleSubmit = () => {
         const ed = editorRef.current;
@@ -425,6 +450,20 @@ export const AgentChatInput = ({
             ed.commands.clearContent();
             setValueState('');
         }
+    };
+
+    const handleInterrupt = async () => {
+        if (!projectUuid || !agentUuid || !threadUuid || !activeMessageUuid) {
+            return;
+        }
+
+        await interruptMutation.mutateAsync({
+            projectUuid,
+            agentUuid,
+            threadUuid,
+            messageUuid: activeMessageUuid,
+        });
+        setHasRequestedInterrupt(true);
     };
 
     const chipRow = useMemo(() => {
@@ -552,24 +591,49 @@ export const AgentChatInput = ({
                             </Text>
                         )}
 
-                        <ActionIcon
-                            right={12}
-                            bottom={10}
-                            variant="filled"
-                            size="md"
-                            className={styles.minimalSubmitButton}
-                            disabled={disabled || !hasValue}
-                            loading={loading}
-                            onClick={handleSubmit}
-                            aria-label="Send message"
-                        >
-                            <MantineIcon
-                                icon={IconArrowUp}
-                                color="ldGray.0"
-                                size={18}
-                                stroke={2}
-                            />
-                        </ActionIcon>
+                        {canInterrupt ? (
+                            <ActionIcon
+                                right={12}
+                                bottom={10}
+                                variant="filled"
+                                color="red"
+                                size="md"
+                                className={styles.minimalSubmitButton}
+                                disabled={hasRequestedInterrupt}
+                                loading={
+                                    interruptMutation.isLoading ||
+                                    hasRequestedInterrupt
+                                }
+                                onClick={() => void handleInterrupt()}
+                                aria-label="Stop agent"
+                            >
+                                <MantineIcon
+                                    icon={IconPlayerStop}
+                                    color="ldGray.0"
+                                    size={18}
+                                    stroke={2}
+                                />
+                            </ActionIcon>
+                        ) : (
+                            <ActionIcon
+                                right={12}
+                                bottom={10}
+                                variant="filled"
+                                size="md"
+                                className={styles.minimalSubmitButton}
+                                disabled={disabled || !hasValue}
+                                loading={loading}
+                                onClick={handleSubmit}
+                                aria-label="Send message"
+                            >
+                                <MantineIcon
+                                    icon={IconArrowUp}
+                                    color="ldGray.0"
+                                    size={18}
+                                    stroke={2}
+                                />
+                            </ActionIcon>
+                        )}
                     </Box>
                 </Box>
 
@@ -660,22 +724,45 @@ export const AgentChatInput = ({
                                 </Box>
                             )}
 
-                        <ActionIcon
-                            variant="filled"
-                            size="lg"
-                            className={styles.submitButton}
-                            disabled={disabled || !hasValue}
-                            loading={loading}
-                            onClick={handleSubmit}
-                            aria-label="Send message"
-                        >
-                            <MantineIcon
-                                icon={IconArrowUp}
-                                color="ldGray.0"
-                                size={20}
-                                stroke={2}
-                            />
-                        </ActionIcon>
+                        {canInterrupt ? (
+                            <ActionIcon
+                                variant="filled"
+                                color="red"
+                                size="lg"
+                                className={styles.submitButton}
+                                disabled={hasRequestedInterrupt}
+                                loading={
+                                    interruptMutation.isLoading ||
+                                    hasRequestedInterrupt
+                                }
+                                onClick={() => void handleInterrupt()}
+                                aria-label="Stop agent"
+                            >
+                                <MantineIcon
+                                    icon={IconPlayerStop}
+                                    color="ldGray.0"
+                                    size={20}
+                                    stroke={2}
+                                />
+                            </ActionIcon>
+                        ) : (
+                            <ActionIcon
+                                variant="filled"
+                                size="lg"
+                                className={styles.submitButton}
+                                disabled={disabled || !hasValue}
+                                loading={loading}
+                                onClick={handleSubmit}
+                                aria-label="Send message"
+                            >
+                                <MantineIcon
+                                    icon={IconArrowUp}
+                                    color="ldGray.0"
+                                    size={20}
+                                    stroke={2}
+                                />
+                            </ActionIcon>
+                        )}
                     </Group>
                 </Box>
             </Box>

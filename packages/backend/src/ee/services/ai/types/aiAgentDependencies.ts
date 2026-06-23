@@ -370,6 +370,8 @@ export type StoreReasoningFn = (
     }>,
 ) => Promise<void>;
 
+export type IsPromptInterruptedFn = (promptUuid: string) => Promise<boolean>;
+
 export type TrackEventFn = (
     event:
         | AiAgentResponseStreamed

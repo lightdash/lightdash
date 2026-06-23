@@ -4088,6 +4088,67 @@ export class AiAgentService extends BaseService {
         }
     }
 
+    async interruptAgentThreadMessage(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid,
+            messageUuid,
+        }: {
+            agentUuid: string;
+            threadUuid: string;
+            messageUuid: string;
+        },
+    ): Promise<void> {
+        if (!user.organizationUuid) {
+            throw new ForbiddenError();
+        }
+
+        const prompt = await this.aiAgentModel.findWebAppPrompt(messageUuid);
+
+        if (
+            !prompt ||
+            prompt.organizationUuid !== user.organizationUuid ||
+            prompt.agentUuid !== agentUuid ||
+            prompt.threadUuid !== threadUuid
+        ) {
+            throw new NotFoundError(`Prompt not found: ${messageUuid}`);
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid: user.organizationUuid,
+            agentUuid,
+        });
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid: user.organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+        if (!thread) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+
+        const hasAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            thread.user.uuid,
+        );
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to interrupt this agent thread',
+            );
+        }
+
+        await this.aiAgentModel.createAiPromptInterrupt({
+            promptUuid: messageUuid,
+            createdByUserUuid: user.userUuid,
+        });
+    }
+
     async getEmbedAgentModelOptions(
         account: AnonymousAccount,
         projectUuid: string,
@@ -6548,6 +6609,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             storeToolCall,
             storeToolResults,
             storeReasoning,
+            isPromptInterrupted: (promptUuid: string) =>
+                this.aiAgentModel.hasAiPromptInterrupt(promptUuid),
             searchFieldValues: toolsRuntime.searchFieldValues,
             editDbtProject,
             editProjectContext,
@@ -6713,6 +6776,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             storeToolCall,
             storeToolResults,
             storeReasoning,
+            isPromptInterrupted,
             searchFieldValues,
             editDbtProject,
             editProjectContext,
@@ -7110,6 +7174,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             storeToolCall,
             storeToolResults,
             storeReasoning,
+            isPromptInterrupted,
             searchFieldValues,
             editDbtProject,
             editProjectContext,

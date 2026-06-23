@@ -854,10 +854,23 @@ export const streamAgentResponse = async ({
             `Calling streamText with model: ${modelName}`,
         );
         const forcedFirstStep = buildForcedFirstStep(args, tools);
+        const stopWhenPromptInterrupted = async () => {
+            const interrupted = await dependencies.isPromptInterrupted(
+                args.promptUuid,
+            );
+            if (interrupted) {
+                logger(
+                    'Stream Agent Response',
+                    `Stopping stream for interrupted prompt UUID: ${args.promptUuid}`,
+                );
+            }
+            return interrupted;
+        };
         const result = streamText({
             ...defaultAgentOptions,
             ...args.callOptions,
             ...(forcedFirstStep ? { prepareStep: forcedFirstStep } : {}),
+            stopWhen: [stepCountIs(STEP_CAP), stopWhenPromptInterrupted],
             providerOptions: args.providerOptions,
             model: args.model,
             tools,
