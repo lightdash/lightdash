@@ -1,3 +1,10 @@
+## [0.3226.1](https://github.com/lightdash/lightdash/compare/0.3226.0...0.3226.1) (2026-06-23)
+
+
+### Performance Improvements
+
+* **pivot:** collapse final-stage total_columns into a single pass ([#24621](https://github.com/lightdash/lightdash/issues/24621)) ([f9e8994](https://github.com/lightdash/lightdash/commit/f9e8994dff5c8796fe1adb17fa6ba470b308b766))
+
 # [0.3226.0](https://github.com/lightdash/lightdash/compare/0.3225.1...0.3226.0) (2026-06-23)
 
 
