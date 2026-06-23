@@ -12,6 +12,7 @@ import {
     Explore,
     ExploreCompiler,
     getItemId,
+    getReservedParameterNames,
     isCustomBinDimension,
     isFormulaTableCalculation,
     isPeriodOverPeriodAdditionalMetric,
@@ -395,6 +396,12 @@ export const compileMetricQuery = ({
 }: CompileMetricQueryArgs): CompiledMetricQuery => {
     const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
 
+    // Reserved parameters are always referenceable in custom SQL; include them once here.
+    const availableParametersWithReserved = [
+        ...availableParameters,
+        ...getReservedParameterNames(),
+    ];
+
     const popMetricIds = (metricQuery.additionalMetrics ?? [])
         .filter(isPeriodOverPeriodAdditionalMetric)
         .map(getItemId);
@@ -411,7 +418,7 @@ export const compileMetricQuery = ({
                 additionalMetric,
                 explore,
                 warehouseSqlBuilder,
-                availableParameters,
+                availableParameters: availableParametersWithReserved,
             }),
     );
 
@@ -421,7 +428,7 @@ export const compileMetricQuery = ({
             compiler.compileCustomDimension(
                 customDimension,
                 explore.tables,
-                availableParameters,
+                availableParametersWithReserved,
             ),
     );
     const customBinDimensionIds = new Set(

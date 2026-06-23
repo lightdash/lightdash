@@ -78,9 +78,11 @@ import {
     expectedExploreSummaryFilteredByTags,
     exploreToSummaryWithAttributes,
     exploreWithRequiredAttributes,
+    exploreWithReservedParameterDimension,
     job,
     lightdashConfigWithNoSMTP,
     metricQueryMock,
+    metricQueryReservedParameterDimension,
     preAggregateExplore,
     projectSummary,
     projectWithSensitiveFields,
@@ -2534,5 +2536,45 @@ describe('ProjectService', () => {
                 }),
             ).rejects.toThrowError(ForbiddenError);
         });
+    });
+});
+
+describe('ProjectService._compileQuery reserved parameters', () => {
+    it('resolves date_zoom to the else branch when no date zoom is applied', async () => {
+        const compiled = await ProjectService._compileQuery({
+            metricQuery: metricQueryReservedParameterDimension,
+            explore: exploreWithReservedParameterDimension,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: {},
+            userAttributes: {},
+            timezone: 'UTC',
+            parameters: {},
+            availableParameterDefinitions: {},
+        });
+
+        expect(compiled.query).toContain("'other'");
+        expect(compiled.query).not.toContain("'weekly'");
+        expect(compiled.query).not.toContain('ld.parameters.date_zoom');
+        expect(compiled.query).not.toContain('{% if');
+    });
+
+    it('lets a user parameter named date_zoom win over the reserved value', async () => {
+        // With no date zoom the reserved value is ''; a user date_zoom of 'week' must win.
+        const compiled = await ProjectService._compileQuery({
+            metricQuery: metricQueryReservedParameterDimension,
+            explore: exploreWithReservedParameterDimension,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: {},
+            userAttributes: {},
+            timezone: 'UTC',
+            parameters: { date_zoom: 'week' },
+            availableParameterDefinitions: {
+                date_zoom: { label: 'My date zoom' },
+            },
+        });
+
+        expect(compiled.query).toContain("'weekly'");
+        expect(compiled.query).not.toContain("'other'");
+        expect(compiled.query).not.toContain('ld.parameters.date_zoom');
     });
 });

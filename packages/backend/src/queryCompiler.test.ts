@@ -47,6 +47,34 @@ test('Should compile without table calculations', () => {
     ).toStrictEqual(expected);
 });
 
+test('Should compile custom SQL dimension referencing a reserved parameter', () => {
+    // Reserved parameters must be available even when the caller passes none.
+    const metricQuery = {
+        ...METRIC_QUERY_NO_CALCS,
+        dimensions: ['table1_dim_1'],
+        metrics: [],
+        customDimensions: [
+            {
+                id: 'my_date_zoom',
+                name: 'My date zoom',
+                table: 'table1',
+                type: CustomDimensionType.SQL,
+                sql: '${ld.parameters.date_zoom}',
+                dimensionType: DimensionType.STRING,
+            } as const,
+        ],
+    };
+
+    expect(() =>
+        compileMetricQuery({
+            explore: EXPLORE,
+            metricQuery,
+            warehouseSqlBuilder: warehouseClientMock,
+            availableParameters: [],
+        }),
+    ).not.toThrow();
+});
+
 test('Should compile table calculations', () => {
     expect(
         compileMetricQuery({

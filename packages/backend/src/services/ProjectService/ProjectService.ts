@@ -117,6 +117,8 @@ import {
     maybeOverrideDbtConnection,
     maybeOverrideWarehouseConnection,
     maybeReplaceFieldsInChartVersion,
+    mergeReservedDefinitions,
+    mergeReservedValues,
     mergeWarehouseCredentials,
     MetricQuery,
     MissingWarehouseCredentialsError,
@@ -149,6 +151,7 @@ import {
     RequestMethod,
     ResolvedProjectColorPalette,
     resolveQueryTimezone,
+    resolveReservedParameterValues,
     resolveToBaseTimeDimension,
     ResultRow,
     SavedChartDAO,
@@ -3850,7 +3853,13 @@ export class ProjectService extends BaseService {
          */
         applyDateZoomToFilters?: boolean;
     }): Promise<CompiledQuery> {
-        const availableParameters = Object.keys(availableParameterDefinitions);
+        // Fold reserved definitions in so custom SQL referencing them compiles; a
+        // same-named user parameter wins (shadows the reserved one).
+        const parameterDefinitionsWithReserved: ParameterDefinitions =
+            mergeReservedDefinitions(availableParameterDefinitions);
+        const availableParameters = Object.keys(
+            parameterDefinitionsWithReserved,
+        );
 
         const {
             explore: exploreWithOverride,
@@ -3862,6 +3871,13 @@ export class ProjectService extends BaseService {
             warehouseSqlBuilder,
             availableParameters,
             dateZoom,
+        );
+
+        // Resolve reserved values from the query context (date zoom reflects the selected
+        // grain whenever a zoom reaches the query); a same-named user value wins.
+        const parametersWithReserved: ParametersValuesMap = mergeReservedValues(
+            parameters,
+            resolveReservedParameterValues({ dateZoom }),
         );
 
         const compiledMetricQuery = compileMetricQuery({
@@ -3878,8 +3894,8 @@ export class ProjectService extends BaseService {
             intrinsicUserAttributes,
             userAttributes,
             timezone,
-            parameters,
-            parameterDefinitions: availableParameterDefinitions,
+            parameters: parametersWithReserved,
+            parameterDefinitions: parameterDefinitionsWithReserved,
             pivotConfiguration,
             pivotDimensions,
             continueOnError,

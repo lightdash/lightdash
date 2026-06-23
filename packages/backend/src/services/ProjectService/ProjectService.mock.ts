@@ -175,6 +175,44 @@ export const validExplore: Explore = {
     },
 };
 
+const reservedParameterDimensionSql =
+    "{% if ld.parameters.date_zoom == 'week' %}'weekly'{% else %}'other'{% endif %}";
+
+export const exploreWithReservedParameterDimension: Explore = {
+    ...validExplore,
+    tables: {
+        ...validExplore.tables,
+        a: {
+            ...validExplore.tables.a,
+            dimensions: {
+                ...validExplore.tables.a.dimensions,
+                grain_flag: {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    name: 'grain_flag',
+                    label: 'grain_flag',
+                    table: 'a',
+                    tableLabel: '',
+                    sql: reservedParameterDimensionSql,
+                    hidden: false,
+                    compiledSql: reservedParameterDimensionSql,
+                    tablesReferences: ['a'],
+                },
+            },
+        },
+    },
+};
+
+export const metricQueryReservedParameterDimension: MetricQuery = {
+    exploreName: validExplore.name,
+    filters: {},
+    limit: 10,
+    dimensions: ['a_grain_flag'],
+    metrics: [],
+    sorts: [],
+    tableCalculations: [],
+};
+
 export const exploreWithError: ExploreError = {
     name: 'error',
     label: 'error',
