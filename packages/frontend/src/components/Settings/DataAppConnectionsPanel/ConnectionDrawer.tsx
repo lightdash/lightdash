@@ -221,11 +221,20 @@ export const ConnectionDrawer: FC<Props> = ({
                 </Group>
             }
         >
-            <ScrollArea h="calc(100vh - 60px)" offsetScrollbars>
-                <Stack p="xs" pb="xl">
+            <Box
+                h="calc(100vh - 60px)"
+                p="xs"
+                pb="xl"
+                style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden',
+                }}
+            >
+                <Stack gap="md" style={{ flexShrink: 0 }}>
                     <Stack gap="xs">
                         <Text fw={500} fz="sm">
-                            Test connection
+                            Test connection and add examples
                         </Text>
                         <Text c="ldGray.6" fz="xs">
                             Send a real request through this connection and
@@ -242,6 +251,7 @@ export const ConnectionDrawer: FC<Props> = ({
                             }}
                             data={['GET', 'POST']}
                             size="xs"
+                            mb="xxs"
                         />
                         <TextInput
                             label="Path"
@@ -346,18 +356,19 @@ export const ConnectionDrawer: FC<Props> = ({
                     )}
 
                     <Divider my="xs" />
+                </Stack>
 
-                    <Stack gap="xs">
-                        <Text fw={500} fz="sm">
-                            Saved samples
-                        </Text>
+                <Stack gap="xs" style={{ flex: 1, minHeight: 0 }}>
+                    <Text fw={500} fz="sm">
+                        Saved samples
+                    </Text>
 
-                        {samples && samples.length > 0 ? (
-                            <Stack
-                                gap="xs"
-                                mah={400}
-                                style={{ overflowY: 'auto' }}
-                            >
+                    {samples && samples.length > 0 ? (
+                        <ScrollArea
+                            offsetScrollbars
+                            style={{ flex: 1, minHeight: 0 }}
+                        >
+                            <Stack gap="xs" pr="xs">
                                 {samples.map((sample) => (
                                     <SampleRow
                                         key={sample.sampleUuid}
@@ -370,15 +381,14 @@ export const ConnectionDrawer: FC<Props> = ({
                                     />
                                 ))}
                             </Stack>
-                        ) : (
-                            <Text fz="xs" c="ldGray.6">
-                                No saved samples yet — run a test above and save
-                                it.
-                            </Text>
-                        )}
-                    </Stack>
+                        </ScrollArea>
+                    ) : (
+                        <Text fz="xs" c="ldGray.6">
+                            No saved samples yet — run a test above and save it.
+                        </Text>
+                    )}
                 </Stack>
-            </ScrollArea>
+            </Box>
         </Drawer>
     );
 };

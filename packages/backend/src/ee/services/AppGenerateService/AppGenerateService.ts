@@ -30,6 +30,7 @@ import {
     type AppExternalConnectionReference,
     type AppGeneratePipelineJobPayload,
     type AppVersionChartResource,
+    type AppVersionExternalConnectionResource,
     type AppVersionResources,
     type CatalogItemSummary,
     type ChartReference,
@@ -430,19 +431,36 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         appId: string,
         externalConnections: AppExternalConnectionReference[] | undefined,
-    ): Promise<void> {
-        if (!externalConnections || externalConnections.length === 0) return;
+    ): Promise<AppVersionExternalConnectionResource[]> {
+        const resolved = await this.resolveExternalConnectionResources(
+            user,
+            projectUuid,
+            appId,
+            externalConnections,
+        );
+        await this.linkResolvedExternalConnections(appId, resolved);
+        return resolved;
+    }
+
+    private async resolveExternalConnectionResources(
+        user: SessionUser,
+        projectUuid: string,
+        appId: string,
+        externalConnections: AppExternalConnectionReference[] | undefined,
+    ): Promise<AppVersionExternalConnectionResource[]> {
+        if (!externalConnections || externalConnections.length === 0) return [];
         if (
             !(await this.externalAccessEnabledFor({
                 userUuid: user.userUuid,
                 organizationUuid: user.organizationUuid,
             }))
         )
-            return;
+            return [];
         // Authorize against the connection resource the same way the admin API
         // (ExternalConnectionService.linkToApp) does — generation must not be a
         // weaker door to attaching a credentialed connection to an app.
         const ability = this.createAuditedAbility(user);
+        const resolved: AppVersionExternalConnectionResource[] = [];
         for (const conn of externalConnections) {
             // eslint-disable-next-line no-await-in-loop
             const connection = await this.externalConnectionModel.findByUuid(
@@ -475,6 +493,20 @@ export class AppGenerateService extends BaseService {
                     'You do not have permission to link this external connection',
                 );
             }
+            resolved.push({
+                externalConnectionUuid: conn.externalConnectionUuid,
+                name: connection.name,
+                alias: conn.alias,
+            });
+        }
+        return resolved;
+    }
+
+    private async linkResolvedExternalConnections(
+        appId: string,
+        connections: AppVersionExternalConnectionResource[],
+    ): Promise<void> {
+        for (const conn of connections) {
             // eslint-disable-next-line no-await-in-loop
             await this.externalConnectionModel.linkToApp(
                 appId,
@@ -3571,6 +3603,13 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             chartResources,
             sampleStats,
         } = await this.resolveChartReferences(refs, user);
+        const externalConnectionResources =
+            await this.resolveExternalConnectionResources(
+                user,
+                projectUuid,
+                appUuid,
+                externalConnections,
+            );
 
         // Resolve theme: explicit pick wins, else fall back to org default.
         // `null` from the caller means "explicitly no theme" — don't fall
@@ -3612,6 +3651,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         const resources: AppVersionResources = {
             images: imageIds.map((id) => ({ imageId: id })),
             charts: chartResources,
+            externalConnections: externalConnectionResources,
             dashboardName,
             clarifications: clarifications ?? [],
             claudeModel,
@@ -3643,11 +3683,9 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             throw error;
         }
 
-        await this.linkExternalConnections(
-            user,
-            projectUuid,
+        await this.linkResolvedExternalConnections(
             appUuid,
-            externalConnections,
+            externalConnectionResources,
         );
 
         this.analytics.track({
@@ -3712,7 +3750,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             'Insufficient permissions to modify data apps',
         );
 
-        await this.linkExternalConnections(
+        const externalConnectionResources = await this.linkExternalConnections(
             user,
             projectUuid,
             appUuid,
@@ -3791,6 +3829,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         const resources: AppVersionResources = {
             images: imageIds.map((id) => ({ imageId: id })),
             charts: chartResources,
+            externalConnections: externalConnectionResources,
             dashboardName,
             clarifications: [],
             claudeModel,
@@ -4251,6 +4290,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         return {
             images: [],
             charts: sourceResources?.charts ?? [],
+            externalConnections: sourceResources?.externalConnections ?? [],
             dashboardName: sourceResources?.dashboardName ?? null,
             clarifications: [],
             ...(sourceResources?.claudeModel

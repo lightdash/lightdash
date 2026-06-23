@@ -125,6 +125,7 @@ import { getTemplate } from '../features/apps/templates';
 import {
     mergeChatMessages,
     type ChatChart,
+    type ChatConnection,
     type ChatMessage,
 } from '../features/apps/utils/mergeChatMessages';
 import { useAppExternalConnections } from '../features/externalConnections/hooks/useAppExternalConnections';
@@ -555,6 +556,8 @@ const AppGenerate: FC = () => {
     const sentImagesByPrompt = useRef(new Map<string, string[]>());
     // Maps prompt text → chart names so they survive the local→server transition
     const sentChartsByPrompt = useRef(new Map<string, ChatChart[]>());
+    // Maps prompt text → connection names so they survive the local→server transition
+    const sentConnectionsByPrompt = useRef(new Map<string, ChatConnection[]>());
     // Maps prompt text → dashboard name so it survives the local→server transition
     const sentDashboardByPrompt = useRef(new Map<string, string>());
     // Track appUuid in local state so polling starts immediately after creation
@@ -752,6 +755,16 @@ const AppGenerate: FC = () => {
                 serverCharts.length > 0
                     ? serverCharts
                     : (sentChartsByPrompt.current.get(v.prompt) ?? []);
+            const serverConnections: ChatConnection[] =
+                v.resources?.externalConnections?.map((c) => ({
+                    externalConnectionUuid: c.externalConnectionUuid,
+                    name: c.name,
+                    alias: c.alias,
+                })) ?? [];
+            const externalConnections =
+                serverConnections.length > 0
+                    ? serverConnections
+                    : (sentConnectionsByPrompt.current.get(v.prompt) ?? []);
             const imageResourceIds =
                 v.resources?.images.map((img) => img.imageId) ?? [];
             const imagePreviewUrls =
@@ -777,6 +790,7 @@ const AppGenerate: FC = () => {
                     imagePreviewUrls,
                     imageResourceIds,
                     charts,
+                    externalConnections,
                     dashboardName,
                     clarifications,
                     appUuid: null,
@@ -796,6 +810,7 @@ const AppGenerate: FC = () => {
                     imagePreviewUrls: [],
                     imageResourceIds: [],
                     charts: [],
+                    externalConnections: [],
                     dashboardName: null,
                     clarifications: [],
                     appUuid: activeAppUuid ?? null,
@@ -812,6 +827,7 @@ const AppGenerate: FC = () => {
                     imagePreviewUrls: [],
                     imageResourceIds: [],
                     charts: [],
+                    externalConnections: [],
                     dashboardName: null,
                     clarifications: [],
                     appUuid: null,
@@ -982,6 +998,7 @@ const AppGenerate: FC = () => {
                     imagePreviewUrls: [],
                     imageResourceIds: [],
                     charts: [],
+                    externalConnections: [],
                     dashboardName: null,
                     clarifications: [],
                     appUuid: null,
@@ -1024,6 +1041,7 @@ const AppGenerate: FC = () => {
                                 imagePreviewUrls: [],
                                 imageResourceIds: [],
                                 charts: [],
+                                externalConnections: [],
                                 dashboardName: null,
                                 clarifications: [],
                                 appUuid: null,
@@ -1399,6 +1417,7 @@ const AppGenerate: FC = () => {
                     imagePreviewUrls: [],
                     imageResourceIds: [],
                     charts: [],
+                    externalConnections: [],
                     dashboardName: null,
                     clarifications: [],
                     appUuid: null,
@@ -1498,6 +1517,16 @@ const AppGenerate: FC = () => {
             if (sentCharts.length > 0) {
                 sentChartsByPrompt.current.set(trimmed, sentCharts);
             }
+            const sentConnections: ChatConnection[] = selectedConnections.map(
+                (c) => ({
+                    externalConnectionUuid: c.externalConnectionUuid,
+                    name: c.name,
+                    alias: c.alias,
+                }),
+            );
+            if (sentConnections.length > 0) {
+                sentConnectionsByPrompt.current.set(trimmed, sentConnections);
+            }
             const sentDashboardName = selectedDashboard?.name ?? null;
             if (sentDashboardName) {
                 sentDashboardByPrompt.current.set(trimmed, sentDashboardName);
@@ -1518,6 +1547,7 @@ const AppGenerate: FC = () => {
                     imagePreviewUrls: sentImageUrls,
                     imageResourceIds: [],
                     charts: sentCharts,
+                    externalConnections: sentConnections,
                     dashboardName: sentDashboardName,
                     clarifications: [],
                     appUuid: null,
@@ -1883,6 +1913,60 @@ const AppGenerate: FC = () => {
                                                                             >
                                                                                 {
                                                                                     chart.name
+                                                                                }
+                                                                            </Text>
+                                                                        </Box>
+                                                                    ),
+                                                                )}
+                                                            </Box>
+                                                        )}
+                                                        {msg.externalConnections
+                                                            .length > 0 && (
+                                                            <Box
+                                                                mt="xs"
+                                                                className={
+                                                                    classes.bubbleQueryList
+                                                                }
+                                                            >
+                                                                {msg.externalConnections.map(
+                                                                    (
+                                                                        connection,
+                                                                    ) => (
+                                                                        <Box
+                                                                            key={
+                                                                                connection.externalConnectionUuid
+                                                                            }
+                                                                            className={
+                                                                                classes.bubbleQueryItem
+                                                                            }
+                                                                            title={`Alias: ${connection.alias}`}
+                                                                        >
+                                                                            <Box
+                                                                                className={
+                                                                                    classes.bubbleQueryItemIcon
+                                                                                }
+                                                                            >
+                                                                                <MantineIcon
+                                                                                    icon={
+                                                                                        IconPlugConnected
+                                                                                    }
+                                                                                    size={
+                                                                                        12
+                                                                                    }
+                                                                                    color="violet.6"
+                                                                                />
+                                                                            </Box>
+                                                                            <Text
+                                                                                fw={
+                                                                                    500
+                                                                                }
+                                                                                truncate
+                                                                                className={
+                                                                                    classes.bubbleQueryItemName
+                                                                                }
+                                                                            >
+                                                                                {
+                                                                                    connection.name
                                                                                 }
                                                                             </Text>
                                                                         </Box>

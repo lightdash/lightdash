@@ -179,6 +179,12 @@ export type AppVersionChartResource = {
     chartKind: string | null;
 };
 
+export type AppVersionExternalConnectionResource = {
+    externalConnectionUuid: string;
+    name: string;
+    alias: string;
+};
+
 export type AppVersionDesignSnapshot = {
     designUuid: string;
     name: string;
@@ -188,6 +194,7 @@ export type AppVersionDesignSnapshot = {
 export type AppVersionResources = {
     images: AppVersionImageResource[];
     charts: AppVersionChartResource[];
+    externalConnections?: AppVersionExternalConnectionResource[];
     dashboardName: string | null;
     // Pre-build Q&A captured at the time of generation. Persisted alongside
     // the prompt so the chat history can render the clarifications as their
