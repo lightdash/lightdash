@@ -165,11 +165,15 @@ export const replaceLightdashValues = (
         replacementName = 'user attribute',
         cast,
         escapeString,
+        // Keys whose empty-string value is a legitimate value (substituted as quoted empty)
+        // rather than treated as missing. Used for reserved params like date_zoom.
+        allowEmptyKeys = new Set<string>(),
     }: {
         throwOnMissing?: boolean;
         replacementName?: 'user attribute' | 'parameter';
         cast?: 'DATE';
         escapeString?: (value: string) => string;
+        allowEmptyKeys?: Set<string>;
     } = {},
 ): {
     replacedSql: string;
@@ -203,11 +207,16 @@ export const replaceLightdashValues = (
                 );
             }
 
-            if (
-                (isArray(attributeValues) && attributeValues.length === 0) ||
-                (typeof attributeValues === 'string' &&
-                    attributeValues.length === 0)
-            ) {
+            const isEmptyArray =
+                isArray(attributeValues) && attributeValues.length === 0;
+            const isEmptyString =
+                typeof attributeValues === 'string' &&
+                attributeValues.length === 0;
+            // An empty string is a valid value for allow-listed keys (e.g. reserved
+            // params): fall through to substitute it as a quoted empty value.
+            const emptyIsAllowed =
+                isEmptyString && allowEmptyKeys.has(attribute);
+            if ((isEmptyArray || isEmptyString) && !emptyIsAllowed) {
                 missingReferences.add(attribute);
                 if (!throwOnMissing) return acc;
                 throw new ForbiddenError(

@@ -90,6 +90,7 @@ export const safeReplaceParameters = ({
     quoteChar,
     wrapChar,
     cast,
+    allowEmptyKeys,
 }: {
     sql: string;
     parameterValuesMap: ParametersValuesMap;
@@ -97,6 +98,7 @@ export const safeReplaceParameters = ({
     quoteChar: string;
     wrapChar?: string;
     cast?: 'DATE';
+    allowEmptyKeys?: Set<string>;
 }) => {
     // Don't allow empty quote char
     if (quoteChar === '') {
@@ -115,6 +117,7 @@ export const safeReplaceParameters = ({
             replacementName: 'parameter',
             throwOnMissing: false,
             cast,
+            allowEmptyKeys,
         },
     );
 };
@@ -184,6 +187,16 @@ export const safeReplaceParametersWithTypes = ({
         sqlBuilder.escapeString.bind(sqlBuilder),
     );
 
+    // An empty reserved value (e.g. no date zoom applied) is a valid value, not missing:
+    // allow-list these keys so an empty string substitutes as a quoted empty value rather
+    // than being treated as missing. Non-reserved empty params stay missing.
+    const allowEmptyKeys = new Set(
+        Object.keys(parameterValuesMap).filter(
+            (key) =>
+                isReservedParameterName(key) && parameterValuesMap[key] === '',
+        ),
+    );
+
     // First, get all parameter references from the original SQL using the standard function
     // This ensures we capture ALL parameter references, not just the ones we have values for
     const allParametersResult = safeReplaceParameters({
@@ -192,6 +205,7 @@ export const safeReplaceParametersWithTypes = ({
         escapeString: sqlBuilder.escapeString.bind(sqlBuilder),
         quoteChar: sqlBuilder.getStringQuoteChar(),
         wrapChar,
+        allowEmptyKeys,
     });
 
     // Liquid blocks (e.g. `{% if ld.parameters.x == "y" %}...{% endif %}`) reference parameters
@@ -201,15 +215,6 @@ export const safeReplaceParametersWithTypes = ({
     getParameterReferences(sql).forEach((ref) => {
         allParametersResult.references.add(ref);
     });
-
-    // An empty reserved value (e.g. no date zoom applied) is valid, not missing: drop it
-    // from the missing set and substitute its token as an empty value below.
-    const emptyReservedParameterNames = Object.keys(parameterValuesMap).filter(
-        (key) => isReservedParameterName(key) && parameterValuesMap[key] === '',
-    );
-    emptyReservedParameterNames.forEach((key) =>
-        allParametersResult.missingReferences.delete(key),
-    );
 
     // If no parameter definitions are provided, use the standard replacement
     if (!parameterDefinitions) {
@@ -222,11 +227,6 @@ export const safeReplaceParametersWithTypes = ({
     const dateParameters: ParametersValuesMap = {};
 
     Object.entries(parameterValuesMap).forEach(([key, value]) => {
-        // Empty reserved parameters are substituted as an empty value separately below.
-        if (emptyReservedParameterNames.includes(key)) {
-            return;
-        }
-
         const paramDef = parameterDefinitions?.[key];
         const paramType = paramDef?.type;
 
@@ -260,6 +260,7 @@ export const safeReplaceParametersWithTypes = ({
             escapeString: sqlBuilder.escapeString.bind(sqlBuilder),
             quoteChar: sqlBuilder.getStringQuoteChar(),
             wrapChar,
+            allowEmptyKeys,
         });
         processedSql = stringResult.replacedSql;
     }
@@ -285,21 +286,6 @@ export const safeReplaceParametersWithTypes = ({
             sqlBuilder,
         );
         processedSql = numberResult.replacedSql;
-    }
-
-    // Substitute empty reserved parameters as a quoted empty value so no token is stranded.
-    if (emptyReservedParameterNames.length > 0) {
-        const quoteChar = sqlBuilder.getStringQuoteChar();
-        emptyReservedParameterNames.forEach((key) => {
-            const tokenRegex = new RegExp(
-                `\\$\\{(?:lightdash|ld)\\.parameters\\.${key}\\}`,
-                'g',
-            );
-            processedSql = processedSql.replace(
-                tokenRegex,
-                `${quoteChar}${quoteChar}`,
-            );
-        });
     }
 
     // Return the processed SQL but use the original references from the full parameter scan
