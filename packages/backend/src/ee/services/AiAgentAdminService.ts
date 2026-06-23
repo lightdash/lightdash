@@ -14,6 +14,7 @@ import {
     AiAgentReviewSignalSummary,
     AiAgentReviewWritebackJobPayload,
     AiAgentSummary,
+    AiReviewNotificationSettings,
     AlreadyExistsError,
     assertUnreachable,
     DbtProjectType,
@@ -32,6 +33,7 @@ import {
     PullRequestSource,
     RequestMethod,
     UpdateAiAgentReviewItemStatus,
+    UpdateAiReviewNotificationSettings,
     type AiAgentReviewItemWritebackBlockedReason,
     type AiAgentReviewItemWritebackEligibility,
     type AiAgentReviewItemWritebackPreview,
@@ -65,6 +67,7 @@ import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagS
 import { type ProjectService } from '../../services/ProjectService/ProjectService';
 import { AiAgentModel } from '../models/AiAgentModel';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
+import { type AiAgentReviewNotificationModel } from '../models/AiAgentReviewNotificationModel';
 import { type CommercialSchedulerClient } from '../scheduler/SchedulerClient';
 import {
     buildYmlPathByModel,
@@ -81,6 +84,7 @@ type AiAgentAdminServiceDependencies = {
     analytics: LightdashAnalytics;
     aiAgentModel: AiAgentModel;
     aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
+    aiAgentReviewNotificationModel: AiAgentReviewNotificationModel;
     aiAgentReviewNotificationService: AiAgentReviewNotificationService;
     aiAgentService: AiAgentService;
     featureFlagService: FeatureFlagService;
@@ -292,6 +296,8 @@ export class AiAgentAdminService extends BaseService {
 
     private readonly aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
 
+    private readonly aiAgentReviewNotificationModel: AiAgentReviewNotificationModel;
+
     private readonly aiAgentReviewNotificationService: AiAgentReviewNotificationService;
 
     private readonly aiAgentService: AiAgentService;
@@ -326,6 +332,8 @@ export class AiAgentAdminService extends BaseService {
         this.aiAgentModel = dependencies.aiAgentModel;
         this.aiAgentReviewClassifierModel =
             dependencies.aiAgentReviewClassifierModel;
+        this.aiAgentReviewNotificationModel =
+            dependencies.aiAgentReviewNotificationModel;
         this.aiAgentReviewNotificationService =
             dependencies.aiAgentReviewNotificationService;
         this.aiAgentService = dependencies.aiAgentService;
@@ -440,6 +448,36 @@ export class AiAgentAdminService extends BaseService {
         this.checkOrganizationAdminAccess(user);
         return this.aiAgentModel.findAllAgents({
             organizationUuid,
+        });
+    }
+
+    async getReviewNotificationSettings(
+        user: SessionUser,
+    ): Promise<AiReviewNotificationSettings> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkReviewAccess(user, organizationUuid);
+
+        return this.aiAgentReviewNotificationModel.getSettings(
+            organizationUuid,
+        );
+    }
+
+    async updateReviewNotificationSettings(
+        user: SessionUser,
+        settings: UpdateAiReviewNotificationSettings,
+    ): Promise<AiReviewNotificationSettings> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkOrganizationAdminAccess(user);
+
+        return this.aiAgentReviewNotificationModel.upsertSettings({
+            organizationUuid,
+            ...settings,
         });
     }
 

@@ -33,6 +33,7 @@ import type {
     ApiAiGenerateTableCalculationResponse,
     ApiAiGetDashboardSummaryResponse,
     ApiAiOrganizationSettingsResponse,
+    ApiAiReviewNotificationSettingsResponse,
     ApiAiRouterDecisionCommitResponse,
     ApiAiRouterDecisionListResponse,
     ApiAiRouterInstructionResponse,
@@ -1126,6 +1127,7 @@ type ApiResults =
     | ApiGetChangeResponse['results']
     | ApiAiOrganizationSettingsResponse['results']
     | ApiUpdateAiOrganizationSettingsResponse['results']
+    | ApiAiReviewNotificationSettingsResponse['results']
     | ApiAiRouterResponse['results']
     | ApiAiRouterRouteResponse['results']
     | ApiAiRouterInstructionResponse['results']
