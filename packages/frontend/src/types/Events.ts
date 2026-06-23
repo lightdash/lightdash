@@ -170,7 +170,6 @@ export enum EventName {
     AI_AGENT_CHAT_MINIMIZED = 'ai_agent_chat.minimized',
     AI_AGENT_SUGGESTION_IMPRESSION = 'ai_agent.suggestion_impression',
     AI_AGENT_SUGGESTION_CLICK = 'ai_agent.suggestion_click',
-
     // Theme
     THEME_TOGGLED = 'theme.toggled',
 

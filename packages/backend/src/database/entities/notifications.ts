@@ -1,17 +1,19 @@
+import { type NotificationAiReview } from '@lightdash/common';
 import { Knex } from 'knex';
 
 export enum DbNotificationResourceType {
     DashboardComments = 'dashboard_comments',
+    AiReviewItem = 'ai_review_item',
 }
 
 export const NotificationsTableName = 'notifications';
 
-interface NotificationDashboardTileCommentMetadata {
+export type DbNotificationDashboardTileCommentMetadata = {
     dashboard_uuid: string;
     dashboard_name: string;
     dashboard_tile_uuid: string;
     dashboard_tile_name: string;
-}
+};
 
 type DbNotifications = {
     notification_id: string;
@@ -22,7 +24,10 @@ type DbNotifications = {
     message: string | null;
     url: string | null;
     resource_type: DbNotificationResourceType;
-    metadata: NotificationDashboardTileCommentMetadata | null;
+    metadata:
+        | DbNotificationDashboardTileCommentMetadata
+        | NotificationAiReview['metadata']
+        | null;
 };
 
 type DbNotificationsInsertComment = Pick<

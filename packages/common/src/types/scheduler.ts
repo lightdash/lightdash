@@ -1,3 +1,4 @@
+import { type AiReviewNotificationEvent } from '../ee/types/aiReviewNotification';
 import assertUnreachable from '../utils/assertUnreachable';
 import { type AnyType } from './any';
 import { type ApiSuccess } from './api/success';
@@ -816,4 +817,15 @@ export type SyncSlackChannelsPayload = Pick<
 > & {
     projectUuid: undefined;
     userUuid: undefined;
+};
+
+export type SendReviewNotificationPayload = {
+    organizationUuid: string;
+    event: AiReviewNotificationEvent;
+    fingerprints: string[];
+    projectUuid: string;
+    assigneeUserUuid: string | null;
+    reviewRunUuid: string | null;
+    schedulerUuid?: string;
+    userUuid?: string;
 };

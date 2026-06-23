@@ -13,6 +13,7 @@ export * as preAggregateUtils from './preAggregates/utils';
 export * from './scim/errors';
 export * from './scim/types';
 export * from './serviceAccounts/types';
+export * from './types/aiReviewNotification';
 export * from './types/managedAgent';
 
 export enum ScimSchemaType {

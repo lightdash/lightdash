@@ -11,6 +11,7 @@ import {
     ApiAiAgentReviewSignalsResponse,
     ApiAiAgentSummaryResponse,
     ApiAiOrganizationSettingsResponse,
+    ApiAiReviewNotificationSettingsResponse,
     ApiErrorPayload,
     ApiSuccessEmpty,
     ApiUpdateAiOrganizationSettingsResponse,
@@ -20,6 +21,7 @@ import {
     UpdateAiAgentReviewItemAssignee,
     UpdateAiAgentReviewItemStatus,
     UpdateAiOrganizationSettings,
+    UpdateAiReviewNotificationSettings,
     type ApiAiAgentReviewItemWritebackPreviewResponse,
 } from '@lightdash/common';
 import {
@@ -31,6 +33,7 @@ import {
     Patch,
     Path,
     Post,
+    Put,
     Query,
     Request,
     Response,
@@ -487,6 +490,56 @@ export class AiAgentAdminController extends BaseController {
         return {
             status: 'ok',
             results,
+        };
+    }
+
+    /**
+     * Get AI review notification settings
+     * @summary Get AI review notification settings
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/review-notification-settings')
+    @OperationId('getAiReviewNotificationSettings')
+    async getReviewNotificationSettings(
+        @Request() req: express.Request,
+    ): Promise<ApiAiReviewNotificationSettingsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getAiAgentAdminService().getReviewNotificationSettings(
+                    toSessionUser(req.account),
+                ),
+        };
+    }
+
+    /**
+     * Update AI review notification settings
+     * @summary Update AI review notification settings
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Put('/review-notification-settings')
+    @OperationId('updateAiReviewNotificationSettings')
+    async updateReviewNotificationSettings(
+        @Request() req: express.Request,
+        @Body() body: UpdateAiReviewNotificationSettings,
+    ): Promise<ApiAiReviewNotificationSettingsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getAiAgentAdminService().updateReviewNotificationSettings(
+                    toSessionUser(req.account),
+                    body,
+                ),
         };
     }
 

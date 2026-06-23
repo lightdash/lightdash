@@ -5,10 +5,12 @@ import {
     DashboardDAO,
     DashboardTile,
     LightdashUser,
+    NotificationAiReview,
     NotificationDashboardComment,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
+    DbNotificationDashboardTileCommentMetadata,
     DbNotificationResourceType,
     NotificationsTableName,
 } from '../../database/entities/notifications';
@@ -36,22 +38,51 @@ export class NotificationsModel {
             )
             .orderBy(`${NotificationsTableName}.created_at`, 'desc');
 
+        return notifications.map((notif) => {
+            const metadata =
+                notif.metadata as DbNotificationDashboardTileCommentMetadata | null;
+
+            return {
+                notificationId: notif.notification_id,
+                resourceType: ApiNotificationResourceType.DashboardComments,
+                message: notif.message ?? undefined,
+                url: notif.url ?? undefined,
+                viewed: notif.viewed,
+                createdAt: notif.created_at,
+                resourceUuid: notif.resource_uuid ?? undefined,
+                metadata: metadata
+                    ? {
+                          dashboardUuid: metadata.dashboard_uuid,
+                          dashboardName: metadata.dashboard_name,
+                          dashboardTileUuid: metadata.dashboard_tile_uuid,
+                          dashboardTileName: metadata.dashboard_tile_name,
+                      }
+                    : undefined,
+            };
+        });
+    }
+
+    async getAiReviewNotifications(
+        userUuid: string,
+    ): Promise<NotificationAiReview[]> {
+        const notifications = await this.database(NotificationsTableName)
+            .select()
+            .where(`${NotificationsTableName}.user_uuid`, userUuid)
+            .andWhere(
+                `${NotificationsTableName}.resource_type`,
+                DbNotificationResourceType.AiReviewItem,
+            )
+            .orderBy(`${NotificationsTableName}.created_at`, 'desc');
+
         return notifications.map((notif) => ({
             notificationId: notif.notification_id,
-            resourceType: ApiNotificationResourceType.DashboardComments,
+            resourceType: ApiNotificationResourceType.AiReview,
             message: notif.message ?? undefined,
             url: notif.url ?? undefined,
             viewed: notif.viewed,
             createdAt: notif.created_at,
             resourceUuid: notif.resource_uuid ?? undefined,
-            metadata: notif.metadata
-                ? {
-                      dashboardUuid: notif.metadata.dashboard_uuid,
-                      dashboardName: notif.metadata.dashboard_name,
-                      dashboardTileUuid: notif.metadata.dashboard_tile_uuid,
-                      dashboardTileName: notif.metadata.dashboard_tile_name,
-                  }
-                : undefined,
+            metadata: notif.metadata as NotificationAiReview['metadata'],
         }));
     }
 
@@ -125,6 +156,31 @@ export class NotificationsModel {
                         }),
                     });
                 }
+            }),
+        );
+    }
+
+    async createAiReviewNotifications({
+        recipients,
+        metadata,
+        message,
+        url,
+    }: {
+        recipients: { userUuid: string }[];
+        metadata: NotificationAiReview['metadata'];
+        message: string;
+        url: string;
+    }): Promise<void> {
+        await Promise.all(
+            recipients.map(async ({ userUuid }) => {
+                await this.database(NotificationsTableName).insert({
+                    user_uuid: userUuid,
+                    resource_uuid: metadata.fingerprint,
+                    resource_type: DbNotificationResourceType.AiReviewItem,
+                    message,
+                    url,
+                    metadata: JSON.stringify(metadata),
+                });
             }),
         );
     }

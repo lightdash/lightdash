@@ -203,6 +203,12 @@ const getTagsForTask: {
         'ai_agent_review.remediation_uuid': payload.remediationUuid,
     }),
 
+    [SCHEDULER_TASKS.SEND_REVIEW_NOTIFICATION]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'project.uuid': payload.projectUuid,
+        'user.uuid': payload.userUuid ?? '',
+    }),
+
     [SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,
