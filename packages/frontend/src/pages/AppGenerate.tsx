@@ -121,7 +121,6 @@ import { useTrackedAppQueries } from '../features/apps/hooks/useTrackedAppQuerie
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
 import QueryInspector from '../features/apps/QueryInspector';
 import { getTemplate } from '../features/apps/templates';
-import { ThemePicker } from '../features/organizationDesigns/components/ThemePicker';
 import {
     mergeChatMessages,
     type ChatChart,
@@ -129,6 +128,7 @@ import {
     type ChatMessage,
 } from '../features/apps/utils/mergeChatMessages';
 import { useAppExternalConnections } from '../features/externalConnections/hooks/useAppExternalConnections';
+import { ThemePicker } from '../features/organizationDesigns/components/ThemePicker';
 import { useOrganizationDesigns } from '../features/organizationDesigns/hooks/useOrganizationDesigns';
 import useToaster from '../hooks/toaster/useToaster';
 import { useContentAction } from '../hooks/useContent';
@@ -1263,6 +1263,21 @@ const AppGenerate: FC = () => {
     if (urlAppUuid && isLoadingApp) {
         return null;
     }
+    // Navigating to a soft-deleted (or never-existed) app's URL. Surface a
+    // not-found state before permission checks; missing app metadata cannot
+    // produce a meaningful manage decision.
+    if (urlAppUuid && appError?.error?.statusCode === 404) {
+        return (
+            <Box mt="30vh">
+                <SuboptimalState
+                    icon={IconAppsOff}
+                    title="Data app not found"
+                    description="This data app doesn't exist or has been deleted."
+                />
+            </Box>
+        );
+    }
+
     const userSpaceAccess = appSpaceUuid
         ? spaces.find((s) => s.uuid === appSpaceUuid)?.userAccess
         : undefined;
@@ -1285,21 +1300,6 @@ const AppGenerate: FC = () => {
           );
     if (!canAccessApp) {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;
-    }
-
-    // Navigating to a soft-deleted (or never-existed) app's URL. Surface a
-    // not-found state instead of silently falling through to new-app mode —
-    // otherwise a follow-up prompt would try to iterate a ghost app.
-    if (urlAppUuid && appError?.error?.statusCode === 404) {
-        return (
-            <Box mt="30vh">
-                <SuboptimalState
-                    icon={IconAppsOff}
-                    title="Data app not found"
-                    description="This data app doesn't exist or has been deleted."
-                />
-            </Box>
-        );
     }
 
     if (!projectUuid) {
@@ -1799,8 +1799,8 @@ const AppGenerate: FC = () => {
                                         Build a Data App
                                     </Text>
                                     <Text size="sm" c="dimmed">
-                                        Pick a starting point, then describe what
-                                        you want to build.
+                                        Pick a starting point, then describe
+                                        what you want to build.
                                     </Text>
                                 </Stack>
                                 <AppTemplatePicker
@@ -2396,16 +2396,16 @@ const AppGenerate: FC = () => {
                                     onChange={handleFileInputChange}
                                     hidden
                                 />
-                                {(displayTemplate ||
-                                    displayThemeName ||
+                                {((!newAppLanding &&
+                                    (displayTemplate || displayThemeName)) ||
                                     availableConnectionAliases.length > 0) && (
                                     <Group gap="xs" pb="xs">
-                                        {displayTemplate && (
+                                        {!newAppLanding && displayTemplate && (
                                             <TemplateChip
                                                 template={displayTemplate}
                                             />
                                         )}
-                                        {displayThemeName && (
+                                        {!newAppLanding && displayThemeName && (
                                             <ThemeChip
                                                 themeName={displayThemeName}
                                                 selectedThemeUuid={
@@ -2569,18 +2569,29 @@ const AppGenerate: FC = () => {
                                             )}
                                             {newAppLanding &&
                                                 selectedTemplate !== null && (
-                                                    <Text
+                                                    <Button
+                                                        variant="default"
                                                         size="xs"
-                                                        c="dimmed"
+                                                        radius="xl"
+                                                        color="gray"
+                                                        h="auto"
+                                                        py={6}
                                                         className={
                                                             classes.startingFromChip
                                                         }
+                                                        title={`Starting from ${
+                                                            getTemplate(
+                                                                selectedTemplate,
+                                                            ).title
+                                                        }`}
                                                     >
-                                                        Starting from{' '}
                                                         <Text
                                                             span
+                                                            size="sm"
                                                             fw={600}
-                                                            c="dark"
+                                                            lh={1.2}
+                                                            c="inherit"
+                                                            lineClamp={1}
                                                         >
                                                             {
                                                                 getTemplate(
@@ -2588,60 +2599,66 @@ const AppGenerate: FC = () => {
                                                                 ).title
                                                             }
                                                         </Text>
-                                                    </Text>
+                                                    </Button>
                                                 )}
                                             <AttachButton
                                                 selectedCharts={selectedCharts}
-                                            onSelectChart={(chart) =>
-                                                setSelectedCharts((prev) => [
-                                                    ...prev,
-                                                    chart,
-                                                ])
-                                            }
-                                            onDeselectChart={(uuid) =>
-                                                setSelectedCharts((prev) =>
-                                                    prev.filter(
-                                                        (c) => c.uuid !== uuid,
-                                                    ),
-                                                )
-                                            }
-                                            selectedDashboard={
-                                                selectedDashboard
-                                            }
-                                            onSelectDashboard={
-                                                setSelectedDashboard
-                                            }
-                                            onDeselectDashboard={() =>
-                                                setSelectedDashboard(null)
-                                            }
-                                            selectedConnections={
-                                                selectedConnections
-                                            }
-                                            onSelectConnection={(connection) =>
-                                                setSelectedConnections(
-                                                    (prev) => [
-                                                        ...prev,
-                                                        connection,
-                                                    ],
-                                                )
-                                            }
-                                            onDeselectConnection={(uuid) =>
-                                                setSelectedConnections((prev) =>
-                                                    prev.filter(
-                                                        (c) =>
-                                                            c.externalConnectionUuid !==
-                                                            uuid,
-                                                    ),
-                                                )
-                                            }
-                                            onAddImages={() =>
-                                                fileInputRef.current?.click()
-                                            }
-                                            disabled={isLoading}
-                                            imagesDisabled={
-                                                imageAttachments.length >=
-                                                MAX_IMAGES_PER_VERSION
-                                            }
+                                                onSelectChart={(chart) =>
+                                                    setSelectedCharts(
+                                                        (prev) => [
+                                                            ...prev,
+                                                            chart,
+                                                        ],
+                                                    )
+                                                }
+                                                onDeselectChart={(uuid) =>
+                                                    setSelectedCharts((prev) =>
+                                                        prev.filter(
+                                                            (c) =>
+                                                                c.uuid !== uuid,
+                                                        ),
+                                                    )
+                                                }
+                                                selectedDashboard={
+                                                    selectedDashboard
+                                                }
+                                                onSelectDashboard={
+                                                    setSelectedDashboard
+                                                }
+                                                onDeselectDashboard={() =>
+                                                    setSelectedDashboard(null)
+                                                }
+                                                selectedConnections={
+                                                    selectedConnections
+                                                }
+                                                onSelectConnection={(
+                                                    connection,
+                                                ) =>
+                                                    setSelectedConnections(
+                                                        (prev) => [
+                                                            ...prev,
+                                                            connection,
+                                                        ],
+                                                    )
+                                                }
+                                                onDeselectConnection={(uuid) =>
+                                                    setSelectedConnections(
+                                                        (prev) =>
+                                                            prev.filter(
+                                                                (c) =>
+                                                                    c.externalConnectionUuid !==
+                                                                    uuid,
+                                                            ),
+                                                    )
+                                                }
+                                                onAddImages={() =>
+                                                    fileInputRef.current?.click()
+                                                }
+                                                disabled={isLoading}
+                                                imagesDisabled={
+                                                    imageAttachments.length >=
+                                                    MAX_IMAGES_PER_VERSION
+                                                }
                                             />
                                         </Group>
                                         <Group gap="xs">

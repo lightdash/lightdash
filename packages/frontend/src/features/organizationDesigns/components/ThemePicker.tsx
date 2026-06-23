@@ -8,7 +8,7 @@ import {
     Tooltip,
     UnstyledButton,
 } from '@mantine-8/core';
-import { IconCheck, IconChevronDown } from '@tabler/icons-react';
+import { IconBrush, IconCheck, IconChevronDown } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -61,7 +61,7 @@ export const ThemePicker: FC<Props> = ({
             py={6}
             onClick={() => setOpened((o) => !o)}
             disabled={disabled || lockedAfterCreation}
-            leftSection={<Box className={classes.swatch} />}
+            leftSection={<MantineIcon icon={IconBrush} size={14} />}
             rightSection={<MantineIcon icon={IconChevronDown} size={12} />}
             aria-label={`Theme: ${label}`}
         >

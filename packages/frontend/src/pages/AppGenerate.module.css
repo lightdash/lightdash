@@ -81,7 +81,7 @@
 .composeHeading {
     text-align: center;
     align-items: center;
-    padding: var(--mantine-spacing-md) var(--mantine-spacing-xl) 0;
+    padding: var(--mantine-spacing-xl) var(--mantine-spacing-xl) 0;
 }
 
 .composeTitle {
@@ -89,18 +89,19 @@
 }
 
 .startingFromChip {
-    white-space: nowrap;
     align-self: center;
+    max-width: 220px;
 }
 
 .chatPanelCompose {
     position: relative;
+    justify-content: center;
     max-width: 760px;
     width: 100%;
     margin: 0 auto;
     /* Shared height with the template picker so the View Transition between
        them only morphs width/position — no jarring height jump. */
-    height: min(600px, calc(100vh - 140px));
+    height: min(720px, calc(100vh - 96px));
     border-radius: var(--mantine-radius-lg);
     border: 1px solid;
     overflow: hidden;
@@ -121,6 +122,31 @@
     }
 }
 
+/* Three traffic-light dots, echoing the data-app (window) icon. */
+.chatPanelCompose::before {
+    content: '';
+    position: absolute;
+    top: 18px;
+    left: 22px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    z-index: 1;
+
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-3);
+        box-shadow:
+            14px 0 0 var(--mantine-color-ldGray-3),
+            28px 0 0 var(--mantine-color-ldGray-3);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-dark-3);
+        box-shadow:
+            14px 0 0 var(--mantine-color-dark-3),
+            28px 0 0 var(--mantine-color-dark-3);
+    }
+}
+
 .chatMessages {
     flex: 1;
     min-height: 0;
@@ -129,6 +155,11 @@
     display: flex;
     flex-direction: column;
     gap: var(--mantine-spacing-lg);
+}
+
+.chatPanelCompose .chatMessages {
+    flex: 0 0 auto;
+    padding: 0;
 }
 
 .emptyChat {
@@ -141,6 +172,10 @@
     padding: var(--mantine-spacing-xl);
     padding-top: 50px;
     text-align: center;
+}
+
+.chatPanelCompose .emptyChat {
+    display: none;
 }
 
 .userMessage {
@@ -197,7 +232,10 @@
 }
 
 .chatInputArea {
-    flex-shrink: 0;
+    flex: 0 1 auto;
+    min-height: 0;
+    max-height: 46%;
+    overflow-y: auto;
     padding: var(--mantine-spacing-sm) var(--mantine-spacing-sm) 48px;
     border-top: 1px solid;
 
@@ -207,6 +245,11 @@
     @mixin dark {
         border-color: var(--mantine-color-ldDark-4);
     }
+}
+
+.chatPanelCompose .chatInputArea {
+    border-top: 0;
+    padding-top: var(--mantine-spacing-xl);
 }
 
 .inputWrapper {
