@@ -11,7 +11,7 @@ import {
 } from '../parameters/reservedParameters';
 import lightdashDbtYamlSchema from '../schemas/json/lightdash-dbt-2.0.json';
 import { CompileError } from '../types/errors';
-import type { CompiledTable, Table } from '../types/explore';
+import type { CompiledTable, Explore, Table } from '../types/explore';
 import type { LightdashProjectParameter } from '../types/lightdashProjectConfig';
 import type {
     ParameterDefinitions,
@@ -185,6 +185,34 @@ export const getAvailableParametersFromTables = (
             ...tableParameters,
         };
     }, {});
+
+/** Table-scoped plus explore-level parameter definitions for an explore (empty when absent). */
+export const getExploreParameterDefinitions = (
+    explore: Explore | undefined,
+): Record<string, LightdashProjectParameter> =>
+    explore
+        ? {
+              ...getAvailableParametersFromTables(
+                  Object.values(explore.tables),
+              ),
+              ...(explore.parameters ?? {}),
+          }
+        : {};
+
+/**
+ * The subset of user parameter definitions that are actually referenced. A referenced
+ * name with no user definition (e.g. a reserved system variable referenced on its own)
+ * is excluded, so callers only surface user-editable parameters.
+ */
+export const getReferencedParameterDefinitions = (
+    definitions: Record<string, LightdashProjectParameter>,
+    references: string[] | undefined,
+): Record<string, LightdashProjectParameter> =>
+    Object.fromEntries(
+        Object.entries(definitions).filter(([key]) =>
+            references?.includes(key),
+        ),
+    );
 
 /**
  * Validate parameter names. Only bad-pattern names are invalid; names colliding with a

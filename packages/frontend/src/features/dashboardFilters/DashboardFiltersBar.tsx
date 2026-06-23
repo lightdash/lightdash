@@ -25,6 +25,7 @@ type Props = {
     hasTilesThatSupportFilters: boolean;
     hasDashboardTiles: boolean;
     parameters: Record<string, LightdashProjectParameter>;
+    shadowedReservedNames: string[];
     parameterValues: ParametersValuesMap;
     onParameterChange: (key: string, value: ParameterValue | null) => void;
     onParameterClearAll: () => void;
@@ -44,6 +45,7 @@ export const DashboardFiltersBar: FC<Props> = ({
     hasTilesThatSupportFilters,
     hasDashboardTiles,
     parameters,
+    shadowedReservedNames,
     parameterValues,
     onParameterChange,
     onParameterClearAll,
@@ -131,6 +133,9 @@ export const DashboardFiltersBar: FC<Props> = ({
                                         onParameterChange={onParameterChange}
                                         onClearAll={onParameterClearAll}
                                         parameters={parameters}
+                                        shadowedReservedNames={
+                                            shadowedReservedNames
+                                        }
                                         isLoading={isParameterLoading}
                                         missingRequiredParameters={
                                             missingRequiredParameters

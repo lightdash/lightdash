@@ -32,6 +32,7 @@ type Props = {
     separator?: ReactNode;
     triggerClassName?: string;
     dropdownClassName?: string;
+    shadowedReservedNames?: string[];
 };
 
 export const Parameters: FC<Props> = ({
@@ -46,6 +47,7 @@ export const Parameters: FC<Props> = ({
     onParameterReorder,
     triggerClassName,
     dropdownClassName,
+    shadowedReservedNames = [],
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [openPopoverId, setOpenPopoverId] = useState<string | undefined>();
@@ -147,6 +149,7 @@ export const Parameters: FC<Props> = ({
                                 )}
                                 isEditMode={isEditMode}
                                 isDraggable={isEditMode}
+                                shadowedReservedNames={shadowedReservedNames}
                             />
                         </DraggableItem>
                     </DroppableArea>

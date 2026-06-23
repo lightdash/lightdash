@@ -1,3 +1,7 @@
+import {
+    getReferencedParameterDefinitions,
+    getShadowedReservedNames,
+} from '@lightdash/common';
 import { Box } from '@mantine-8/core';
 import { memo, useCallback, useMemo } from 'react';
 import {
@@ -38,13 +42,23 @@ const ParametersCard = memo(
             [dispatch],
         );
 
-        const filteredParameterDefinitions = useMemo(() => {
-            return Object.fromEntries(
-                Object.entries(parameterDefinitions).filter(([key]) =>
-                    parameterReferences?.includes(key),
+        const filteredParameterDefinitions = useMemo(
+            () =>
+                getReferencedParameterDefinitions(
+                    parameterDefinitions,
+                    parameterReferences,
                 ),
-            );
-        }, [parameterDefinitions, parameterReferences]);
+            [parameterDefinitions, parameterReferences],
+        );
+
+        // User params sharing a reserved name shadow it; flag them as overriding it.
+        const shadowedReservedNames = useMemo(
+            () =>
+                getShadowedReservedNames(
+                    Object.keys(filteredParameterDefinitions),
+                ),
+            [filteredParameterDefinitions],
+        );
 
         const setParameter = useCallback(
             (
@@ -88,6 +102,7 @@ const ParametersCard = memo(
                         cols={2}
                         projectUuid={projectUuid}
                         disabled={!isEditMode}
+                        shadowedReservedNames={shadowedReservedNames}
                     />
                 </Box>
             </CollapsableCard>

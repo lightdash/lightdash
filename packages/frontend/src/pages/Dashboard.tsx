@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    getShadowedReservedNames,
     ContentType,
     DateGranularity,
     type UpdateDashboard,
@@ -190,6 +191,11 @@ const Dashboard: FC = () => {
             ),
         );
     }, [parameterDefinitions, parameterReferences]);
+
+    const shadowedReservedNames = useMemo(
+        () => getShadowedReservedNames(Object.keys(referencedParameters)),
+        [referencedParameters],
+    );
 
     const {
         enabled: isFullScreenFeatureEnabled,
@@ -885,6 +891,7 @@ const Dashboard: FC = () => {
                         hasTilesThatSupportFilters={hasTilesThatSupportFilters}
                         // parameters
                         parameters={referencedParameters}
+                        shadowedReservedNames={shadowedReservedNames}
                         parameterValues={parameterValues}
                         onParameterChange={handleParameterChange}
                         onParameterClearAll={clearAllParameters}

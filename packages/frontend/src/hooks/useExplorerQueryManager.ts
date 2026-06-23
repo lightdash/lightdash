@@ -1,4 +1,4 @@
-import { type FieldId } from '@lightdash/common';
+import { getMissingRequiredParameters, type FieldId } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 import { useParams } from 'react-router';
 import useEmbed from '../ee/providers/Embed/useEmbed';
@@ -103,13 +103,11 @@ export const useExplorerQueryManager = () => {
     const missingRequiredParameters = useMemo(() => {
         if (parameterReferences === null) return null;
 
-        // Missing required parameters are the ones that are not set and don't have a default value
-        const missing = parameterReferences.filter(
-            (parameter) =>
-                !parameters?.[parameter] &&
-                !parameterDefinitions?.[parameter]?.default,
+        return getMissingRequiredParameters(
+            parameterReferences,
+            parameters,
+            parameterDefinitions,
         );
-        return missing;
     }, [parameterReferences, parameters, parameterDefinitions]);
 
     // Dispatch functions for query UUID history

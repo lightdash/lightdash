@@ -1,8 +1,11 @@
 import {
     convertAdditionalMetric,
     getDimensions,
+    getExploreParameterDefinitions,
     getFieldRef,
     getItemId,
+    getReservedParameterDefinitions,
+    getShadowedReservedNames,
     type Field,
     type Metric,
 } from '@lightdash/common';
@@ -152,6 +155,35 @@ const TABLE_CALCULATION_FUNCTION_COMPLETIONS: Ace.Completion[] = [
     },
 ];
 
+// Reserved parameters resolve in custom SQL, so surface them alongside field completions.
+// Shadowed names are skipped (the user param wins); table calcs have no parameter pass yet.
+const mapReservedParametersToCompletions = (
+    shadowedReservedNames: string[],
+): Ace.Completion[] =>
+    Object.entries(getReservedParameterDefinitions()).reduce<Ace.Completion[]>(
+        (acc, [name, definition]) => {
+            if (shadowedReservedNames.includes(name)) {
+                return acc;
+            }
+            const reference = `\${ld.parameters.${name}}`;
+            // `docText` renders the description in the autocomplete doc tooltip. It is
+            // supported by ace's language-tools at runtime but missing from its types.
+            const technicalOption: Ace.Completion & { docText?: string } = {
+                caption: reference,
+                value: reference,
+                meta: 'System variable',
+                score: Number.MAX_VALUE,
+                docText: definition.description,
+            };
+            const friendlyOption: Ace.Completion = {
+                ...technicalOption,
+                caption: definition.label,
+            };
+            return [...acc, technicalOption, friendlyOption];
+        },
+        [],
+    );
+
 const mapCustomDimensionsToCompletions = (
     customDimensions: { id: string; name: string }[],
 ): Ace.Completion[] =>
@@ -287,7 +319,17 @@ export const useCustomDimensionsAceEditorCompleter = (): {
                 getDimensions(activeExplore),
                 'Dimension',
             );
-            langTools.setCompleters([createCompleter(fields)]);
+            const shadowedReservedNames = getShadowedReservedNames(
+                Object.keys(getExploreParameterDefinitions(activeExplore)),
+            );
+            langTools.setCompleters([
+                createCompleter([
+                    ...fields,
+                    ...mapReservedParametersToCompletions(
+                        shadowedReservedNames,
+                    ),
+                ]),
+            ]);
         }
         return () => {
             langTools.setCompleters([]);

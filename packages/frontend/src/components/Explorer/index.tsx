@@ -1,5 +1,8 @@
 import { subject } from '@casl/ability';
-import { getAvailableParametersFromTables } from '@lightdash/common';
+import {
+    getExploreParameterDefinitions,
+    getReferencedParameterDefinitions,
+} from '@lightdash/common';
 import { Stack } from '@mantine-8/core';
 import {
     memo,
@@ -179,11 +182,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
         );
 
         const exploreParameterDefinitions = useMemo(() => {
-            return explore
-                ? getAvailableParametersFromTables(
-                      Object.values(explore.tables),
-                  )
-                : {};
+            return getExploreParameterDefinitions(explore);
         }, [explore]);
 
         const parameterDefinitions = useMemo(() => {
@@ -198,6 +197,19 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                 explorerActions.setParameterDefinitions(parameterDefinitions),
             );
         }, [parameterDefinitions, dispatch]);
+
+        // Only user-editable parameters drive the Parameters card. A reserved system
+        // variable referenced on its own (no user definition) should not show the card.
+        const hasReferencedUserParameters = useMemo(
+            () =>
+                Object.keys(
+                    getReferencedParameterDefinitions(
+                        parameterDefinitions,
+                        parameterReferencesFromRedux ?? undefined,
+                    ),
+                ).length > 0,
+            [parameterDefinitions, parameterReferencesFromRedux],
+        );
 
         // Seed parameter values from virtual view's savedParameterValues
         // when no parameter values have been set yet
@@ -237,15 +249,13 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                             !savedChart && <RefreshDbtButton />
                         ))}
 
-                    {!!tableName &&
-                        parameterReferencesFromRedux &&
-                        parameterReferencesFromRedux?.length > 0 && (
-                            <ParametersCard
-                                parameterReferences={
-                                    parameterReferencesFromRedux
-                                }
-                            />
-                        )}
+                    {!!tableName && hasReferencedUserParameters && (
+                        <ParametersCard
+                            parameterReferences={
+                                parameterReferencesFromRedux ?? undefined
+                            }
+                        />
+                    )}
 
                     <FiltersCard />
 

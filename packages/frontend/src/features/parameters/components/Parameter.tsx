@@ -10,6 +10,7 @@ import {
     ActionIcon,
     Box,
     Button,
+    Group,
     Popover,
     Text,
     Tooltip,
@@ -20,6 +21,7 @@ import { useCallback, useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import styles from './Parameter.module.css';
 import { ParameterInput } from './ParameterInput';
+import { ShadowedReservedNameWarning } from './ShadowedReservedNameWarning';
 
 type Props = {
     paramKey: string;
@@ -36,6 +38,7 @@ type Props = {
     isDraggable?: boolean;
     triggerClassName?: string;
     dropdownClassName?: string;
+    shadowedReservedNames?: string[];
 };
 
 const Parameter: FC<Props> = ({
@@ -52,6 +55,7 @@ const Parameter: FC<Props> = ({
     isDraggable = false,
     triggerClassName,
     dropdownClassName,
+    shadowedReservedNames = [],
 }) => {
     const popoverId = useId();
     const isPopoverOpen = openPopoverId === popoverId;
@@ -93,6 +97,7 @@ const Parameter: FC<Props> = ({
 
     const hasValue = value !== null && value !== undefined && value !== '';
     const hasUnsetRequiredParameter = isRequired && !hasValue;
+    const hasShadowedReservedName = shadowedReservedNames.includes(paramKey);
 
     const handleClose = useCallback(() => {
         if (isPopoverOpen) onPopoverClose();
@@ -159,17 +164,24 @@ const Parameter: FC<Props> = ({
                             )
                         }
                         rightSection={
-                            hasValue && (
-                                <ActionIcon
-                                    onClick={handleClear}
-                                    size="xs"
-                                    color="dark"
-                                    radius="xl"
-                                    variant="subtle"
-                                >
-                                    <MantineIcon size="sm" icon={IconX} />
-                                </ActionIcon>
-                            )
+                            <Group gap={4} wrap="nowrap">
+                                {hasShadowedReservedName && (
+                                    <ShadowedReservedNameWarning
+                                        paramKey={paramKey}
+                                    />
+                                )}
+                                {hasValue && (
+                                    <ActionIcon
+                                        onClick={handleClear}
+                                        size="xs"
+                                        color="dark"
+                                        radius="xl"
+                                        variant="subtle"
+                                    >
+                                        <MantineIcon size="sm" icon={IconX} />
+                                    </ActionIcon>
+                                )}
+                            </Group>
                         }
                         onClick={handleToggle}
                     >
