@@ -271,6 +271,13 @@ export enum FeatureFlags {
      * always on; this flag only controls who can see/configure the panel.
      */
     ProLimits = 'pro-limits',
+
+    /**
+     * Show the AWS IAM authentication option on the Redshift connection form.
+     * When off, only username/password auth is offered. Lets IAM auth be
+     * rolled out / disabled per-org at runtime without a deploy.
+     */
+    RedshiftIamAuth = 'redshift-iam-auth',
 }
 
 export type FeatureFlag = {
