@@ -101,21 +101,34 @@ const SwitcherLabel: FC<{
 
     if (!upstreamProjectName) {
         return (
-            <Group gap={6} wrap="nowrap">
-                <Text truncate fw={500} fz="xs">
-                    {activeProjectName}
-                </Text>
+            <Group gap={6} wrap="nowrap" miw={0}>
+                <Tooltip
+                    withinPortal
+                    label={activeProjectName}
+                    disabled={!isTruncated}
+                >
+                    <Text
+                        ref={truncatedRef}
+                        truncate
+                        fw={500}
+                        fz="xs"
+                        className={classes.previewName}
+                    >
+                        {activeProjectName}
+                    </Text>
+                </Tooltip>
                 <MantineIcon
                     icon={IconChevronDown}
                     size="sm"
                     color="ldGray.6"
+                    className={classes.breadcrumbSeparator}
                 />
             </Group>
         );
     }
 
     return (
-        <Group gap={4} wrap="nowrap">
+        <Group gap={4} wrap="nowrap" miw={0}>
             <Text
                 fw={500}
                 fz="xs"
@@ -592,6 +605,7 @@ const ProjectSwitcher = () => {
                         variant="default"
                         size="xs"
                         className={classes.targetButton}
+                        classNames={{ label: classes.targetButtonLabel }}
                     >
                         <SwitcherLabel
                             activeProjectName={
