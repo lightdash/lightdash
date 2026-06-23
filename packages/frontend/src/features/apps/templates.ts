@@ -2,8 +2,8 @@ import { type DataAppTemplate } from '@lightdash/common';
 import {
     IconFileText,
     IconLayoutDashboard,
+    IconPencil,
     IconPresentation,
-    IconSparkles,
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
 
@@ -37,9 +37,9 @@ export const TEMPLATES: TemplateDefinition[] = [
     },
     {
         id: 'custom',
-        title: 'Custom',
+        title: 'From scratch',
         description: 'Start from scratch and describe whatever you want.',
-        icon: IconSparkles,
+        icon: IconPencil,
     },
 ];
 
