@@ -169,7 +169,6 @@ describe('PivotQueryBuilder', () => {
             expect(result).toContain('group_by_query AS (');
             expect(result).toContain('pivot_query AS (');
             expect(result).toContain('filtered_rows AS (');
-            expect(result).toContain('total_columns AS (');
 
             // Should include row_index and column_index metadata
             expect(result.toLowerCase()).toContain(
@@ -183,9 +182,25 @@ describe('PivotQueryBuilder', () => {
             expect(result).toContain('WHERE "row_index" <= 100');
             expect(result).toContain('"column_index" <= 100');
 
-            // Should join with total_columns for metadata
-            expect(result).toContain('CROSS JOIN total_columns t');
-            expect(result).toContain('t.total_columns');
+            // total_columns is computed in a single pass over filtered_rows via
+            // the stacked-window count-distinct idiom.
+            expect(replaceWhitespace(result)).toContain(
+                'ROW_NUMBER() OVER (PARTITION BY "event_type") AS "__grp_rn" FROM filtered_rows f',
+            );
+            expect(replaceWhitespace(result)).toContain(
+                'SUM(CASE WHEN p."__grp_rn" = 1 THEN 1 ELSE 0 END) OVER () AS total_columns',
+            );
+
+            // The base pivot data is referenced exactly once (Tier B: was 2×).
+            expect(result.match(/FROM pivot_query\b/g)).toHaveLength(1);
+
+            // The __grp_rn helper must not leak into the final projection.
+            const finalSelect = result.slice(result.indexOf('\nSELECT '));
+            const finalProjection = finalSelect.slice(
+                0,
+                finalSelect.indexOf(' FROM ('),
+            );
+            expect(finalProjection).not.toContain('__grp_rn');
         });
 
         test('Should handle multiple group by columns', () => {
@@ -683,9 +698,10 @@ describe('PivotQueryBuilder', () => {
             // pivot_query should compute rankings inline with DENSE_RANK
             expect(result).toContain('DENSE_RANK() OVER');
 
-            // Downstream CTEs should reference pivot_query directly
+            // filtered_rows references pivot_query directly — and it's the only
+            // reference (Tier B single-pass: the base data is scanned once).
             expect(result).toContain('FROM pivot_query WHERE "row_index"');
-            expect(result).toContain('FROM pivot_query p CROSS JOIN');
+            expect(result.match(/FROM pivot_query\b/g)).toHaveLength(1);
         });
 
         test('Pinned sort: pivotValues swaps WHERE col_idx = 1 for a value match on the pinned column', () => {
@@ -1824,12 +1840,12 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(result).toContain(
                 'SELECT "category", "date" FROM original_query group by "category", "date"',
             );
-            // Should calculate total_columns via a top-level distinct_groups CTE
+            // Should calculate total_columns in a single pass over filtered_rows
             expect(replaceWhitespace(result)).toContain(
-                'distinct_groups AS (SELECT DISTINCT "category" FROM filtered_rows)',
+                'ROW_NUMBER() OVER (PARTITION BY "category") AS "__grp_rn" FROM filtered_rows f',
             );
             expect(replaceWhitespace(result)).toContain(
-                'total_columns AS (SELECT COUNT(*) AS total_columns FROM distinct_groups)',
+                'SUM(CASE WHEN p."__grp_rn" = 1 THEN 1 ELSE 0 END) OVER () AS total_columns',
             );
         });
 
@@ -3323,7 +3339,9 @@ SELECT * FROM group_by_query LIMIT 50`);
             const result = builder.toSql();
 
             // total_columns should multiply by 2 (the visible TCs), not 3 (TCs + implicit metric)
-            expect(result).toContain('COUNT(*) * 2 AS total_columns');
+            expect(result).toContain(
+                'SUM(CASE WHEN p."__grp_rn" = 1 THEN 1 ELSE 0 END) OVER () * 2 AS total_columns',
+            );
         });
 
         test('Edge case: TC referencing a dimension (not a metric) via pivot_index', () => {
@@ -3832,9 +3850,11 @@ SELECT * FROM group_by_query LIMIT 50`);
             }
 
             // total_columns should count only 1 display value column (tc1), not 6
-            expect(result).toContain('COUNT(*) AS total_columns');
-            expect(result).not.toContain('COUNT(*) * 5');
-            expect(result).not.toContain('COUNT(*) * 6');
+            expect(result).toContain(
+                'SUM(CASE WHEN p."__grp_rn" = 1 THEN 1 ELSE 0 END) OVER () AS total_columns',
+            );
+            expect(result).not.toContain('OVER () * 5');
+            expect(result).not.toContain('OVER () * 6');
         });
 
         test('Should produce identical SQL when no pivot TCs exist in itemsMap', () => {
@@ -4897,17 +4917,15 @@ SELECT * FROM group_by_query LIMIT 50`);
             );
         });
 
-        test('total_columns CTE counts via nested DISTINCT subquery, never via COUNT(DISTINCT CONCAT(...)) (#19767)', () => {
+        test('total_columns counts distinct groups via PARTITION BY raw columns, never via COUNT(DISTINCT CONCAT(...)) (#19767)', () => {
             // https://github.com/lightdash/lightdash/issues/19767 / PROD-2762
             // Repro: pivot a chart whose groupBy mixes types (e.g. a
             // TIMESTAMP column AND a STRING column) on Redshift. The bug
             // emitted `COUNT(DISTINCT CONCAT('col1', "col1", '-', 'col2',
             // "col2"))` for total_columns, which Redshift refused because
             // CONCAT across mixed types fails type checking.
-            // Expectation: total_columns is computed via
-            // `SELECT COUNT(*) FROM (SELECT DISTINCT col1, col2 FROM
-            // filtered_rows) AS distinct_groups` — warehouse-agnostic, no
-            // CONCAT, no DISTINCT-CONCAT.
+            // Expectation: the single-pass count PARTITIONs by the raw groupBy
+            // columns (no CONCAT, no DISTINCT-CONCAT) — warehouse-agnostic.
             const pivotConfiguration = {
                 indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
                 valuesColumns: [
@@ -4931,15 +4949,13 @@ SELECT * FROM group_by_query LIMIT 50`);
 
             const result = builder.toSql();
 
-            // Distinct-groups CTE shape — both groupBy refs appear in the
-            // SELECT DISTINCT list of the top-level distinct_groups CTE, and
-            // total_columns counts over it directly (no CONCAT, no
-            // DISTINCT-CONCAT).
+            // Single-pass shape: both groupBy refs are the raw PARTITION BY keys
+            // and total_columns sums the per-group first-row markers.
             expect(replaceWhitespace(result)).toContain(
-                'distinct_groups AS (SELECT DISTINCT "order_date_year", "payment_method" FROM filtered_rows)',
+                'ROW_NUMBER() OVER (PARTITION BY "order_date_year", "payment_method") AS "__grp_rn" FROM filtered_rows f',
             );
             expect(replaceWhitespace(result)).toContain(
-                'total_columns AS (SELECT COUNT(*) AS total_columns FROM distinct_groups)',
+                'SUM(CASE WHEN p."__grp_rn" = 1 THEN 1 ELSE 0 END) OVER () AS total_columns',
             );
 
             // Negative: the bugged Redshift-incompatible form must not
@@ -4948,11 +4964,12 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(result).not.toContain('COUNT(DISTINCT concat(');
         });
 
-        test('total_columns counts via a top-level distinct_groups CTE, never a subquery nesting filtered_rows', () => {
-            // distinct_groups is its own top-level CTE so both references are
-            // direct CTE -> CTE (distinct_groups -> filtered_rows,
-            // total_columns -> distinct_groups), rather than nesting a subquery
-            // that references filtered_rows inside a later CTE.
+        test('Tier B: the base pivot data (filtered_rows) is referenced exactly once', () => {
+            // Tier B (PROD-8440): the final assembly used to reference the
+            // pivot subtree twice (filtered_rows -> distinct_groups ->
+            // total_columns AND the final CROSS JOIN), doubling the base scan on
+            // CTE-inlining engines (Trino/Athena/Spark). Now total_columns is a
+            // single-pass window over filtered_rows, referenced once.
             const pivotConfiguration = {
                 indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
                 valuesColumns: [
@@ -4976,22 +4993,20 @@ SELECT * FROM group_by_query LIMIT 50`);
 
             const result = builder.toSql();
 
-            // distinct_groups is a top-level CTE referencing filtered_rows directly.
-            expect(replaceWhitespace(result)).toContain(
-                'distinct_groups AS (SELECT DISTINCT "order_date_year", "payment_method" FROM filtered_rows)',
-            );
-            // total_columns counts over the distinct_groups CTE directly.
-            expect(replaceWhitespace(result)).toContain(
-                'total_columns AS (SELECT COUNT(*) AS total_columns FROM distinct_groups)',
-            );
+            // filtered_rows and pivot_query are each referenced exactly once
+            // (single-pass): the base data is scanned once instead of twice.
+            expect(result.match(/FROM filtered_rows\b/g)).toHaveLength(1);
+            expect(result.match(/FROM pivot_query\b/g)).toHaveLength(1);
 
-            // Negative: filtered_rows must never be referenced from inside a
-            // subquery within another CTE definition.
-            expect(result).not.toContain(
-                'FROM filtered_rows) AS distinct_groups',
+            // With multiple pivot columns the count PARTITIONs by the full tuple,
+            // so each distinct (order_date_year, payment_method) combination is
+            // counted once.
+            expect(replaceWhitespace(result)).toContain(
+                'ROW_NUMBER() OVER (PARTITION BY "order_date_year", "payment_method") AS "__grp_rn" FROM filtered_rows f',
             );
-            // And no COUNT(DISTINCT CONCAT(...)).
-            expect(result).not.toContain('COUNT(DISTINCT CONCAT(');
+            expect(replaceWhitespace(result)).toContain(
+                'SUM(CASE WHEN p."__grp_rn" = 1 THEN 1 ELSE 0 END) OVER () AS total_columns',
+            );
         });
 
         test('Metric sort: pivot_query/row_ranking/column_ranking alias every carried column to a bare name (ClickHouse #23711)', () => {
@@ -5049,9 +5064,10 @@ SELECT * FROM group_by_query LIMIT 50`);
                 'row_ranking AS (SELECT DISTINCT g."order_date" AS "order_date", DENSE_RANK()',
             );
 
-            // The downstream CTEs reference the bare names the aliases expose.
+            // The downstream single-pass count references the bare name the
+            // aliases expose (PARTITION BY "status").
             expect(result).toContain(
-                'distinct_groups AS (SELECT DISTINCT "status" FROM filtered_rows)',
+                'ROW_NUMBER() OVER (PARTITION BY "status") AS "__grp_rn" FROM filtered_rows f',
             );
         });
 
