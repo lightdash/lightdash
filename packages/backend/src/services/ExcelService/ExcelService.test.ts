@@ -1,8 +1,11 @@
 import {
+    createConditionalFormattingConfigWithSingleColor,
     DimensionType,
     FieldType,
+    FilterOperator,
     getExcelFormatExpression,
     getFormatExpression,
+    getItemId,
     ItemsMap,
     MetricType,
     SortByDirection,
@@ -11,7 +14,11 @@ import {
     VizIndexType,
     type Dimension,
 } from '@lightdash/common';
+import fs from 'fs';
 import moment from 'moment';
+import os from 'os';
+import path from 'path';
+import { Readable } from 'stream';
 import { ExcelService } from './ExcelService';
 
 // Mock data for testing
@@ -1957,6 +1964,134 @@ describe('ExcelService', () => {
                 const formatExpression = getFormatExpression(fieldData);
                 expect(formatExpression).toBe(expectedFormat);
             });
+        });
+    });
+});
+
+describe('ExcelService conditional formatting in xlsx export (PROD-8199)', () => {
+    const numericField = {
+        fieldType: FieldType.METRIC,
+        type: MetricType.NUMBER,
+        name: 'count',
+        table: 'orders',
+        tableLabel: 'Orders',
+        label: 'Orders count',
+        sql: '',
+        hidden: false,
+        compiledSql: '',
+        tablesReferences: [],
+    } as ItemsMap[string];
+    const fieldId = getItemId(numericField);
+    const fields: ItemsMap = { [fieldId]: numericField };
+
+    // Private streaming writer, invoked directly so the test exercises the real
+    // row-rendering + colorToArgb path that produces the .xlsx fills.
+    const { streamJsonlToExcelFile } = ExcelService as unknown as {
+        streamJsonlToExcelFile: (
+            resultsStream: Readable,
+            tempFilePath: string,
+            headers: string[],
+            fields: ItemsMap,
+            onlyRaw: boolean,
+            sortedFieldIds: string[],
+            timezone?: string,
+            conditionalFormattings?: ReturnType<
+                typeof createConditionalFormattingConfigWithSingleColor
+            >[],
+            minMaxMap?: Record<string, { min: number; max: number }>,
+        ) => Promise<{ truncated: boolean }>;
+    };
+
+    const writeAndReadBack = async (
+        rows: Record<string, unknown>[],
+        conditionalFormattings: ReturnType<
+            typeof createConditionalFormattingConfigWithSingleColor
+        >[],
+        minMaxMap: Record<string, { min: number; max: number }> = {},
+    ) => {
+        const tempFilePath = path.join(
+            os.tmpdir(),
+            `excel-cf-test-${process.pid}-${rows.length}.xlsx`,
+        );
+        const jsonl = rows.map((row) => JSON.stringify(row)).join('\n');
+        await streamJsonlToExcelFile(
+            Readable.from([jsonl]),
+            tempFilePath,
+            ['Orders count'],
+            fields,
+            false,
+            [fieldId],
+            undefined,
+            conditionalFormattings,
+            minMaxMap,
+        );
+
+        const workbook = new (await import('exceljs')).Workbook();
+        await workbook.xlsx.readFile(tempFilePath);
+        const worksheet = workbook.getWorksheet('Sheet1');
+        fs.unlinkSync(tempFilePath);
+        return worksheet;
+    };
+
+    it('applies a solid background fill to cells matching a single-color rule', async () => {
+        const redConfig = createConditionalFormattingConfigWithSingleColor(
+            '#ff0000',
+            { fieldId },
+        );
+        redConfig.rules = [
+            {
+                id: 'gte-100',
+                operator: FilterOperator.GREATER_THAN_OR_EQUAL,
+                values: [100],
+            },
+        ];
+
+        const worksheet = await writeAndReadBack(
+            [{ [fieldId]: 150 }, { [fieldId]: 50 }],
+            [redConfig],
+        );
+
+        // Row 1 is the header; data rows start at 2.
+        const matchingCell = worksheet!.getRow(2).getCell(1);
+        const nonMatchingCell = worksheet!.getRow(3).getCell(1);
+
+        expect(matchingCell.fill).toMatchObject({
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFFF0000' },
+        });
+        const nonMatchingFill = nonMatchingCell.fill as
+            | { fgColor?: { argb?: string } }
+            | undefined;
+        expect(nonMatchingFill?.fgColor?.argb).toBeUndefined();
+    });
+
+    it('applies an interpolated fill for a color-range rule using the min/max map', async () => {
+        const rangeConfig = createConditionalFormattingConfigWithSingleColor(
+            '#ff0000',
+            { fieldId },
+        ) as ReturnType<
+            typeof createConditionalFormattingConfigWithSingleColor
+        >;
+        // Re-shape into a color-range config (start white -> end red).
+        const colorRangeConfig = {
+            target: { fieldId },
+            color: { start: '#ffffff', end: '#ff0000' },
+            rule: { min: 'auto' as const, max: 'auto' as const },
+        };
+
+        const worksheet = await writeAndReadBack(
+            [{ [fieldId]: 200 }],
+            [colorRangeConfig as unknown as typeof rangeConfig],
+            { [fieldId]: { min: 0, max: 200 } },
+        );
+
+        const cell = worksheet!.getRow(2).getCell(1);
+        // value at the top of the range resolves to the end colour (red).
+        expect(cell.fill).toMatchObject({
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFFF0000' },
         });
     });
 });

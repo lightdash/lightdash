@@ -1,3 +1,4 @@
+import { type ConditionalFormattingConfig } from './conditionalFormatting';
 import { type PivotConfig } from './pivot';
 
 export enum DownloadFileType {
@@ -28,4 +29,5 @@ export type DownloadOptions = {
     pivotConfig?: PivotConfig;
     exportPivotedData?: boolean;
     attachmentDownloadName?: string;
+    conditionalFormattings?: ConditionalFormattingConfig[];
 };

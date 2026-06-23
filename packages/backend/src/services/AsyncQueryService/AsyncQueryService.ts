@@ -1409,6 +1409,7 @@ export class AsyncQueryService extends ProjectService {
         exportPivotedData = true,
         attachmentDownloadName,
         expirationSecondsOverride,
+        conditionalFormattings,
     }: DownloadAsyncQueryResultsArgs): Promise<DownloadAsyncQueryResultsInternal> {
         assertIsAccountWithOrg(account);
 
@@ -1638,56 +1639,68 @@ export class AsyncQueryService extends ProjectService {
                 );
             case DownloadFileType.XLSX: {
                 // Check if this is a pivot table download
-                const xlsxResult =
+                const isPivotXlsx =
                     downloadPivotConfig &&
                     pivotDetails &&
-                    queryHistory.metricQuery
-                        ? await ExcelService.downloadAsyncPivotTableXlsx({
-                              resultsFileName,
-                              fields,
+                    queryHistory.metricQuery;
+
+                // Conditional formatting fills are only applied to the
+                // (unpivoted) direct export. Pivoted exports remap value
+                // columns and are not yet supported — log rather than fail.
+                if (isPivotXlsx && conditionalFormattings?.length) {
+                    this.logger.warn(
+                        'Conditional formatting is not applied to pivoted XLSX exports',
+                        { queryUuid },
+                    );
+                }
+
+                const xlsxResult = isPivotXlsx
+                    ? await ExcelService.downloadAsyncPivotTableXlsx({
+                          resultsFileName,
+                          fields,
+                          resultsStorageClient,
+                          exportsStorageClient: this.exportsStorageClient,
+                          lightdashConfig: this.lightdashConfig,
+                          csvCellsLimit: (
+                              await resolveOrganizationExportLimits(
+                                  this.organizationSettingsModel,
+                                  this.lightdashConfig.query,
+                                  organizationUuid,
+                              )
+                          ).csvCellsLimit,
+                          pivotDetails,
+                          warehouseRowTotals,
+                          warehouseColumnTotals,
+                          options: {
+                              onlyRaw,
+                              showTableNames,
+                              customLabels,
+                              columnOrder: validColumnOrder,
+                              hiddenFields,
+                              pivotConfig: downloadPivotConfig,
+                              attachmentDownloadName,
+                          },
+                          timezone: displayTimezone ?? undefined,
+                      })
+                    : // Use direct Excel export to bypass PassThrough + Upload hanging issues
+                      await ExcelService.downloadAsyncExcelDirectly(
+                          resultsFileName,
+                          resultFields,
+                          {
                               resultsStorageClient,
                               exportsStorageClient: this.exportsStorageClient,
-                              lightdashConfig: this.lightdashConfig,
-                              csvCellsLimit: (
-                                  await resolveOrganizationExportLimits(
-                                      this.organizationSettingsModel,
-                                      this.lightdashConfig.query,
-                                      organizationUuid,
-                                  )
-                              ).csvCellsLimit,
-                              pivotDetails,
-                              warehouseRowTotals,
-                              warehouseColumnTotals,
-                              options: {
-                                  onlyRaw,
-                                  showTableNames,
-                                  customLabels,
-                                  columnOrder: validColumnOrder,
-                                  hiddenFields,
-                                  pivotConfig: downloadPivotConfig,
-                                  attachmentDownloadName,
-                              },
-                              timezone: displayTimezone ?? undefined,
-                          })
-                        : // Use direct Excel export to bypass PassThrough + Upload hanging issues
-                          await ExcelService.downloadAsyncExcelDirectly(
-                              resultsFileName,
-                              resultFields,
-                              {
-                                  resultsStorageClient,
-                                  exportsStorageClient:
-                                      this.exportsStorageClient,
-                              },
-                              {
-                                  onlyRaw,
-                                  showTableNames,
-                                  customLabels,
-                                  columnOrder: validColumnOrder,
-                                  hiddenFields,
-                                  attachmentDownloadName,
-                              },
-                              displayTimezone ?? undefined,
-                          );
+                          },
+                          {
+                              onlyRaw,
+                              showTableNames,
+                              customLabels,
+                              columnOrder: validColumnOrder,
+                              hiddenFields,
+                              attachmentDownloadName,
+                              conditionalFormattings,
+                          },
+                          displayTimezone ?? undefined,
+                      );
                 const xlsxPersistentUrl =
                     await this.persistentDownloadFileService.createPersistentUrl(
                         {

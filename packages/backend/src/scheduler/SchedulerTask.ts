@@ -24,6 +24,7 @@ import {
     formatRows,
     friendlyName,
     getColumnOrderFromVizTableConfig,
+    getConditionalFormattingsFromChartConfig,
     getCustomLabelsFromTableConfig,
     getCustomLabelsFromVizTableConfig,
     getDownloadPivotConfig,
@@ -825,6 +826,10 @@ export default class SchedulerTask {
                                     exportPivotedData:
                                         effectiveExportPivotedData,
                                     columnOrder: chart.tableConfig.columnOrder,
+                                    conditionalFormattings:
+                                        getConditionalFormattingsFromChartConfig(
+                                            chart.chartConfig.config,
+                                        ),
                                     expirationSecondsOverride,
                                 },
                                 SCHEDULER_POLLING_OPTIONS,
@@ -991,6 +996,10 @@ export default class SchedulerTask {
                                                 effectiveExportPivotedData,
                                             columnOrder:
                                                 chart.tableConfig.columnOrder,
+                                            conditionalFormattings:
+                                                getConditionalFormattingsFromChartConfig(
+                                                    chart.chartConfig.config,
+                                                ),
                                             expirationSecondsOverride,
                                         },
                                         SCHEDULER_POLLING_OPTIONS,
