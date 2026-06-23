@@ -188,6 +188,7 @@ import { SavedChartService } from '../../../services/SavedChartsService/SavedCha
 import { SearchService } from '../../../services/SearchService/SearchService';
 import { ShareService } from '../../../services/ShareService/ShareService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
+import { doesExploreMatchRequiredAttributes } from '../../../services/UserAttributesService/UserAttributeUtils';
 import { wrapSentryTransaction } from '../../../utils';
 import { validatePublicHttpUrl } from '../../../utils/ssrfProtection';
 import { AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
@@ -5330,14 +5331,35 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         agent: AiAgentSummary,
     ): Promise<AgentSummaryContext> {
-        const availableExplores = await this.getAvailableExplores(
-            user,
-            agent.projectUuid,
-            agent.tags,
-        );
-        const exploreNames = availableExplores.map(
-            (explore) => explore.label || explore.name,
-        );
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const [exploreSummaries, userAttributes] = await Promise.all([
+            this.projectModel.getAllExploreSummaries(agent.projectUuid),
+            this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid,
+                userUuid: user.userUuid,
+            }),
+        ]);
+        const exploreNames = exploreSummaries
+            .filter((summary) => !('errors' in summary))
+            .filter((summary) =>
+                doesExploreMatchRequiredAttributes(
+                    summary.baseTableRequiredAttributes,
+                    summary.baseTableAnyAttributes,
+                    userAttributes,
+                ),
+            )
+            // Summary context only has explore-level tags, not field-level tags.
+            .filter(
+                (summary) =>
+                    !agent.tags ||
+                    agent.tags.length === 0 ||
+                    summary.tags?.some((tag) => agent.tags?.includes(tag)),
+            )
+            .map((summary) => summary.label || summary.name);
 
         const verifiedQuestionsData =
             await this.aiAgentModel.getVerifiedQuestions(agent.uuid);
