@@ -166,14 +166,11 @@ const mapReservedParametersToCompletions = (
                 return acc;
             }
             const reference = `\${ld.parameters.${name}}`;
-            // `docText` renders the description in the autocomplete doc tooltip. It is
-            // supported by ace's language-tools at runtime but missing from its types.
-            const technicalOption: Ace.Completion & { docText?: string } = {
+            const technicalOption: Ace.Completion = {
                 caption: reference,
                 value: reference,
                 meta: 'System variable',
                 score: Number.MAX_VALUE,
-                docText: definition.description,
             };
             const friendlyOption: Ace.Completion = {
                 ...technicalOption,
