@@ -20,35 +20,12 @@
     min-width: 300px;
 }
 
-/* Template-pick stage: the picker owns the full viewport, centered both
-   axes. No split panel / empty preview pane until a template is chosen. */
-.pickerLayout {
-    height: calc(100vh - 50px);
-    overflow-y: auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: var(--mantine-spacing-xl);
-
-    @mixin light {
-        background-color: var(--mantine-color-ldGray-0);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-dark-8);
-    }
-}
-
-:global(body:has(#preview-banner)) .pickerLayout,
-:global(body:has(#impersonation-banner)) .pickerLayout {
-    height: calc(100vh - 50px - 35px);
-}
-
 /* Compose stage: the chat panel becomes a centered card on the muted
    backdrop, then morphs into the split sidebar (see .chatPanel's
    view-transition-name) on first submit. */
 .composeLayout {
     height: calc(100vh - 50px);
-    overflow: hidden;
+    overflow: visible;
     display: flex;
     justify-content: center;
     padding: var(--mantine-spacing-xl);
@@ -104,21 +81,27 @@
 .composeHeading {
     text-align: center;
     align-items: center;
-    padding: var(--mantine-spacing-md) var(--mantine-spacing-xl) 0;
+    padding: var(--mantine-spacing-xl) var(--mantine-spacing-xl) 0;
 }
 
 .composeTitle {
     letter-spacing: -0.02em;
 }
 
+.startingFromChip {
+    align-self: center;
+    max-width: 220px;
+}
+
 .chatPanelCompose {
     position: relative;
+    justify-content: center;
     max-width: 760px;
     width: 100%;
     margin: 0 auto;
     /* Shared height with the template picker so the View Transition between
        them only morphs width/position — no jarring height jump. */
-    height: min(600px, calc(100vh - 140px));
+    height: min(620px, calc(100vh - 96px));
     border-radius: var(--mantine-radius-lg);
     border: 1px solid;
     overflow: hidden;
@@ -139,13 +122,29 @@
     }
 }
 
-/* Top row of the compose card — the back button sits where the picker's
-   window-chrome dots are, replacing them on this stage. */
-.composeBackBar {
-    display: flex;
-    align-items: center;
-    min-height: 36px;
-    padding: 8px 12px 0 12px;
+/* Three traffic-light dots, echoing the data-app (window) icon. */
+.chatPanelCompose::before {
+    content: '';
+    position: absolute;
+    top: 18px;
+    left: 22px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    z-index: 1;
+
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-3);
+        box-shadow:
+            14px 0 0 var(--mantine-color-ldGray-3),
+            28px 0 0 var(--mantine-color-ldGray-3);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-dark-3);
+        box-shadow:
+            14px 0 0 var(--mantine-color-dark-3),
+            28px 0 0 var(--mantine-color-dark-3);
+    }
 }
 
 .chatMessages {
@@ -158,6 +157,11 @@
     gap: var(--mantine-spacing-lg);
 }
 
+.chatPanelCompose .chatMessages {
+    flex: 0 0 auto;
+    padding: 0;
+}
+
 .emptyChat {
     flex: 1;
     display: flex;
@@ -168,6 +172,10 @@
     padding: var(--mantine-spacing-xl);
     padding-top: 50px;
     text-align: center;
+}
+
+.chatPanelCompose .emptyChat {
+    display: none;
 }
 
 .userMessage {
@@ -224,7 +232,10 @@
 }
 
 .chatInputArea {
-    flex-shrink: 0;
+    flex: 0 1 auto;
+    min-height: 0;
+    max-height: 46%;
+    overflow-y: auto;
     padding: var(--mantine-spacing-sm) var(--mantine-spacing-sm) 48px;
     border-top: 1px solid;
 
@@ -234,6 +245,11 @@
     @mixin dark {
         border-color: var(--mantine-color-ldDark-4);
     }
+}
+
+.chatPanelCompose .chatInputArea {
+    border-top: 0;
+    padding-top: 48px;
 }
 
 .inputWrapper {

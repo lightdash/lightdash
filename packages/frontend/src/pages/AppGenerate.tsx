@@ -33,7 +33,6 @@ import {
     IconAppsOff,
     IconAppWindow,
     IconCheck,
-    IconArrowLeft,
     IconArrowUp,
     IconCopy,
     IconDatabase,
@@ -129,6 +128,7 @@ import {
     type ChatMessage,
 } from '../features/apps/utils/mergeChatMessages';
 import { useAppExternalConnections } from '../features/externalConnections/hooks/useAppExternalConnections';
+import { ThemePicker } from '../features/organizationDesigns/components/ThemePicker';
 import { useOrganizationDesigns } from '../features/organizationDesigns/hooks/useOrganizationDesigns';
 import useToaster from '../hooks/toaster/useToaster';
 import { useContentAction } from '../hooks/useContent';
@@ -479,7 +479,6 @@ const AppGenerate: FC = () => {
         appUuid: string | null; // null = override set from the new-app page
         designUuid: string | null;
     } | null>(null);
-    const [wizardStage, setWizardStage] = useState<'pick' | 'confirm'>('pick');
     const [imageAttachments, setImageAttachments] = useState<
         Array<{
             file: File;
@@ -609,7 +608,6 @@ const AppGenerate: FC = () => {
         setIsCapturingScreenshot(false);
         setSelectedTemplate(null);
         setThemeChipOverride(null);
-        setWizardStage('pick');
         setPendingClarification(null);
         setClarificationAnswers([]);
         versionCacheRef.current.clear();
@@ -892,34 +890,8 @@ const AppGenerate: FC = () => {
         candidateTemplate && candidateTemplate !== 'custom'
             ? candidateTemplate
             : null;
-    // While the wizard is in pick/questions, the chat input area is hidden
-    // - the wizard's own buttons drive the flow. When stage='confirm', the
-    // input area reappears with the composed prompt prefilled for the user
-    // to review and edit before submitting.
-    const wizardCoversInput =
-        isNewApp &&
-        messages.length === 0 &&
-        !isLoading &&
-        wizardStage !== 'confirm';
-
-    // At the template-pick stage the picker takes over the whole viewport
-    // (centered, no split) — there's no app to preview yet, so the empty
-    // preview pane would just be dead space.
-    const showTemplatePicker =
-        isNewApp &&
-        wizardStage === 'pick' &&
-        messages.length === 0 &&
-        !isLoading;
-
-    // After a template is picked but before the first prompt is submitted, the
-    // composer takes over the whole viewport (centered, no split / empty
-    // preview) — mirroring the Ask AI new-thread compose view. On submit the
-    // layout morphs to the split sidebar via a native View Transition.
-    const composeMode =
-        isNewApp &&
-        wizardStage === 'confirm' &&
-        messages.length === 0 &&
-        !isLoading;
+    // New-app empty screen: arch + composer, centered, no preview/split yet.
+    const newAppLanding = isNewApp && messages.length === 0 && !isLoading;
 
     // `hasNextPage` reflects the server's "more pages exist" signal, but we
     // accumulate versions across fetches in `versionCacheRef` — so even if the
@@ -1291,6 +1263,21 @@ const AppGenerate: FC = () => {
     if (urlAppUuid && isLoadingApp) {
         return null;
     }
+    // Navigating to a soft-deleted (or never-existed) app's URL. Surface a
+    // not-found state before permission checks; missing app metadata cannot
+    // produce a meaningful manage decision.
+    if (urlAppUuid && appError?.error?.statusCode === 404) {
+        return (
+            <Box mt="30vh">
+                <SuboptimalState
+                    icon={IconAppsOff}
+                    title="Data app not found"
+                    description="This data app doesn't exist or has been deleted."
+                />
+            </Box>
+        );
+    }
+
     const userSpaceAccess = appSpaceUuid
         ? spaces.find((s) => s.uuid === appSpaceUuid)?.userAccess
         : undefined;
@@ -1313,21 +1300,6 @@ const AppGenerate: FC = () => {
           );
     if (!canAccessApp) {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;
-    }
-
-    // Navigating to a soft-deleted (or never-existed) app's URL. Surface a
-    // not-found state instead of silently falling through to new-app mode —
-    // otherwise a follow-up prompt would try to iterate a ghost app.
-    if (urlAppUuid && appError?.error?.statusCode === 404) {
-        return (
-            <Box mt="30vh">
-                <SuboptimalState
-                    icon={IconAppsOff}
-                    title="Data app not found"
-                    description="This data app doesn't exist or has been deleted."
-                />
-            </Box>
-        );
     }
 
     if (!projectUuid) {
@@ -1472,7 +1444,7 @@ const AppGenerate: FC = () => {
         // Morph the centered composer into the split sidebar layout. Only the
         // first submit of a brand-new app crosses that layout boundary; later
         // iterations are already in the split view and just re-render in place.
-        if (composeMode) {
+        if (newAppLanding) {
             withViewTransition(() => {
                 setIsSubmitting(true);
             });
@@ -1772,33 +1744,6 @@ const AppGenerate: FC = () => {
         );
     };
 
-    const handleTemplateSelect = (template: DataAppTemplate) => {
-        // Fires when the user hits "Let's go!" in the picker — by that point
-        // both the template highlight and theme choice are settled inside
-        // AppTemplatePicker. Advances to the textarea; the template still
-        // propagates through to the build (it informs backend-side build
-        // instructions and the AI clarifier's questions), but we no longer
-        // ask hand-rolled questions per template — the AI clarifier produces
-        // those dynamically on submit.
-        setSelectedTemplate(template);
-        withViewTransition(() => {
-            setWizardStage('confirm');
-        });
-        promptEditorRef.current?.clear();
-        setIsPromptEmpty(true);
-        // Focus the editor so the user can immediately type. The setTimeout
-        // gives the editor a tick to mount when the input area first appears.
-        setTimeout(() => promptEditorRef.current?.focus(), 0);
-    };
-
-    // Return from the composer to the template picker, collapsing the card back
-    // via the same View Transition used on the way in.
-    const handleBackToTemplates = () => {
-        withViewTransition(() => {
-            setWizardStage('pick');
-        });
-    };
-
     const handleCancel = () => {
         if (
             !projectUuid ||
@@ -1823,70 +1768,45 @@ const AppGenerate: FC = () => {
         );
     };
 
-    return showTemplatePicker ? (
-        <Box className={classes.pickerLayout}>
-            <AppTemplatePicker
-                onSelect={handleTemplateSelect}
-                selectedThemeUuid={selectedThemeUuid}
-                onThemeChange={handleThemeChange}
-            />
-        </Box>
-    ) : (
-        <Box className={composeMode ? classes.composeLayout : classes.layout}>
+    return (
+        <Box className={newAppLanding ? classes.composeLayout : classes.layout}>
             <PanelGroup
-                key={composeMode ? 'compose' : 'split'}
+                key={newAppLanding ? 'compose' : 'split'}
                 direction="horizontal"
             >
                 {/* Chat Panel */}
                 <Panel
-                    defaultSize={composeMode ? 100 : 30}
-                    minSize={composeMode ? 100 : 22}
-                    maxSize={composeMode ? 100 : 50}
+                    defaultSize={newAppLanding ? 100 : 30}
+                    minSize={newAppLanding ? 100 : 22}
+                    maxSize={newAppLanding ? 100 : 50}
                     className={`${classes.chatPanelOuter}${
-                        composeMode ? ` ${classes.chatPanelOuterCompose}` : ''
+                        newAppLanding ? ` ${classes.chatPanelOuterCompose}` : ''
                     }`}
                 >
                     <Box
                         className={`${classes.chatPanel}${
-                            composeMode ? ` ${classes.chatPanelCompose}` : ''
+                            newAppLanding ? ` ${classes.chatPanelCompose}` : ''
                         }`}
                     >
-                        {composeMode && (
-                            <Box className={classes.composeBackBar}>
-                                <Tooltip
-                                    label="Back to templates"
-                                    position="right"
-                                    withArrow
-                                >
-                                    <ActionIcon
-                                        variant="subtle"
-                                        color="gray"
-                                        radius="md"
-                                        onClick={handleBackToTemplates}
-                                        aria-label="Back to templates"
+                        {newAppLanding && (
+                            <Stack gap="lg" className={classes.composeHeading}>
+                                <Stack gap={6}>
+                                    <Text
+                                        fw={700}
+                                        fz={28}
+                                        className={classes.composeTitle}
                                     >
-                                        <MantineIcon
-                                            icon={IconArrowLeft}
-                                            size={18}
-                                        />
-                                    </ActionIcon>
-                                </Tooltip>
-                            </Box>
-                        )}
-                        {composeMode && (
-                            <Stack gap={6} className={classes.composeHeading}>
-                                <Text
-                                    fw={700}
-                                    fz={28}
-                                    className={classes.composeTitle}
-                                >
-                                    Build a Data App
-                                </Text>
-                                <Text size="sm" c="dimmed">
-                                    Describe what you want to build and I'll
-                                    generate a data app connected to your
-                                    project.
-                                </Text>
+                                        Build a Data App
+                                    </Text>
+                                    <Text size="sm" c="dimmed">
+                                        Pick a starting point, then describe
+                                        what you want to build.
+                                    </Text>
+                                </Stack>
+                                <AppTemplatePicker
+                                    selected={selectedTemplate}
+                                    onSelectedChange={setSelectedTemplate}
+                                />
                             </Stack>
                         )}
                         <Box
@@ -1917,7 +1837,7 @@ const AppGenerate: FC = () => {
                             )}
                             {messages.length === 0 && !isLoading ? (
                                 <Box className={classes.emptyChat}>
-                                    {!composeMode && (
+                                    {!newAppLanding && (
                                         <Text
                                             size="sm"
                                             c="dimmed"
@@ -2409,7 +2329,7 @@ const AppGenerate: FC = () => {
                         </Box>
 
                         {/* Chat Input */}
-                        {!wizardCoversInput && isViewingOlderVersion && (
+                        {isViewingOlderVersion && (
                             <Box className={classes.chatInputArea}>
                                 <Callout
                                     variant="info"
@@ -2466,7 +2386,7 @@ const AppGenerate: FC = () => {
                             </Box>
                         )}
 
-                        {!wizardCoversInput && !isViewingOlderVersion && (
+                        {!isViewingOlderVersion && (
                             <Box className={classes.chatInputArea}>
                                 <input
                                     ref={fileInputRef}
@@ -2476,16 +2396,16 @@ const AppGenerate: FC = () => {
                                     onChange={handleFileInputChange}
                                     hidden
                                 />
-                                {(displayTemplate ||
-                                    displayThemeName ||
+                                {((!newAppLanding &&
+                                    (displayTemplate || displayThemeName)) ||
                                     availableConnectionAliases.length > 0) && (
                                     <Group gap="xs" pb="xs">
-                                        {displayTemplate && (
+                                        {!newAppLanding && displayTemplate && (
                                             <TemplateChip
                                                 template={displayTemplate}
                                             />
                                         )}
-                                        {displayThemeName && (
+                                        {!newAppLanding && displayThemeName && (
                                             <ThemeChip
                                                 themeName={displayThemeName}
                                                 selectedThemeUuid={
@@ -2639,59 +2559,108 @@ const AppGenerate: FC = () => {
                                         justify="space-between"
                                         gap="xs"
                                     >
-                                        <AttachButton
-                                            selectedCharts={selectedCharts}
-                                            onSelectChart={(chart) =>
-                                                setSelectedCharts((prev) => [
-                                                    ...prev,
-                                                    chart,
-                                                ])
-                                            }
-                                            onDeselectChart={(uuid) =>
-                                                setSelectedCharts((prev) =>
-                                                    prev.filter(
-                                                        (c) => c.uuid !== uuid,
-                                                    ),
-                                                )
-                                            }
-                                            selectedDashboard={
-                                                selectedDashboard
-                                            }
-                                            onSelectDashboard={
-                                                setSelectedDashboard
-                                            }
-                                            onDeselectDashboard={() =>
-                                                setSelectedDashboard(null)
-                                            }
-                                            selectedConnections={
-                                                selectedConnections
-                                            }
-                                            onSelectConnection={(connection) =>
-                                                setSelectedConnections(
-                                                    (prev) => [
-                                                        ...prev,
-                                                        connection,
-                                                    ],
-                                                )
-                                            }
-                                            onDeselectConnection={(uuid) =>
-                                                setSelectedConnections((prev) =>
-                                                    prev.filter(
-                                                        (c) =>
-                                                            c.externalConnectionUuid !==
-                                                            uuid,
-                                                    ),
-                                                )
-                                            }
-                                            onAddImages={() =>
-                                                fileInputRef.current?.click()
-                                            }
-                                            disabled={isLoading}
-                                            imagesDisabled={
-                                                imageAttachments.length >=
-                                                MAX_IMAGES_PER_VERSION
-                                            }
-                                        />
+                                        <Group gap="xs">
+                                            {newAppLanding && (
+                                                <ThemePicker
+                                                    compact
+                                                    value={currentThemeUuid}
+                                                    onChange={handleThemeChange}
+                                                />
+                                            )}
+                                            {newAppLanding &&
+                                                selectedTemplate !== null && (
+                                                    <Button
+                                                        variant="default"
+                                                        size="xs"
+                                                        radius="xl"
+                                                        color="gray"
+                                                        h="auto"
+                                                        py={6}
+                                                        className={
+                                                            classes.startingFromChip
+                                                        }
+                                                        title={`Starting from ${
+                                                            getTemplate(
+                                                                selectedTemplate,
+                                                            ).title
+                                                        }`}
+                                                    >
+                                                        <Text
+                                                            span
+                                                            size="sm"
+                                                            fw={600}
+                                                            lh={1.2}
+                                                            c="inherit"
+                                                            lineClamp={1}
+                                                        >
+                                                            {
+                                                                getTemplate(
+                                                                    selectedTemplate,
+                                                                ).title
+                                                            }
+                                                        </Text>
+                                                    </Button>
+                                                )}
+                                            <AttachButton
+                                                selectedCharts={selectedCharts}
+                                                onSelectChart={(chart) =>
+                                                    setSelectedCharts(
+                                                        (prev) => [
+                                                            ...prev,
+                                                            chart,
+                                                        ],
+                                                    )
+                                                }
+                                                onDeselectChart={(uuid) =>
+                                                    setSelectedCharts((prev) =>
+                                                        prev.filter(
+                                                            (c) =>
+                                                                c.uuid !== uuid,
+                                                        ),
+                                                    )
+                                                }
+                                                selectedDashboard={
+                                                    selectedDashboard
+                                                }
+                                                onSelectDashboard={
+                                                    setSelectedDashboard
+                                                }
+                                                onDeselectDashboard={() =>
+                                                    setSelectedDashboard(null)
+                                                }
+                                                selectedConnections={
+                                                    selectedConnections
+                                                }
+                                                onSelectConnection={(
+                                                    connection,
+                                                ) =>
+                                                    setSelectedConnections(
+                                                        (prev) => [
+                                                            ...prev,
+                                                            connection,
+                                                        ],
+                                                    )
+                                                }
+                                                onDeselectConnection={(uuid) =>
+                                                    setSelectedConnections(
+                                                        (prev) =>
+                                                            prev.filter(
+                                                                (c) =>
+                                                                    c.externalConnectionUuid !==
+                                                                    uuid,
+                                                            ),
+                                                    )
+                                                }
+                                                onAddImages={() =>
+                                                    fileInputRef.current?.click()
+                                                }
+                                                disabled={isLoading}
+                                                imagesDisabled={
+                                                    imageAttachments.length >=
+                                                    MAX_IMAGES_PER_VERSION
+                                                }
+                                            />
+                                        </Group>
                                         <Group gap="xs">
                                             <ScreenshotButton
                                                 onClick={() =>
@@ -2775,12 +2744,12 @@ const AppGenerate: FC = () => {
                     </Box>
                 </Panel>
 
-                {!composeMode && (
+                {!newAppLanding && (
                     <PanelResizeHandle className={classes.resizeHandle} />
                 )}
 
                 {/* Preview Panel */}
-                {!composeMode && (
+                {!newAppLanding && (
                     <Panel minSize={40}>
                         <Box className={classes.previewPanel}>
                             {activeAppUuid && (

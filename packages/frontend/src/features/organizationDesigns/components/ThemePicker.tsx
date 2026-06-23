@@ -8,7 +8,7 @@ import {
     Tooltip,
     UnstyledButton,
 } from '@mantine-8/core';
-import { IconCheck, IconChevronDown } from '@tabler/icons-react';
+import { IconBrush, IconCheck, IconChevronDown } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -31,6 +31,7 @@ type Props = {
      * creation" tooltip. Used when the picker is shown for an existing app.
      */
     lockedAfterCreation?: boolean;
+    compact?: boolean;
 };
 
 export const ThemePicker: FC<Props> = ({
@@ -38,6 +39,7 @@ export const ThemePicker: FC<Props> = ({
     onChange,
     disabled,
     lockedAfterCreation,
+    compact,
 }) => {
     const navigate = useNavigate();
     const [opened, setOpened] = useState(false);
@@ -49,7 +51,25 @@ export const ThemePicker: FC<Props> = ({
         ? selected.description || null
         : LIGHTDASH_DEFAULT_DESCRIPTION;
 
-    const button = (
+    const button = compact ? (
+        <Button
+            variant="default"
+            size="xs"
+            radius="xl"
+            color="gray"
+            h="auto"
+            py={6}
+            onClick={() => setOpened((o) => !o)}
+            disabled={disabled || lockedAfterCreation}
+            leftSection={<MantineIcon icon={IconBrush} size={14} />}
+            rightSection={<MantineIcon icon={IconChevronDown} size={12} />}
+            aria-label={`Theme: ${label}`}
+        >
+            <Text size="sm" fw={500} lh={1.2} lineClamp={1}>
+                {label}
+            </Text>
+        </Button>
+    ) : (
         <Button
             variant="default"
             size="xs"
