@@ -35,9 +35,31 @@ export type ClaudeCodeProviderConfig = {
  */
 export type ClaudeCodeOtelConfig = {
     enabled: boolean;
+    auth: 'static' | 'gcp';
     endpoint: string | null;
     protocol: string;
     headers: string | null;
+    gcpProject: string | null;
+};
+
+// GCP's public OTLP ingestion endpoint, used by the 'gcp' auth mode. Global; the
+// exporter appends /v1/traces and the project comes from the token +
+// X-Goog-User-Project header.
+export const GCP_TELEMETRY_ENDPOINT = 'https://telemetry.googleapis.com';
+
+/**
+ * The effective OTLP endpoint for the data-app sandbox. In 'gcp' mode this is
+ * GCP's public endpoint (independent of the backend's own
+ * OTEL_EXPORTER_OTLP_ENDPOINT, which stays the in-cluster collector); otherwise
+ * the configured endpoint. Null when telemetry is disabled.
+ */
+export const resolveDataAppOtelEndpoint = (
+    otel: ClaudeCodeOtelConfig,
+): string | null => {
+    if (!otel.enabled) {
+        return null;
+    }
+    return otel.auth === 'gcp' ? GCP_TELEMETRY_ENDPOINT : otel.endpoint;
 };
 
 /**
@@ -154,9 +176,14 @@ export const buildClaudeCodeTelemetryEnv = (
     options: {
         traceparent: string | null;
         resourceAttributes: Record<string, string>;
+        // The effective endpoint + headers, resolved by the caller (the 'gcp'
+        // auth mode overrides both: endpoint -> telemetry.googleapis.com, headers
+        // -> a freshly-minted Workload-Identity token).
+        endpoint: string | null;
+        headers: string | null;
     },
 ): Record<string, string> => {
-    if (!otel.enabled || !otel.endpoint) {
+    if (!otel.enabled || !options.endpoint) {
         return {};
     }
     const resourceAttributes = serializeResourceAttributes(
@@ -173,10 +200,15 @@ export const buildClaudeCodeTelemetryEnv = (
         OTEL_LOG_USER_PROMPTS: '1',
         OTEL_LOG_TOOL_DETAILS: '1',
         OTEL_EXPORTER_OTLP_PROTOCOL: otel.protocol,
-        OTEL_EXPORTER_OTLP_ENDPOINT: otel.endpoint,
+        OTEL_EXPORTER_OTLP_ENDPOINT: options.endpoint,
         // Short-lived runs: flush fast so spans land before sandbox teardown.
         OTEL_TRACES_EXPORT_INTERVAL: '1000',
-        ...(otel.headers ? { OTEL_EXPORTER_OTLP_HEADERS: otel.headers } : {}),
+        // Bound each export attempt so an unreachable endpoint adds minimal flush
+        // latency at exit rather than the ~10s default.
+        OTEL_EXPORTER_OTLP_TIMEOUT: '3000',
+        ...(options.headers
+            ? { OTEL_EXPORTER_OTLP_HEADERS: options.headers }
+            : {}),
         ...(options.traceparent ? { TRACEPARENT: options.traceparent } : {}),
         ...(resourceAttributes
             ? { OTEL_RESOURCE_ATTRIBUTES: resourceAttributes }
@@ -204,9 +236,10 @@ export const claudeCodeAllowedHosts = (
               `bedrock.${bedrock.region}.amazonaws.com`,
           ];
 
-    if (otel?.enabled && otel.endpoint) {
+    const otelEndpoint = otel ? resolveDataAppOtelEndpoint(otel) : null;
+    if (otelEndpoint) {
         try {
-            const host = new URL(otel.endpoint).hostname;
+            const host = new URL(otelEndpoint).hostname;
             if (host) {
                 return [...llmHosts, host];
             }

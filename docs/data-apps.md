@@ -868,10 +868,15 @@ on, it sets:
   only.
 - `OTEL_TRACES_EXPORTER=otlp`, with `OTEL_METRICS_EXPORTER` and `OTEL_LOGS_EXPORTER` set to `none`.
   The sandbox is traces-only.
-- `OTEL_EXPORTER_OTLP_ENDPOINT` / `_PROTOCOL` / `_HEADERS` from config, plus the parent's
-  `TRACEPARENT`.
+- `OTEL_EXPORTER_OTLP_ENDPOINT` / `_PROTOCOL` / `_HEADERS`, plus the parent's `TRACEPARENT`. The
+  endpoint and headers are **resolved per auth mode** (see [Auth strategy](#auth-strategy-data_app_otel_auth)
+  below), not always the raw config values.
 - `OTEL_TRACES_EXPORT_INTERVAL=1000`. Generations are short-lived and the CLI flushes on clean exit;
   a low interval makes spans land before the sandbox is paused or torn down.
+- `OTEL_EXPORTER_OTLP_TIMEOUT=3000`. Bounds each export attempt so an unreachable endpoint adds at
+  most ~3s of flush latency at exit rather than the ~10s default. Telemetry is a non-fatal side
+  channel throughout: a wrong/unreachable endpoint, a misconfig, or a token-mint failure drops traces
+  but never the generation.
 - `OTEL_RESOURCE_ATTRIBUTES` carrying `service.name=lightdash-data-app` plus the same app / org /
   project / user uuids and install id as the parent span, so the sandbox spans are attributable on
   their own.
@@ -881,12 +886,39 @@ on, it sets:
   (`OTEL_LOG_RAW_API_BODIES`) stay off. See the caveat below: these flags feed Claude Code's
   log-events signal, not span attributes.
 
+### Auth strategy (`DATA_APP_OTEL_AUTH`)
+
+The OTLP endpoint and auth headers for the sandbox are chosen by a config-selected strategy, so the
+destination is a deployment decision and self-hosted installs are never coupled to a specific
+provider:
+
+- **`static` (default).** The sandbox uses the configured `OTEL_EXPORTER_OTLP_ENDPOINT` +
+  `OTEL_EXPORTER_OTLP_HEADERS` verbatim (your own collector, your own token / mTLS, etc.). No
+  provider-specific code runs. This is what a self-hosted deployment uses to point at its own
+  collector, and it's identical to the backend tracer's destination.
+- **`gcp`.** The sandbox endpoint is forced to GCP's public OTLP endpoint
+  (`https://telemetry.googleapis.com`), **independent of** the backend tracer's own
+  `OTEL_EXPORTER_OTLP_ENDPOINT`, and the headers are minted **per generation**: the backend uses
+  Application Default Credentials (Workload Identity) to mint a short-lived access token and injects
+  `Authorization: Bearer <token>` + `X-Goog-User-Project`. The deployment's identity must hold a
+  trace-write role; the project for `X-Goog-User-Project` comes from ADC unless `DATA_APP_OTEL_GCP_PROJECT`
+  overrides it. Minting happens at sandbox-execute time (not config-parse time), so the token is
+  always fresh regardless of process age or deploy cadence.
+
+The split matters: in `gcp` mode the sandbox goes straight to GCP while the backend tracer keeps its
+own (e.g. in-cluster collector) endpoint, so both halves must target the **same GCP project's Cloud
+Trace** for the parent and children to stitch by trace id. The header minting lives in
+`dataAppOtelAuth.ts` (`resolveDataAppOtelHeaders`) and the endpoint resolution in `claudeCodeEnv.ts`
+(`resolveDataAppOtelEndpoint`); both default to `static`, so the GCP path never runs unless a
+deployment opts in.
+
 ### Sandbox egress
 
 The E2B sandbox firewall denies all outbound traffic except an allowlist (see
 [LLM provider](#llm-provider-anthropic-vs-bedrock)). When OTEL export is on, `claudeCodeAllowedHosts`
-adds the OTLP collector's host to that allowlist, otherwise the exporter's POSTs are dropped
-silently. A malformed endpoint leaves the allowlist unchanged rather than opening an invalid host.
+adds the **resolved** endpoint's host to that allowlist (the configured collector in `static` mode,
+`telemetry.googleapis.com` in `gcp` mode), otherwise the exporter's POSTs are dropped silently. A
+malformed endpoint leaves the allowlist unchanged rather than opening an invalid host.
 
 ### Cost and payloads are not on the spans
 
@@ -915,19 +947,25 @@ the trace UI.
 
 ### Configuration
 
-The data-app sandbox reuses the same OTLP config as the backend's own tracer
-(`src/tracing/tracing.ts`), so both halves land in the same place:
+In `static` mode the data-app sandbox reuses the same OTLP config as the backend's own tracer
+(`src/tracing/tracing.ts`):
 
 ```
 LIGHTDASH_OTEL_TRACES_ENABLED=true                 # Master switch (backend + sandbox traces)
-OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4318  # OTLP collector (GCP collector in prod, local Jaeger in dev)
+OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4318  # OTLP collector (local Jaeger in dev)
 OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf           # Defaults to http/protobuf
-OTEL_EXPORTER_OTLP_HEADERS=...                       # Optional auth headers for the collector
+OTEL_EXPORTER_OTLP_HEADERS=...                       # Optional auth headers (static mode)
 OTEL_SDK_DISABLED=false
+DATA_APP_OTEL_AUTH=static                            # 'static' (default) or 'gcp'
+DATA_APP_OTEL_GCP_PROJECT=...                        # Optional X-Goog-User-Project override (gcp mode; else ADC)
 ```
 
-`appRuntime.otel` (in `parseConfig.ts`) is structurally a subset of this and is passed straight to
-`buildClaudeCodeTelemetryEnv`; its `enabled` mirrors the backend tracer's `otelTracingEnabled()`.
+In `gcp` mode (`DATA_APP_OTEL_AUTH=gcp`) the sandbox endpoint is forced to `telemetry.googleapis.com`
+and the headers are minted from Workload Identity (see [Auth strategy](#auth-strategy-data_app_otel_auth)),
+so the sandbox no longer follows `OTEL_EXPORTER_OTLP_ENDPOINT` — only the backend tracer does.
+
+`appRuntime.otel` (in `parseConfig.ts`) carries `enabled`, `auth`, `endpoint`, `protocol`, `headers`,
+and `gcpProject`; its `enabled` mirrors the backend tracer's `otelTracingEnabled()`.
 
 ### Local verification (Jaeger)
 

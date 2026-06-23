@@ -94,6 +94,7 @@ import {
     buildClaudeCodeTelemetryEnv,
     claudeCodeAllowedHosts,
     describeClaudeCodeEnv,
+    resolveDataAppOtelEndpoint,
 } from './claudeCodeEnv';
 import {
     addClaudeUsage,
@@ -101,6 +102,7 @@ import {
     ZERO_CLAUDE_USAGE,
     type ClaudeGenerationUsage,
 } from './ClaudeStreamProcessor';
+import { resolveDataAppOtelHeaders } from './dataAppOtelAuth';
 import {
     copyDesignIntoSandbox,
     type DesignSandboxCopyResult,
@@ -2583,27 +2585,43 @@ export class AppGenerateService extends BaseService {
                     // generation is one cross-service trace. No-op when OTEL
                     // tracing is off.
                     const installId = process.env.LIGHTDASH_INSTALL_ID;
+                    const otelConfig = this.lightdashConfig.appRuntime.otel;
+                    // Resolve the sandbox endpoint + headers at execute time. In
+                    // 'gcp' mode the headers carry a freshly-minted Workload-Identity
+                    // token (short-lived, per generation) and the endpoint is GCP's
+                    // public OTLP endpoint; in 'static' mode both are the configured
+                    // values. Telemetry is a non-fatal side channel: any failure
+                    // (e.g. a token mint error) drops traces but never the run.
+                    let telemetryEnv: Record<string, string> = {};
+                    try {
+                        telemetryEnv = buildClaudeCodeTelemetryEnv(otelConfig, {
+                            traceparent:
+                                getOtelTraceHeaders().traceparent ?? null,
+                            endpoint: resolveDataAppOtelEndpoint(otelConfig),
+                            headers:
+                                await resolveDataAppOtelHeaders(otelConfig),
+                            resourceAttributes: {
+                                'service.name': 'lightdash-data-app',
+                                'data_app.app_uuid': appUuid,
+                                'data_app.version': String(version),
+                                'organization.uuid': payload.organizationUuid,
+                                'project.uuid': projectUuid,
+                                'user.uuid': payload.userUuid,
+                                ...(installId
+                                    ? { 'lightdash.install_id': installId }
+                                    : {}),
+                            },
+                        });
+                    } catch (e) {
+                        this.logger.warn(
+                            `App ${appUuid}: OTEL telemetry setup failed, continuing without traces: ${getErrorMessage(
+                                e,
+                            )}`,
+                        );
+                    }
                     const claudeCodeEnvWithTelemetry = {
                         ...claudeCodeEnv,
-                        ...buildClaudeCodeTelemetryEnv(
-                            this.lightdashConfig.appRuntime.otel,
-                            {
-                                traceparent:
-                                    getOtelTraceHeaders().traceparent ?? null,
-                                resourceAttributes: {
-                                    'service.name': 'lightdash-data-app',
-                                    'data_app.app_uuid': appUuid,
-                                    'data_app.version': String(version),
-                                    'organization.uuid':
-                                        payload.organizationUuid,
-                                    'project.uuid': projectUuid,
-                                    'user.uuid': payload.userUuid,
-                                    ...(installId
-                                        ? { 'lightdash.install_id': installId }
-                                        : {}),
-                                },
-                            },
-                        ),
+                        ...telemetryEnv,
                     };
                     await this.runPipelineStages(
                         sandbox,

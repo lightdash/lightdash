@@ -1579,9 +1579,11 @@ export type AppRuntimeConfig = {
      */
     otel: {
         enabled: boolean;
+        auth: 'static' | 'gcp';
         endpoint: string | null;
         protocol: string;
         headers: string | null;
+        gcpProject: string | null;
     };
 };
 
@@ -1816,10 +1818,17 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
                 process.env.LIGHTDASH_OTEL_TRACES_ENABLED === 'true' &&
                 process.env.OTEL_SDK_DISABLED !== 'true' &&
                 process.env.OTEL_TRACES_EXPORTER !== 'none',
+            // 'gcp' mints a short-lived Workload-Identity token per generation
+            // and exports the sandbox traces straight to telemetry.googleapis.com.
+            // Default 'static' keeps the generic endpoint+headers passthrough, so
+            // self-hosted installs never run the GCP path.
+            auth: process.env.DATA_APP_OTEL_AUTH === 'gcp' ? 'gcp' : 'static',
             endpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || null,
             protocol:
                 process.env.OTEL_EXPORTER_OTLP_PROTOCOL || 'http/protobuf',
             headers: process.env.OTEL_EXPORTER_OTLP_HEADERS || null,
+            // X-Goog-User-Project for the GCP path; falls back to the ADC project.
+            gcpProject: process.env.DATA_APP_OTEL_GCP_PROJECT || null,
         },
     };
 };

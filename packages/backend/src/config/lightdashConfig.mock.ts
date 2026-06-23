@@ -372,9 +372,11 @@ export const lightdashConfigMock: LightdashConfig = {
         e2bAiWritebackTemplateTag: '',
         otel: {
             enabled: false,
+            auth: 'static',
             endpoint: null,
             protocol: 'http/protobuf',
             headers: null,
+            gcpProject: null,
         },
     },
     enabledFeatureFlags: new Set<string>(),
