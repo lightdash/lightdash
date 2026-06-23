@@ -1,3 +1,10 @@
+## [0.3225.1](https://github.com/lightdash/lightdash/compare/0.3225.0...0.3225.1) (2026-06-23)
+
+
+### Bug Fixes
+
+* reduce agent routing explore payload ([#24624](https://github.com/lightdash/lightdash/issues/24624)) ([35b6cea](https://github.com/lightdash/lightdash/commit/35b6ceabdb0597b470c0078d0141fb48c5d6cc34))
+
 # [0.3225.0](https://github.com/lightdash/lightdash/compare/0.3224.0...0.3225.0) (2026-06-23)
 
 
