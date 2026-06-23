@@ -1,3 +1,10 @@
+# [0.3226.0](https://github.com/lightdash/lightdash/compare/0.3225.1...0.3226.0) (2026-06-23)
+
+
+### Features
+
+* **data-apps:** polish app builder landing ([#24628](https://github.com/lightdash/lightdash/issues/24628)) ([83c0c51](https://github.com/lightdash/lightdash/commit/83c0c51835668b163d65942820e0842d2611d8b2))
+
 ## [0.3225.1](https://github.com/lightdash/lightdash/compare/0.3225.0...0.3225.1) (2026-06-23)
 
 
