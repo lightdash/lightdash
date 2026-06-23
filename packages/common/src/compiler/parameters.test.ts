@@ -455,6 +455,20 @@ describe('getMissingRequiredParameters', () => {
         expect(result).toEqual([]);
     });
 
+    it('does not flag a parameter explicitly set to a falsy value', () => {
+        // Key presence, not truthiness: a user can deliberately pick 0, '' or [].
+        const result = getMissingRequiredParameters(
+            ['amount', 'label', 'tags'],
+            { amount: 0, label: '', tags: [] },
+            {
+                amount: { label: 'Amount' },
+                label: { label: 'Label' },
+                tags: { label: 'Tags' },
+            },
+        );
+        expect(result).toEqual([]);
+    });
+
     it('does not flag a parameter that has a default', () => {
         const result = getMissingRequiredParameters(
             ['region'],
@@ -462,6 +476,29 @@ describe('getMissingRequiredParameters', () => {
             { region: { label: 'Region', default: 'EU' } },
         );
         expect(result).toEqual([]);
+    });
+
+    it('does not flag a parameter whose default is a falsy value (0 / empty string)', () => {
+        // A default counts as supplied whenever it is declared, matching the backend's
+        // `default !== undefined`. Truthiness would wrongly require a `default: 0` param.
+        const result = getMissingRequiredParameters(
+            ['count', 'note'],
+            {},
+            {
+                count: { label: 'Count', type: 'number', default: 0 },
+                note: { label: 'Note', default: '' },
+            },
+        );
+        expect(result).toEqual([]);
+    });
+
+    it('still flags a parameter declared with no default key', () => {
+        const result = getMissingRequiredParameters(
+            ['region'],
+            {},
+            { region: { label: 'Region' } },
+        );
+        expect(result).toEqual(['region']);
     });
 
     it('never flags a reserved parameter as missing', () => {
