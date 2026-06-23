@@ -208,7 +208,10 @@ export const findForbiddenRoadmapFields = (
  *  - strips every field not in {@link ROADMAP_ITEM_ALLOWED_FIELDS};
  *  - validates the remaining fields' types.
  *
- * Throws {@link ParameterError} on any validation failure.
+ * Throws {@link ParameterError} on any validation failure. The throw is an
+ * internal alarm for the sync/proxy layer, not a customer-facing response —
+ * to serve a list, use {@link redactRoadmapItems}, which excludes a failing
+ * item rather than letting its (potentially revealing) error reach a customer.
  */
 export const redactRoadmapItem = (
     raw: Record<string, unknown>,
@@ -238,6 +241,46 @@ export const redactRoadmapItem = (
 
     // Reconstruct from the allowlist only — no other key can leak through.
     return { title, description, status };
+};
+
+/**
+ * An item dropped by {@link redactRoadmapItems}. The `reason` is for internal
+ * logging/alerting only — it can echo the offending field name and must never
+ * be sent to a customer.
+ */
+export type RoadmapRedactionRejection = {
+    reason: string;
+};
+
+export type RoadmapRedactionResult = {
+    items: RoadmapItem[];
+    rejected: RoadmapRedactionRejection[];
+};
+
+/**
+ * Collection-level redaction — the safe entry point for serving a list.
+ *
+ * Runs {@link redactRoadmapItem} over each raw item and *excludes* any that
+ * fail rather than throwing, so a single forbidden/malformed item can never
+ * fail the whole response or leak its raw error to a customer. Failures are
+ * collected in `rejected` so the sync/proxy layer can log/alert on them
+ * internally (their presence means upstream curation is broken).
+ */
+export const redactRoadmapItems = (
+    raw: ReadonlyArray<Record<string, unknown>>,
+): RoadmapRedactionResult => {
+    const items: RoadmapItem[] = [];
+    const rejected: RoadmapRedactionRejection[] = [];
+    raw.forEach((item) => {
+        try {
+            items.push(redactRoadmapItem(item));
+        } catch (error) {
+            rejected.push({
+                reason: error instanceof Error ? error.message : String(error),
+            });
+        }
+    });
+    return { items, rejected };
 };
 
 export type ApiRoadmapResponse = {

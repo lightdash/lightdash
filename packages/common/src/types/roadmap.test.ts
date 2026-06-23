@@ -4,6 +4,7 @@ import {
     findForbiddenRoadmapFields,
     mapLinearStateToRoadmapStatus,
     redactRoadmapItem,
+    redactRoadmapItems,
     RoadmapItemStatus,
     type RoadmapItem,
 } from './roadmap';
@@ -161,5 +162,69 @@ describe('redactRoadmapItem', () => {
         expect(() => redactRoadmapItem(raw as Record<string, unknown>)).toThrow(
             ParameterError,
         );
+    });
+});
+
+describe('redactRoadmapItems', () => {
+    it('redacts every item when all are clean', () => {
+        const result = redactRoadmapItems([
+            {
+                title: 'Dark mode',
+                description: 'body',
+                status: RoadmapItemStatus.SHIPPED,
+                id: 'leak',
+            },
+            {
+                title: 'Filters',
+                description: null,
+                status: RoadmapItemStatus.PLANNED,
+            },
+        ]);
+        expect(result.items).toEqual<RoadmapItem[]>([
+            {
+                title: 'Dark mode',
+                description: 'body',
+                status: RoadmapItemStatus.SHIPPED,
+            },
+            {
+                title: 'Filters',
+                description: null,
+                status: RoadmapItemStatus.PLANNED,
+            },
+        ]);
+        expect(result.rejected).toEqual([]);
+    });
+
+    it('excludes a forbidden item rather than failing the whole list', () => {
+        const result = redactRoadmapItems([
+            {
+                title: 'Dark mode',
+                description: null,
+                status: RoadmapItemStatus.BACKLOG,
+            },
+            {
+                title: 'Leaky',
+                description: null,
+                status: RoadmapItemStatus.BACKLOG,
+                arr: 50000,
+            },
+        ]);
+        expect(result.items).toEqual<RoadmapItem[]>([
+            {
+                title: 'Dark mode',
+                description: null,
+                status: RoadmapItemStatus.BACKLOG,
+            },
+        ]);
+        expect(result.rejected).toHaveLength(1);
+    });
+
+    it('excludes malformed items and never throws', () => {
+        const result = redactRoadmapItems([
+            { description: null, status: RoadmapItemStatus.BACKLOG },
+            { title: 't', description: null, status: 'Whenever' },
+        ]);
+        expect(result.items).toEqual([]);
+        expect(result.rejected).toHaveLength(2);
     });
 });
