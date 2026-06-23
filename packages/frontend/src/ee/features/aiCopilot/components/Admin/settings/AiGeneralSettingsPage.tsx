@@ -12,7 +12,6 @@ import {
     Title,
 } from '@mantine-8/core';
 import { IconSparkles } from '@tabler/icons-react';
-import { useMemo } from 'react';
 import { Link } from 'react-router';
 import { BetaBadge } from '../../../../../../components/common/BetaBadge';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
@@ -21,9 +20,8 @@ import PageBreadcrumbs from '../../../../../../components/common/PageBreadcrumbs
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
 import {
     getAiAgentModelConfig,
-    getConfiguredModelOption,
     getModelOptionByKey,
-    getSystemDefaultModelOption,
+    useDefaultAiAgentModel,
 } from '../../../hooks/useAiAgentModelSelection';
 import {
     useAiOrganizationSettings,
@@ -49,22 +47,16 @@ export const AiGeneralSettingsPage = () => {
         useUpsertAiRouterConfig();
     const defaultModelConfig = settings?.defaultAiAgentModelConfig ?? null;
     const defaultModelOptions = settings?.defaultAiAgentModelOptions;
-    const selectedDefaultModel = useMemo(
-        () => getConfiguredModelOption(defaultModelOptions, defaultModelConfig),
-        [defaultModelConfig, defaultModelOptions],
-    );
-    const selectedDefaultModelKey = selectedDefaultModel
-        ? getModelKey(selectedDefaultModel)
-        : null;
-    const systemDefaultModel = useMemo(
-        () => getSystemDefaultModelOption(defaultModelOptions),
-        [defaultModelOptions],
-    );
-    const systemDefaultModelLabel = systemDefaultModel
-        ? `System default: ${systemDefaultModel.displayName}`
-        : 'System default';
-    const showReasoningDefault =
-        selectedDefaultModel?.supportsReasoning === true;
+    const {
+        fallbackModelLabel: systemDefaultModelLabel,
+        selectedModel: selectedDefaultModel,
+        selectedModelKey: selectedDefaultModelKey,
+        showReasoningDefault,
+    } = useDefaultAiAgentModel({
+        modelOptions: defaultModelOptions,
+        modelConfig: defaultModelConfig,
+        fallbackLabel: 'System default',
+    });
 
     return (
         <Stack mb="lg" gap="md">

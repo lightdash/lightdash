@@ -145,6 +145,7 @@ export const baseAgentSchema = z.object({
     enableSelfImprovement: z.boolean(),
     enableContentTools: z.boolean(),
     adminOnly: z.boolean(),
+    modelConfig: z.custom<AiAgentModelConfig>().nullable(),
     version: z.number(),
 });
 
@@ -171,6 +172,7 @@ export type AiAgent = Pick<
     | 'enableSelfImprovement'
     | 'enableContentTools'
     | 'adminOnly'
+    | 'modelConfig'
     | 'version'
 >;
 
@@ -195,6 +197,7 @@ export type AiAgentSummary = Pick<
     | 'enableSelfImprovement'
     | 'enableContentTools'
     | 'adminOnly'
+    | 'modelConfig'
     | 'version'
 >;
 
@@ -346,6 +349,7 @@ export type ApiCreateAiAgent = Pick<
     enableContentTools?: boolean;
     adminOnly?: boolean;
     mcpServerUuids?: string[];
+    modelConfig?: AiAgentModelConfig | null;
 };
 
 export type ApiUpdateAiAgent = Partial<
@@ -365,6 +369,7 @@ export type ApiUpdateAiAgent = Partial<
         | 'enableSelfImprovement'
         | 'enableContentTools'
         | 'adminOnly'
+        | 'modelConfig'
         | 'version'
     >
 > & {

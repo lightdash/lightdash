@@ -2503,13 +2503,23 @@ export class AiAgentService extends BaseService {
             embedSpaceUuid: runtimeOptions?.embedSpaceUuid,
         });
 
+        const aiOrganizationSettings =
+            body.modelConfig || agent.modelConfig
+                ? undefined
+                : await this.aiOrganizationSettingsService.getSettings(user);
+        const modelConfig =
+            body.modelConfig ??
+            agent.modelConfig ??
+            aiOrganizationSettings?.defaultAiAgentModelConfig ??
+            undefined;
+
         if (body.prompt) {
             await this.aiAgentModel.createWebAppPrompt({
                 threadUuid,
                 createdByUserUuid: user.userUuid,
                 prompt: body.prompt,
                 context,
-                modelConfig: body.modelConfig,
+                modelConfig,
             });
 
             this.analytics.track<AiAgentPromptCreatedEvent>({
@@ -2665,6 +2675,7 @@ export class AiAgentService extends BaseService {
             enableContentTools:
                 body.enableDataAccess && (body.enableContentTools ?? false),
             adminOnly: body.adminOnly ?? false,
+            modelConfig: body.modelConfig ?? null,
             version: body.version,
         });
 
@@ -3578,6 +3589,7 @@ export class AiAgentService extends BaseService {
                 ? body.enableContentTools
                 : false,
             adminOnly: body.adminOnly,
+            modelConfig: body.modelConfig,
             version: body.version,
         });
 
@@ -7741,13 +7753,22 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             throw new Error('Organization not found');
         }
 
-        const aiOrganizationSettings = data.modelConfig
-            ? undefined
-            : await this.aiOrganizationSettingsService.getSettings(
-                  user as SessionUser,
-              );
+        const agent = data.agentUuid
+            ? await this.aiAgentModel.getAgent({
+                  organizationUuid: user.organizationUuid,
+                  projectUuid: data.projectUuid,
+                  agentUuid: data.agentUuid,
+              })
+            : undefined;
+        const aiOrganizationSettings =
+            data.modelConfig || agent?.modelConfig
+                ? undefined
+                : await this.aiOrganizationSettingsService.getSettings(
+                      user as SessionUser,
+                  );
         const modelConfig =
             data.modelConfig ??
+            agent?.modelConfig ??
             aiOrganizationSettings?.defaultAiAgentModelConfig ??
             undefined;
 

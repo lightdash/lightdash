@@ -445,6 +445,7 @@ export class AiAgentModel {
                 enableSelfImprovement: `${AiAgentTableName}.enable_self_improvement`,
                 enableContentTools: `${AiAgentTableName}.enable_content_tools`,
                 adminOnly: `${AiAgentTableName}.admin_only`,
+                modelConfig: `${AiAgentTableName}.model_config`,
                 version: `${AiAgentTableName}.version`,
                 groupAccess: this.database.raw(`
                     COALESCE(
@@ -581,6 +582,7 @@ export class AiAgentModel {
                 enableSelfImprovement: `${AiAgentTableName}.enable_self_improvement`,
                 enableContentTools: `${AiAgentTableName}.enable_content_tools`,
                 adminOnly: `${AiAgentTableName}.admin_only`,
+                modelConfig: `${AiAgentTableName}.model_config`,
                 version: `${AiAgentTableName}.version`,
                 groupAccess: this.database.raw(`
                     COALESCE(
@@ -1740,6 +1742,7 @@ export class AiAgentModel {
             | 'enableSelfImprovement'
             | 'enableContentTools'
             | 'adminOnly'
+            | 'modelConfig'
             | 'version'
             | 'mcpServerUuids'
         > & {
@@ -1768,6 +1771,7 @@ export class AiAgentModel {
                     enable_self_improvement: args.enableSelfImprovement,
                     enable_content_tools: args.enableContentTools ?? false,
                     admin_only: args.adminOnly ?? false,
+                    model_config: args.modelConfig ?? null,
                     version: args.version,
                     is_system: args.isSystem ?? false,
                 })
@@ -1870,6 +1874,7 @@ export class AiAgentModel {
                 enableSelfImprovement: agent.enable_self_improvement,
                 enableContentTools: agent.enable_content_tools,
                 adminOnly: agent.admin_only,
+                modelConfig: agent.model_config,
                 version: agent.version,
             };
         });
@@ -1922,6 +1927,7 @@ export class AiAgentModel {
                 enableDataAccess: true,
                 enableSelfImprovement: false,
                 enableContentTools: false,
+                modelConfig: null,
                 version: 1,
                 mcpServerUuids: [],
                 isSystem: true,
@@ -1984,6 +1990,9 @@ export class AiAgentModel {
                         : {}),
                     ...(args.adminOnly !== undefined
                         ? { admin_only: args.adminOnly }
+                        : {}),
+                    ...(args.modelConfig !== undefined
+                        ? { model_config: args.modelConfig }
                         : {}),
                     ...(args.version !== undefined
                         ? { version: args.version }
@@ -2153,6 +2162,7 @@ export class AiAgentModel {
                 enableSelfImprovement: agent.enable_self_improvement,
                 enableContentTools: agent.enable_content_tools,
                 adminOnly: agent.admin_only,
+                modelConfig: agent.model_config,
                 version: agent.version,
             };
         });
