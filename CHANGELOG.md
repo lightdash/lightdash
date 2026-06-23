@@ -1,3 +1,17 @@
+# [0.3220.0](https://github.com/lightdash/lightdash/compare/0.3219.1...0.3220.0) (2026-06-23)
+
+
+### Bug Fixes
+
+* send agent guidance with enter ([#24603](https://github.com/lightdash/lightdash/issues/24603)) ([5031654](https://github.com/lightdash/lightdash/commit/50316543ced2d6546e48d1460e6abadd3692d8cb)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+
+### Features
+
+* interrupt running ai agents ([#24573](https://github.com/lightdash/lightdash/issues/24573)) ([d38d466](https://github.com/lightdash/lightdash/commit/d38d466e1cf51e0165016de6f68879194e117f5a))
+* steer running ai agents ([#24577](https://github.com/lightdash/lightdash/issues/24577)) ([1bc43af](https://github.com/lightdash/lightdash/commit/1bc43af47b30536fb96da6d1ca80b8a42b27d3c4))
+* surface slack mcp oauth logins ([#24569](https://github.com/lightdash/lightdash/issues/24569)) ([a2fb122](https://github.com/lightdash/lightdash/commit/a2fb122375bd17b8197998de6e4a5117e1e08cce))
+
 ## [0.3219.1](https://github.com/lightdash/lightdash/compare/0.3219.0...0.3219.1) (2026-06-23)
 
 
