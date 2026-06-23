@@ -241,6 +241,7 @@ import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { EmailModel } from '../../models/EmailModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
+import { GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
@@ -336,6 +337,7 @@ export type ProjectServiceArguments = {
     natsClient?: INatsClient;
     contentVerificationModel?: ContentVerificationModel;
     organizationSettingsModel: OrganizationSettingsModel;
+    githubAppInstallationsModel?: GithubAppInstallationsModel;
     projectContextModel?: {
         replaceEntriesForProject(
             projectUuid: string,
@@ -441,6 +443,8 @@ export class ProjectService extends BaseService {
 
     organizationSettingsModel: OrganizationSettingsModel;
 
+    githubAppInstallationsModel: GithubAppInstallationsModel | undefined;
+
     projectContextModel:
         | {
               replaceEntriesForProject(
@@ -492,6 +496,7 @@ export class ProjectService extends BaseService {
         spacePermissionService,
         contentVerificationModel,
         organizationSettingsModel,
+        githubAppInstallationsModel,
         projectContextModel,
         isProjectContextEnabled,
         getAppGenerateService,
@@ -534,6 +539,7 @@ export class ProjectService extends BaseService {
         this.spacePermissionService = spacePermissionService;
         this.contentVerificationModel = contentVerificationModel;
         this.organizationSettingsModel = organizationSettingsModel;
+        this.githubAppInstallationsModel = githubAppInstallationsModel;
         this.projectContextModel = projectContextModel;
         this.isProjectContextEnabled = isProjectContextEnabled;
         this.getAppGenerateService = getAppGenerateService;
@@ -3283,6 +3289,46 @@ export class ProjectService extends BaseService {
         }
     }
 
+    /**
+     * The GitHub App installation_id is snapshotted into a project's
+     * dbt_connection when its connection form is saved. If the org later
+     * uninstalls and reinstalls the Lightdash GitHub App, GitHub mints a new
+     * installation_id, the org-level github_app_installations row is updated,
+     * but the project keeps the stale id - so getInstallationToken 404s on every
+     * compile/refresh. Re-resolve the installation_id from the org-level
+     * installation (the single source of truth) before building the adapter.
+     */
+    private async resolveDbtConnectionInstallationId(
+        dbtConnection: DbtProjectConfig,
+        organizationUuid: string | undefined,
+    ): Promise<DbtProjectConfig> {
+        if (
+            dbtConnection.type === DbtProjectType.GITHUB &&
+            dbtConnection.authorization_method === 'installation_id' &&
+            organizationUuid &&
+            this.githubAppInstallationsModel
+        ) {
+            const currentInstallationId =
+                await this.githubAppInstallationsModel.findInstallationId(
+                    organizationUuid,
+                );
+            if (
+                currentInstallationId &&
+                currentInstallationId !== dbtConnection.installation_id
+            ) {
+                this.logger.info(
+                    'Using current org GitHub installation_id instead of stale project value',
+                    { organizationUuid },
+                );
+                return {
+                    ...dbtConnection,
+                    installation_id: currentInstallationId,
+                };
+            }
+        }
+        return dbtConnection;
+    }
+
     private async testProjectAdapter(
         data: UpdateProject,
         _user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
@@ -3292,8 +3338,12 @@ export class ProjectService extends BaseService {
     }> {
         const sshTunnel = new SshTunnel(data.warehouseConnection);
         await sshTunnel.connect();
-        const adapter = await projectAdapterFromConfig(
+        const dbtConnection = await this.resolveDbtConnectionInstallationId(
             data.dbtConnection,
+            _user.organizationUuid,
+        );
+        const adapter = await projectAdapterFromConfig(
+            dbtConnection,
             sshTunnel.overrideCredentials,
             {
                 warehouseCatalog: undefined,
@@ -3645,8 +3695,13 @@ export class ProjectService extends BaseService {
         const sshTunnel = new SshTunnel(project.warehouseConnection);
         await sshTunnel.connect();
 
-        const adapter = await projectAdapterFromConfig(
+        const dbtConnection = await this.resolveDbtConnectionInstallationId(
             project.dbtConnection,
+            user.organizationUuid,
+        );
+
+        const adapter = await projectAdapterFromConfig(
+            dbtConnection,
             sshTunnel.overrideCredentials,
             {
                 warehouseCatalog: cachedWarehouseCatalog,
