@@ -1,6 +1,8 @@
 import {
     ChartKind,
+    PullRequestProvider,
     type AgentSuggestion,
+    type AiAgentMessage,
     type AiAgentThread,
     type AiPromptContextItem,
 } from '@lightdash/common';
@@ -245,7 +247,13 @@ const workContext: AiPromptContextItem[] = [
                 title: 'Clarify total_revenue definition',
                 rationale:
                     'Users need to know whether revenue includes refunds and taxes.',
-                targetRefs: ['orders.total_revenue'],
+                targetRefs: [
+                    {
+                        type: 'metric',
+                        modelName: 'orders',
+                        metricName: 'total_revenue',
+                    },
+                ],
             },
         },
     },
@@ -270,7 +278,7 @@ const verifyContext: AiPromptContextItem[] = [
         type: 'pull_request',
         prUrl: 'https://github.com/lightdash/jaffle-shop-dbt/pull/42',
         prNumber: 42,
-        provider: 'github',
+        provider: PullRequestProvider.GITHUB,
         status: 'open',
         title: 'Clarify total_revenue semantic definition',
     },
@@ -633,6 +641,72 @@ const makeThread = (scenario: ThreadScenario): AiAgentThread => {
     const createdAt = '2026-06-23T10:00:00.000Z';
     const threadUuid = `thread-${scenario.badge.toLowerCase().replaceAll(' ', '-')}`;
     let assistantIndex = 0;
+    const messages: AiAgentMessage[] = scenario.turns.map((turn, index) => {
+        const promptUuid = `prompt-${index}`;
+        const messageCreatedAt = new Date(
+            Date.parse(createdAt) + index * 60_000,
+        ).toISOString();
+
+        if (turn.role === 'user') {
+            return {
+                role: 'user',
+                uuid: promptUuid,
+                threadUuid,
+                message: turn.text,
+                createdAt: messageCreatedAt,
+                user: storyUser,
+                context: turn.context ?? [],
+                steers: [],
+                hidden: false,
+            };
+        }
+
+        assistantIndex += 1;
+        const calls = flattenToolCalls(turn.activity);
+        return {
+            role: 'assistant',
+            status: 'idle',
+            uuid: `assistant-${index}`,
+            threadUuid,
+            message: turn.text,
+            errorMessage: null,
+            interrupted: false,
+            createdAt: messageCreatedAt,
+            humanScore: null,
+            humanFeedback: null,
+            toolCalls: calls.map((call) => ({
+                uuid: `tool-${call.toolCallId}`,
+                promptUuid,
+                toolCallId: call.toolCallId,
+                parentToolCallId: null,
+                createdAt: new Date(messageCreatedAt),
+                toolType: 'built-in',
+                toolName: call.toolName,
+                toolArgs:
+                    typeof call.toolArgs === 'object' && call.toolArgs
+                        ? call.toolArgs
+                        : {},
+            })),
+            toolResults: [],
+            reasoning:
+                turn.reasoning?.map((text, reasoningIndex) => ({
+                    uuid: `reasoning-${index}-${reasoningIndex}`,
+                    promptUuid,
+                    reasoningId: `reasoning-${index}-${reasoningIndex}`,
+                    text,
+                    createdAt: new Date(messageCreatedAt),
+                })) ?? [],
+            savedQueryUuid: null,
+            artifacts: null,
+            referencedArtifacts: null,
+            modelConfig: {
+                modelName: assistantIndex === 1 ? 'gpt-5' : 'gpt-5-mini',
+                modelProvider: 'openai',
+                reasoning: true,
+            },
+            tokenUsage: null,
+        };
+    });
 
     return {
         uuid: threadUuid,
@@ -647,84 +721,7 @@ const makeThread = (scenario: ThreadScenario): AiAgentThread => {
         },
         user: storyUser,
         compactions: [],
-        messages: scenario.turns.map((turn, index) => {
-            const promptUuid = `prompt-${index}`;
-            const messageCreatedAt = new Date(
-                Date.parse(createdAt) + index * 60_000,
-            ).toISOString();
-
-            if (turn.role === 'user') {
-                return {
-                    role: 'user',
-                    uuid: promptUuid,
-                    threadUuid,
-                    message: turn.text,
-                    createdAt: messageCreatedAt,
-                    user: storyUser,
-                    context: turn.context ?? [],
-                    steers: [],
-                    hidden: false,
-                };
-            }
-
-            assistantIndex += 1;
-            const calls = flattenToolCalls(turn.activity);
-            return {
-                role: 'assistant',
-                status: 'idle',
-                uuid: `assistant-${index}`,
-                threadUuid,
-                message: turn.text,
-                errorMessage: null,
-                interrupted: false,
-                createdAt: messageCreatedAt,
-                humanScore: null,
-                humanFeedback: null,
-                toolCalls: calls.map((call) => ({
-                    uuid: `tool-${call.toolCallId}`,
-                    promptUuid,
-                    toolCallId: call.toolCallId,
-                    parentToolCallId: null,
-                    createdAt: new Date(messageCreatedAt),
-                    toolType: 'built-in',
-                    toolName: call.toolName,
-                    toolArgs:
-                        typeof call.toolArgs === 'object' && call.toolArgs
-                            ? call.toolArgs
-                            : {},
-                })),
-                toolResults: calls
-                    .filter((call) => call.toolOutput !== undefined)
-                    .map((call) => ({
-                        uuid: `result-${call.toolCallId}`,
-                        promptUuid,
-                        toolCallId: call.toolCallId,
-                        createdAt: new Date(messageCreatedAt),
-                        toolType: 'built-in',
-                        toolName: call.toolName,
-                        result: JSON.stringify(call.toolOutput),
-                        metadata: (call.toolOutput as { metadata?: object })
-                            ?.metadata ?? { status: 'success' },
-                    })),
-                reasoning:
-                    turn.reasoning?.map((text, reasoningIndex) => ({
-                        uuid: `reasoning-${index}-${reasoningIndex}`,
-                        promptUuid,
-                        reasoningId: `reasoning-${index}-${reasoningIndex}`,
-                        text,
-                        createdAt: new Date(messageCreatedAt),
-                    })) ?? [],
-                savedQueryUuid: null,
-                artifacts: null,
-                referencedArtifacts: null,
-                modelConfig: {
-                    modelName: assistantIndex === 1 ? 'gpt-5' : 'gpt-5-mini',
-                    modelProvider: 'openai',
-                    reasoning: true,
-                },
-                tokenUsage: null,
-            };
-        }),
+        messages,
     };
 };
 
