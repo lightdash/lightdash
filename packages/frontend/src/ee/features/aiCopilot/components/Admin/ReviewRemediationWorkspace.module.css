@@ -17,26 +17,21 @@
     overflow-y: auto;
 }
 
-/* Build is the primary pane (you act here); Test is the narrower verification rail. */
-.paneBuild {
-    flex: 1.4 1 0;
-}
-
-.paneTest {
-    flex: 1 1 0;
-}
-
-.connector {
-    flex: 0 0 auto;
-    align-self: center;
-    color: var(--mantine-color-dimmed);
-}
-
 .testHeader {
     background-color: light-dark(
         var(--mantine-color-blue-0),
         color-mix(in srgb, var(--mantine-color-blue-6) 22%, transparent)
     );
+}
+
+.drawerInner {
+    top: var(--drawer-top-offset, 0);
+    height: calc(100% - var(--drawer-top-offset, 0));
+}
+
+.drawerOverlay {
+    top: var(--drawer-top-offset, 0);
+    height: calc(100% - var(--drawer-top-offset, 0));
 }
 
 .drawerBody {

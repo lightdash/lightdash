@@ -1,6 +1,8 @@
+import { ProjectType } from '@lightdash/common';
 import {
     Box,
     Button,
+    CloseButton,
     Collapse,
     Divider,
     Drawer,
@@ -8,7 +10,6 @@ import {
     Group,
     Loader,
     Paper,
-    SegmentedControl,
     Stack,
     Text,
     ThemeIcon,
@@ -29,8 +30,15 @@ import { useMemo } from 'react';
 import { useParams } from 'react-router';
 import { CategoryBadge } from '../../../../../components/common/CategoryBadge';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import {
+    BANNER_HEIGHT,
+    NAVBAR_HEIGHT,
+} from '../../../../../components/common/Page/constants';
 import PageBreadcrumbs from '../../../../../components/common/PageBreadcrumbs';
+import { useActiveProjectUuid } from '../../../../../hooks/useActiveProject';
+import { useProject } from '../../../../../hooks/useProject';
 import { useProjects } from '../../../../../hooks/useProjects';
+import { useImpersonation } from '../../../../../hooks/user/useImpersonation';
 import {
     useAiAgentAdminAgents,
     useAiAgentAdminReviewItem,
@@ -54,6 +62,15 @@ const WORKSPACE_HEIGHT = 'calc(100vh - 170px)';
 
 export const ReviewRemediationWorkspace = () => {
     const { fingerprint } = useParams<{ fingerprint: string }>();
+
+    // The drawer is anchored below the fixed navbar (and the preview/impersonation
+    // banner when one is showing), so its header isn't hidden under them.
+    const { activeProjectUuid } = useActiveProjectUuid();
+    const { data: activeProject } = useProject(activeProjectUuid);
+    const { isImpersonating } = useImpersonation();
+    const hasBanner =
+        activeProject?.type === ProjectType.PREVIEW || isImpersonating;
+    const drawerTopOffset = NAVBAR_HEIGHT + (hasBanner ? BANNER_HEIGHT : 0);
 
     const { data: reviewItem, isLoading: isItemLoading } =
         useAiAgentAdminReviewItem(fingerprint ?? '', {
@@ -124,8 +141,8 @@ export const ReviewRemediationWorkspace = () => {
     // and not stale (the fix changed since it was last tested).
     const isVerified = hasVerification && !activity?.verdictStale;
 
-    // Layout d folds the Test + Retest buttons into a single pill that opens the
-    // test drawer. It mirrors testBadge, with a "Test the fix" CTA fallback when
+    // A single header pill that opens the test drawer, in place of separate Test
+    // and Retest buttons. It mirrors testBadge, with a "Test the fix" CTA when
     // nothing has run yet. It stays a loud (filled) CTA while there's something
     // to verify, and calms to a light status once a verdict is in — so the
     // emphasis hands off to the black Resolve button at the right moment.
@@ -203,14 +220,6 @@ export const ReviewRemediationWorkspace = () => {
         </Group>
     );
 
-    const stepIcon = (n: number) => (
-        <ThemeIcon size="sm" radius="xl" variant="default">
-            <Text fz="xs" fw={600} c="dimmed">
-                {n}
-            </Text>
-        </ThemeIcon>
-    );
-
     const buildPane = (className: string) => (
         <Paper withBorder className={className}>
             <Group justify="space-between" p="sm" wrap="nowrap">
@@ -259,7 +268,53 @@ export const ReviewRemediationWorkspace = () => {
         </Paper>
     );
 
-    const testPane = (className: string, showRetest = true) => (
+    const retestButton = (
+        <Button
+            size="compact-sm"
+            variant={activity?.verdictStale ? 'filled' : 'light'}
+            color="yellow"
+            disabled={!canRetest}
+            loading={retest.isLoading}
+            leftSection={<MantineIcon icon={IconRefresh} size={16} />}
+            onClick={() => fingerprint && retest.mutate({ fingerprint })}
+        >
+            Retest
+        </Button>
+    );
+
+    // The verification conversation (or the live waiting state). Shared by the
+    // inline deterministic-fix pane and the test drawer's scroll container.
+    const testThreadBody = (
+        <div className={classes.paneBody}>
+            {hasTestThread &&
+            remediation.previewProjectUuid &&
+            remediation.previewAgentUuid &&
+            remediation.previewThreadUuid ? (
+                <WorkspaceThreadPane
+                    projectUuid={remediation.previewProjectUuid}
+                    agentUuid={remediation.previewAgentUuid}
+                    agentName={testAgent?.name ?? 'Verification'}
+                    threadUuid={remediation.previewThreadUuid}
+                    interactive={false}
+                />
+            ) : (
+                <Stack align="center" mt="xl" gap="xs">
+                    {isLive && <Loader size="sm" />}
+                    <Text c="dimmed" fz="sm" ta="center" maw={320}>
+                        {activity?.liveState === 'writeback'
+                            ? 'Waiting for the pull request to open…'
+                            : activity?.liveState === 'compiling'
+                              ? 'Building the preview environment…'
+                              : activity?.liveState === 'verifying'
+                                ? 'Running verification in the preview…'
+                                : 'The verdict appears here once the preview is ready.'}
+                    </Text>
+                </Stack>
+            )}
+        </div>
+    );
+
+    const testPane = (className: string) => (
         <Paper withBorder className={className}>
             <Group
                 justify="space-between"
@@ -270,13 +325,11 @@ export const ReviewRemediationWorkspace = () => {
                 <Group gap="xs" wrap="nowrap" miw={0}>
                     <ThemeIcon
                         size="sm"
-                        radius="xl"
+                        radius="md"
                         variant="light"
                         color="blue"
                     >
-                        <Text fz="xs" fw={600} c="blue">
-                            2
-                        </Text>
+                        <MantineIcon icon={IconFlask} size={14} />
                     </ThemeIcon>
                     <Text fw={600} fz="sm">
                         Test the fix
@@ -286,56 +339,10 @@ export const ReviewRemediationWorkspace = () => {
                     </Text>
                     {testBadge && renderBadge(testBadge)}
                 </Group>
-                {showRetest && (
-                    <Group gap="xs" wrap="nowrap">
-                        <Button
-                            size="compact-xs"
-                            variant={
-                                activity?.verdictStale ? 'filled' : 'light'
-                            }
-                            color="yellow"
-                            disabled={!canRetest}
-                            loading={retest.isLoading}
-                            leftSection={
-                                <MantineIcon icon={IconRefresh} size={16} />
-                            }
-                            onClick={() =>
-                                fingerprint && retest.mutate({ fingerprint })
-                            }
-                        >
-                            Retest
-                        </Button>
-                    </Group>
-                )}
+                {retestButton}
             </Group>
             <Divider />
-            <div className={classes.paneBody}>
-                {hasTestThread &&
-                remediation.previewProjectUuid &&
-                remediation.previewAgentUuid &&
-                remediation.previewThreadUuid ? (
-                    <WorkspaceThreadPane
-                        projectUuid={remediation.previewProjectUuid}
-                        agentUuid={remediation.previewAgentUuid}
-                        agentName={testAgent?.name ?? 'Verification'}
-                        threadUuid={remediation.previewThreadUuid}
-                        interactive={false}
-                    />
-                ) : (
-                    <Stack align="center" mt="xl" gap="xs">
-                        {isLive && <Loader size="sm" />}
-                        <Text c="dimmed" fz="sm" ta="center" maw={320}>
-                            {activity?.liveState === 'writeback'
-                                ? 'Waiting for the pull request to open…'
-                                : activity?.liveState === 'compiling'
-                                  ? 'Building the preview environment…'
-                                  : activity?.liveState === 'verifying'
-                                    ? 'Running verification in the preview…'
-                                    : 'The verdict appears here once the preview is ready.'}
-                        </Text>
-                    </Stack>
-                )}
-            </div>
+            {testThreadBody}
         </Paper>
     );
 
@@ -366,7 +373,7 @@ export const ReviewRemediationWorkspace = () => {
                     />
                 </Group>
                 <Group gap="xs" wrap="nowrap">
-                    {reviewItem.linkedPrUrl && layout !== 'd' && (
+                    {reviewItem.linkedPrUrl && !hasBuildThread && (
                         <Button
                             component="a"
                             href={reviewItem.linkedPrUrl}
@@ -390,7 +397,7 @@ export const ReviewRemediationWorkspace = () => {
                             View PR
                         </Button>
                     )}
-                    {layout === 'd' && hasBuildThread && (
+                    {hasBuildThread && (
                         <Button
                             size="xs"
                             color={verdictPill.color}
@@ -439,45 +446,9 @@ export const ReviewRemediationWorkspace = () => {
                 </Group>
             </Group>
 
-            {hasBuildThread && layout === 'd' ? (
+            {hasBuildThread ? (
                 <Flex className={classes.panes} h={WORKSPACE_HEIGHT}>
                     {buildPane(`${classes.pane}`)}
-                </Flex>
-            ) : hasBuildThread && layout === 'b' ? (
-                <Flex
-                    direction="column"
-                    gap="sm"
-                    className={classes.panes}
-                    h={WORKSPACE_HEIGHT}
-                >
-                    {buildPane(`${classes.pane}`)}
-                    {testPane(`${classes.pane}`)}
-                </Flex>
-            ) : hasBuildThread && layout === 'c' ? (
-                <Stack gap="sm" h={WORKSPACE_HEIGHT}>
-                    <SegmentedControl
-                        value={activeTab}
-                        onChange={(value) =>
-                            setActiveTab(value as 'build' | 'test')
-                        }
-                        data={[
-                            { label: '1 · Build the fix', value: 'build' },
-                            { label: '2 · Test the fix', value: 'test' },
-                        ]}
-                    />
-                    {activeTab === 'build'
-                        ? buildPane(`${classes.pane}`)
-                        : testPane(`${classes.pane}`)}
-                </Stack>
-            ) : hasBuildThread ? (
-                <Flex gap="sm" className={classes.panes} h={WORKSPACE_HEIGHT}>
-                    {buildPane(`${classes.pane} ${classes.paneBuild}`)}
-
-                    <Flex className={classes.connector}>
-                        <MantineIcon icon={IconArrowRight} size={24} />
-                    </Flex>
-
-                    {testPane(`${classes.pane} ${classes.paneTest}`)}
                 </Flex>
             ) : (
                 <Flex
@@ -488,12 +459,22 @@ export const ReviewRemediationWorkspace = () => {
                 >
                     <Paper withBorder p="sm">
                         <Group gap="xs" wrap="nowrap" miw={0}>
-                            {stepIcon(1)}
+                            <ThemeIcon
+                                size="sm"
+                                radius="md"
+                                variant="light"
+                                color="gray"
+                            >
+                                <MantineIcon
+                                    icon={IconGitPullRequest}
+                                    size={14}
+                                />
+                            </ThemeIcon>
                             <Text fw={600} fz="sm">
                                 Deterministic fix
                             </Text>
                             <Text fz="xs" c="dimmed" truncate>
-                                · Project context — written without a build
+                                · Project context, written without a build
                                 conversation
                             </Text>
                         </Group>
@@ -552,9 +533,55 @@ export const ReviewRemediationWorkspace = () => {
                 size="xl"
                 padding={0}
                 withCloseButton={false}
-                classNames={{ body: classes.drawerBody }}
+                classNames={{
+                    inner: classes.drawerInner,
+                    overlay: classes.drawerOverlay,
+                    body: classes.drawerBody,
+                }}
+                __vars={{ '--drawer-top-offset': `${drawerTopOffset}px` }}
             >
-                {testPane(`${classes.pane}`, true)}
+                <Box p="md" className={classes.testHeader}>
+                    <Group
+                        justify="space-between"
+                        align="flex-start"
+                        wrap="nowrap"
+                    >
+                        <Group gap="sm" wrap="nowrap" miw={0}>
+                            <ThemeIcon
+                                size="lg"
+                                radius="md"
+                                variant="light"
+                                color="blue"
+                            >
+                                <MantineIcon icon={IconFlask} size={20} />
+                            </ThemeIcon>
+                            <Box miw={0}>
+                                <Group gap="xs" wrap="nowrap" miw={0}>
+                                    <Text fw={600} fz="sm">
+                                        Test the fix
+                                    </Text>
+                                    {testBadge && renderBadge(testBadge)}
+                                </Group>
+                                <Text fz="xs" c="dimmed" truncate>
+                                    Preview environment · {previewProjectName}
+                                </Text>
+                            </Box>
+                        </Group>
+                        <CloseButton onClick={testDrawerHandlers.close} />
+                    </Group>
+                    <Text fz="sm" c="dimmed" mt="sm">
+                        We spun up a throwaway copy of your project with this
+                        fix applied. {testAgent?.name ?? 'Your agent'} re-runs
+                        the original question against it, so you can see whether
+                        the answer is right now before you merge. Nothing here
+                        touches production.
+                    </Text>
+                    <Group justify="flex-end" mt="sm">
+                        {retestButton}
+                    </Group>
+                </Box>
+                <Divider />
+                {testThreadBody}
             </Drawer>
 
             <MarkResolvedModal
