@@ -175,13 +175,6 @@ export enum FeatureFlags {
     DataAppsScheduledDeliveries = 'data-apps-scheduled-deliveries',
 
     /**
-     * Enable UI for hiding dimensions in pivot table charts (so a dimension
-     * can drive sort order without rendering or leaking into CSV/XLSX).
-     * Off by default while we validate with design partners before GA.
-     */
-    HidePivotDimensions = 'hide-pivot-dimensions',
-
-    /**
      * Enable the "Group repeated row values" toggle on pivot tables — visual
      * dedup of row-header dim values without rendering aggregate subtotal
      * rows. Off by default while we validate the rendering across customer

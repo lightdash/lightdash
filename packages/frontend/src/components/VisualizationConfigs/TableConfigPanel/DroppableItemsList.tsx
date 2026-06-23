@@ -26,7 +26,6 @@ type DroppableItemsListProps = {
     isDragging: boolean;
     disableReorder: boolean;
     placeholder?: string;
-    allowHidePivotDimension?: boolean;
 };
 
 const DroppableItemsList: FC<DroppableItemsListProps> = ({
@@ -35,7 +34,6 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
     isDragging,
     disableReorder,
     placeholder,
-    allowHidePivotDimension = false,
 }) => {
     const hasItems = itemIds.length > 0;
     return (
@@ -105,9 +103,6 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
 
                                             <ColumnConfiguration
                                                 fieldId={itemId}
-                                                allowHidePivotDimension={
-                                                    allowHidePivotDimension
-                                                }
                                             />
                                         </Group>
                                     </DraggablePortalHandler>
