@@ -1,176 +1,122 @@
-.wrapper {
+.fan {
     position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    justify-content: center;
-    gap: var(--mantine-spacing-lg);
-    padding: 40px;
-    /* Extra top room for the window-chrome dots. */
-    padding-top: 48px;
-    max-width: 760px;
     width: 100%;
-    /* Shared height + transition name with the compose card so picking a
-       template morphs the card smoothly (no height jump). */
-    height: min(600px, calc(100vh - 140px));
-    view-transition-name: app-composer;
-    box-sizing: border-box;
-    container-type: inline-size;
-    border-radius: var(--mantine-radius-lg);
-    border: 1px solid;
-
-    @mixin light {
-        background-color: var(--mantine-color-white);
-        border-color: var(--mantine-color-ldGray-2);
-        box-shadow:
-            0 1px 2px alpha(var(--mantine-color-black), 0.04),
-            0 12px 32px -12px alpha(var(--mantine-color-black), 0.12);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-dark-7);
-        border-color: var(--mantine-color-dark-4);
-        box-shadow:
-            0 1px 2px alpha(var(--mantine-color-black), 0.2),
-            0 16px 40px -12px alpha(var(--mantine-color-black), 0.5);
-    }
-}
-
-/* Three traffic-light dots, echoing the data-app (window) icon. */
-.wrapper::before {
-    content: '';
-    position: absolute;
-    top: 18px;
-    left: 22px;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-
-    @mixin light {
-        background-color: var(--mantine-color-ldGray-3);
-        box-shadow:
-            14px 0 0 var(--mantine-color-ldGray-3),
-            28px 0 0 var(--mantine-color-ldGray-3);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-dark-3);
-        box-shadow:
-            14px 0 0 var(--mantine-color-dark-3),
-            28px 0 0 var(--mantine-color-dark-3);
-    }
-}
-
-.heading {
-    text-align: center;
-    margin-bottom: var(--mantine-spacing-xs);
-}
-
-.headingTitle {
-    letter-spacing: -0.02em;
-}
-
-.templateGrid {
-    width: 100%;
+    max-width: 720px;
+    height: 260px;
+    margin: 0 auto;
 }
 
 .card {
-    position: relative;
-    padding: var(--mantine-spacing-lg);
-    padding-right: calc(var(--mantine-spacing-lg) + 20px);
+    position: absolute;
+    top: 40px;
+    left: 50%;
+    width: 184px;
+    height: 166px;
+    padding: var(--mantine-spacing-md);
     border: 1px solid var(--mantine-color-default-border);
-    transition:
-        border-color 120ms ease,
-        background-color 120ms ease,
-        box-shadow 120ms ease,
-        transform 120ms ease;
+    border-radius: var(--mantine-radius-lg);
     text-align: left;
     font: inherit;
     color: inherit;
     cursor: pointer;
+    transform: translate(calc(var(--x) - 92px), var(--y)) rotate(var(--rot));
+    transition:
+        transform 220ms cubic-bezier(0.2, 0.7, 0.3, 1),
+        border-color 180ms ease,
+        background-color 180ms ease,
+        box-shadow 180ms ease;
 
     @mixin light {
         background-color: var(--mantine-color-white);
+        box-shadow: 0 8px 22px -8px alpha(var(--mantine-color-black), 0.18);
     }
     @mixin dark {
         background-color: var(--mantine-color-dark-6);
-    }
-
-    &:hover {
-        @mixin light {
-            border-color: var(--mantine-color-ldGray-4);
-            background-color: var(--mantine-color-ldGray-0);
-            box-shadow: 0 2px 8px -2px alpha(var(--mantine-color-black), 0.08);
-        }
-        @mixin dark {
-            border-color: var(--mantine-color-dark-3);
-            background-color: var(--mantine-color-dark-5);
-        }
-    }
-
-    &:focus-visible {
-        outline: none;
-
-        @mixin light {
-            border-color: var(--mantine-color-blue-6);
-            box-shadow: 0 0 0 3px var(--mantine-color-blue-1);
-        }
-        @mixin dark {
-            border-color: var(--mantine-color-blue-5);
-            box-shadow: 0 0 0 3px alpha(var(--mantine-color-blue-9), 0.35);
-        }
-    }
-
-    &:active {
-        transform: translateY(1px);
+        box-shadow: 0 8px 22px -8px alpha(var(--mantine-color-black), 0.5);
     }
 }
 
-.cardSelected {
-    border-color: var(--mantine-color-blue-6);
+.card[data-pos='0'] {
+    --x: -258px;
+    --y: 44px;
+    --rot: -15deg;
+    z-index: 1;
+}
+.card[data-pos='1'] {
+    --x: -88px;
+    --y: 2px;
+    --rot: -5deg;
+    z-index: 2;
+}
+.card[data-pos='2'] {
+    --x: 88px;
+    --y: 2px;
+    --rot: 5deg;
+    z-index: 3;
+}
+.card[data-pos='3'] {
+    --x: 258px;
+    --y: 44px;
+    --rot: 15deg;
+    z-index: 4;
+}
+
+.card:hover,
+.card:focus-visible {
+    outline: none;
+    transform: translate(calc(var(--x) - 92px), calc(var(--y) - 28px))
+        rotate(calc(var(--rot) * 0.35)) scale(1.04);
+    z-index: 10;
 
     @mixin light {
-        background-color: var(--mantine-color-blue-0);
-        box-shadow:
-            0 0 0 1px var(--mantine-color-blue-6),
-            0 10px 26px alpha(var(--mantine-color-blue-6), 0.12);
+        border-color: var(--mantine-color-ldGray-4);
+        box-shadow: 0 22px 46px -10px alpha(var(--mantine-color-black), 0.28);
     }
     @mixin dark {
-        background-color: alpha(var(--mantine-color-blue-9), 0.18);
-        box-shadow:
-            0 0 0 1px var(--mantine-color-blue-5),
-            0 10px 26px alpha(var(--mantine-color-blue-9), 0.28);
+        border-color: var(--mantine-color-dark-3);
+        box-shadow: 0 22px 46px -10px alpha(var(--mantine-color-black), 0.6);
     }
+}
 
-    &:hover {
-        @mixin light {
-            background-color: var(--mantine-color-blue-0);
-            border-color: var(--mantine-color-blue-6);
-        }
-        @mixin dark {
-            background-color: alpha(var(--mantine-color-blue-9), 0.18);
-            border-color: var(--mantine-color-blue-5);
-        }
+.cardSelected,
+.cardSelected:hover {
+    transform: translate(calc(var(--x) - 92px), calc(var(--y) - 24px))
+        rotate(calc(var(--rot) * 0.35)) scale(1.04);
+    z-index: 9;
+
+    @mixin light {
+        border-color: var(--mantine-color-dark-9);
+        background-color: var(--mantine-color-ldGray-0);
+        box-shadow:
+            0 0 0 1px var(--mantine-color-dark-9),
+            0 18px 40px -10px alpha(var(--mantine-color-black), 0.22);
+    }
+    @mixin dark {
+        border-color: var(--mantine-color-ldGray-0);
+        background-color: var(--mantine-color-dark-5);
+        box-shadow:
+            0 0 0 1px var(--mantine-color-ldGray-0),
+            0 18px 40px -10px alpha(var(--mantine-color-black), 0.6);
+    }
+}
+
+.card[data-selected='true'] .cardIcon {
+    @mixin light {
+        background-color: var(--mantine-color-dark-9);
+        color: var(--mantine-color-white);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-ldGray-0);
+        color: var(--mantine-color-dark-9);
     }
 }
 
 .cardIcon {
     flex-shrink: 0;
 }
-
 .cardContent {
     min-width: 0;
 }
-
-.card[data-selected='true'] .cardIcon {
-    @mixin light {
-        background-color: var(--mantine-color-blue-1);
-        color: var(--mantine-color-blue-7);
-    }
-    @mixin dark {
-        background-color: alpha(var(--mantine-color-blue-8), 0.4);
-        color: var(--mantine-color-blue-3);
-    }
-}
-
 .cardTitle {
     line-height: 1.2;
 }
@@ -181,34 +127,24 @@
     right: var(--mantine-spacing-sm);
 }
 
-.themeRow {
-    border-top: 1px solid;
-    padding-top: var(--mantine-spacing-lg);
-
-    @mixin light {
-        border-color: var(--mantine-color-ldGray-2);
-    }
-    @mixin dark {
-        border-color: var(--mantine-color-dark-4);
-    }
-}
-
-.themeCopy {
-    min-width: 0;
-}
-
-.nextHint {
-    margin-top: calc(var(--mantine-spacing-xs) * -1);
-}
-
-@container (max-width: 439px) {
-    .themeRow {
+/* Narrow widths can't hold the arch — stack the cards vertically. */
+@media (max-width: 760px) {
+    .fan {
+        height: auto;
+        display: flex;
         flex-direction: column;
-        align-items: stretch;
+        gap: var(--mantine-spacing-sm);
     }
-
-    .themeCopy {
-        text-align: center;
+    .card {
+        position: static;
         width: 100%;
+        height: auto;
+        transform: none;
+    }
+    .card:hover,
+    .card:focus-visible,
+    .cardSelected,
+    .cardSelected:hover {
+        transform: none;
     }
 }

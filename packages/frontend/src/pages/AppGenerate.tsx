@@ -1826,9 +1826,14 @@ const AppGenerate: FC = () => {
     return showTemplatePicker ? (
         <Box className={classes.pickerLayout}>
             <AppTemplatePicker
-                onSelect={handleTemplateSelect}
-                selectedThemeUuid={selectedThemeUuid}
-                onThemeChange={handleThemeChange}
+                selected={selectedTemplate}
+                onSelectedChange={(template) => {
+                    if (template !== null) {
+                        handleTemplateSelect(template);
+                    } else {
+                        setSelectedTemplate(null);
+                    }
+                }}
             />
         </Box>
     ) : (
