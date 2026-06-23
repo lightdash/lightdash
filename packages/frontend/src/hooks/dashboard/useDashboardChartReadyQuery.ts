@@ -153,8 +153,7 @@ export const useDashboardChartReadyQuery = (
         : false;
 
     // A chart is also affected by date zoom when its custom SQL references a reserved
-    // date-zoom parameter (e.g. ${ld.parameters.date_zoom}), even with no date dimension
-    // on the axis. All reserved parameters are currently date-zoom values.
+    // date-zoom parameter, even with no date dimension on the axis.
     const referencesDateZoomReservedParam = useMemo(
         () =>
             hasReservedParameterReference(
@@ -279,9 +278,8 @@ export const useDashboardChartReadyQuery = (
         refetchOnMount: false,
     });
 
-    // Whether date zoom is in effect for this chart: the backend reports it for charts
-    // whose date dimension was overridden; charts that only reference a reserved date-zoom
-    // parameter are in effect whenever a grain is selected.
+    // Backend reports it for overridden date dimensions; param-only charts are in effect
+    // whenever a grain is selected.
     const dateZoomApplied =
         (queryResult.data?.executeQueryResponse?.dateZoomApplied ?? false) ||
         (referencesDateZoomReservedParam && !!granularity);

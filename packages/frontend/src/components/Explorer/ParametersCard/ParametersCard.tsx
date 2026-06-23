@@ -47,8 +47,7 @@ const ParametersCard = memo(
             );
         }, [parameterDefinitions, parameterReferences]);
 
-        // A user parameter sharing a reserved name takes priority (shadows it), so it is
-        // flagged as overriding the system variable of the same name.
+        // User params sharing a reserved name shadow it; flag them as overriding it.
         const shadowedReservedNames = useMemo(
             () =>
                 getShadowedReservedNames(

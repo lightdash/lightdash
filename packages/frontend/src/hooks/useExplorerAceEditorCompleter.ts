@@ -154,10 +154,8 @@ const TABLE_CALCULATION_FUNCTION_COMPLETIONS: Ace.Completion[] = [
     },
 ];
 
-// Reserved (system-owned) parameters resolve in custom SQL dimensions/metrics, so
-// surface them alongside field completions. Not added to the table-calculation completer:
-// table calcs have no parameter pass yet. A reserved name shadowed by a user parameter is
-// skipped so it isn't suggested as a system variable when the user param takes priority.
+// Reserved parameters resolve in custom SQL, so surface them alongside field completions.
+// Shadowed names are skipped (the user param wins); table calcs have no parameter pass yet.
 const mapReservedParametersToCompletions = (
     shadowedReservedNames: string[],
 ): Ace.Completion[] =>
