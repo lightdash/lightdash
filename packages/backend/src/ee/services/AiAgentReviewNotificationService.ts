@@ -3,13 +3,16 @@ import {
     AiReviewNotificationEvent,
     AiReviewNotificationRecipient,
     defineUserAbility,
+    EE_SCHEDULER_TASKS,
 } from '@lightdash/common';
 import { type NotificationsModel } from '../../models/NotificationsModel/NotificationsModel';
 import { type OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
+import { type CommercialSchedulerClient } from '../scheduler/SchedulerClient';
 
 type AiAgentReviewNotificationServiceArgs = {
     notificationsModel: NotificationsModel;
+    schedulerClient: CommercialSchedulerClient;
     aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
     organizationMemberProfileModel: OrganizationMemberProfileModel;
 };
@@ -17,12 +20,15 @@ type AiAgentReviewNotificationServiceArgs = {
 export class AiAgentReviewNotificationService {
     private readonly notificationsModel: NotificationsModel;
 
+    private readonly schedulerClient: CommercialSchedulerClient;
+
     private readonly aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
 
     private readonly organizationMemberProfileModel: OrganizationMemberProfileModel;
 
     constructor(args: AiAgentReviewNotificationServiceArgs) {
         this.notificationsModel = args.notificationsModel;
+        this.schedulerClient = args.schedulerClient;
         this.aiAgentReviewClassifierModel = args.aiAgentReviewClassifierModel;
         this.organizationMemberProfileModel =
             args.organizationMemberProfileModel;
@@ -82,6 +88,19 @@ export class AiAgentReviewNotificationService {
             message: `You were assigned: ${metadata.title}`,
             url: `/ai-agents/admin/reviews?${metadata.searchParams}`,
         });
+
+        await this.schedulerClient.scheduleTask(
+            EE_SCHEDULER_TASKS.SEND_REVIEW_NOTIFICATION,
+            {
+                organizationUuid: args.organizationUuid,
+                projectUuid: args.projectUuid,
+                event: AiReviewNotificationEvent.Assigned,
+                fingerprints: [args.fingerprint],
+                assigneeUserUuid: args.assigneeUserUuid,
+                reviewRunUuid: null,
+                userUuid: args.actorUserUuid,
+            },
+        );
     }
 
     async notifyNeedsReview(args: {
@@ -117,5 +136,17 @@ export class AiAgentReviewNotificationService {
             message: `${args.fingerprints.length} AI context findings need review`,
             url: `/ai-agents/admin/reviews?${metadata.searchParams}`,
         });
+
+        await this.schedulerClient.scheduleTask(
+            EE_SCHEDULER_TASKS.SEND_REVIEW_NOTIFICATION,
+            {
+                organizationUuid: args.organizationUuid,
+                projectUuid: args.projectUuid,
+                event: AiReviewNotificationEvent.NeedsReview,
+                fingerprints: args.fingerprints,
+                assigneeUserUuid: null,
+                reviewRunUuid: args.reviewRunUuid,
+            },
+        );
     }
 }
