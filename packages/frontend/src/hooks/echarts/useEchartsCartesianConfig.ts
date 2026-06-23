@@ -2573,7 +2573,6 @@ const useEchartsCartesianConfig = (
         isTouchDevice,
         colorPalette,
         resolvedTimezone,
-        dateZoom,
     } = useVisualizationContext();
 
     const theme = useMantineTheme();
@@ -3673,7 +3672,7 @@ const useEchartsCartesianConfig = (
             xAxis: sortedAxes.xAxis,
             yAxis: sortedAxes.yAxis,
             series: sortedSeriesForChart,
-            granularityMap: getGranularityMapFromItems(itemsMap, dateZoom),
+            granularityMap: getGranularityMapFromItems(itemsMap),
         });
 
         const dataZoomAnchor =
@@ -3744,7 +3743,6 @@ const useEchartsCartesianConfig = (
         sortedAxes,
         sortedSeriesForChart,
         itemsMap,
-        dateZoom,
         isInDashboard,
         minimal,
         legendConfigWithInstructionsTooltip,

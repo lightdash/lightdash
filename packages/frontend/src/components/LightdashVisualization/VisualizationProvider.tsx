@@ -359,7 +359,6 @@ const VisualizationProvider: FC<
         containerHeight,
         isDashboard,
         isEditMode,
-        dateZoom,
         isTouchDevice,
         resolvedTimezone: lastValidResultsData?.resolvedTimezone,
     };

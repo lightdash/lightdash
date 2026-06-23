@@ -3,8 +3,10 @@ import { ExploreType } from '../types/explore';
 import { DimensionType, FieldType } from '../types/field';
 import type { CompiledDimension } from '../types/field';
 import type { MetricQuery } from '../types/metricQuery';
+import { ChartType, type ChartConfig } from '../types/savedCharts';
 import {
     getDateZoomCapabilities,
+    getDateZoomXAxisFieldId,
     getTimeDimensionsMap,
     resolveBaseDimension,
 } from './dateZoom';
@@ -640,5 +642,109 @@ describe('getDateZoomCapabilities', () => {
         expect(result.availableCustomGranularities).toEqual({
             fiscal_quarter: 'Shipped Fiscal Quarter',
         });
+    });
+});
+
+describe('getDateZoomXAxisFieldId', () => {
+    const makeCartesianConfig = (xField: string | undefined): ChartConfig => ({
+        type: ChartType.CARTESIAN,
+        config: {
+            layout: xField
+                ? { xField, yField: ['orders_revenue'] }
+                : { yField: ['orders_revenue'] },
+            eChartsConfig: {},
+        },
+    });
+
+    it('returns the xField when it is a DATE dimension', () => {
+        const explore = makeExplore([
+            makeDimension({
+                name: 'order_date_month',
+                table: 'orders',
+                type: DimensionType.DATE,
+            }),
+        ]);
+
+        expect(
+            getDateZoomXAxisFieldId(
+                makeCartesianConfig('orders_order_date_month'),
+                explore,
+            ),
+        ).toBe('orders_order_date_month');
+    });
+
+    it('returns the xField when it is a TIMESTAMP dimension', () => {
+        const explore = makeExplore([
+            makeDimension({
+                name: 'created_at',
+                table: 'orders',
+                type: DimensionType.TIMESTAMP,
+            }),
+        ]);
+
+        expect(
+            getDateZoomXAxisFieldId(
+                makeCartesianConfig('orders_created_at'),
+                explore,
+            ),
+        ).toBe('orders_created_at');
+    });
+
+    it('returns undefined when the xField is not a date dimension', () => {
+        const explore = makeExplore([
+            makeDimension({
+                name: 'status',
+                table: 'orders',
+                type: DimensionType.STRING,
+            }),
+        ]);
+
+        expect(
+            getDateZoomXAxisFieldId(
+                makeCartesianConfig('orders_status'),
+                explore,
+            ),
+        ).toBeUndefined();
+    });
+
+    it('returns undefined for non-cartesian charts', () => {
+        const explore = makeExplore([
+            makeDimension({
+                name: 'order_date_month',
+                table: 'orders',
+                type: DimensionType.DATE,
+            }),
+        ]);
+        const bigNumberConfig: ChartConfig = {
+            type: ChartType.BIG_NUMBER,
+            config: {},
+        };
+
+        expect(
+            getDateZoomXAxisFieldId(bigNumberConfig, explore),
+        ).toBeUndefined();
+    });
+
+    it('returns undefined when there is no xField', () => {
+        const explore = makeExplore([
+            makeDimension({
+                name: 'order_date_month',
+                table: 'orders',
+                type: DimensionType.DATE,
+            }),
+        ]);
+
+        expect(
+            getDateZoomXAxisFieldId(makeCartesianConfig(undefined), explore),
+        ).toBeUndefined();
+    });
+
+    it('returns undefined when the explore is not loaded', () => {
+        expect(
+            getDateZoomXAxisFieldId(
+                makeCartesianConfig('orders_order_date_month'),
+                undefined,
+            ),
+        ).toBeUndefined();
     });
 });

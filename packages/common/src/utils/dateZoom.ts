@@ -1,7 +1,9 @@
 import type { Explore } from '../types/explore';
 import { DimensionType, type CompiledDimension } from '../types/field';
 import type { MetricQuery } from '../types/metricQuery';
-import { getItemId } from './item';
+import { isCartesianChartConfig, type ChartConfig } from '../types/savedCharts';
+import { getDimensions } from './fields';
+import { getItemId, isDateItem } from './item';
 import { getDateDimension } from './timeFrames';
 
 /**
@@ -151,4 +153,30 @@ export const getDateZoomCapabilities = (
         hasTimestampDimension,
         hasDateDimension,
     };
+};
+
+/**
+ * Resolves which field a chart's date zoom should target. For cartesian charts
+ * whose x-axis is a date/time dimension, that's the x-axis field — so callers
+ * can pass it as `dateZoom.xAxisFieldId` and have the backend re-grain the same
+ * field the chart actually plots, instead of auto-picking the first date
+ * dimension in the query. Returns undefined when the backend's auto-pick should
+ * stand (non-cartesian charts, non-date x-axis, or no x-axis).
+ */
+export const getDateZoomXAxisFieldId = (
+    chartConfig: ChartConfig,
+    explore: Explore | undefined,
+): string | undefined => {
+    if (!explore || !isCartesianChartConfig(chartConfig.config)) {
+        return undefined;
+    }
+    const xFieldId = chartConfig.config.layout?.xField;
+    if (!xFieldId) {
+        return undefined;
+    }
+    const isDateXField = getDimensions(explore).some(
+        (dimension) =>
+            getItemId(dimension) === xFieldId && isDateItem(dimension),
+    );
+    return isDateXField ? xFieldId : undefined;
 };

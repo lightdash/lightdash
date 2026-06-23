@@ -111,30 +111,7 @@ describe('getGranularityMapFromItems', () => {
         });
     });
 
-    it('uses the active date zoom granularity for the matching base field id', () => {
-        const itemsMap = {
-            orders_order_date_month: {
-                fieldType: FieldType.DIMENSION,
-                type: DimensionType.DATE,
-                table: 'orders',
-                name: 'order_date_month',
-                label: 'Order date month',
-                timeInterval: TimeFrames.MONTH,
-                timeIntervalBaseDimensionName: 'order_date',
-            },
-        } as unknown as ItemsMap;
-
-        expect(
-            getGranularityMapFromItems(itemsMap, {
-                granularity: DateGranularity.WEEK,
-                xAxisFieldId: 'orders_order_date',
-            }),
-        ).toEqual({
-            orders_order_date: DateGranularity.WEEK,
-        });
-    });
-
-    it('keeps custom time interval labels when date zoom targets a different field', () => {
+    it('maps a custom time interval dimension to its label', () => {
         const itemsMap = {
             orders_order_date_fiscal_quarter: {
                 fieldType: FieldType.DIMENSION,
@@ -147,12 +124,7 @@ describe('getGranularityMapFromItems', () => {
             },
         } as unknown as ItemsMap;
 
-        expect(
-            getGranularityMapFromItems(itemsMap, {
-                granularity: DateGranularity.WEEK,
-                xAxisFieldId: 'orders_created_at',
-            }),
-        ).toEqual({
+        expect(getGranularityMapFromItems(itemsMap)).toEqual({
             orders_order_date: 'Fiscal quarter',
         });
     });

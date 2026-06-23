@@ -1,6 +1,7 @@
 import {
     getAvailableParametersFromTables,
     getDateZoomCapabilities,
+    getDateZoomXAxisFieldId,
     hasReservedParameterReference,
     QueryExecutionContext,
     type ApiError,
@@ -131,6 +132,17 @@ export const useDashboardChartReadyQuery = (
         return getDateZoomCapabilities(explore, chartQuery.data.metricQuery);
     }, [chartQuery.data, explore]);
 
+    // Target the chart's own x-axis date field so the backend re-grains the
+    // field the chart actually plots, rather than auto-picking the first date
+    // dimension in the query (which can differ when there are several).
+    const dateZoomXAxisFieldId = useMemo(
+        () =>
+            chartQuery.data
+                ? getDateZoomXAxisFieldId(chartQuery.data.chartConfig, explore)
+                : undefined,
+        [chartQuery.data, explore],
+    );
+
     useEffect(() => {
         if (!dateZoomCapabilities) return;
 
@@ -231,6 +243,13 @@ export const useDashboardChartReadyQuery = (
             const isEmbedContext =
                 requestedContext === QueryExecutionContext.EMBED;
 
+            const dateZoom = {
+                granularity,
+                ...(dateZoomXAxisFieldId
+                    ? { xAxisFieldId: dateZoomXAxisFieldId }
+                    : {}),
+            };
+
             const executeQueryResponse = isEmbedContext
                 ? await postEmbedDashboardTileQuery(
                       chartQuery.data.projectUuid,
@@ -238,9 +257,7 @@ export const useDashboardChartReadyQuery = (
                           tileUuid,
                           dashboardFilters: timezoneFixFilters,
                           dashboardSorts,
-                          dateZoom: {
-                              granularity,
-                          },
+                          dateZoom,
                           invalidateCache,
                           parameters: parameterValues,
                           pivotResults: true,
@@ -256,9 +273,7 @@ export const useDashboardChartReadyQuery = (
                           dashboardUuid: dashboardUuid!,
                           dashboardFilters: timezoneFixFilters,
                           dashboardSorts,
-                          dateZoom: {
-                              granularity,
-                          },
+                          dateZoom,
                           invalidateCache,
                           parameters: parameterValues,
                           pivotResults: true,
