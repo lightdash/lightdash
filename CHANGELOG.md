@@ -1,3 +1,10 @@
+# [0.3221.0](https://github.com/lightdash/lightdash/compare/0.3220.0...0.3221.0) (2026-06-23)
+
+
+### Features
+
+* **warehouses:** add AWS IAM authentication for Redshift ([#24566](https://github.com/lightdash/lightdash/issues/24566)) ([d5c011c](https://github.com/lightdash/lightdash/commit/d5c011caf0f0a784b444b5f61998adc83d07dfe0))
+
 # [0.3220.0](https://github.com/lightdash/lightdash/compare/0.3219.1...0.3220.0) (2026-06-23)
 
 
