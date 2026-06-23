@@ -28,6 +28,10 @@ export class NotificationsService extends BaseService {
                 return this.notificationsModel.getDashboardCommentNotifications(
                     userUuid,
                 );
+            case ApiNotificationResourceType.AiReview:
+                return this.notificationsModel.getAiReviewNotifications(
+                    userUuid,
+                );
             default:
                 return assertUnreachable(
                     type,

@@ -1,12 +1,15 @@
 import {
+    type Notification,
     NotificationResourceType,
     ValidationErrorType,
 } from '@lightdash/common';
 import { Button, getDefaultZIndex, Indicator, Menu } from '@mantine-8/core';
 import { IconBell } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { Fragment, type FC, useMemo } from 'react';
+import { useAiAgentPermission } from '../../../ee/features/aiCopilot/hooks/useAiAgentPermission';
 import { useDashboardCommentsCheck } from '../../../features/comments';
 import {
+    AiReviewNotifications,
     DashboardCommentsNotifications,
     useGetNotifications,
 } from '../../../features/notifications';
@@ -46,6 +49,25 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
     const hasDashboardCommentsNotifications =
         dashboardCommentsNotifications &&
         dashboardCommentsNotifications.length > 0;
+    const canViewAiReviews = useAiAgentPermission({ action: 'manage' });
+    const { data: aiReviewNotifications } = useGetNotifications(
+        NotificationResourceType.AiReview,
+        !!canViewAiReviews,
+    );
+    const hasAiReviewNotifications =
+        aiReviewNotifications && aiReviewNotifications.length > 0;
+    const notifications = useMemo<Notification[]>(
+        () =>
+            [
+                ...(dashboardCommentsNotifications ?? []),
+                ...(aiReviewNotifications ?? []),
+            ].sort(
+                (a, b) =>
+                    new Date(b.createdAt).getTime() -
+                    new Date(a.createdAt).getTime(),
+            ),
+        [aiReviewNotifications, dashboardCommentsNotifications],
+    );
 
     const showNotificationBadge = () => {
         /**
@@ -61,14 +83,23 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
             const hasUnreadComments = dashboardCommentsNotifications?.some(
                 (n) => !n.viewed,
             );
-            return hasUnreadComments;
+            if (hasUnreadComments) return true;
+        }
+
+        if (canViewAiReviews) {
+            const hasUnreadAiReviews = aiReviewNotifications?.some(
+                (n) => !n.viewed,
+            );
+            if (hasUnreadAiReviews) return true;
         }
 
         return false;
     };
 
     const shouldDisplayMenu =
-        canViewDashboardComments || canUserManageValidations;
+        canViewDashboardComments ||
+        canUserManageValidations ||
+        canViewAiReviews;
 
     return shouldDisplayMenu ? (
         <Menu
@@ -106,14 +137,28 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
                         validationData={validationErrors}
                     />
                 )}
-                {hasDashboardCommentsNotifications && (
-                    <DashboardCommentsNotifications
-                        notifications={dashboardCommentsNotifications}
-                        projectUuid={projectUuid}
-                    />
+                {notifications.length > 0 && (
+                    <>
+                        {notifications.map((notification) => (
+                            <Fragment key={notification.notificationId}>
+                                {notification.resourceType ===
+                                NotificationResourceType.DashboardComments ? (
+                                    <DashboardCommentsNotifications
+                                        notifications={[notification]}
+                                        projectUuid={projectUuid}
+                                    />
+                                ) : (
+                                    <AiReviewNotifications
+                                        notifications={[notification]}
+                                    />
+                                )}
+                            </Fragment>
+                        ))}
+                    </>
                 )}
                 {!hasValidationNotifications &&
-                    !hasDashboardCommentsNotifications && (
+                    !hasDashboardCommentsNotifications &&
+                    !hasAiReviewNotifications && (
                         <Menu.Item>No notifications</Menu.Item>
                     )}
             </Menu.Dropdown>

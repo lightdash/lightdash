@@ -145,6 +145,7 @@ interface ServiceManifest {
     permissionsService: PermissionsService;
     /** An implementation signature for these services are not available at this stage */
     aiWritebackService: unknown;
+    aiAgentReviewNotificationService: unknown;
     writebackPreviewService: unknown;
     previewDeploySetupService: unknown;
     appGenerateService: unknown;
@@ -1391,6 +1392,12 @@ export class ServiceRepository
         AiAgentReviewClassifierServiceImplT,
     >(): AiAgentReviewClassifierServiceImplT {
         return this.getService('aiAgentReviewClassifierService');
+    }
+
+    public getAiAgentReviewNotificationService<
+        AiAgentReviewNotificationServiceImplT,
+    >(): AiAgentReviewNotificationServiceImplT {
+        return this.getService('aiAgentReviewNotificationService');
     }
 
     public getAiRouterService<AiRouterServiceImplT>(): AiRouterServiceImplT {
