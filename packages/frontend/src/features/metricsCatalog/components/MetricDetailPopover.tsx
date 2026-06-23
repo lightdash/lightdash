@@ -8,6 +8,7 @@ import {
 import {
     Badge,
     Box,
+    Button,
     Divider,
     Group,
     HoverCard,
@@ -20,6 +21,7 @@ import { Prism } from '@mantine/prism';
 import { IconCode, IconTable } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useExploreMetric } from '../hooks/useExploreMetric';
 import { useMetric } from '../hooks/useMetricsCatalog';
 import { useCompileMetricTotalQuery } from '../hooks/useRunMetricExplorerQuery';
 import classes from './MetricDetailPopover.module.css';
@@ -36,6 +38,7 @@ type Props = {
     tableName: string;
     metricName: string;
     projectUuid: string;
+    showExploreButton: boolean;
     children: ReactNode;
     compiledQueryConfig?: CompiledQueryConfig;
 };
@@ -116,17 +119,26 @@ const CompiledQuerySection: FC<{
 
 type MetricDetailContentProps = {
     metric: MetricWithAssociatedTimeDimension;
+    tableName: string;
+    metricName: string;
+    showExploreButton: boolean;
     projectUuid: string;
     compiledQueryConfig?: CompiledQueryConfig;
     isOpen: boolean;
+    onExplore: () => void;
 };
 
 const MetricDetailContent: FC<MetricDetailContentProps> = ({
     metric,
+    tableName,
+    metricName,
+    showExploreButton,
     projectUuid,
     compiledQueryConfig,
     isOpen,
+    onExplore,
 }) => {
+    const exploreMetric = useExploreMetric();
     const [showCompiled, setShowCompiled] = useState(false);
     const sqlToShow = showCompiled ? metric.compiledSql : metric.sql;
 
@@ -208,6 +220,22 @@ const MetricDetailContent: FC<MetricDetailContentProps> = ({
                     isOpen={isOpen}
                 />
             )}
+
+            {showExploreButton && (
+                <Button
+                    variant="dark"
+                    size="xs"
+                    fullWidth
+                    onClick={() => {
+                        // Close the hover card before opening the modal,
+                        // otherwise its dropdown floats above the modal.
+                        onExplore();
+                        exploreMetric({ tableName, metricName });
+                    }}
+                >
+                    Explore
+                </Button>
+            )}
         </Stack>
     );
 };
@@ -216,10 +244,14 @@ export const MetricDetailPopover: FC<Props> = ({
     tableName,
     metricName,
     projectUuid,
+    showExploreButton,
     children,
     compiledQueryConfig,
 }) => {
     const [opened, setOpened] = useState(false);
+    // Mantine v8 HoverCard omits the `opened` prop (no controlled mode), so
+    // we remount via this key to force the dropdown closed when exploring.
+    const [instanceKey, setInstanceKey] = useState(0);
 
     const { data: metric, isLoading } = useMetric({
         projectUuid,
@@ -230,6 +262,7 @@ export const MetricDetailPopover: FC<Props> = ({
 
     return (
         <HoverCard
+            key={instanceKey}
             position="bottom-start"
             withArrow
             shadow="md"
@@ -252,9 +285,13 @@ export const MetricDetailPopover: FC<Props> = ({
                 {metric && (
                     <MetricDetailContent
                         metric={metric}
+                        tableName={tableName}
+                        metricName={metricName}
+                        showExploreButton={showExploreButton}
                         projectUuid={projectUuid}
                         compiledQueryConfig={compiledQueryConfig}
                         isOpen={opened}
+                        onExplore={() => setInstanceKey((key) => key + 1)}
                     />
                 )}
             </HoverCard.Dropdown>

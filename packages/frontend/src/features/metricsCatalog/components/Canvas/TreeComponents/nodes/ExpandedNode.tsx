@@ -258,6 +258,7 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
                                 tableName={data.tableName}
                                 metricName={data.metricName}
                                 compiledQueryConfig={compiledQueryConfig}
+                                showExploreButton
                             >
                                 <MantineIcon
                                     icon={IconInfoCircle}

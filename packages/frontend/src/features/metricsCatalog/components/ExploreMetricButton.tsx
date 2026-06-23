@@ -3,65 +3,39 @@ import { Button, Tooltip } from '@mantine/core';
 import { useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { type ContentTableRow } from '../../../components/common/ContentTable';
-import useTracking from '../../../providers/Tracking/useTracking';
-import { EventName } from '../../../types/Events';
-import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
-import { toggleMetricExploreModal } from '../store/metricsCatalogSlice';
+import { useAppSelector } from '../../sqlRunner/store/hooks';
+import { useExploreMetric } from '../hooks/useExploreMetric';
 
 type Props = {
     row: ContentTableRow<CatalogField>;
 };
 
 export const ExploreMetricButton = ({ row }: Props) => {
-    const dispatch = useAppDispatch();
     const navigate = useNavigate();
     const location = useLocation();
+    const exploreMetric = useExploreMetric();
 
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
-    const organizationUuid = useAppSelector(
-        (state) => state.metricsCatalog.organizationUuid,
-    );
-    const userUuid = useAppSelector(
-        (state) => state.metricsCatalog.user?.userUuid,
-    );
-
-    const { track } = useTracking();
 
     const handleExploreClick = useCallback(() => {
-        track({
-            name: EventName.METRICS_CATALOG_EXPLORE_CLICKED,
-            properties: {
-                userId: userUuid,
-                organizationId: organizationUuid,
-                projectId: projectUuid,
-                metricName: row.original.name,
-                tableName: row.original.tableName,
-            },
+        exploreMetric({
+            tableName: row.original.tableName,
+            metricName: row.original.name,
         });
 
         void navigate({
             pathname: `/projects/${projectUuid}/metrics/peek/${row.original.tableName}/${row.original.name}`,
             search: location.search,
         });
-
-        dispatch(
-            toggleMetricExploreModal({
-                name: row.original.name,
-                tableName: row.original.tableName,
-            }),
-        );
     }, [
-        dispatch,
-        location,
+        exploreMetric,
+        location.search,
         navigate,
-        organizationUuid,
         projectUuid,
         row.original.name,
         row.original.tableName,
-        track,
-        userUuid,
     ]);
 
     return (
