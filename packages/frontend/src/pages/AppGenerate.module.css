@@ -101,7 +101,7 @@
     margin: 0 auto;
     /* Shared height with the template picker so the View Transition between
        them only morphs width/position — no jarring height jump. */
-    height: min(720px, calc(100vh - 96px));
+    height: min(620px, calc(100vh - 96px));
     border-radius: var(--mantine-radius-lg);
     border: 1px solid;
     overflow: hidden;
