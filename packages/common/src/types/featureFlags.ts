@@ -175,14 +175,6 @@ export enum FeatureFlags {
     DataAppsScheduledDeliveries = 'data-apps-scheduled-deliveries',
 
     /**
-     * Enable the "Group repeated row values" toggle on pivot tables — visual
-     * dedup of row-header dim values without rendering aggregate subtotal
-     * rows. Off by default while we validate the rendering across customer
-     * data shapes before GA.
-     */
-    PivotRowGrouping = 'pivot-row-grouping',
-
-    /**
      * Show a persistent trial warning banner for an organization on shared
      * instances. This does not block product access.
      */
