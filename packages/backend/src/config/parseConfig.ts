@@ -1218,6 +1218,15 @@ export type LightdashConfig = {
     license: {
         licenseKey: string | null;
     };
+    roadmap: {
+        enabled: boolean;
+        syncCron: string;
+        linear: {
+            apiKey: string | null;
+            apiUrl: string;
+            featureRequestLabel: string | null;
+        };
+    };
     sentry: SentryConfig;
     auth: AuthConfig;
     intercom: IntercomConfig;
@@ -1943,6 +1952,18 @@ export const parseConfig = (): LightdashConfig => {
         cookieSameSite: iframeEmbeddingEnabled ? 'none' : 'lax',
         license: {
             licenseKey,
+        },
+        roadmap: {
+            enabled: process.env.ROADMAP_ENABLED === 'true',
+            syncCron: process.env.ROADMAP_SYNC_CRON || '17 * * * *',
+            linear: {
+                apiKey: process.env.ROADMAP_LINEAR_API_KEY || null,
+                apiUrl:
+                    process.env.ROADMAP_LINEAR_API_URL ||
+                    'https://api.linear.app/graphql',
+                featureRequestLabel:
+                    process.env.ROADMAP_LINEAR_FEATURE_REQUEST_LABEL || null,
+            },
         },
         security: {
             contentSecurityPolicy: {

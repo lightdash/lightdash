@@ -426,6 +426,12 @@ import {
     DashboardSummariesTableName,
 } from '../ee/database/entities/dashboardSummaries';
 import {
+    RoadmapCustomerLinksTable,
+    RoadmapCustomerLinksTableName,
+    RoadmapItemsTable,
+    RoadmapItemsTableName,
+} from '../ee/database/entities/roadmap';
+import {
     AppExternalConnectionsTable,
     AppExternalConnectionsTableName,
     ExternalConnectionRateCountersTable,
@@ -592,6 +598,8 @@ declare module 'knex/types/tables' {
         [DashboardTabsTableName]: DashboardTabsTable;
         [NotificationsTableName]: NotificationsTable;
         [DashboardSummariesTableName]: DashboardSummariesTable;
+        [RoadmapCustomerLinksTableName]: RoadmapCustomerLinksTable;
+        [RoadmapItemsTableName]: RoadmapItemsTable;
         [CatalogTableName]: CatalogTable;
         [SlackChannelProjectMappingsTableName]: SlackChannelProjectMappingsTable;
         [WarehouseAvailableTablesTableName]: WarehouseAvailableTablesTable;

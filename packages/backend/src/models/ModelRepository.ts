@@ -151,6 +151,7 @@ export type ModelManifest = {
     aiOrganizationSettingsModel: unknown;
     embedModel: unknown;
     dashboardSummaryModel: unknown;
+    roadmapModel: unknown;
     serviceAccountModel: unknown;
     externalConnectionModel: unknown;
 };
@@ -790,6 +791,10 @@ export class ModelRepository
 
     public getDashboardSummaryModel<ModelImplT>(): ModelImplT {
         return this.getModel('dashboardSummaryModel');
+    }
+
+    public getRoadmapModel<ModelImplT>(): ModelImplT {
+        return this.getModel('roadmapModel');
     }
 
     public getTagsModel(): TagsModel {
