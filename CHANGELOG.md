@@ -1,3 +1,10 @@
+## [0.3230.2](https://github.com/lightdash/lightdash/compare/0.3230.1...0.3230.2) (2026-06-23)
+
+
+### Bug Fixes
+
+* drop system-variable description tooltip in custom SQL autocomplete ([#24644](https://github.com/lightdash/lightdash/issues/24644)) ([6b053d4](https://github.com/lightdash/lightdash/commit/6b053d4bc9d667152cc2847d5f6e6888afc25680))
+
 ## [0.3230.1](https://github.com/lightdash/lightdash/compare/0.3230.0...0.3230.1) (2026-06-23)
 
 
