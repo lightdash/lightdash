@@ -88,7 +88,6 @@ import {
     getMetrics,
     getParameterReferences,
     getPreAggregateExploreName,
-    getReservedParameterDefinitions,
     getTimeDimensionsMap,
     getTimezoneLabel,
     GroupType,
@@ -118,6 +117,8 @@ import {
     maybeOverrideDbtConnection,
     maybeOverrideWarehouseConnection,
     maybeReplaceFieldsInChartVersion,
+    mergeReservedDefinitions,
+    mergeReservedValues,
     mergeWarehouseCredentials,
     MetricQuery,
     MissingWarehouseCredentialsError,
@@ -3854,11 +3855,10 @@ export class ProjectService extends BaseService {
     }): Promise<CompiledQuery> {
         // Reserved (system-owned) parameters share the user-parameter pipeline. Fold
         // their definitions in so ad-hoc custom SQL referencing them compiles, and key
-        // availability off the combined map.
-        const parameterDefinitionsWithReserved: ParameterDefinitions = {
-            ...availableParameterDefinitions,
-            ...getReservedParameterDefinitions(),
-        };
+        // availability off the combined map. A user parameter of the same name wins
+        // (shadows the reserved one).
+        const parameterDefinitionsWithReserved: ParameterDefinitions =
+            mergeReservedDefinitions(availableParameterDefinitions);
         const availableParameters = Object.keys(
             parameterDefinitionsWithReserved,
         );
@@ -3877,12 +3877,12 @@ export class ProjectService extends BaseService {
 
         // Resolve reserved parameter values from the query context. The date zoom value
         // reflects the selected grain whenever a zoom reaches the query, independent of
-        // whether a date dimension was physically overridden. Reserved values win over
-        // any same-named user value.
-        const parametersWithReserved: ParametersValuesMap = {
-            ...(parameters ?? {}),
-            ...resolveReservedParameterValues({ dateZoom }),
-        };
+        // whether a date dimension was physically overridden. A same-named user value
+        // wins (shadows the reserved value).
+        const parametersWithReserved: ParametersValuesMap = mergeReservedValues(
+            parameters,
+            resolveReservedParameterValues({ dateZoom }),
+        );
 
         const compiledMetricQuery = compileMetricQuery({
             explore: exploreWithOverride,

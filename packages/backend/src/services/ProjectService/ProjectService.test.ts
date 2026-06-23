@@ -2557,4 +2557,26 @@ describe('ProjectService._compileQuery reserved parameters', () => {
         expect(compiled.query).not.toContain('ld.parameters.date_zoom');
         expect(compiled.query).not.toContain('{% if');
     });
+
+    it('lets a user parameter named date_zoom win over the reserved value', async () => {
+        // No date zoom is applied, so the reserved value would resolve to '' (the
+        // else branch). A user-defined date_zoom set to 'week' must take priority and
+        // drive the 'week' branch instead, proving user-wins precedence.
+        const compiled = await ProjectService._compileQuery({
+            metricQuery: metricQueryReservedParameterDimension,
+            explore: exploreWithReservedParameterDimension,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: {},
+            userAttributes: {},
+            timezone: 'UTC',
+            parameters: { date_zoom: 'week' },
+            availableParameterDefinitions: {
+                date_zoom: { label: 'My date zoom' },
+            },
+        });
+
+        expect(compiled.query).toContain("'weekly'");
+        expect(compiled.query).not.toContain("'other'");
+        expect(compiled.query).not.toContain('ld.parameters.date_zoom');
+    });
 });
