@@ -278,7 +278,7 @@ export const ReviewRemediationWorkspace = () => {
             leftSection={<MantineIcon icon={IconRefresh} size={16} />}
             onClick={() => fingerprint && retest.mutate({ fingerprint })}
         >
-            Retest
+            Test again
         </Button>
     );
 
@@ -540,7 +540,7 @@ export const ReviewRemediationWorkspace = () => {
                 }}
                 __vars={{ '--drawer-top-offset': `${drawerTopOffset}px` }}
             >
-                <Box p="md" className={classes.testHeader}>
+                <Box p="md" className={classes.drawerHeader}>
                     <Group
                         justify="space-between"
                         align="flex-start"
@@ -550,14 +550,14 @@ export const ReviewRemediationWorkspace = () => {
                             <ThemeIcon
                                 size="lg"
                                 radius="md"
-                                variant="light"
+                                variant="white"
                                 color="blue"
                             >
                                 <MantineIcon icon={IconFlask} size={20} />
                             </ThemeIcon>
                             <Box miw={0}>
                                 <Group gap="xs" wrap="nowrap" miw={0}>
-                                    <Text fw={600} fz="sm">
+                                    <Text fw={700} fz="md">
                                         Test the fix
                                     </Text>
                                     {testBadge && renderBadge(testBadge)}
@@ -570,17 +570,28 @@ export const ReviewRemediationWorkspace = () => {
                         <CloseButton onClick={testDrawerHandlers.close} />
                     </Group>
                     <Text fz="sm" c="dimmed" mt="sm">
-                        We spun up a throwaway copy of your project with this
-                        fix applied. {testAgent?.name ?? 'Your agent'} re-runs
-                        the original question against it, so you can see whether
-                        the answer is right now before you merge. Nothing here
-                        touches production.
+                        We spun up a{' '}
+                        <Text span fw={600} c="bright" fz="inherit">
+                            throwaway copy
+                        </Text>{' '}
+                        of your project with this fix applied.{' '}
+                        <Text span fw={600} c="bright" fz="inherit">
+                            {testAgent?.name ?? 'Your agent'}
+                        </Text>{' '}
+                        re-runs the original question against it, so you can see
+                        whether the answer is right{' '}
+                        <Text span fw={600} c="bright" fz="inherit">
+                            before you merge
+                        </Text>
+                        .{' '}
+                        <Text span fw={600} c="bright" fz="inherit">
+                            Nothing here touches production.
+                        </Text>
                     </Text>
                     <Group justify="flex-end" mt="sm">
                         {retestButton}
                     </Group>
                 </Box>
-                <Divider />
                 {testThreadBody}
             </Drawer>
 

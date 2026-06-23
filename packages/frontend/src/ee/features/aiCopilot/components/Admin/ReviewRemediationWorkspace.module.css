@@ -24,6 +24,19 @@
     );
 }
 
+.drawerHeader {
+    background: linear-gradient(
+        180deg,
+        light-dark(
+            var(--mantine-color-blue-0),
+            color-mix(in srgb, var(--mantine-color-blue-6) 16%, transparent)
+        ),
+        light-dark(var(--mantine-color-white), var(--mantine-color-dark-7))
+    );
+    border-bottom: 1px solid
+        light-dark(var(--mantine-color-blue-1), var(--mantine-color-dark-4));
+}
+
 .drawerInner {
     top: var(--drawer-top-offset, 0);
     height: calc(100% - var(--drawer-top-offset, 0));
