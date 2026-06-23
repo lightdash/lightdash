@@ -183,6 +183,26 @@ export const UserBubble: FC<Props> = ({
                     />
                 )}
             </Card>
+
+            {message.steers.length > 0 && (
+                <Stack gap={4} align="flex-end">
+                    {message.steers.map((steer) => (
+                        <Card
+                            key={steer.uuid}
+                            radius="md"
+                            py={4}
+                            px="xs"
+                            withBorder
+                            className={styles.steerCard}
+                        >
+                            <MDEditor.Markdown
+                                source={steer.message}
+                                className={`${styles.markdown} ${styles.steerMarkdown}`}
+                            />
+                        </Card>
+                    ))}
+                </Stack>
+            )}
         </Stack>
     );
 };

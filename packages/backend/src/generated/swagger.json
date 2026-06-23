@@ -15126,11 +15126,55 @@
                 },
                 "type": "array"
             },
+            "AiPromptSteer_AiAgentUser_": {
+                "properties": {
+                    "user": {
+                        "$ref": "#/components/schemas/AiAgentUser"
+                    },
+                    "consumedStep": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "consumedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "promptUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "user",
+                    "consumedStep",
+                    "consumedAt",
+                    "createdAt",
+                    "message",
+                    "promptUuid",
+                    "uuid"
+                ],
+                "type": "object"
+            },
             "AiAgentMessageUser_AiAgentUser_": {
                 "properties": {
                     "hidden": {
                         "type": "boolean",
                         "description": "Hidden turn: the agent received and responded to this prompt, but the UI\nshould not render its user bubble (e.g. the post-merge migration prompt\ninjected from the writeback PR card)."
+                    },
+                    "steers": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiPromptSteer_AiAgentUser_"
+                        },
+                        "type": "array"
                     },
                     "context": {
                         "$ref": "#/components/schemas/AiPromptContext"
@@ -15158,6 +15202,7 @@
                 },
                 "required": [
                     "hidden",
+                    "steers",
                     "context",
                     "user",
                     "createdAt",
@@ -16906,6 +16951,76 @@
             },
             "ApiAiAgentThreadMessageInterruptResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__interrupted-true__"
+            },
+            "AiPromptSteer": {
+                "properties": {
+                    "user": {
+                        "$ref": "#/components/schemas/AiAgentUser"
+                    },
+                    "consumedStep": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "consumedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "promptUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "user",
+                    "consumedStep",
+                    "consumedAt",
+                    "createdAt",
+                    "message",
+                    "promptUuid",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess__steer-AiPromptSteer__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "steer": {
+                                "$ref": "#/components/schemas/AiPromptSteer"
+                            }
+                        },
+                        "required": ["steer"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentThreadMessageSteerResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__steer-AiPromptSteer__"
+            },
+            "ApiCreateAiAgentThreadMessageSteer": {
+                "properties": {
+                    "message": {
+                        "type": "string"
+                    }
+                },
+                "required": ["message"],
+                "type": "object"
             },
             "ApiAiAgentThreadGenerateResponse": {
                 "properties": {
@@ -44347,6 +44462,78 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/steers": {
+            "post": {
+                "operationId": "createAgentThreadMessageSteer",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentThreadMessageSteerResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "messageUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiCreateAiAgentThreadMessageSteer"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/generate": {

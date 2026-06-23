@@ -6,6 +6,7 @@ import {
     AiAgentJudgeProjectContextEntry,
     AiArtifact,
     AiMetricQueryWithFilters,
+    AiPromptSteer,
     AiWebAppPrompt,
     AiWritebackRunResult,
     AllChartsSearchResult,
@@ -371,6 +372,11 @@ export type StoreReasoningFn = (
 ) => Promise<void>;
 
 export type IsPromptInterruptedFn = (promptUuid: string) => Promise<boolean>;
+
+export type ConsumePromptSteersFn = (args: {
+    promptUuid: string;
+    stepNumber: number;
+}) => Promise<AiPromptSteer[]>;
 
 export type TrackEventFn = (
     event:

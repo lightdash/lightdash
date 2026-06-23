@@ -15,6 +15,7 @@ import { AiModel, AiProvider } from '../models/types';
 import { AiAgentSkillReference } from '../skills/types';
 import {
     AnalyzeFieldImpactFn,
+    ConsumePromptSteersFn,
     CreateContentFn,
     CreateOrUpdateArtifactFn,
     DescribeWarehouseTableFn,
@@ -184,6 +185,7 @@ export type AiAgentDependencies = {
     storeToolResults: StoreToolResultsFn;
     storeReasoning: StoreReasoningFn;
     isPromptInterrupted: IsPromptInterruptedFn;
+    consumePromptSteers: ConsumePromptSteersFn;
     searchFieldValues: SearchFieldValuesFn;
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;

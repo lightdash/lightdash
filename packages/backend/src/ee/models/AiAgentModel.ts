@@ -35,6 +35,7 @@ import {
     AiPromptContextInput,
     AiPromptContextItem,
     AiPromptProposedChangePayload,
+    AiPromptSteer,
     AiResultType,
     AiThread,
     AiThreadCompaction,
@@ -101,6 +102,7 @@ import {
     AiPromptContextEntityType,
     AiPromptContextTableName,
     AiPromptInterruptTableName,
+    AiPromptSteerTableName,
     AiPromptTableName,
     AiSlackPromptTableName,
     AiSlackThreadTableName,
@@ -115,6 +117,7 @@ import {
     DbAiPrompt,
     DbAiPromptContext,
     DbAiPromptInterrupt,
+    DbAiPromptSteer,
     DbAiSlackPrompt,
     DbAiSlackThread,
     DbAiSqlApproval,
@@ -298,6 +301,25 @@ const normalizeToolName = (toolName: string): string =>
 // than failing the whole thread read.
 const isParseableToolName = (toolName: string): boolean =>
     isAiAgentToolName(normalizeToolName(toolName));
+
+type AiPromptSteerRow = Pick<
+    DbAiPromptSteer,
+    | 'ai_prompt_steer_uuid'
+    | 'ai_prompt_uuid'
+    | 'message'
+    | 'created_at'
+    | 'consumed_at'
+    | 'consumed_step'
+>;
+
+const toAiPromptSteer = (row: AiPromptSteerRow): AiPromptSteer => ({
+    uuid: row.ai_prompt_steer_uuid,
+    promptUuid: row.ai_prompt_uuid,
+    message: row.message,
+    createdAt: row.created_at.toISOString(),
+    consumedAt: row.consumed_at?.toISOString() ?? null,
+    consumedStep: row.consumed_step,
+});
 
 export class AiAgentModel {
     private database: Knex;
@@ -3220,6 +3242,7 @@ export class AiAgentModel {
             { promptUuids },
         );
         const contextMap = await this.getContextForPromptUuids(promptUuids);
+        const steersMap = await this.findPromptSteers(promptUuids);
 
         const messagesPromises = promptRows.map(async (row) => {
             const messages: AiAgentMessage<{
@@ -3240,6 +3263,7 @@ export class AiAgentModel {
                     slackUserId: row.slack_user_id,
                 },
                 context: contextMap.get(row.ai_prompt_uuid) ?? [],
+                steers: steersMap.get(row.ai_prompt_uuid) ?? [],
                 hidden: row.hidden ?? false,
             });
 
@@ -3980,6 +4004,10 @@ export class AiAgentModel {
         );
         const referencedArtifacts =
             referencedArtifactsMap.get(row.ai_prompt_uuid) ?? null;
+        const steers =
+            (await this.findPromptSteers([row.ai_prompt_uuid])).get(
+                row.ai_prompt_uuid,
+            ) ?? [];
 
         switch (role) {
             case 'user':
@@ -3999,6 +4027,7 @@ export class AiAgentModel {
                                 row.ai_prompt_uuid,
                             ])
                         ).get(row.ai_prompt_uuid) ?? [],
+                    steers,
                     hidden: row.hidden ?? false,
                 } satisfies AiAgentMessageUser;
             case 'assistant':
@@ -4382,6 +4411,89 @@ export class AiAgentModel {
             .first();
 
         return row !== undefined;
+    }
+
+    async createAiPromptSteer(data: {
+        promptUuid: string;
+        createdByUserUuid: string;
+        message: string;
+    }): Promise<AiPromptSteer> {
+        const [row] = await this.database(AiPromptSteerTableName)
+            .insert({
+                ai_prompt_uuid: data.promptUuid,
+                created_by_user_uuid: data.createdByUserUuid,
+                message: data.message,
+            })
+            .returning([
+                'ai_prompt_steer_uuid',
+                'ai_prompt_uuid',
+                'message',
+                'created_at',
+                'consumed_at',
+                'consumed_step',
+            ]);
+
+        if (row === undefined) {
+            throw new UnexpectedServerError('Failed to create AI prompt steer');
+        }
+
+        return toAiPromptSteer(row);
+    }
+
+    async findPromptSteers(
+        promptUuids: string[],
+    ): Promise<Map<string, AiPromptSteer[]>> {
+        if (promptUuids.length === 0) return new Map();
+
+        const rows = await this.database(AiPromptSteerTableName)
+            .select<AiPromptSteerRow[]>(
+                `${AiPromptSteerTableName}.ai_prompt_steer_uuid`,
+                `${AiPromptSteerTableName}.ai_prompt_uuid`,
+                `${AiPromptSteerTableName}.message`,
+                `${AiPromptSteerTableName}.created_at`,
+                `${AiPromptSteerTableName}.consumed_at`,
+                `${AiPromptSteerTableName}.consumed_step`,
+            )
+            .whereIn(`${AiPromptSteerTableName}.ai_prompt_uuid`, promptUuids)
+            .orderBy(`${AiPromptSteerTableName}.created_at`, 'asc');
+
+        return rows.reduce((map, row) => {
+            const steers = map.get(row.ai_prompt_uuid) ?? [];
+            steers.push(toAiPromptSteer(row));
+            map.set(row.ai_prompt_uuid, steers);
+            return map;
+        }, new Map<string, AiPromptSteer[]>());
+    }
+
+    async consumeUnconsumedPromptSteers(data: {
+        promptUuid: string;
+        stepNumber: number;
+    }): Promise<AiPromptSteer[]> {
+        return this.database.transaction(async (trx) => {
+            const consumedRows = await trx(AiPromptSteerTableName)
+                .where({
+                    ai_prompt_uuid: data.promptUuid,
+                    consumed_at: null,
+                })
+                .update({
+                    consumed_at: trx.fn.now(),
+                    consumed_step: data.stepNumber,
+                })
+                .returning<AiPromptSteerRow[]>([
+                    'ai_prompt_steer_uuid',
+                    'ai_prompt_uuid',
+                    'message',
+                    'created_at',
+                    'consumed_at',
+                    'consumed_step',
+                ]);
+
+            if (consumedRows.length === 0) return [];
+
+            return consumedRows
+                .sort((a, b) => a.created_at.getTime() - b.created_at.getTime())
+                .map(toAiPromptSteer);
+        });
     }
 
     async createThreadCompaction(data: {

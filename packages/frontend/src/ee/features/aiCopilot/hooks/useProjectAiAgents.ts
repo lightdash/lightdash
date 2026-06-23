@@ -11,6 +11,7 @@ import type {
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageInterruptResponse,
+    ApiAiAgentThreadMessageSteerResponse,
     ApiAiAgentThreadMessageVizQuery,
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadShareResponse,
@@ -696,6 +697,7 @@ const createOptimisticMessages = (
                 uuid: user?.userUuid ?? 'unknown',
             },
             context,
+            steers: [],
             hidden,
         },
         {
@@ -1260,6 +1262,60 @@ export const useInterruptAiAgentThreadMessageMutation = () =>
                 body: undefined,
             }),
     });
+
+export const useCreateAiAgentThreadMessageSteerMutation = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation<
+        ApiAiAgentThreadMessageSteerResponse['results'],
+        ApiError,
+        {
+            projectUuid: string;
+            agentUuid: string;
+            threadUuid: string;
+            messageUuid: string;
+            message: string;
+        }
+    >({
+        mutationFn: ({
+            projectUuid,
+            agentUuid,
+            threadUuid,
+            messageUuid,
+            message,
+        }) =>
+            lightdashApi<ApiAiAgentThreadMessageSteerResponse['results']>({
+                url: `${getAiAgentApiBase(
+                    projectUuid,
+                )}/${agentUuid}/threads/${threadUuid}/messages/${messageUuid}/steers`,
+                method: 'POST',
+                body: JSON.stringify({ message }),
+            }),
+        onSuccess: (
+            result,
+            { projectUuid, agentUuid, threadUuid, messageUuid },
+        ) => {
+            queryClient.setQueryData<ApiAiAgentThreadResponse['results']>(
+                [AI_AGENTS_KEY, projectUuid, agentUuid, 'threads', threadUuid],
+                (currentData) => {
+                    if (!currentData) return currentData;
+
+                    return {
+                        ...currentData,
+                        messages: currentData.messages.map((item) =>
+                            item.role === 'user' && item.uuid === messageUuid
+                                ? {
+                                      ...item,
+                                      steers: [...item.steers, result.steer],
+                                  }
+                                : item,
+                        ),
+                    };
+                },
+            );
+        },
+    });
+};
 
 // Feedback and query management functionality
 const updatePromptFeedback = async (

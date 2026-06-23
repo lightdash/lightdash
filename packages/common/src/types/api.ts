@@ -19,6 +19,7 @@ import type {
     ApiAiAgentThreadGenerateTitleResponse,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageInterruptResponse,
+    ApiAiAgentThreadMessageSteerResponse,
     ApiAiAgentThreadMessageVizQueryResponse,
     ApiAiAgentThreadMessageVizResponse,
     ApiAiAgentThreadPullRequestResponse,
@@ -1101,6 +1102,7 @@ type ApiResults =
     | ApiCloneAiAgentThreadShareResponse['results']
     | ApiAiAgentThreadMessageCreateResponse['results']
     | ApiAiAgentThreadMessageInterruptResponse['results']
+    | ApiAiAgentThreadMessageSteerResponse['results']
     | ApiAiAgentArtifactResponse['results']
     | ApiAiAgentThreadGenerateTitleResponse['results']
     | ApiAiAgentThreadSummaryListResponse['results']

@@ -392,6 +392,10 @@
     }
 }
 
+.minimalStreamActionButton {
+    align-self: center;
+}
+
 .editorRoot {
     border: none;
     background: transparent;

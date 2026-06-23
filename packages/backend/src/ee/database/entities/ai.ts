@@ -185,6 +185,29 @@ export type AiPromptInterruptTable = Knex.CompositeTableType<
     never
 >;
 
+export const AiPromptSteerTableName = 'ai_prompt_steer';
+
+export type DbAiPromptSteer = {
+    ai_prompt_steer_uuid: string;
+    ai_prompt_uuid: string;
+    created_by_user_uuid: string;
+    message: string;
+    created_at: Date;
+    consumed_at: Date | null;
+    consumed_step: number | null;
+};
+
+export type AiPromptSteerTable = Knex.CompositeTableType<
+    DbAiPromptSteer,
+    Pick<
+        DbAiPromptSteer,
+        'ai_prompt_uuid' | 'created_by_user_uuid' | 'message'
+    >,
+    Partial<Pick<DbAiPromptSteer, 'consumed_step'>> & {
+        consumed_at?: Date | Knex.Raw;
+    }
+>;
+
 export const AiThreadCompactionTableName = 'ai_thread_compaction';
 
 export type DbAiThreadCompaction = {
