@@ -61,6 +61,16 @@ const issueEventRow = (
             };
         case 'recurred':
             return { label: 'Recurred — seen again', meta: null };
+        case 'priority_changed':
+            return {
+                label: 'Priority changed',
+                meta: `${event.payload.from} → ${event.payload.to}`,
+            };
+        case 'comment_added':
+            return {
+                label: 'Comment added',
+                meta: truncate(event.payload.body, 160),
+            };
         default:
             return { label: 'Activity', meta: null };
     }
@@ -82,11 +92,13 @@ const eventRow = (
     const remediation = reviewItem.remediation;
     switch (event.eventType) {
         case 'finding_opened': {
-            const threadPath = buildThreadPath(
-                reviewItem.projectUuid,
-                reviewItem.agentUuid,
-                event.payload.sourceThreadUuid,
-            );
+            const threadPath = event.payload.sourceThreadUuid
+                ? buildThreadPath(
+                      reviewItem.projectUuid,
+                      reviewItem.agentUuid,
+                      event.payload.sourceThreadUuid,
+                  )
+                : null;
             return {
                 label: 'Finding opened',
                 meta: (

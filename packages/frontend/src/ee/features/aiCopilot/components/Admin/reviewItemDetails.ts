@@ -1,5 +1,6 @@
 import {
     type AiAgentRecommendationAction,
+    type AiAgentReviewItemPriority,
     type AiAgentReviewItemSummary,
     type AiAgentReviewItemWritebackBlockedReason,
     type AiAgentRootCause,
@@ -37,13 +38,30 @@ export const reviewRootCauseColors: Record<AiAgentRootCause, string> = {
     ambiguous: 'gray',
 };
 
+export const reviewPriorityLabels: Record<AiAgentReviewItemPriority, string> = {
+    urgent: 'Urgent',
+    high: 'High',
+    medium: 'Medium',
+    low: 'Low',
+    none: 'No priority',
+};
+
+export const reviewPriorityColors: Record<AiAgentReviewItemPriority, string> = {
+    urgent: 'red',
+    high: 'orange',
+    medium: 'yellow',
+    low: 'blue',
+    none: 'gray',
+};
+
 export const writebackBlockedReasonLabels: Record<
     AiAgentReviewItemWritebackBlockedReason,
     string
 > = {
-    reviews_disabled: 'Reviews are not enabled for this organization',
+    reviews_disabled: 'Issues are not enabled for this organization',
     unsupported_root_cause: 'No writeback strategy for this root cause',
-    missing_project: 'No project is linked to this finding',
+    missing_project: 'No project is linked to this issue',
+    missing_agent: 'No agent is linked to this issue',
     missing_project_context_entry: 'No project context entry was generated',
     project_context_disabled: 'Project context is not enabled',
     unsupported_source_control: 'Project is not connected to GitHub or GitLab',
@@ -52,7 +70,7 @@ export const writebackBlockedReasonLabels: Record<
     pull_request_open: 'A pull request is already open',
     source_thread_writeback_exists:
         'The agent already opened a pull request in the source thread',
-    terminal_state: 'Finding is already closed',
+    terminal_state: 'Issue is already closed',
     writeback_in_progress: 'Writeback is already in progress',
 };
 

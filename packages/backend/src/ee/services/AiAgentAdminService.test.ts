@@ -42,12 +42,14 @@ const makeReviewItem = (
 ): AiAgentReviewItemSummary => ({
     uuid: 'fingerprint-1',
     fingerprint: 'fingerprint-1',
+    source: 'ai_finding',
     organizationUuid: 'org-1',
     projectUuid: 'project-1',
     agentUuid: 'agent-1',
     title: 'Missing metric',
     description: 'The agent could not answer because a metric was missing.',
     primaryRootCause: 'semantic_layer',
+    priority: 'none',
     status: 'open',
     dismissedReason: null,
     ownerType: 'semantic_layer_owner',
@@ -63,6 +65,7 @@ const makeReviewItem = (
     prWritebackStatus: null,
     prWritebackMessage: null,
     boardPosition: null,
+    createdByUserUuid: null,
     createdAt: NOW,
     updatedAt: NOW,
     writebackEligible: false,
@@ -248,6 +251,10 @@ const makeService = ({
                 .mockResolvedValue(undefined),
             updateReviewRemediationStatus: vi.fn().mockResolvedValue(undefined),
             getPromotedFingerprintScope: vi.fn().mockResolvedValue({
+                projectUuid: PROJECT_UUID,
+                agentUuid: AGENT_UUID,
+            }),
+            getReviewItemScope: vi.fn().mockResolvedValue({
                 projectUuid: PROJECT_UUID,
                 agentUuid: AGENT_UUID,
             }),
@@ -724,6 +731,53 @@ describe('getAiAgentReviewItemWritebackEligibility', () => {
         });
     });
 
+    it('allows manual project context writeback without a generated finding entry', () => {
+        expect(
+            getAiAgentReviewItemWritebackEligibility({
+                item: makeReviewItem({
+                    source: 'manual',
+                    latestFinding: null,
+                    findingCount: 0,
+                    primaryRootCause: 'project_context',
+                }),
+                reviewsEnabled: true,
+                projectContextEnabled: true,
+                projectAccess: {
+                    provider: PullRequestProvider.GITHUB,
+                    hasGitAppInstallation: true,
+                },
+                hasSemanticWritebackConfig: false,
+                sourceThreadHasWritebackPr: false,
+            }),
+        ).toEqual({
+            eligible: true,
+            provider: PullRequestProvider.GITHUB,
+            strategy: 'project_context',
+            reason: null,
+        });
+    });
+
+    it('blocks writeback when no agent is linked', () => {
+        expect(
+            getAiAgentReviewItemWritebackEligibility({
+                item: makeReviewItem({ agentUuid: null }),
+                reviewsEnabled: true,
+                projectContextEnabled: false,
+                projectAccess: {
+                    provider: PullRequestProvider.GITHUB,
+                    hasGitAppInstallation: true,
+                },
+                hasSemanticWritebackConfig: true,
+                sourceThreadHasWritebackPr: false,
+            }),
+        ).toEqual({
+            eligible: false,
+            provider: null,
+            strategy: 'semantic_layer',
+            reason: 'missing_agent',
+        });
+    });
+
     it('blocks project context writeback for GitLab projects', () => {
         expect(
             getAiAgentReviewItemWritebackEligibility({
@@ -872,6 +926,10 @@ describe('AiAgentAdminService.updateReviewItemStatus', () => {
         });
         const aiAgentReviewClassifierModel = {
             getPromotedFingerprintScope: vi.fn().mockResolvedValue({
+                projectUuid: PROJECT_UUID,
+                agentUuid: AGENT_UUID,
+            }),
+            getReviewItemScope: vi.fn().mockResolvedValue({
                 projectUuid: PROJECT_UUID,
                 agentUuid: AGENT_UUID,
             }),
@@ -1303,6 +1361,7 @@ describe('AiAgentAdminService.getReviewItemActivity', () => {
                 .fn()
                 .mockResolvedValue(makeReviewItem({ remediation: null })),
             listRemediationEvents: vi.fn(),
+            listReviewItemEvents: vi.fn().mockResolvedValue([]),
         };
         const service = makeService({ aiAgentReviewClassifierModel });
 
@@ -1318,8 +1377,11 @@ describe('AiAgentAdminService.getReviewItemActivity', () => {
             verdictStale: false,
         });
         expect(
-            aiAgentReviewClassifierModel.listRemediationEvents,
-        ).not.toHaveBeenCalled();
+            aiAgentReviewClassifierModel.listReviewItemEvents,
+        ).toHaveBeenCalledWith({
+            organizationUuid: ORGANIZATION_UUID,
+            fingerprint: 'fingerprint-1',
+        });
     });
 });
 

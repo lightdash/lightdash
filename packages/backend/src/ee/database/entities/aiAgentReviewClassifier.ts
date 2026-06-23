@@ -14,7 +14,9 @@ import type {
     AiAgentReviewItemEventDetail,
     AiAgentReviewItemEventType,
     AiAgentReviewItemOwnerType,
+    AiAgentReviewItemPriority,
     AiAgentReviewItemPrState,
+    AiAgentReviewItemSource,
     AiAgentReviewItemStatus,
     AiAgentReviewItemWritebackStatus,
     AiAgentReviewRemediationEventDetail,
@@ -235,9 +237,14 @@ export type AiAgentReviewItemEventsTable = Knex.CompositeTableType<
 export type DbAiAgentReviewItem = {
     ai_agent_review_item_uuid: string;
     fingerprint: string;
+    source: AiAgentReviewItemSource;
     organization_uuid: string;
     project_uuid: string | null;
     agent_uuid: string | null;
+    title: string | null;
+    description: string | null;
+    primary_root_cause: AiAgentRootCause | null;
+    priority: AiAgentReviewItemPriority;
     status: AiAgentReviewItemStatus;
     dismissed_reason: AiAgentReviewItemDismissedReason | null;
     assigned_to_user_uuid: string | null;
@@ -250,6 +257,7 @@ export type DbAiAgentReviewItem = {
     status_updated_at: Date | null;
     status_updated_by_user_uuid: string | null;
     board_position: number | null;
+    created_by_user_uuid: string | null;
     created_at: Date;
     updated_at: Date;
 };
@@ -263,7 +271,6 @@ export type AiAgentReviewItemTable = Knex.CompositeTableType<
         Partial<
             Omit<
                 DbAiAgentReviewItem,
-                | 'ai_agent_review_item_uuid'
                 | 'created_at'
                 | 'updated_at'
                 | 'fingerprint'
@@ -284,9 +291,9 @@ export type DbAiAgentReviewRemediation = {
     ai_agent_review_remediation_uuid: string;
     fingerprint: string;
     organization_uuid: string;
-    source_ai_agent_review_turn_signal_uuid: string;
-    source_prompt_uuid: string;
-    source_thread_uuid: string;
+    source_ai_agent_review_turn_signal_uuid: string | null;
+    source_prompt_uuid: string | null;
+    source_thread_uuid: string | null;
     source_project_uuid: string;
     source_agent_uuid: string;
     work_thread_uuid: string | null;

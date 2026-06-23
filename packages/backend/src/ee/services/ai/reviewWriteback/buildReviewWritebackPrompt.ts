@@ -87,6 +87,21 @@ const buildSemanticLayerWritebackPrompt = (
     ymlPathByModel: Map<string, string>,
 ): ReviewWritebackPlan => {
     const finding = item.latestFinding;
+    if (item.source === 'manual') {
+        const sections = [
+            'You are improving the dbt/Lightdash semantic layer YAML to resolve a manually filed data issue. Make the smallest change that resolves it.',
+            `Issue: ${item.title}`,
+            item.description ? `Description: ${item.description}` : null,
+            'No source conversation is attached. Use the issue title and description as the source of truth, inspect the dbt project, and open a pull request if a semantic-layer change can resolve the ask.',
+            'Apply the change by updating field descriptions, ai_hint, or labels, or by adding a missing model, join, dimension, or metric as appropriate. Do not change SQL logic or unrelated fields. If the data needed to answer this is genuinely not present in the warehouse/dbt project and cannot be exposed by a semantic-layer edit, do not fabricate fields or invent data — open no pull request and report that upstream dbt modeling or ingestion is required.',
+        ].filter((section): section is string => section !== null);
+
+        return {
+            strategy: 'prompt',
+            promptText: sections.join('\n\n'),
+            aggregationKey: null,
+        };
+    }
     const targetLines = (finding?.targetRefs ?? [])
         .filter(isSemanticTargetRef)
         .map((ref) => `- ${formatSemanticTargetRef(ref, ymlPathByModel)}`);
@@ -134,12 +149,29 @@ export const planReviewWriteback = (
     }
     if (item.primaryRootCause === 'project_context') {
         const entry = item.latestFinding?.projectContextEntry ?? null;
+        if (entry) {
+            return { strategy: 'project_context', entry };
+        }
+        if (item.source === 'manual') {
+            return {
+                strategy: 'project_context',
+                entry: {
+                    op: 'create',
+                    id: null,
+                    kind: 'definition',
+                    content: [item.title, item.description]
+                        .filter(Boolean)
+                        .join('\n\n'),
+                    terms: [],
+                    objects: [],
+                },
+            };
+        }
         if (!entry) {
             throw new Error(
                 'Writeback for project_context requires a projectContextEntry on the finding',
             );
         }
-        return { strategy: 'project_context', entry };
     }
     throw new Error(
         `Writeback is not supported for root cause "${item.primaryRootCause}"`,

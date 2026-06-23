@@ -16,7 +16,7 @@ type Props = {
 };
 
 /**
- * Resolves a review item from the workspace: optionally merge the open PR, then
+ * Resolves an issue from the workspace: optionally merge the open PR, then
  * mark the item resolved (which also closes its remediation server-side).
  */
 export const MarkResolvedModal: FC<Props> = ({
@@ -50,13 +50,13 @@ export const MarkResolvedModal: FC<Props> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Resolve review item"
+            title="Resolve issue"
             icon={IconCircleCheck}
             size="md"
         >
             <Stack gap="md">
                 <Text size="sm" c="dimmed">
-                    Resolving marks this review item as done and closes its
+                    Resolving marks this issue as done and closes its
                     remediation.
                     {prUrl
                         ? ' Merge the pull request first, or resolve without merging.'

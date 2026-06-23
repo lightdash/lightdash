@@ -15,8 +15,11 @@ import {
     type ApiAiAgentVerifiedArtifactsResponse,
     type ApiError,
     type ApiUpstreamDiffResponse,
+    type CreateAiAgentReviewItemComment,
+    type CreateAiAgentReviewItem,
     type ReorderAiAgentReviewItems,
     type UpdateAiAgentReviewItemAssignee,
+    type UpdateAiAgentReviewItemPriority,
     type UpdateAiAgentReviewItemStatus,
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
@@ -175,6 +178,44 @@ const getAiAgentAdminReviewItems = async (args: {
 
 const AI_AGENT_ADMIN_REVIEW_ITEMS_QUERY_KEY = 'ai-agent-admin-review-items';
 
+const createAiAgentReviewItem = async (body: CreateAiAgentReviewItem) => {
+    return lightdashApi<ApiAiAgentReviewItemResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/review-items`,
+        method: 'POST',
+        body: JSON.stringify(body),
+    });
+};
+
+export const useCreateAiAgentReviewItem = () => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiAiAgentReviewItemResponse['results'],
+        ApiError,
+        CreateAiAgentReviewItem
+    >({
+        mutationFn: createAiAgentReviewItem,
+        onSuccess: (createdItem) => {
+            showToastSuccess({ title: 'Issue created' });
+            queryClient.setQueryData(
+                ['ai-agent-admin-review-item', createdItem.fingerprint],
+                createdItem,
+            );
+            void queryClient.invalidateQueries({
+                queryKey: [AI_AGENT_ADMIN_REVIEW_ITEMS_QUERY_KEY],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to create issue',
+                apiError: error,
+            });
+        },
+    });
+};
+
 export const updateCachedReviewItemLists = (
     queryClient: QueryClient,
     updatedItem: AiAgentReviewItemSummary,
@@ -319,6 +360,47 @@ export const useRetestAiAgentReviewRemediation = () => {
         },
         onError: ({ error }) => {
             showToastApiError({ title: 'Failed to retest', apiError: error });
+        },
+    });
+};
+
+const addAiAgentReviewItemComment = async (args: {
+    fingerprint: string;
+    body: string;
+}) => {
+    return lightdashApi<ApiAiAgentReviewItemActivityResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/review-items/${encodeURIComponent(
+            args.fingerprint,
+        )}/comments`,
+        method: 'POST',
+        body: JSON.stringify({
+            body: args.body,
+        } satisfies CreateAiAgentReviewItemComment),
+    });
+};
+
+export const useAddAiAgentReviewItemComment = () => {
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiAiAgentReviewItemActivityResponse['results'],
+        ApiError,
+        { fingerprint: string; body: string }
+    >({
+        mutationFn: addAiAgentReviewItemComment,
+        onSuccess: (activity, { fingerprint }) => {
+            queryClient.setQueryData(
+                ['ai-agent-admin-review-item-activity', fingerprint],
+                activity,
+            );
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to add comment',
+                apiError: error,
+            });
         },
     });
 };
@@ -516,6 +598,53 @@ export const useUpdateAiAgentReviewItemAssignee = () => {
         onError: ({ error }) => {
             showToastApiError({
                 title: 'Failed to update assignee',
+                apiError: error,
+            });
+        },
+    });
+};
+
+const updateAiAgentReviewItemPriority = async (args: {
+    fingerprint: string;
+    priority: UpdateAiAgentReviewItemPriority['priority'];
+}) => {
+    return lightdashApi<ApiAiAgentReviewItemResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/review-items/${encodeURIComponent(args.fingerprint)}/priority`,
+        method: 'PATCH',
+        body: JSON.stringify({
+            priority: args.priority,
+        } satisfies UpdateAiAgentReviewItemPriority),
+    });
+};
+
+export const useUpdateAiAgentReviewItemPriority = () => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiAiAgentReviewItemResponse['results'],
+        ApiError,
+        {
+            fingerprint: string;
+            priority: UpdateAiAgentReviewItemPriority['priority'];
+        }
+    >({
+        mutationFn: updateAiAgentReviewItemPriority,
+        onSuccess: (updatedItem, { fingerprint }) => {
+            showToastSuccess({ title: 'Priority updated' });
+            queryClient.setQueryData(
+                ['ai-agent-admin-review-item', fingerprint],
+                updatedItem,
+            );
+            updateCachedReviewItemLists(queryClient, updatedItem);
+            void queryClient.invalidateQueries({
+                queryKey: [AI_AGENT_ADMIN_REVIEW_ITEMS_QUERY_KEY],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to update priority',
                 apiError: error,
             });
         },

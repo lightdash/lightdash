@@ -77,7 +77,7 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
         );
     }
 
-    const reviewsUrl = `/generalSettings/ai/reviews?projects=${encodeURIComponent(
+    const reviewsUrl = `/generalSettings/ai/issues?projects=${encodeURIComponent(
         projectUuid,
     )}`;
 

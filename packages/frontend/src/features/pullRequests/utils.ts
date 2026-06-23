@@ -84,7 +84,7 @@ export const getThreadPath = (row: PullRequestRow): string | null => {
 export const getThreadPreviewTarget = (
     row: PullRequestRow,
 ): PullRequestThreadPreviewTarget | null => {
-    if (row.reviewContext) {
+    if (row.reviewContext?.sourceThreadUuid) {
         return {
             projectUuid: row.reviewContext.sourceProjectUuid,
             agentUuid: row.reviewContext.sourceAgentUuid,
@@ -112,8 +112,10 @@ export const getReviewPath = (row: PullRequestRow): string | null => {
     const params = new URLSearchParams();
     params.set('reviewProjectUuid', row.reviewContext.sourceProjectUuid);
     params.set('reviewAgentUuid', row.reviewContext.sourceAgentUuid);
-    params.set('reviewThreadUuid', row.reviewContext.sourceThreadUuid);
+    if (row.reviewContext.sourceThreadUuid) {
+        params.set('reviewThreadUuid', row.reviewContext.sourceThreadUuid);
+    }
     params.set('reviewItemUuid', row.reviewContext.reviewItemUuid);
 
-    return `/generalSettings/ai/reviews?${params.toString()}`;
+    return `/generalSettings/ai/issues?${params.toString()}`;
 };

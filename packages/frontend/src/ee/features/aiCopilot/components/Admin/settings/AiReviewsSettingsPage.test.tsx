@@ -47,7 +47,7 @@ vi.mock('../AiAgentAdminReviewItemsTable', () => ({
                     })
                 }
             >
-                Open review
+                Open issue
             </button>
         );
     },
@@ -76,14 +76,14 @@ describe('AiReviewsSettingsPage', () => {
         localStorage.clear();
     });
 
-    it('opens the drawer after selecting a finding from the table', async () => {
+    it('opens the drawer after selecting an issue from the table', async () => {
         const user = userEvent.setup();
 
         renderWithProviders(
-            <MemoryRouter initialEntries={['/generalSettings/ai/reviews']}>
+            <MemoryRouter initialEntries={['/generalSettings/ai/issues']}>
                 <Routes>
                     <Route
-                        path="/generalSettings/ai/reviews"
+                        path="/generalSettings/ai/issues"
                         element={<AiReviewsSettingsPage />}
                     />
                 </Routes>
@@ -92,7 +92,7 @@ describe('AiReviewsSettingsPage', () => {
 
         // Board is the default view; switch to the table for this flow.
         await user.click(screen.getByText('Table'));
-        await user.click(screen.getByRole('button', { name: 'Open review' }));
+        await user.click(screen.getByRole('button', { name: 'Open issue' }));
 
         expect(
             await screen.findByText('Modal thread thread-1 / demo-review:1'),
@@ -103,12 +103,12 @@ describe('AiReviewsSettingsPage', () => {
         renderWithProviders(
             <MemoryRouter
                 initialEntries={[
-                    '/generalSettings/ai/reviews?reviewProjectUuid=project-1&reviewAgentUuid=agent-1&reviewThreadUuid=thread-1&reviewItemUuid=demo-review:1',
+                    '/generalSettings/ai/issues?reviewProjectUuid=project-1&reviewAgentUuid=agent-1&reviewThreadUuid=thread-1&reviewItemUuid=demo-review:1',
                 ]}
             >
                 <Routes>
                     <Route
-                        path="/generalSettings/ai/reviews"
+                        path="/generalSettings/ai/issues"
                         element={<AiReviewsSettingsPage />}
                     />
                 </Routes>

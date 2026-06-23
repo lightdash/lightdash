@@ -37,6 +37,7 @@ import {
 } from './reviewItemDetails';
 import styles from './ReviewKanbanBoard.module.css';
 import { getStartWritebackKind, isWritebackRetry } from './reviewLane';
+import { ReviewPriorityMenu } from './ReviewPriorityMenu';
 
 type Props = {
     item: AiAgentReviewItemSummary;
@@ -86,7 +87,7 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
 
     const remediation = item.remediation;
     const hasWorkspace = Boolean(remediation);
-    const workspaceHref = `/generalSettings/ai/reviews/${encodeURIComponent(
+    const workspaceHref = `/generalSettings/ai/issues/${encodeURIComponent(
         item.fingerprint,
     )}`;
     const activityLabel = getWorkspaceActivityLabel(item);
@@ -178,6 +179,10 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                                 label={
                                     reviewRootCauseLabels[item.primaryRootCause]
                                 }
+                            />
+                            <ReviewPriorityMenu
+                                fingerprint={item.fingerprint}
+                                priority={item.priority}
                             />
                         </Group>
 
