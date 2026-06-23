@@ -67,6 +67,10 @@ const RedshiftForm: FC<{
 
     const warehouse = form.values.warehouse;
 
+    // The flag resolves asynchronously; until it does, don't touch the
+    // authentication type or we'd clobber a saved IAM connection back to
+    // password before the flag loads.
+    const isIamAuthFlagResolved = redshiftIamAuthFlag.isFetched;
     const isIamAuthEnabled = redshiftIamAuthFlag.data?.enabled === true;
 
     const savedAuthenticationType =
@@ -78,6 +82,9 @@ const RedshiftForm: FC<{
         savedAuthenticationType ?? RedshiftAuthenticationType.PASSWORD;
 
     useEffect(() => {
+        if (!isIamAuthFlagResolved) {
+            return;
+        }
         const currentType = warehouse.authenticationType;
         const nextType = isIamAuthEnabled
             ? defaultAuthenticationType
@@ -95,6 +102,7 @@ const RedshiftForm: FC<{
         form,
         warehouse.authenticationType,
         isIamAuthEnabled,
+        isIamAuthFlagResolved,
     ]);
 
     const authenticationType = isIamAuthEnabled
