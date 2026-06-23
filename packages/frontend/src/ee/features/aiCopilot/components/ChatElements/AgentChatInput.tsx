@@ -153,6 +153,8 @@ export const AgentChatInput = ({
     disabledRef.current = disabled;
     const clearOnSubmitRef = useRef(clearOnSubmit);
     clearOnSubmitRef.current = clearOnSubmit;
+    const canSteerRef = useRef(false);
+    const handleSubmitRef = useRef<() => void>(() => undefined);
     const projectUuidRef = useRef(projectUuid);
     projectUuidRef.current = projectUuid;
     const contentMentionPriorityItemsRef = useRef(contentMentionPriorityItems);
@@ -300,24 +302,17 @@ export const AgentChatInput = ({
                     ) {
                         return false;
                     }
-                    if (loadingRef.current || disabledRef.current) {
+                    if (
+                        disabledRef.current ||
+                        (loadingRef.current && !canSteerRef.current)
+                    ) {
                         return true;
                     }
                     if (!ed) return false;
                     const text = ed.getText().trim();
                     if (!text) return true;
                     event.preventDefault();
-                    const mentionedContext = extractContentMentionContext(ed);
-                    onSubmitRef.current({
-                        message: text,
-                        toolHints: extractToolHints(ed),
-                        context: mentionedContext.context,
-                        optimisticContext: mentionedContext.optimisticContext,
-                    });
-                    if (clearOnSubmitRef.current) {
-                        ed.commands.clearContent();
-                        setValueState('');
-                    }
+                    handleSubmitRef.current();
                     return true;
                 }
                 return false;
@@ -440,6 +435,7 @@ export const AgentChatInput = ({
         activeMessageUuid,
     );
     const canSteer = canInterrupt && !disabled && !hasRequestedInterrupt;
+    canSteerRef.current = canSteer;
 
     const handleSubmit = () => {
         const ed = editorRef.current;
@@ -447,6 +443,7 @@ export const AgentChatInput = ({
         const text = ed.getText().trim();
         if (!text || disabled) return;
         if (canSteer) {
+            if (steerMutation.isLoading) return;
             void handleSteer(text);
             return;
         }
@@ -461,6 +458,7 @@ export const AgentChatInput = ({
             setValueState('');
         }
     };
+    handleSubmitRef.current = handleSubmit;
 
     const handleSteer = async (message: string) => {
         if (!projectUuid || !agentUuid || !threadUuid || !activeMessageUuid) {
