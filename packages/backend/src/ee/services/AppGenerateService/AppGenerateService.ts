@@ -1724,7 +1724,7 @@ export class AppGenerateService extends BaseService {
                     `cat /tmp/prompt.txt | claude ${sessionFlags} ` +
                         `--model ${claudeModel} ` +
                         `--verbose --output-format stream-json --include-partial-messages ` +
-                        `--allowedTools "Read(//app/**),Read(//tmp/dbt-repo/**),Read(//tmp/images/**),Read(//tmp/metric-queries/**),Write(//app/src/**),Edit(//app/src/**),Glob(//app/**),Glob(//tmp/dbt-repo/**),Glob(//tmp/metric-queries/**),Grep(//app/**),Grep(//tmp/dbt-repo/**)" ` +
+                        `--allowedTools "Read(//app/**),Read(//tmp/dbt-repo/**),Read(//tmp/images/**),Read(//tmp/metric-queries/**),Read(//tmp/external-data/**),Write(//app/src/**),Edit(//app/src/**),Glob(//app/**),Glob(//tmp/dbt-repo/**),Glob(//tmp/metric-queries/**),Glob(//tmp/external-data/**),Grep(//app/**),Grep(//tmp/dbt-repo/**),Grep(//tmp/external-data/**)" ` +
                         `--append-system-prompt-file ${AppGenerateService.EFFECTIVE_SKILL_PATH}`,
                     {
                         cwd: '/app',
