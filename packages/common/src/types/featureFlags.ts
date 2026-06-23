@@ -51,6 +51,15 @@ export enum FeatureFlags {
     GoogleChatEnabled = 'google-chat-enabled',
 
     /**
+     * On multi-org (shared-tenant) instances, route an organization's recurring
+     * scheduled deliveries into a per-org graphile-worker named queue
+     * (`delivery:<organizationUuid>`) so they run serially and a single org can't
+     * occupy every worker / crash the headless browser pool. Default off; enable
+     * per-org for gradual rollout.
+     */
+    ScheduledDeliveryPerOrgQueue = 'scheduled-delivery-per-org-queue',
+
+    /**
      * Enable admin user impersonation. When disabled, impersonation
      * actions are blocked and active sessions are cleared.
      */
