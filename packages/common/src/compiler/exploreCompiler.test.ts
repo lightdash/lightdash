@@ -795,6 +795,28 @@ describe('Explore compilation with model-level parameters', () => {
                 compiler.compileExplore(exploreWithReservedParameterReference),
             ).not.toThrow();
         });
+
+        test('should warn (not throw) when a model parameter shadows a reserved name', () => {
+            const exploreShadowingReservedName: UncompiledExplore = {
+                ...exploreWithParameters,
+                meta: {
+                    parameters: {
+                        date_zoom: { label: 'My date zoom', default: 'custom' },
+                    },
+                },
+            };
+
+            const result = compiler.compileExplore(
+                exploreShadowingReservedName,
+            );
+
+            expect(result.warnings).toBeDefined();
+            expect(
+                result.warnings?.some((w) =>
+                    /reserved|overrides/i.test(w.message),
+                ),
+            ).toBe(true);
+        });
     });
 
     describe('Partial compilation surfaces field-level errors clearly', () => {

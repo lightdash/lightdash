@@ -75,3 +75,51 @@ export const resolveReservedParameterValues = (
         }),
         {},
     );
+
+/**
+ * Reserved names that are shadowed by a user/project/explore parameter of the same name.
+ * A user-defined parameter always takes priority over a reserved one (collisions never
+ * fail). Used to surface the override in the UI and as a non-fatal compile warning.
+ */
+export const getShadowedReservedNames = (
+    userParameterNames: string[],
+): string[] => {
+    const userNames = new Set(userParameterNames);
+    return getReservedParameterNames().filter((name) => userNames.has(name));
+};
+
+/**
+ * Shared precedence rule for name collisions: user parameters win, reserved names are
+ * appended only when not already taken. Deduplicated. Used wherever reserved names join
+ * the available-parameter set so availability never disagrees with values/definitions.
+ */
+export const mergeReservedNames = (userParameterNames: string[]): string[] => {
+    const userNames = new Set(userParameterNames);
+    return [
+        ...userParameterNames,
+        ...getReservedParameterNames().filter((name) => !userNames.has(name)),
+    ];
+};
+
+/**
+ * Merge reserved definitions under user definitions; a user definition of the same name
+ * wins (shadows the reserved entry).
+ */
+export const mergeReservedDefinitions = (
+    userDefinitions: ParameterDefinitions | undefined,
+): ParameterDefinitions => ({
+    ...getReservedParameterDefinitions(),
+    ...(userDefinitions ?? {}),
+});
+
+/**
+ * Merge resolved reserved values under user values; a user value of the same name wins
+ * (shadows the reserved value).
+ */
+export const mergeReservedValues = (
+    userValues: ParametersValuesMap | undefined,
+    reservedValues: ParametersValuesMap,
+): ParametersValuesMap => ({
+    ...reservedValues,
+    ...(userValues ?? {}),
+});

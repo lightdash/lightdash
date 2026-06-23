@@ -64,26 +64,23 @@ export const loadLightdashProjectConfig = async (
     } = validateParameterNames(configFile.parameters);
 
     if (hasInvalidParameterNames) {
-        const reasons = [
-            invalidParameters.length > 0
-                ? `invalid parameter names: ${invalidParameters.join(', ')}`
-                : undefined,
-            reservedParameters.length > 0
-                ? `reserved parameter names cannot be used: ${reservedParameters.join(
-                      ', ',
-                  )}`
-                : undefined,
-        ]
-            .filter(Boolean)
-            .join('. ');
         throw new LightdashProjectConfigError(
-            `Invalid lightdash.config.yml with ${reasons}`,
-            {
-                invalidParameters: [
-                    ...invalidParameters,
-                    ...reservedParameters,
-                ],
-            },
+            `Invalid lightdash.config.yml with invalid parameter names: ${invalidParameters.join(
+                ', ',
+            )}`,
+            { invalidParameters },
+        );
+    }
+
+    // A parameter colliding with a reserved (system-owned) name takes priority over the
+    // reserved one rather than failing config load. Warn so the override is visible.
+    if (reservedParameters.length > 0) {
+        console.warn(
+            `lightdash.config.yml: parameter${
+                reservedParameters.length > 1 ? 's' : ''
+            } ${reservedParameters.join(', ')} ${
+                reservedParameters.length > 1 ? 'override' : 'overrides'
+            } a reserved system variable and will take priority over it.`,
         );
     }
 

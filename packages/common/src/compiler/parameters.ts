@@ -6,8 +6,8 @@ import Ajv from 'ajv';
 import AjvErrors from 'ajv-errors';
 import betterAjvErrors from 'better-ajv-errors';
 import {
-    getReservedParameterNames,
     isReservedParameterName,
+    mergeReservedNames,
 } from '../parameters/reservedParameters';
 import lightdashDbtYamlSchema from '../schemas/json/lightdash-dbt-2.0.json';
 import { CompileError } from '../types/errors';
@@ -120,9 +120,11 @@ export const getAvailableParameterNames = (
     projectParameters: Record<string, LightdashProjectParameter> | undefined,
     exploreParameters: Record<string, LightdashProjectParameter> | undefined,
 ): string[] =>
-    Object.keys(projectParameters || {})
-        .concat(Object.keys(exploreParameters || {}))
-        .concat(getReservedParameterNames());
+    mergeReservedNames(
+        Object.keys(projectParameters || {}).concat(
+            Object.keys(exploreParameters || {}),
+        ),
+    );
 
 /**
  * Whether any of the given parameter references is a reserved (system-owned) parameter.
@@ -189,11 +191,13 @@ export const getAvailableParametersFromTables = (
     }, {});
 
 /**
- * Validate parameter names. A name is rejected when it doesn't match the valid pattern
- * or when it collides with a reserved (system-owned) parameter name.
+ * Validate parameter names. A name is invalid only when it doesn't match the valid
+ * pattern. Names that collide with a reserved (system-owned) parameter are NOT invalid:
+ * the user parameter takes priority (shadows the reserved one) and the collision is
+ * surfaced as a non-fatal warning by callers, never as a failure.
  * @param parameters - The parameters to validate
  * @returns invalid names (bad pattern) and reserved names (collisions) separately so
- * callers can surface a clear message for each case.
+ * callers can fail on the former and warn on the latter.
  */
 export const validateParameterNames = (
     parameters: Record<string, LightdashProjectParameter> | undefined,
@@ -207,8 +211,7 @@ export const validateParameterNames = (
         isReservedParameterName(paramName),
     );
     return {
-        isInvalid:
-            invalidParameters.length > 0 || reservedParameters.length > 0,
+        isInvalid: invalidParameters.length > 0,
         invalidParameters,
         reservedParameters,
     };

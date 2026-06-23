@@ -464,27 +464,26 @@ export class ExploreCompiler {
         } = validateParameterNames(meta.parameters);
 
         if (hasInvalidParameterNames) {
-            const reasons = [
-                invalidParameters.length > 0
-                    ? `Invalid parameter names: ${invalidParameters.join(', ')}`
-                    : undefined,
-                reservedParameters.length > 0
-                    ? `Reserved parameter names cannot be used: ${reservedParameters.join(
-                          ', ',
-                      )}`
-                    : undefined,
-            ]
-                .filter(Boolean)
-                .join('. ');
             throw new CompileError(
-                `Failed to compile explore "${name}". ${reasons}`,
-                {
-                    invalidParameters: [
-                        ...invalidParameters,
-                        ...reservedParameters,
-                    ],
-                },
+                `Failed to compile explore "${name}". Invalid parameter names: ${invalidParameters.join(
+                    ', ',
+                )}.`,
+                { invalidParameters },
             );
+        }
+
+        // A parameter that collides with a reserved (system-owned) name doesn't fail
+        // compilation: the user parameter takes priority and shadows the reserved one.
+        // Warn so the override is discoverable rather than silent.
+        if (reservedParameters.length > 0) {
+            exploreWarnings.push({
+                type: InlineErrorType.INVALID_PARAMETER,
+                message: `Parameter${
+                    reservedParameters.length > 1 ? 's' : ''
+                } ${reservedParameters.join(', ')} ${
+                    reservedParameters.length > 1 ? 'override' : 'overrides'
+                } a reserved system variable and will take priority over it.`,
+            });
         }
 
         const { isValid, error: paramConfigError } =
