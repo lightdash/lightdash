@@ -1,3 +1,16 @@
+# [0.3224.0](https://github.com/lightdash/lightdash/compare/0.3223.0...0.3224.0) (2026-06-23)
+
+
+### Bug Fixes
+
+* re-resolve GitHub App installation_id before building dbt adapter ([#24620](https://github.com/lightdash/lightdash/issues/24620)) ([a2d86e9](https://github.com/lightdash/lightdash/commit/a2d86e99efa32ab8646f9ba7e041022a3ae4cb33))
+
+
+### Features
+
+* **ai-writeback:** track token usage and cost on completion ([#24622](https://github.com/lightdash/lightdash/issues/24622)) ([4a3ef82](https://github.com/lightdash/lightdash/commit/4a3ef828cb1e118ea4b2b88f0d16c83b68f64139))
+* **apps:** polish data app template picker ([#24614](https://github.com/lightdash/lightdash/issues/24614)) ([ba52aea](https://github.com/lightdash/lightdash/commit/ba52aeac499560f6dfb53c3a02c83a83fb778958))
+
 # [0.3223.0](https://github.com/lightdash/lightdash/compare/0.3222.1...0.3223.0) (2026-06-23)
 
 
