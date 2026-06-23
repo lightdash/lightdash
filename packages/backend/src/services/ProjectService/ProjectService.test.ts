@@ -37,7 +37,6 @@ import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { EmailModel } from '../../models/EmailModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
-import { GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
@@ -245,10 +244,7 @@ const projectCompileLogModel = {
 
 const getMockedProjectService = (
     lightdashConfig: LightdashConfig,
-    overrides: {
-        spacePermissionService?: SpacePermissionService;
-        githubAppInstallationsModel?: GithubAppInstallationsModel;
-    } = {},
+    overrides: { spacePermissionService?: SpacePermissionService } = {},
 ) =>
     new ProjectService({
         lightdashConfig,
@@ -317,7 +313,6 @@ const getMockedProjectService = (
                 csvCellsLimit: null,
             })),
         } as unknown as OrganizationSettingsModel,
-        githubAppInstallationsModel: overrides.githubAppInstallationsModel,
     });
 
 const account = buildAccount({
@@ -2539,106 +2534,5 @@ describe('ProjectService', () => {
                 }),
             ).rejects.toThrowError(ForbiddenError);
         });
-    });
-});
-
-describe('ProjectService.resolveDbtConnectionInstallationId', () => {
-    const organizationUuid = 'org-uuid';
-    const githubConnection = {
-        type: DbtProjectType.GITHUB,
-        authorization_method: 'installation_id',
-        installation_id: 'stale-installation-id',
-        repository: 'my-org/data-dbt',
-        branch: 'main',
-        project_sub_path: '/',
-    };
-
-    const resolve = (
-        service: ProjectService,
-        dbtConnection: unknown = githubConnection,
-        orgUuid: string | undefined = organizationUuid,
-    ) =>
-        (
-            service as unknown as {
-                resolveDbtConnectionInstallationId: (
-                    c: unknown,
-                    o: string | undefined,
-                ) => Promise<{ installation_id?: string }>;
-            }
-        ).resolveDbtConnectionInstallationId(dbtConnection, orgUuid);
-
-    it('replaces a stale installation_id with the current org-level one', async () => {
-        const findInstallationId = jest.fn(async () => 'fresh-installation-id');
-        const service = getMockedProjectService(lightdashConfigMock, {
-            githubAppInstallationsModel: {
-                findInstallationId,
-            } as unknown as GithubAppInstallationsModel,
-        });
-
-        const result = await resolve(service);
-
-        expect(findInstallationId).toHaveBeenCalledWith(organizationUuid);
-        expect(result.installation_id).toEqual('fresh-installation-id');
-    });
-
-    it('leaves the connection untouched when the org installation_id matches', async () => {
-        const findInstallationId = jest.fn(async () => 'stale-installation-id');
-        const service = getMockedProjectService(lightdashConfigMock, {
-            githubAppInstallationsModel: {
-                findInstallationId,
-            } as unknown as GithubAppInstallationsModel,
-        });
-
-        const result = await resolve(service);
-
-        expect(result).toEqual(githubConnection);
-    });
-
-    it('falls back to the stored connection when there is no org installation', async () => {
-        const findInstallationId = jest.fn(async () => undefined);
-        const service = getMockedProjectService(lightdashConfigMock, {
-            githubAppInstallationsModel: {
-                findInstallationId,
-            } as unknown as GithubAppInstallationsModel,
-        });
-
-        const result = await resolve(service);
-
-        expect(result).toEqual(githubConnection);
-    });
-
-    it('does not resolve for personal access token auth', async () => {
-        const findInstallationId = jest.fn(async () => 'fresh-installation-id');
-        const service = getMockedProjectService(lightdashConfigMock, {
-            githubAppInstallationsModel: {
-                findInstallationId,
-            } as unknown as GithubAppInstallationsModel,
-        });
-
-        const patConnection = {
-            ...githubConnection,
-            authorization_method: 'personal_access_token',
-            personal_access_token: 'pat',
-            installation_id: undefined,
-        };
-        const result = await resolve(service, patConnection);
-
-        expect(findInstallationId).not.toHaveBeenCalled();
-        expect(result).toEqual(patConnection);
-    });
-
-    it('does not resolve for non-GitHub projects', async () => {
-        const findInstallationId = jest.fn(async () => 'fresh-installation-id');
-        const service = getMockedProjectService(lightdashConfigMock, {
-            githubAppInstallationsModel: {
-                findInstallationId,
-            } as unknown as GithubAppInstallationsModel,
-        });
-
-        const noneConnection = { type: DbtProjectType.NONE };
-        const result = await resolve(service, noneConnection);
-
-        expect(findInstallationId).not.toHaveBeenCalled();
-        expect(result).toEqual(noneConnection);
     });
 });

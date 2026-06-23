@@ -291,6 +291,7 @@ import {
 import { UserService } from '../UserService';
 import { getFieldValuesMetricQuery } from './fieldValuesQueryBuilder';
 import { getAvailableParameterDefinitions } from './parameters';
+import { applyCurrentGithubInstallationId } from './resolveGithubInstallationId';
 
 type RefreshTokenRotationSource =
     | { kind: 'project'; projectUuid: string }
@@ -3290,43 +3291,40 @@ export class ProjectService extends BaseService {
     }
 
     /**
-     * The GitHub App installation_id is snapshotted into a project's
-     * dbt_connection when its connection form is saved. If the org later
-     * uninstalls and reinstalls the Lightdash GitHub App, GitHub mints a new
-     * installation_id, the org-level github_app_installations row is updated,
-     * but the project keeps the stale id - so getInstallationToken 404s on every
-     * compile/refresh. Re-resolve the installation_id from the org-level
-     * installation (the single source of truth) before building the adapter.
+     * Re-resolve a GitHub project's installation_id from the org-level
+     * installation (the single source of truth) before building the adapter, so
+     * a stale id snapshotted into the project's dbt_connection (e.g. after the
+     * org reinstalls the GitHub App) does not break compile/refresh with a 404.
+     * The transformation lives in applyCurrentGithubInstallationId; this only
+     * adds the IO of looking up the current installation id.
      */
     private async resolveDbtConnectionInstallationId(
         dbtConnection: DbtProjectConfig,
         organizationUuid: string | undefined,
     ): Promise<DbtProjectConfig> {
         if (
-            dbtConnection.type === DbtProjectType.GITHUB &&
-            dbtConnection.authorization_method === 'installation_id' &&
-            organizationUuid &&
-            this.githubAppInstallationsModel
+            dbtConnection.type !== DbtProjectType.GITHUB ||
+            dbtConnection.authorization_method !== 'installation_id' ||
+            !organizationUuid ||
+            !this.githubAppInstallationsModel
         ) {
-            const currentInstallationId =
-                await this.githubAppInstallationsModel.findInstallationId(
-                    organizationUuid,
-                );
-            if (
-                currentInstallationId &&
-                currentInstallationId !== dbtConnection.installation_id
-            ) {
-                this.logger.info(
-                    'Using current org GitHub installation_id instead of stale project value',
-                    { organizationUuid },
-                );
-                return {
-                    ...dbtConnection,
-                    installation_id: currentInstallationId,
-                };
-            }
+            return dbtConnection;
         }
-        return dbtConnection;
+        const currentInstallationId =
+            await this.githubAppInstallationsModel.findInstallationId(
+                organizationUuid,
+            );
+        const resolved = applyCurrentGithubInstallationId(
+            dbtConnection,
+            currentInstallationId,
+        );
+        if (resolved !== dbtConnection) {
+            this.logger.info(
+                'Using current org GitHub installation_id instead of stale project value',
+                { organizationUuid },
+            );
+        }
+        return resolved;
     }
 
     private async testProjectAdapter(
