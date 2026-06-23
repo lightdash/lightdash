@@ -12,12 +12,14 @@ const baseItem = (
 ): AiAgentReviewItemSummary => ({
     uuid: 'fp',
     fingerprint: 'fp',
+    source: 'ai_finding',
     organizationUuid: 'org',
     projectUuid: 'project',
     agentUuid: 'agent',
     title: 'Agent picked the wrong revenue metric',
     description: 'It used order count instead of revenue.',
     primaryRootCause: 'semantic_layer',
+    priority: 'none',
     status: 'open',
     dismissedReason: null,
     ownerType: 'semantic_layer_owner',
@@ -33,6 +35,7 @@ const baseItem = (
     prWritebackStatus: null,
     prWritebackMessage: null,
     boardPosition: null,
+    createdByUserUuid: null,
     writebackEligible: true,
     writebackEligibility: {
         eligible: true,
@@ -119,6 +122,26 @@ describe('planReviewWriteback', () => {
         expect(plan.promptText).not.toContain('(yaml:');
     });
 
+    it('builds a prompt from a manual semantic-layer issue', () => {
+        const plan = expectPromptPlan(
+            planReviewWriteback(
+                baseItem({
+                    source: 'manual',
+                    latestFinding: null,
+                    findingCount: 0,
+                    title: 'Add a revenue metric on orders',
+                    description: 'Finance needs a governed revenue metric.',
+                }),
+            ),
+        );
+
+        expect(plan.promptText).toContain('Add a revenue metric on orders');
+        expect(plan.promptText).toContain(
+            'Finance needs a governed revenue metric.',
+        );
+        expect(plan.promptText).toContain('No source conversation is attached');
+    });
+
     it('returns a project_context plan when the finding carries an entry', () => {
         const item = baseItem({ primaryRootCause: 'project_context' });
         const entry = {
@@ -135,6 +158,31 @@ describe('planReviewWriteback', () => {
 
         const plan = planReviewWriteback(item);
         expect(plan).toEqual({ strategy: 'project_context', entry });
+    });
+
+    it('builds a project_context entry from a manual issue', () => {
+        const plan = planReviewWriteback(
+            baseItem({
+                source: 'manual',
+                latestFinding: null,
+                findingCount: 0,
+                primaryRootCause: 'project_context',
+                title: 'Document ARR',
+                description: 'ARR should exclude one-off services.',
+            }),
+        );
+
+        expect(plan).toEqual({
+            strategy: 'project_context',
+            entry: {
+                op: 'create',
+                id: null,
+                kind: 'definition',
+                content: 'Document ARR\n\nARR should exclude one-off services.',
+                terms: [],
+                objects: [],
+            },
+        });
     });
 
     it('throws for a project_context item with no entry', () => {

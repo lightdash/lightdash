@@ -129,13 +129,13 @@ export const AiGeneralSettingsPage = () => {
                                     {settings.aiAgentReviewsEnabled && (
                                         <>
                                             {' '}
-                                            See findings in{' '}
+                                            See issues in{' '}
                                             <Anchor
                                                 component={Link}
-                                                to="/generalSettings/ai/reviews"
+                                                to="/generalSettings/ai/issues"
                                                 fz="inherit"
                                             >
-                                                Ask AI &gt; Reviews
+                                                Ask AI &gt; Issues
                                             </Anchor>
                                             .
                                         </>

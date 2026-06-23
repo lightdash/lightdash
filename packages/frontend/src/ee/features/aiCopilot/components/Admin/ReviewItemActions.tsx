@@ -41,7 +41,7 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
     const navigate = useNavigate();
     const [previewOpen, setPreviewOpen] = useState(false);
 
-    const workspaceUrl = `/generalSettings/ai/reviews/${encodeURIComponent(
+    const workspaceUrl = `/generalSettings/ai/issues/${encodeURIComponent(
         reviewItem.fingerprint,
     )}`;
 

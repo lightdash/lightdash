@@ -41,12 +41,14 @@ const makeReviewItem = (
 ): AiAgentReviewItemSummary => ({
     uuid: 'fingerprint-1',
     fingerprint: 'fingerprint-1',
+    source: 'ai_finding',
     organizationUuid: 'org-1',
     projectUuid: 'project-1',
     agentUuid: 'agent-1',
     title: 'Missing metric',
     description: 'The agent could not answer because a metric was missing.',
     primaryRootCause: 'semantic_layer',
+    priority: 'none',
     status: 'open',
     dismissedReason: null,
     ownerType: 'semantic_layer_owner',
@@ -62,6 +64,7 @@ const makeReviewItem = (
     prWritebackStatus: null,
     prWritebackMessage: null,
     boardPosition: null,
+    createdByUserUuid: null,
     createdAt: NOW,
     updatedAt: NOW,
     writebackEligible: false,
@@ -206,6 +209,10 @@ const makeService = ({
                 projectUuid: PROJECT_UUID,
                 agentUuid: AGENT_UUID,
             }),
+            getReviewItemScope: jest.fn().mockResolvedValue({
+                projectUuid: PROJECT_UUID,
+                agentUuid: AGENT_UUID,
+            }),
             updateReviewItemWritebackProgress: jest
                 .fn()
                 .mockResolvedValue(undefined),
@@ -217,7 +224,9 @@ const makeService = ({
                 .fn()
                 .mockResolvedValue(undefined),
             createRemediationEvent: jest.fn().mockResolvedValue(undefined),
+            createIssueActivityEvent: jest.fn().mockResolvedValue(undefined),
             listRemediationEvents: jest.fn().mockResolvedValue([]),
+            listIssueActivity: jest.fn().mockResolvedValue([]),
             getThreadWritebackPullRequests: jest
                 .fn()
                 .mockResolvedValue(
@@ -517,6 +526,53 @@ describe('getAiAgentReviewItemWritebackEligibility', () => {
         });
     });
 
+    it('allows manual project context writeback without a generated finding entry', () => {
+        expect(
+            getAiAgentReviewItemWritebackEligibility({
+                item: makeReviewItem({
+                    source: 'manual',
+                    latestFinding: null,
+                    findingCount: 0,
+                    primaryRootCause: 'project_context',
+                }),
+                reviewsEnabled: true,
+                projectContextEnabled: true,
+                projectAccess: {
+                    provider: PullRequestProvider.GITHUB,
+                    hasGitAppInstallation: true,
+                },
+                hasSemanticWritebackConfig: false,
+                sourceThreadHasWritebackPr: false,
+            }),
+        ).toEqual({
+            eligible: true,
+            provider: PullRequestProvider.GITHUB,
+            strategy: 'project_context',
+            reason: null,
+        });
+    });
+
+    it('blocks writeback when no agent is linked', () => {
+        expect(
+            getAiAgentReviewItemWritebackEligibility({
+                item: makeReviewItem({ agentUuid: null }),
+                reviewsEnabled: true,
+                projectContextEnabled: false,
+                projectAccess: {
+                    provider: PullRequestProvider.GITHUB,
+                    hasGitAppInstallation: true,
+                },
+                hasSemanticWritebackConfig: true,
+                sourceThreadHasWritebackPr: false,
+            }),
+        ).toEqual({
+            eligible: false,
+            provider: null,
+            strategy: 'semantic_layer',
+            reason: 'missing_agent',
+        });
+    });
+
     it('blocks project context writeback for GitLab projects', () => {
         expect(
             getAiAgentReviewItemWritebackEligibility({
@@ -664,7 +720,7 @@ describe('AiAgentAdminService.updateReviewItemStatus', () => {
             remediation: makeRemediation({ status: 'pr_open' }),
         });
         const aiAgentReviewClassifierModel = {
-            getPromotedFingerprintScope: jest.fn().mockResolvedValue({
+            getReviewItemScope: jest.fn().mockResolvedValue({
                 projectUuid: PROJECT_UUID,
                 agentUuid: AGENT_UUID,
             }),
@@ -1009,7 +1065,7 @@ describe('AiAgentAdminService.getReviewItemActivity', () => {
                     remediation: makeRemediation({ status: 'running' }),
                 }),
             ),
-            listRemediationEvents: jest
+            listIssueActivity: jest
                 .fn()
                 .mockResolvedValue([makeEvent('finding_opened')]),
         };
@@ -1031,7 +1087,7 @@ describe('AiAgentAdminService.getReviewItemActivity', () => {
                     remediation: makeRemediation({ status: 'pr_open' }),
                 }),
             ),
-            listRemediationEvents: jest
+            listIssueActivity: jest
                 .fn()
                 .mockResolvedValue([
                     makeEvent('finding_opened'),
@@ -1056,7 +1112,7 @@ describe('AiAgentAdminService.getReviewItemActivity', () => {
                     remediation: makeRemediation({ status: 'preview_ready' }),
                 }),
             ),
-            listRemediationEvents: jest
+            listIssueActivity: jest
                 .fn()
                 .mockResolvedValue([
                     makeEvent('finding_opened'),
@@ -1081,7 +1137,7 @@ describe('AiAgentAdminService.getReviewItemActivity', () => {
                     remediation: makeRemediation({ status: 'resolved' }),
                 }),
             ),
-            listRemediationEvents: jest
+            listIssueActivity: jest
                 .fn()
                 .mockResolvedValue([
                     makeEvent('pr_opened'),
@@ -1105,7 +1161,7 @@ describe('AiAgentAdminService.getReviewItemActivity', () => {
             getReviewItem: jest
                 .fn()
                 .mockResolvedValue(makeReviewItem({ remediation: null })),
-            listRemediationEvents: jest.fn(),
+            listIssueActivity: jest.fn().mockResolvedValue([]),
         };
         const service = makeService({ aiAgentReviewClassifierModel });
 
@@ -1121,8 +1177,11 @@ describe('AiAgentAdminService.getReviewItemActivity', () => {
             verdictStale: false,
         });
         expect(
-            aiAgentReviewClassifierModel.listRemediationEvents,
-        ).not.toHaveBeenCalled();
+            aiAgentReviewClassifierModel.listIssueActivity,
+        ).toHaveBeenCalledWith({
+            organizationUuid: ORGANIZATION_UUID,
+            fingerprint: 'fingerprint-1',
+        });
     });
 });
 

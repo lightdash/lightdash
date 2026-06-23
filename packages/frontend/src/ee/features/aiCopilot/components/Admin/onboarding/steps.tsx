@@ -2,7 +2,7 @@ import { Stack, Text } from '@mantine-8/core';
 import { type GuidedTourStep } from '../../../../../../components/common/GuidedTour';
 import { ReviewsLoopDiagram } from './ReviewsLoopDiagram';
 
-// First-visit tour for the Reviews board. All step copy lives here.
+// First-visit tour for the Issues board. All step copy lives here.
 export const REVIEWS_TOUR_STEPS: GuidedTourStep[] = [
     {
         target: '[data-tour="reviews-intro"]',

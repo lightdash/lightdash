@@ -98,8 +98,8 @@ const AiSearchBoxInner: FC<Props> = ({
     ).length;
     const reviewsPromoLabel =
         prReadyCount > 0
-            ? 'Review findings, ship PRs, improve agents'
-            : 'Review AI findings to improve future answers';
+            ? 'Review issues, ship PRs, improve agents'
+            : 'Review AI issues to improve future answers';
 
     const noAgentsAvailable =
         !isLoadingAgents && (!agents || agents.length === 0);
@@ -347,7 +347,7 @@ const AiSearchBoxInner: FC<Props> = ({
                                             />
                                         }
                                         component={Link}
-                                        to={`/generalSettings/ai/reviews?projects=${projectUuid}`}
+                                        to={`/generalSettings/ai/issues?projects=${projectUuid}`}
                                         className={styles.reviewsPromoButton}
                                     >
                                         <Group gap="xs" wrap="nowrap">

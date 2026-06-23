@@ -416,10 +416,10 @@ export const useSettingsNavigation = (
 
             if (shouldShowAiAgentReviews) {
                 aiChildren.push({
-                    label: 'Reviews',
-                    to: '/generalSettings/ai/reviews',
+                    label: 'Issues',
+                    to: '/generalSettings/ai/issues',
                     icon: IconListCheck,
-                    keywords: ['classifier'],
+                    keywords: ['classifier', 'reviews'],
                     children: [],
                     exact: true,
                 });

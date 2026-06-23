@@ -50,12 +50,38 @@ const eventRow = (
 ): Pick<TimelineRow, 'label' | 'meta'> => {
     const remediation = reviewItem.remediation;
     switch (event.eventType) {
+        case 'created':
+            return { label: 'Issue created', meta: null };
+        case 'status_changed':
+            return {
+                label: 'Status changed',
+                meta: `${event.payload.from ?? 'none'} → ${event.payload.to}`,
+            };
+        case 'assignee_changed':
+            return {
+                label: 'Assignee changed',
+                meta: `${event.payload.fromUserUuid ?? 'Unassigned'} → ${
+                    event.payload.toUserUuid ?? 'Unassigned'
+                }`,
+            };
+        case 'priority_changed':
+            return {
+                label: 'Priority changed',
+                meta: `${event.payload.from} → ${event.payload.to}`,
+            };
+        case 'comment_added':
+            return {
+                label: 'Comment added',
+                meta: truncate(event.payload.body, 160),
+            };
         case 'finding_opened': {
-            const threadPath = buildThreadPath(
-                reviewItem.projectUuid,
-                reviewItem.agentUuid,
-                event.payload.sourceThreadUuid,
-            );
+            const threadPath = event.payload.sourceThreadUuid
+                ? buildThreadPath(
+                      reviewItem.projectUuid,
+                      reviewItem.agentUuid,
+                      event.payload.sourceThreadUuid,
+                  )
+                : null;
             return {
                 label: 'Finding opened',
                 meta: (

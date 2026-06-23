@@ -20,6 +20,7 @@ import {
     matchPath,
     Navigate,
     useLocation,
+    useParams,
     useRoutes,
     type RouteObject,
 } from 'react-router';
@@ -85,6 +86,27 @@ import { PageName } from '../types/Events';
 import classes from './Settings.module.css';
 
 const SETTINGS_SIDEBAR_COLLAPSED_STORAGE_KEY = 'settings:sidebar-collapsed';
+
+const AiReviewsToIssuesRedirect = ({
+    itemRoute = false,
+}: {
+    itemRoute?: boolean;
+}) => {
+    const { fingerprint } = useParams<{ fingerprint: string }>();
+    const location = useLocation();
+
+    const pathname =
+        itemRoute && fingerprint
+            ? `/generalSettings/ai/issues/${encodeURIComponent(fingerprint)}`
+            : '/generalSettings/ai/issues';
+
+    return (
+        <Navigate
+            to={`${pathname}${location.search}${location.hash}`}
+            replace
+        />
+    );
+};
 
 const Settings: FC = () => {
     const context = useSettingsContext();
@@ -572,7 +594,7 @@ const Settings: FC = () => {
             });
             if (shouldShowAiAgentReviews) {
                 allowedRoutes.push({
-                    path: '/ai/reviews',
+                    path: '/ai/issues',
                     element: (
                         <AiSettingsProviders>
                             <AiReviewsSettingsPage />
@@ -580,12 +602,20 @@ const Settings: FC = () => {
                     ),
                 });
                 allowedRoutes.push({
-                    path: '/ai/reviews/:fingerprint',
+                    path: '/ai/issues/:fingerprint',
                     element: (
                         <AiSettingsProviders>
                             <ReviewRemediationWorkspace />
                         </AiSettingsProviders>
                     ),
+                });
+                allowedRoutes.push({
+                    path: '/ai/reviews',
+                    element: <AiReviewsToIssuesRedirect />,
+                });
+                allowedRoutes.push({
+                    path: '/ai/reviews/:fingerprint',
+                    element: <AiReviewsToIssuesRedirect itemRoute />,
                 });
             }
         }
@@ -728,6 +758,14 @@ const Settings: FC = () => {
             !matchPath(
                 { path: '/generalSettings/ai/reviews/:fingerprint' },
                 location.pathname,
+            ) &&
+            !matchPath(
+                { path: '/generalSettings/ai/issues' },
+                location.pathname,
+            ) &&
+            !matchPath(
+                { path: '/generalSettings/ai/issues/:fingerprint' },
+                location.pathname,
             )
         );
     }, [location.pathname]);
@@ -738,7 +776,7 @@ const Settings: FC = () => {
         isOrganizationLoading ||
         isActiveProjectUuidLoading ||
         isProjectLoading ||
-        // Wait for AI org settings so the /ai/reviews route is registered before
+        // Wait for AI org settings so the AI issues route is registered before
         // routing — otherwise a hard refresh there falls through to the default.
         isAiOrganizationSettingsLoading
     ) {
