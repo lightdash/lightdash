@@ -249,7 +249,7 @@
 
 .chatPanelCompose .chatInputArea {
     border-top: 0;
-    padding-top: var(--mantine-spacing-xl);
+    padding-top: 48px;
 }
 
 .inputWrapper {
