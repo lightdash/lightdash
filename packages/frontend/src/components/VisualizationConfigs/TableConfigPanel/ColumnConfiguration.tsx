@@ -1,4 +1,3 @@
-import { isDimension } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -33,12 +32,10 @@ type ColumnConfigurationInputProps = Pick<
     'fieldId'
 > & {
     chartConfig: VisualizationConfigTable['chartConfig'];
-    disableHidingDimensions: boolean;
 };
 
 const ColumnConfigurationInput: FC<ColumnConfigurationInputProps> = ({
     fieldId,
-    disableHidingDimensions,
     chartConfig: {
         updateColumnProperty,
         isColumnVisible,
@@ -53,7 +50,7 @@ const ColumnConfigurationInput: FC<ColumnConfigurationInputProps> = ({
 
     return (
         <TextInput
-            disabled={!isColumnVisible(fieldId) && !disableHidingDimensions}
+            disabled={!isColumnVisible(fieldId)}
             placeholder={getFieldLabelDefault(fieldId)}
             defaultValue={value}
             onChange={(e) => {
@@ -73,18 +70,11 @@ type ColumnConfigurationProps = {
      * When provided, the freeze toggle controls all listed fieldIds together.
      */
     syncFreezeWith?: string[];
-
-    /**
-     * When true, allow hiding even when the field is a pivot dimension.
-     * Used by the hide-pivot-dimensions feature (flag-gated externally).
-     */
-    allowHidePivotDimension?: boolean;
 };
 
 const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
     fieldId,
     syncFreezeWith,
-    allowHidePivotDimension = false,
 }) => {
     const { pivotDimensions, visualizationConfig, resultsData } =
         useVisualizationContext();
@@ -98,27 +88,24 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
         updateColumnProperty,
         isColumnVisible,
         isColumnFrozen,
-        getField,
         columnProperties,
     } = visualizationConfig.chartConfig;
 
-    const field = getField(fieldId);
     const columnWidth = columnProperties[fieldId]?.width;
     const isPivotingDimension = pivotDimensions?.includes(fieldId);
-    const disableHidingDimensions =
-        !!(pivotDimensions && isDimension(field)) && !allowHidePivotDimension;
 
-    // When allowHidePivotDimension is true, compute the subtotal-grouping
-    // guard: hiding is forbidden for non-leaf row-index dims when subtotals
-    // are enabled (hiding them would corrupt the subtotal grouping).
+    // Hiding is forbidden for non-leaf row-index dims when subtotals are
+    // enabled (hiding them would corrupt the subtotal grouping).
     const showSubtotals =
         isTableVisualizationConfig(visualizationConfig) &&
         (visualizationConfig.chartConfig.showSubtotals ?? false);
     const dimensions = resultsData?.metricQuery?.dimensions ?? [];
     const rowDims = getRowDims(dimensions, pivotDimensions);
-    const isSubtotalGroupingLevel =
-        allowHidePivotDimension &&
-        isFieldSubtotalGroupingLevel(fieldId, rowDims, showSubtotals);
+    const isSubtotalGroupingLevel = isFieldSubtotalGroupingLevel(
+        fieldId,
+        rowDims,
+        showSubtotals,
+    );
 
     // Pivoted dimensions become column headers and can't be frozen.
     const shouldShowFreezeToggle = !isPivotingDimension;
@@ -146,7 +133,6 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
                 <ColumnConfigurationInput
                     fieldId={fieldId}
                     chartConfig={visualizationConfig.chartConfig}
-                    disableHidingDimensions={disableHidingDimensions}
                 />
             </Box>
 
@@ -157,11 +143,9 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
                 label={
                     isSubtotalGroupingLevel
                         ? "Cannot hide while it's a subtotal grouping level"
-                        : disableHidingDimensions
-                          ? 'Cannot hide dimensions when pivoting'
-                          : isColumnVisible(fieldId)
-                            ? 'Hide column'
-                            : 'Show column'
+                        : isColumnVisible(fieldId)
+                          ? 'Hide column'
+                          : 'Show column'
                 }
             >
                 <Box
@@ -169,9 +153,7 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
                     onMouseLeave={() => setShowTooltipVisible(false)}
                 >
                     <ActionIcon
-                        disabled={
-                            disableHidingDimensions || isSubtotalGroupingLevel
-                        }
+                        disabled={isSubtotalGroupingLevel}
                         variant="light"
                         onClick={() => {
                             // TODO: render perf issues on this page seem to be
@@ -182,10 +164,7 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
                             // but for now work around it by managing the tooltip
                             // and closing it when the button is clicked.
                             setShowTooltipVisible(false);
-                            if (
-                                !disableHidingDimensions &&
-                                !isSubtotalGroupingLevel
-                            ) {
+                            if (!isSubtotalGroupingLevel) {
                                 updateColumnProperty(fieldId, {
                                     visible: !isColumnVisible(fieldId),
                                 });

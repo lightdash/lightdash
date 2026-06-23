@@ -11,7 +11,6 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../features/explorer/store';
-import { useIsHidePivotDimsEnabled } from '../../hooks/useIsHidePivotDimsEnabled';
 import {
     matchesIdentity,
     normalizePivotValues,
@@ -55,8 +54,6 @@ const ExplorerPivotTable: FC<ExplorerPivotTableProps> = ({
     const chartConfig = isTableVisualizationConfig(visualizationConfig)
         ? visualizationConfig.chartConfig
         : null;
-
-    const isHidePivotDimsEnabled = useIsHidePivotDimsEnabled();
 
     const showSubtotals = chartConfig?.showSubtotals ?? false;
     const rowDims = useMemo(
@@ -195,7 +192,7 @@ const ExplorerPivotTable: FC<ExplorerPivotTableProps> = ({
                         onSelect={(direction) => applySort(target, direction)}
                         onRemove={() => removeSort(target)}
                     />
-                    {isHidePivotDimsEnabled && chartConfig && isDimTarget && (
+                    {chartConfig && isDimTarget && (
                         <>
                             <Menu.Divider />
                             <Menu.Item
@@ -221,7 +218,6 @@ const ExplorerPivotTable: FC<ExplorerPivotTableProps> = ({
             applySort,
             chartConfig,
             getField,
-            isHidePivotDimsEnabled,
             isSubtotalGroupingLevel,
             removeSort,
             sorts,

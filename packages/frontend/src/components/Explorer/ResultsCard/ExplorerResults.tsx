@@ -18,7 +18,6 @@ import { useColumnTotalsEnabledByDefault } from '../../../hooks/useAsyncCalculat
 import { useColumns } from '../../../hooks/useColumns';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
-import { useIsHidePivotDimsEnabled } from '../../../hooks/useIsHidePivotDimsEnabled';
 import type {
     useGetReadyQueryResults,
     useInfiniteQueryResults,
@@ -283,14 +282,9 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
     // pivot headers / row index; metrics drop out of data columns. Both ship
     // to the pivot reducer worker so the user's "Hide column" toggle takes
     // effect without waiting for a new query.
-    //
-    // PROD-2108 flag gate: unflagged users keep the pre-existing behavior
-    // (no dim filtering) so an existing chart with a stray `visible: false`
-    // on a dim doesn't suddenly start hiding columns.
-    const isHidePivotDimsEnabled = useIsHidePivotDimsEnabled();
     const queryDimensions = query.data?.metricQuery?.dimensions;
     const { hiddenDimensionFieldIds, hiddenMetricFieldIds } = useMemo(() => {
-        if (!columnProperties || !isHidePivotDimsEnabled) {
+        if (!columnProperties) {
             return {
                 hiddenDimensionFieldIds: undefined,
                 hiddenMetricFieldIds: undefined,
@@ -312,7 +306,7 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
             hiddenDimensionFieldIds: hiddenDims,
             hiddenMetricFieldIds: hiddenMets,
         };
-    }, [columnProperties, queryDimensions, isHidePivotDimsEnabled]);
+    }, [columnProperties, queryDimensions]);
 
     // Convert pivoted query results to PivotData format for PivotTable
     // Only process when user is actually viewing grouped results
