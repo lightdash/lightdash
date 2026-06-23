@@ -1,5 +1,6 @@
 import {
     AiReviewNotificationEvent,
+    EE_SCHEDULER_TASKS,
     OrganizationMemberRole,
 } from '@lightdash/common';
 import { AiAgentReviewNotificationService } from './AiAgentReviewNotificationService';
@@ -7,6 +8,9 @@ import { AiAgentReviewNotificationService } from './AiAgentReviewNotificationSer
 const makeService = () => {
     const notificationsModel = {
         createAiReviewNotifications: jest.fn().mockResolvedValue(undefined),
+    };
+    const schedulerClient = {
+        scheduleTask: jest.fn().mockResolvedValue({ jobId: 'job-1' }),
     };
     const aiAgentReviewClassifierModel = {
         getReviewItem: jest.fn().mockResolvedValue({
@@ -37,6 +41,7 @@ const makeService = () => {
     };
     const service = new AiAgentReviewNotificationService({
         notificationsModel,
+        schedulerClient,
         aiAgentReviewClassifierModel,
         organizationMemberProfileModel,
     } as unknown as ConstructorParameters<
@@ -46,6 +51,7 @@ const makeService = () => {
     return {
         service,
         notificationsModel,
+        schedulerClient,
         aiAgentReviewClassifierModel,
         organizationMemberProfileModel,
     };
@@ -61,7 +67,7 @@ describe('AiAgentReviewNotificationService', () => {
     });
 
     it('suppresses self-assignment notifications', async () => {
-        const { service, notificationsModel } = makeService();
+        const { service, notificationsModel, schedulerClient } = makeService();
 
         await service.notifyAssigned({
             organizationUuid: 'org-1',
@@ -74,10 +80,11 @@ describe('AiAgentReviewNotificationService', () => {
         expect(
             notificationsModel.createAiReviewNotifications,
         ).not.toHaveBeenCalled();
+        expect(schedulerClient.scheduleTask).not.toHaveBeenCalled();
     });
 
-    it('writes a bell notification for a different assignee', async () => {
-        const { service, notificationsModel } = makeService();
+    it('writes bell and enqueues task for different assignee', async () => {
+        const { service, notificationsModel, schedulerClient } = makeService();
 
         await service.notifyAssigned({
             organizationUuid: 'org-1',
@@ -96,6 +103,13 @@ describe('AiAgentReviewNotificationService', () => {
                     event: AiReviewNotificationEvent.Assigned,
                     fingerprint: 'fingerprint-1',
                 }),
+            }),
+        );
+        expect(schedulerClient.scheduleTask).toHaveBeenCalledWith(
+            EE_SCHEDULER_TASKS.SEND_REVIEW_NOTIFICATION,
+            expect.objectContaining({
+                event: AiReviewNotificationEvent.Assigned,
+                assigneeUserUuid: 'user-2',
             }),
         );
     });
