@@ -7310,6 +7310,25 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    LightdashParameterOption: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                value: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'double' },
+                    ],
+                    required: true,
+                },
+                label: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     LightdashProjectParameter: {
         dataType: 'refAlias',
         type: {
@@ -7327,6 +7346,13 @@ const models: TsoaRoute.Models = {
                     subSchemas: [
                         { dataType: 'array', array: { dataType: 'string' } },
                         { dataType: 'array', array: { dataType: 'double' } },
+                        {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'LightdashParameterOption',
+                            },
+                        },
                     ],
                 },
                 allow_custom_values: { dataType: 'boolean' },

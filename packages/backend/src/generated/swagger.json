@@ -8513,6 +8513,26 @@
             "LineageGraph": {
                 "$ref": "#/components/schemas/Record_string.LineageNodeDependency-Array_"
             },
+            "LightdashParameterOption": {
+                "properties": {
+                    "value": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        ]
+                    },
+                    "label": {
+                        "type": "string"
+                    }
+                },
+                "required": ["value", "label"],
+                "type": "object"
+            },
             "LightdashProjectParameter": {
                 "properties": {
                     "options_from_dimension": {
@@ -8539,6 +8559,12 @@
                                 "items": {
                                     "type": "number",
                                     "format": "double"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/LightdashParameterOption"
                                 },
                                 "type": "array"
                             }
