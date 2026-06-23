@@ -132,22 +132,22 @@ export const hasReservedParameterReference = (
 ): boolean => parameterReferences.some(isReservedParameterName);
 
 /**
- * Determine which referenced parameters still need a value before a query can run.
- * A parameter is required when it has no value and no default. Reserved (system-owned)
- * parameters are resolved server-side from the query context and are never user-provided,
- * so they are never treated as missing.
+ * Which referenced parameters still need a value (no value and no default). Both checks
+ * use key presence, so an explicit falsy value or default (`0`, `''`, `[]`) counts as
+ * supplied, matching the backend's `default !== undefined`. Reserved params never count.
  */
 export const getMissingRequiredParameters = (
     parameterReferences: string[],
     parameterValues: ParametersValuesMap | undefined,
     parameterDefinitions: ParameterDefinitions | undefined,
 ): string[] =>
-    parameterReferences.filter(
-        (name) =>
-            !isReservedParameterName(name) &&
-            !parameterValues?.[name] &&
-            !parameterDefinitions?.[name]?.default,
-    );
+    parameterReferences.filter((name) => {
+        if (isReservedParameterName(name)) return false;
+        const hasValue = name in (parameterValues ?? {});
+        const definition = parameterDefinitions?.[name];
+        const hasDefault = definition !== undefined && 'default' in definition;
+        return !hasValue && !hasDefault;
+    });
 
 /**
  * Get all available parameter names for a project and explore

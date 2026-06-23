@@ -7,9 +7,9 @@ import {
     FilterInteractivityValues,
     getFilterInteractivityValue,
     getItemId,
+    getMissingRequiredParameters,
     isDashboardChartTileType,
     isFilterLockedOnTab,
-    isReservedParameterName,
     isStandardDateGranularity,
     isSubDayGranularity,
     stripOverridesForLockedFiltersOnTab,
@@ -538,16 +538,22 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     }, [projectParameters, addParameterDefinitions]);
 
     const missingRequiredParameters = useMemo(() => {
-        // If no parameter references, return empty array
         if (!dashboardParameterReferences.size) return [];
 
-        // Missing required parameters are the ones that are not set and don't have a
-        // default value. Reserved parameters are resolved server-side, never user-set.
-        return Array.from(dashboardParameterReferences).filter(
-            (parameterName) =>
-                !isReservedParameterName(parameterName) &&
-                !parameters[parameterName] &&
-                !parameterDefinitions[parameterName]?.default,
+        // Map by key presence (a param is "set" even with an empty value), not the
+        // empty-stripping `parameterValues`, so dashboard semantics are unchanged.
+        const dashboardParameterValues: ParametersValuesMap =
+            Object.fromEntries(
+                Object.entries(parameters).map(([key, parameter]) => [
+                    key,
+                    parameter.value,
+                ]),
+            );
+
+        return getMissingRequiredParameters(
+            Array.from(dashboardParameterReferences),
+            dashboardParameterValues,
+            parameterDefinitions,
         );
     }, [dashboardParameterReferences, parameters, parameterDefinitions]);
 
