@@ -6,7 +6,6 @@ import {
     getHiddenTableFields,
     getPivotConfig,
     NotFoundError,
-    FeatureFlags,
     type ApiErrorDetail,
     type ChartConfig,
     type ChartType,
@@ -48,7 +47,6 @@ import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
@@ -94,11 +92,6 @@ const VisualizationCard: FC<Props> = memo((props) => {
     const savedChart = useExplorerSelector(selectSavedChart);
 
     const sorts = useExplorerSelector(selectSorts);
-
-    const { data: pivotColumnSortFlag } = useServerFeatureFlag(
-        FeatureFlags.PivotColumnSort,
-    );
-    const isPivotColumnSortEnabled = pivotColumnSortFlag?.enabled ?? false;
 
     const projectUuid = savedChart?.projectUuid || fallBackUUid;
     const stagedColorPaletteUuid = useExplorerSelector(
@@ -363,13 +356,12 @@ const VisualizationCard: FC<Props> = memo((props) => {
                     headerElement={
                         isOpen && (
                             <>
-                                {isPivotColumnSortEnabled &&
-                                    sorts.length > 0 && (
-                                        <SortButton
-                                            sorts={sorts}
-                                            isEditMode={isEditMode}
-                                        />
-                                    )}
+                                {sorts.length > 0 && (
+                                    <SortButton
+                                        sorts={sorts}
+                                        isEditMode={isEditMode}
+                                    />
+                                )}
                                 <VisualizationWarning
                                     dirtyPivotConfiguration={
                                         dirtyPivotConfiguration
