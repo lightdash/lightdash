@@ -48,8 +48,7 @@ test('Should compile without table calculations', () => {
 });
 
 test('Should compile custom SQL dimension referencing a reserved parameter', () => {
-    // Reserved parameters must be available even when the caller passes no
-    // parameters (e.g. the async query fields path), so this should not throw.
+    // Reserved parameters must be available even when the caller passes none.
     const metricQuery = {
         ...METRIC_QUERY_NO_CALCS,
         dimensions: ['table1_dim_1'],

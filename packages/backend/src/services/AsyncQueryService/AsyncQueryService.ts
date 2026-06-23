@@ -5317,8 +5317,8 @@ export class AsyncQueryService extends ProjectService {
             fields: fieldsWithOverrides,
             parameterReferences,
             usedParametersValues: usedParameters,
-            // Date zoom is in effect when its date dimension was overridden, or when a
-            // grain is selected and the chart references a reserved date-zoom parameter.
+            // In effect when a date dimension was overridden, or a grain is selected and
+            // the chart references a reserved date-zoom parameter.
             dateZoomApplied:
                 dateZoomApplied ||
                 (!!dateZoom?.granularity &&

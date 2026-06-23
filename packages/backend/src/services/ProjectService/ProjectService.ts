@@ -3853,10 +3853,8 @@ export class ProjectService extends BaseService {
          */
         applyDateZoomToFilters?: boolean;
     }): Promise<CompiledQuery> {
-        // Reserved (system-owned) parameters share the user-parameter pipeline. Fold
-        // their definitions in so ad-hoc custom SQL referencing them compiles, and key
-        // availability off the combined map. A user parameter of the same name wins
-        // (shadows the reserved one).
+        // Fold reserved definitions in so custom SQL referencing them compiles; a
+        // same-named user parameter wins (shadows the reserved one).
         const parameterDefinitionsWithReserved: ParameterDefinitions =
             mergeReservedDefinitions(availableParameterDefinitions);
         const availableParameters = Object.keys(
@@ -3875,10 +3873,8 @@ export class ProjectService extends BaseService {
             dateZoom,
         );
 
-        // Resolve reserved parameter values from the query context. The date zoom value
-        // reflects the selected grain whenever a zoom reaches the query, independent of
-        // whether a date dimension was physically overridden. A same-named user value
-        // wins (shadows the reserved value).
+        // Resolve reserved values from the query context (date zoom reflects the selected
+        // grain whenever a zoom reaches the query); a same-named user value wins.
         const parametersWithReserved: ParametersValuesMap = mergeReservedValues(
             parameters,
             resolveReservedParameterValues({ dateZoom }),

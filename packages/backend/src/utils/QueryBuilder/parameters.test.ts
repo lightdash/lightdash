@@ -513,8 +513,7 @@ describe('safeReplaceParametersWithTypes', () => {
     });
 
     it('substitutes an empty reserved parameter as an empty value, not missing', () => {
-        // date_zoom is a reserved (system-owned) parameter. When no date zoom is applied
-        // it resolves to an empty string, which is a valid value, not a missing one.
+        // An unapplied date_zoom resolves to '', a valid value rather than a missing one.
         const sql = 'SELECT ${ld.parameters.date_zoom} AS grain';
 
         const result = safeReplaceParametersWithTypes({

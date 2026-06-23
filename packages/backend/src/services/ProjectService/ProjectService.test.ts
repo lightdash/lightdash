@@ -2559,9 +2559,7 @@ describe('ProjectService._compileQuery reserved parameters', () => {
     });
 
     it('lets a user parameter named date_zoom win over the reserved value', async () => {
-        // No date zoom is applied, so the reserved value would resolve to '' (the
-        // else branch). A user-defined date_zoom set to 'week' must take priority and
-        // drive the 'week' branch instead, proving user-wins precedence.
+        // With no date zoom the reserved value is ''; a user date_zoom of 'week' must win.
         const compiled = await ProjectService._compileQuery({
             metricQuery: metricQueryReservedParameterDimension,
             explore: exploreWithReservedParameterDimension,

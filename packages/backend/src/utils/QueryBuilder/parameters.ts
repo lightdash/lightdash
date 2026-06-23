@@ -202,9 +202,8 @@ export const safeReplaceParametersWithTypes = ({
         allParametersResult.references.add(ref);
     });
 
-    // Reserved (system-owned) parameters always carry a system-provided value. An empty
-    // value (e.g. no date zoom applied) is valid, not missing: substitute its token as an
-    // empty value below and drop it from the missing set so it isn't reported or stranded.
+    // An empty reserved value (e.g. no date zoom applied) is valid, not missing: drop it
+    // from the missing set and substitute its token as an empty value below.
     const emptyReservedParameterNames = Object.keys(parameterValuesMap).filter(
         (key) => isReservedParameterName(key) && parameterValuesMap[key] === '',
     );
@@ -288,8 +287,7 @@ export const safeReplaceParametersWithTypes = ({
         processedSql = numberResult.replacedSql;
     }
 
-    // Substitute empty reserved parameters as an empty quoted value (e.g. '') so the
-    // token isn't left stranded in the SQL when the system value is empty.
+    // Substitute empty reserved parameters as a quoted empty value so no token is stranded.
     if (emptyReservedParameterNames.length > 0) {
         const quoteChar = sqlBuilder.getStringQuoteChar();
         emptyReservedParameterNames.forEach((key) => {

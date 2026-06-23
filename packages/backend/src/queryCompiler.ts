@@ -396,8 +396,7 @@ export const compileMetricQuery = ({
 }: CompileMetricQueryArgs): CompiledMetricQuery => {
     const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
 
-    // Reserved (system-owned) parameters are always referenceable in custom SQL, so
-    // include them here once to cover every caller's parameter-reference validation.
+    // Reserved parameters are always referenceable in custom SQL; include them once here.
     const availableParametersWithReserved = [
         ...availableParameters,
         ...getReservedParameterNames(),
