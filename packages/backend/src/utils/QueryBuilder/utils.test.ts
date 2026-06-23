@@ -37,6 +37,7 @@ import {
     getCustomSqlDimensionSql,
     getJoinedTables,
     replaceUserAttributesAsStrings,
+    replaceUserAttributesInSqlTable,
     sortDayOfWeekName,
     sortMonthName,
 } from './utils';
@@ -210,6 +211,71 @@ describe('replaceUserAttributes', () => {
                 warehouseClientMock,
             ),
         ).toEqual('(\'mock@lightdash.com\' = "mock@lightdash.com")');
+    });
+
+    it('should escape single quotes in a user attribute value to prevent SQL injection', () => {
+        expect(
+            replaceUserAttributesAsStrings(
+                'email = ${lightdash.attribute.region}',
+                INTRINSIC_USER_ATTRIBUTES,
+                { region: ["x' OR '1'='1"] },
+                warehouseClientMock,
+            ),
+        ).toEqual("(email = 'x'' OR ''1''=''1')");
+    });
+
+    it('should escape an intrinsic email value containing quotes and comments', () => {
+        expect(
+            replaceUserAttributesAsStrings(
+                'customer_email = ${lightdash.user.email}',
+                { email: "x'/**/OR/**/1=1/**/--@evil.com" },
+                {},
+                warehouseClientMock,
+            ),
+        ).toEqual("(customer_email = 'x''OR1=1')");
+    });
+
+    it('should escape every value in a multi-value user attribute', () => {
+        expect(
+            replaceUserAttributesAsStrings(
+                'region IN (${lightdash.attribute.region})',
+                INTRINSIC_USER_ATTRIBUTES,
+                { region: ['EU', "x'; DROP TABLE users; --"] },
+                warehouseClientMock,
+            ),
+        ).toEqual("(region IN ('EU', 'x''; DROP TABLE users; '))");
+    });
+});
+
+describe('replaceUserAttributesInSqlTable', () => {
+    it('should interpolate an identifier-safe user attribute into a table reference', () => {
+        expect(
+            replaceUserAttributesInSqlTable(
+                'analytics_${lightdash.attribute.tenant}.orders',
+                INTRINSIC_USER_ATTRIBUTES,
+                { tenant: ['acme'] },
+            ),
+        ).toEqual('analytics_acme.orders');
+    });
+
+    it('should throw when a user attribute value is not identifier-safe', () => {
+        expect(() =>
+            replaceUserAttributesInSqlTable(
+                'analytics_${lightdash.attribute.tenant}.orders',
+                INTRINSIC_USER_ATTRIBUTES,
+                { tenant: ['acme JOIN secrets s ON 1=1 --'] },
+            ),
+        ).toThrow(ForbiddenError);
+    });
+
+    it('should not run validation when the table references no user attributes', () => {
+        expect(
+            replaceUserAttributesInSqlTable(
+                'analytics.orders',
+                INTRINSIC_USER_ATTRIBUTES,
+                { tenant: ["x'; DROP TABLE users; --"] },
+            ),
+        ).toEqual('analytics.orders');
     });
 });
 

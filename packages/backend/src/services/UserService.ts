@@ -49,6 +49,7 @@ import {
     UpdateUserArgs,
     UpsertUserWarehouseCredentials,
     UserAllowedOrganization,
+    validateEmail,
     validateOrganizationEmailDomains,
     validateOrganizationNameOrThrow,
     WarehouseTypes,
@@ -1426,6 +1427,10 @@ export class UserService extends BaseService {
         data: Partial<UpdateUserArgs>,
     ): Promise<LightdashUser> {
         const emailChanged = data.email && user.email !== data.email;
+
+        if (data.email !== undefined && !validateEmail(data.email)) {
+            throw new ParameterError(`Invalid email: ${data.email}`);
+        }
 
         if (
             data.timezone !== undefined &&

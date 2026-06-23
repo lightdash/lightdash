@@ -91,6 +91,7 @@ import {
     getJoinType,
     isInflationProofMetric,
     replaceUserAttributesAsStrings,
+    replaceUserAttributesInSqlTable,
     replaceUserAttributesRaw,
     sortDayOfWeekName,
     sortMonthName,
@@ -1917,7 +1918,7 @@ export class MetricQueryBuilder {
             intrinsicUserAttributes,
             userAttributes = {},
         } = this.args;
-        const baseTable = replaceUserAttributesRaw(
+        const baseTable = replaceUserAttributesInSqlTable(
             explore.tables[explore.baseTable].sqlTable,
             intrinsicUserAttributes,
             userAttributes,
@@ -1980,7 +1981,7 @@ export class MetricQueryBuilder {
         const joinSQL = explore.joinedTables
             .filter((join) => joinedTables.has(join.table) || join.always)
             .map((join) => {
-                const joinTable = replaceUserAttributesRaw(
+                const joinTable = replaceUserAttributesInSqlTable(
                     explore.tables[join.table].sqlTable,
                     intrinsicUserAttributes,
                     userAttributes,
@@ -2407,7 +2408,7 @@ export class MetricQueryBuilder {
                  * - Only join keys table and metrics table
                  * - No filters needed
                  */
-                const joinTable = replaceUserAttributesRaw(
+                const joinTable = replaceUserAttributesInSqlTable(
                     table.sqlTable,
                     intrinsicUserAttributes,
                     userAttributes,
@@ -2564,7 +2565,7 @@ export class MetricQueryBuilder {
                          * - Only join keys table and metrics table
                          * - No filters needed
                          */
-                        const popJoinTable = replaceUserAttributesRaw(
+                        const popJoinTable = replaceUserAttributesInSqlTable(
                             table.sqlTable,
                             intrinsicUserAttributes,
                             userAttributes,

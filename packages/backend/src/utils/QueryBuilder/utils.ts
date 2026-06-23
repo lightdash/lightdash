@@ -164,10 +164,12 @@ export const replaceLightdashValues = (
         // ! This is only for error messages so we can reuse the same function for user attributes and parameters
         replacementName = 'user attribute',
         cast,
+        escapeString,
     }: {
         throwOnMissing?: boolean;
         replacementName?: 'user attribute' | 'parameter';
         cast?: 'DATE';
+        escapeString?: (value: string) => string;
     } = {},
 ): {
     replacedSql: string;
@@ -213,19 +215,23 @@ export const replaceLightdashValues = (
                 );
             }
 
+            const escape = escapeString ?? ((value: string) => value);
+
             let valueString: string;
             if (isArray(attributeValues)) {
                 valueString = attributeValues
                     .map((attributeValue) =>
                         typeof attributeValue === 'number'
                             ? String(attributeValue)
-                            : `${quoteChar}${attributeValue}${quoteChar}`,
+                            : `${quoteChar}${escape(attributeValue)}${quoteChar}`,
                     )
                     .join(', ');
             } else if (typeof attributeValues === 'number') {
                 valueString = String(attributeValues);
             } else {
-                const quotedValue = `${quoteChar}${attributeValues}${quoteChar}`;
+                const quotedValue = `${quoteChar}${escape(
+                    attributeValues,
+                )}${quoteChar}`;
                 valueString =
                     cast === 'DATE'
                         ? `CAST(${quotedValue} AS DATE)`
@@ -251,6 +257,7 @@ export const replaceUserAttributes = (
     userAttributes: UserAttributeValueMap,
     quoteChar: string,
     wrapChar: string,
+    escapeString: (value: string) => string,
 ): string => {
     // Replace user attributes in the SQL filter
     const { replacedSql: replacedSqlFilter } = replaceLightdashValues(
@@ -259,6 +266,7 @@ export const replaceUserAttributes = (
         userAttributes,
         quoteChar,
         wrapChar,
+        { escapeString },
     );
 
     // Replace intrinsic user attributes in the SQL filter
@@ -268,6 +276,7 @@ export const replaceUserAttributes = (
         intrinsicUserAttributes,
         quoteChar,
         wrapChar,
+        { escapeString },
     );
 
     return replacedSql;
@@ -286,6 +295,7 @@ export const replaceUserAttributesAsStrings = (
         userAttributes,
         warehouseSqlBuilder.getStringQuoteChar(),
         opts?.noWrap ? '' : '(',
+        warehouseSqlBuilder.escapeString.bind(warehouseSqlBuilder),
     );
 
 export const replaceUserAttributesRaw = (
@@ -293,7 +303,43 @@ export const replaceUserAttributesRaw = (
     intrinsicUserAttributes: IntrinsicUserAttributes,
     userAttributes: UserAttributeValueMap,
 ) =>
-    replaceUserAttributes(sql, intrinsicUserAttributes, userAttributes, '', '');
+    // Raw replacement relies on a downstream compiler (e.g. the filter compiler)
+    // to quote/escape the value, so it is not escaped here.
+    replaceUserAttributes(
+        sql,
+        intrinsicUserAttributes,
+        userAttributes,
+        '',
+        '',
+        (value) => value,
+    );
+
+// A table-reference position (FROM/JOIN) cannot be quoted as a string literal,
+// so escaping is not enough to neutralise a malicious value. Restrict it to
+// identifier-safe characters and reject anything that could break out into
+// structural SQL.
+const assertSafeSqlIdentifierValue = (value: string): string => {
+    if (!/^[A-Za-z0-9_.-]*$/.test(value)) {
+        throw new ForbiddenError(
+            `User attribute value "${value}" contains characters that are not allowed in a table reference`,
+        );
+    }
+    return value;
+};
+
+export const replaceUserAttributesInSqlTable = (
+    sql: string,
+    intrinsicUserAttributes: IntrinsicUserAttributes,
+    userAttributes: UserAttributeValueMap,
+) =>
+    replaceUserAttributes(
+        sql,
+        intrinsicUserAttributes,
+        userAttributes,
+        '',
+        '',
+        assertSafeSqlIdentifierValue,
+    );
 
 export const assertValidDimensionRequiredAttribute = (
     dimension: CompiledDimension,
@@ -617,7 +663,7 @@ export const getCustomBinDimensionSql = ({
                     adapterType,
                     startOfWeek,
                 });
-                const baseTable = replaceUserAttributesRaw(
+                const baseTable = replaceUserAttributesInSqlTable(
                     explore.tables[customDimension.table].sqlTable,
                     intrinsicUserAttributes,
                     userAttributes,
