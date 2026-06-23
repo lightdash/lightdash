@@ -249,8 +249,8 @@ export const MetricDetailPopover: FC<Props> = ({
     compiledQueryConfig,
 }) => {
     const [opened, setOpened] = useState(false);
-    // HoverCard is uncontrolled (no `opened` prop), so bumping this key
-    // remounts it to force the dropdown closed when the user explores.
+    // Mantine v8 HoverCard omits the `opened` prop (no controlled mode), so
+    // we remount via this key to force the dropdown closed when exploring.
     const [instanceKey, setInstanceKey] = useState(0);
 
     const { data: metric, isLoading } = useMetric({
