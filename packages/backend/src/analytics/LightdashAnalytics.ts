@@ -1439,6 +1439,18 @@ export type AiWritebackCompletedEvent = BaseTrack & {
         hasChanges: boolean;
         prCreated: boolean;
         totalDurationMs: number;
+        // AI usage/spend for the run, parsed from the agent's stream-json
+        // `result` event (mirrors data apps' data_app.version.completed). Null
+        // when the agent crashed before emitting a result. Field names match
+        // ClaudeGenerationUsage so spend dashboards can union both features.
+        costUsd: number | null;
+        inputTokens: number | null;
+        outputTokens: number | null;
+        cacheReadInputTokens: number | null;
+        cacheCreationInputTokens: number | null;
+        numTurns: number | null;
+        // Time (ms) spent in LLM API calls — the rest is local tool execution.
+        durationApiMs: number | null;
     };
 };
 
