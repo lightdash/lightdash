@@ -149,6 +149,10 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                             }
                             chartName={chartName}
                             pivotConfig={pivotConfig}
+                            conditionalFormattings={
+                                visualizationConfig.chartConfig
+                                    .conditionalFormattings
+                            }
                             getGsheetLink={
                                 getGsheetLink === undefined
                                     ? undefined

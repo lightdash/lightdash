@@ -1,5 +1,6 @@
 import { type ParametersValuesMap, type PivotConfiguration } from '../..';
 import type { QueryExecutionContext } from '../analytics';
+import type { ConditionalFormattingConfig } from '../conditionalFormatting';
 import type { DownloadFileType } from '../downloadFile';
 import type { AndFilterGroup, DashboardFilters, Filters } from '../filter';
 import type { MetricQueryRequest, SortField } from '../metricQuery';
@@ -126,6 +127,7 @@ export type DownloadAsyncQueryResultsRequestParams = {
     pivotConfig?: PivotConfig;
     exportPivotedData?: boolean;
     attachmentDownloadName?: string;
+    conditionalFormattings?: ConditionalFormattingConfig[];
 };
 
 export type ExecuteAsyncFieldValueSearchRequestParams =

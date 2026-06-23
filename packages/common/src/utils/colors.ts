@@ -1,4 +1,8 @@
 import Color from 'colorjs.io';
+import type {
+    ConditionalFormattingColorRange,
+    ConditionalFormattingMinMax,
+} from '../types/conditionalFormatting';
 
 const IS_HEX_CODE_COLOR_REGEX =
     /^#([a-fA-F0-9]{3}|[a-fA-F0-9]{6}|[a-fA-F0-9]{8})$/;
@@ -37,6 +41,44 @@ export const getReadableTextColor = (backgroundColor: string): string => {
         // Not supported color string, default to black
         return 'black';
     }
+};
+
+const getColorInterpolator = (colorRange: ConditionalFormattingColorRange) => {
+    if (!isHexCodeColor(colorRange.start) || !isHexCodeColor(colorRange.end)) {
+        return undefined;
+    }
+
+    return Color.range(new Color(colorRange.start), new Color(colorRange.end), {
+        space: 'srgb',
+    });
+};
+
+/**
+ * Interpolates a color from a start/end gradient for a value within a min/max
+ * range. Shared by the results table renderer and the Excel export so the
+ * exported color-scale fills match what is shown in the UI.
+ * @returns A hex color string, or undefined when the range/value is invalid
+ */
+export const getColorFromRange = (
+    value: number,
+    colorRange: ConditionalFormattingColorRange,
+    minMaxRange: ConditionalFormattingMinMax,
+): string | undefined => {
+    const interpolateColor = getColorInterpolator(colorRange);
+    if (!interpolateColor) return undefined;
+
+    const { min, max } = minMaxRange;
+    if (min > max || value < min || value > max) {
+        return undefined;
+    }
+
+    if (min === max) {
+        return interpolateColor(1).toString({ format: 'hex' });
+    }
+
+    const percentage = (value - min) / (max - min);
+
+    return interpolateColor(percentage).toString({ format: 'hex' });
 };
 
 /**

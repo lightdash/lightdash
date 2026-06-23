@@ -31,6 +31,7 @@ const ExportSelector: FC<
         showTableNames,
         chartName,
         pivotConfig,
+        conditionalFormattings,
     }) => {
         const health = useHealth();
         const hasGoogleDrive =
@@ -70,6 +71,7 @@ const ExportSelector: FC<
                         showTableNames={showTableNames}
                         chartName={chartName}
                         pivotConfig={pivotConfig}
+                        conditionalFormattings={conditionalFormattings}
                     />
                 </>
             );
@@ -102,6 +104,7 @@ const ExportSelector: FC<
                 showTableNames={showTableNames}
                 chartName={chartName}
                 pivotConfig={pivotConfig}
+                conditionalFormattings={conditionalFormattings}
             />
         );
     },

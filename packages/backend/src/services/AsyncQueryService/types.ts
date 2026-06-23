@@ -6,6 +6,7 @@ import {
     PivotConfiguration,
     type AndFilterGroup,
     type CacheMetadata,
+    type ConditionalFormattingConfig,
     type DashboardFilters,
     type DateZoom,
     type DownloadAsyncQueryResultsPayload,
@@ -56,6 +57,7 @@ export type DownloadAsyncQueryResultsArgs = Omit<
     exportPivotedData?: boolean;
     attachmentDownloadName?: string;
     expirationSecondsOverride?: number;
+    conditionalFormattings?: ConditionalFormattingConfig[];
 };
 
 export type ScheduleDownloadAsyncQueryResultsArgs = Omit<

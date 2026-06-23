@@ -1,15 +1,27 @@
 import {
     AnyType,
+    ConditionalFormattingColorApplyTo,
+    convertFormattedValue,
     DimensionType,
     DownloadFileType,
     formatItemValue,
     formatRawValue,
     formatRows,
+    getColorFromRange,
+    getConditionalFormattingColor,
+    getConditionalFormattingConfig,
+    getConditionalFormattingTextStyle,
     getErrorMessage,
     getExcelFormatExpression,
+    getReadableTextColor,
+    getRowConditionalFormattingColor,
+    getRowConditionalFormattingConfig,
+    isConditionalFormattingConfigWithColorRange,
     isDimension,
     isField,
+    isHexCodeColor,
     isNumber,
+    isNumericItem,
     ItemsMap,
     PivotConfig,
     pivotResultsAsCsv,
@@ -19,6 +31,9 @@ import {
     timeIntervalToExcelNumFmt,
     toExcelWallClockDate,
     UnexpectedServerError,
+    type ConditionalFormattingConfig,
+    type ConditionalFormattingMinMaxMap,
+    type ConditionalFormattingRowFields,
     type PivotRowTotalsByIndex,
     type ReadyQueryResultsPage,
 } from '@lightdash/common';
@@ -143,6 +158,245 @@ export class ExcelService {
                 undefined,
                 timezone,
             );
+        });
+    }
+
+    /**
+     * Converts a CSS color (hex or the 'white'/'black' returned by
+     * getReadableTextColor) into the 'AARRGGBB' ARGB string exceljs expects.
+     * Returns undefined when the colour cannot be represented.
+     */
+    private static colorToArgb(color: string | undefined): string | undefined {
+        if (!color) return undefined;
+        if (color === 'white') return 'FFFFFFFF';
+        if (color === 'black') return 'FF000000';
+        if (!isHexCodeColor(color)) return undefined;
+
+        let hex = color.slice(1);
+        if (hex.length === 3) {
+            hex = hex
+                .split('')
+                .map((c) => c + c)
+                .join('');
+        }
+        if (hex.length === 6) {
+            return `FF${hex.toUpperCase()}`;
+        }
+        if (hex.length === 8) {
+            // colorjs.io emits #RRGGBBAA; Excel ARGB wants the alpha first
+            return `${hex.slice(6, 8)}${hex.slice(0, 6)}`.toUpperCase();
+        }
+        return undefined;
+    }
+
+    /**
+     * Streams the results file once to compute the min/max of every field
+     * targeted by a color-range conditional formatting rule that uses 'auto'
+     * bounds. Mirrors the table renderer's minMaxMap so exported color-scale
+     * fills match the UI. Returns an empty map when no scan is needed.
+     */
+    private static async buildConditionalFormattingMinMaxMap({
+        resultsStream,
+        fields,
+        conditionalFormattings,
+    }: {
+        resultsStream: Readable;
+        fields: ItemsMap;
+        conditionalFormattings: ConditionalFormattingConfig[];
+    }): Promise<ConditionalFormattingMinMaxMap> {
+        const needsScan = conditionalFormattings.some(
+            (config) =>
+                isConditionalFormattingConfigWithColorRange(config) &&
+                (config.rule.min === 'auto' || config.rule.max === 'auto'),
+        );
+
+        if (!needsScan) {
+            resultsStream.destroy();
+            return {};
+        }
+
+        const numericTargets = [
+            ...new Set(
+                conditionalFormattings
+                    .map((config) => config.target?.fieldId)
+                    .filter((fieldId): fieldId is string => !!fieldId),
+            ),
+        ].filter((fieldId) => isNumericItem(fields[fieldId]));
+
+        if (numericTargets.length === 0) {
+            resultsStream.destroy();
+            return {};
+        }
+
+        const accumulators = new Map<
+            string,
+            { min: number; max: number; hasValue: boolean }
+        >();
+        numericTargets.forEach((fieldId) =>
+            accumulators.set(fieldId, {
+                min: Infinity,
+                max: -Infinity,
+                hasValue: false,
+            }),
+        );
+
+        await streamJsonlData<void>({
+            readStream: resultsStream,
+            onRow: (parsedRow: Record<string, unknown>) => {
+                numericTargets.forEach((fieldId) => {
+                    const rawValue = parsedRow[fieldId];
+                    if (
+                        rawValue === undefined ||
+                        rawValue === null ||
+                        rawValue === ''
+                    ) {
+                        return;
+                    }
+
+                    const numValue = Number(rawValue);
+                    if (Number.isNaN(numValue)) return;
+
+                    const converted = convertFormattedValue(
+                        numValue,
+                        fields[fieldId],
+                    );
+                    if (typeof converted !== 'number') return;
+
+                    const acc = accumulators.get(fieldId)!;
+                    acc.hasValue = true;
+                    if (converted < acc.min) acc.min = converted;
+                    if (converted > acc.max) acc.max = converted;
+                });
+            },
+            maxLines: ExcelService.EXCEL_ROW_LIMIT,
+        });
+
+        const minMaxMap: ConditionalFormattingMinMaxMap = {};
+        accumulators.forEach((acc, fieldId) => {
+            if (acc.hasValue) {
+                minMaxMap[fieldId] = { min: acc.min, max: acc.max };
+            }
+        });
+        return minMaxMap;
+    }
+
+    /**
+     * Applies the chart's conditional formatting (background fills, text colour
+     * and text styling) to a single worksheet row, mirroring the results table.
+     * Handles single-color and color-range rules across cell/text/row scopes.
+     */
+    private static applyConditionalFormattingToRow({
+        excelRow,
+        parsedRow,
+        fields,
+        sortedFieldIds,
+        conditionalFormattings,
+        minMaxMap,
+    }: {
+        excelRow: Excel.Row;
+        parsedRow: Record<string, unknown>;
+        fields: ItemsMap;
+        sortedFieldIds: string[];
+        conditionalFormattings: ConditionalFormattingConfig[];
+        minMaxMap: ConditionalFormattingMinMaxMap;
+    }): void {
+        const rowFields: ConditionalFormattingRowFields = {};
+        Object.keys(fields).forEach((fieldId) => {
+            if (fieldId in parsedRow) {
+                rowFields[fieldId] = {
+                    field: fields[fieldId],
+                    value: parsedRow[fieldId],
+                };
+            }
+        });
+
+        const rowColor = getRowConditionalFormattingColor({
+            conditionalFormattings,
+            rowFields,
+            minMaxMap,
+        });
+        const rowConfig = getRowConditionalFormattingConfig({
+            conditionalFormattings,
+            rowFields,
+            minMaxMap,
+        });
+
+        sortedFieldIds.forEach((fieldId, colIndex) => {
+            const field = fields[fieldId];
+            const value = parsedRow[fieldId];
+
+            const cellConfig = getConditionalFormattingConfig({
+                field,
+                value,
+                minMaxMap,
+                conditionalFormattings,
+                rowFields,
+                applyTo: ConditionalFormattingColorApplyTo.CELL,
+            });
+            const textConfig = getConditionalFormattingConfig({
+                field,
+                value,
+                minMaxMap,
+                conditionalFormattings,
+                rowFields,
+                applyTo: ConditionalFormattingColorApplyTo.TEXT,
+            });
+
+            const cellResult = getConditionalFormattingColor({
+                field,
+                value,
+                minMaxMap,
+                config: cellConfig,
+                getColorFromRange,
+            });
+            const textResult = getConditionalFormattingColor({
+                field,
+                value,
+                minMaxMap,
+                config: textConfig,
+                getColorFromRange,
+            });
+
+            const backgroundColor = cellResult?.color ?? rowColor ?? undefined;
+
+            let fontColor: string | undefined;
+            if (textResult) {
+                fontColor = textResult.color;
+            } else if (cellResult) {
+                fontColor = getReadableTextColor(cellResult.color);
+            } else if (rowColor) {
+                fontColor = getReadableTextColor(rowColor);
+            }
+
+            const textStyle = getConditionalFormattingTextStyle([
+                cellConfig,
+                textConfig,
+                rowConfig,
+            ]);
+
+            if (!backgroundColor && !fontColor && !textStyle) return;
+
+            const cell = excelRow.getCell(colIndex + 1);
+
+            const bgArgb = ExcelService.colorToArgb(backgroundColor);
+            if (bgArgb) {
+                cell.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: bgArgb },
+                };
+            }
+
+            const fontArgb = ExcelService.colorToArgb(fontColor);
+            if (fontArgb || textStyle) {
+                cell.font = {
+                    ...cell.font,
+                    ...(fontArgb ? { color: { argb: fontArgb } } : {}),
+                    ...(textStyle?.bold ? { bold: true } : {}),
+                    ...(textStyle?.italic ? { italic: true } : {}),
+                    ...(textStyle?.underline ? { underline: true } : {}),
+                };
+            }
         });
     }
 
@@ -530,6 +784,8 @@ export class ExcelService {
         onlyRaw: boolean,
         sortedFieldIds: string[],
         timezone?: string,
+        conditionalFormattings?: ConditionalFormattingConfig[],
+        minMaxMap?: ConditionalFormattingMinMaxMap,
     ): Promise<{ truncated: boolean }> {
         // Use the same approach as our working tests - direct filename instead of stream
         const workbook = new Excel.stream.xlsx.WorkbookWriter({
@@ -594,6 +850,18 @@ export class ExcelService {
                     );
 
                     const row = worksheet.addRow(rowObject);
+
+                    if (conditionalFormattings?.length) {
+                        ExcelService.applyConditionalFormattingToRow({
+                            excelRow: row,
+                            parsedRow,
+                            fields,
+                            sortedFieldIds,
+                            conditionalFormattings,
+                            minMaxMap: minMaxMap ?? {},
+                        });
+                    }
+
                     row.commit();
                 } else {
                     Logger.warn(
@@ -630,6 +898,7 @@ export class ExcelService {
             columnOrder?: string[];
             hiddenFields?: string[];
             attachmentDownloadName?: string;
+            conditionalFormattings?: ConditionalFormattingConfig[];
         } = {},
         timezone?: string,
     ): Promise<{ fileUrl: string; truncated: boolean; s3Key: string }> {
@@ -641,6 +910,7 @@ export class ExcelService {
             columnOrder = [],
             hiddenFields = [],
             attachmentDownloadName,
+            conditionalFormattings,
         } = options;
 
         const { resultsStorageClient, exportsStorageClient } = clients;
@@ -657,11 +927,27 @@ export class ExcelService {
         const tempFilePath = ExcelService.createTempFilePath('direct');
 
         try {
-            // Step 1: Get source stream
+            // Step 1: When conditional formatting needs color-range min/max,
+            // scan the results once with a dedicated stream (it is consumed).
+            let minMaxMap: ConditionalFormattingMinMaxMap = {};
+            if (conditionalFormattings?.length) {
+                const scanStream =
+                    await resultsStorageClient.getDownloadStream(
+                        resultsFileName,
+                    );
+                minMaxMap =
+                    await ExcelService.buildConditionalFormattingMinMaxMap({
+                        resultsStream: scanStream,
+                        fields,
+                        conditionalFormattings,
+                    });
+            }
+
+            // Step 2: Get source stream
             const resultsStream =
                 await resultsStorageClient.getDownloadStream(resultsFileName);
 
-            // Step 2: Stream JSONL data to Excel temp file
+            // Step 3: Stream JSONL data to Excel temp file
             const { truncated } = await ExcelService.streamJsonlToExcelFile(
                 resultsStream,
                 tempFilePath,
@@ -670,6 +956,8 @@ export class ExcelService {
                 onlyRaw,
                 sortedFieldIds,
                 timezone,
+                conditionalFormattings,
+                minMaxMap,
             );
 
             // Generate filename with truncated flag

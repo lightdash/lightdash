@@ -1060,6 +1060,13 @@ export const getCustomLabelsFromTableConfig = (
         ? getCustomLabelsFromColumnProperties(config.columns)
         : undefined;
 
+export const getConditionalFormattingsFromChartConfig = (
+    config: ChartConfig['config'] | undefined,
+): ConditionalFormattingConfig[] | undefined =>
+    config && isTableChartConfig(config)
+        ? config.conditionalFormattings
+        : undefined;
+
 export const hashFieldReference = (reference: PivotReference) =>
     reference.pivotValues
         ? `${reference.field}.${reference.pivotValues

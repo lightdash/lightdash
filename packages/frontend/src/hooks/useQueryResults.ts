@@ -100,6 +100,7 @@ export const scheduleDownloadQuery = async (
             pivotConfig: options.pivotConfig,
             exportPivotedData: options.exportPivotedData,
             attachmentDownloadName: options.attachmentDownloadName,
+            conditionalFormattings: options.conditionalFormattings,
         }),
         version: 'v2',
     });

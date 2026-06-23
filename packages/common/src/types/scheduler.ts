@@ -1,6 +1,7 @@
 import assertUnreachable from '../utils/assertUnreachable';
 import { type AnyType } from './any';
 import { type ApiSuccess } from './api/success';
+import { type ConditionalFormattingConfig } from './conditionalFormatting';
 import type { DownloadFileType } from './downloadFile';
 import { type Explore, type ExploreError } from './explore';
 import {
@@ -807,6 +808,7 @@ export type DownloadAsyncQueryResultsPayload = TraceTaskBase & {
     pivotConfig?: PivotConfig;
     exportPivotedData?: boolean;
     attachmentDownloadName?: string;
+    conditionalFormattings?: ConditionalFormattingConfig[];
     encodedJwt?: string;
 };
 

@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     DownloadFileType,
     formatDate,
+    type ConditionalFormattingConfig,
     type DownloadOptions,
     type PivotConfig,
 } from '@lightdash/common';
@@ -62,6 +63,7 @@ export type ExportResultsProps = {
     showTableNames?: boolean;
     chartName?: string;
     pivotConfig?: PivotConfig;
+    conditionalFormattings?: ConditionalFormattingConfig[];
     hideLimitSelection?: boolean;
     forceShowLimitSelection?: boolean;
     renderDialogActions?: (renderProps: ExportCsvRenderProps) => ReactNode;
@@ -80,6 +82,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
         showTableNames,
         chartName,
         pivotConfig,
+        conditionalFormattings,
         hideLimitSelection = false,
         forceShowLimitSelection = false,
         renderDialogActions,
@@ -125,6 +128,9 @@ const ExportResults: FC<ExportResultsProps> = memo(
                         attachmentDownloadName: chartName
                             ? `${chartName}_${formatDate(new Date())}`
                             : undefined,
+                        conditionalFormattings: exportPivotedData
+                            ? undefined
+                            : conditionalFormattings,
                     };
 
                     return scheduleDownloadQuery(
