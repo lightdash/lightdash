@@ -1,4 +1,7 @@
-import { getReservedParameterDefinitions } from '@lightdash/common';
+import {
+    getReservedParameterDefinitions,
+    getShadowedReservedNames,
+} from '@lightdash/common';
 import { Box, Code, Stack, Text } from '@mantine-8/core';
 import { memo, useCallback, useMemo } from 'react';
 import {
@@ -47,11 +50,23 @@ const ParametersCard = memo(
             );
         }, [parameterDefinitions, parameterReferences]);
 
+        // A user parameter sharing a reserved name takes priority (shadows it), so the
+        // reserved one is hidden from System variables and flagged as overridden instead.
+        const shadowedReservedNames = useMemo(
+            () =>
+                getShadowedReservedNames(
+                    Object.keys(filteredParameterDefinitions),
+                ),
+            [filteredParameterDefinitions],
+        );
+
         const referencedReservedParameters = useMemo(() => {
             return Object.entries(getReservedParameterDefinitions()).filter(
-                ([key]) => parameterReferences?.includes(key),
+                ([key]) =>
+                    parameterReferences?.includes(key) &&
+                    !shadowedReservedNames.includes(key),
             );
-        }, [parameterReferences]);
+        }, [parameterReferences, shadowedReservedNames]);
 
         const setParameter = useCallback(
             (
@@ -96,6 +111,16 @@ const ParametersCard = memo(
                         projectUuid={projectUuid}
                         disabled={!isEditMode}
                     />
+
+                    {shadowedReservedNames.length > 0 && (
+                        <Text size="xs" c="yellow.7" mt="md">
+                            {shadowedReservedNames.length > 1
+                                ? `Parameters ${shadowedReservedNames.join(
+                                      ', ',
+                                  )} override system variables of the same name and take priority over them.`
+                                : `Parameter ${shadowedReservedNames[0]} overrides the system variable of the same name and takes priority over it.`}
+                        </Text>
+                    )}
 
                     {referencedReservedParameters.length > 0 && (
                         <Stack gap="xs" mt="md">
