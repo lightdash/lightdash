@@ -73,3 +73,11 @@ export type DefaultTimeDimension = {
     field: string;
     interval: TimeFrames;
 };
+
+/**
+ * Single source of truth for the value used to reference a date zoom granularity across
+ * surfaces (custom SQL parameters, chart labels). Lowercased so it reads the same everywhere.
+ */
+export const getGranularityReferenceValue = (
+    granularity: DateGranularity | string,
+): string => granularity.toLowerCase();

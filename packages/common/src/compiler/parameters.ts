@@ -5,10 +5,18 @@
 import Ajv from 'ajv';
 import AjvErrors from 'ajv-errors';
 import betterAjvErrors from 'better-ajv-errors';
+import {
+    isReservedParameterName,
+    mergeReservedNames,
+} from '../parameters/reservedParameters';
 import lightdashDbtYamlSchema from '../schemas/json/lightdash-dbt-2.0.json';
 import { CompileError } from '../types/errors';
 import type { CompiledTable, Table } from '../types/explore';
 import type { LightdashProjectParameter } from '../types/lightdashProjectConfig';
+import type {
+    ParameterDefinitions,
+    ParametersValuesMap,
+} from '../types/parameters';
 
 // Regex for SQL parameter substitution - requires the full ${...} syntax.
 // Used by `replaceLightdashValues` to find substitution sites.
@@ -112,8 +120,33 @@ export const getAvailableParameterNames = (
     projectParameters: Record<string, LightdashProjectParameter> | undefined,
     exploreParameters: Record<string, LightdashProjectParameter> | undefined,
 ): string[] =>
-    Object.keys(projectParameters || {}).concat(
-        Object.keys(exploreParameters || {}),
+    mergeReservedNames(
+        Object.keys(projectParameters || {}).concat(
+            Object.keys(exploreParameters || {}),
+        ),
+    );
+
+/** Whether any reference is a reserved (system-owned) parameter. */
+export const hasReservedParameterReference = (
+    parameterReferences: string[],
+): boolean => parameterReferences.some(isReservedParameterName);
+
+/**
+ * Determine which referenced parameters still need a value before a query can run.
+ * A parameter is required when it has no value and no default. Reserved (system-owned)
+ * parameters are resolved server-side from the query context and are never user-provided,
+ * so they are never treated as missing.
+ */
+export const getMissingRequiredParameters = (
+    parameterReferences: string[],
+    parameterValues: ParametersValuesMap | undefined,
+    parameterDefinitions: ParameterDefinitions | undefined,
+): string[] =>
+    parameterReferences.filter(
+        (name) =>
+            !isReservedParameterName(name) &&
+            !parameterValues?.[name] &&
+            !parameterDefinitions?.[name]?.default,
     );
 
 /**
@@ -154,20 +187,24 @@ export const getAvailableParametersFromTables = (
     }, {});
 
 /**
- * Validate parameter names
- * @param parameters - The parameters to validate
- * @returns True if any parameter name doesn't match the valid pattern, false otherwise
+ * Validate parameter names. Only bad-pattern names are invalid; names colliding with a
+ * reserved parameter are returned separately so callers can warn (the user param wins).
  */
 export const validateParameterNames = (
     parameters: Record<string, LightdashProjectParameter> | undefined,
 ) => {
     const validNamePattern = /^[a-zA-Z0-9_-]+$/;
-    const invalidParameters = Object.keys(parameters || {}).filter(
+    const parameterNames = Object.keys(parameters || {});
+    const invalidParameters = parameterNames.filter(
         (paramName) => !validNamePattern.test(paramName),
+    );
+    const reservedParameters = parameterNames.filter((paramName) =>
+        isReservedParameterName(paramName),
     );
     return {
         isInvalid: invalidParameters.length > 0,
         invalidParameters,
+        reservedParameters,
     };
 };
 

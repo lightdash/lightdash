@@ -1,5 +1,7 @@
 import {
+    getMissingRequiredParameters,
     getParameterReferences,
+    hasReservedParameterReference,
     validateParameterConfiguration,
     validateParameterNames,
 } from './parameters';
@@ -391,6 +393,77 @@ describe('validateParameterNames', () => {
         expect(result.invalidParameters).toHaveLength(2);
         expect(result.invalidParameters).toContain('invalid.param');
         expect(result.invalidParameters).toContain('another invalid');
+    });
+
+    it('should not fail on reserved parameter names (user param wins, surfaced separately)', () => {
+        const result = validateParameterNames({
+            date_zoom: { label: 'Date zoom', default: 'week' },
+        });
+        expect(result.isInvalid).toBe(false);
+        expect(result.reservedParameters).toContain('date_zoom');
+        expect(result.invalidParameters).toEqual([]);
+    });
+
+    it('should report invalid and reserved names separately (only invalid fails)', () => {
+        const result = validateParameterNames({
+            'bad.name': { label: 'Bad', default: 'x' },
+            date_zoom: { label: 'Date zoom', default: 'week' },
+            good_name: { label: 'Good', default: 'y' },
+        });
+        expect(result.isInvalid).toBe(true);
+        expect(result.invalidParameters).toEqual(['bad.name']);
+        expect(result.reservedParameters).toEqual(['date_zoom']);
+    });
+});
+
+describe('hasReservedParameterReference', () => {
+    it('returns true when a reserved parameter is referenced', () => {
+        expect(hasReservedParameterReference(['region', 'date_zoom'])).toBe(
+            true,
+        );
+    });
+
+    it('returns false when only user parameters are referenced', () => {
+        expect(hasReservedParameterReference(['region', 'status'])).toBe(false);
+    });
+
+    it('returns false for an empty list', () => {
+        expect(hasReservedParameterReference([])).toBe(false);
+    });
+});
+
+describe('getMissingRequiredParameters', () => {
+    it('flags a referenced parameter with no value and no default', () => {
+        const result = getMissingRequiredParameters(
+            ['region'],
+            {},
+            { region: { label: 'Region' } },
+        );
+        expect(result).toEqual(['region']);
+    });
+
+    it('does not flag a parameter that has a value', () => {
+        const result = getMissingRequiredParameters(
+            ['region'],
+            { region: 'EU' },
+            { region: { label: 'Region' } },
+        );
+        expect(result).toEqual([]);
+    });
+
+    it('does not flag a parameter that has a default', () => {
+        const result = getMissingRequiredParameters(
+            ['region'],
+            {},
+            { region: { label: 'Region', default: 'EU' } },
+        );
+        expect(result).toEqual([]);
+    });
+
+    it('never flags a reserved parameter as missing', () => {
+        // Reserved parameters are resolved server-side, so never user-required.
+        const result = getMissingRequiredParameters(['date_zoom'], {}, {});
+        expect(result).toEqual([]);
     });
 });
 

@@ -457,18 +457,32 @@ export class ExploreCompiler {
             );
         }
 
-        const { isInvalid: hasInvalidParameterNames, invalidParameters } =
-            validateParameterNames(meta.parameters);
+        const {
+            isInvalid: hasInvalidParameterNames,
+            invalidParameters,
+            reservedParameters,
+        } = validateParameterNames(meta.parameters);
 
         if (hasInvalidParameterNames) {
             throw new CompileError(
                 `Failed to compile explore "${name}". Invalid parameter names: ${invalidParameters.join(
                     ', ',
-                )}`,
-                {
-                    invalidParameters,
-                },
+                )}.`,
+                { invalidParameters },
             );
+        }
+
+        // Collisions with a reserved name don't fail compilation: the user parameter wins.
+        // Warn so the override is discoverable rather than silent.
+        if (reservedParameters.length > 0) {
+            exploreWarnings.push({
+                type: InlineErrorType.INVALID_PARAMETER,
+                message: `Parameter${
+                    reservedParameters.length > 1 ? 's' : ''
+                } ${reservedParameters.join(', ')} ${
+                    reservedParameters.length > 1 ? 'override' : 'overrides'
+                } a reserved system variable and will take priority over it.`,
+            });
         }
 
         const { isValid, error: paramConfigError } =
