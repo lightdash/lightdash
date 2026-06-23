@@ -36,6 +36,17 @@
     text-align: left;
     cursor: pointer;
 }
+/* Onboarding sample cards: muted, and their action stays visible (no hover)
+   so the tour spotlight always lands on something. */
+.cardExample {
+    opacity: 0.85;
+}
+.cardExample .cardBody {
+    cursor: default;
+}
+.cardExample .startAction {
+    opacity: 1;
+}
 .cardFooter {
     display: flex;
     align-items: center;

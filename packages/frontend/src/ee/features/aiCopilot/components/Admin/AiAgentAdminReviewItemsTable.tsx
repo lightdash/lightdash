@@ -886,16 +886,14 @@ const AiAgentAdminReviewItemsTable = ({
                 ),
                 Cell: ({ row }) =>
                     isExampleReviewItem(row.original.uuid) ? (
-                        <Box data-tour="reviews-create-pr">
-                            <Button
-                                size="compact-xs"
-                                radius="md"
-                                variant="default"
-                                disabled
-                            >
-                                Create PR
-                            </Button>
-                        </Box>
+                        <Button
+                            size="compact-xs"
+                            radius="md"
+                            variant="default"
+                            disabled
+                        >
+                            Create PR
+                        </Button>
                     ) : (
                         <ReviewItemActions reviewItem={row.original} />
                     ),
@@ -1197,12 +1195,9 @@ const AiAgentAdminReviewItemsTable = ({
             }
 
             const reviewItem = row.original;
-            // Anchor the tour to the first row so it spotlights the whole finding.
-            const rowAnchor =
-                row.index === 0 ? { 'data-tour': 'reviews-row' } : {};
 
             if (isExampleReviewItem(reviewItem.uuid)) {
-                return { className: styles.exampleRow, ...rowAnchor };
+                return { className: styles.exampleRow };
             }
 
             const isSelected = selectedReviewItemUuid === reviewItem.uuid;
@@ -1225,7 +1220,6 @@ const AiAgentAdminReviewItemsTable = ({
                               reviewItemUuid: reviewItem.uuid,
                           })
                     : undefined,
-                ...rowAnchor,
             };
         },
         renderTopToolbar: ({ table: tableInstance }) => {

@@ -188,7 +188,6 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                                 maw={260}
                             >
                                 <Button
-                                    data-tour="reviews-create-pr"
                                     size={buttonSize}
                                     radius="md"
                                     variant="default"

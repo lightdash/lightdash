@@ -52,18 +52,22 @@ export const AiReviewsSettingsPage = () => {
 
     const isSidebarOpen = selectedReviewItem !== null;
 
-    // While the tour is running, the table always shows sample rows so it
-    // highlights the same findings every time. Closing it flips to real data.
+    // While the tour runs, the board always shows the same sample cards so the
+    // spotlights land every time. Closing it flips back to real data.
     const {
         isOpen: isTourOpen,
         startTour,
         closeTour,
-    } = useGuidedTour({ storageKey: 'ld.aiReviews.tour.v1' });
+    } = useGuidedTour({ storageKey: 'ld.aiReviews.tour.v2' });
 
     const [view, setView] = useLocalStorage<'board' | 'table'>({
         key: 'ld.aiReviews.view',
         defaultValue: 'board',
     });
+
+    // The board-oriented tour anchors only resolve on the board, so force it
+    // while the tour runs (render-time only — the user's stored view is kept).
+    const effectiveView = isTourOpen ? 'board' : view;
 
     const updateReviewSearchParams = (
         reviewItem: AiAgentAdminReviewItemPreviewTarget | null,
@@ -113,7 +117,7 @@ export const AiReviewsSettingsPage = () => {
                     <Group gap="xs">
                         <SegmentedControl
                             size="xs"
-                            value={view}
+                            value={effectiveView}
                             onChange={(value) =>
                                 setView(value as 'board' | 'table')
                             }
@@ -169,7 +173,7 @@ export const AiReviewsSettingsPage = () => {
 
             {settings?.aiAgentsVisible === false && <AiFeaturesDisabledAlert />}
 
-            {view === 'board' ? (
+            {effectiveView === 'board' ? (
                 <ReviewKanbanBoard
                     selectedReviewItemUuid={selectedReviewItem?.reviewItemUuid}
                     onReviewItemSelect={handleReviewItemSelect}
@@ -179,7 +183,6 @@ export const AiReviewsSettingsPage = () => {
                 <AiAgentAdminReviewItemsTable
                     selectedReviewItemUuid={selectedReviewItem?.reviewItemUuid}
                     onReviewItemSelect={handleReviewItemSelect}
-                    showOnboardingExamples={isTourOpen}
                 />
             )}
 

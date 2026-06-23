@@ -222,8 +222,10 @@ export const ReviewKanbanBoard: FC<Props> = ({
     }, [projects]);
 
     const allItems = useMemo<AiAgentReviewItemSummary[]>(() => {
-        if (showOnboardingExamples && (!data || data.length === 0)) {
-            return EXAMPLE_REVIEW_ITEMS as AiAgentReviewItemSummary[];
+        // Tie the examples to the tour being open (not to emptiness) so the same
+        // cards get highlighted every run, even on a populated board.
+        if (showOnboardingExamples) {
+            return EXAMPLE_REVIEW_ITEMS;
         }
         return data ?? [];
     }, [data, showOnboardingExamples]);
@@ -532,7 +534,15 @@ export const ReviewKanbanBoard: FC<Props> = ({
                             const hasMore = all.length > VISIBLE_PER_LANE;
 
                             return (
-                                <Box key={lane.id} className={styles.lane}>
+                                <Box
+                                    key={lane.id}
+                                    className={styles.lane}
+                                    data-tour={
+                                        lane.id === 'in_progress'
+                                            ? 'reviews-in-progress'
+                                            : undefined
+                                    }
+                                >
                                     <Group gap={8} px={4} pb="xs">
                                         <Box
                                             w={8}

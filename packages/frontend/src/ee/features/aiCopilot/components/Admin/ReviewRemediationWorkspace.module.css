@@ -26,13 +26,33 @@
     flex: 1 1 0;
 }
 
-/* Tie the Test pane to the preview environment with the preview-banner blue. */
-.panePreview {
-    border-top: 2px solid var(--mantine-color-blue-6);
-}
-
 .connector {
     flex: 0 0 auto;
     align-self: center;
     color: var(--mantine-color-dimmed);
+}
+
+.testHeader {
+    background-color: light-dark(
+        var(--mantine-color-blue-0),
+        color-mix(in srgb, var(--mantine-color-blue-6) 22%, transparent)
+    );
+}
+
+.drawerBody {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.diffHeader {
+    display: block;
+    width: 100%;
+    padding: var(--mantine-spacing-sm);
+    border-radius: var(--mantine-radius-md);
+}
+
+.diffHeader:hover {
+    background-color: var(--mantine-color-default-hover);
 }

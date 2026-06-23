@@ -1,10 +1,10 @@
 import { Box, Text } from '@mantine-8/core';
 import {
-    IconBulb,
-    IconCheck,
+    IconChecks,
     IconChevronRight,
     IconGitMerge,
-    IconRefresh,
+    IconGitPullRequest,
+    IconLayoutColumns,
     IconReload,
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
@@ -19,20 +19,28 @@ type Step = {
 };
 
 const STEPS: Step[] = [
-    { icon: IconCheck, title: 'Finding', subtitle: 'you say yes' },
     {
-        icon: IconGitMerge,
+        icon: IconGitPullRequest,
         title: 'Pull request',
         subtitle: 'opens in your repo',
     },
-    { icon: IconRefresh, title: 'dbt compile', subtitle: 'your context loads' },
-    { icon: IconBulb, title: 'Future answers', subtitle: 'the agent knows it' },
+    {
+        icon: IconLayoutColumns,
+        title: 'Workspace',
+        subtitle: 'follow the fix',
+    },
+    {
+        icon: IconChecks,
+        title: 'Build and verify',
+        subtitle: 'in a preview',
+    },
+    { icon: IconGitMerge, title: 'Merge', subtitle: 'the fix is live' },
 ];
 
 /**
- * Explains, at a glance, that accepting a Reviews suggestion teaches the agent:
- * Finding → Pull request → dbt compile → Future answers, plus the feedback loop.
- * Used in the first-visit tour's final step and the project-context help popover.
+ * Walks the fix lifecycle at a glance: Pull request, Workspace, Build and
+ * verify, then Merge (the payoff), plus the feedback loop. Used in the
+ * first-visit tour's final step.
  */
 export const ReviewsLoopDiagram: FC = () => (
     <Box className={styles.diagram}>
