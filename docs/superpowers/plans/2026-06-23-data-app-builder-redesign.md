@@ -507,7 +507,7 @@ Ensure `AppTemplatePicker` stays imported (it is, line ~104). `selectedTemplate`
 
 - [ ] **Step 5: Add the theme pill to the composer bottom bar**
 
-In the bottom-row left side (line ~2642, the `<AttachButton .../>`), wrap so the theme pill sits to its left only on the new-app landing (theme is locked after creation, so existing apps keep today's behaviour — the pill is hidden here and theme iteration still works elsewhere):
+In the bottom-row left side (line ~2642, the `<AttachButton .../>`), wrap so the theme pill — and, when a template is selected, a **"Starting from …" chip** — sit to its left, only on the new-app landing. Theme is locked after creation, so existing apps keep today's behaviour (pill/chip hidden here; theme iteration still works elsewhere). The selected-template label lives **inside** the input's bottom bar next to the theme pill, not as external text below the composer:
 
 ```tsx
 <Group gap="xs">
@@ -518,19 +518,37 @@ In the bottom-row left side (line ~2642, the `<AttachButton .../>`), wrap so the
             onChange={handleThemeChange}
         />
     )}
+    {newAppLanding && selectedTemplate !== null && (
+        <Text size="xs" c="dimmed" className={classes.startingFromChip}>
+            Starting from{' '}
+            <Text span fw={600} c="dark">
+                {getTemplate(selectedTemplate).title}
+            </Text>
+        </Text>
+    )}
     <AttachButton
         /* ...existing props unchanged... */
     />
 </Group>
 ```
 
-Add the import near the other feature imports:
+Add the imports near the other feature imports:
 
 ```tsx
 import { ThemePicker } from '../features/organizationDesigns/components/ThemePicker';
+import { getTemplate } from '../features/apps/templates';
 ```
 
-`currentThemeUuid` and `handleThemeChange` already exist (lines ~1002-1007).
+`getTemplate` already exists in `templates.ts` (returns `{ title, ... }`). `currentThemeUuid` and `handleThemeChange` already exist (lines ~1002-1007). Add a small style for vertical alignment to `AppGenerate.module.css`:
+
+```css
+.startingFromChip {
+    white-space: nowrap;
+    align-self: center;
+}
+```
+
+Because the chip and the `AppTemplatePicker` both read/write `selectedTemplate`, selecting a card updates the chip live, and deselecting (clicking the active card) removes it — no extra state. Do **not** render any "Starting from" text below/outside the composer.
 
 - [ ] **Step 6: Reconcile layout CSS**
 
@@ -545,7 +563,7 @@ Expected: PASS, no unused-symbol errors (confirms `wizardStage`, `showTemplatePi
 
 Navigate to `/projects/<uuid>/apps/generate` in the running dev app (login `demo@lightdash.com` / `demo_password!`). Screenshot and confirm:
 1. Composer is visible immediately; the four cards fan in an arch above it; **nothing selected by default**.
-2. Hover lifts a card; click selects (dark/neutral accent + ✓); clicking the selected card deselects.
+2. Hover lifts a card; click selects (dark/neutral accent + ✓); clicking the selected card deselects. On select, a "Starting from **<Template>**" chip appears **inside** the input's bottom bar next to the theme pill (not below the composer); deselecting removes it.
 3. Theme pill sits bottom-left of the input; opening it shows the theme popover; send button bottom-right.
 4. Typing a prompt and submitting morphs to the split layout (chat + preview) with no visual jump; the build still receives the chosen template (`selectedTemplate ?? undefined` at lines ~1633/1642/1691 — unchanged), and `null` selection builds as `'custom'`.
 5. Resize narrow (<760px): cards fall back to a vertical stack, still readable.
