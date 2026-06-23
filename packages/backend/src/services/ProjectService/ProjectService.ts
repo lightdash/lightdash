@@ -241,6 +241,7 @@ import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { EmailModel } from '../../models/EmailModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
+import { GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
@@ -290,6 +291,7 @@ import {
 import { UserService } from '../UserService';
 import { getFieldValuesMetricQuery } from './fieldValuesQueryBuilder';
 import { getAvailableParameterDefinitions } from './parameters';
+import { applyCurrentGithubInstallationId } from './resolveGithubInstallationId';
 
 type RefreshTokenRotationSource =
     | { kind: 'project'; projectUuid: string }
@@ -336,6 +338,7 @@ export type ProjectServiceArguments = {
     natsClient?: INatsClient;
     contentVerificationModel?: ContentVerificationModel;
     organizationSettingsModel: OrganizationSettingsModel;
+    githubAppInstallationsModel?: GithubAppInstallationsModel;
     projectContextModel?: {
         replaceEntriesForProject(
             projectUuid: string,
@@ -441,6 +444,8 @@ export class ProjectService extends BaseService {
 
     organizationSettingsModel: OrganizationSettingsModel;
 
+    githubAppInstallationsModel: GithubAppInstallationsModel | undefined;
+
     projectContextModel:
         | {
               replaceEntriesForProject(
@@ -492,6 +497,7 @@ export class ProjectService extends BaseService {
         spacePermissionService,
         contentVerificationModel,
         organizationSettingsModel,
+        githubAppInstallationsModel,
         projectContextModel,
         isProjectContextEnabled,
         getAppGenerateService,
@@ -534,6 +540,7 @@ export class ProjectService extends BaseService {
         this.spacePermissionService = spacePermissionService;
         this.contentVerificationModel = contentVerificationModel;
         this.organizationSettingsModel = organizationSettingsModel;
+        this.githubAppInstallationsModel = githubAppInstallationsModel;
         this.projectContextModel = projectContextModel;
         this.isProjectContextEnabled = isProjectContextEnabled;
         this.getAppGenerateService = getAppGenerateService;
@@ -3283,6 +3290,40 @@ export class ProjectService extends BaseService {
         }
     }
 
+    /**
+     * Looks up the org's current GitHub installation_id and applies it to the
+     * connection (see applyCurrentGithubInstallationId) before building the
+     * adapter.
+     */
+    private async resolveDbtConnectionInstallationId(
+        dbtConnection: DbtProjectConfig,
+        organizationUuid: string | undefined,
+    ): Promise<DbtProjectConfig> {
+        if (
+            dbtConnection.type !== DbtProjectType.GITHUB ||
+            dbtConnection.authorization_method !== 'installation_id' ||
+            !organizationUuid ||
+            !this.githubAppInstallationsModel
+        ) {
+            return dbtConnection;
+        }
+        const currentInstallationId =
+            await this.githubAppInstallationsModel.findInstallationId(
+                organizationUuid,
+            );
+        const resolved = applyCurrentGithubInstallationId(
+            dbtConnection,
+            currentInstallationId,
+        );
+        if (resolved !== dbtConnection) {
+            this.logger.info(
+                'Using current org GitHub installation_id instead of stale project value',
+                { organizationUuid },
+            );
+        }
+        return resolved;
+    }
+
     private async testProjectAdapter(
         data: UpdateProject,
         _user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
@@ -3292,8 +3333,12 @@ export class ProjectService extends BaseService {
     }> {
         const sshTunnel = new SshTunnel(data.warehouseConnection);
         await sshTunnel.connect();
-        const adapter = await projectAdapterFromConfig(
+        const dbtConnection = await this.resolveDbtConnectionInstallationId(
             data.dbtConnection,
+            _user.organizationUuid,
+        );
+        const adapter = await projectAdapterFromConfig(
+            dbtConnection,
             sshTunnel.overrideCredentials,
             {
                 warehouseCatalog: undefined,
@@ -3645,8 +3690,13 @@ export class ProjectService extends BaseService {
         const sshTunnel = new SshTunnel(project.warehouseConnection);
         await sshTunnel.connect();
 
-        const adapter = await projectAdapterFromConfig(
+        const dbtConnection = await this.resolveDbtConnectionInstallationId(
             project.dbtConnection,
+            user.organizationUuid,
+        );
+
+        const adapter = await projectAdapterFromConfig(
+            dbtConnection,
             sshTunnel.overrideCredentials,
             {
                 warehouseCatalog: cachedWarehouseCatalog,

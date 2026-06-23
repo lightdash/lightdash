@@ -504,6 +504,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getContentVerificationModel(),
                     organizationSettingsModel:
                         models.getOrganizationSettingsModel(),
+                    githubAppInstallationsModel:
+                        models.getGithubAppInstallationsModel(),
                     projectContextModel:
                         models.getProjectContextModel<ProjectContextModel>(),
                     isProjectContextEnabled: async ({

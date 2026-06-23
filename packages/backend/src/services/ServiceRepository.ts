@@ -804,6 +804,8 @@ export class ServiceRepository
                         this.models.getContentVerificationModel(),
                     organizationSettingsModel:
                         this.models.getOrganizationSettingsModel(),
+                    githubAppInstallationsModel:
+                        this.models.getGithubAppInstallationsModel(),
                     // Lazy accessor (not the instance) to duplicate the
                     // upstream project's data apps when a preview is created.
                     // AppGenerateService depends on ProjectService, so
