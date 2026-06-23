@@ -17,6 +17,7 @@ import type {
 } from '../..';
 import { type AiEvalRunResultAssessment } from './aiEvalAssessment';
 import {
+    type AiAgentModelConfig,
     type AiPromptContext,
     type AiPromptContextInput,
     type AiPromptTokenUsage,
@@ -272,11 +273,7 @@ export type AiAgentMessageAssistant = {
 
     artifacts: AiAgentMessageAssistantArtifact[] | null;
     referencedArtifacts: AiAgentMessageAssistantArtifact[] | null;
-    modelConfig: {
-        modelName: string;
-        modelProvider: string;
-        reasoning?: boolean;
-    } | null;
+    modelConfig: AiAgentModelConfig | null;
     tokenUsage: AiPromptTokenUsage | null;
 };
 
@@ -482,11 +479,7 @@ export type ApiAiAgentThreadPullRequestResponse =
 export type ApiAiAgentThreadCreateRequest = {
     prompt?: string;
     context?: AiPromptContextInput;
-    modelConfig?: {
-        modelName: string;
-        modelProvider: string;
-        reasoning?: boolean;
-    };
+    modelConfig?: AiAgentModelConfig;
 };
 
 export type ApiAiAgentThreadCreateResponse = ApiSuccess<AiAgentThreadSummary>;
@@ -494,11 +487,7 @@ export type ApiAiAgentThreadCreateResponse = ApiSuccess<AiAgentThreadSummary>;
 export type ApiAiAgentThreadMessageCreateRequest = {
     prompt: string;
     context?: AiPromptContextInput;
-    modelConfig?: {
-        modelName: string;
-        modelProvider: string;
-        reasoning?: boolean;
-    };
+    modelConfig?: AiAgentModelConfig;
     /**
      * Inject the prompt as a hidden turn — the agent responds to it, but the UI
      * does not render the user bubble. Used by the post-merge content-migration

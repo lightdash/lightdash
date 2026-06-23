@@ -1,4 +1,7 @@
-import { type AiChartRuntimeOverrides } from '@lightdash/common';
+import {
+    type AiAgentModelConfig,
+    type AiChartRuntimeOverrides,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const AiThreadTableName = 'ai_thread';
@@ -371,6 +374,7 @@ export type DbAiOrganizationSettings = {
     ai_agents_visible: boolean;
     ai_agent_reviews_enabled: boolean;
     mcp_content_writes_enabled: boolean;
+    default_ai_agent_model_config: AiAgentModelConfig | null;
     created_at: Date;
     updated_at: Date;
 };
@@ -381,7 +385,9 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
         Partial<
             Pick<
                 DbAiOrganizationSettings,
-                'ai_agent_reviews_enabled' | 'mcp_content_writes_enabled'
+                | 'ai_agent_reviews_enabled'
+                | 'mcp_content_writes_enabled'
+                | 'default_ai_agent_model_config'
             >
         >,
     Partial<
@@ -390,6 +396,7 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
             | 'ai_agents_visible'
             | 'ai_agent_reviews_enabled'
             | 'mcp_content_writes_enabled'
+            | 'default_ai_agent_model_config'
         >
     >
 >;

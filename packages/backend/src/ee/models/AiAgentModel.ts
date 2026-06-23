@@ -4334,6 +4334,7 @@ export class AiAgentModel {
                     ai_thread_uuid: data.threadUuid,
                     created_by_user_uuid: data.createdByUserUuid,
                     prompt: data.prompt,
+                    model_config: data.modelConfig,
                 })
                 .returning('ai_prompt_uuid');
 
