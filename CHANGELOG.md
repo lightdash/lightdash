@@ -1,3 +1,10 @@
+## [0.3230.1](https://github.com/lightdash/lightdash/compare/0.3230.0...0.3230.1) (2026-06-23)
+
+
+### Bug Fixes
+
+* count explicitly-set falsy parameter values and defaults as supplied ([#24639](https://github.com/lightdash/lightdash/issues/24639)) ([de90fed](https://github.com/lightdash/lightdash/commit/de90fedfcd6174ca0d40db71c782490c0ebfec4e))
+
 # [0.3230.0](https://github.com/lightdash/lightdash/compare/0.3229.0...0.3230.0) (2026-06-23)
 
 
