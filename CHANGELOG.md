@@ -1,3 +1,10 @@
+# [0.3223.0](https://github.com/lightdash/lightdash/compare/0.3222.1...0.3223.0) (2026-06-23)
+
+
+### Features
+
+* **ai-reviews:** polish remediation workspace & reviews board ([#24617](https://github.com/lightdash/lightdash/issues/24617)) ([aa4b34b](https://github.com/lightdash/lightdash/commit/aa4b34bb5c52626988d188b5f71383dee6a32ee3))
+
 ## [0.3222.1](https://github.com/lightdash/lightdash/compare/0.3222.0...0.3222.1) (2026-06-23)
 
 
