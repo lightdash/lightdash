@@ -798,6 +798,148 @@ During a generation, for every linked connection that has a saved sample, the pi
 
 ---
 
+## Observability (distributed tracing)
+
+Every generation emits a single distributed trace that spans two services: the backend that
+orchestrates the pipeline and the `claude` CLI running inside the E2B sandbox. The goal is one
+waterfall per generation, with per-LLM-request and per-tool timing, token counts, and model
+attribution, all attributable to the user, app, org, and project that triggered it.
+
+It is built on Claude Code's native OpenTelemetry export. When telemetry is enabled, the CLI emits
+its own trace (an agent-loop root span with a child span per LLM request and per tool call) and
+ships it over OTLP to a collector. The backend wraps the whole generation in a parent span and hands
+its trace context to the sandbox, so the CLI's spans nest underneath instead of starting a fresh
+trace.
+
+### The trace shape
+
+One trace, two services:
+
+```
+[lightdash]            DataApp.generate                ← backend parent span (root)
+[lightdash-data-app]   └─ claude_code.interaction      ← Claude Code agent loop
+[lightdash-data-app]      ├─ claude_code.llm_request   ← one per model call
+[lightdash-data-app]      ├─ claude_code.tool          ← one per tool call
+[lightdash-data-app]      │  ├─ claude_code.tool.blocked_on_user
+[lightdash-data-app]      │  └─ claude_code.tool.execution
+[lightdash-data-app]      └─ claude_code.llm_request
+```
+
+The backend service reports as `lightdash` (or `OTEL_SERVICE_NAME`); the sandbox sets its own
+`service.name` to `lightdash-data-app` via resource attributes, so the two halves are
+distinguishable inside one trace.
+
+What each span type carries, and the question it answers:
+
+| Span                     | Key attributes                                                                       | Answers                                                            |
+| ------------------------ | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| `DataApp.generate`       | app / version / org / project / user uuid, install id                                | Who generated this, and how long the whole pipeline took          |
+| `claude_code.interaction`| session id, identity (`user.email`, `user.account_uuid`, `organization.id`)          | Overall agent-loop duration                                       |
+| `claude_code.llm_request`| model, `ttft_ms`, `duration_ms`, input / output / cache tokens, `stop_reason`        | Per-call latency and context-window size                          |
+| `claude_code.tool`       | `tool_name`, `duration_ms`, `result_tokens`                                          | Per-tool timing                                                   |
+
+### How the trace is stitched (TRACEPARENT)
+
+The backend creates the parent span and passes its W3C `traceparent` into the sandbox as the
+`TRACEPARENT` env var. Claude Code's non-interactive (`-p` / stream-json) mode honors an inbound
+`TRACEPARENT`, so its root `claude_code.interaction` span becomes a child of the backend span
+instead of opening a new trace. (Interactive sessions deliberately ignore it, which is why this only
+works for the headless mode data apps run in.)
+
+The parent span is created with `wrapSentryTransaction('DataApp.generate', ...)` around the
+generation pipeline in `AppGenerateService.ts`, tagged with the app, version, org, project, and user
+uuids plus the instance `installId` for attribution. The `traceparent` is read from the active span
+context by `getOtelTraceHeaders()` in `packages/backend/src/tracing/tracing.ts`.
+
+One non-obvious wrinkle lives in `getOtelTraceHeaders`: `@sentry/node` registers its own
+(`sentry-trace`) propagator as the OTel global, so a plain `propagation.inject` never emits a W3C
+`traceparent`. Without one, the sandbox gets no `TRACEPARENT` and Claude Code fragments every
+operation into its own trace. So `getOtelTraceHeaders` falls back to deriving the header directly
+from the active span context (`00-<traceId>-<spanId>-<flags>`) when the global propagator omits it.
+
+### What the sandbox exports
+
+`buildClaudeCodeTelemetryEnv` (`claudeCodeEnv.ts`) builds the OTEL env injected into the sandbox. It
+returns an empty object (no telemetry) unless tracing is enabled and an endpoint is configured. When
+on, it sets:
+
+- `CLAUDE_CODE_ENABLE_TELEMETRY=1` and `CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1`. The beta flag is what
+  unlocks the trace signal (token and tool span attributes); without it Claude Code emits metrics
+  only.
+- `OTEL_TRACES_EXPORTER=otlp`, with `OTEL_METRICS_EXPORTER` and `OTEL_LOGS_EXPORTER` set to `none`.
+  The sandbox is traces-only.
+- `OTEL_EXPORTER_OTLP_ENDPOINT` / `_PROTOCOL` / `_HEADERS` from config, plus the parent's
+  `TRACEPARENT`.
+- `OTEL_TRACES_EXPORT_INTERVAL=1000`. Generations are short-lived and the CLI flushes on clean exit;
+  a low interval makes spans land before the sandbox is paused or torn down.
+- `OTEL_RESOURCE_ATTRIBUTES` carrying `service.name=lightdash-data-app` plus the same app / org /
+  project / user uuids and install id as the parent span, so the sandbox spans are attributable on
+  their own.
+- `OTEL_LOG_USER_PROMPTS=1` and `OTEL_LOG_TOOL_DETAILS=1`. Data apps opt into capturing the prompt
+  and tool inputs/results because the generation PII surface is bounded (metadata-only schema plus
+  the prompt, no warehouse-query tool, real rows only via opt-in sample data). Raw API bodies
+  (`OTEL_LOG_RAW_API_BODIES`) stay off. See the caveat below: these flags feed Claude Code's
+  log-events signal, not span attributes.
+
+### Sandbox egress
+
+The E2B sandbox firewall denies all outbound traffic except an allowlist (see
+[LLM provider](#llm-provider-anthropic-vs-bedrock)). When OTEL export is on, `claudeCodeAllowedHosts`
+adds the OTLP collector's host to that allowlist, otherwise the exporter's POSTs are dropped
+silently. A malformed endpoint leaves the allowlist unchanged rather than opening an invalid host.
+
+### Cost and payloads are not on the spans
+
+Two things the trace deliberately does not carry:
+
+- **Cost.** Claude Code reports cost USD as a metric (`claude_code.cost.usage`), not a span
+  attribute, and the sandbox runs with metrics export off. Cost continues to come from the stdout
+  `total_cost_usd` the pipeline already parses (`ClaudeStreamProcessor`). The per-request token
+  attributes on `llm_request` spans cover context-window size and any downstream token-based pricing.
+- **Prompts and tool details.** `OTEL_LOG_USER_PROMPTS` / `OTEL_LOG_TOOL_DETAILS` populate Claude
+  Code's OTEL log-events signal, not trace span attributes. With `OTEL_LOGS_EXPORTER=none` and a
+  traces-only backend they never appear. Capturing them needs a logs-ingesting backend and
+  `OTEL_LOGS_EXPORTER=otlp`, a separate decision because the PII surface for logs is wider.
+
+### Generation runs in the scheduler, not the API
+
+Easy to get wrong, so worth calling out: the pipeline runs as a Graphile Worker job
+(`appGeneratePipeline`) in the **scheduler** process, not in the API process that served the create
+request. The `DataApp.generate` parent span is therefore created and exported by the scheduler. For
+the parent to reach the collector (and the trace to render as one rooted waterfall rather than a
+headless tree of orphaned sandbox spans), the **scheduler process** must have OTLP tracing enabled
+(`LIGHTDASH_OTEL_TRACES_ENABLED=true`) and a reachable `OTEL_EXPORTER_OTLP_ENDPOINT`. If only the API
+has it, the sandbox still emits a valid `TRACEPARENT` (the active span context is enough on its own),
+and the children nest under a parent id that was never exported, so the trace renders parent-less in
+the trace UI.
+
+### Configuration
+
+The data-app sandbox reuses the same OTLP config as the backend's own tracer
+(`src/tracing/tracing.ts`), so both halves land in the same place:
+
+```
+LIGHTDASH_OTEL_TRACES_ENABLED=true                 # Master switch (backend + sandbox traces)
+OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4318  # OTLP collector (GCP collector in prod, local Jaeger in dev)
+OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf           # Defaults to http/protobuf
+OTEL_EXPORTER_OTLP_HEADERS=...                       # Optional auth headers for the collector
+OTEL_SDK_DISABLED=false
+```
+
+`appRuntime.otel` (in `parseConfig.ts`) is structurally a subset of this and is passed straight to
+`buildClaudeCodeTelemetryEnv`; its `enabled` mirrors the backend tracer's `otelTracingEnabled()`.
+
+### Local verification (Jaeger)
+
+`docker/docker-compose.infra.yml` includes a local Jaeger (`jaegertracing/all-in-one`, OTLP on
+:4317 / :4318, UI on :16686) as the dev trace target. Spotlight is not usable for OTLP (it only
+parses Sentry envelopes). Because the E2B sandbox runs in the cloud and cannot reach `localhost`, the
+dev `OTEL_EXPORTER_OTLP_ENDPOINT` is a tunnel to the local Jaeger, while the backend posts to it
+directly. Open the Jaeger UI, filter by the `lightdash-data-app` service, and inspect the
+`claude_code.*` tree under its `DataApp.generate` parent.
+
+---
+
 ## Frontend Architecture
 
 ### Pages
@@ -892,7 +1034,8 @@ S3 credentials are configured through the existing `S3_*` environment variables 
 | File                                                                        | Purpose                                                                                      |
 | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | `packages/backend/src/ee/services/AppGenerateService/AppGenerateService.ts` | Core pipeline: sandbox, Claude, build, S3, DB                                                |
-| `packages/backend/src/ee/services/AppGenerateService/claudeCodeEnv.ts`      | Builds the `claude` CLI env + firewall allowlist for the Anthropic / Bedrock provider switch |
+| `packages/backend/src/ee/services/AppGenerateService/claudeCodeEnv.ts`      | Builds the `claude` CLI env (provider switch + OTEL telemetry env) and the firewall allowlist |
+| `packages/backend/src/tracing/tracing.ts`                                   | Backend OTLP trace exporter + the `getOtelTraceHeaders` helper that derives the `TRACEPARENT` injected into the sandbox |
 | `packages/backend/src/ee/controllers/appGenerateController.ts`              | TSOA REST controllers                                                                        |
 | `packages/backend/src/models/AppModel.ts`                                   | Data access layer for apps and versions                                                      |
 | `packages/backend/src/routers/appPreviewRouter.ts`                          | Express router serving built artifacts from S3                                               |
