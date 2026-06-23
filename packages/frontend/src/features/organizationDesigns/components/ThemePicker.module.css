@@ -47,3 +47,14 @@
 .manageLink:hover {
     text-decoration: underline;
 }
+
+.swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    background: linear-gradient(
+        135deg,
+        var(--mantine-color-ldGray-3),
+        var(--mantine-color-ldGray-5)
+    );
+}
