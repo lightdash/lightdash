@@ -1,3 +1,10 @@
+# [0.3229.0](https://github.com/lightdash/lightdash/compare/0.3228.0...0.3229.0) (2026-06-23)
+
+
+### Features
+
+* thread reserved date zoom parameter through query compilation ([#24585](https://github.com/lightdash/lightdash/issues/24585)) ([a7db303](https://github.com/lightdash/lightdash/commit/a7db3035ab2d4e10f6f24ca4b3ff264284c717a4))
+
 # [0.3228.0](https://github.com/lightdash/lightdash/compare/0.3227.0...0.3228.0) (2026-06-23)
 
 
