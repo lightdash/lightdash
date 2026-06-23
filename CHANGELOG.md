@@ -1,3 +1,10 @@
+# [0.3228.0](https://github.com/lightdash/lightdash/compare/0.3227.0...0.3228.0) (2026-06-23)
+
+
+### Features
+
+* add reserved parameters registry ([#24584](https://github.com/lightdash/lightdash/issues/24584)) ([fd321b9](https://github.com/lightdash/lightdash/commit/fd321b9259f4493da2e5cf412173f227bfb3da67))
+
 # [0.3227.0](https://github.com/lightdash/lightdash/compare/0.3226.2...0.3227.0) (2026-06-23)
 
 
