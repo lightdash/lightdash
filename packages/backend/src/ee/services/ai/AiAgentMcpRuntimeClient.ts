@@ -175,6 +175,8 @@ class PersistentMcpOAuthClientProvider implements OAuthClientProvider {
 
     private readonly forceReauth: boolean;
 
+    private readonly connectionStatusOnAuthorization: AiMcpServerConnectionStatus;
+
     private readonly defaultClientMetadata: OAuthClientMetadata;
 
     constructor(args: {
@@ -184,6 +186,7 @@ class PersistentMcpOAuthClientProvider implements OAuthClientProvider {
         saveCredential: (payload: AiMcpOAuthCredentialPayload) => Promise<void>;
         onAuthorizationUrl?: (url: URL) => void | Promise<void>;
         forceReauth?: boolean;
+        connectionStatusOnAuthorization?: AiMcpServerConnectionStatus;
         clientMetadata?: OAuthClientMetadata;
     }) {
         this.credentialScope = args.credentialScope;
@@ -192,6 +195,8 @@ class PersistentMcpOAuthClientProvider implements OAuthClientProvider {
         this.saveCredential = args.saveCredential;
         this.onAuthorizationUrl = args.onAuthorizationUrl;
         this.forceReauth = args.forceReauth ?? false;
+        this.connectionStatusOnAuthorization =
+            args.connectionStatusOnAuthorization ?? 'connecting';
         this.defaultClientMetadata =
             args.clientMetadata ??
             buildDefaultClientMetadata(this.redirectTargetUrl);
@@ -285,7 +290,7 @@ class PersistentMcpOAuthClientProvider implements OAuthClientProvider {
         const payload = await this.loadPayload();
         await this.persist({
             ...payload,
-            connectionStatus: 'connecting',
+            connectionStatus: this.connectionStatusOnAuthorization,
             lastError: undefined,
         });
 
@@ -297,7 +302,7 @@ class PersistentMcpOAuthClientProvider implements OAuthClientProvider {
         await this.persist({
             ...payload,
             codeVerifier,
-            connectionStatus: 'connecting',
+            connectionStatus: this.connectionStatusOnAuthorization,
             lastError: undefined,
         });
     }
@@ -713,6 +718,7 @@ export class AiAgentMcpRuntimeClient {
         actorUserUuid?: string;
         onAuthorizationUrl?: (url: URL) => void | Promise<void>;
         forceReauth?: boolean;
+        connectionStatusOnAuthorization?: AiMcpServerConnectionStatus;
     }) {
         return new PersistentMcpOAuthClientProvider({
             credentialScope: args.credentialScope,
@@ -739,6 +745,8 @@ export class AiAgentMcpRuntimeClient {
             },
             onAuthorizationUrl: args.onAuthorizationUrl,
             forceReauth: args.forceReauth,
+            connectionStatusOnAuthorization:
+                args.connectionStatusOnAuthorization,
         });
     }
 
@@ -788,6 +796,7 @@ export class AiAgentMcpRuntimeClient {
         userUuid?: string;
         serverUrl: string;
         actorUserUuid: string;
+        connectionStatusOnAuthorization?: AiMcpServerConnectionStatus;
     }): Promise<string> {
         let authorizationUrl: URL | undefined;
         const provider = this.createMcpOAuthProvider({
@@ -797,6 +806,8 @@ export class AiAgentMcpRuntimeClient {
             userUuid: args.userUuid,
             actorUserUuid: args.actorUserUuid,
             forceReauth: true,
+            connectionStatusOnAuthorization:
+                args.connectionStatusOnAuthorization,
             onAuthorizationUrl: (url) => {
                 authorizationUrl = url;
             },
