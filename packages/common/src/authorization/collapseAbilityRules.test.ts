@@ -1,9 +1,11 @@
 import { Ability, AbilityBuilder, subject } from '@casl/ability';
+import { ServiceAccountScope } from '../ee/serviceAccounts/types';
 import { OrganizationMemberRole } from '../types/organizationMemberProfile';
 import { ProjectMemberRole } from '../types/projectMemberRole';
 import { collapseAbilityRules } from './collapseAbilityRules';
 import { getUserAbilityBuilder } from './index';
 import { projectMemberAbilities } from './projectMemberAbility';
+import { applyServiceAccountAbilities } from './serviceAccountAbility';
 import { type MemberAbility } from './types';
 
 const USER = 'user-1';
@@ -20,6 +22,16 @@ const buildRawRules = (
         ),
     );
     return builder.rules;
+};
+
+const getConditionsWithIn = (
+    rule: ReturnType<typeof collapseAbilityRules>[number] | undefined,
+    errorMessage: string,
+) => {
+    if (!rule) {
+        throw new Error(errorMessage);
+    }
+    return rule.conditions as Record<string, { $in: string[] }>;
 };
 
 describe('collapseAbilityRules', () => {
@@ -48,8 +60,10 @@ describe('collapseAbilityRules', () => {
         );
         expect(createProject).toBeDefined();
         expect(
-            (createProject!.conditions as Record<string, { $in: string[] }>)
-                .upstreamProjectUuid.$in,
+            getConditionsWithIn(
+                createProject,
+                'Expected upstream project rule to collapse',
+            ).upstreamProjectUuid.$in,
         ).toEqual(['p1', 'p2', 'p3']);
     });
 
@@ -110,7 +124,7 @@ describe('collapseAbilityRules', () => {
         );
         expect(merged).toBeDefined();
         expect(
-            (merged!.conditions as Record<string, { $in: string[] }>)
+            getConditionsWithIn(merged, 'Expected Dashboard rule to collapse')
                 .projectUuid.$in,
         ).toEqual(['p1', 'p2', 'p3']);
     });
@@ -128,8 +142,10 @@ describe('collapseAbilityRules', () => {
                 ),
         );
         expect(
-            (merged!.conditions as Record<string, { $in: string[] }>)
-                .projectUuid.$in,
+            getConditionsWithIn(
+                merged,
+                'Expected duplicate Dashboard grants to collapse',
+            ).projectUuid.$in,
         ).toEqual(['p1', 'p2']);
     });
 
@@ -325,8 +341,10 @@ describe('collapseAbilityRules', () => {
             );
             expect(merged).toBeDefined();
             expect(
-                (merged!.conditions as Record<string, { $in: string[] }>)
-                    .projectUuid.$in,
+                getConditionsWithIn(
+                    merged,
+                    'Expected projectUuid-only group to collapse',
+                ).projectUuid.$in,
             ).toEqual(['p1', 'p2']);
             assertEquivalent(rules);
         });
@@ -383,5 +401,22 @@ describe('collapseAbilityRules', () => {
             customRolesEnabled: true,
         });
         expect(builder.rules.some((r) => r.inverted)).toBe(false);
+
+        // Service-account scope builders are used outside getUserAbilityBuilder
+        // and are collapsed at their UserModel return boundary.
+        Object.values(ServiceAccountScope).forEach((scope) => {
+            const serviceAccountBuilder = new AbilityBuilder<MemberAbility>(
+                Ability,
+            );
+            applyServiceAccountAbilities({
+                organizationUuid: 'org-1',
+                userUuid: USER,
+                scopes: [scope],
+                builder: serviceAccountBuilder,
+            });
+            expect(serviceAccountBuilder.rules.some((r) => r.inverted)).toBe(
+                false,
+            );
+        });
     });
 });

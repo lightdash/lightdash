@@ -43,6 +43,7 @@ import type { PivotValuesColumn } from './visualizations/types';
 
 dayjs.extend(utc);
 export * from './authorization/buildAccountHelpers';
+export { collapseAbilityRules } from './authorization/collapseAbilityRules';
 export {
     defineUserAbility,
     getUserAbilityBuilder,
