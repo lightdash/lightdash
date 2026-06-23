@@ -1,3 +1,12 @@
+# [0.3225.0](https://github.com/lightdash/lightdash/compare/0.3224.0...0.3225.0) (2026-06-23)
+
+
+### Features
+
+* **pivot:** graduate hide-pivot-dimensions flag ([#24608](https://github.com/lightdash/lightdash/issues/24608)) ([630addd](https://github.com/lightdash/lightdash/commit/630addd5a16202d785e72ab983bdaf0fe92e890c))
+* **pivot:** graduate pivot-column-sort flag ([#24607](https://github.com/lightdash/lightdash/issues/24607)) ([8bd8fdf](https://github.com/lightdash/lightdash/commit/8bd8fdfb41dcdff82e72227ef2d3ee21414df968))
+* **pivot:** graduate pivot-row-grouping flag ([#24609](https://github.com/lightdash/lightdash/issues/24609)) ([92d2a68](https://github.com/lightdash/lightdash/commit/92d2a68c3e5112b405a391da6fe041ad55a9eab5))
+
 # [0.3224.0](https://github.com/lightdash/lightdash/compare/0.3223.0...0.3224.0) (2026-06-23)
 
 
