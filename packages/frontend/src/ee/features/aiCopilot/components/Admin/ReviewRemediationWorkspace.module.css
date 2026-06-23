@@ -17,22 +17,50 @@
     overflow-y: auto;
 }
 
-/* Build is the primary pane (you act here); Test is the narrower verification rail. */
-.paneBuild {
-    flex: 1.4 1 0;
+.testHeader {
+    background-color: light-dark(
+        var(--mantine-color-blue-0),
+        color-mix(in srgb, var(--mantine-color-blue-6) 22%, transparent)
+    );
 }
 
-.paneTest {
-    flex: 1 1 0;
+.drawerHeader {
+    background: linear-gradient(
+        180deg,
+        light-dark(
+            var(--mantine-color-blue-0),
+            color-mix(in srgb, var(--mantine-color-blue-6) 16%, transparent)
+        ),
+        light-dark(var(--mantine-color-white), var(--mantine-color-dark-7))
+    );
+    border-bottom: 1px solid
+        light-dark(var(--mantine-color-blue-1), var(--mantine-color-dark-4));
 }
 
-/* Tie the Test pane to the preview environment with the preview-banner blue. */
-.panePreview {
-    border-top: 2px solid var(--mantine-color-blue-6);
+.drawerInner {
+    top: var(--drawer-top-offset, 0);
+    height: calc(100% - var(--drawer-top-offset, 0));
 }
 
-.connector {
-    flex: 0 0 auto;
-    align-self: center;
-    color: var(--mantine-color-dimmed);
+.drawerOverlay {
+    top: var(--drawer-top-offset, 0);
+    height: calc(100% - var(--drawer-top-offset, 0));
+}
+
+.drawerBody {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.diffHeader {
+    display: block;
+    width: 100%;
+    padding: var(--mantine-spacing-sm);
+    border-radius: var(--mantine-radius-md);
+}
+
+.diffHeader:hover {
+    background-color: var(--mantine-color-default-hover);
 }
