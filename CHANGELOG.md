@@ -1,3 +1,10 @@
+# [0.3222.0](https://github.com/lightdash/lightdash/compare/0.3221.0...0.3222.0) (2026-06-23)
+
+
+### Features
+
+* **scheduler:** cap concurrent deliveries per org (PROD-7866) ([#24610](https://github.com/lightdash/lightdash/issues/24610)) ([d61b85f](https://github.com/lightdash/lightdash/commit/d61b85f7598927216524dedd5e9d9599bbeef0a5))
+
 # [0.3221.0](https://github.com/lightdash/lightdash/compare/0.3220.0...0.3221.0) (2026-06-23)
 
 
