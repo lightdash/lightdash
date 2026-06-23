@@ -1,3 +1,10 @@
+## [0.3222.1](https://github.com/lightdash/lightdash/compare/0.3222.0...0.3222.1) (2026-06-23)
+
+
+### Bug Fixes
+
+* agent access to connection info path ([#24612](https://github.com/lightdash/lightdash/issues/24612)) ([d8928f8](https://github.com/lightdash/lightdash/commit/d8928f852b3ca40fb582b4d20221f00d8d81a129))
+
 # [0.3222.0](https://github.com/lightdash/lightdash/compare/0.3221.0...0.3222.0) (2026-06-23)
 
 
