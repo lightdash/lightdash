@@ -28,7 +28,6 @@ import {
     useAsyncCalculateSubtotals,
     useAsyncCalculateTotal,
 } from '../useAsyncCalculateTotal';
-import { useIsPivotRowGroupingEnabled } from '../useIsPivotRowGroupingEnabled';
 import { useProjectUuid } from '../useProjectUuid';
 import { type InfiniteQueryResults } from '../useQueryResults';
 import getDataAndColumns from './getDataAndColumns';
@@ -76,11 +75,6 @@ const useTableConfig = (
     const [showSubtotalsExpanded, setShowSubtotalsExpanded] = useState<boolean>(
         tableChartConfig?.showSubtotalsExpanded ?? false,
     );
-    // Raw, persisted value of the user toggle. We never clobber this with
-    // the flag — if the user saved `showRowGrouping: true` while the
-    // PivotRowGrouping flag was on and the flag later flips off, we want to
-    // preserve their intent for when the flag flips back. Renders use
-    // `effectiveShowRowGrouping` below which gates on the live flag value.
     const [showRowGrouping, setShowRowGrouping] = useState<boolean>(
         tableChartConfig?.showRowGrouping ?? false,
     );
@@ -162,8 +156,6 @@ const useTableConfig = (
         },
         [getFieldLabelOverride, getFieldLabelDefault],
     );
-
-    const isPivotRowGroupingEnabled = useIsPivotRowGroupingEnabled();
 
     const isColumnVisible = useCallback(
         (fieldId: string) => columnProperties[fieldId]?.visible ?? true,
@@ -672,10 +664,7 @@ const useTableConfig = (
             setShowSubtotals,
             showSubtotalsExpanded,
             setShowSubtotalsExpanded,
-            // Effective render value: flag gate ensures flag-off viewers
-            // of a flag-on-saved chart see legacy rendering. Raw value
-            // lives in `validConfig.showRowGrouping` for persistence.
-            showRowGrouping: isPivotRowGroupingEnabled && showRowGrouping,
+            showRowGrouping,
             setShowRowGrouping,
 
             columnProperties: exposedColumnProperties,
@@ -721,7 +710,6 @@ const useTableConfig = (
             setShowSubtotalsExpanded,
             showRowGrouping,
             setShowRowGrouping,
-            isPivotRowGroupingEnabled,
 
             exposedColumnProperties,
             setColumnProperties,
