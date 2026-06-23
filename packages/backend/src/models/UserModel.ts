@@ -4,6 +4,7 @@ import {
     AlreadyExistsError,
     applyServiceAccountAbilities,
     buildAbilityFromScopes,
+    collapseAbilityRules,
     CommercialFeatureFlags,
     CreateUserArgs,
     CreateUserWithRole,
@@ -700,6 +701,7 @@ export class UserModel {
                         user.user_uuid,
                         builder,
                     );
+                    builder.rules = collapseAbilityRules(builder.rules);
                     return {
                         abilityBuilder: builder,
                         lightdashUser,
@@ -726,6 +728,7 @@ export class UserModel {
                     user.user_uuid,
                     builder,
                 );
+                builder.rules = collapseAbilityRules(builder.rules);
                 return {
                     abilityBuilder: builder,
                     lightdashUser,

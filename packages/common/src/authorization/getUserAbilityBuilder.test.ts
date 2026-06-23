@@ -1,6 +1,8 @@
 import { Ability, AbilityBuilder, subject } from '@casl/ability';
 import { OrganizationMemberRole } from '../types/organizationMemberProfile';
+import { ProjectMemberRole } from '../types/projectMemberRole';
 import { ProjectType } from '../types/projects';
+import { collapseAbilityRules } from './collapseAbilityRules';
 import { getUserAbilityBuilder } from './index';
 import applyOrganizationMemberAbilities from './organizationMemberAbility';
 import { type MemberAbility } from './types';
@@ -21,6 +23,9 @@ const buildExpected = (role: OrganizationMemberRole) => {
         builder,
         permissionsConfig: PERMISSIONS_CONFIG,
     });
+    // getUserAbilityBuilder collapses rules before returning, so the reference
+    // set must be collapsed the same way for an apples-to-apples comparison.
+    builder.rules = collapseAbilityRules(builder.rules);
     return builder.build().rules;
 };
 
@@ -197,6 +202,153 @@ describe('getUserAbilityBuilder — org-level role resolution', () => {
             const { rules } = builder.build();
             // Org member abilities (minimal) plus project admin abilities
             expect(rules.length).toBeGreaterThan(0);
+        });
+
+        it('returns collapsed rules for multi-project system role grants', () => {
+            const projectUuids = Array.from(
+                { length: 125 },
+                (_, i) => `project-${i}`,
+            );
+            const { builder } = getUserAbilityBuilder({
+                user: {
+                    role: OrganizationMemberRole.MEMBER,
+                    organizationUuid: ORG_UUID,
+                    userUuid: USER_UUID,
+                    roleUuid: undefined,
+                },
+                projectProfiles: [
+                    ...projectUuids,
+                    projectUuids[0], // duplicate direct + group style grant
+                ].map((projectUuid) => ({
+                    projectUuid,
+                    role: ProjectMemberRole.ADMIN,
+                    userUuid: USER_UUID,
+                    roleUuid: undefined,
+                })),
+                permissionsConfig: PERMISSIONS_CONFIG,
+            });
+            const ability = builder.build();
+            const mergedDashboardRule = ability.rules.find(
+                (rule) =>
+                    rule.subject === 'Dashboard' &&
+                    rule.action === 'view' &&
+                    Boolean(
+                        (
+                            rule.conditions as
+                                | Record<string, { $in?: string[] }>
+                                | undefined
+                        )?.projectUuid?.$in,
+                    ),
+            );
+
+            if (!mergedDashboardRule) {
+                throw new Error('Expected Dashboard rule to be collapsed');
+            }
+
+            expect(
+                (
+                    mergedDashboardRule.conditions as Record<
+                        string,
+                        { $in: string[] }
+                    >
+                ).projectUuid.$in,
+            ).toEqual([...projectUuids].sort());
+            expect(ability.rules.length).toBeLessThan(100);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Dashboard', { projectUuid: 'project-0' }),
+                ),
+            ).toBe(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Dashboard', { projectUuid: 'not-granted' }),
+                ),
+            ).toBe(false);
+        });
+
+        it('returns collapsed rules for repeated custom project scopes', () => {
+            const projectUuids = Array.from(
+                { length: 10 },
+                (_, i) => `custom-project-${i}`,
+            );
+            const { builder } = getUserAbilityBuilder({
+                user: {
+                    role: OrganizationMemberRole.MEMBER,
+                    organizationUuid: ORG_UUID,
+                    userUuid: USER_UUID,
+                    roleUuid: undefined,
+                },
+                projectProfiles: projectUuids.map((projectUuid) => ({
+                    projectUuid,
+                    role: ProjectMemberRole.VIEWER,
+                    userUuid: USER_UUID,
+                    roleUuid: CUSTOM_ROLE_UUID,
+                    projectType: ProjectType.PREVIEW,
+                    projectCreatedByUserUuid: USER_UUID,
+                })),
+                permissionsConfig: PERMISSIONS_CONFIG,
+                customRoleScopes: {
+                    [CUSTOM_ROLE_UUID]: [
+                        'view:Dashboard',
+                        'manage:Dashboard@self',
+                    ],
+                },
+                customRolesEnabled: true,
+                isEnterprise: true,
+            });
+            const ability = builder.build();
+            const mergedViewDashboardRule = ability.rules.find(
+                (rule) =>
+                    rule.subject === 'Dashboard' &&
+                    rule.action === 'view' &&
+                    Boolean(
+                        (
+                            rule.conditions as
+                                | Record<string, { $in?: string[] }>
+                                | undefined
+                        )?.projectUuid?.$in,
+                    ),
+            );
+
+            if (!mergedViewDashboardRule) {
+                throw new Error('Expected custom Dashboard rule to collapse');
+            }
+
+            expect(
+                (
+                    mergedViewDashboardRule.conditions as Record<
+                        string,
+                        { $in: string[] }
+                    >
+                ).projectUuid.$in,
+            ).toEqual(projectUuids);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Dashboard', {
+                        projectUuid: 'custom-project-0',
+                        inheritsFromOrgOrProject: true,
+                    }),
+                ),
+            ).toBe(true);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Dashboard', { projectUuid: 'not-granted' }),
+                ),
+            ).toBe(false);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Dashboard', {
+                        projectUuid: 'custom-project-1',
+                        inheritsFromOrgOrProject: true,
+                        access: [],
+                    }),
+                ),
+            ).toBe(true);
         });
     });
 
