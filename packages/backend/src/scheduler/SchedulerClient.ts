@@ -65,7 +65,6 @@ import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
 import { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
-import { OrganizationModel } from '../models/OrganizationModel';
 import { SchedulerModel } from '../models/SchedulerModel';
 
 type SchedulerClientArguments = {
@@ -73,7 +72,6 @@ type SchedulerClientArguments = {
     analytics: LightdashAnalytics;
     schedulerModel: SchedulerModel;
     featureFlagModel: FeatureFlagModel;
-    organizationModel: OrganizationModel;
 };
 
 const SCHEDULED_JOB_MAX_ATTEMPTS = 1;
@@ -130,8 +128,6 @@ export class SchedulerClient {
 
     featureFlagModel: FeatureFlagModel;
 
-    organizationModel: OrganizationModel;
-
     private static STUCK_JOB_WINDOW = 1.5;
 
     constructor({
@@ -139,13 +135,11 @@ export class SchedulerClient {
         analytics,
         schedulerModel,
         featureFlagModel,
-        organizationModel,
     }: SchedulerClientArguments) {
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.schedulerModel = schedulerModel;
         this.featureFlagModel = featureFlagModel;
-        this.organizationModel = organizationModel;
         this.graphileUtils = makeWorkerUtils({
             connectionString: lightdashConfig.database.connectionUri,
         })
@@ -895,10 +889,8 @@ export class SchedulerClient {
     ): Promise<string | undefined> {
         if (!this.lightdashConfig.allowMultiOrgs) return undefined;
         const { organizationUuid, userUuid } = traceProperties;
-        const { name: organizationName } =
-            await this.organizationModel.get(organizationUuid);
         const { enabled } = await this.featureFlagModel.get({
-            user: { userUuid, organizationUuid, organizationName },
+            user: { userUuid, organizationUuid },
             featureFlagId: FeatureFlags.ScheduledDeliveryPerOrgQueue,
         });
         return enabled ? getOrgDeliveryQueueName(organizationUuid) : undefined;

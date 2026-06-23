@@ -6,7 +6,6 @@ import {
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { type LightdashConfig } from '../config/parseConfig';
 import { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
-import { OrganizationModel } from '../models/OrganizationModel';
 import { SchedulerModel } from '../models/SchedulerModel';
 import { getOrgDeliveryQueueName, SchedulerClient } from './SchedulerClient';
 
@@ -19,13 +18,8 @@ jest.mock('graphile-worker', () => ({
 }));
 
 const ORG_UUID = 'org-1';
-const ORG_NAME = 'Org One';
 
-const makeClient = (
-    allowMultiOrgs: boolean,
-    get: jest.Mock,
-    orgGet: jest.Mock = jest.fn().mockResolvedValue({ name: ORG_NAME }),
-) =>
+const makeClient = (allowMultiOrgs: boolean, get: jest.Mock) =>
     new SchedulerClient({
         lightdashConfig: {
             allowMultiOrgs,
@@ -36,7 +30,6 @@ const makeClient = (
             logSchedulerJob: jest.fn().mockResolvedValue(undefined),
         } as unknown as SchedulerModel,
         featureFlagModel: { get } as unknown as FeatureFlagModel,
-        organizationModel: { get: orgGet } as unknown as OrganizationModel,
     });
 
 const scheduler = {
@@ -85,12 +78,11 @@ describe('SchedulerClient per-org delivery queue', () => {
                 (call) => call[3] === getOrgDeliveryQueueName(ORG_UUID),
             ),
         ).toBe(true);
-        // Flag evaluated per-org with the resolved organization name.
+        // Flag evaluated per-org for the scheduler's user + organization.
         expect(get).toHaveBeenCalledWith({
             user: {
                 userUuid: 'user-1',
                 organizationUuid: ORG_UUID,
-                organizationName: ORG_NAME,
             },
             featureFlagId: FeatureFlags.ScheduledDeliveryPerOrgQueue,
         });
@@ -119,10 +111,9 @@ describe('SchedulerClient per-org delivery queue', () => {
         );
     });
 
-    it('skips the org + flag lookups entirely on single-tenant instances', async () => {
+    it('skips the flag lookup entirely on single-tenant instances', async () => {
         const get = jest.fn();
-        const orgGet = jest.fn();
-        const client = makeClient(false, get, orgGet);
+        const client = makeClient(false, get);
         const addJob = jest
             .spyOn(client, 'addScheduledDeliveryJob')
             .mockResolvedValue({ jobId: 'j1', date: new Date() });
@@ -134,7 +125,6 @@ describe('SchedulerClient per-org delivery queue', () => {
             startingDateTime,
         );
 
-        expect(orgGet).not.toHaveBeenCalled();
         expect(get).not.toHaveBeenCalled();
         expect(addJob).toHaveBeenCalled();
         expect(addJob.mock.calls.every((call) => call[3] === undefined)).toBe(

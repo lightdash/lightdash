@@ -178,7 +178,6 @@ export class ClientRepository
                     analytics: this.context.lightdashAnalytics,
                     schedulerModel: this.models.getSchedulerModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
-                    organizationModel: this.models.getOrganizationModel(),
                 }),
         );
     }
