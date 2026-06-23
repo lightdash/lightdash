@@ -279,6 +279,7 @@ const getTagsForTask: {
         'user.uuid': payload.userUuid,
         'project.uuid': payload.projectUuid,
     }),
+    [SCHEDULER_TASKS.SYNC_ROADMAP_MIRROR]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_EXPIRED_PREVIEWS]: () => ({}),
     [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS]: () => ({}),
     [SCHEDULER_TASKS.POLL_EMAIL_WHITELABEL]: () => ({}),

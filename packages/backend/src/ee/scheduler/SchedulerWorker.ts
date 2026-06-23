@@ -31,9 +31,11 @@ import { ManagedAgentService } from '../services/ManagedAgentService/ManagedAgen
 import { type OnboardingAgentService } from '../services/OnboardingAgentService/OnboardingAgentService';
 import { ProjectContextService } from '../services/ProjectContextService/ProjectContextService';
 import { sendReviewNotification } from './tasks/sendReviewNotification';
+import { RoadmapService } from '../services/RoadmapService/RoadmapService';
 
 const MCP_TOOL_CALL_RETENTION_DAYS = 90;
 const AI_AGENT_EVAL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+const ROADMAP_SYNC_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 const AI_AGENT_REVIEW_REMEDIATION_RUN_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 const AI_AGENT_REVIEW_CLASSIFIER_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
 const AI_AGENT_REVIEW_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
@@ -59,6 +61,7 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     projectModel: ProjectModel;
     openIdIdentityModel: OpenIdIdentityModel;
     mcpToolCallModel: McpToolCallModel;
+    roadmapService: RoadmapService;
 };
 
 export class CommercialSchedulerWorker extends SchedulerWorker {
@@ -93,6 +96,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
     protected readonly openIdIdentityModel: OpenIdIdentityModel;
 
     protected readonly mcpToolCallModel: McpToolCallModel;
+    protected readonly roadmapService: RoadmapService;
 
     constructor(args: CommercialSchedulerWorkerArguments) {
         super(args);
@@ -115,6 +119,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         this.projectModel = args.projectModel;
         this.openIdIdentityModel = args.openIdIdentityModel;
         this.mcpToolCallModel = args.mcpToolCallModel;
+        this.roadmapService = args.roadmapService;
     }
 
     protected getCronItems() {
@@ -150,6 +155,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 options: {
                     backfillPeriod: 24 * 3600 * 1000, // 24 hours in ms
                     maxAttempts: 3,
+                },
+            },
+            {
+                task: EE_SCHEDULER_TASKS.SYNC_ROADMAP_MIRROR,
+                pattern: this.lightdashConfig.roadmap.syncCron,
+                options: {
+                    backfillPeriod: 60 * 60 * 1000, // 1 hour
+                    maxAttempts: 1,
                 },
             },
         ];
@@ -661,6 +674,34 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     slackClient: this.slackClient,
                     analytics: this.analytics,
                 })(payload);
+            [EE_SCHEDULER_TASKS.SYNC_ROADMAP_MIRROR]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        EE_SCHEDULER_TASKS.SYNC_ROADMAP_MIRROR,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.roadmapService.syncMirror();
+                        },
+                    ),
+                    helpers.job,
+                    ROADMAP_SYNC_TIMEOUT_MS,
+                    async (job, e) => {
+                        await this.schedulerService.logSchedulerJob({
+                            task: EE_SCHEDULER_TASKS.SYNC_ROADMAP_MIRROR,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                error: getErrorMessage(e),
+                            },
+                        });
+                    },
+                );
             },
             [SCHEDULER_TASKS.INGEST_PROJECT_CONTEXT]: async (
                 payload,

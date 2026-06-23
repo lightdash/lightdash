@@ -125,6 +125,7 @@ export const EE_SCHEDULER_TASKS = {
     SWEEP_STALE_AI_WRITEBACK_RUNS: 'sweepStaleAiWritebackRuns',
     SWEEP_STALE_AI_DEEP_RESEARCH_RUNS: 'sweepStaleAiDeepResearchRuns',
     CLEAN_MCP_TOOL_CALLS: 'cleanMcpToolCalls',
+    SYNC_ROADMAP_MIRROR: 'syncRoadmapMirror',
 } as const;
 
 export const SCHEDULER_TASKS = {
@@ -230,6 +231,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.AI_DEEP_RESEARCH]: AiDeepResearchPipelineJobPayload;
     [SCHEDULER_TASKS.AGENT_ONBOARDING_RUN]: AgentOnboardingPipelineJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_EDIT_DBT_PROJECT_PIPELINE]: AiAgentEditDbtProjectPipelineJobPayload;
+    [SCHEDULER_TASKS.SYNC_ROADMAP_MIRROR]: TraceTaskBase;
 }
 
 export interface EETaskPayloadMap {
@@ -253,6 +255,7 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.AI_DEEP_RESEARCH]: AiDeepResearchPipelineJobPayload;
     [EE_SCHEDULER_TASKS.AGENT_ONBOARDING_RUN]: AgentOnboardingPipelineJobPayload;
     [EE_SCHEDULER_TASKS.AI_AGENT_EDIT_DBT_PROJECT_PIPELINE]: AiAgentEditDbtProjectPipelineJobPayload;
+    [EE_SCHEDULER_TASKS.SYNC_ROADMAP_MIRROR]: TraceTaskBase;
 }
 
 export type SchedulerTaskName =
