@@ -1072,6 +1072,59 @@ export const getSeriesId = (series: Series) =>
         series.encode.yRef,
     )}`;
 
+const stripPivotValuesFromSeries = (series: Series): Series => {
+    const { encode, name, color, ...rest } = series;
+    return {
+        ...rest,
+        encode: {
+            xRef: { field: encode.xRef.field },
+            yRef: { field: encode.yRef.field },
+        },
+    };
+};
+
+// Strip data-level pivot values (and dedupe) so pivoted series regenerate from
+// `pivotConfig` on load instead of hardcoding non-portable values in the config.
+export const removePivotedSeriesValuesFromChartConfig = (
+    chartConfig: ChartConfig,
+): ChartConfig => {
+    if (chartConfig.type !== ChartType.CARTESIAN || !chartConfig.config) {
+        return chartConfig;
+    }
+
+    const { series } = chartConfig.config.eChartsConfig;
+    if (!series || series.length === 0) {
+        return chartConfig;
+    }
+
+    const seenSeriesIds = new Set<string>();
+    const portableSeries = series.reduce<Series[]>((acc, currentSeries) => {
+        const hasPivotValues =
+            isPivotReferenceWithValues(currentSeries.encode.yRef) ||
+            isPivotReferenceWithValues(currentSeries.encode.xRef);
+        const portableSerie = hasPivotValues
+            ? stripPivotValuesFromSeries(currentSeries)
+            : currentSeries;
+        const seriesId = getSeriesId(portableSerie);
+        if (seenSeriesIds.has(seriesId)) {
+            return acc;
+        }
+        seenSeriesIds.add(seriesId);
+        return [...acc, portableSerie];
+    }, []);
+
+    return {
+        ...chartConfig,
+        config: {
+            ...chartConfig.config,
+            eChartsConfig: {
+                ...chartConfig.config.eChartsConfig,
+                series: portableSeries,
+            },
+        },
+    };
+};
+
 export const ECHARTS_DEFAULT_COLORS = [
     '#5470c6',
     '#fc8452',

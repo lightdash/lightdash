@@ -31,6 +31,7 @@ import {
     ProjectType,
     PromotionAction,
     PromotionChanges,
+    removePivotedSeriesValuesFromChartConfig,
     SavedChartDAO,
     SessionUser,
     Space,
@@ -213,7 +214,9 @@ export class CoderService extends BaseService {
             tableName: chart.tableName,
             updatedAt: chart.updatedAt,
             metricQuery: chart.metricQuery,
-            chartConfig: chart.chartConfig,
+            chartConfig: removePivotedSeriesValuesFromChartConfig(
+                chart.chartConfig,
+            ),
             pivotConfig: chart.pivotConfig,
             dashboardSlug: chart.dashboardUuid
                 ? dashboardSlugs[chart.dashboardUuid]
