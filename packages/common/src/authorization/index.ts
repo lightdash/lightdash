@@ -4,6 +4,7 @@ import { type ProjectMemberProfile } from '../types/projectMemberProfile';
 import { type ProjectType } from '../types/projects';
 import { type Role, type RoleWithScopes } from '../types/roles';
 import { type LightdashUser } from '../types/user';
+import { collapseAbilityRules } from './collapseAbilityRules';
 import applyOrganizationMemberAbilities, {
     type OrganizationMemberAbilitiesArgs,
 } from './organizationMemberAbility';
@@ -130,6 +131,9 @@ export const getUserAbilityBuilder = ({
             }
         });
     }
+    // Collapse per-project rules into `{ $in: [...] }` so the rule set (and the
+    // serialized `abilityRules` payload) scales with role tiers, not project count.
+    builder.rules = collapseAbilityRules(builder.rules);
     return { builder, invalidScopes };
 };
 

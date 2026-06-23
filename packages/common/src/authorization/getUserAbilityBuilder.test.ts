@@ -1,6 +1,7 @@
 import { Ability, AbilityBuilder, subject } from '@casl/ability';
 import { OrganizationMemberRole } from '../types/organizationMemberProfile';
 import { ProjectType } from '../types/projects';
+import { collapseAbilityRules } from './collapseAbilityRules';
 import { getUserAbilityBuilder } from './index';
 import applyOrganizationMemberAbilities from './organizationMemberAbility';
 import { type MemberAbility } from './types';
@@ -21,6 +22,9 @@ const buildExpected = (role: OrganizationMemberRole) => {
         builder,
         permissionsConfig: PERMISSIONS_CONFIG,
     });
+    // getUserAbilityBuilder collapses rules before returning, so the reference
+    // set must be collapsed the same way for an apples-to-apples comparison.
+    builder.rules = collapseAbilityRules(builder.rules);
     return builder.build().rules;
 };
 
