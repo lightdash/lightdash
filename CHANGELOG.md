@@ -1,3 +1,11 @@
+## [0.3226.2](https://github.com/lightdash/lightdash/compare/0.3226.1...0.3226.2) (2026-06-23)
+
+
+### Bug Fixes
+
+* apply conditional formatting to Excel (.xlsx) exports (PROD-8199) ([#24631](https://github.com/lightdash/lightdash/issues/24631)) ([7287eea](https://github.com/lightdash/lightdash/commit/7287eeae94604daa9ea71db70993f797926c2834))
+* **common:** collapse per-project ability rules into $in ([#24627](https://github.com/lightdash/lightdash/issues/24627)) ([2dc8a1c](https://github.com/lightdash/lightdash/commit/2dc8a1c99583ee362137312337ff592cd847ecc2))
+
 ## [0.3226.1](https://github.com/lightdash/lightdash/compare/0.3226.0...0.3226.1) (2026-06-23)
 
 
