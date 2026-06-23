@@ -1,3 +1,10 @@
+## [0.3219.1](https://github.com/lightdash/lightdash/compare/0.3219.0...0.3219.1) (2026-06-23)
+
+
+### Bug Fixes
+
+* escape user-attribute values when compiling warehouse SQL ([#24604](https://github.com/lightdash/lightdash/issues/24604)) ([9c6d48b](https://github.com/lightdash/lightdash/commit/9c6d48b42979c9af979d3071206048fc6ee6d7dd))
+
 # [0.3219.0](https://github.com/lightdash/lightdash/compare/0.3218.0...0.3219.0) (2026-06-22)
 
 
