@@ -7,6 +7,7 @@ import {
     Text,
     ThemeIcon,
 } from '@mantine-8/core';
+import { IconCheck } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { PolymorphicPaperButton } from '../../components/common/PolymorphicPaperButton';
 import { ThemePicker } from '../organizationDesigns/components/ThemePicker';
@@ -43,14 +44,14 @@ const AppTemplatePicker: FC<Props> = ({
                     Build a data app
                 </Text>
                 <Text size="sm" c="dimmed">
-                    Pick a starting point - you can customize the prompt before
-                    generating.
+                    Pick a starting point. You can refine the prompt next.
                 </Text>
             </Stack>
             <SimpleGrid
                 type="container"
                 cols={{ base: 1, '340px': 2 }}
                 spacing="sm"
+                className={classes.templateGrid}
             >
                 {TEMPLATES.map((template) => {
                     const Icon = template.icon;
@@ -66,6 +67,7 @@ const AppTemplatePicker: FC<Props> = ({
                             onClick={() => setHighlighted(template.id)}
                             radius="md"
                             aria-pressed={isSelected}
+                            data-selected={isSelected ? 'true' : undefined}
                         >
                             <Group gap="sm" wrap="nowrap" align="flex-start">
                                 <ThemeIcon
@@ -77,7 +79,7 @@ const AppTemplatePicker: FC<Props> = ({
                                 >
                                     <Icon size={20} />
                                 </ThemeIcon>
-                                <Stack gap={2}>
+                                <Stack gap={2} className={classes.cardContent}>
                                     <Text
                                         fw={600}
                                         size="sm"
@@ -89,27 +91,41 @@ const AppTemplatePicker: FC<Props> = ({
                                         {template.description}
                                     </Text>
                                 </Stack>
+                                {isSelected && (
+                                    <ThemeIcon
+                                        size={20}
+                                        radius="xl"
+                                        color="blue"
+                                        className={classes.selectedIndicator}
+                                    >
+                                        <IconCheck size={12} stroke={3} />
+                                    </ThemeIcon>
+                                )}
                             </Group>
                         </PolymorphicPaperButton>
                     );
                 })}
             </SimpleGrid>
-            <Stack gap={4} className={classes.heading}>
-                <Text fw={600} size="lg" mt="lg">
-                    Choose a theme
-                </Text>
-                <Text size="sm" c="dimmed">
-                    Your app will follow the design guidelines defined in your
-                    theme.
-                </Text>
-            </Stack>
-            <Group justify="center">
+            <Group
+                justify="space-between"
+                align="center"
+                gap="sm"
+                className={classes.themeRow}
+            >
+                <Stack gap={2} className={classes.themeCopy}>
+                    <Text size="xs" fw={600} c="dimmed" tt="uppercase">
+                        Theme
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                        Optional styling guide for the generated app.
+                    </Text>
+                </Stack>
                 <ThemePicker
                     value={selectedThemeUuid}
                     onChange={onThemeChange}
                 />
             </Group>
-            <Group justify="flex-end" mt="xl">
+            <Group justify="center" mt="xs">
                 <Button
                     size="md"
                     disabled={highlighted === null}
@@ -117,9 +133,12 @@ const AppTemplatePicker: FC<Props> = ({
                         if (highlighted !== null) onSelect(highlighted);
                     }}
                 >
-                    Let's go!
+                    Build a data app
                 </Button>
             </Group>
+            <Text size="xs" c="dimmed" ta="center" className={classes.nextHint}>
+                Next: describe what you want to build.
+            </Text>
         </div>
     );
 };

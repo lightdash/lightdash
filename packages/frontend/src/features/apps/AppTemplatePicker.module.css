@@ -2,14 +2,15 @@
     display: flex;
     flex-direction: column;
     align-items: stretch;
+    justify-content: center;
     gap: var(--mantine-spacing-md);
     padding: var(--mantine-spacing-xl);
-    /* Anchor toward the top instead of vertically centering — keeps the
-     * "Build a data app" headline above the fold and gives the picker
-     * areas more breathing room than the input bar below. */
-    margin: var(--mantine-spacing-xl) auto auto;
+    margin: auto;
     max-width: 560px;
+    min-height: 100%;
     width: 100%;
+    box-sizing: border-box;
+    container-type: inline-size;
 }
 
 .heading {
@@ -17,12 +18,20 @@
     margin-bottom: var(--mantine-spacing-xs);
 }
 
+.templateGrid {
+    width: 100%;
+}
+
 .card {
+    position: relative;
     padding: var(--mantine-spacing-md);
+    padding-right: calc(var(--mantine-spacing-md) + 24px);
     border: 1px solid var(--mantine-color-default-border);
     transition:
         border-color 120ms ease,
-        background-color 120ms ease;
+        background-color 120ms ease,
+        box-shadow 120ms ease,
+        transform 120ms ease;
     text-align: left;
     font: inherit;
     color: inherit;
@@ -38,16 +47,39 @@
             background-color: var(--mantine-color-ldDark-4);
         }
     }
+
+    &:focus-visible {
+        outline: none;
+
+        @mixin light {
+            border-color: var(--mantine-color-blue-6);
+            box-shadow: 0 0 0 3px var(--mantine-color-blue-1);
+        }
+        @mixin dark {
+            border-color: var(--mantine-color-blue-5);
+            box-shadow: 0 0 0 3px alpha(var(--mantine-color-blue-9), 0.35);
+        }
+    }
+
+    &:active {
+        transform: translateY(1px);
+    }
 }
 
 .cardSelected {
-    border-color: var(--mantine-color-blue-5);
+    border-color: var(--mantine-color-blue-6);
 
     @mixin light {
-        background-color: var(--mantine-color-ldGray-1);
+        background-color: var(--mantine-color-blue-0);
+        box-shadow:
+            0 0 0 1px var(--mantine-color-blue-6),
+            0 10px 26px alpha(var(--mantine-color-blue-6), 0.12);
     }
     @mixin dark {
-        background-color: var(--mantine-color-ldDark-4);
+        background-color: alpha(var(--mantine-color-blue-9), 0.18);
+        box-shadow:
+            0 0 0 1px var(--mantine-color-blue-5),
+            0 10px 26px alpha(var(--mantine-color-blue-9), 0.28);
     }
 }
 
@@ -55,6 +87,58 @@
     flex-shrink: 0;
 }
 
+.cardContent {
+    min-width: 0;
+}
+
+.card[data-selected='true'] .cardIcon {
+    @mixin light {
+        background-color: var(--mantine-color-blue-1);
+        color: var(--mantine-color-blue-7);
+    }
+    @mixin dark {
+        background-color: alpha(var(--mantine-color-blue-8), 0.4);
+        color: var(--mantine-color-blue-3);
+    }
+}
+
 .cardTitle {
     line-height: 1.2;
+}
+
+.selectedIndicator {
+    position: absolute;
+    top: var(--mantine-spacing-sm);
+    right: var(--mantine-spacing-sm);
+}
+
+.themeRow {
+    border-top: 1px solid;
+    padding-top: var(--mantine-spacing-md);
+
+    @mixin light {
+        border-color: var(--mantine-color-ldGray-2);
+    }
+    @mixin dark {
+        border-color: var(--mantine-color-ldDark-4);
+    }
+}
+
+.themeCopy {
+    min-width: 0;
+}
+
+.nextHint {
+    margin-top: calc(var(--mantine-spacing-xs) * -1);
+}
+
+@container (max-width: 339px) {
+    .themeRow {
+        justify-content: center;
+    }
+
+    .themeCopy {
+        text-align: center;
+        width: 100%;
+    }
 }
