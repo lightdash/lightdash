@@ -206,6 +206,15 @@ export const lightdashConfigMock: LightdashConfig = {
     license: {
         licenseKey: null,
     },
+    roadmap: {
+        enabled: false,
+        syncCron: '17 * * * *',
+        linear: {
+            apiKey: null,
+            apiUrl: 'https://api.linear.app/graphql',
+            featureRequestLabel: null,
+        },
+    },
     groups: {
         enabled: false,
     },

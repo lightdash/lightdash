@@ -166,6 +166,7 @@ interface ServiceManifest {
     instanceConfigurationService: unknown;
     managedAgentService: unknown;
     mcpService: unknown;
+    roadmapService: unknown;
     rolesService: RolesService;
     slackService: SlackService;
     changesetService: ChangesetService;
@@ -1357,6 +1358,10 @@ export class ServiceRepository
 
     public getAiService<AiServiceImplT>(): AiServiceImplT {
         return this.getService('aiService');
+    }
+
+    public getRoadmapService<RoadmapServiceImplT>(): RoadmapServiceImplT {
+        return this.getService('roadmapService');
     }
 
     public getAiAgentService<AiAgentServiceImplT>(): AiAgentServiceImplT {

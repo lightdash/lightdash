@@ -23,6 +23,7 @@ import { ProjectService } from '../services/ProjectService/ProjectService';
 import { RolesService } from '../services/RolesService/RolesService';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import LicenseClient from './clients/License/LicenseClient';
+import { LinearClient } from './clients/Linear/LinearClient';
 import { ManagedAgentClient } from './clients/ManagedAgentClient';
 import OpenAi from './clients/OpenAi';
 import { CommercialSlackClient } from './clients/Slack/SlackClient';
@@ -40,6 +41,7 @@ import { ExternalConnectionModel } from './models/ExternalConnectionModel';
 import { ManagedAgentModel } from './models/ManagedAgentModel';
 import { ProjectCiStatusModel } from './models/ProjectCiStatusModel';
 import { ProjectContextModel } from './models/ProjectContextModel';
+import { RoadmapModel } from './models/RoadmapModel';
 import { ServiceAccountModel } from './models/ServiceAccountModel';
 import { enhanceExploresForPreAggregates } from './preAggregates/enhanceExploresForPreAggregates';
 import { preAggregatePostProcessor } from './preAggregates/postProcessor';
@@ -69,6 +71,7 @@ import { McpService } from './services/McpService/McpService';
 import { OrganizationWarehouseCredentialsService } from './services/OrganizationWarehouseCredentialsService';
 import { PreviewDeploySetupService } from './services/PreviewDeploySetupService/PreviewDeploySetupService';
 import { ProjectContextService } from './services/ProjectContextService/ProjectContextService';
+import { RoadmapService } from './services/RoadmapService/RoadmapService';
 import { ScimService } from './services/ScimService/ScimService';
 import { ServiceAccountService } from './services/ServiceAccountService/ServiceAccountService';
 import { CommercialSlackService } from './services/SlackService/SlackService';
@@ -192,6 +195,21 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     externalConnectionModel:
                         models.getExternalConnectionModel(),
                 }),
+            roadmapService: ({ context, models }) => {
+                const { roadmap } = context.lightdashConfig;
+                return new RoadmapService({
+                    lightdashConfig: context.lightdashConfig,
+                    roadmapModel: models.getRoadmapModel<RoadmapModel>(),
+                    linearClient: roadmap.linear.apiKey
+                        ? new LinearClient({
+                              apiKey: roadmap.linear.apiKey,
+                              apiUrl: roadmap.linear.apiUrl,
+                              featureRequestLabel:
+                                  roadmap.linear.featureRequestLabel,
+                          })
+                        : null,
+                });
+            },
             embedService: ({ repository, context, models }) =>
                 new EmbedService({
                     analytics: context.lightdashAnalytics,
@@ -752,6 +770,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             mcpContextModel: ({ database }) => new McpContextModel(database),
             dashboardSummaryModel: ({ database }) =>
                 new DashboardSummaryModel({ database }),
+            roadmapModel: ({ database }) => new RoadmapModel({ database }),
             slackAuthenticationModel: ({ database }) =>
                 new CommercialSlackAuthenticationModel({ database }),
             serviceAccountModel: ({ database }) =>
@@ -828,6 +847,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     context.serviceRepository.getAiAgentAdminService<AiAgentAdminService>(),
                 projectContextService:
                     context.serviceRepository.getProjectContextService<ProjectContextService>(),
+                roadmapService:
+                    context.serviceRepository.getRoadmapService<RoadmapService>(),
             }),
         clientProviders: {
             schedulerClient: ({ context, models }) =>

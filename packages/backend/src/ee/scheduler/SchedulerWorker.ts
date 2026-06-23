@@ -21,8 +21,10 @@ import { AppGenerateService } from '../services/AppGenerateService/AppGenerateSe
 import type { EmbedService } from '../services/EmbedService/EmbedService';
 import { ManagedAgentService } from '../services/ManagedAgentService/ManagedAgentService';
 import { ProjectContextService } from '../services/ProjectContextService/ProjectContextService';
+import { RoadmapService } from '../services/RoadmapService/RoadmapService';
 
 const AI_AGENT_EVAL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+const ROADMAP_SYNC_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 const AI_AGENT_REVIEW_REMEDIATION_RUN_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 const AI_AGENT_REVIEW_CLASSIFIER_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
 const AI_AGENT_REVIEW_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
@@ -36,6 +38,7 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     managedAgentService: ManagedAgentService;
     appGenerateService: AppGenerateService;
     projectContextService: ProjectContextService;
+    roadmapService: RoadmapService;
 };
 
 export class CommercialSchedulerWorker extends SchedulerWorker {
@@ -53,6 +56,8 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
     protected readonly projectContextService: ProjectContextService;
 
+    protected readonly roadmapService: RoadmapService;
+
     constructor(args: CommercialSchedulerWorkerArguments) {
         super(args);
         this.aiAgentService = args.aiAgentService;
@@ -63,6 +68,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         this.managedAgentService = args.managedAgentService;
         this.appGenerateService = args.appGenerateService;
         this.projectContextService = args.projectContextService;
+        this.roadmapService = args.roadmapService;
     }
 
     protected getCronItems() {
@@ -73,6 +79,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 pattern: '*/2 * * * *', // Every 2 minutes
                 options: {
                     backfillPeriod: 5 * 60 * 1000, // 5 min
+                    maxAttempts: 1,
+                },
+            },
+            {
+                task: EE_SCHEDULER_TASKS.SYNC_ROADMAP_MIRROR,
+                pattern: this.lightdashConfig.roadmap.syncCron,
+                options: {
+                    backfillPeriod: 60 * 60 * 1000, // 1 hour
                     maxAttempts: 1,
                 },
             },
@@ -386,6 +400,35 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
             },
             [EE_SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: async () => {
                 await this.appGenerateService.sweepStaleLocks();
+            },
+            [EE_SCHEDULER_TASKS.SYNC_ROADMAP_MIRROR]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        EE_SCHEDULER_TASKS.SYNC_ROADMAP_MIRROR,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.roadmapService.syncMirror();
+                        },
+                    ),
+                    helpers.job,
+                    ROADMAP_SYNC_TIMEOUT_MS,
+                    async (job, e) => {
+                        await this.schedulerService.logSchedulerJob({
+                            task: EE_SCHEDULER_TASKS.SYNC_ROADMAP_MIRROR,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                error: getErrorMessage(e),
+                            },
+                        });
+                    },
+                );
             },
             [SCHEDULER_TASKS.INGEST_PROJECT_CONTEXT]: async (
                 payload,

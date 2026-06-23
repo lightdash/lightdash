@@ -243,6 +243,7 @@ const getTagsForTask: {
         'project.uuid': payload.projectUuid,
     }),
     [SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: () => ({}),
+    [SCHEDULER_TASKS.SYNC_ROADMAP_MIRROR]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_EXPIRED_PREVIEWS]: () => ({}),
     [SCHEDULER_TASKS.INGEST_PROJECT_CONTEXT]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
