@@ -3291,12 +3291,9 @@ export class ProjectService extends BaseService {
     }
 
     /**
-     * Re-resolve a GitHub project's installation_id from the org-level
-     * installation (the single source of truth) before building the adapter, so
-     * a stale id snapshotted into the project's dbt_connection (e.g. after the
-     * org reinstalls the GitHub App) does not break compile/refresh with a 404.
-     * The transformation lives in applyCurrentGithubInstallationId; this only
-     * adds the IO of looking up the current installation id.
+     * Looks up the org's current GitHub installation_id and applies it to the
+     * connection (see applyCurrentGithubInstallationId) before building the
+     * adapter.
      */
     private async resolveDbtConnectionInstallationId(
         dbtConnection: DbtProjectConfig,
