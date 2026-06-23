@@ -1,17 +1,11 @@
 import { type ExternalConnection } from '@lightdash/common';
-import {
-    Button,
-    Group,
-    LoadingOverlay,
-    Stack,
-    Text,
-    Title,
-} from '@mantine-8/core';
+import { Button, Group, Skeleton, Stack, Text, Title } from '@mantine-8/core';
 import { IconPlug, IconPlus } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
 import { useExternalConnections } from '../../../features/externalConnections/hooks/useExternalConnections';
 import { EmptyState } from '../../common/EmptyState';
 import MantineIcon from '../../common/MantineIcon';
+import { SettingsCard } from '../../common/Settings/SettingsCard';
 import { ConnectionDrawer } from './ConnectionDrawer';
 import { ConnectionsTable } from './ConnectionsTable';
 import { CreateConnectionModal } from './CreateConnectionModal';
@@ -35,57 +29,62 @@ const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
     const [drawerConnection, setDrawerConnection] =
         useState<ExternalConnection | null>(null);
 
-    if (isLoading) {
-        return <LoadingOverlay visible={isLoading} />;
-    }
-
     return (
         <>
-            <Stack mb="lg">
-                {connections && connections.length > 0 ? (
-                    <>
+            <Stack gap="sm">
+                <Group gap="xxs">
+                    <Title order={5}>Data app connections</Title>
+                </Group>
+
+                <SettingsCard mb="lg">
+                    <Stack gap="md">
                         <Group justify="space-between">
-                            <Stack gap="xs">
-                                <Title order={5}>Data app connections</Title>
-                                <Text c="ldGray.6" fz="xs">
-                                    External HTTP connections that data apps in
-                                    this project can call. Each app must be
-                                    linked to a connection under an alias.
-                                </Text>
-                            </Stack>
+                            <Text c="ldGray.6" size="sm">
+                                External HTTP connections that data apps in this
+                                project can call. Each app must be linked to a
+                                connection under an alias.
+                            </Text>
                             <Button
                                 size="xs"
+                                variant="default"
                                 leftSection={<MantineIcon icon={IconPlus} />}
                                 onClick={() => setIsCreating(true)}
+                                style={{ alignSelf: 'flex-end' }}
                             >
                                 Add connection
                             </Button>
                         </Group>
-                        <ConnectionsTable
-                            connections={connections}
-                            setConnectionToEdit={setConnectionToEdit}
-                            setConnectionToDelete={setConnectionToDelete}
-                            onSelectConnection={setDrawerConnection}
-                        />
-                    </>
-                ) : (
-                    <EmptyState
-                        icon={
-                            <MantineIcon
-                                icon={IconPlug}
-                                color="ldGray.6"
-                                stroke={1}
-                                size="5xl"
+
+                        {isLoading ? (
+                            <Stack gap="xs">
+                                <Skeleton height={48} />
+                                <Skeleton height={48} />
+                            </Stack>
+                        ) : connections && connections.length > 0 ? (
+                            <ConnectionsTable
+                                connections={connections}
+                                setConnectionToEdit={setConnectionToEdit}
+                                setConnectionToDelete={setConnectionToDelete}
+                                onSelectConnection={setDrawerConnection}
                             />
-                        }
-                        title="No connections"
-                        description="You haven't created any data app connections yet!"
-                    >
-                        <Button onClick={() => setIsCreating(true)}>
-                            Add connection
-                        </Button>
-                    </EmptyState>
-                )}
+                        ) : (
+                            <EmptyState
+                                icon={
+                                    <MantineIcon
+                                        icon={IconPlug}
+                                        color="ldGray.6"
+                                        stroke={1}
+                                        size="5xl"
+                                    />
+                                }
+                                title="No connections"
+                                description="You haven't created any data app connections yet!"
+                                pt="xl"
+                                pb="xl"
+                            />
+                        )}
+                    </Stack>
+                </SettingsCard>
             </Stack>
 
             <ConnectionDrawer

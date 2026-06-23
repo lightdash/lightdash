@@ -45,7 +45,7 @@ type PrivateWithLink = {
         externalConnections:
             | Array<{ externalConnectionUuid: string; alias: string }>
             | undefined,
-    ) => Promise<void>;
+    ) => Promise<unknown>;
 };
 
 function buildService(flagEnabled = true) {
@@ -352,6 +352,7 @@ describe('AppGenerateService.linkExternalConnections', () => {
     const sameProjectConn = {
         projectUuid: 'proj-1',
         organizationUuid: 'org-1',
+        name: 'Weather API',
     };
     const ref = [{ externalConnectionUuid: 'c1', alias: 'weather' }];
     const user = { userUuid: 'u1', organizationUuid: 'org-1' };

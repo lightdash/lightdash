@@ -1,6 +1,11 @@
 import { assertUnreachable, type ExternalConnection } from '@lightdash/common';
-import { ActionIcon, Group, Paper, Table, Text } from '@mantine-8/core';
-import { IconEdit, IconFlask, IconTrash } from '@tabler/icons-react';
+import { ActionIcon, Menu, Paper, Table, Text } from '@mantine-8/core';
+import {
+    IconDots,
+    IconFlask,
+    IconPencil,
+    IconTrash,
+} from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import MantineIcon from '../../common/MantineIcon';
@@ -42,26 +47,57 @@ const ConnectionRow: FC<
 }) => (
     <Table.Tr>
         <Table.Td>
-            <Text fw={500}>{connection.name}</Text>
+            <Text fw={600} fz="sm">
+                {connection.name}
+            </Text>
         </Table.Td>
-        <Table.Td>{connection.origin}</Table.Td>
-        <Table.Td>{authLabel(connection.type)}</Table.Td>
-        <Table.Td>{connection.allowedMethods.join(', ')}</Table.Td>
         <Table.Td>
-            <Group justify="flex-end">
-                <ActionIcon
-                    title="Test / samples"
-                    onClick={() => onSelectConnection(connection)}
-                >
-                    <MantineIcon icon={IconFlask} />
-                </ActionIcon>
-                <ActionIcon onClick={() => setConnectionToEdit(connection)}>
-                    <MantineIcon icon={IconEdit} />
-                </ActionIcon>
-                <ActionIcon onClick={() => setConnectionToDelete(connection)}>
-                    <MantineIcon icon={IconTrash} />
-                </ActionIcon>
-            </Group>
+            <Text fz="sm">{connection.origin}</Text>
+        </Table.Td>
+        <Table.Td>
+            <Text fz="sm" c="ldGray.6">
+                {authLabel(connection.type)}
+            </Text>
+        </Table.Td>
+        <Table.Td>
+            <Text fz="sm" c="ldGray.6">
+                {connection.allowedMethods.join(', ')}
+            </Text>
+        </Table.Td>
+        <Table.Td w="1%">
+            <Menu position="bottom-end" withinPortal>
+                <Menu.Target>
+                    <ActionIcon
+                        variant="transparent"
+                        size="sm"
+                        color="ldGray.6"
+                        aria-label={`Actions for ${connection.name}`}
+                    >
+                        <MantineIcon icon={IconDots} />
+                    </ActionIcon>
+                </Menu.Target>
+                <Menu.Dropdown>
+                    <Menu.Item
+                        leftSection={<MantineIcon icon={IconFlask} />}
+                        onClick={() => onSelectConnection(connection)}
+                    >
+                        Test and sample
+                    </Menu.Item>
+                    <Menu.Item
+                        leftSection={<MantineIcon icon={IconPencil} />}
+                        onClick={() => setConnectionToEdit(connection)}
+                    >
+                        Edit
+                    </Menu.Item>
+                    <Menu.Item
+                        color="red"
+                        leftSection={<MantineIcon icon={IconTrash} />}
+                        onClick={() => setConnectionToDelete(connection)}
+                    >
+                        Delete
+                    </Menu.Item>
+                </Menu.Dropdown>
+            </Menu>
         </Table.Td>
     </Table.Tr>
 );
@@ -81,7 +117,7 @@ export const ConnectionsTable: FC<Props> = ({
             >
                 <Table.Thead>
                     <Table.Tr>
-                        <Table.Th>Name</Table.Th>
+                        <Table.Th w={300}>Name</Table.Th>
                         <Table.Th>Origin</Table.Th>
                         <Table.Th>Auth</Table.Th>
                         <Table.Th>Methods</Table.Th>

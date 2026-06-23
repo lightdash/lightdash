@@ -7,12 +7,19 @@ export type ChatChart = {
     chartKind?: ChartKind;
 };
 
+export type ChatConnection = {
+    externalConnectionUuid: string;
+    name: string;
+    alias: string;
+};
+
 export type ChatMessage = {
     role: 'user' | 'assistant';
     content: string;
     imagePreviewUrls: string[];
     imageResourceIds: string[];
     charts: ChatChart[];
+    externalConnections: ChatConnection[];
     dashboardName: string | null;
     clarifications: AppClarification[];
     appUuid: string | null;
