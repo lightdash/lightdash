@@ -380,7 +380,7 @@ describe('interpretAgentEvent', () => {
         ).toEqual({ type: 'assistant', text: null, toolCalls: [] });
     });
 
-    it('reads the cost and timing from a result event', () => {
+    it('reads the cost, timing, and token usage from a result event', () => {
         expect(
             interpretAgentEvent({
                 type: 'result',
@@ -388,6 +388,12 @@ describe('interpretAgentEvent', () => {
                 duration_ms: 90000,
                 duration_api_ms: 30000,
                 num_turns: 7,
+                usage: {
+                    input_tokens: 12,
+                    output_tokens: 345,
+                    cache_read_input_tokens: 6789,
+                    cache_creation_input_tokens: 100,
+                },
             }),
         ).toEqual({
             type: 'result',
@@ -395,10 +401,14 @@ describe('interpretAgentEvent', () => {
             durationMs: 90000,
             durationApiMs: 30000,
             numTurns: 7,
+            inputTokens: 12,
+            outputTokens: 345,
+            cacheReadInputTokens: 6789,
+            cacheCreationInputTokens: 100,
         });
     });
 
-    it('defaults missing result timing fields to null', () => {
+    it('defaults missing result timing and token fields to null', () => {
         expect(
             interpretAgentEvent({ type: 'result', total_cost_usd: 0.42 }),
         ).toEqual({
@@ -407,6 +417,10 @@ describe('interpretAgentEvent', () => {
             durationMs: null,
             durationApiMs: null,
             numTurns: null,
+            inputTokens: null,
+            outputTokens: null,
+            cacheReadInputTokens: null,
+            cacheCreationInputTokens: null,
         });
     });
 
