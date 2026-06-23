@@ -34,14 +34,14 @@ const AppTemplatePicker: FC<Props> = ({
     // because clicking a card no longer advances the wizard — the user
     // confirms with the "Let's go!" button after also picking a theme.
     const [highlighted, setHighlighted] = useState<DataAppTemplate | null>(
-        null,
+        'dashboard',
     );
 
     return (
         <div className={classes.wrapper}>
-            <Stack gap={4} className={classes.heading}>
-                <Text fw={600} size="lg">
-                    Build a data app
+            <Stack gap={6} className={classes.heading}>
+                <Text fw={700} fz={28} className={classes.headingTitle}>
+                    Build a Data App
                 </Text>
                 <Text size="sm" c="dimmed">
                     Pick a starting point. You can refine the prompt next.
@@ -49,8 +49,8 @@ const AppTemplatePicker: FC<Props> = ({
             </Stack>
             <SimpleGrid
                 type="container"
-                cols={{ base: 1, '340px': 2 }}
-                spacing="sm"
+                cols={{ base: 1, '420px': 2 }}
+                spacing="md"
                 className={classes.templateGrid}
             >
                 {TEMPLATES.map((template) => {
@@ -133,7 +133,7 @@ const AppTemplatePicker: FC<Props> = ({
                         if (highlighted !== null) onSelect(highlighted);
                     }}
                 >
-                    Build a data app
+                    Let's go!
                 </Button>
             </Group>
             <Text size="xs" c="dimmed" ta="center" className={classes.nextHint}>

@@ -1,21 +1,71 @@
 .wrapper {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: stretch;
     justify-content: center;
-    gap: var(--mantine-spacing-md);
-    padding: var(--mantine-spacing-xl);
-    margin: auto;
-    max-width: 560px;
-    min-height: 100%;
+    gap: var(--mantine-spacing-lg);
+    padding: 40px;
+    /* Extra top room for the window-chrome dots. */
+    padding-top: 48px;
+    max-width: 760px;
     width: 100%;
+    /* Shared height + transition name with the compose card so picking a
+       template morphs the card smoothly (no height jump). */
+    height: min(600px, calc(100vh - 140px));
+    view-transition-name: app-composer;
     box-sizing: border-box;
     container-type: inline-size;
+    border-radius: var(--mantine-radius-lg);
+    border: 1px solid;
+
+    @mixin light {
+        background-color: var(--mantine-color-white);
+        border-color: var(--mantine-color-ldGray-2);
+        box-shadow:
+            0 1px 2px alpha(var(--mantine-color-black), 0.04),
+            0 12px 32px -12px alpha(var(--mantine-color-black), 0.12);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-dark-7);
+        border-color: var(--mantine-color-dark-4);
+        box-shadow:
+            0 1px 2px alpha(var(--mantine-color-black), 0.2),
+            0 16px 40px -12px alpha(var(--mantine-color-black), 0.5);
+    }
+}
+
+/* Three traffic-light dots, echoing the data-app (window) icon. */
+.wrapper::before {
+    content: '';
+    position: absolute;
+    top: 18px;
+    left: 22px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-3);
+        box-shadow:
+            14px 0 0 var(--mantine-color-ldGray-3),
+            28px 0 0 var(--mantine-color-ldGray-3);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-dark-3);
+        box-shadow:
+            14px 0 0 var(--mantine-color-dark-3),
+            28px 0 0 var(--mantine-color-dark-3);
+    }
 }
 
 .heading {
     text-align: center;
     margin-bottom: var(--mantine-spacing-xs);
+}
+
+.headingTitle {
+    letter-spacing: -0.02em;
 }
 
 .templateGrid {
@@ -24,8 +74,8 @@
 
 .card {
     position: relative;
-    padding: var(--mantine-spacing-md);
-    padding-right: calc(var(--mantine-spacing-md) + 24px);
+    padding: var(--mantine-spacing-lg);
+    padding-right: calc(var(--mantine-spacing-lg) + 20px);
     border: 1px solid var(--mantine-color-default-border);
     transition:
         border-color 120ms ease,
@@ -37,14 +87,22 @@
     color: inherit;
     cursor: pointer;
 
-    &:hover {
-        border-color: var(--mantine-color-blue-5);
+    @mixin light {
+        background-color: var(--mantine-color-white);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-dark-6);
+    }
 
+    &:hover {
         @mixin light {
-            background-color: var(--mantine-color-ldGray-1);
+            border-color: var(--mantine-color-ldGray-4);
+            background-color: var(--mantine-color-ldGray-0);
+            box-shadow: 0 2px 8px -2px alpha(var(--mantine-color-black), 0.08);
         }
         @mixin dark {
-            background-color: var(--mantine-color-ldDark-4);
+            border-color: var(--mantine-color-dark-3);
+            background-color: var(--mantine-color-dark-5);
         }
     }
 
@@ -81,6 +139,17 @@
             0 0 0 1px var(--mantine-color-blue-5),
             0 10px 26px alpha(var(--mantine-color-blue-9), 0.28);
     }
+
+    &:hover {
+        @mixin light {
+            background-color: var(--mantine-color-blue-0);
+            border-color: var(--mantine-color-blue-6);
+        }
+        @mixin dark {
+            background-color: alpha(var(--mantine-color-blue-9), 0.18);
+            border-color: var(--mantine-color-blue-5);
+        }
+    }
 }
 
 .cardIcon {
@@ -114,13 +183,13 @@
 
 .themeRow {
     border-top: 1px solid;
-    padding-top: var(--mantine-spacing-md);
+    padding-top: var(--mantine-spacing-lg);
 
     @mixin light {
         border-color: var(--mantine-color-ldGray-2);
     }
     @mixin dark {
-        border-color: var(--mantine-color-ldDark-4);
+        border-color: var(--mantine-color-dark-4);
     }
 }
 
@@ -132,9 +201,10 @@
     margin-top: calc(var(--mantine-spacing-xs) * -1);
 }
 
-@container (max-width: 339px) {
+@container (max-width: 439px) {
     .themeRow {
-        justify-content: center;
+        flex-direction: column;
+        align-items: stretch;
     }
 
     .themeCopy {

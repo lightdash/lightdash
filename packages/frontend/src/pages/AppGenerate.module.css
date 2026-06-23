@@ -20,10 +20,65 @@
     min-width: 300px;
 }
 
+/* Template-pick stage: the picker owns the full viewport, centered both
+   axes. No split panel / empty preview pane until a template is chosen. */
+.pickerLayout {
+    height: calc(100vh - 50px);
+    overflow-y: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--mantine-spacing-xl);
+
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-0);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-dark-8);
+    }
+}
+
+:global(body:has(#preview-banner)) .pickerLayout,
+:global(body:has(#impersonation-banner)) .pickerLayout {
+    height: calc(100vh - 50px - 35px);
+}
+
+/* Compose stage: the chat panel becomes a centered card on the muted
+   backdrop, then morphs into the split sidebar (see .chatPanel's
+   view-transition-name) on first submit. */
+.composeLayout {
+    height: calc(100vh - 50px);
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    padding: var(--mantine-spacing-xl);
+
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-0);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-dark-8);
+    }
+}
+
+/* The compose Panel fills the group; center the (height-capped) card
+   inside it so it doesn't stretch to the full viewport height. */
+.chatPanelOuterCompose {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+:global(body:has(#preview-banner)) .composeLayout,
+:global(body:has(#impersonation-banner)) .composeLayout {
+    height: calc(100vh - 50px - 35px);
+}
+
 .chatPanel {
     display: flex;
     flex-direction: column;
     height: 100%;
+    view-transition-name: app-composer;
 
     @mixin light {
         background-color: var(--mantine-color-white);
@@ -31,6 +86,66 @@
     @mixin dark {
         background-color: var(--mantine-color-dark-7);
     }
+}
+
+/* Cute springy expand when the centered composer morphs into the split
+   sidebar (and the preview panel slides in). */
+:global(::view-transition-group(app-composer)) {
+    animation-duration: 460ms;
+    animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+:global(::view-transition-old(app-composer)),
+:global(::view-transition-new(app-composer)) {
+    animation-duration: 460ms;
+    animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.composeHeading {
+    text-align: center;
+    align-items: center;
+    padding: var(--mantine-spacing-md) var(--mantine-spacing-xl) 0;
+}
+
+.composeTitle {
+    letter-spacing: -0.02em;
+}
+
+.chatPanelCompose {
+    position: relative;
+    max-width: 760px;
+    width: 100%;
+    margin: 0 auto;
+    /* Shared height with the template picker so the View Transition between
+       them only morphs width/position — no jarring height jump. */
+    height: min(600px, calc(100vh - 140px));
+    border-radius: var(--mantine-radius-lg);
+    border: 1px solid;
+    overflow: hidden;
+    /* Reserve room for the window-chrome dots / back button row. */
+    padding-top: 4px;
+
+    @mixin light {
+        border-color: var(--mantine-color-ldGray-2);
+        box-shadow:
+            0 1px 2px alpha(var(--mantine-color-black), 0.04),
+            0 12px 32px -12px alpha(var(--mantine-color-black), 0.12);
+    }
+    @mixin dark {
+        border-color: var(--mantine-color-dark-4);
+        box-shadow:
+            0 1px 2px alpha(var(--mantine-color-black), 0.2),
+            0 16px 40px -12px alpha(var(--mantine-color-black), 0.5);
+    }
+}
+
+/* Top row of the compose card — the back button sits where the picker's
+   window-chrome dots are, replacing them on this stage. */
+.composeBackBar {
+    display: flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 8px 12px 0 12px;
 }
 
 .chatMessages {

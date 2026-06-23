@@ -53,7 +53,7 @@ export const ThemePicker: FC<Props> = ({
         <Button
             variant="default"
             size="xs"
-            radius="sm"
+            radius="md"
             color="gray"
             miw={200}
             h="auto"

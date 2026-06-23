@@ -1,6 +1,7 @@
 .dropdown {
     min-width: 260px;
     max-width: 360px;
+    font-family: var(--mantine-font-family);
 }
 
 /* Mantine Button forces white-space:nowrap on its label, which defeats
@@ -8,6 +9,7 @@
  * description can break onto up to 3 lines. */
 .triggerWrap {
     white-space: normal;
+    font-family: var(--mantine-font-family);
 }
 
 .option {
@@ -16,19 +18,25 @@
     width: 100%;
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
     text-align: left;
+    font-family: var(--mantine-font-family);
     transition: background-color 80ms ease;
 }
 
 .option:hover {
-    background-color: var(--mantine-color-gray-1);
+    background-color: var(--mantine-color-default-hover);
 }
 
 .option[aria-pressed='true'] {
-    background-color: var(--mantine-color-gray-0);
+    @mixin light {
+        background-color: var(--mantine-color-gray-0);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-dark-6);
+    }
 }
 
 .footer {
-    border-top: 1px solid var(--mantine-color-gray-2);
+    border-top: 1px solid var(--mantine-color-default-border);
 }
 
 .manageLink {

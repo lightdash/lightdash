@@ -26,7 +26,6 @@ import {
     Stack,
     Text,
     Textarea,
-    ThemeIcon,
     Title,
     Tooltip,
 } from '@mantine-8/core';
@@ -34,6 +33,7 @@ import {
     IconAppsOff,
     IconAppWindow,
     IconCheck,
+    IconArrowLeft,
     IconArrowUp,
     IconCopy,
     IconDatabase,
@@ -49,7 +49,6 @@ import {
     IconPlayerStop,
     IconRefresh,
     IconRestore,
-    IconSparkles,
     IconTrash,
     IconPlugConnected,
     IconX,
@@ -65,6 +64,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { flushSync } from 'react-dom';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import {
     Link,
@@ -154,6 +154,22 @@ function parseElementRefLabel(label: string): ElementRef | null {
         );
     if (!m) return null;
     return { tag: m[1] ?? '', text: m[2] ?? '', loc: m[3] ?? '' };
+}
+
+// Run a layout-changing state update inside a native View Transition so the
+// browser cross-fades/morphs the before/after frames (used for the
+// centered-composer → split-sidebar handoff). flushSync forces React to
+// commit synchronously so the transition captures the new layout. Falls back
+// to a plain update where the API is unavailable.
+function withViewTransition(update: () => void): void {
+    const doc = document as Document & {
+        startViewTransition?: (cb: () => void) => unknown;
+    };
+    if (typeof doc.startViewTransition === 'function') {
+        doc.startViewTransition(() => flushSync(update));
+    } else {
+        update();
+    }
 }
 
 // ChatChart and ChatMessage are imported from `features/apps/utils/mergeChatMessages`
@@ -870,6 +886,25 @@ const AppGenerate: FC = () => {
         !isLoading &&
         wizardStage !== 'confirm';
 
+    // At the template-pick stage the picker takes over the whole viewport
+    // (centered, no split) — there's no app to preview yet, so the empty
+    // preview pane would just be dead space.
+    const showTemplatePicker =
+        isNewApp &&
+        wizardStage === 'pick' &&
+        messages.length === 0 &&
+        !isLoading;
+
+    // After a template is picked but before the first prompt is submitted, the
+    // composer takes over the whole viewport (centered, no split / empty
+    // preview) — mirroring the Ask AI new-thread compose view. On submit the
+    // layout morphs to the split sidebar via a native View Transition.
+    const composeMode =
+        isNewApp &&
+        wizardStage === 'confirm' &&
+        messages.length === 0 &&
+        !isLoading;
+
     // `hasNextPage` reflects the server's "more pages exist" signal, but we
     // accumulate versions across fetches in `versionCacheRef` — so even if the
     // server thinks more exist, we may already have them all. Versions are
@@ -1415,7 +1450,16 @@ const AppGenerate: FC = () => {
         if (!trimmed || isLoading || isSubmittingRef.current) return;
 
         isSubmittingRef.current = true;
-        setIsSubmitting(true);
+        // Morph the centered composer into the split sidebar layout. Only the
+        // first submit of a brand-new app crosses that layout boundary; later
+        // iterations are already in the split view and just re-render in place.
+        if (composeMode) {
+            withViewTransition(() => {
+                setIsSubmitting(true);
+            });
+        } else {
+            setIsSubmitting(true);
+        }
 
         try {
             // Send structured chart refs (uuid + per-chart sample-data opt-in).
@@ -1707,12 +1751,22 @@ const AppGenerate: FC = () => {
         // ask hand-rolled questions per template — the AI clarifier produces
         // those dynamically on submit.
         setSelectedTemplate(template);
-        setWizardStage('confirm');
+        withViewTransition(() => {
+            setWizardStage('confirm');
+        });
         promptEditorRef.current?.clear();
         setIsPromptEmpty(true);
         // Focus the editor so the user can immediately type. The setTimeout
         // gives the editor a tick to mount when the input area first appears.
         setTimeout(() => promptEditorRef.current?.focus(), 0);
+    };
+
+    // Return from the composer to the template picker, collapsing the card back
+    // via the same View Transition used on the way in.
+    const handleBackToTemplates = () => {
+        withViewTransition(() => {
+            setWizardStage('pick');
+        });
     };
 
     const handleCancel = () => {
@@ -1739,17 +1793,72 @@ const AppGenerate: FC = () => {
         );
     };
 
-    return (
-        <Box className={classes.layout}>
-            <PanelGroup direction="horizontal">
+    return showTemplatePicker ? (
+        <Box className={classes.pickerLayout}>
+            <AppTemplatePicker
+                onSelect={handleTemplateSelect}
+                selectedThemeUuid={selectedThemeUuid}
+                onThemeChange={handleThemeChange}
+            />
+        </Box>
+    ) : (
+        <Box className={composeMode ? classes.composeLayout : classes.layout}>
+            <PanelGroup
+                key={composeMode ? 'compose' : 'split'}
+                direction="horizontal"
+            >
                 {/* Chat Panel */}
                 <Panel
-                    defaultSize={30}
-                    minSize={22}
-                    maxSize={50}
-                    className={classes.chatPanelOuter}
+                    defaultSize={composeMode ? 100 : 30}
+                    minSize={composeMode ? 100 : 22}
+                    maxSize={composeMode ? 100 : 50}
+                    className={`${classes.chatPanelOuter}${
+                        composeMode ? ` ${classes.chatPanelOuterCompose}` : ''
+                    }`}
                 >
-                    <Box className={classes.chatPanel}>
+                    <Box
+                        className={`${classes.chatPanel}${
+                            composeMode ? ` ${classes.chatPanelCompose}` : ''
+                        }`}
+                    >
+                        {composeMode && (
+                            <Box className={classes.composeBackBar}>
+                                <Tooltip
+                                    label="Back to templates"
+                                    position="right"
+                                    withArrow
+                                >
+                                    <ActionIcon
+                                        variant="subtle"
+                                        color="gray"
+                                        radius="md"
+                                        onClick={handleBackToTemplates}
+                                        aria-label="Back to templates"
+                                    >
+                                        <MantineIcon
+                                            icon={IconArrowLeft}
+                                            size={18}
+                                        />
+                                    </ActionIcon>
+                                </Tooltip>
+                            </Box>
+                        )}
+                        {composeMode && (
+                            <Stack gap={6} className={classes.composeHeading}>
+                                <Text
+                                    fw={700}
+                                    fz={28}
+                                    className={classes.composeTitle}
+                                >
+                                    Build a Data App
+                                </Text>
+                                <Text size="sm" c="dimmed">
+                                    Describe what you want to build and I'll
+                                    generate a data app connected to your
+                                    project.
+                                </Text>
+                            </Stack>
+                        )}
                         <Box
                             ref={chatMessagesRef}
                             className={classes.chatMessages}
@@ -1777,32 +1886,20 @@ const AppGenerate: FC = () => {
                                 </Group>
                             )}
                             {messages.length === 0 && !isLoading ? (
-                                isNewApp && wizardStage === 'pick' ? (
-                                    <AppTemplatePicker
-                                        onSelect={handleTemplateSelect}
-                                        selectedThemeUuid={selectedThemeUuid}
-                                        onThemeChange={handleThemeChange}
-                                    />
-                                ) : (
-                                    <Box className={classes.emptyChat}>
-                                        <ThemeIcon
-                                            size="xl"
-                                            radius="xl"
-                                            variant="light"
-                                            color="gray"
+                                <Box className={classes.emptyChat}>
+                                    {!composeMode && (
+                                        <Text
+                                            size="sm"
+                                            c="dimmed"
+                                            maw={320}
+                                            ta="center"
                                         >
-                                            <IconSparkles size={24} />
-                                        </ThemeIcon>
-                                        <Text fw={600} size="lg">
-                                            Build a data app
-                                        </Text>
-                                        <Text size="sm" c="dimmed" maw={280}>
                                             Describe what you want to build and
                                             I'll generate a data app connected
                                             to your project.
                                         </Text>
-                                    </Box>
-                                )
+                                    )}
+                                </Box>
                             ) : (
                                 <>
                                     <Box
@@ -2594,377 +2691,395 @@ const AppGenerate: FC = () => {
                     </Box>
                 </Panel>
 
-                <PanelResizeHandle className={classes.resizeHandle} />
+                {!composeMode && (
+                    <PanelResizeHandle className={classes.resizeHandle} />
+                )}
 
                 {/* Preview Panel */}
-                <Panel minSize={40}>
-                    <Box className={classes.previewPanel}>
-                        {activeAppUuid && (
-                            <Box className={classes.previewHeader}>
-                                <Box className={classes.previewHeaderInfo}>
-                                    <Title order={6} fw={600} lineClamp={1}>
-                                        {appName || 'Untitled app'}
-                                    </Title>
-                                    {appDescription && (
-                                        <Text
-                                            size="xs"
-                                            c="dimmed"
-                                            lineClamp={1}
-                                        >
-                                            {appDescription}
-                                        </Text>
-                                    )}
-                                </Box>
-                                <Tooltip
-                                    label="Refresh preview to re-run queries"
-                                    withArrow
-                                    position="bottom"
-                                >
-                                    <ActionIcon
-                                        variant="subtle"
-                                        size="sm"
-                                        color="ldGray.6"
-                                        ml="auto"
-                                        disabled={!previewApp}
-                                        onClick={handleRefreshPreview}
-                                        aria-label="Refresh preview"
+                {!composeMode && (
+                    <Panel minSize={40}>
+                        <Box className={classes.previewPanel}>
+                            {activeAppUuid && (
+                                <Box className={classes.previewHeader}>
+                                    <Box className={classes.previewHeaderInfo}>
+                                        <Title order={6} fw={600} lineClamp={1}>
+                                            {appName || 'Untitled app'}
+                                        </Title>
+                                        {appDescription && (
+                                            <Text
+                                                size="xs"
+                                                c="dimmed"
+                                                lineClamp={1}
+                                            >
+                                                {appDescription}
+                                            </Text>
+                                        )}
+                                    </Box>
+                                    <Tooltip
+                                        label="Refresh preview to re-run queries"
+                                        withArrow
+                                        position="bottom"
                                     >
-                                        <MantineIcon
-                                            icon={IconRefresh}
-                                            size={16}
-                                        />
-                                    </ActionIcon>
-                                </Tooltip>
-                                <Menu
-                                    position="bottom-end"
-                                    shadow="md"
-                                    withinPortal
-                                    withArrow
-                                    arrowPosition="center"
-                                >
-                                    <Menu.Target>
                                         <ActionIcon
                                             variant="subtle"
                                             size="sm"
                                             color="ldGray.6"
-                                            aria-label="App actions"
+                                            ml="auto"
+                                            disabled={!previewApp}
+                                            onClick={handleRefreshPreview}
+                                            aria-label="Refresh preview"
                                         >
                                             <MantineIcon
-                                                icon={IconDots}
+                                                icon={IconRefresh}
                                                 size={16}
                                             />
                                         </ActionIcon>
-                                    </Menu.Target>
-                                    <Menu.Dropdown>
-                                        {previewApp && (
-                                            <Menu.Item
-                                                component={Link}
-                                                to={`/projects/${projectUuid}/apps/${previewApp.appUuid}/preview`}
-                                                target="_blank"
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconExternalLink}
-                                                        size={14}
-                                                    />
-                                                }
+                                    </Tooltip>
+                                    <Menu
+                                        position="bottom-end"
+                                        shadow="md"
+                                        withinPortal
+                                        withArrow
+                                        arrowPosition="center"
+                                    >
+                                        <Menu.Target>
+                                            <ActionIcon
+                                                variant="subtle"
+                                                size="sm"
+                                                color="ldGray.6"
+                                                aria-label="App actions"
                                             >
-                                                Preview latest
-                                            </Menu.Item>
-                                        )}
-                                        <Menu.Item
-                                            leftSection={
                                                 <MantineIcon
-                                                    icon={IconDatabase}
-                                                    size={14}
+                                                    icon={IconDots}
+                                                    size={16}
                                                 />
-                                            }
-                                            onClick={() =>
-                                                setQueriesPanelHidden(false)
-                                            }
-                                        >
-                                            View queries
-                                        </Menu.Item>
-                                        <Menu.Divider />
-                                        <Menu.Item
-                                            leftSection={
-                                                <MantineIcon
-                                                    icon={IconCopy}
-                                                    size={14}
-                                                />
-                                            }
-                                            disabled={
-                                                isDuplicating || !activeAppUuid
-                                            }
-                                            onClick={() => {
-                                                if (!activeAppUuid) return;
-                                                duplicateMutate(
-                                                    {
-                                                        projectUuid,
-                                                        appUuid: activeAppUuid,
-                                                    },
-                                                    {
-                                                        onSuccess: ({
-                                                            appUuid: newAppUuid,
-                                                        }) => {
-                                                            void navigate(
-                                                                `/projects/${projectUuid}/apps/${newAppUuid}`,
-                                                            );
-                                                        },
-                                                    },
-                                                );
-                                            }}
-                                        >
-                                            Duplicate
-                                        </Menu.Item>
-                                        <Menu.Item
-                                            leftSection={
-                                                <MantineIcon
-                                                    icon={IconPencil}
-                                                    size={14}
-                                                />
-                                            }
-                                            onClick={() =>
-                                                setIsUpdateModalOpen(true)
-                                            }
-                                        >
-                                            Rename
-                                        </Menu.Item>
-                                        <Menu.Item
-                                            leftSection={
-                                                <MantineIcon
-                                                    icon={
-                                                        appSpaceUuid
-                                                            ? IconFolderSymlink
-                                                            : IconFolderPlus
-                                                    }
-                                                    size={14}
-                                                />
-                                            }
-                                            onClick={() =>
-                                                setIsMoveToSpaceOpen(true)
-                                            }
-                                        >
-                                            {appSpaceUuid
-                                                ? 'Move to space'
-                                                : 'Add to space'}
-                                        </Menu.Item>
-                                        {isPreviewProject &&
-                                            latestReadyVersion && (
+                                            </ActionIcon>
+                                        </Menu.Target>
+                                        <Menu.Dropdown>
+                                            {previewApp && (
                                                 <Menu.Item
+                                                    component={Link}
+                                                    to={`/projects/${projectUuid}/apps/${previewApp.appUuid}/preview`}
+                                                    target="_blank"
                                                     leftSection={
                                                         <MantineIcon
                                                             icon={
-                                                                IconDatabaseExport
+                                                                IconExternalLink
                                                             }
                                                             size={14}
                                                         />
                                                     }
-                                                    disabled={!activeAppUuid}
-                                                    onClick={() =>
-                                                        setIsPromoteModalOpen(
-                                                            true,
-                                                        )
-                                                    }
                                                 >
-                                                    Promote
+                                                    Preview latest
                                                 </Menu.Item>
                                             )}
-                                        <Menu.Divider />
-                                        <Menu.Item
-                                            color="red"
-                                            leftSection={
-                                                <MantineIcon
-                                                    icon={IconTrash}
-                                                    size={14}
-                                                />
-                                            }
-                                            onClick={() =>
-                                                setIsDeleteModalOpen(true)
-                                            }
-                                        >
-                                            Delete
-                                        </Menu.Item>
-                                    </Menu.Dropdown>
-                                </Menu>
-                            </Box>
-                        )}
-                        {isMoveToSpaceOpen && activeAppUuid && (
-                            <TransferItemsModal
-                                projectUuid={projectUuid}
-                                opened
-                                onClose={() => setIsMoveToSpaceOpen(false)}
-                                items={[
-                                    {
-                                        type: ResourceViewItemType.DATA_APP,
-                                        data: {
-                                            uuid: activeAppUuid,
-                                            name: appName,
-                                            description:
-                                                appDescription || undefined,
-                                            spaceUuid: appSpaceUuid,
-                                            createdByUserUuid:
-                                                appCreatedByUserUuid,
-                                            updatedAt: new Date(),
-                                            updatedByUser: null,
-                                            views: 0,
-                                            firstViewedAt: null,
-                                            latestVersionNumber: null,
-                                            latestVersionStatus: null,
-                                            pinnedListUuid: null,
-                                            pinnedListOrder: null,
-                                        },
-                                    },
-                                ]}
-                                isLoading={isMovingToSpace}
-                                onConfirm={async (targetSpaceUuid) => {
-                                    if (!targetSpaceUuid) return;
-                                    await contentAction({
-                                        action: {
-                                            type: 'move',
-                                            targetSpaceUuid,
-                                        },
-                                        item: {
-                                            uuid: activeAppUuid,
-                                            contentType: ContentType.DATA_APP,
-                                        },
-                                    });
-                                    await queryClient.invalidateQueries({
-                                        queryKey: [
-                                            'app',
-                                            projectUuid,
-                                            activeAppUuid,
-                                        ],
-                                    });
-                                    setIsMoveToSpaceOpen(false);
-                                }}
-                            />
-                        )}
-                        {isUpdateModalOpen && activeAppUuid && (
-                            <AppUpdateModal
-                                opened
-                                projectUuid={projectUuid}
-                                uuid={activeAppUuid}
-                                initialName={appName}
-                                initialDescription={appDescription}
-                                onClose={() => setIsUpdateModalOpen(false)}
-                                onConfirm={() => setIsUpdateModalOpen(false)}
-                            />
-                        )}
-                        {isPromoteModalOpen && activeAppUuid && (
-                            <PromoteAppModal
-                                projectUuid={projectUuid}
-                                appUuid={activeAppUuid}
-                                opened
-                                onClose={() => setIsPromoteModalOpen(false)}
-                            />
-                        )}
-                        {isDeleteModalOpen && activeAppUuid && (
-                            <AppDeleteModal
-                                opened
-                                projectUuid={projectUuid}
-                                uuid={activeAppUuid}
-                                name={appName}
-                                onClose={() => setIsDeleteModalOpen(false)}
-                                onConfirm={() => {
-                                    setIsDeleteModalOpen(false);
-                                    void navigate(
-                                        `/projects/${projectUuid}/apps/generate`,
-                                    );
-                                }}
-                            />
-                        )}
-                        {restoreTargetVersion !== null && activeAppUuid && (
-                            <MantineModal
-                                opened
-                                onClose={() => {
-                                    if (isRestoringVersion) return;
-                                    setRestoreTargetVersion(null);
-                                    resetRestoreVersion();
-                                }}
-                                title={`Restore version ${restoreTargetVersion}?`}
-                                icon={IconRestore}
-                                confirmLabel="Restore version"
-                                cancelDisabled={isRestoringVersion}
-                                confirmLoading={isRestoringVersion}
-                                onConfirm={() =>
-                                    restoreVersionMutate(
-                                        {
-                                            projectUuid,
-                                            appUuid: activeAppUuid,
-                                            version: restoreTargetVersion,
-                                        },
-                                        {
-                                            onSuccess: () => {
-                                                setRestoreTargetVersion(null);
-                                            },
-                                        },
-                                    )
-                                }
-                            >
-                                <Stack gap="sm">
-                                    <Text fz="sm">
-                                        This will create a new version on top of
-                                        the timeline that duplicates the
-                                        contents of version{' '}
-                                        {restoreTargetVersion}. Your next prompt
-                                        will iterate from there.
-                                    </Text>
-                                    {restoreVersionError && (
-                                        <Callout variant="danger">
-                                            {restoreVersionError.error
-                                                ?.message ??
-                                                'Failed to restore version.'}
-                                        </Callout>
-                                    )}
-                                </Stack>
-                            </MantineModal>
-                        )}
-
-                        <Box className={classes.previewContent}>
-                            {previewApp ? (
-                                <AppPreview
-                                    ref={previewRef}
-                                    projectUuid={projectUuid}
-                                    appUuid={previewApp.appUuid}
-                                    version={previewApp.version}
-                                    refreshKey={previewRefreshKey}
-                                    invalidateCache={invalidatePreviewCache}
-                                    onQueryEvent={handleQueryEvent}
-                                    inspectorEnabled={inspectorEnabled}
-                                    onElementSelected={handleElementSelected}
-                                    onInspectorAvailabilityChange={
-                                        setInspectorAvailable
-                                    }
-                                    onScreenshotAvailabilityChange={
-                                        setScreenshotAvailable
-                                    }
-                                    onInspectorCancelled={
-                                        handleInspectorCancelled
-                                    }
-                                />
-                            ) : (
-                                <Box className={classes.previewEmpty}>
-                                    <IconAppWindow size={48} stroke={1} />
-                                    <Text size="sm">
-                                        Your app preview will appear here
-                                    </Text>
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconDatabase}
+                                                        size={14}
+                                                    />
+                                                }
+                                                onClick={() =>
+                                                    setQueriesPanelHidden(false)
+                                                }
+                                            >
+                                                View queries
+                                            </Menu.Item>
+                                            <Menu.Divider />
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconCopy}
+                                                        size={14}
+                                                    />
+                                                }
+                                                disabled={
+                                                    isDuplicating ||
+                                                    !activeAppUuid
+                                                }
+                                                onClick={() => {
+                                                    if (!activeAppUuid) return;
+                                                    duplicateMutate(
+                                                        {
+                                                            projectUuid,
+                                                            appUuid:
+                                                                activeAppUuid,
+                                                        },
+                                                        {
+                                                            onSuccess: ({
+                                                                appUuid:
+                                                                    newAppUuid,
+                                                            }) => {
+                                                                void navigate(
+                                                                    `/projects/${projectUuid}/apps/${newAppUuid}`,
+                                                                );
+                                                            },
+                                                        },
+                                                    );
+                                                }}
+                                            >
+                                                Duplicate
+                                            </Menu.Item>
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconPencil}
+                                                        size={14}
+                                                    />
+                                                }
+                                                onClick={() =>
+                                                    setIsUpdateModalOpen(true)
+                                                }
+                                            >
+                                                Rename
+                                            </Menu.Item>
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={
+                                                            appSpaceUuid
+                                                                ? IconFolderSymlink
+                                                                : IconFolderPlus
+                                                        }
+                                                        size={14}
+                                                    />
+                                                }
+                                                onClick={() =>
+                                                    setIsMoveToSpaceOpen(true)
+                                                }
+                                            >
+                                                {appSpaceUuid
+                                                    ? 'Move to space'
+                                                    : 'Add to space'}
+                                            </Menu.Item>
+                                            {isPreviewProject &&
+                                                latestReadyVersion && (
+                                                    <Menu.Item
+                                                        leftSection={
+                                                            <MantineIcon
+                                                                icon={
+                                                                    IconDatabaseExport
+                                                                }
+                                                                size={14}
+                                                            />
+                                                        }
+                                                        disabled={
+                                                            !activeAppUuid
+                                                        }
+                                                        onClick={() =>
+                                                            setIsPromoteModalOpen(
+                                                                true,
+                                                            )
+                                                        }
+                                                    >
+                                                        Promote
+                                                    </Menu.Item>
+                                                )}
+                                            <Menu.Divider />
+                                            <Menu.Item
+                                                color="red"
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconTrash}
+                                                        size={14}
+                                                    />
+                                                }
+                                                onClick={() =>
+                                                    setIsDeleteModalOpen(true)
+                                                }
+                                            >
+                                                Delete
+                                            </Menu.Item>
+                                        </Menu.Dropdown>
+                                    </Menu>
                                 </Box>
                             )}
-                            {!queriesPanelHidden && (
-                                <QueryInspector
-                                    queries={trackedQueries}
-                                    projectUuid={projectUuid!}
-                                    onClear={clearQueries}
-                                    persistLogs={persistLogs}
-                                    onPersistLogsChange={setPersistLogs}
-                                    onDismiss={() =>
-                                        setQueriesPanelHidden(true)
+                            {isMoveToSpaceOpen && activeAppUuid && (
+                                <TransferItemsModal
+                                    projectUuid={projectUuid}
+                                    opened
+                                    onClose={() => setIsMoveToSpaceOpen(false)}
+                                    items={[
+                                        {
+                                            type: ResourceViewItemType.DATA_APP,
+                                            data: {
+                                                uuid: activeAppUuid,
+                                                name: appName,
+                                                description:
+                                                    appDescription || undefined,
+                                                spaceUuid: appSpaceUuid,
+                                                createdByUserUuid:
+                                                    appCreatedByUserUuid,
+                                                updatedAt: new Date(),
+                                                updatedByUser: null,
+                                                views: 0,
+                                                firstViewedAt: null,
+                                                latestVersionNumber: null,
+                                                latestVersionStatus: null,
+                                                pinnedListUuid: null,
+                                                pinnedListOrder: null,
+                                            },
+                                        },
+                                    ]}
+                                    isLoading={isMovingToSpace}
+                                    onConfirm={async (targetSpaceUuid) => {
+                                        if (!targetSpaceUuid) return;
+                                        await contentAction({
+                                            action: {
+                                                type: 'move',
+                                                targetSpaceUuid,
+                                            },
+                                            item: {
+                                                uuid: activeAppUuid,
+                                                contentType:
+                                                    ContentType.DATA_APP,
+                                            },
+                                        });
+                                        await queryClient.invalidateQueries({
+                                            queryKey: [
+                                                'app',
+                                                projectUuid,
+                                                activeAppUuid,
+                                            ],
+                                        });
+                                        setIsMoveToSpaceOpen(false);
+                                    }}
+                                />
+                            )}
+                            {isUpdateModalOpen && activeAppUuid && (
+                                <AppUpdateModal
+                                    opened
+                                    projectUuid={projectUuid}
+                                    uuid={activeAppUuid}
+                                    initialName={appName}
+                                    initialDescription={appDescription}
+                                    onClose={() => setIsUpdateModalOpen(false)}
+                                    onConfirm={() =>
+                                        setIsUpdateModalOpen(false)
                                     }
                                 />
                             )}
+                            {isPromoteModalOpen && activeAppUuid && (
+                                <PromoteAppModal
+                                    projectUuid={projectUuid}
+                                    appUuid={activeAppUuid}
+                                    opened
+                                    onClose={() => setIsPromoteModalOpen(false)}
+                                />
+                            )}
+                            {isDeleteModalOpen && activeAppUuid && (
+                                <AppDeleteModal
+                                    opened
+                                    projectUuid={projectUuid}
+                                    uuid={activeAppUuid}
+                                    name={appName}
+                                    onClose={() => setIsDeleteModalOpen(false)}
+                                    onConfirm={() => {
+                                        setIsDeleteModalOpen(false);
+                                        void navigate(
+                                            `/projects/${projectUuid}/apps/generate`,
+                                        );
+                                    }}
+                                />
+                            )}
+                            {restoreTargetVersion !== null && activeAppUuid && (
+                                <MantineModal
+                                    opened
+                                    onClose={() => {
+                                        if (isRestoringVersion) return;
+                                        setRestoreTargetVersion(null);
+                                        resetRestoreVersion();
+                                    }}
+                                    title={`Restore version ${restoreTargetVersion}?`}
+                                    icon={IconRestore}
+                                    confirmLabel="Restore version"
+                                    cancelDisabled={isRestoringVersion}
+                                    confirmLoading={isRestoringVersion}
+                                    onConfirm={() =>
+                                        restoreVersionMutate(
+                                            {
+                                                projectUuid,
+                                                appUuid: activeAppUuid,
+                                                version: restoreTargetVersion,
+                                            },
+                                            {
+                                                onSuccess: () => {
+                                                    setRestoreTargetVersion(
+                                                        null,
+                                                    );
+                                                },
+                                            },
+                                        )
+                                    }
+                                >
+                                    <Stack gap="sm">
+                                        <Text fz="sm">
+                                            This will create a new version on
+                                            top of the timeline that duplicates
+                                            the contents of version{' '}
+                                            {restoreTargetVersion}. Your next
+                                            prompt will iterate from there.
+                                        </Text>
+                                        {restoreVersionError && (
+                                            <Callout variant="danger">
+                                                {restoreVersionError.error
+                                                    ?.message ??
+                                                    'Failed to restore version.'}
+                                            </Callout>
+                                        )}
+                                    </Stack>
+                                </MantineModal>
+                            )}
+
+                            <Box className={classes.previewContent}>
+                                {previewApp ? (
+                                    <AppPreview
+                                        ref={previewRef}
+                                        projectUuid={projectUuid}
+                                        appUuid={previewApp.appUuid}
+                                        version={previewApp.version}
+                                        refreshKey={previewRefreshKey}
+                                        invalidateCache={invalidatePreviewCache}
+                                        onQueryEvent={handleQueryEvent}
+                                        inspectorEnabled={inspectorEnabled}
+                                        onElementSelected={
+                                            handleElementSelected
+                                        }
+                                        onInspectorAvailabilityChange={
+                                            setInspectorAvailable
+                                        }
+                                        onScreenshotAvailabilityChange={
+                                            setScreenshotAvailable
+                                        }
+                                        onInspectorCancelled={
+                                            handleInspectorCancelled
+                                        }
+                                    />
+                                ) : (
+                                    <Box className={classes.previewEmpty}>
+                                        <IconAppWindow size={48} stroke={1} />
+                                        <Text size="sm">
+                                            Your app preview will appear here
+                                        </Text>
+                                    </Box>
+                                )}
+                                {!queriesPanelHidden && (
+                                    <QueryInspector
+                                        queries={trackedQueries}
+                                        projectUuid={projectUuid!}
+                                        onClear={clearQueries}
+                                        persistLogs={persistLogs}
+                                        onPersistLogsChange={setPersistLogs}
+                                        onDismiss={() =>
+                                            setQueriesPanelHidden(true)
+                                        }
+                                    />
+                                )}
+                            </Box>
                         </Box>
-                    </Box>
-                </Panel>
+                    </Panel>
+                )}
             </PanelGroup>
         </Box>
     );
