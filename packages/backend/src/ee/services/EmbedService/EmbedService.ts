@@ -398,20 +398,8 @@ export class EmbedService extends BaseService {
         userUuid: string;
         organizationUuid: string;
     }) {
-        const organization = await this.organizationModel.get(
-            user.organizationUuid,
-        );
-
-        if (!organization) {
-            throw new ForbiddenError('Organization not found');
-        }
-
         const isEnabled = await this.featureFlagModel.get({
-            user: {
-                userUuid: user.userUuid,
-                organizationUuid: user.organizationUuid,
-                organizationName: organization.name,
-            },
+            user,
             featureFlagId: CommercialFeatureFlags.Embedding,
         });
 
@@ -521,6 +509,15 @@ export class EmbedService extends BaseService {
                 type: 'aiAgent',
                 explores: [],
                 agentUuid: decodedToken.content.agentUuid,
+            };
+        }
+
+        if (decodedToken.content.type === 'apiAccess') {
+            return {
+                dashboardUuid: undefined,
+                chartUuids: [],
+                type: 'apiAccess',
+                explores: [],
             };
         }
 
@@ -1687,6 +1684,10 @@ export class EmbedService extends BaseService {
                 throw new ForbiddenError(
                     'AI agent embeds cannot access saved charts',
                 );
+            case 'apiAccess':
+                throw new ForbiddenError(
+                    'API access embeds cannot access saved charts',
+                );
             case 'dashboard':
                 break;
             default:
@@ -2461,14 +2462,24 @@ export class EmbedService extends BaseService {
         organizationUuid: string,
     ): Promise<SessionUser | undefined> {
         const { writeActions } = decodedToken;
-        const actorUserUuid =
-            writeActions?.userUuid ?? writeActions?.serviceAccountUserUuid;
+        const isApiAccess = decodedToken.content.type === 'apiAccess';
+        let actorUserUuid: string | undefined;
 
-        if (!writeActions) {
+        if (decodedToken.content.type === 'apiAccess') {
+            actorUserUuid = decodedToken.content.serviceAccountUserUuid;
+        } else {
+            actorUserUuid =
+                writeActions?.userUuid ?? writeActions?.serviceAccountUserUuid;
+        }
+
+        if (!writeActions && !isApiAccess) {
             return undefined;
         }
 
-        if (!writeActions.spaceUuid || !actorUserUuid) {
+        if (
+            (!isApiAccess && writeActions && !writeActions.spaceUuid) ||
+            actorUserUuid === undefined
+        ) {
             throw new ForbiddenError(
                 'Embed token does not allow write actions',
             );
@@ -2479,7 +2490,7 @@ export class EmbedService extends BaseService {
             organizationUuid,
         );
 
-        if (writeActions.userUuid !== undefined) {
+        if (!isApiAccess && writeActions?.userUuid !== undefined) {
             if (!actor.isActive) {
                 throw new ForbiddenError(
                     'Embed token actor is not active for this organization',

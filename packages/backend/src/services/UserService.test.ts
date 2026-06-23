@@ -4,6 +4,7 @@ import {
     NotFoundError,
     OpenIdIdentityIssuerType,
     OrganizationMemberRole,
+    ParameterError,
     ProjectMemberRole,
     SessionUser,
 } from '@lightdash/common';
@@ -61,6 +62,7 @@ const userModel = {
     findServiceAccountByUserUuid: jest.fn(async () => undefined),
     joinOrg: jest.fn(async () => sessionUser),
     hasUsers: jest.fn(async () => false),
+    updateUser: jest.fn(async () => sessionUser),
 };
 
 const openIdIdentityModel = {
@@ -194,6 +196,26 @@ describe('UserService', () => {
                 serviceAccountDescription: 'CI preview',
             });
             expect(account.user.id).toBe('userUuid');
+        });
+    });
+
+    describe('updateUser', () => {
+        test('should reject an invalid email before persisting', async () => {
+            await expect(
+                userService.updateUser(sessionUser, {
+                    email: "x' OR '1'='1@evil.com",
+                }),
+            ).rejects.toThrow(ParameterError);
+            expect(userModel.updateUser).not.toHaveBeenCalled();
+        });
+
+        test('should persist a valid email', async () => {
+            await userService.updateUser(sessionUser, {
+                firstName: 'firstName',
+                lastName: 'lastName',
+                email: sessionUser.email!,
+            });
+            expect(userModel.updateUser).toHaveBeenCalled();
         });
     });
 

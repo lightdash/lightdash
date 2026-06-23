@@ -1660,6 +1660,514 @@
                 ],
                 "type": "object"
             },
+            "ExternalConnectionAuthType": {
+                "type": "string",
+                "enum": ["none", "api_key", "bearer_token"]
+            },
+            "ExternalConnectionMethod": {
+                "type": "string",
+                "enum": ["GET", "POST"]
+            },
+            "ApiKeyLocation": {
+                "type": "string",
+                "enum": ["header", "query"]
+            },
+            "ExternalConnection": {
+                "properties": {
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "hasSecret": {
+                        "type": "boolean"
+                    },
+                    "apiKeyLocation": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ApiKeyLocation"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "apiKeyName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "rateLimitPerMinute": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "timeoutMs": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "requestMaxBytes": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "responseMaxBytes": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "allowedContentTypes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "allowedMethods": {
+                        "items": {
+                            "$ref": "#/components/schemas/ExternalConnectionMethod"
+                        },
+                        "type": "array"
+                    },
+                    "allowedPathPrefixes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "origin": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ExternalConnectionAuthType"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "externalConnectionUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "updatedAt",
+                    "createdAt",
+                    "updatedByUserUuid",
+                    "createdByUserUuid",
+                    "hasSecret",
+                    "apiKeyLocation",
+                    "apiKeyName",
+                    "rateLimitPerMinute",
+                    "timeoutMs",
+                    "requestMaxBytes",
+                    "responseMaxBytes",
+                    "allowedContentTypes",
+                    "allowedMethods",
+                    "allowedPathPrefixes",
+                    "origin",
+                    "type",
+                    "name",
+                    "organizationUuid",
+                    "projectUuid",
+                    "externalConnectionUuid"
+                ],
+                "type": "object",
+                "description": "READ shape returned by the API — NEVER includes the secret value."
+            },
+            "ApiExternalConnectionResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ExternalConnection"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "CreateExternalConnection": {
+                "properties": {
+                    "secret": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "apiKeyLocation": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ApiKeyLocation"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "apiKeyName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "rateLimitPerMinute": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "timeoutMs": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "requestMaxBytes": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "responseMaxBytes": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "allowedContentTypes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "allowedMethods": {
+                        "items": {
+                            "$ref": "#/components/schemas/ExternalConnectionMethod"
+                        },
+                        "type": "array"
+                    },
+                    "allowedPathPrefixes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "origin": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ExternalConnectionAuthType"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "allowedContentTypes",
+                    "allowedMethods",
+                    "allowedPathPrefixes",
+                    "origin",
+                    "type",
+                    "name"
+                ],
+                "type": "object",
+                "description": "WRITE shape — includes the secret."
+            },
+            "ApiExternalConnectionListResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/ExternalConnection"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "Partial_CreateExternalConnection_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ExternalConnectionAuthType"
+                    },
+                    "origin": {
+                        "type": "string"
+                    },
+                    "allowedPathPrefixes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "allowedMethods": {
+                        "items": {
+                            "$ref": "#/components/schemas/ExternalConnectionMethod"
+                        },
+                        "type": "array"
+                    },
+                    "allowedContentTypes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "responseMaxBytes": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "requestMaxBytes": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "timeoutMs": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "rateLimitPerMinute": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "apiKeyName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "apiKeyLocation": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ApiKeyLocation"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "secret": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "UpdateExternalConnection": {
+                "$ref": "#/components/schemas/Partial_CreateExternalConnection_",
+                "description": "Omitted/blank `secret` means the stored secret is left unchanged."
+            },
+            "ApiAppExternalConnectionListResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "properties": {
+                                "connection": {
+                                    "$ref": "#/components/schemas/ExternalConnection"
+                                },
+                                "alias": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["connection", "alias"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ExternalFetchResponse": {
+                "properties": {
+                    "truncated": {
+                        "type": "boolean"
+                    },
+                    "body": {},
+                    "contentType": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["truncated", "body", "contentType", "status"],
+                "type": "object"
+            },
+            "ApiExternalFetchResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ExternalFetchResponse"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "Record_string.string_": {
+                "properties": {},
+                "additionalProperties": {
+                    "type": "string"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ExternalFetchRequest": {
+                "properties": {
+                    "body": {},
+                    "query": {
+                        "$ref": "#/components/schemas/Record_string.string_"
+                    },
+                    "path": {
+                        "type": "string"
+                    },
+                    "method": {
+                        "$ref": "#/components/schemas/ExternalConnectionMethod"
+                    },
+                    "connectionAlias": {
+                        "type": "string"
+                    }
+                },
+                "required": ["path", "connectionAlias"],
+                "type": "object"
+            },
+            "ApiTestExternalConnectionResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ExternalFetchResponse"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiTestExternalConnectionRequest": {
+                "properties": {
+                    "body": {},
+                    "query": {
+                        "$ref": "#/components/schemas/Record_string.string_"
+                    },
+                    "path": {
+                        "type": "string"
+                    },
+                    "method": {
+                        "type": "string",
+                        "enum": ["GET", "POST"]
+                    }
+                },
+                "required": ["path"],
+                "type": "object"
+            },
+            "ExternalConnectionSampleRequest": {
+                "properties": {
+                    "body": {},
+                    "query": {
+                        "$ref": "#/components/schemas/Record_string.string_"
+                    },
+                    "path": {
+                        "type": "string"
+                    },
+                    "method": {
+                        "$ref": "#/components/schemas/ExternalConnectionMethod"
+                    }
+                },
+                "required": ["path", "method"],
+                "type": "object",
+                "description": "The request that produced a sample (stored alongside the response)."
+            },
+            "ExternalConnectionSample": {
+                "properties": {
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "response": {},
+                    "request": {
+                        "$ref": "#/components/schemas/ExternalConnectionSampleRequest"
+                    },
+                    "label": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "externalConnectionUuid": {
+                        "type": "string"
+                    },
+                    "sampleUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "createdAt",
+                    "response",
+                    "request",
+                    "label",
+                    "externalConnectionUuid",
+                    "sampleUuid"
+                ],
+                "type": "object",
+                "description": "READ shape for a persisted sample row."
+            },
+            "ApiSaveExternalConnectionSampleResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ExternalConnectionSample"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSaveExternalConnectionSampleRequest": {
+                "properties": {
+                    "response": {},
+                    "request": {
+                        "$ref": "#/components/schemas/ExternalConnectionSampleRequest"
+                    },
+                    "label": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["response", "request"],
+                "type": "object"
+            },
+            "ApiListExternalConnectionSamplesResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/ExternalConnectionSample"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "Pick_Organization.name-or-createdAt-or-organizationUuid_": {
                 "properties": {
                     "name": {
@@ -2075,6 +2583,23 @@
                 "required": ["agentUuid", "type"],
                 "type": "object"
             },
+            "EmbedJwtContentApiAccess": {
+                "properties": {
+                    "serviceAccountUserUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["apiAccess"],
+                        "nullable": false
+                    }
+                },
+                "required": ["serviceAccountUserUuid", "type"],
+                "type": "object"
+            },
             "EmbedWriteActions": {
                 "properties": {
                     "spaceUuid": {
@@ -2140,6 +2665,9 @@
                             },
                             {
                                 "$ref": "#/components/schemas/EmbedJwtContentAiAgent"
+                            },
+                            {
+                                "$ref": "#/components/schemas/EmbedJwtContentApiAccess"
                             }
                         ]
                     }
@@ -3222,14 +3750,6 @@
                     "MINUTE_OF_HOUR_NUM"
                 ],
                 "type": "string"
-            },
-            "Record_string.string_": {
-                "properties": {},
-                "additionalProperties": {
-                    "type": "string"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
             },
             "CustomFormatType": {
                 "enum": [
@@ -5220,8 +5740,29 @@
                 "enum": ["cell", "text", "row"],
                 "type": "string"
             },
+            "ConditionalFormattingTextStyle": {
+                "properties": {
+                    "underline": {
+                        "type": "boolean",
+                        "description": "Underline matching cell text"
+                    },
+                    "italic": {
+                        "type": "boolean",
+                        "description": "Render matching cell text in italics"
+                    },
+                    "bold": {
+                        "type": "boolean",
+                        "description": "Render matching cell text in bold"
+                    }
+                },
+                "type": "object"
+            },
             "ConditionalFormattingConfigWithSingleColor": {
                 "properties": {
+                    "textStyle": {
+                        "$ref": "#/components/schemas/ConditionalFormattingTextStyle",
+                        "description": "Text styling (bold/italic/underline) applied to matching cell text"
+                    },
                     "applyTo": {
                         "$ref": "#/components/schemas/ConditionalFormattingColorApplyTo",
                         "description": "Apply formatting to cell background or text"
@@ -5302,6 +5843,10 @@
             },
             "ConditionalFormattingConfigWithColorRange": {
                 "properties": {
+                    "textStyle": {
+                        "$ref": "#/components/schemas/ConditionalFormattingTextStyle",
+                        "description": "Text styling (bold/italic/underline) applied to matching cell text"
+                    },
                     "applyTo": {
                         "$ref": "#/components/schemas/ConditionalFormattingColorApplyTo",
                         "description": "Apply formatting to cell background or text"
@@ -5863,6 +6408,11 @@
                     "minOffset": {
                         "type": "string",
                         "description": "Offset from minimum value"
+                    },
+                    "minInterval": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Minimum interval between ticks (e.g. 1 to force integer ticks)"
                     },
                     "max": {
                         "type": "string",
@@ -9776,8 +10326,27 @@
                 "type": "string",
                 "enum": ["opus", "sonnet", "haiku"]
             },
+            "AppExternalConnectionReference": {
+                "properties": {
+                    "alias": {
+                        "type": "string"
+                    },
+                    "externalConnectionUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["alias", "externalConnectionUuid"],
+                "type": "object",
+                "description": "An external connection attached to a generation request. Linked to the app\n(under `alias`) server-side at creation — before the catalog stage — so the\ngenerated app can call it via `client.externalFetch(alias, …)`. Validated\n(must belong to the app's project) and gated on the external-access flag."
+            },
             "GenerateAppRequestBody": {
                 "properties": {
+                    "externalConnections": {
+                        "items": {
+                            "$ref": "#/components/schemas/AppExternalConnectionReference"
+                        },
+                        "type": "array"
+                    },
                     "designUuid": {
                         "type": "string",
                         "nullable": true
@@ -12391,7 +12960,7 @@
                     },
                     "imageUrlSource": {
                         "type": "string",
-                        "enum": ["upload", "url", null],
+                        "enum": ["url", "upload", null],
                         "nullable": true
                     },
                     "groupAccess": {
@@ -13004,7 +13573,7 @@
                     },
                     "imageUrlSource": {
                         "type": "string",
-                        "enum": ["upload", "url", null],
+                        "enum": ["url", "upload", null],
                         "nullable": true
                     },
                     "groupAccess": {
@@ -13869,6 +14438,411 @@
                 "type": "object",
                 "description": "Runtime state captured at pin time for a chart context. When a user pins a\nchart from a dashboard view, these are the dashboard-level overrides that\nwere applied to the chart on screen at that moment."
             },
+            "PullRequestProvider": {
+                "enum": ["github", "gitlab"],
+                "type": "string"
+            },
+            "AiAgentReviewItemPrState": {
+                "type": "string",
+                "enum": ["open", "merged", "closed"]
+            },
+            "AiAgentJudgeProjectContextEntry": {
+                "properties": {
+                    "objects": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "terms": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "content": {
+                        "type": "string"
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": ["definition", "context"]
+                    },
+                    "id": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "op": {
+                        "type": "string",
+                        "enum": ["create", "update"]
+                    }
+                },
+                "required": ["objects", "terms", "content", "kind", "id", "op"],
+                "type": "object"
+            },
+            "AiAgentRecommendationAction": {
+                "type": "string",
+                "enum": [
+                    "update_semantic_yaml",
+                    "update_agent_instructions",
+                    "add_knowledge_document",
+                    "enable_data_access",
+                    "enable_sql_mode",
+                    "enable_self_improvement",
+                    "configure_mcp_server",
+                    "adjust_explore_tags",
+                    "update_access",
+                    "route_to_product_work",
+                    "request_more_evidence",
+                    "no_action"
+                ]
+            },
+            "AiAgentSemanticTargetRef": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "modelName": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["model"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["modelName", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "exploreName": {
+                                "type": "string"
+                            },
+                            "modelName": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["explore"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["exploreName", "modelName", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "exploreName": {
+                                "type": "string"
+                            },
+                            "joinName": {
+                                "type": "string"
+                            },
+                            "modelName": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["join"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["joinName", "modelName", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "dimensionName": {
+                                "type": "string"
+                            },
+                            "modelName": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["dimension"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["dimensionName", "modelName", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "dimensionName": {
+                                "type": "string"
+                            },
+                            "metricName": {
+                                "type": "string"
+                            },
+                            "modelName": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["metric"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["metricName", "modelName", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "dimensionName": {
+                                "type": "string"
+                            },
+                            "parentDimensionName": {
+                                "type": "string"
+                            },
+                            "modelName": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["additional_dimension"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "dimensionName",
+                            "parentDimensionName",
+                            "modelName",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fieldName": {
+                                "type": "string"
+                            },
+                            "exploreName": {
+                                "type": "string"
+                            },
+                            "modelName": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["required_filter"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "fieldName",
+                            "exploreName",
+                            "modelName",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "targetName": {
+                                "type": "string"
+                            },
+                            "targetType": {
+                                "type": "string",
+                                "enum": ["model", "dimension", "metric"]
+                            },
+                            "modelName": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["ai_hint"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "targetName",
+                            "targetType",
+                            "modelName",
+                            "type"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "AiAgentConfigurationSetting": {
+                "type": "string",
+                "enum": [
+                    "instructions",
+                    "knowledge_documents",
+                    "data_access",
+                    "self_improvement",
+                    "sql_mode",
+                    "mcp_servers",
+                    "explore_tags",
+                    "space_access",
+                    "user_or_group_access",
+                    "unknown"
+                ]
+            },
+            "AiAgentTargetRef": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/AiAgentSemanticTargetRef"
+                    },
+                    {
+                        "properties": {
+                            "agentUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["agent"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["agentUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "setting": {
+                                "$ref": "#/components/schemas/AiAgentConfigurationSetting"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["agent_config"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["setting", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "capabilityKey": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["product_capability"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["capabilityKey", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "key": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["runtime"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["key", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "AiAgentRecommendation": {
+                "properties": {
+                    "targetRefs": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentTargetRef"
+                        },
+                        "type": "array"
+                    },
+                    "rationale": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "actionType": {
+                        "$ref": "#/components/schemas/AiAgentRecommendationAction"
+                    }
+                },
+                "required": ["targetRefs", "rationale", "title", "actionType"],
+                "type": "object"
+            },
+            "AiPromptProposedChangePayload": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "entry": {
+                                "$ref": "#/components/schemas/AiAgentJudgeProjectContextEntry"
+                            },
+                            "changeKind": {
+                                "type": "string",
+                                "enum": ["project_context"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["entry", "changeKind"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "recommendation": {
+                                "$ref": "#/components/schemas/AiAgentRecommendation"
+                            },
+                            "changeKind": {
+                                "type": "string",
+                                "enum": ["semantic_layer"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["recommendation", "changeKind"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "AiAgentRootCause": {
+                "type": "string",
+                "enum": [
+                    "semantic_layer",
+                    "project_context",
+                    "agent_configuration",
+                    "product_capability",
+                    "runtime_reliability",
+                    "feedback_quality",
+                    "not_a_failure",
+                    "ambiguous"
+                ]
+            },
+            "AiAgentEvidenceExcerpt": {
+                "properties": {
+                    "redacted": {
+                        "type": "boolean"
+                    },
+                    "text": {
+                        "type": "string"
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": [
+                            "user_prompt",
+                            "assistant_answer",
+                            "next_user_prompt",
+                            "conversation_context",
+                            "tool_call",
+                            "tool_result",
+                            "agent_config"
+                        ]
+                    }
+                },
+                "required": ["redacted", "text", "source"],
+                "type": "object"
+            },
+            "AiAgentReviewRemediationStatus": {
+                "type": "string",
+                "enum": [
+                    "queued",
+                    "running",
+                    "pr_open",
+                    "preview_ready",
+                    "resolved",
+                    "failed"
+                ]
+            },
             "AiPromptContextItem": {
                 "anyOf": [
                     {
@@ -13979,6 +14953,170 @@
                             "type"
                         ],
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "path": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["file"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["path", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fullName": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["repository"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["fullName", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "title": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "status": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/AiAgentReviewItemPrState"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "provider": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/PullRequestProvider"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "prNumber": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            },
+                            "prUrl": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["pull_request"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "title",
+                            "status",
+                            "provider",
+                            "prNumber",
+                            "prUrl",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "payload": {
+                                "$ref": "#/components/schemas/AiPromptProposedChangePayload"
+                            },
+                            "fingerprint": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["proposed_change"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["payload", "fingerprint", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "evidenceExcerpts": {
+                                "items": {
+                                    "$ref": "#/components/schemas/AiAgentEvidenceExcerpt"
+                                },
+                                "type": "array"
+                            },
+                            "findingCount": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "rootCause": {
+                                "$ref": "#/components/schemas/AiAgentRootCause"
+                            },
+                            "title": {
+                                "type": "string"
+                            },
+                            "fingerprint": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["review_finding"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "evidenceExcerpts",
+                            "findingCount",
+                            "rootCause",
+                            "title",
+                            "fingerprint",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "projectName": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "status": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/AiAgentReviewRemediationStatus"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "previewThreadUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "previewProjectUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["preview_environment"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "projectName",
+                            "status",
+                            "previewThreadUuid",
+                            "previewProjectUuid",
+                            "type"
+                        ],
+                        "type": "object"
                     }
                 ]
             },
@@ -13988,11 +15126,51 @@
                 },
                 "type": "array"
             },
+            "AiPromptSteer": {
+                "properties": {
+                    "consumedStep": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "consumedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "promptUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "consumedStep",
+                    "consumedAt",
+                    "createdAt",
+                    "message",
+                    "promptUuid",
+                    "uuid"
+                ],
+                "type": "object"
+            },
             "AiAgentMessageUser_AiAgentUser_": {
                 "properties": {
                     "hidden": {
                         "type": "boolean",
                         "description": "Hidden turn: the agent received and responded to this prompt, but the UI\nshould not render its user bubble (e.g. the post-merge migration prompt\ninjected from the writeback PR card)."
+                    },
+                    "steers": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiPromptSteer"
+                        },
+                        "type": "array"
                     },
                     "context": {
                         "$ref": "#/components/schemas/AiPromptContext"
@@ -14020,6 +15198,7 @@
                 },
                 "required": [
                     "hidden",
+                    "steers",
                     "context",
                     "user",
                     "createdAt",
@@ -14198,6 +15377,7 @@
                     "loadSkill",
                     "loadProjectContext",
                     "editDbtProject",
+                    "editProjectContext",
                     "syncDbtProject",
                     "exploreRepo",
                     "discoverRepos",
@@ -14228,8 +15408,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "accepted",
-                                                            "rejected"
+                                                            "rejected",
+                                                            "accepted"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -14287,8 +15467,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "accepted",
-                                                            "rejected"
+                                                            "rejected",
+                                                            "accepted"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -14312,6 +15492,19 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -14378,16 +15571,16 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
                                                                         "joinedTables": {
                                                                             "items": {
                                                                                 "type": "string"
                                                                             },
                                                                             "type": "array",
-                                                                            "nullable": true
-                                                                        },
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
                                                                             "nullable": true
                                                                         },
                                                                         "label": {
@@ -14535,19 +15728,19 @@
                                                         "type": "number",
                                                         "format": "double"
                                                     },
-                                                    "name": {
-                                                        "type": "string"
-                                                    },
                                                     "status": {
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
                                                     }
                                                 },
                                                 "required": [
                                                     "contentSizeBytes",
-                                                    "name",
-                                                    "status"
+                                                    "status",
+                                                    "name"
                                                 ],
                                                 "type": "object"
                                             },
@@ -14557,8 +15750,8 @@
                                                         "type": "string",
                                                         "enum": [
                                                             "error",
-                                                            "not_found",
-                                                            "success"
+                                                            "success",
+                                                            "not_found"
                                                         ]
                                                     }
                                                 },
@@ -14588,66 +15781,6 @@
                                                                         "type": "string",
                                                                         "nullable": true
                                                                     },
-                                                                    "fields": {
-                                                                        "items": {
-                                                                            "properties": {
-                                                                                "description": {
-                                                                                    "type": "string",
-                                                                                    "nullable": true
-                                                                                },
-                                                                                "isFromJoinedTable": {
-                                                                                    "type": "boolean"
-                                                                                },
-                                                                                "caseSensitiveFilters": {
-                                                                                    "type": "string",
-                                                                                    "enum": [
-                                                                                        "false",
-                                                                                        "not_applicable",
-                                                                                        "true"
-                                                                                    ]
-                                                                                },
-                                                                                "fieldFilterType": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "fieldValueType": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "fieldType": {
-                                                                                    "type": "string",
-                                                                                    "enum": [
-                                                                                        "dimension",
-                                                                                        "metric"
-                                                                                    ]
-                                                                                },
-                                                                                "table": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "label": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "name": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "fieldId": {
-                                                                                    "type": "string"
-                                                                                }
-                                                                            },
-                                                                            "required": [
-                                                                                "description",
-                                                                                "isFromJoinedTable",
-                                                                                "caseSensitiveFilters",
-                                                                                "fieldFilterType",
-                                                                                "fieldValueType",
-                                                                                "fieldType",
-                                                                                "table",
-                                                                                "label",
-                                                                                "name",
-                                                                                "fieldId"
-                                                                            ],
-                                                                            "type": "object"
-                                                                        },
-                                                                        "type": "array"
-                                                                    },
                                                                     "explore": {
                                                                         "properties": {
                                                                             "joinedTables": {
@@ -14674,6 +15807,66 @@
                                                                         ],
                                                                         "type": "object"
                                                                     },
+                                                                    "fields": {
+                                                                        "items": {
+                                                                            "properties": {
+                                                                                "isFromJoinedTable": {
+                                                                                    "type": "boolean"
+                                                                                },
+                                                                                "caseSensitiveFilters": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                        "true",
+                                                                                        "false",
+                                                                                        "not_applicable"
+                                                                                    ]
+                                                                                },
+                                                                                "fieldValueType": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "fieldFilterType": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "description": {
+                                                                                    "type": "string",
+                                                                                    "nullable": true
+                                                                                },
+                                                                                "fieldType": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                        "metric",
+                                                                                        "dimension"
+                                                                                    ]
+                                                                                },
+                                                                                "table": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "fieldId": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "label": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "name": {
+                                                                                    "type": "string"
+                                                                                }
+                                                                            },
+                                                                            "required": [
+                                                                                "isFromJoinedTable",
+                                                                                "caseSensitiveFilters",
+                                                                                "fieldValueType",
+                                                                                "fieldFilterType",
+                                                                                "description",
+                                                                                "fieldType",
+                                                                                "table",
+                                                                                "fieldId",
+                                                                                "label",
+                                                                                "name"
+                                                                            ],
+                                                                            "type": "object"
+                                                                        },
+                                                                        "type": "array"
+                                                                    },
                                                                     "status": {
                                                                         "type": "string",
                                                                         "enum": [
@@ -14684,8 +15877,8 @@
                                                                 },
                                                                 "required": [
                                                                     "rationale",
-                                                                    "fields",
                                                                     "explore",
+                                                                    "fields",
                                                                     "status"
                                                                 ],
                                                                 "type": "object"
@@ -14698,10 +15891,10 @@
                                                                     "candidates": {
                                                                         "items": {
                                                                             "properties": {
-                                                                                "reason": {
+                                                                                "exploreLabel": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "exploreLabel": {
+                                                                                "reason": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "exploreName": {
@@ -14709,8 +15902,8 @@
                                                                                 }
                                                                             },
                                                                             "required": [
-                                                                                "reason",
                                                                                 "exploreLabel",
+                                                                                "reason",
                                                                                 "exploreName"
                                                                             ],
                                                                             "type": "object"
@@ -14793,12 +15986,6 @@
                                                     "href": {
                                                         "type": "string"
                                                     },
-                                                    "uuid": {
-                                                        "type": "string"
-                                                    },
-                                                    "name": {
-                                                        "type": "string"
-                                                    },
                                                     "slug": {
                                                         "type": "string"
                                                     },
@@ -14806,47 +15993,27 @@
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
+                                                    },
+                                                    "uuid": {
+                                                        "type": "string"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
                                                     }
                                                 },
                                                 "required": [
                                                     "versionUuids",
                                                     "warnings",
                                                     "href",
-                                                    "uuid",
-                                                    "name",
                                                     "slug",
-                                                    "status"
+                                                    "status",
+                                                    "uuid",
+                                                    "name"
                                                 ],
                                                 "type": "object"
                                             },
                                             {
                                                 "properties": {
-                                                    "steps": {
-                                                        "items": {
-                                                            "properties": {
-                                                                "label": {
-                                                                    "type": "string"
-                                                                },
-                                                                "kind": {
-                                                                    "type": "string",
-                                                                    "enum": [
-                                                                        "compile",
-                                                                        "edit",
-                                                                        "read",
-                                                                        "search",
-                                                                        "stage"
-                                                                    ]
-                                                                }
-                                                            },
-                                                            "required": [
-                                                                "label",
-                                                                "kind"
-                                                            ],
-                                                            "type": "object"
-                                                        },
-                                                        "type": "array",
-                                                        "nullable": true
-                                                    },
                                                     "previewUrl": {
                                                         "type": "string",
                                                         "nullable": true
@@ -14874,6 +16041,32 @@
                                                         ],
                                                         "nullable": true
                                                     },
+                                                    "steps": {
+                                                        "items": {
+                                                            "properties": {
+                                                                "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                        "read",
+                                                                        "edit",
+                                                                        "search",
+                                                                        "compile",
+                                                                        "stage"
+                                                                    ]
+                                                                },
+                                                                "label": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "kind",
+                                                                "label"
+                                                            ],
+                                                            "type": "object"
+                                                        },
+                                                        "type": "array",
+                                                        "nullable": true
+                                                    },
                                                     "prUrl": {
                                                         "type": "string",
                                                         "nullable": true
@@ -14892,12 +16085,12 @@
                                                     "errorCode": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "git_write_permission",
+                                                            "unknown",
                                                             "github_not_installed",
                                                             "gitlab_not_installed",
-                                                            "pull_request_not_open",
-                                                            "unknown",
                                                             "unsupported_source_control",
+                                                            "pull_request_not_open",
+                                                            "git_write_permission",
                                                             null
                                                         ],
                                                         "nullable": true
@@ -14916,9 +16109,6 @@
                                                     "href": {
                                                         "type": "string"
                                                     },
-                                                    "name": {
-                                                        "type": "string"
-                                                    },
                                                     "slug": {
                                                         "type": "string"
                                                     },
@@ -14926,13 +16116,16 @@
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
                                                     }
                                                 },
                                                 "required": [
                                                     "href",
-                                                    "name",
                                                     "slug",
-                                                    "status"
+                                                    "status",
+                                                    "name"
                                                 ],
                                                 "type": "object"
                                             },
@@ -14959,8 +16152,8 @@
                                                         "type": "string",
                                                         "enum": [
                                                             "error",
-                                                            "rejected",
                                                             "success",
+                                                            "rejected",
                                                             "timeout"
                                                         ]
                                                     }
@@ -14972,6 +16165,10 @@
                                                 "properties": {
                                                     "ranking": {
                                                         "properties": {
+                                                            "searchQuery": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
                                                             "fields": {
                                                                 "items": {
                                                                     "properties": {
@@ -15011,21 +16208,17 @@
                                                             "type": {
                                                                 "type": "string",
                                                                 "enum": [
-                                                                    "dimension",
                                                                     "metric",
+                                                                    "dimension",
                                                                     null
                                                                 ],
-                                                                "nullable": true
-                                                            },
-                                                            "searchQuery": {
-                                                                "type": "string",
                                                                 "nullable": true
                                                             }
                                                         },
                                                         "required": [
+                                                            "searchQuery",
                                                             "fields",
-                                                            "type",
-                                                            "searchQuery"
+                                                            "type"
                                                         ],
                                                         "type": "object"
                                                     },
@@ -15239,6 +16432,9 @@
                     "createdAt": {
                         "type": "string"
                     },
+                    "interrupted": {
+                        "type": "boolean"
+                    },
                     "errorMessage": {
                         "type": "string",
                         "nullable": true
@@ -15274,6 +16470,7 @@
                     "toolCalls",
                     "humanScore",
                     "createdAt",
+                    "interrupted",
                     "errorMessage",
                     "message",
                     "threadUuid",
@@ -15518,6 +16715,90 @@
                         },
                         "required": ["threadUuid", "type"],
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "path": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["file"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["path", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fullName": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["repository"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["fullName", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "prUrl": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["pull_request"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["prUrl", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fingerprint": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["proposed_change"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["fingerprint", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fingerprint": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["review_finding"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["fingerprint", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "previewProjectUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["preview_environment"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["previewProjectUuid", "type"],
+                        "type": "object"
                     }
                 ]
             },
@@ -15644,11 +16925,72 @@
                         "type": "array",
                         "description": "Tool names hinted by the user when they composed the message (via\nsuggestion chips that carry a tool id). agentV2 appends a soft hint\nto the user message before sending it to the LLM. Transient — never\npersisted."
                     },
+                    "autoApproveSql": {
+                        "type": "boolean",
+                        "description": "Skips the SQL human-approval gate for this stream. Used by the review\nremediation workspace so Continue PR turns run frictionlessly. Defaults\nto false — normal chat still asks the user to approve SQL."
+                    },
                     "enableSqlMode": {
                         "type": "boolean",
                         "description": "Per-thread toggle that decides whether the agent gets access to the\nrunSql / listWarehouseTables / describeWarehouseTable tools for this\nstream. Frontend tracks the toggle in its slice; passed in on every\nstream call. Falls back to `false` when omitted (e.g. older clients,\nAPI callers) so the safer \"semantic layer only\" mode is the default."
                     }
                 },
+                "type": "object"
+            },
+            "ApiSuccess__interrupted-true__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "interrupted": {
+                                "type": "boolean",
+                                "enum": [true],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["interrupted"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentThreadMessageInterruptResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__interrupted-true__"
+            },
+            "ApiSuccess__steer-AiPromptSteer__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "steer": {
+                                "$ref": "#/components/schemas/AiPromptSteer"
+                            }
+                        },
+                        "required": ["steer"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentThreadMessageSteerResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__steer-AiPromptSteer__"
+            },
+            "ApiCreateAiAgentThreadMessageSteer": {
+                "properties": {
+                    "message": {
+                        "type": "string"
+                    }
+                },
+                "required": ["message"],
                 "type": "object"
             },
             "ApiAiAgentThreadGenerateResponse": {
@@ -17405,6 +18747,10 @@
                 "enum": ["redshift"],
                 "type": "string"
             },
+            "RedshiftAuthenticationType": {
+                "enum": ["password", "iam"],
+                "type": "string"
+            },
             "Pick_CreateRedshiftCredentials.Exclude_keyofCreateRedshiftCredentials.SensitiveCredentialsFieldNames__": {
                 "properties": {
                     "type": {
@@ -17412,6 +18758,9 @@
                     },
                     "requireUserCredentials": {
                         "type": "boolean"
+                    },
+                    "authenticationType": {
+                        "$ref": "#/components/schemas/RedshiftAuthenticationType"
                     },
                     "schema": {
                         "type": "string"
@@ -17470,6 +18819,33 @@
                     },
                     "ra3Node": {
                         "type": "boolean"
+                    },
+                    "region": {
+                        "type": "string"
+                    },
+                    "isServerless": {
+                        "type": "boolean"
+                    },
+                    "clusterIdentifier": {
+                        "type": "string"
+                    },
+                    "workgroupName": {
+                        "type": "string"
+                    },
+                    "autoCreate": {
+                        "type": "boolean"
+                    },
+                    "dbGroups": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "assumeRoleArn": {
+                        "type": "string"
+                    },
+                    "assumeRoleExternalId": {
+                        "type": "string"
                     }
                 },
                 "required": ["type", "schema", "host", "port", "dbname"],
@@ -17879,16 +19255,16 @@
                     "region": {
                         "type": "string"
                     },
-                    "s3StagingDir": {
-                        "type": "string"
-                    },
-                    "s3DataDir": {
-                        "type": "string"
-                    },
                     "assumeRoleArn": {
                         "type": "string"
                     },
                     "assumeRoleExternalId": {
+                        "type": "string"
+                    },
+                    "s3StagingDir": {
+                        "type": "string"
+                    },
+                    "s3DataDir": {
                         "type": "string"
                     },
                     "workGroup": {
@@ -18427,6 +19803,45 @@
                     },
                     {
                         "properties": {
+                            "assumeRoleExternalId": {
+                                "type": "string"
+                            },
+                            "assumeRoleArn": {
+                                "type": "string"
+                            },
+                            "sessionToken": {
+                                "type": "string"
+                            },
+                            "secretAccessKey": {
+                                "type": "string"
+                            },
+                            "accessKeyId": {
+                                "type": "string"
+                            },
+                            "dbGroups": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "autoCreate": {
+                                "type": "boolean"
+                            },
+                            "workgroupName": {
+                                "type": "string"
+                            },
+                            "clusterIdentifier": {
+                                "type": "string"
+                            },
+                            "isServerless": {
+                                "type": "boolean"
+                            },
+                            "region": {
+                                "type": "string"
+                            },
+                            "authenticationType": {
+                                "$ref": "#/components/schemas/RedshiftAuthenticationType"
+                            },
                             "timeoutSeconds": {
                                 "type": "number",
                                 "format": "double"
@@ -18486,7 +19901,6 @@
                             "schema",
                             "dbname",
                             "port",
-                            "password",
                             "user",
                             "host",
                             "type"
@@ -19947,6 +21361,10 @@
                 "required": ["passcode", "domain"],
                 "type": "object"
             },
+            "RoleLevel": {
+                "type": "string",
+                "enum": ["project", "organization"]
+            },
             "Role": {
                 "properties": {
                     "updatedAt": {
@@ -19971,6 +21389,9 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "level": {
+                        "$ref": "#/components/schemas/RoleLevel"
+                    },
                     "description": {
                         "type": "string",
                         "nullable": true
@@ -19988,6 +21409,7 @@
                     "createdBy",
                     "ownerType",
                     "organizationUuid",
+                    "level",
                     "description",
                     "name",
                     "roleUuid"
@@ -20015,6 +21437,9 @@
                             "type": "string"
                         },
                         "type": "array"
+                    },
+                    "level": {
+                        "$ref": "#/components/schemas/RoleLevel"
                     },
                     "description": {
                         "type": "string"
@@ -20534,6 +21959,10 @@
             },
             "GitRepo": {
                 "properties": {
+                    "provider": {
+                        "type": "string",
+                        "enum": ["github", "gitlab"]
+                    },
                     "defaultBranch": {
                         "type": "string"
                     },
@@ -20770,22 +22199,43 @@
                 "type": "string",
                 "enum": ["createdAt", "title"]
             },
-            "AiAgentRootCause": {
-                "type": "string",
-                "enum": [
-                    "semantic_layer",
-                    "project_context",
-                    "agent_configuration",
-                    "product_capability",
-                    "runtime_reliability",
-                    "feedback_quality",
-                    "not_a_failure",
-                    "ambiguous"
-                ]
+            "AiAgentAdminPromptActivityPoint": {
+                "properties": {
+                    "promptCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "date": {
+                        "type": "string"
+                    }
+                },
+                "required": ["promptCount", "date"],
+                "type": "object"
+            },
+            "ApiSuccess_AiAgentAdminPromptActivityPoint-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentAdminPromptActivityPoint"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentAdminPromptActivityResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiAgentAdminPromptActivityPoint-Array_"
             },
             "AiAgentReviewItemStatus": {
                 "type": "string",
                 "enum": [
+                    "triage",
                     "open",
                     "in_progress",
                     "resolved",
@@ -20813,10 +22263,6 @@
                     "unknown"
                 ]
             },
-            "AiAgentReviewItemPrState": {
-                "type": "string",
-                "enum": ["open", "merged", "closed"]
-            },
             "AiAgentReviewItemWritebackStatus": {
                 "type": "string",
                 "enum": ["queued", "running", "completed", "failed"]
@@ -20830,6 +22276,11 @@
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "boardPosition": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
                     },
                     "prWritebackMessage": {
                         "type": "string",
@@ -20927,6 +22378,7 @@
                 "required": [
                     "updatedAt",
                     "createdAt",
+                    "boardPosition",
                     "prWritebackMessage",
                     "prWritebackStatus",
                     "prState",
@@ -20951,10 +22403,6 @@
                     "uuid"
                 ],
                 "type": "object"
-            },
-            "PullRequestProvider": {
-                "enum": ["github", "gitlab"],
-                "type": "string"
             },
             "AiAgentReviewItemWritebackStrategy": {
                 "type": "string",
@@ -21043,17 +22491,6 @@
                     }
                 ]
             },
-            "AiAgentReviewRemediationStatus": {
-                "type": "string",
-                "enum": [
-                    "queued",
-                    "running",
-                    "pr_open",
-                    "preview_ready",
-                    "resolved",
-                    "failed"
-                ]
-            },
             "AiAgentReviewRemediation": {
                 "properties": {
                     "updatedAt": {
@@ -21108,6 +22545,10 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "workThreadUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "sourceAgentUuid": {
                         "type": "string"
                     },
@@ -21147,6 +22588,7 @@
                     "previewProjectUuid",
                     "linkedPrUrl",
                     "pullRequestUuid",
+                    "workThreadUuid",
                     "sourceAgentUuid",
                     "sourceProjectUuid",
                     "sourceThreadUuid",
@@ -21171,347 +22613,6 @@
                     "feedback_needed",
                     "no_action"
                 ]
-            },
-            "AiAgentSemanticTargetRef": {
-                "anyOf": [
-                    {
-                        "properties": {
-                            "modelName": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["model"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["modelName", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "exploreName": {
-                                "type": "string"
-                            },
-                            "modelName": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["explore"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["exploreName", "modelName", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "exploreName": {
-                                "type": "string"
-                            },
-                            "joinName": {
-                                "type": "string"
-                            },
-                            "modelName": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["join"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["joinName", "modelName", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "dimensionName": {
-                                "type": "string"
-                            },
-                            "modelName": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["dimension"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["dimensionName", "modelName", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "dimensionName": {
-                                "type": "string"
-                            },
-                            "metricName": {
-                                "type": "string"
-                            },
-                            "modelName": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["metric"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["metricName", "modelName", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "dimensionName": {
-                                "type": "string"
-                            },
-                            "parentDimensionName": {
-                                "type": "string"
-                            },
-                            "modelName": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["additional_dimension"],
-                                "nullable": false
-                            }
-                        },
-                        "required": [
-                            "dimensionName",
-                            "parentDimensionName",
-                            "modelName",
-                            "type"
-                        ],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "fieldName": {
-                                "type": "string"
-                            },
-                            "exploreName": {
-                                "type": "string"
-                            },
-                            "modelName": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["required_filter"],
-                                "nullable": false
-                            }
-                        },
-                        "required": [
-                            "fieldName",
-                            "exploreName",
-                            "modelName",
-                            "type"
-                        ],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "targetName": {
-                                "type": "string"
-                            },
-                            "targetType": {
-                                "type": "string",
-                                "enum": ["model", "dimension", "metric"]
-                            },
-                            "modelName": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["ai_hint"],
-                                "nullable": false
-                            }
-                        },
-                        "required": [
-                            "targetName",
-                            "targetType",
-                            "modelName",
-                            "type"
-                        ],
-                        "type": "object"
-                    }
-                ]
-            },
-            "AiAgentConfigurationSetting": {
-                "type": "string",
-                "enum": [
-                    "instructions",
-                    "knowledge_documents",
-                    "data_access",
-                    "self_improvement",
-                    "sql_mode",
-                    "mcp_servers",
-                    "explore_tags",
-                    "space_access",
-                    "user_or_group_access",
-                    "unknown"
-                ]
-            },
-            "AiAgentTargetRef": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/AiAgentSemanticTargetRef"
-                    },
-                    {
-                        "properties": {
-                            "agentUuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["agent"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["agentUuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "setting": {
-                                "$ref": "#/components/schemas/AiAgentConfigurationSetting"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["agent_config"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["setting", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "capabilityKey": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["product_capability"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["capabilityKey", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "key": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["runtime"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["key", "type"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "AiAgentEvidenceExcerpt": {
-                "properties": {
-                    "redacted": {
-                        "type": "boolean"
-                    },
-                    "text": {
-                        "type": "string"
-                    },
-                    "source": {
-                        "type": "string",
-                        "enum": [
-                            "user_prompt",
-                            "assistant_answer",
-                            "next_user_prompt",
-                            "conversation_context",
-                            "tool_call",
-                            "tool_result",
-                            "agent_config"
-                        ]
-                    }
-                },
-                "required": ["redacted", "text", "source"],
-                "type": "object"
-            },
-            "AiAgentRecommendationAction": {
-                "type": "string",
-                "enum": [
-                    "update_semantic_yaml",
-                    "update_agent_instructions",
-                    "add_knowledge_document",
-                    "enable_data_access",
-                    "enable_sql_mode",
-                    "enable_self_improvement",
-                    "configure_mcp_server",
-                    "adjust_explore_tags",
-                    "update_access",
-                    "route_to_product_work",
-                    "request_more_evidence",
-                    "no_action"
-                ]
-            },
-            "AiAgentRecommendation": {
-                "properties": {
-                    "targetRefs": {
-                        "items": {
-                            "$ref": "#/components/schemas/AiAgentTargetRef"
-                        },
-                        "type": "array"
-                    },
-                    "rationale": {
-                        "type": "string"
-                    },
-                    "title": {
-                        "type": "string"
-                    },
-                    "actionType": {
-                        "$ref": "#/components/schemas/AiAgentRecommendationAction"
-                    }
-                },
-                "required": ["targetRefs", "rationale", "title", "actionType"],
-                "type": "object"
-            },
-            "AiAgentJudgeProjectContextEntry": {
-                "properties": {
-                    "objects": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "terms": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "content": {
-                        "type": "string"
-                    },
-                    "kind": {
-                        "type": "string",
-                        "enum": ["definition", "context"]
-                    },
-                    "id": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "op": {
-                        "type": "string",
-                        "enum": ["create", "update"]
-                    }
-                },
-                "required": ["objects", "terms", "content", "kind", "id", "op"],
-                "type": "object"
             },
             "AiAgentReviewItemSummary": {
                 "allOf": [
@@ -21757,6 +22858,27 @@
                         "properties": {
                             "payload": {
                                 "properties": {
+                                    "prUrl": {
+                                        "type": "string",
+                                        "nullable": true
+                                    }
+                                },
+                                "required": ["prUrl"],
+                                "type": "object"
+                            },
+                            "eventType": {
+                                "type": "string",
+                                "enum": ["pr_updated"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["payload", "eventType"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "payload": {
+                                "properties": {
                                     "previewProjectUuid": {
                                         "type": "string"
                                     }
@@ -21909,6 +23031,10 @@
             },
             "AiAgentReviewItemActivity": {
                 "properties": {
+                    "verdictStale": {
+                        "type": "boolean",
+                        "description": "True when the PR changed after the latest verdict — derived from event\nordering (latest pr_opened/pr_updated/writeback_completed occurred after\nthe latest verification_completed). Drives the \"Retest\" prompt."
+                    },
                     "liveMessage": {
                         "type": "string",
                         "nullable": true,
@@ -21929,7 +23055,12 @@
                         "type": "array"
                     }
                 },
-                "required": ["liveMessage", "liveState", "events"],
+                "required": [
+                    "verdictStale",
+                    "liveMessage",
+                    "liveState",
+                    "events"
+                ],
                 "type": "object"
             },
             "ApiSuccess_AiAgentReviewItemActivity_": {
@@ -22031,8 +23162,25 @@
             "ApiAiAgentReviewItemPrDiffResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiAgentReviewItemPrDiff_"
             },
+            "ReorderAiAgentReviewItems": {
+                "properties": {
+                    "orderedFingerprints": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["orderedFingerprints"],
+                "type": "object"
+            },
             "UpdateAiAgentReviewItemStatus": {
                 "properties": {
+                    "boardPosition": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
                     "dismissedReason": {
                         "allOf": [
                             {
@@ -22046,6 +23194,16 @@
                     }
                 },
                 "required": ["dismissedReason", "status"],
+                "type": "object"
+            },
+            "UpdateAiAgentReviewItemAssignee": {
+                "properties": {
+                    "assignedToUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["assignedToUserUuid"],
                 "type": "object"
             },
             "AiAgentReviewItemWritebackPreview": {
@@ -23181,9 +24339,6 @@
             },
             "Pick_CreateRedshiftCredentials-or-CreatePostgresCredentials-or-CreateSnowflakeCredentials-or-CreateTrinoCredentials-or-CreateClickhouseCredentials.type-or-user_": {
                 "properties": {
-                    "user": {
-                        "type": "string"
-                    },
                     "type": {
                         "anyOf": [
                             {
@@ -23202,9 +24357,12 @@
                                 "$ref": "#/components/schemas/WarehouseTypes.CLICKHOUSE"
                             }
                         ]
+                    },
+                    "user": {
+                        "type": "string"
                     }
                 },
-                "required": ["user", "type"],
+                "required": ["type", "user"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -23327,43 +24485,43 @@
             },
             "Pick_CreateRedshiftCredentials.type-or-user-or-password_": {
                 "properties": {
-                    "user": {
-                        "type": "string"
-                    },
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.REDSHIFT"
+                    },
+                    "user": {
+                        "type": "string"
                     },
                     "password": {
                         "type": "string"
                     }
                 },
-                "required": ["user", "type", "password"],
+                "required": ["type", "user"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "Pick_CreatePostgresCredentials.type-or-user-or-password_": {
                 "properties": {
-                    "user": {
-                        "type": "string"
-                    },
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.POSTGRES"
+                    },
+                    "user": {
+                        "type": "string"
                     },
                     "password": {
                         "type": "string"
                     }
                 },
-                "required": ["user", "type", "password"],
+                "required": ["type", "user", "password"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "Pick_CreateSnowflakeCredentials.type-or-user-or-password-or-authenticationType-or-refreshToken_": {
                 "properties": {
-                    "user": {
-                        "type": "string"
-                    },
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.SNOWFLAKE"
+                    },
+                    "user": {
+                        "type": "string"
                     },
                     "password": {
                         "type": "string"
@@ -23375,39 +24533,39 @@
                         "$ref": "#/components/schemas/SnowflakeAuthenticationType"
                     }
                 },
-                "required": ["user", "type"],
+                "required": ["type", "user"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "Pick_CreateTrinoCredentials.type-or-user-or-password_": {
                 "properties": {
-                    "user": {
-                        "type": "string"
-                    },
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.TRINO"
+                    },
+                    "user": {
+                        "type": "string"
                     },
                     "password": {
                         "type": "string"
                     }
                 },
-                "required": ["user", "type", "password"],
+                "required": ["type", "user", "password"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "Pick_CreateClickhouseCredentials.type-or-user-or-password_": {
                 "properties": {
-                    "user": {
-                        "type": "string"
-                    },
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.CLICKHOUSE"
+                    },
+                    "user": {
+                        "type": "string"
                     },
                     "password": {
                         "type": "string"
                     }
                 },
-                "required": ["user", "type", "password"],
+                "required": ["type", "user", "password"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -28100,6 +29258,9 @@
                             "type": "string"
                         },
                         "type": "array"
+                    },
+                    "webhook_hmac_secret": {
+                        "type": "string"
                     }
                 },
                 "required": ["type", "api_key", "environment_id"],
@@ -30064,22 +31225,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "chart": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ContentAsCodeType.SPACE": {
@@ -30639,22 +31800,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -35100,6 +36261,10 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "UuidOrSlug": {
+                "type": "string",
+                "description": "A resource UUID or its URL slug. Resolve to a real UUID before using as a key."
+            },
             "Pick_UpdatedByUser.userUuid-or-firstName-or-lastName_": {
                 "properties": {
                     "userUuid": {
@@ -38043,23 +39208,38 @@
             "DashboardVersionedFields": {
                 "$ref": "#/components/schemas/Pick_CreateDashboard.tiles-or-filters-or-parameters-or-updatedByUser-or-tabs-or-config_"
             },
+            "PreserveContentVerification": {
+                "properties": {
+                    "preserveVerification": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
             "UpdateDashboard": {
-                "anyOf": [
+                "allOf": [
                     {
-                        "$ref": "#/components/schemas/DashboardUnversionedFields"
-                    },
-                    {
-                        "$ref": "#/components/schemas/DashboardVersionedFields"
-                    },
-                    {
-                        "allOf": [
+                        "anyOf": [
                             {
                                 "$ref": "#/components/schemas/DashboardUnversionedFields"
                             },
                             {
                                 "$ref": "#/components/schemas/DashboardVersionedFields"
+                            },
+                            {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/DashboardUnversionedFields"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DashboardVersionedFields"
+                                    }
+                                ]
                             }
                         ]
+                    },
+                    {
+                        "$ref": "#/components/schemas/PreserveContentVerification"
                     }
                 ]
             },
@@ -39745,7 +40925,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3187.2",
+        "version": "0.3220.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -43265,6 +44445,140 @@
                 }
             }
         },
+        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/interrupt": {
+            "post": {
+                "operationId": "interruptAgentThreadMessage",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentThreadMessageInterruptResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "messageUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/steers": {
+            "post": {
+                "operationId": "createAgentThreadMessageSteer",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentThreadMessageSteerResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "messageUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiCreateAiAgentThreadMessageSteer"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/generate": {
             "post": {
                 "operationId": "generateAgentThreadResponse",
@@ -46535,6 +47849,56 @@
                 ]
             }
         },
+        "/api/v1/aiAgents/admin/projects/{projectUuid}/prompt-activity": {
+            "get": {
+                "operationId": "getProjectPromptActivity",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentAdminPromptActivityResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get prompt activity for one project",
+                "summary": "Get project AI agent prompt activity",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "days",
+                        "required": false,
+                        "schema": {
+                            "default": 30,
+                            "format": "double",
+                            "type": "number"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/aiAgents/admin/agents": {
             "get": {
                 "operationId": "getAllAgents",
@@ -46817,6 +48181,97 @@
                 ]
             }
         },
+        "/api/v1/aiAgents/admin/review-items/reorder": {
+            "patch": {
+                "operationId": "reorderAiAgentReviewItems",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Persist the board's manual card order for one lane. Declared before the\n`{fingerprint}` route so \"reorder\" isn't matched as a fingerprint.",
+                "summary": "Reorder AI agent review items on the board",
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReorderAiAgentReviewItems"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/aiAgents/admin/review-items/{fingerprint}/assignee": {
+            "patch": {
+                "operationId": "updateAiAgentReviewItemAssignee",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentReviewItemResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Set the assignee on an AI agent review item",
+                "summary": "Update AI agent review item assignee",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "fingerprint",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateAiAgentReviewItemAssignee"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/aiAgents/admin/review-items/{fingerprint}/writeback": {
             "post": {
                 "operationId": "createAiAgentReviewItemWriteback",
@@ -46844,6 +48299,46 @@
                 },
                 "description": "Open a writeback pull request for a review item (semantic-layer or\nproject-context root cause)",
                 "summary": "Create AI agent review item writeback PR",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "fingerprint",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/aiAgents/admin/review-items/{fingerprint}/retest": {
+            "post": {
+                "operationId": "retestAiAgentReviewRemediation",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentReviewItemActivityResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Re-verify a remediation after its PR changed: recompiles the existing\npreview and re-runs the Test-fix verification thread.",
+                "summary": "Retest an AI agent review remediation",
                 "security": [],
                 "parameters": [
                     {
@@ -60246,7 +61741,7 @@
                 ]
             }
         },
-        "/api/v1/dashboards/{dashboardUuid}/promote": {
+        "/api/v1/dashboards/{dashboardUuidOrSlug}/promote": {
             "post": {
                 "operationId": "promoteDashboard",
                 "responses": {
@@ -60277,18 +61772,18 @@
                 "security": [],
                 "parameters": [
                     {
-                        "description": "dashboardUuid for the dashboard to run",
+                        "description": "uuid or slug for the dashboard to run",
                         "in": "path",
-                        "name": "dashboardUuid",
+                        "name": "dashboardUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     }
                 ]
             }
         },
-        "/api/v1/dashboards/{dashboardUuid}/promoteDiff": {
+        "/api/v1/dashboards/{dashboardUuidOrSlug}/promoteDiff": {
             "get": {
                 "operationId": "promoteDashboardDiff",
                 "responses": {
@@ -60319,18 +61814,18 @@
                 "security": [],
                 "parameters": [
                     {
-                        "description": "dashboardUuid for the dashboard to check diff",
+                        "description": "uuid or slug for the dashboard to check diff",
                         "in": "path",
-                        "name": "dashboardUuid",
+                        "name": "dashboardUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     }
                 ]
             }
         },
-        "/api/v1/dashboards/{dashboardUuid}/history": {
+        "/api/v1/dashboards/{dashboardUuidOrSlug}/history": {
             "get": {
                 "operationId": "getDashboardHistory",
                 "responses": {
@@ -60361,18 +61856,18 @@
                 "security": [],
                 "parameters": [
                     {
-                        "description": "dashboardUuid for the dashboard",
+                        "description": "uuid or slug for the dashboard",
                         "in": "path",
-                        "name": "dashboardUuid",
+                        "name": "dashboardUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     }
                 ]
             }
         },
-        "/api/v1/dashboards/{dashboardUuid}/version/{versionUuid}": {
+        "/api/v1/dashboards/{dashboardUuidOrSlug}/version/{versionUuid}": {
             "get": {
                 "operationId": "getDashboardVersion",
                 "responses": {
@@ -60403,12 +61898,12 @@
                 "security": [],
                 "parameters": [
                     {
-                        "description": "dashboardUuid for the dashboard",
+                        "description": "uuid or slug for the dashboard",
                         "in": "path",
-                        "name": "dashboardUuid",
+                        "name": "dashboardUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     },
                     {
@@ -60417,13 +61912,13 @@
                         "name": "versionUuid",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]
             }
         },
-        "/api/v1/dashboards/{dashboardUuid}/rollback/{versionUuid}": {
+        "/api/v1/dashboards/{dashboardUuidOrSlug}/rollback/{versionUuid}": {
             "post": {
                 "operationId": "postDashboardVersionRollback",
                 "responses": {
@@ -60454,12 +61949,12 @@
                 "security": [],
                 "parameters": [
                     {
-                        "description": "dashboardUuid for the dashboard",
+                        "description": "uuid or slug for the dashboard",
                         "in": "path",
-                        "name": "dashboardUuid",
+                        "name": "dashboardUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     },
                     {
@@ -60468,13 +61963,13 @@
                         "name": "versionUuid",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]
             }
         },
-        "/api/v1/dashboards/{dashboardUuid}/schedulers": {
+        "/api/v1/dashboards/{dashboardUuidOrSlug}/schedulers": {
             "get": {
                 "operationId": "getDashboardSchedulers",
                 "responses": {
@@ -60507,10 +62002,10 @@
                 "parameters": [
                     {
                         "in": "path",
-                        "name": "dashboardUuid",
+                        "name": "dashboardUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     }
                 ]
@@ -60546,16 +62041,16 @@
                 "parameters": [
                     {
                         "in": "path",
-                        "name": "dashboardUuid",
+                        "name": "dashboardUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     }
                 ]
             }
         },
-        "/api/v1/dashboards/{dashboardUuid}/verification": {
+        "/api/v1/dashboards/{dashboardUuidOrSlug}/verification": {
             "post": {
                 "operationId": "verifyDashboard",
                 "responses": {
@@ -60586,12 +62081,12 @@
                 "security": [],
                 "parameters": [
                     {
-                        "description": "The uuid of the dashboard to verify",
+                        "description": "uuid or slug of the dashboard to verify",
                         "in": "path",
-                        "name": "dashboardUuid",
+                        "name": "dashboardUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     }
                 ]
@@ -60626,12 +62121,12 @@
                 "security": [],
                 "parameters": [
                     {
-                        "description": "The uuid of the dashboard to unverify",
+                        "description": "uuid or slug of the dashboard to unverify",
                         "in": "path",
-                        "name": "dashboardUuid",
+                        "name": "dashboardUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     }
                 ]
@@ -62900,7 +64395,7 @@
                         }
                     }
                 },
-                "description": "List organization role assignments (system roles only)",
+                "description": "List organization role assignments",
                 "summary": "List organization role assignments",
                 "tags": ["v2", "Organization Roles"],
                 "security": [],
@@ -62941,7 +64436,7 @@
                         }
                     }
                 },
-                "description": "Assign system role to user at organization level",
+                "description": "Assign system or organization-level custom role to user at organization level",
                 "summary": "Assign organization role to user",
                 "tags": ["v2", "Organization Roles"],
                 "security": [],

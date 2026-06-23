@@ -49,7 +49,9 @@ export type SettingsContext = {
     isServiceAccountsEnabled: boolean;
     isAiCopilotEnabledOrTrial: boolean;
     shouldShowAiAgentReviews: boolean;
+    isAiOrganizationSettingsLoading: boolean;
     dataAppsFlag: FeatureFlag | undefined;
+    dataAppExternalAccessFlag: FeatureFlag | undefined;
     embeddingEnabled: FeatureFlag | undefined;
     allowPasswordAuthentication: boolean;
     hasSocialLogin: boolean | undefined;

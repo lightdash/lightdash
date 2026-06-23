@@ -77,7 +77,10 @@ export class AppGenerateController extends BaseController {
             body.clarifications,
             body.spaceUuid,
             body.claudeModel,
-            body.designUuid,
+            {
+                designUuidInput: body.designUuid,
+                externalConnections: body.externalConnections,
+            },
         );
         return {
             status: 'ok',
@@ -242,6 +245,10 @@ export class AppGenerateController extends BaseController {
             body.charts,
             body.dashboard,
             body.claudeModel,
+            {
+                designUuidInput: body.designUuid,
+                externalConnections: body.externalConnections,
+            },
         );
         return {
             status: 'ok',

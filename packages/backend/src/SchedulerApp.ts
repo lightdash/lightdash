@@ -14,6 +14,7 @@ import { setGithubRateLimitObserver } from './clients/github/Github';
 import { LightdashConfig } from './config/parseConfig';
 import Logger from './logging/logger';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
+import { initOtelHttpMetrics } from './prometheus/otelHttpMetrics';
 import PrometheusMetrics from './prometheus/PrometheusMetrics';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import schedulerWorkerEventEmitter, {
@@ -206,6 +207,7 @@ export default class SchedulerApp {
     }
 
     private async initSentry() {
+        initOtelHttpMetrics(this.lightdashConfig.prometheus);
         Sentry.init({
             release: VERSION,
             dsn: this.lightdashConfig.sentry.backend.dsn,
@@ -273,7 +275,7 @@ export default class SchedulerApp {
             },
             onSignal: async () => {
                 Logger.info('Stopping Prometheus metrics');
-                this.prometheusMetrics.stop();
+                await this.prometheusMetrics.stop();
                 if (worker && worker.runner) {
                     Logger.info('Stopping scheduler worker');
                     await worker?.runner?.stop();

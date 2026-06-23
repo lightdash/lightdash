@@ -163,7 +163,10 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
         const customRoles: { value: string; label: string }[] = [];
 
         organizationRoles.forEach(
-            (role: Pick<Role, 'roleUuid' | 'name' | 'ownerType'>) => {
+            (role: Pick<Role, 'roleUuid' | 'name' | 'ownerType' | 'level'>) => {
+                if (role.ownerType === 'user' && role.level !== 'project') {
+                    return;
+                }
                 const item = { value: role.roleUuid, label: role.name };
                 if (role.ownerType === 'system') {
                     systemRoles.push(item);

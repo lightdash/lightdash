@@ -1033,6 +1033,24 @@ const getBedrockConfig = (customHeaders: Record<string, string>) => {
             ),
         } as const;
     }
+    if (process.env.BEDROCK_USE_DEFAULT_CREDENTIALS === 'true') {
+        return {
+            useDefaultCredentials: true as const,
+            region: process.env.BEDROCK_REGION,
+            inferenceProfilePrefix:
+                process.env.BEDROCK_INFERENCE_PROFILE_PREFIX,
+            modelName:
+                process.env.BEDROCK_MODEL_NAME || DEFAULT_BEDROCK_MODEL_NAME,
+            embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,
+            availableModels: getArrayFromCommaSeparatedList(
+                'BEDROCK_AVAILABLE_MODELS',
+            ),
+            customHeaders,
+            supportsStreaming: getProviderSupportsStreaming(
+                'BEDROCK_SUPPORTS_STREAMING',
+            ),
+        } as const;
+    }
 
     return undefined;
 };
@@ -1227,6 +1245,7 @@ export type LightdashConfig = {
         eventMetricsConfigPath?: string;
         allQueryMetricsEnabled: boolean;
         extendedMetricsEnabled: boolean;
+        httpMetricsEnabled: boolean;
     };
     database: {
         connectionUri: string | undefined;
@@ -1433,9 +1452,6 @@ export type LightdashConfig = {
     };
     analyticsEmbedSecret?: string;
 
-    echarts6: {
-        enabled: boolean;
-    };
     editYamlInUi: {
         enabled: boolean;
     };
@@ -2195,6 +2211,9 @@ export const parseConfig = (): LightdashConfig => {
             extendedMetricsEnabled:
                 process.env.LIGHTDASH_PROMETHEUS_EXTENDED_METRICS_ENABLED ===
                 'true', // defaults to false
+            httpMetricsEnabled:
+                process.env.LIGHTDASH_PROMETHEUS_HTTP_METRICS_ENABLED ===
+                'true', // defaults to false
         },
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
         maxPayloadSize: process.env.LIGHTDASH_MAX_PAYLOAD || '5mb',
@@ -2513,9 +2532,6 @@ export const parseConfig = (): LightdashConfig => {
             enabled: process.env.CUSTOM_ROLES_ENABLED === 'true',
         },
         analyticsEmbedSecret: process.env.ANALYTICS_EMBED_SECRET,
-        echarts6: {
-            enabled: process.env.ECHARTS_V6_ENABLED === 'true',
-        },
         editYamlInUi: {
             enabled: process.env.EDIT_YAML_IN_UI_ENABLED === 'true',
         },

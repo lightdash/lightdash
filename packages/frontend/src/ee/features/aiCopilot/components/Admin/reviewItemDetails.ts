@@ -17,6 +17,15 @@ export const reviewRootCauseLabels: Record<AiAgentRootCause, string> = {
     ambiguous: 'Ambiguous',
 };
 
+const DEFAULT_HIDDEN_ROOT_CAUSES: AiAgentRootCause[] = [
+    'agent_configuration',
+    'runtime_reliability',
+];
+
+export const DEFAULT_VISIBLE_ROOT_CAUSES = (
+    Object.keys(reviewRootCauseLabels) as AiAgentRootCause[]
+).filter((rootCause) => !DEFAULT_HIDDEN_ROOT_CAUSES.includes(rootCause));
+
 export const reviewRootCauseColors: Record<AiAgentRootCause, string> = {
     semantic_layer: 'indigo',
     project_context: 'violet',
@@ -85,6 +94,31 @@ export const formatReviewDate = (date: Date): string => {
     });
 };
 
+/**
+ * Coarse "last seen 2h ago" recency, falling back to an absolute date once the
+ * finding is more than a week old (where relative phrasing stops being useful).
+ */
+export const formatRelativeReviewDate = (date: Date): string => {
+    const parsedDate = new Date(date);
+    const diffMs = new Date().getTime() - parsedDate.getTime();
+    const diffMinutes = Math.floor(diffMs / 60_000);
+
+    if (diffMinutes < 1) return 'just now';
+    if (diffMinutes < 60) return `${diffMinutes}m ago`;
+
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays}d ago`;
+
+    return formatReviewDate(parsedDate);
+};
+
+export const getTargetAnchor = (
+    reviewItem: AiAgentReviewItemSummary,
+): string | null => getTargetLabel(reviewItem.latestFinding?.targetRefs ?? []);
+
 const getTargetLabel = (targetRefs: AiAgentTargetRef[]): string | null => {
     const targetRef = targetRefs[0];
     if (!targetRef) return null;
@@ -118,13 +152,6 @@ const isTriageReviewItem = (reviewItem: AiAgentReviewItemSummary): boolean =>
 export const getIssueTitle = (reviewItem: AiAgentReviewItemSummary): string => {
     if (isTriageReviewItem(reviewItem)) {
         return 'Triage correction signal';
-    }
-
-    const targetLabel = getTargetLabel(
-        reviewItem.latestFinding?.targetRefs ?? [],
-    );
-    if (targetLabel && reviewItem.primaryRootCause === 'semantic_layer') {
-        return `Review ${targetLabel}`;
     }
 
     return reviewItem.latestFinding?.recommendation?.title ?? reviewItem.title;

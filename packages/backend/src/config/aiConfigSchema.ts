@@ -113,6 +113,20 @@ export const aiCopilotConfigSchema = z
                         customHeaders: customHeadersSchema,
                         supportsStreaming: supportsStreamingSchema,
                     }),
+                    z.object({
+                        useDefaultCredentials: z.literal(true),
+                        region: z.string(),
+                        inferenceProfilePrefix: z.string().optional(),
+                        modelName: z
+                            .string()
+                            .default(DEFAULT_BEDROCK_MODEL_NAME),
+                        embeddingModelName: z
+                            .string()
+                            .default(DEFAULT_BEDROCK_EMBEDDING_MODEL),
+                        availableModels: z.array(z.string()).optional(),
+                        customHeaders: customHeadersSchema,
+                        supportsStreaming: supportsStreamingSchema,
+                    }),
                 ])
                 .optional(),
         }),

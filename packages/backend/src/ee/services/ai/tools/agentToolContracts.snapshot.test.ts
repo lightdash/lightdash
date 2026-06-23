@@ -6,6 +6,7 @@ import { getDescribeWarehouseTable } from './describeWarehouseTable';
 import { getDiscoverRepos } from './discoverRepos';
 import { getEditContent } from './editContent';
 import { getEditDbtProject } from './editDbtProject';
+import { getEditProjectContext } from './editProjectContext';
 import { getExploreRepo } from './exploreRepo';
 import { getFindContent } from './findContent';
 import { getFindExplores } from './findExplores';
@@ -139,6 +140,9 @@ const makeAgentTools = () => {
         loadSkill: getLoadSkill({ loadSkill: noop }),
         editDbtProject: getEditDbtProject({
             editDbtProject: noop,
+        }),
+        editProjectContext: getEditProjectContext({
+            editProjectContext: noop,
         }),
         setupPreviewDeploy: getSetupPreviewDeploy({
             setupPreviewDeploy: noop,

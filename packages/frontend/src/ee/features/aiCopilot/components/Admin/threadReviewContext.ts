@@ -9,6 +9,7 @@ import {
 } from './reviewItemDetails';
 
 export const THREAD_REVIEW_ITEM_STATUSES: AiAgentReviewItemStatus[] = [
+    'triage',
     'open',
     'in_progress',
     'resolved',
@@ -24,6 +25,7 @@ export const threadReviewRootCauseColors: Record<AiAgentRootCause, string> =
 
 export const threadReviewStatusColors: Record<AiAgentReviewItemStatus, string> =
     {
+        triage: 'gray',
         open: 'red',
         in_progress: 'yellow',
         resolved: 'green',
@@ -43,11 +45,12 @@ export type ThreadReviewSummary = {
 };
 
 const reviewStatusPriority: Record<AiAgentReviewItemStatus, number> = {
-    open: 0,
-    in_progress: 1,
-    resolved: 2,
-    dismissed: 3,
-    duplicate: 4,
+    triage: 0,
+    open: 1,
+    in_progress: 2,
+    resolved: 3,
+    dismissed: 4,
+    duplicate: 5,
 };
 
 const getReviewItemTimestamp = (reviewItem: AiAgentReviewItemSummary) =>

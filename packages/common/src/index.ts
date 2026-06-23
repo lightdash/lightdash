@@ -180,6 +180,7 @@ export {
     mergeWarehouseCredentials,
     normalizeWarehouseCredentials,
     ProjectType,
+    RedshiftAuthenticationType,
     resolveDbtVersion,
     sensitiveCredentialsFieldNames,
     SnowflakeAuthenticationType,

@@ -34,6 +34,7 @@ import MantineIcon from '../../../common/MantineIcon';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
+import { AxisMinInterval } from './AxisMinInterval';
 import { AxisMinMax } from './AxisMinMax';
 
 const XAxisSortSelectItem = forwardRef<
@@ -67,7 +68,9 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
         setYAxisName,
         setYMinValue,
         setYMaxValue,
+        setYMinInterval,
         setXMinValue,
+        setXMinInterval,
         setXMinOffsetValue,
         setXMaxValue,
         setXMaxOffsetValue,
@@ -171,6 +174,16 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                             max={dirtyEchartsConfig?.xAxis?.[0]?.max}
                             setMin={(newValue) => setXMinValue(0, newValue)}
                             setMax={(newValue) => setXMaxValue(0, newValue)}
+                        />
+                    )}
+
+                    {isNumericItem(xAxisField) && (
+                        <AxisMinInterval
+                            label="Min tick interval"
+                            value={dirtyEchartsConfig?.xAxis?.[0]?.minInterval}
+                            onChange={(newValue) =>
+                                setXMinInterval(0, newValue)
+                            }
                         />
                     )}
 
@@ -371,6 +384,15 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                             setMax={(newValue) => setYMaxValue(0, newValue)}
                         />
                     )}
+                    {showFirstAxisRange && (
+                        <AxisMinInterval
+                            label="Min tick interval"
+                            value={dirtyEchartsConfig?.yAxis?.[0]?.minInterval}
+                            onChange={(newValue) =>
+                                setYMinInterval(0, newValue)
+                            }
+                        />
+                    )}
                 </Config.Section>
             </Config>
 
@@ -407,6 +429,15 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                             max={dirtyEchartsConfig?.yAxis?.[1]?.max}
                             setMin={(newValue) => setYMinValue(1, newValue)}
                             setMax={(newValue) => setYMaxValue(1, newValue)}
+                        />
+                    )}
+                    {showSecondAxisRange && (
+                        <AxisMinInterval
+                            label="Min tick interval"
+                            value={dirtyEchartsConfig?.yAxis?.[1]?.minInterval}
+                            onChange={(newValue) =>
+                                setYMinInterval(1, newValue)
+                            }
                         />
                     )}
                 </Config.Section>

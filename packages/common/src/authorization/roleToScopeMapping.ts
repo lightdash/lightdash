@@ -151,6 +151,7 @@ const BASE_ROLE_SCOPES = {
     [ProjectMemberRole.ADMIN]: [
         // Admin-specific permissions
         'manage:DataApp',
+        'manage:ExternalConnection',
         'manage:OrganizationDesign',
         'delete:Project', // Any project
         'view:Analytics',
@@ -265,6 +266,7 @@ export const getNonEnterpriseScopesForRole = (
         'create:DataApp',
         'view:DataApp@self',
         'manage:DataApp@self',
+        'manage:ExternalConnection',
         'view:OrganizationDesign',
         'manage:OrganizationDesign',
         'manage:PersonalAccessToken',
@@ -282,6 +284,7 @@ export const getSystemRoles = (): RoleWithScopes[] =>
         name: ProjectMemberRoleLabels[role],
         description: ProjectMemberRoleLabels[role],
         ownerType: 'system',
+        level: 'project',
         scopes: getAllScopesForRole(role),
         organizationUuid: null,
         createdAt: null,

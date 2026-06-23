@@ -332,6 +332,10 @@ import {
     AiAgentToolResultTableName,
     AiPromptContextTable,
     AiPromptContextTableName,
+    AiPromptInterruptTable,
+    AiPromptInterruptTableName,
+    AiPromptSteerTable,
+    AiPromptSteerTableName,
     AiPromptTable,
     AiPromptTableName,
     AiSlackPromptTable,
@@ -421,6 +425,18 @@ import {
     DashboardSummariesTable,
     DashboardSummariesTableName,
 } from '../ee/database/entities/dashboardSummaries';
+import {
+    AppExternalConnectionsTable,
+    AppExternalConnectionsTableName,
+    ExternalConnectionRateCountersTable,
+    ExternalConnectionRateCountersTableName,
+    ExternalConnectionSamplesTable,
+    ExternalConnectionSamplesTableName,
+    ExternalConnectionSecretsTable,
+    ExternalConnectionSecretsTableName,
+    ExternalConnectionsTable,
+    ExternalConnectionsTableName,
+} from '../ee/database/entities/externalConnections';
 import {
     ManagedAgentActionsTable,
     ManagedAgentActionsTableName,
@@ -543,6 +559,8 @@ declare module 'knex/types/tables' {
         [AiSlackThreadTableName]: AiSlackThreadTable;
         [AiWebAppThreadTableName]: AiWebAppThreadTable;
         [AiPromptTableName]: AiPromptTable;
+        [AiPromptInterruptTableName]: AiPromptInterruptTable;
+        [AiPromptSteerTableName]: AiPromptSteerTable;
         [AiPromptContextTableName]: AiPromptContextTable;
         [AiThreadCompactionTableName]: AiThreadCompactionTable;
         [AiArtifactsTableName]: AiArtifactsTable;
@@ -612,5 +630,10 @@ declare module 'knex/types/tables' {
         [AppVersionsTableName]: AppVersionsTable;
         [AiRouterTableName]: AiRouterTable;
         [AiRouterDecisionTableName]: AiRouterDecisionTable;
+        [ExternalConnectionsTableName]: ExternalConnectionsTable;
+        [ExternalConnectionSecretsTableName]: ExternalConnectionSecretsTable;
+        [AppExternalConnectionsTableName]: AppExternalConnectionsTable;
+        [ExternalConnectionRateCountersTableName]: ExternalConnectionRateCountersTable;
+        [ExternalConnectionSamplesTableName]: ExternalConnectionSamplesTable;
     }
 }

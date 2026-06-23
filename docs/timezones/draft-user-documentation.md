@@ -9,7 +9,9 @@ This guide is in two parts:
 
 If you only read one thing: **set your project timezone to the zone you actually report in, store timestamps as timezone-aware types in your warehouse, and use** `DATE` **for calendar values.** The rest is detail.
 
-> **Editor's note for reviewers.** Inline tags like *— [GLITCH-NNN](https://linear.app/lightdash/issue/GLITCH-NNN)* link this draft to unbuilt design work tracked in the [Timezone Handling Linear project](https://linear.app/lightdash/project/timezone-handling-4659dc553e25). They mark sentences whose accuracy depends on changes that haven't shipped yet. Strip them before publishing to the public docs site. The whole document corresponds to [GLITCH-457](https://linear.app/lightdash/issue/GLITCH-457).
+> **Editor's note for reviewers.** Inline tags like *— [GLITCH-NNN](https://linear.app/lightdash/issue/GLITCH-NNN)* link this draft to design work in the [Timezone Handling Linear project](https://linear.app/lightdash/project/timezone-handling-4659dc553e25). Strip all tags before publishing. The whole document corresponds to [GLITCH-457](https://linear.app/lightdash/issue/GLITCH-457).
+>
+> **Status (as of v2 Phases 1–2 shipped).** Most tagged features have now shipped behind the `TimezoneV2` flag and the tags are just citations to drop: GLITCH-449/509 (DST/ECharts), 451 (flag gating), 452 (DATE grain), 453 (fractional offsets), 454 (data-tz preview), 455/456/459 (pin/viewer UX + badge), 488 (embed `?timezone=`), 499 (MIN/MAX). **Two sections still describe v3 features that will NOT exist at the Phase-3 publish:** `wall_clock_timezone:` (GLITCH-463) and `${ldQueryTimezone}` custom-SQL templating (GLITCH-462/461). Per the v2 rollout playbook, **cut or gate those before publishing** — they are marked inline below. Mixed-zone guidance should fall back to the connection-level data timezone until GLITCH-463 ships.
 
 ---
 
@@ -105,6 +107,8 @@ columns:
 Use cases: audit logs, system timestamps, pre-converted values. The column will render exactly what the warehouse stores.
 
 ### `wall_clock_timezone:` — declare a non-UTC source zone for one column
+
+> ⚠️ **v3 — not yet available (GLITCH-463). Cut or gate this section before publishing.** Until it ships, mixed-zone naive data must use the connection-level **Data timezone**, which is warehouse-wide.
 
 If a specific column is stored as a naive timestamp in a known non-UTC zone (e.g., an event logged in Pacific time on a UTC-default warehouse):
 
@@ -205,6 +209,17 @@ A chart grouped by **hour, minute, or smaller** buckets data by instants. The bo
 
 **Implication:** sub-day grouping is naturally consistent across viewers. The only exception is half-hour and 45-minute offset zones (India, Nepal, parts of Australia), where bucket boundaries don't align with whole-hour zones. Hour-grain charts plot on the project wall-clock timeline, so a daylight-saving transition shows directly: at a fall-back the repeated 1 AM hour is one taller bar (both hours merged, `count` doubled), and at a spring-forward the skipped `02:00` hour is simply absent. *— [GLITCH-453](https://linear.app/lightdash/issue/GLITCH-453), [GLITCH-449](https://linear.app/lightdash/issue/GLITCH-449), [GLITCH-509](https://linear.app/lightdash/issue/GLITCH-509)*
 
+## Min/max of a date or timestamp
+
+A metric that takes the **earliest** or **latest** of a temporal column — "first order date," "last seen at" — follows the same rule as the column it aggregates:
+
+- **Min/max of a** `DATE` **column** (or a day-or-coarser date grouping) renders as a plain calendar date and never shifts. "Earliest signup date" shows `2026-05-19` for every viewer, in every timezone — exactly like a `DATE` dimension.
+- **Min/max of a** `TIMESTAMP` **column** renders in the chart's resolved timezone, just like a timestamp dimension. "Last seen at" moves with the badge: a viewer in Tokyo sees the same instant in Tokyo time.
+
+You don't configure anything extra — a min/max metric inherits the temporal behaviour of its underlying column.
+
+> **For dbt modelers:** if you define a min/max metric over a date column in your YAML, refresh (recompile) your project once after upgrading so Lightdash picks up the column's type. Min/max metrics you build ad-hoc in the Explore UI work right away. *— [GLITCH-499](https://linear.app/lightdash/issue/GLITCH-499)*
+
 ## Sharing charts: pinning vs viewer timezone
 
 When you save a chart, Lightdash asks how you want viewers to see it:
@@ -278,6 +293,8 @@ For multi-tenant embeds, set `?timezone=` per session to render each tenant in i
 
 ## Custom SQL with `${ldQueryTimezone}`
 
+> ⚠️ **v3 — not yet available (GLITCH-462; `${ldNow}` is GLITCH-461). Cut or gate this section before publishing.** There is no supported template variable for the resolved timezone in custom SQL yet.
+
 If you write custom SQL in a dimension or metric (for example, a custom time grain not covered by the built-in intervals), you can reference the resolved timezone using the template variable `${ldQueryTimezone}`:
 
 ```yaml
@@ -306,6 +323,7 @@ A few common symptoms and where to look:
 | Times in a CSV export differ from times in the Lightdash UI | Export was taken at a different chart-mode setting | Re-export from a chart with the desired pin | [GLITCH-456](https://linear.app/lightdash/issue/GLITCH-456) |
 | "Yesterday" filter returns no data, but yesterday clearly has data | Project timezone is set to a zone where "yesterday" hasn't started yet | Project settings → Timezone | — |
 | Hourly chart looks like it skipped or doubled an hour | Daylight-saving transition in the rendered period | Switch to UTC pin to confirm | [GLITCH-449](https://linear.app/lightdash/issue/GLITCH-449) |
+| A min/max date metric shows a timestamp or lands a day off | A YAML-defined metric on a project that hasn't been refreshed since the upgrade | Refresh (recompile) the project; confirm the column is typed `DATE` | [GLITCH-499](https://linear.app/lightdash/issue/GLITCH-499) |
 
 If you're stuck, the badge on the chart card and the data-timezone preview on the connection page are the two fastest checks. They tell you exactly what Lightdash is using.
 

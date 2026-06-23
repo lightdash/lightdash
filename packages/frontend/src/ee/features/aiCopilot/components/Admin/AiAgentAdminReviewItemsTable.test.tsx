@@ -1,6 +1,7 @@
 import { type AiAgentReviewItemSummary } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import AiAgentAdminReviewItemsTable from './AiAgentAdminReviewItemsTable';
@@ -16,6 +17,21 @@ vi.mock('../../../../../hooks/useProjects', () => ({
 
 vi.mock('../../../../../hooks/useOnboardingMock', () => ({
     useOnboardingMock: (_examples: unknown, _enabled: boolean) => undefined,
+}));
+
+vi.mock('../../../../../hooks/useOrganizationUsers', () => ({
+    useOrganizationUsers: () => ({ data: [] }),
+    useOrgUsersByUuid: () => new Map(),
+}));
+
+// Stable so the async health/user queries behind useApp don't re-render the
+// table mid-interaction and detach the row node under test. `health.data`
+// undefined exercises the provider's own not-loaded fallback path.
+vi.mock('../../../../../providers/App/useApp', () => ({
+    default: () => ({
+        health: { data: undefined },
+        user: { data: { userUuid: 'user-1' } },
+    }),
 }));
 
 vi.mock('../../hooks/useAiAgentAdmin', () => ({
@@ -169,9 +185,11 @@ describe('AiAgentAdminReviewItemsTable', () => {
         const onReviewItemSelect = vi.fn();
 
         renderWithProviders(
-            <AiAgentAdminReviewItemsTable
-                onReviewItemSelect={onReviewItemSelect}
-            />,
+            <MemoryRouter>
+                <AiAgentAdminReviewItemsTable
+                    onReviewItemSelect={onReviewItemSelect}
+                />
+            </MemoryRouter>,
         );
 
         expect(screen.queryByText('View thread')).not.toBeInTheDocument();

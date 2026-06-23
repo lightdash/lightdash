@@ -36,6 +36,7 @@ import { CommercialFeatureFlagModel } from './models/CommercialFeatureFlagModel'
 import { CommercialSlackAuthenticationModel } from './models/CommercialSlackAuthenticationModel';
 import { DashboardSummaryModel } from './models/DashboardSummaryModel';
 import { EmbedModel } from './models/EmbedModel';
+import { ExternalConnectionModel } from './models/ExternalConnectionModel';
 import { ManagedAgentModel } from './models/ManagedAgentModel';
 import { ProjectCiStatusModel } from './models/ProjectCiStatusModel';
 import { ProjectContextModel } from './models/ProjectContextModel';
@@ -62,6 +63,7 @@ import { PreAggregationDuckDbClient } from './services/AsyncQueryService/PreAggr
 import { CommercialCacheService } from './services/CommercialCacheService';
 import { CommercialSlackIntegrationService } from './services/CommercialSlackIntegrationService';
 import { EmbedService } from './services/EmbedService/EmbedService';
+import { ExternalConnectionService } from './services/ExternalConnectionService/ExternalConnectionService';
 import { ManagedAgentService } from './services/ManagedAgentService/ManagedAgentService';
 import { McpService } from './services/McpService/McpService';
 import { OrganizationWarehouseCredentialsService } from './services/OrganizationWarehouseCredentialsService';
@@ -132,6 +134,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getAiWritebackThreadModel<AiWritebackThreadModel>(),
                     pullRequestsModel: models.getPullRequestsModel(),
                     prometheusMetrics,
+                    ciService: repository.getCiService(),
+                    projectService: repository.getProjectService(),
                 }),
             previewDeploySetupService: ({ context, models }) =>
                 new PreviewDeploySetupService({
@@ -185,6 +189,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     dashboardService: repository.getDashboardService(),
                     projectService: repository.getProjectService(),
                     promoteService: repository.getPromoteService(),
+                    externalConnectionModel:
+                        models.getExternalConnectionModel(),
                 }),
             embedService: ({ repository, context, models }) =>
                 new EmbedService({
@@ -306,6 +312,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentContentValidation: new AiAgentContentValidation(),
                     aiWritebackService:
                         repository.getAiWritebackService<AiWritebackService>(),
+                    projectContextService:
+                        repository.getProjectContextService<ProjectContextService>(),
                     writebackPreviewService:
                         repository.getWritebackPreviewService<WritebackPreviewService>(),
                     previewDeploySetupService:
@@ -326,12 +334,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentModel: models.getAiAgentModel(),
                     aiAgentReviewClassifierModel:
                         models.getAiAgentReviewClassifierModel<AiAgentReviewClassifierModel>(),
+                    aiAgentService:
+                        repository.getAiAgentService<AiAgentService>(),
                     featureFlagService: repository.getFeatureFlagService(),
                     aiOrganizationSettingsService:
                         repository.getAiOrganizationSettingsService(),
                     projectModel: models.getProjectModel(),
-                    aiWritebackService:
-                        repository.getAiWritebackService<AiWritebackService>(),
+                    projectService: repository.getProjectService(),
                     projectContextService:
                         repository.getProjectContextService<ProjectContextService>(),
                     pullRequestsModel: models.getPullRequestsModel(),
@@ -411,6 +420,16 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     commercialFeatureFlagModel:
                         models.getFeatureFlagModel() as CommercialFeatureFlagModel,
                     projectModel: models.getProjectModel(),
+                }),
+            externalConnectionService: ({ models, context, repository }) =>
+                new ExternalConnectionService({
+                    analytics: context.lightdashAnalytics,
+                    externalConnectionModel:
+                        models.getExternalConnectionModel(),
+                    featureFlagModel: models.getFeatureFlagModel(),
+                    appModel: models.getAppModel(),
+                    spacePermissionService:
+                        repository.getSpacePermissionService(),
                 }),
             slackIntegrationService: ({ models, context, clients }) =>
                 new CommercialSlackIntegrationService({
@@ -503,7 +522,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                     user: {
                                         userUuid: user.userUuid,
                                         organizationUuid,
-                                        organizationName: user.organizationName,
                                     },
                                 }),
                             ]);
@@ -736,6 +754,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new CommercialSlackAuthenticationModel({ database }),
             serviceAccountModel: ({ database }) =>
                 new ServiceAccountModel({ database }),
+            externalConnectionModel: ({ database, utils }) =>
+                new ExternalConnectionModel({
+                    database,
+                    encryptionUtil: utils.getEncryptionUtil(),
+                }),
             managedAgentModel: ({ database, utils }) =>
                 new ManagedAgentModel({
                     database,

@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/query-sdk",
-    "version": "0.3190.1",
+    "version": "0.3221.0",
     "private": false,
     "type": "module",
     "description": "SDK for building custom data apps against the Lightdash semantic layer",
@@ -27,9 +27,9 @@
         "typecheck": "tsc --noEmit",
         "typecheck:fast": "tsgo --project tsconfig.fast.json --noEmit",
         "lint": "eslint src/",
+        "test": "vitest run",
         "format": "oxfmt ./src --check",
         "fix-format": "oxfmt ./src",
-        "test": "jest --config jest.config.cjs",
         "release": "pnpm publish --no-git-checks --access public"
     },
     "peerDependencies": {
@@ -38,6 +38,8 @@
     "devDependencies": {
         "@types/react": "19.2.2",
         "@typescript/native-preview": "7.0.0-dev.20260527.2",
-        "typescript": "6.0.3"
+        "jsdom": "26.1.0",
+        "typescript": "6.0.3",
+        "vitest": "4.1.6"
     }
 }

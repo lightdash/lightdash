@@ -1,7 +1,7 @@
 import { Transition } from '@mantine-8/core';
 import { useMediaQuery } from '@mantine-8/hooks';
 import { useEffect, useRef, type FC } from 'react';
-import { useLocation, useMatches } from 'react-router';
+import { useMatches } from 'react-router';
 import { useActiveProjectUuid } from '../../../../../hooks/useActiveProject';
 import { useAiAgentButtonVisibility } from '../../hooks/useAiAgentsButtonVisibility';
 import { resetActivePanel } from '../../store/aiAgentLauncherSlice';
@@ -10,9 +10,12 @@ import {
     useAiAgentStoreSelector,
 } from '../../store/hooks';
 import styles from './AiAgentsLauncher.module.css';
+import {
+    getLauncherPanelAgent,
+    isLauncherAgentAvailable,
+} from './launcherAgentSelection';
 import { LauncherDock } from './LauncherDock';
 import { LauncherPanel } from './LauncherPanel';
-import { launcherSession } from './launcherSession';
 import { useDefaultAiAgent } from './useDefaultAiAgent';
 import { useLauncherDock } from './useLauncherDock';
 
@@ -28,17 +31,8 @@ const useIsLauncherHidden = () => {
 };
 
 export const AiAgentsLauncher: FC = () => {
-    const { pathname, search } = useLocation();
     const isMobile = useMediaQuery('(max-width: 768px)');
     const isHidden = useIsLauncherHidden();
-
-    useEffect(() => {
-        if (isHidden) return;
-        launcherSession.rememberLastNonAgentUrl(`${pathname}${search}`);
-        // Non-agent routes are the restore target. Clear the expanded marker
-        // so direct fullscreen visits don't show Minimize.
-        launcherSession.clearExpandedFromBubble();
-    }, [isHidden, pathname, search]);
 
     if (isMobile || isHidden) return null;
     return <AiAgentsLauncherInner />;
@@ -49,7 +43,7 @@ const AiAgentsLauncherInner: FC = () => {
 
     const isAiAgentEnabled = useAiAgentButtonVisibility();
 
-    const { agents } = useDefaultAiAgent(activeProjectUuid);
+    const { agents, selectedAgent } = useDefaultAiAgent(activeProjectUuid);
 
     const dispatch = useAiAgentStoreDispatch();
     const mode = useAiAgentStoreSelector((state) => state.aiAgentLauncher.mode);
@@ -76,19 +70,27 @@ const AiAgentsLauncherInner: FC = () => {
     // current project, e.g. after a project change while the launcher was hidden.
     useEffect(() => {
         if (!activeAgentUuid || agents.length === 0) return;
-        if (!agents.some((a) => a.uuid === activeAgentUuid)) {
+        if (
+            !isLauncherAgentAvailable({
+                activeAgentUuid,
+                agents,
+                selectedAgent,
+            })
+        ) {
             dispatch(resetActivePanel());
         }
-    }, [activeAgentUuid, agents, dispatch]);
+    }, [activeAgentUuid, agents, dispatch, selectedAgent]);
 
     const isAllowed =
         Boolean(activeProjectUuid) && isAiAgentEnabled && agents.length > 0;
 
     // Only mount the panel when the active agent/thread belongs to this project;
     // mounting an existing-thread panel starts the thread query.
-    const activeAgentBelongsToProject =
-        activeAgentUuid !== null &&
-        agents.some((a) => a.uuid === activeAgentUuid);
+    const activeAgentBelongsToProject = isLauncherAgentAvailable({
+        activeAgentUuid,
+        agents,
+        selectedAgent,
+    });
     const activeThreadBelongsToProject =
         activeThreadId !== null &&
         dock.some((item) => item.threadId === activeThreadId);
@@ -110,8 +112,7 @@ const AiAgentsLauncherInner: FC = () => {
     if (!isAllowed || !activeProjectUuid) return null;
     if (!isPanelOpenSafe && dock.length === 0) return null;
 
-    const panelAgent =
-        agents.find((a) => a.uuid === safeActiveAgentUuid) ?? null;
+    const panelAgent = getLauncherPanelAgent(safeActiveAgentUuid, agents);
 
     return (
         <div className={styles.root}>

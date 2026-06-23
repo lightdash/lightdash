@@ -170,6 +170,44 @@ export type AiPromptTable = Knex.CompositeTableType<
     >
 >;
 
+export const AiPromptInterruptTableName = 'ai_prompt_interrupt';
+
+export type DbAiPromptInterrupt = {
+    ai_prompt_interrupt_uuid: string;
+    ai_prompt_uuid: string;
+    created_by_user_uuid: string;
+    created_at: Date;
+};
+
+export type AiPromptInterruptTable = Knex.CompositeTableType<
+    DbAiPromptInterrupt,
+    Pick<DbAiPromptInterrupt, 'ai_prompt_uuid' | 'created_by_user_uuid'>,
+    never
+>;
+
+export const AiPromptSteerTableName = 'ai_prompt_steer';
+
+export type DbAiPromptSteer = {
+    ai_prompt_steer_uuid: string;
+    ai_prompt_uuid: string;
+    created_by_user_uuid: string;
+    message: string;
+    created_at: Date;
+    consumed_at: Date | null;
+    consumed_step: number | null;
+};
+
+export type AiPromptSteerTable = Knex.CompositeTableType<
+    DbAiPromptSteer,
+    Pick<
+        DbAiPromptSteer,
+        'ai_prompt_uuid' | 'created_by_user_uuid' | 'message'
+    >,
+    Partial<Pick<DbAiPromptSteer, 'consumed_step'>> & {
+        consumed_at?: Date | Knex.Raw;
+    }
+>;
+
 export const AiThreadCompactionTableName = 'ai_thread_compaction';
 
 export type DbAiThreadCompaction = {
@@ -283,13 +321,27 @@ export type AiAgentToolResultTable = Knex.CompositeTableType<
 
 export const AiPromptContextTableName = 'ai_prompt_context';
 
-export type AiPromptContextEntityType = 'chart' | 'dashboard' | 'thread';
+export type AiPromptContextEntityType =
+    | 'chart'
+    | 'dashboard'
+    | 'thread'
+    | 'file'
+    | 'repository'
+    | 'pull_request'
+    | 'proposed_change'
+    | 'review_finding'
+    | 'preview_environment';
 
 export type DbAiPromptContext = {
     ai_prompt_context_uuid: string;
     ai_prompt_uuid: string;
     entity_type: AiPromptContextEntityType;
-    entity_uuid: string;
+    // UUID-keyed entities (chart/dashboard/thread) store their uuid here;
+    // string-keyed entities (file/repository) leave it null and use entity_ref.
+    entity_uuid: string | null;
+    // Natural-key reference for entities without a uuid: a file path or a
+    // repository `owner/repo`. Null for uuid-keyed entities.
+    entity_ref: string | null;
     pinned_version_uuid: string | null;
     display_name: string | null;
     runtime_overrides: AiChartRuntimeOverrides | null;
@@ -298,11 +350,15 @@ export type DbAiPromptContext = {
 
 export type AiPromptContextTable = Knex.CompositeTableType<
     DbAiPromptContext,
-    Pick<DbAiPromptContext, 'ai_prompt_uuid' | 'entity_type' | 'entity_uuid'> &
+    Pick<DbAiPromptContext, 'ai_prompt_uuid' | 'entity_type'> &
         Partial<
             Pick<
                 DbAiPromptContext,
-                'pinned_version_uuid' | 'display_name' | 'runtime_overrides'
+                | 'entity_uuid'
+                | 'entity_ref'
+                | 'pinned_version_uuid'
+                | 'display_name'
+                | 'runtime_overrides'
             >
         >,
     never

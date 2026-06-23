@@ -76,6 +76,28 @@ describe('buildClaudeCodeEnv', () => {
         });
     });
 
+    test('sets only the region when using default credentials, letting the AWS SDK resolve them', () => {
+        const env = buildClaudeCodeEnv(
+            {
+                defaultProvider: 'bedrock',
+                providers: {
+                    bedrock: {
+                        region: 'us-east-1',
+                        useDefaultCredentials: true,
+                    },
+                },
+            },
+            () => {
+                throw new Error('should not resolve the Anthropic key');
+            },
+        );
+
+        expect(env).toEqual({
+            CLAUDE_CODE_USE_BEDROCK: '1',
+            AWS_REGION: 'us-east-1',
+        });
+    });
+
     test('uses the Anthropic key when defaultProvider is not bedrock, even if Bedrock creds exist', () => {
         const env = buildClaudeCodeEnv(
             {
@@ -176,6 +198,23 @@ describe('claudeCodeAllowedHosts', () => {
         ).toEqual([
             'bedrock-runtime.eu-west-1.amazonaws.com',
             'bedrock.eu-west-1.amazonaws.com',
+        ]);
+    });
+
+    test('allows the Bedrock endpoints for the region (default credentials)', () => {
+        expect(
+            claudeCodeAllowedHosts({
+                defaultProvider: 'bedrock',
+                providers: {
+                    bedrock: {
+                        region: 'ap-southeast-1',
+                        useDefaultCredentials: true,
+                    },
+                },
+            }),
+        ).toEqual([
+            'bedrock-runtime.ap-southeast-1.amazonaws.com',
+            'bedrock.ap-southeast-1.amazonaws.com',
         ]);
     });
 

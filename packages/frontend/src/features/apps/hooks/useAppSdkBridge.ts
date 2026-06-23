@@ -1,4 +1,8 @@
-import { JWT_HEADER_NAME, type DashboardFilters } from '@lightdash/common';
+import {
+    FeatureFlags,
+    JWT_HEADER_NAME,
+    type DashboardFilters,
+} from '@lightdash/common';
 import { useCallback, useEffect, useRef, type RefObject } from 'react';
 import { lightdashApi } from '../../../api';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
@@ -6,7 +10,7 @@ import {
     getGdriveAccessToken,
     triggerGdriveLogin,
 } from '../../../hooks/gdrive/useGdrive';
-import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import {
     handleGsheetExport,
@@ -155,6 +159,10 @@ export function useAppSdkBridge(
      * defence-in-depth check for the non-sandboxed/dev case.
      */
     expectedPreviewOrigin: string,
+    /** Project the proxied EE external-fetch calls run against. */
+    projectUuid: string,
+    /** App the proxied EE external-fetch calls are attributed to. */
+    appUuid: string,
     onQueryEvent?: (event: QueryEvent) => void,
     onElementSelected?: (event: ElementSelectedEvent) => void,
     onInspectorAvailable?: () => void,
@@ -189,7 +197,14 @@ export function useAppSdkBridge(
     //     unchanged — the rewrite happens entirely on the parent side.
     const { embedToken, projectUuid: embedProjectUuid } = useEmbed();
     const { health, user } = useApp();
-    const projectUuid = useProjectUuid();
+
+    const { data: externalAccessFlag } = useServerFeatureFlag(
+        FeatureFlags.EnableDataAppExternalAccess,
+    );
+    // Only short-circuit external fetch when the flag has *resolved* to
+    // disabled. While the query is still in flight, defer to the backend (which
+    // is authoritative) so an on-mount externalFetch is not falsely rejected.
+    const externalAccessDisabled = externalAccessFlag?.enabled === false;
 
     // Maps queryUuid → POST request id. The SDK transport assigns a fresh
     // request id to the POST (`/metric-query`) and again to each GET poll
@@ -293,6 +308,93 @@ export function useAppSdkBridge(
                 } catch (e) {
                     respondGsheet({
                         error: e instanceof Error ? e.message : 'Export failed',
+                    });
+                }
+                return;
+            }
+
+            if (data?.type === 'lightdash:sdk:external-fetch') {
+                const {
+                    id: externalId,
+                    alias,
+                    method: externalMethod,
+                    path: externalPath,
+                    query: externalQuery,
+                    body: externalBody,
+                } = data;
+
+                const respondExternal = (response: {
+                    result?: unknown;
+                    error?: string;
+                }) => {
+                    iframeRef.current?.contentWindow?.postMessage(
+                        {
+                            type: 'lightdash:sdk:external-fetch-response',
+                            id: externalId,
+                            ...response,
+                        },
+                        '*',
+                    );
+                };
+
+                if (externalAccessDisabled) {
+                    respondExternal({
+                        error: 'External data access is disabled for this organization',
+                    });
+                    return;
+                }
+
+                // External fetch is not available to embedded apps: the proxy
+                // endpoint requires a registered session, not an embed JWT.
+                // Fail clearly rather than make a doomed authenticated call.
+                if (embedToken) {
+                    respondExternal({
+                        error: 'External data access is not available in embedded apps',
+                    });
+                    return;
+                }
+
+                // Build the EE request body from app-supplied fields ONLY.
+                // No URL, no headers, no connection UUID — the backend resolves
+                // the alias and attaches the connection's secrets. The
+                // ALLOWED_ROUTES allowlist is deliberately NOT consulted here:
+                // this is a dedicated, separately-authorized endpoint.
+                const externalFetchPath = `/api/v1/ee/projects/${projectUuid}/apps/${appUuid}/external-fetch`;
+                const externalFetchBody = {
+                    connectionAlias: alias,
+                    method: externalMethod ?? 'GET',
+                    path: externalPath,
+                    query: externalQuery,
+                    body: externalBody,
+                };
+
+                try {
+                    const res = await fetch(
+                        resolveFetchUrl(externalFetchPath),
+                        {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(externalFetchBody),
+                        },
+                    );
+                    const json = await res.json();
+                    if (json.status === 'ok') {
+                        respondExternal({ result: json.results });
+                    } else {
+                        respondExternal({
+                            error:
+                                json.error?.message ??
+                                `External fetch failed (${res.status})`,
+                        });
+                    }
+                } catch (err) {
+                    respondExternal({
+                        error:
+                            err instanceof Error
+                                ? err.message
+                                : 'Unknown error',
                     });
                 }
                 return;
@@ -562,6 +664,8 @@ export function useAppSdkBridge(
         [
             iframeRef,
             expectedPreviewOrigin,
+            projectUuid,
+            appUuid,
             onQueryEvent,
             onElementSelected,
             onInspectorAvailable,
@@ -573,7 +677,7 @@ export function useAppSdkBridge(
             capabilities,
             health.data,
             user.data,
-            projectUuid,
+            externalAccessDisabled,
         ],
     );
 

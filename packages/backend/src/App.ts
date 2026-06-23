@@ -378,6 +378,20 @@ export default class App {
             '/api/v1/gdrive/upload-gsheet-from-rows',
             express.json({ limit: UPLOAD_GSHEET_FROM_ROWS_MAX_BYTES }),
         );
+        // Capture the raw request body for the dbt Cloud webhook so its HMAC
+        // signature can be verified against the exact bytes that were signed.
+        expressApp.use((req, res, next) => {
+            if (req.path.endsWith('/dbt-cloud/webhook')) {
+                express.json({
+                    limit: this.lightdashConfig.maxPayloadSize,
+                    verify: (request, _res, buf) => {
+                        (request as Request).rawBody = buf;
+                    },
+                })(req, res, next);
+            } else {
+                next();
+            }
+        });
         expressApp.use(
             express.json({ limit: this.lightdashConfig.maxPayloadSize }),
         );
@@ -956,7 +970,7 @@ export default class App {
     }
 
     async stop() {
-        this.prometheusMetrics.stop();
+        await this.prometheusMetrics.stop();
         if (this.schedulerWorker && this.schedulerWorker.runner) {
             try {
                 await this.schedulerWorker.runner.stop();

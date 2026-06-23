@@ -95,7 +95,6 @@ describe('OrganizationSsoService', () => {
                 user: {
                     userUuid: USER_UUID,
                     organizationUuid: ORG_UUID,
-                    organizationName: 'Test Organization',
                 },
                 featureFlagId: FeatureFlags.SsoOrganizationSettings,
             });

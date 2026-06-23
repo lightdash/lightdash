@@ -2,6 +2,7 @@ import {
     isField,
     isRawResultRow,
     isResultValue,
+    type ConditionalFormattingTextStyle,
     type RawResultRow,
     type ResultRow,
 } from '@lightdash/common';
@@ -41,6 +42,7 @@ interface CommonBodyCellProps {
     style?: CSSProperties;
     backgroundColor?: string;
     fontColor?: string;
+    textStyle?: ConditionalFormattingTextStyle;
     isLargeText?: boolean;
     tooltipContent?: string;
     minimal?: boolean;
@@ -54,6 +56,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
     className,
     backgroundColor,
     fontColor,
+    textStyle,
     hasData,
     cellContextMenu,
     isNumericItem,
@@ -163,6 +166,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                 $isCopying={isCopying}
                 $backgroundColor={backgroundColor}
                 $fontColor={fontColor}
+                $textStyle={textStyle}
                 $hasData={hasData}
                 $isNaN={!hasData || !isNumericItem}
                 $hasUrls={hasUrls}

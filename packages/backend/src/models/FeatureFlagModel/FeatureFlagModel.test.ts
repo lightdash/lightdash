@@ -40,7 +40,6 @@ const VALID_USER_UUID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const dbUser = {
     userUuid: VALID_USER_UUID,
     organizationUuid: 'org-uuid',
-    organizationName: 'Org',
 };
 
 type FakeRows = {
@@ -335,7 +334,6 @@ describe('FeatureFlagModel', () => {
                 user: {
                     userUuid: 'external::not-a-uuid',
                     organizationUuid: 'org-uuid',
-                    organizationName: 'Org',
                 },
             });
 
@@ -354,7 +352,6 @@ describe('FeatureFlagModel', () => {
                 user: {
                     userUuid: 'external::not-a-uuid',
                     organizationUuid: 'org-uuid',
-                    organizationName: 'Org',
                 },
             });
 

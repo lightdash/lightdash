@@ -3,9 +3,11 @@ import {
     getConditionalFormattingColor,
     getConditionalFormattingConfig,
     getConditionalFormattingDescription,
+    getConditionalFormattingTextStyle,
     getItemId,
     getReadableTextColor,
     getRowConditionalFormattingColor,
+    getRowConditionalFormattingConfig,
     isNumericItem,
     type ConditionalFormattingColorRange,
     type ConditionalFormattingMinMax,
@@ -136,6 +138,16 @@ const TableRow: FC<TableRowProps> = ({
         [conditionalFormattings, rowFields, minMaxMap],
     );
 
+    const rowConditionalFormattingConfig = useMemo(
+        () =>
+            getRowConditionalFormattingConfig({
+                conditionalFormattings,
+                rowFields,
+                minMaxMap,
+            }),
+        [conditionalFormattings, rowFields, minMaxMap],
+    );
+
     return (
         <Tr $index={index} ref={measureElement} data-index={virtualIndex}>
             {row.getVisibleCells().map((cell) => {
@@ -233,6 +245,12 @@ const TableRow: FC<TableRowProps> = ({
                     fontColor = getReadableTextColor(rowBackgroundColor);
                 }
 
+                const textStyle = getConditionalFormattingTextStyle([
+                    cellConditionalFormattingConfig,
+                    textConditionalFormattingConfig,
+                    rowConditionalFormattingConfig,
+                ]);
+
                 const suppressContextMenu =
                     cell.getIsPlaceholder() || cell.getIsAggregated();
 
@@ -244,6 +262,7 @@ const TableRow: FC<TableRowProps> = ({
                         style={meta?.style}
                         backgroundColor={backgroundColor}
                         fontColor={fontColor}
+                        textStyle={textStyle}
                         className={meta?.className}
                         index={index}
                         cell={cell}

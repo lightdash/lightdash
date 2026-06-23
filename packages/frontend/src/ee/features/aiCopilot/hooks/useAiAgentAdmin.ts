@@ -4,6 +4,7 @@ import {
     type AiAgentReviewItemSummary,
     type AiAgentReviewItemStatus,
     type ApiAiAgentAdminConversationsResponse,
+    type ApiAiAgentAdminPromptActivityResponse,
     type ApiAiAgentReviewItemActivityResponse,
     type ApiAiAgentReviewItemPrDiffResponse,
     type ApiAiAgentReviewItemResponse,
@@ -14,6 +15,8 @@ import {
     type ApiAiAgentVerifiedArtifactsResponse,
     type ApiError,
     type ApiUpstreamDiffResponse,
+    type ReorderAiAgentReviewItems,
+    type UpdateAiAgentReviewItemAssignee,
     type UpdateAiAgentReviewItemStatus,
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
@@ -103,6 +106,39 @@ export const useInfiniteAiAgentAdminThreads = (
         ...infinityQueryOpts,
     });
 };
+
+const getAiAgentAdminProjectPromptActivity = async ({
+    projectUuid,
+    days,
+}: {
+    projectUuid: string;
+    days: number;
+}) => {
+    const params = createQueryString({ days });
+
+    return lightdashApi<ApiAiAgentAdminPromptActivityResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/projects/${encodeURIComponent(
+            projectUuid,
+        )}/prompt-activity?${params}`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+export const useAiAgentAdminProjectPromptActivity = (
+    projectUuid: string,
+    days: number,
+    options?: { enabled?: boolean },
+) =>
+    useQuery<ApiAiAgentAdminPromptActivityResponse['results'], ApiError>({
+        queryKey: ['ai-agent-admin-project-prompt-activity', projectUuid, days],
+        queryFn: () =>
+            getAiAgentAdminProjectPromptActivity({ projectUuid, days }),
+        keepPreviousData: true,
+        staleTime: 60 * 1000,
+        enabled: options?.enabled ?? true,
+    });
 
 const getAiAgentAdminAgents = async () => {
     return lightdashApi<ApiAiAgentSummaryResponse['results']>({
@@ -247,6 +283,43 @@ export const useAiAgentReviewItemActivity = (
         queryFn: () => getAiAgentReviewItemActivity(fingerprint),
         enabled: options?.enabled ?? true,
         refetchInterval: options?.refetchInterval,
+    });
+};
+
+const retestAiAgentReviewRemediation = async (fingerprint: string) => {
+    return lightdashApi<ApiAiAgentReviewItemActivityResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/review-items/${encodeURIComponent(
+            fingerprint,
+        )}/retest`,
+        method: 'POST',
+        body: undefined,
+    });
+};
+
+export const useRetestAiAgentReviewRemediation = () => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiAiAgentReviewItemActivityResponse['results'],
+        ApiError,
+        { fingerprint: string }
+    >({
+        mutationFn: ({ fingerprint }) =>
+            retestAiAgentReviewRemediation(fingerprint),
+        onSuccess: (_data, { fingerprint }) => {
+            showToastSuccess({ title: 'Re-testing the fix…' });
+            void queryClient.invalidateQueries({
+                queryKey: ['ai-agent-admin-review-item-activity', fingerprint],
+            });
+            void queryClient.invalidateQueries({
+                queryKey: ['ai-agent-admin-review-item', fingerprint],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({ title: 'Failed to retest', apiError: error });
+        },
     });
 };
 
@@ -400,6 +473,138 @@ export const useUpdateAiAgentReviewItemStatus = () => {
             showToastApiError({
                 title: 'Failed to update review item',
                 apiError: error,
+            });
+        },
+    });
+};
+
+const updateAiAgentReviewItemAssignee = async (args: {
+    fingerprint: string;
+    assignedToUserUuid: string | null;
+}) => {
+    return lightdashApi<ApiAiAgentReviewItemResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/review-items/${encodeURIComponent(args.fingerprint)}/assignee`,
+        method: 'PATCH',
+        body: JSON.stringify({
+            assignedToUserUuid: args.assignedToUserUuid,
+        } satisfies UpdateAiAgentReviewItemAssignee),
+    });
+};
+
+export const useUpdateAiAgentReviewItemAssignee = () => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiAiAgentReviewItemResponse['results'],
+        ApiError,
+        { fingerprint: string; assignedToUserUuid: string | null }
+    >({
+        mutationFn: updateAiAgentReviewItemAssignee,
+        onSuccess: (updatedItem, { fingerprint }) => {
+            showToastSuccess({ title: 'Assignee updated' });
+            queryClient.setQueryData(
+                ['ai-agent-admin-review-item', fingerprint],
+                updatedItem,
+            );
+            updateCachedReviewItemLists(queryClient, updatedItem);
+            void queryClient.invalidateQueries({
+                queryKey: [AI_AGENT_ADMIN_REVIEW_ITEMS_QUERY_KEY],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to update assignee',
+                apiError: error,
+            });
+        },
+    });
+};
+
+const reorderAiAgentReviewItems = async (orderedFingerprints: string[]) => {
+    return lightdashApi<undefined>({
+        version: 'v1',
+        url: `/aiAgents/admin/review-items/reorder`,
+        method: 'PATCH',
+        body: JSON.stringify({
+            orderedFingerprints,
+        } satisfies ReorderAiAgentReviewItems),
+    });
+};
+
+// Reorders the cached review-item lists so the dragged fingerprints take the
+// given order at the slots they already occupy (other items stay put). Since
+// the board buckets a flat array into lanes by array order, this reflects a
+// drag-reorder without refetching.
+const reorderCachedItems = (
+    items: AiAgentReviewItemSummary[],
+    orderedFingerprints: string[],
+): AiAgentReviewItemSummary[] => {
+    const orderSet = new Set(orderedFingerprints);
+    const byFingerprint = new Map(
+        items
+            .filter((item) => orderSet.has(item.fingerprint))
+            .map((item) => [item.fingerprint, item]),
+    );
+    let next = 0;
+    return items.map((item) => {
+        if (!orderSet.has(item.fingerprint)) return item;
+        const replacement = byFingerprint.get(orderedFingerprints[next]);
+        next += 1;
+        return replacement ?? item;
+    });
+};
+
+// Applies a drop to the cached review-item lists synchronously: reorders the
+// dragged fingerprints into the given order at the slots they occupy, and (for a
+// cross-lane drop) moves the dragged item to the target lane by overriding its
+// status. Call this in the drop handler in the same tick the drag's transient
+// order is cleared, so the board hands off to the server-derived lanes in one
+// commit — without it the board flashes back to the pre-drop order for a frame.
+export const applyOptimisticReviewBoardOrder = (
+    queryClient: QueryClient,
+    orderedFingerprints: string[],
+    statusOverride: {
+        fingerprint: string;
+        status: AiAgentReviewItemStatus;
+    } | null,
+) => {
+    queryClient.setQueriesData<AiAgentReviewItemSummary[]>(
+        { queryKey: [AI_AGENT_ADMIN_REVIEW_ITEMS_QUERY_KEY] },
+        (old) => {
+            if (!old) return old;
+            const withStatus = statusOverride
+                ? old.map((item) =>
+                      item.fingerprint === statusOverride.fingerprint
+                          ? { ...item, status: statusOverride.status }
+                          : item,
+                  )
+                : old;
+            return reorderCachedItems(withStatus, orderedFingerprints);
+        },
+    );
+};
+
+// Persists the board order. The optimistic update is applied synchronously by
+// the drop handler (applyOptimisticReviewBoardOrder); here we just write through
+// and reconcile to the authoritative order on settle (which also reverts the
+// optimistic order if the request failed).
+export const useReorderReviewItems = () => {
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+
+    return useMutation<undefined, ApiError, string[]>({
+        mutationFn: reorderAiAgentReviewItems,
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to reorder items',
+                apiError: error,
+            });
+        },
+        onSettled: () => {
+            void queryClient.invalidateQueries({
+                queryKey: [AI_AGENT_ADMIN_REVIEW_ITEMS_QUERY_KEY],
             });
         },
     });

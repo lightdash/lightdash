@@ -2,7 +2,10 @@ import {
     PullRequestProvider,
     type AiAgentReviewItemSummary,
 } from '@lightdash/common';
-import { planReviewWriteback } from './buildReviewWritebackPrompt';
+import {
+    planReviewWriteback,
+    PROJECT_CONTEXT_WORK_THREAD_INSTRUCTION,
+} from './buildReviewWritebackPrompt';
 
 const baseItem = (
     overrides: Partial<AiAgentReviewItemSummary> = {},
@@ -29,6 +32,7 @@ const baseItem = (
     prState: null,
     prWritebackStatus: null,
     prWritebackMessage: null,
+    boardPosition: null,
     writebackEligible: true,
     writebackEligibility: {
         eligible: true,
@@ -91,15 +95,19 @@ describe('planReviewWriteback', () => {
 
         expect(plan.aggregationKey).toBeNull();
         expect(plan.promptText).toContain(
-            'Agent picked the wrong revenue metric',
+            'Add an ai_hint to average_order_size',
         );
         expect(plan.promptText).toContain(
-            'Add an ai_hint to average_order_size',
+            'Disambiguate it from total_order_amount.',
         );
         expect(plan.promptText).toContain(
             'metric "orders.average_order_size" (yaml: models/orders.yml)',
         );
-        expect(plan.promptText).toContain(
+        // The finding title and raw evidence now travel as pins, not prose.
+        expect(plan.promptText).not.toContain(
+            'Agent picked the wrong revenue metric',
+        );
+        expect(plan.promptText).not.toContain(
             'use average_order_size, not total_order_amount',
         );
     });
@@ -143,5 +151,19 @@ describe('planReviewWriteback', () => {
                 baseItem({ primaryRootCause: 'runtime_reliability' }),
             ),
         ).toThrow('not supported');
+    });
+});
+
+describe('PROJECT_CONTEXT_WORK_THREAD_INSTRUCTION', () => {
+    it('is a one-line instruction pointing at the editProjectContext tool', () => {
+        // The finding/change/conversation now travel as pinned context, so the
+        // seed prompt no longer renders the entry inline.
+        expect(PROJECT_CONTEXT_WORK_THREAD_INSTRUCTION).toContain(
+            'editProjectContext',
+        );
+        expect(PROJECT_CONTEXT_WORK_THREAD_INSTRUCTION).toContain(
+            'project context',
+        );
+        expect(PROJECT_CONTEXT_WORK_THREAD_INSTRUCTION).not.toContain('\n\n');
     });
 });

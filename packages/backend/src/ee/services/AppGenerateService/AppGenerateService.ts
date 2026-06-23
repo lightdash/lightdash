@@ -27,6 +27,7 @@ import {
     type AppChartReference,
     type AppClarification,
     type AppDashboardReference,
+    type AppExternalConnectionReference,
     type AppGeneratePipelineJobPayload,
     type AppVersionChartResource,
     type AppVersionResources,
@@ -36,6 +37,8 @@ import {
     type DataAppClaudeModel,
     type DataAppTemplate,
     type EmbedProjectApp,
+    type ExternalConnectionMethod,
+    type ExternalConnectionSample,
     type PromoteAppAction,
     type PromoteAppDiff,
     type SessionUser,
@@ -75,8 +78,10 @@ import type { ProjectService } from '../../../services/ProjectService/ProjectSer
 import type { PromoteService } from '../../../services/PromoteService/PromoteService';
 import type { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
+import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { getModel } from '../ai/models';
+import { assertCanViewApp as assertUserCanViewApp } from './appAuthz';
 import {
     classifyClaudeCliFailure,
     ClaudeGenerationError,
@@ -98,6 +103,14 @@ import {
 } from './designSandboxCopy';
 import { getTemplateInstructions } from './templates';
 
+type AppExternalConnectionDoc = {
+    alias: string;
+    origin: string;
+    allowedMethods: ExternalConnectionMethod[];
+    allowedPathPrefixes: string[];
+    samples: ExternalConnectionSample[];
+};
+
 type AppGenerateServiceDeps = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
@@ -115,6 +128,12 @@ type AppGenerateServiceDeps = {
     dashboardService: DashboardService;
     projectService: ProjectService;
     promoteService: PromoteService;
+    externalConnectionModel: ExternalConnectionModel;
+};
+
+type GenerateAppOptions = {
+    designUuidInput?: string | null;
+    externalConnections?: AppExternalConnectionReference[];
 };
 
 type GenerateAppResult = {
@@ -160,6 +179,8 @@ export class AppGenerateService extends BaseService {
 
     private readonly promoteService: PromoteService;
 
+    private readonly externalConnectionModel: ExternalConnectionModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -177,6 +198,7 @@ export class AppGenerateService extends BaseService {
         dashboardService,
         projectService,
         promoteService,
+        externalConnectionModel,
     }: AppGenerateServiceDeps) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -195,6 +217,7 @@ export class AppGenerateService extends BaseService {
         this.dashboardService = dashboardService;
         this.projectService = projectService;
         this.promoteService = promoteService;
+        this.externalConnectionModel = externalConnectionModel;
     }
 
     /**
@@ -256,19 +279,17 @@ export class AppGenerateService extends BaseService {
             organization_uuid: string;
         },
     ): Promise<void> {
-        const spaceContext = app.space_uuid
-            ? await this.spacePermissionService.getSpaceAccessContext(
-                  user.userUuid,
-                  app.space_uuid,
-              )
-            : {};
-        this.assertDataAppAbility(
+        await assertUserCanViewApp(
+            {
+                auditedAbility: this.createAuditedAbility(user),
+                getSpaceAccessContext: (userUuid, spaceUuid) =>
+                    this.spacePermissionService.getSpaceAccessContext(
+                        userUuid,
+                        spaceUuid,
+                    ),
+            },
             user,
-            'view',
-            app.organization_uuid,
-            app.project_uuid,
-            'Insufficient permissions to access this data app',
-            { ...spaceContext, createdByUserUuid: app.created_by_user_uuid },
+            app,
         );
     }
 
@@ -381,6 +402,86 @@ export class AppGenerateService extends BaseService {
             featureFlagId: FeatureFlags.EnableDataApps,
         });
         return enabled;
+    }
+
+    private async externalAccessEnabledFor(user: {
+        userUuid: string;
+        organizationUuid: string | undefined;
+    }): Promise<boolean> {
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+            },
+            featureFlagId: FeatureFlags.EnableDataAppExternalAccess,
+        });
+        return enabled;
+    }
+
+    /**
+     * Link the given external connections to the app before its catalog stage,
+     * so the generated app can call them via client.externalFetch. Gated on the
+     * external-access flag and validated: a connection from another project is
+     * never linked (that would expose its credentialed proxy to a foreign app).
+     * Linking is idempotent, so re-sending an already-linked connection is fine.
+     */
+    private async linkExternalConnections(
+        user: SessionUser,
+        projectUuid: string,
+        appId: string,
+        externalConnections: AppExternalConnectionReference[] | undefined,
+    ): Promise<void> {
+        if (!externalConnections || externalConnections.length === 0) return;
+        if (
+            !(await this.externalAccessEnabledFor({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+            }))
+        )
+            return;
+        // Authorize against the connection resource the same way the admin API
+        // (ExternalConnectionService.linkToApp) does — generation must not be a
+        // weaker door to attaching a credentialed connection to an app.
+        const ability = this.createAuditedAbility(user);
+        for (const conn of externalConnections) {
+            // eslint-disable-next-line no-await-in-loop
+            const connection = await this.externalConnectionModel.findByUuid(
+                conn.externalConnectionUuid,
+            );
+            if (!connection || connection.projectUuid !== projectUuid) {
+                this.logger.warn(
+                    `App ${appId}: skipping external connection ${conn.externalConnectionUuid} — not found or not in project ${projectUuid}`,
+                );
+                // eslint-disable-next-line no-continue
+                continue;
+            }
+            // The alias becomes a sandbox file path (/tmp/external-data/{alias}.json),
+            // so reject anything outside the safe charset — mirrors linkToApp.
+            if (!/^[a-z0-9_-]+$/i.test(conn.alias) || conn.alias.length > 64) {
+                throw new ParameterError(
+                    'Alias must contain only letters, numbers, hyphens, and underscores (max 64 chars)',
+                );
+            }
+            if (
+                ability.cannot(
+                    'manage',
+                    subject('ExternalConnection', {
+                        organizationUuid: connection.organizationUuid,
+                        projectUuid: connection.projectUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    'You do not have permission to link this external connection',
+                );
+            }
+            // eslint-disable-next-line no-await-in-loop
+            await this.externalConnectionModel.linkToApp(
+                appId,
+                conn.externalConnectionUuid,
+                conn.alias,
+            );
+        }
     }
 
     /**
@@ -1088,6 +1189,110 @@ export class AppGenerateService extends BaseService {
         );
     }
 
+    /**
+     * For each linked external connection, write a self-contained API-doc JSON
+     * to /tmp/external-data/{alias}.json in the sandbox and return a prompt
+     * block listing each file. Writes a file for every connection — the
+     * contract (allowedMethods/allowedPathPrefixes) is useful even when no
+     * samples have been saved. Returns '' only when there are zero linked
+     * connections.
+     */
+    private async writeExternalConnectionSamples(
+        sandbox: Sandbox,
+        appUuid: string,
+        docs: AppExternalConnectionDoc[],
+    ): Promise<string> {
+        if (docs.length === 0) return '';
+
+        await sandbox.commands.run('mkdir -p /tmp/external-data', {
+            timeoutMs: 10_000,
+        });
+
+        const fileEntries: string[] = [];
+        for (const doc of docs) {
+            const firstPrefix = doc.allowedPathPrefixes[0];
+            const exampleMethod = doc.allowedMethods[0] ?? 'GET';
+            // Prefer a real saved sample path; otherwise derive one from the first
+            // allowed prefix. Either way it is the COMPLETE path from the origin.
+            const examplePath =
+                doc.samples[0]?.request.path ??
+                `${firstPrefix ?? '/'}<resource>`;
+            const fileContent = JSON.stringify(
+                {
+                    alias: doc.alias,
+                    signature:
+                        "externalFetch(alias: string, opts: { method?: 'GET' | 'POST'; path: string; query?: Record<string, string>; body?: unknown }): Promise<{ status: number; contentType: string; body: unknown; truncated: boolean }>",
+                    origin: doc.origin,
+                    // The single most-misread thing: `path` is the COMPLETE path from
+                    // the origin, not relative to the prefix. Spell out origin + path.
+                    requestUrl: `${doc.origin} + path  (your path is appended to the origin verbatim — the origin and path prefix are NEVER auto-prepended). Example full URL: ${doc.origin}${examplePath}`,
+                    howToCall: `const result = await client.externalFetch('${doc.alias}', { method: '${exampleMethod}', path: '${examplePath}', query: { /* string values only */ } });\nconst data = result.body;`,
+                    rules: [
+                        "query is Record<string, string> — EVERY value must be a string. Write { latitude: '52.52' }, never { latitude: 52.52 }. Numbers and booleans are rejected with a 422.",
+                        `path is the COMPLETE path appended to the origin (requestUrl = origin + path). Pass the full path starting from the origin — e.g. "${examplePath}" — and make sure it starts with one of allowedPathPrefixes. Do NOT shorten it to the trailing segment and do NOT assume the origin or prefix is auto-prepended.`,
+                        'method must be one of allowedMethods.',
+                        'Read the response from result.body. result.status is the upstream HTTP status; result.truncated is true if the response was capped.',
+                        'Auth is injected by Lightdash — never include credentials, API keys, or headers.',
+                    ],
+                    allowedMethods: doc.allowedMethods,
+                    allowedPathPrefixes: doc.allowedPathPrefixes,
+                    samples: doc.samples.map((s) => ({
+                        label: s.label,
+                        request: s.request,
+                        response: s.response,
+                    })),
+                },
+                null,
+                2,
+            );
+            // eslint-disable-next-line no-await-in-loop
+            await sandbox.files.write(
+                `/tmp/external-data/${doc.alias}.json`,
+                fileContent,
+            );
+            fileEntries.push(
+                `- /tmp/external-data/${doc.alias}.json — connection "${doc.alias}" (${doc.allowedMethods.join('/')}; ${doc.samples.length} example(s))`,
+            );
+        }
+
+        this.logger.info(
+            `App ${appUuid}: wrote ${docs.length} external connection doc(s) to /tmp/external-data/`,
+        );
+
+        return (
+            `[Linked external connections — the app can call these external APIs via client.externalFetch(alias, opts). ` +
+            `Each /tmp/external-data/{alias}.json documents one connection: its signature, origin, requestUrl, allowedMethods/allowedPathPrefixes, rules, and example request/response pairs. ` +
+            `IMPORTANT: path is the COMPLETE path appended to the connection's origin (requestUrl = origin + path) — the origin and prefix are NOT auto-prepended. Always pass the full path from the doc's howToCall or a saved sample (e.g. "/repos/owner/repo/issues", never a shortened "/issues"). ` +
+            `IMPORTANT: query is Record<string, string> — every query value must be a string (e.g. { latitude: '52.52' }, not 52.52); numbers are rejected with a 422. Read the response from result.body. ` +
+            `Auth is handled by Lightdash — never send credentials. Treat sample values as illustrative of shape, not exhaustive.]\n` +
+            `${fileEntries.join('\n')}\n\n`
+        );
+    }
+
+    /**
+     * Resolve the app's linked external connections to API-doc descriptors.
+     * Fetches the contract from the connection and up to 5 saved samples.
+     */
+    private async resolveExternalConnectionSamples(
+        appId: string,
+    ): Promise<AppExternalConnectionDoc[]> {
+        const links = await this.externalConnectionModel.listAppLinks(appId);
+        return Promise.all(
+            links.map(async (link) => ({
+                alias: link.alias,
+                origin: link.connection.origin,
+                allowedMethods: link.connection.allowedMethods,
+                allowedPathPrefixes: link.connection.allowedPathPrefixes,
+                // Cap at 5 samples — enough to illustrate the API shape without bloating the prompt
+                samples:
+                    await this.externalConnectionModel.getSamplesForPipeline(
+                        link.connection.externalConnectionUuid,
+                        5,
+                    ),
+            })),
+        );
+    }
+
     private async writeCatalogAndPrompt(
         sandbox: Sandbox,
         appUuid: string,
@@ -1098,6 +1303,7 @@ export class AppGenerateService extends BaseService {
         bucket: string,
         chartReferences: ChartReference[] | undefined,
         template: DataAppTemplate | undefined,
+        user: { userUuid: string; organizationUuid: string | undefined },
     ): Promise<{
         durationMs: number;
         tableCount: number;
@@ -1115,7 +1321,7 @@ export class AppGenerateService extends BaseService {
         // different ownership (e.g. root-owned after Claude CLI execution),
         // which would cause a permission error on write.
         await sandbox.commands.run(
-            'rm -f /tmp/dbt-repo/models/schema.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/metric-queries 2>/dev/null; true',
+            'rm -f /tmp/dbt-repo/models/schema.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/metric-queries /tmp/external-data 2>/dev/null; true',
             { timeoutMs: 10_000 },
         );
 
@@ -1130,6 +1336,25 @@ export class AppGenerateService extends BaseService {
                 chartReferences,
             );
             finalPrompt = referenceBlock + finalPrompt;
+        }
+
+        // Linked external connections: write an API-doc file per connection into
+        // the sandbox and prepend a listing to the prompt so Claude knows what
+        // APIs the app can call. Skipped when the external-access flag is off.
+        const externalAccessEnabled = await this.externalAccessEnabledFor(user);
+        if (externalAccessEnabled) {
+            const externalLinks =
+                await this.resolveExternalConnectionSamples(appUuid);
+            if (externalLinks.length > 0) {
+                const externalBlock = await this.writeExternalConnectionSamples(
+                    sandbox,
+                    appUuid,
+                    externalLinks,
+                );
+                if (externalBlock) {
+                    finalPrompt = externalBlock + finalPrompt;
+                }
+            }
         }
 
         // Prepend starter-template instructions, when one was selected on creation
@@ -1310,6 +1535,19 @@ export class AppGenerateService extends BaseService {
         ];
     }
 
+    private static buildThemeChangePrompt(themeName: string | null): string {
+        const target = themeName
+            ? `the active organization theme "${themeName}"`
+            : 'the Lightdash default styling with no organization theme';
+
+        return [
+            `Restyle the current app to follow ${target}.`,
+            'Preserve the app content exactly: do not change text, metrics, queries, filters, chart semantics, layout intent, or interactions.',
+            'Only change visual styling needed for the theme: colors, typography, spacing, borders, shadows, chart palette, and appropriate theme asset usage.',
+            'If a theme is active, read and use the files under /app/src/design/ and follow the organization theme instructions. Do not edit files under /app/src/design/.',
+        ].join('\n');
+    }
+
     /**
      * Convert an internal tool description (e.g. "Write /app/src/Dashboard.tsx")
      * into a user-friendly status message (e.g. "Creating Dashboard.tsx").
@@ -1375,9 +1613,19 @@ export class AppGenerateService extends BaseService {
 
         const sections: string[] = [];
         if (designCopy.designSnapshot) {
+            const manifestLines = [
+                ...designCopy.cssEntrypoints.map((path) => `- CSS: ${path}`),
+                ...designCopy.fontPaths.map((path) => `- Font: ${path}`),
+                ...designCopy.imagePaths.map((path) => `- Image: ${path}`),
+            ];
+            const manifest =
+                manifestLines.length > 0
+                    ? `\n\nAvailable theme files:\n${manifestLines.join('\n')}`
+                    : '\n\nNo CSS, font, or image files were copied for this theme.';
+
             sections.push(
                 `## Active organization theme: ${designCopy.designSnapshot.name}\n\n` +
-                    `Theme assets are loaded in \`/app/src/design/\` (${designCopy.designSnapshot.fileCount} file(s)). Follow the rules under "Organization themes" in the main skill — they override your defaults for colors, typography, and chart palette where applicable.`,
+                    `Theme assets are loaded in \`/app/src/design/\` (${designCopy.designSnapshot.fileCount} file(s)). Follow the rules under "Organization themes" in the main skill — they override your defaults for colors, typography, and chart palette where applicable.${manifest}\n\nBefore saying a theme asset is unavailable, inspect \`/app/src/design/\` with Glob or Read.`,
             );
         }
         if (designCopy.instructionMarkdown) {
@@ -2151,7 +2399,7 @@ export class AppGenerateService extends BaseService {
         this.logger.info(
             `App ${appUuid}: pipeline started (version=${version}, status=${currentStatus}, isIteration=${isIteration}, model=${
                 payload.claudeModel ?? DEFAULT_DATA_APP_CLAUDE_MODEL
-            }, llm=${describeClaudeCodeEnv(claudeCodeEnv)})`,
+            }, designUuid=${payload.designUuid ?? 'none'}, llm=${describeClaudeCodeEnv(claudeCodeEnv)})`,
         );
 
         // --- Stage: sandbox ---
@@ -2384,6 +2632,10 @@ export class AppGenerateService extends BaseService {
                     bucket,
                     chartReferences,
                     template,
+                    {
+                        userUuid: payload.userUuid,
+                        organizationUuid: payload.organizationUuid,
+                    },
                 );
                 durations.catalogMs = catalogResult.durationMs;
                 catalogStats = {
@@ -3255,8 +3507,9 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         clarifications?: AppClarification[],
         spaceUuid?: string,
         claudeModelInput?: DataAppClaudeModel,
-        designUuidInput?: string | null,
+        options: GenerateAppOptions = {},
     ): Promise<GenerateAppResult> {
+        const { designUuidInput, externalConnections } = options;
         await this.assertDataAppsEnabled(user);
         const organizationUuid = await this.getProjectOrgUuid(projectUuid);
         this.assertDataAppAbility(
@@ -3390,6 +3643,13 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             throw error;
         }
 
+        await this.linkExternalConnections(
+            user,
+            projectUuid,
+            appUuid,
+            externalConnections,
+        );
+
         this.analytics.track({
             event: 'data_app.created',
             userId: user.userUuid,
@@ -3436,7 +3696,9 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         charts?: AppChartReference[],
         dashboard?: AppDashboardReference,
         claudeModelInput?: DataAppClaudeModel,
+        options: GenerateAppOptions = {},
     ): Promise<GenerateAppResult> {
+        const { designUuidInput, externalConnections } = options;
         await this.assertDataAppsEnabled(user);
 
         AppGenerateService.validateImageIds(imageIds);
@@ -3448,6 +3710,13 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             user,
             app,
             'Insufficient permissions to modify data apps',
+        );
+
+        await this.linkExternalConnections(
+            user,
+            projectUuid,
+            appUuid,
+            externalConnections,
         );
 
         const latestVersion = await this.appModel.getLatestVersion(appUuid);
@@ -3463,7 +3732,11 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         const newVersion = (latestVersion?.version ?? 0) + 1;
 
         this.logger.info(
-            `App ${appUuid}: iteration started (version=${newVersion}, model=${claudeModel}, promptLength=${prompt.length})`,
+            `App ${appUuid}: iteration started (version=${newVersion}, model=${claudeModel}, promptLength=${prompt.length}, designUuidInput=${
+                designUuidInput === undefined
+                    ? 'inherit'
+                    : (designUuidInput ?? 'none')
+            })`,
         );
 
         const { refs, dashboardName } = await this.collectChartReferences(
@@ -3477,32 +3750,43 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             sampleStats,
         } = await this.resolveChartReferences(refs, user);
 
-        // Iterations always inherit theme from the parent app — the user
-        // can't switch themes after creation (yet). Re-fetch the current
-        // design state so the snapshot reflects any edits/renames since the
-        // last version. If the design was deleted, `apps.design_uuid` was
-        // set to NULL by the FK cascade and we proceed without a theme.
-        let inheritedDesignUuid: string | null = app.design_uuid;
+        // Omitted designUuid means a normal content iteration that inherits
+        // the app's current theme. Explicit string/null means "change the
+        // app theme and run a style-only iteration".
+        const isThemeChange = designUuidInput !== undefined;
+        let effectiveDesignUuid: string | null = isThemeChange
+            ? designUuidInput
+            : app.design_uuid;
         let designSnapshot: AppVersionResources['design'] = null;
-        if (inheritedDesignUuid) {
-            const inherited =
+        if (effectiveDesignUuid) {
+            const design =
                 await this.organizationDesignModel.findInOrganization(
                     app.organization_uuid,
-                    inheritedDesignUuid,
+                    effectiveDesignUuid,
                 );
-            if (inherited) {
+            if (design) {
                 designSnapshot = {
-                    designUuid: inherited.designUuid,
-                    name: inherited.name,
-                    fileCount: inherited.files.length,
+                    designUuid: design.designUuid,
+                    name: design.name,
+                    fileCount: design.files.length,
                 };
+            } else if (isThemeChange) {
+                throw new ParameterError(
+                    `Theme not found: ${effectiveDesignUuid}`,
+                );
             } else {
-                // Defensive: app.design_uuid points at a row that no longer
-                // exists. Should never happen given the FK is ON DELETE SET
-                // NULL, but if it does, treat as untheme rather than fail.
-                inheritedDesignUuid = null;
+                // Defensive: app.design_uuid points at a missing row. Should
+                // never happen given the FK is ON DELETE SET NULL, but if it
+                // does, treat inherited theme as absent rather than fail.
+                effectiveDesignUuid = null;
             }
         }
+
+        const pipelinePrompt = isThemeChange
+            ? AppGenerateService.buildThemeChangePrompt(
+                  designSnapshot?.name ?? null,
+              )
+            : prompt;
 
         const resources: AppVersionResources = {
             images: imageIds.map((id) => ({ imageId: id })),
@@ -3521,6 +3805,14 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             resources,
         );
 
+        if (isThemeChange) {
+            await this.appModel.updateDesignUuid(
+                appUuid,
+                projectUuid,
+                effectiveDesignUuid,
+            );
+        }
+
         this.analytics.track({
             event: 'data_app.iterated',
             userId: user.userUuid,
@@ -3533,6 +3825,8 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 promptLength: prompt.length,
                 imageCount: imageIds.length,
                 claudeModel,
+                themeChanged: isThemeChange,
+                designUuid: effectiveDesignUuid,
                 previousVersionStatus: latestVersion?.status ?? null,
                 msSinceLastVersion: latestVersion?.created_at
                     ? Date.now() - latestVersion.created_at.getTime()
@@ -3548,13 +3842,13 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             projectUuid,
             organizationUuid: user.organizationUuid!,
             userUuid: user.userUuid,
-            prompt,
+            prompt: pipelinePrompt,
             imageIds: imageIds.length > 0 ? imageIds : undefined,
             isIteration: true,
             chartReferences:
                 chartReferences.length > 0 ? chartReferences : undefined,
             claudeModel,
-            designUuid: inheritedDesignUuid,
+            designUuid: effectiveDesignUuid,
         });
 
         return { appUuid, version: newVersion };

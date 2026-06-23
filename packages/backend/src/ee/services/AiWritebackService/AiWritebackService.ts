@@ -4,16 +4,20 @@ import {
     FeatureFlags,
     ForbiddenError,
     getErrorMessage,
+    isGitProjectType,
     isUserWithOrg,
     MissingConfigError,
+    NotFoundError,
     ParameterError,
     PullRequestProvider,
     PullRequestSource,
+    RequestMethod,
     SupportedDbtVersions,
     WarehouseTypes,
     type AiWritebackRunResult,
     type AiWritebackStep,
     type GitRepo,
+    type MergePullRequestResult,
     type PullRequestWritebackAction,
     type SessionUser,
 } from '@lightdash/common';
@@ -29,6 +33,7 @@ import {
     listReposAccessibleToInstallation,
     listReposAccessibleToUser,
 } from '../../../clients/github/Github';
+import { getGitlabProjects } from '../../../clients/gitlab/Gitlab';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import type { GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
@@ -37,7 +42,9 @@ import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type { PullRequestsModel } from '../../../models/PullRequestsModel';
 import type PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
 import { BaseService } from '../../../services/BaseService';
+import type { CiService } from '../../../services/CiService/CiService';
 import type { GithubAppService } from '../../../services/GithubAppService/GithubAppService';
+import type { ProjectService } from '../../../services/ProjectService/ProjectService';
 import type {
     AiWritebackThreadModel,
     AiWritebackThreadWithPrUrl,
@@ -95,6 +102,7 @@ import {
     parseGithubConnection,
     parseGitlabConnection,
     parsePullNumber,
+    parsePullRequestUrl,
     progressTextForStage,
     resolvePrMetadataValue,
     resolveSandboxDbtVersion,
@@ -128,6 +136,8 @@ type AiWritebackServiceDeps = {
     aiWritebackThreadModel: AiWritebackThreadModel;
     pullRequestsModel: PullRequestsModel;
     prometheusMetrics?: PrometheusMetrics;
+    ciService: CiService;
+    projectService: ProjectService;
 };
 
 /** One repository in the source-code read union, plus the token that reads it. */
@@ -224,6 +234,10 @@ export class AiWritebackService extends BaseService {
 
     private readonly githubAppService: GithubAppService;
 
+    private readonly ciService: CiService;
+
+    private readonly projectService: ProjectService;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -235,6 +249,8 @@ export class AiWritebackService extends BaseService {
         aiWritebackThreadModel,
         pullRequestsModel,
         prometheusMetrics,
+        ciService,
+        projectService,
     }: AiWritebackServiceDeps) {
         super({ serviceName: 'AiWritebackService' });
         this.lightdashConfig = lightdashConfig;
@@ -245,6 +261,8 @@ export class AiWritebackService extends BaseService {
         this.pullRequestsModel = pullRequestsModel;
         this.prometheusMetrics = prometheusMetrics;
         this.githubAppService = githubAppService;
+        this.ciService = ciService;
+        this.projectService = projectService;
         this.githubProvider = new GithubProvider({
             githubAppInstallationsModel,
             githubAppService,
@@ -255,6 +273,116 @@ export class AiWritebackService extends BaseService {
             gitlabConfig: lightdashConfig.gitlab,
             logger: this.logger,
         });
+    }
+
+    /**
+     * Merge a write-back PR, then auto-sync the dbt project so the merged
+     * change goes live without a manual refresh. Delegates the merge itself to
+     * {@link CiService} (which owns the PR write guard), and on a successful
+     * merge schedules a recompile and fires the `ai_writeback.merged` event. The
+     * agent is told the sync runs automatically via the post-merge follow-up
+     * prompt, so it doesn't need to call `syncDbtProject` to kick one off.
+     */
+    async mergePullRequest(args: {
+        user: SessionUser;
+        projectUuid: string;
+        prUrl: string;
+        sha?: string;
+    }): Promise<MergePullRequestResult> {
+        const result = await this.ciService.mergePullRequest(args);
+        if (result.merged) {
+            const compileScheduled = await this.scheduleCompileAfterMerge(
+                args.user,
+                args.projectUuid,
+            );
+            this.trackMerged(args.user, args.projectUuid, {
+                prUrl: args.prUrl,
+                mergeCommitSha: result.sha,
+                compileScheduled,
+            });
+        }
+        return result;
+    }
+
+    /**
+     * Fire the `ai_writeback.merged` event after a successful merge. Best-effort
+     * and self-contained: a successful merge is irreversible, so analytics never
+     * throws back into the merge flow. Owner/repo/pullNumber are parsed from the
+     * PR URL where possible (github.com links), and left null otherwise.
+     */
+    private trackMerged(
+        user: SessionUser,
+        projectUuid: string,
+        properties: {
+            prUrl: string;
+            mergeCommitSha: string | null;
+            compileScheduled: boolean;
+        },
+    ): void {
+        let parsed: {
+            owner: string;
+            repo: string;
+            pullNumber: number;
+        } | null = null;
+        try {
+            parsed = parsePullRequestUrl(properties.prUrl);
+        } catch {
+            parsed = null;
+        }
+        this.analytics.track({
+            event: 'ai_writeback.merged',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid ?? '',
+                projectId: projectUuid,
+                prUrl: properties.prUrl,
+                owner: parsed?.owner ?? null,
+                repo: parsed?.repo ?? null,
+                pullNumber: parsed?.pullNumber ?? null,
+                mergeCommitSha: properties.mergeCommitSha,
+                compileScheduled: properties.compileScheduled,
+            },
+        });
+    }
+
+    /**
+     * Schedule a dbt recompile after a write-back merge so the new/changed
+     * fields land in the explores. Best-effort: the merge is irreversible, so a
+     * scheduling failure is logged rather than thrown — a successful merge never
+     * turns into an API error. Only git-connected projects re-clone on compile
+     * and thus pick up the merged branch, so non-git projects are skipped.
+     */
+    private async scheduleCompileAfterMerge(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<boolean> {
+        try {
+            const project = await this.projectModel.get(projectUuid);
+            if (!isGitProjectType(project.dbtConnection)) {
+                return false;
+            }
+            // skipPermissionCheck: the merge already passed the manage:SourceCode
+            // guard, so this system-initiated recompile shouldn't fail for a user
+            // who lacks the separate compile permission.
+            const { jobUuid } =
+                await this.projectService.scheduleCompileProject(
+                    user,
+                    projectUuid,
+                    RequestMethod.BACKEND,
+                    true,
+                );
+            this.logger.info(
+                `Scheduled dbt compile (job ${jobUuid}) after writeback PR merge for project ${projectUuid}`,
+            );
+            return true;
+        } catch (error) {
+            this.logger.error(
+                `Failed to schedule dbt compile after writeback PR merge for project ${projectUuid}: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+            return false;
+        }
     }
 
     /**
@@ -562,6 +690,114 @@ export class AiWritebackService extends BaseService {
     }
 
     /**
+     * GitLab analog of {@link getInstallationRepoReadAccess}: the repositories
+     * the org's GitLab app install can read, for the `@`-mention picker and the
+     * agent's repo VFS. GitLab has no per-user account linking yet (the install
+     * acts as a single identity), so there's one token and no user/installation
+     * union. Only two-segment `namespace/project` paths are listed — the mount
+     * layer keys on `owner/repo` (as does the existing dbt-connection parsing),
+     * so deeper subgroups are skipped until the mount model is generalised.
+     */
+    async getGitlabInstallationRepoReadAccess({
+        user,
+        projectUuid,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+    }): Promise<{
+        token: string;
+        hostDomain: string;
+        listRepos: () => Promise<RepoListing[]>;
+        resolveRepoAccess: (
+            owner: string,
+            repo: string,
+        ) => Promise<{ branch: string; token: string }>;
+    }> {
+        const { project, organizationUuid } = await this.assertSourceCodeAccess(
+            {
+                user,
+                projectUuid,
+            },
+        );
+        if (project.dbtConnection.type !== DbtProjectType.GITLAB) {
+            throw new WritebackGitNotConnectedError(
+                PullRequestProvider.GITLAB,
+                'Project is not connected to GitLab',
+            );
+        }
+        const installation =
+            await this.gitlabProvider.resolveInstallation(organizationUuid);
+        if (installation.provider !== PullRequestProvider.GITLAB) {
+            throw new WritebackGitNotConnectedError(
+                PullRequestProvider.GITLAB,
+                'GitLab App is not installed for this organization',
+            );
+        }
+        const { token } = installation;
+        const { hostDomain } = parseGitlabConnection(project.dbtConnection);
+        // The GitLab client is split on host format: makeGitlabRequest-based
+        // reads (createGitlabRepoSource) take a BARE domain and prepend https,
+        // while getGitlabProjects takes a FULL instance URL. Derive both from
+        // the connection's host_domain so gitlab.com and self-hosted both work.
+        const bareHost = hostDomain.replace(/^https?:\/\//, '');
+        const instanceUrl = `https://${bareHost}`;
+
+        // Build the repo map once and memoise it — listRepos and
+        // resolveRepoAccess share it, so the GitLab listing happens at most once.
+        let repoMapPromise: Promise<Map<string, RepoListing>> | null = null;
+        const loadRepoMap = () => {
+            if (!repoMapPromise) {
+                repoMapPromise = (async () => {
+                    const projects = await getGitlabProjects(
+                        token,
+                        instanceUrl,
+                    );
+                    const map = new Map<string, RepoListing>();
+                    projects.forEach(
+                        (p: {
+                            pathWithNamespace: string;
+                            defaultBranch: string | null;
+                            visibility: string;
+                        }) => {
+                            // The agent reads via the API path (path_with_namespace),
+                            // not the display name. Only two-segment paths fit the
+                            // owner/repo mount model; a project with no default
+                            // branch (empty repo) can't be read.
+                            const segments = p.pathWithNamespace.split('/');
+                            if (segments.length !== 2 || !p.defaultBranch)
+                                return;
+                            const [owner, repo] = segments;
+                            map.set(`${owner}/${repo}`, {
+                                owner,
+                                repo,
+                                defaultBranch: p.defaultBranch,
+                                private: p.visibility !== 'public',
+                            });
+                        },
+                    );
+                    return map;
+                })();
+            }
+            return repoMapPromise;
+        };
+
+        return {
+            token,
+            hostDomain: bareHost,
+            listRepos: async () => [...(await loadRepoMap()).values()],
+            resolveRepoAccess: async (owner, repo) => {
+                const entry = (await loadRepoMap()).get(`${owner}/${repo}`);
+                if (!entry) {
+                    throw new NotFoundError(
+                        `GitLab repository ${owner}/${repo} is not accessible to this project's GitLab installation`,
+                    );
+                }
+                return { branch: entry.defaultBranch, token };
+            },
+        };
+    }
+
+    /**
      * List the project's source files for the chat input's `@`-mention file
      * picker. Reuses the same gated, GitHub-only read access as repoShell, and
      * returns paths relative to the dbt sub-folder — the same root the agent's
@@ -619,16 +855,24 @@ export class AiWritebackService extends BaseService {
         user: SessionUser;
         projectUuid: string;
     }): Promise<GitRepo[]> {
-        const access = await this.getInstallationRepoReadAccess({
+        const { project } = await this.assertSourceCodeAccess({
             user,
             projectUuid,
         });
+        const isGitlab = project.dbtConnection.type === DbtProjectType.GITLAB;
+        const access = isGitlab
+            ? await this.getGitlabInstallationRepoReadAccess({
+                  user,
+                  projectUuid,
+              })
+            : await this.getInstallationRepoReadAccess({ user, projectUuid });
         const repos = await access.listRepos();
         return repos.map(({ owner, repo, defaultBranch }) => ({
             name: repo,
             ownerLogin: owner,
             fullName: `${owner}/${repo}`,
             defaultBranch,
+            provider: isGitlab ? 'gitlab' : 'github',
         }));
     }
 

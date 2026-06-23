@@ -51,6 +51,8 @@ minimumReleaseAgeExclude:
   - js-yaml@4.2.0
   # Renovate security update: vite@7.3.5
   - vite@7.3.5
+  # Renovate security update: undici@6.27.0
+  - undici@6.27.0
 
 packageExtensions:
   '@mastra/schema-compat@0.11.2':

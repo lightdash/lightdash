@@ -126,6 +126,7 @@ const mapReviewRemediation = (
         sourceThreadUuid: row.source_thread_uuid,
         sourceProjectUuid: row.source_project_uuid,
         sourceAgentUuid: row.source_agent_uuid,
+        workThreadUuid: row.work_thread_uuid,
         pullRequestUuid: row.pull_request_uuid,
         linkedPrUrl: row.linked_pr_url,
         previewProjectUuid: row.preview_project_uuid,
@@ -194,6 +195,9 @@ type UpsertReviewItemStateArgs = {
     status: AiAgentReviewItemStatus;
     dismissedReason: AiAgentReviewItemDismissedReason | null;
     statusUpdatedByUserUuid: string | null;
+    // undefined = leave the manual board order untouched (plain status change);
+    // a number repositions the card; null clears it back to default order.
+    boardPosition?: number | null;
 };
 
 type CreateReviewRemediationArgs = {
@@ -204,6 +208,7 @@ type CreateReviewRemediationArgs = {
     sourceThreadUuid: string;
     sourceProjectUuid: string;
     sourceAgentUuid: string;
+    workThreadUuid: string | null;
     retryPrompt: string | null;
     createdByUserUuid: string | null;
 };
@@ -754,6 +759,16 @@ export class AiAgentReviewClassifierModel {
             // Preview projects host writeback verification threads — reviewing
             // them would feed the reviewer's own output back into itself.
             .whereNot('project.project_type', ProjectType.PREVIEW)
+            // Remediation build-fix threads are the reviewer's own output;
+            // reviewing them would open a review item on the fix it just made.
+            .whereNotExists((builder) => {
+                void builder
+                    .select(this.database.raw('1'))
+                    .from(`${AiAgentReviewRemediationTableName} as remediation`)
+                    .whereRaw(
+                        'remediation.work_thread_uuid = thread.ai_thread_uuid',
+                    );
+            })
             .whereIn('thread.created_from', ['web_app', 'slack'])
             .where((builder) => {
                 void builder
@@ -993,7 +1008,7 @@ export class AiAgentReviewClassifierModel {
                             },
                         )
                         .whereRaw(
-                            `COALESCE(${AiAgentReviewItemTableName}.status, 'open') IN (${args.statuses
+                            `COALESCE(${AiAgentReviewItemTableName}.status, 'triage') IN (${args.statuses
                                 .map(() => '?')
                                 .join(', ')})`,
                             args.statuses,
@@ -1058,6 +1073,18 @@ export class AiAgentReviewClassifierModel {
             }),
         ]);
 
+        // Manual board order: items with a board_position sort first (ascending);
+        // the rest keep the default last-seen order. V8's stable sort preserves
+        // that fallback order for nulls and ties.
+        fingerprints.sort((a, b) => {
+            const pa = persisted.get(a)?.board_position;
+            const pb = persisted.get(b)?.board_position;
+            if (pa == null && pb == null) return 0;
+            if (pa == null) return 1;
+            if (pb == null) return -1;
+            return pa - pb;
+        });
+
         const reviewItems = fingerprints
             .map((fingerprint): AiAgentReviewItemSummary | null => {
                 const latest = latestByFingerprint.get(fingerprint);
@@ -1085,7 +1112,7 @@ export class AiAgentReviewClassifierModel {
                     title: latest.review_item_title ?? 'Review AI agent issue',
                     description: latest.review_item_description ?? '',
                     primaryRootCause: latest.primary_root_cause ?? 'ambiguous',
-                    status: item?.status ?? 'open',
+                    status: item?.status ?? 'triage',
                     dismissedReason: item?.dismissed_reason ?? null,
                     ownerType: latest.owner_type ?? 'unknown',
                     assignedToUserUuid: item?.assigned_to_user_uuid ?? null,
@@ -1104,6 +1131,7 @@ export class AiAgentReviewClassifierModel {
                     prWritebackMessage: writebackStale
                         ? WRITEBACK_TIMED_OUT_MESSAGE
                         : (item?.pr_writeback_message ?? null),
+                    boardPosition: item?.board_position ?? null,
                     writebackEligible: false,
                     writebackEligibility: defaultWritebackEligibility,
                     remediation,
@@ -1308,6 +1336,35 @@ export class AiAgentReviewClassifierModel {
         return row ? mapReviewRemediation(row) : null;
     }
 
+    async findReviewRemediationByWorkThread(args: {
+        organizationUuid: string;
+        workThreadUuid: string;
+    }): Promise<AiAgentReviewRemediation | null> {
+        const row = (await this.database<AiAgentReviewRemediationTable>(
+            `${AiAgentReviewRemediationTableName} as remediation`,
+        )
+            .leftJoin(
+                `${PullRequestsTableName} as pull_request`,
+                'pull_request.pull_request_uuid',
+                'remediation.pull_request_uuid',
+            )
+            .where('remediation.organization_uuid', args.organizationUuid)
+            .where('remediation.work_thread_uuid', args.workThreadUuid)
+            .orderBy('remediation.updated_at', 'desc')
+            .select<ReviewRemediationRow>(
+                'remediation.*',
+                {
+                    linked_pr_url: 'pull_request.pr_url',
+                },
+                this.database.raw(
+                    '(extract(epoch from (now() - remediation.updated_at)) * 1000)::float8 as updated_at_age_ms',
+                ),
+            )
+            .first()) as ReviewRemediationRow | undefined;
+
+        return row ? mapReviewRemediation(row) : null;
+    }
+
     async createReviewRemediation(
         args: CreateReviewRemediationArgs,
     ): Promise<AiAgentReviewRemediation> {
@@ -1322,6 +1379,7 @@ export class AiAgentReviewClassifierModel {
                 source_thread_uuid: args.sourceThreadUuid,
                 source_project_uuid: args.sourceProjectUuid,
                 source_agent_uuid: args.sourceAgentUuid,
+                work_thread_uuid: args.workThreadUuid,
                 retry_prompt: args.retryPrompt,
                 created_by_user_uuid: args.createdByUserUuid,
             })
@@ -1332,6 +1390,22 @@ export class AiAgentReviewClassifierModel {
             linked_pr_url: null,
             updated_at_age_ms: 0,
         });
+    }
+
+    async setReviewRemediationWorkThread(args: {
+        remediationUuid: string;
+        organizationUuid: string;
+        workThreadUuid: string;
+    }): Promise<void> {
+        await this.database<AiAgentReviewRemediationTable>(
+            AiAgentReviewRemediationTableName,
+        )
+            .where('ai_agent_review_remediation_uuid', args.remediationUuid)
+            .where('organization_uuid', args.organizationUuid)
+            .update({
+                work_thread_uuid: args.workThreadUuid,
+                updated_at: this.database.fn.now() as never,
+            });
     }
 
     async updateReviewRemediationStatus(
@@ -1562,6 +1636,9 @@ export class AiAgentReviewClassifierModel {
                 dismissed_reason: args.dismissedReason,
                 status_updated_at: this.database.fn.now() as never,
                 status_updated_by_user_uuid: args.statusUpdatedByUserUuid,
+                ...(args.boardPosition !== undefined
+                    ? { board_position: args.boardPosition }
+                    : {}),
             })
             .onConflict('fingerprint')
             .merge({
@@ -1570,6 +1647,59 @@ export class AiAgentReviewClassifierModel {
                 status_updated_at: this.database.fn.now(),
                 status_updated_by_user_uuid: args.statusUpdatedByUserUuid,
                 updated_at: this.database.fn.now(),
+                ...(args.boardPosition !== undefined
+                    ? { board_position: args.boardPosition }
+                    : {}),
+            });
+    }
+
+    // Persists the board order for a lane: board_position = array index for each
+    // item, in a single transaction so a mid-list failure can't leave the lane
+    // half-reordered. Sets only the sort key (status/assignee/timestamps stay)
+    // and inserts a triage-status row for items never acted on (so a
+    // never-triaged card can still be ordered).
+    async setReviewItemBoardPositions(args: {
+        organizationUuid: string;
+        items: {
+            fingerprint: string;
+            projectUuid: string;
+            agentUuid: string;
+        }[];
+    }): Promise<void> {
+        if (args.items.length === 0) return;
+        await this.database.transaction(async (trx) => {
+            await Promise.all(
+                args.items.map((item, index) =>
+                    trx<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
+                        .insert({
+                            fingerprint: item.fingerprint,
+                            organization_uuid: args.organizationUuid,
+                            project_uuid: item.projectUuid,
+                            agent_uuid: item.agentUuid,
+                            status: 'triage',
+                            board_position: index,
+                        })
+                        .onConflict('fingerprint')
+                        .merge({
+                            board_position: index,
+                            updated_at: trx.fn.now(),
+                        }),
+                ),
+            );
+        });
+    }
+
+    async updateReviewItemAssignee(args: {
+        fingerprint: string;
+        organizationUuid: string;
+        assignedToUserUuid: string | null;
+    }): Promise<void> {
+        await this.database<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
+            .where('fingerprint', args.fingerprint)
+            .where('organization_uuid', args.organizationUuid)
+            .update({
+                assigned_to_user_uuid: args.assignedToUserUuid,
+                updated_at: this.database.fn.now() as never,
             });
     }
 
@@ -1862,7 +1992,7 @@ export class AiAgentReviewClassifierModel {
                 if (orphaned.length > 0) {
                     await trx(AiAgentReviewItemTableName)
                         .whereIn('fingerprint', orphaned)
-                        .where('status', 'open')
+                        .whereIn('status', ['triage', 'open'])
                         .whereNull('assigned_to_user_uuid')
                         .whereNull('linked_issue_url')
                         .whereNull('linked_pr_url')

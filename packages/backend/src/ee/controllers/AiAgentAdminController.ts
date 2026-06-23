@@ -3,6 +3,7 @@ import {
     AiAgentAdminSort,
     AiAgentReviewItemStatus,
     ApiAiAgentAdminConversationsResponse,
+    ApiAiAgentAdminPromptActivityResponse,
     ApiAiAgentReviewItemActivityResponse,
     ApiAiAgentReviewItemPrDiffResponse,
     ApiAiAgentReviewItemResponse,
@@ -11,9 +12,12 @@ import {
     ApiAiAgentSummaryResponse,
     ApiAiOrganizationSettingsResponse,
     ApiErrorPayload,
+    ApiSuccessEmpty,
     ApiUpdateAiOrganizationSettingsResponse,
     assertRegisteredAccount,
     KnexPaginateArgs,
+    ReorderAiAgentReviewItems,
+    UpdateAiAgentReviewItemAssignee,
     UpdateAiAgentReviewItemStatus,
     UpdateAiOrganizationSettings,
     type ApiAiAgentReviewItemWritebackPreviewResponse,
@@ -114,6 +118,31 @@ export class AiAgentAdminController extends BaseController {
         return {
             status: 'ok',
             results: threads,
+        };
+    }
+
+    /**
+     * Get prompt activity for one project
+     * @summary Get project AI agent prompt activity
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/projects/{projectUuid}/prompt-activity')
+    @OperationId('getProjectPromptActivity')
+    async getProjectPromptActivity(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Query() days: number = 30,
+    ): Promise<ApiAiAgentAdminPromptActivityResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentAdminService().getPromptActivity(
+                toSessionUser(req.account),
+                projectUuid,
+                days,
+            ),
         };
     }
 
@@ -259,6 +288,32 @@ export class AiAgentAdminController extends BaseController {
     }
 
     /**
+     * Persist the board's manual card order for one lane. Declared before the
+     * `{fingerprint}` route so "reorder" isn't matched as a fingerprint.
+     * @summary Reorder AI agent review items on the board
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('/review-items/reorder')
+    @OperationId('reorderAiAgentReviewItems')
+    async reorderReviewItems(
+        @Request() req: express.Request,
+        @Body() body: ReorderAiAgentReviewItems,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getAiAgentAdminService().reorderReviewItems(
+            toSessionUser(req.account),
+            body.orderedFingerprints,
+        );
+        this.setStatus(200);
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
      * Update the status of an AI agent review item (e.g. dismiss it)
      * @summary Update AI agent review item status
      */
@@ -288,6 +343,34 @@ export class AiAgentAdminController extends BaseController {
     }
 
     /**
+     * Set the assignee on an AI agent review item
+     * @summary Update AI agent review item assignee
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('/review-items/{fingerprint}/assignee')
+    @OperationId('updateAiAgentReviewItemAssignee')
+    async updateReviewItemAssignee(
+        @Request() req: express.Request,
+        @Path() fingerprint: string,
+        @Body() body: UpdateAiAgentReviewItemAssignee,
+    ): Promise<ApiAiAgentReviewItemResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results =
+            await this.getAiAgentAdminService().updateReviewItemAssignee(
+                toSessionUser(req.account),
+                fingerprint,
+                body.assignedToUserUuid,
+            );
+        return { status: 'ok', results };
+    }
+
+    /**
      * Open a writeback pull request for a review item (semantic-layer or
      * project-context root cause)
      * @summary Create AI agent review item writeback PR
@@ -310,6 +393,35 @@ export class AiAgentAdminController extends BaseController {
             status: 'ok',
             results:
                 await this.getAiAgentAdminService().createReviewItemWriteback(
+                    toSessionUser(req.account),
+                    fingerprint,
+                ),
+        };
+    }
+
+    /**
+     * Re-verify a remediation after its PR changed: recompiles the existing
+     * preview and re-runs the Test-fix verification thread.
+     * @summary Retest an AI agent review remediation
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/review-items/{fingerprint}/retest')
+    @OperationId('retestAiAgentReviewRemediation')
+    async retestReviewRemediation(
+        @Request() req: express.Request,
+        @Path() fingerprint: string,
+    ): Promise<ApiAiAgentReviewItemActivityResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getAiAgentAdminService().retestReviewRemediation(
                     toSessionUser(req.account),
                     fingerprint,
                 ),

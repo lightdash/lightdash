@@ -6,6 +6,7 @@ import useLogoutMutation from '../../hooks/user/useUserLogoutMutation';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import { UserAvatar } from '../UserAvatar';
+import { ThemeSwitcherMenuItem } from './ThemeSwitcher';
 
 const UserMenu: FC = () => {
     const { user } = useApp();
@@ -30,6 +31,8 @@ const UserMenu: FC = () => {
             </Menu.Target>
 
             <Menu.Dropdown>
+                <ThemeSwitcherMenuItem />
+
                 <Menu.Item
                     role="menuitem"
                     component={Link}

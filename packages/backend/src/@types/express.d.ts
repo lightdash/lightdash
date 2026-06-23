@@ -18,6 +18,7 @@ declare global {
              */
             clients: ClientRepository;
             account?: Account;
+            rawBody?: Buffer;
         }
 
         interface User extends SessionUser {}

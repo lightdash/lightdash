@@ -31,6 +31,7 @@ import {
     IconRobotFace,
     IconTag,
     IconTriangle,
+    IconUser,
     IconX,
 } from '@tabler/icons-react';
 import { type RowSelectionState } from '@tanstack/react-table';
@@ -53,7 +54,9 @@ import FilterFacet, {
 } from '../../../../../components/common/FilterFacet';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useOnboardingMock } from '../../../../../hooks/useOnboardingMock';
+import { useOrgUsersByUuid } from '../../../../../hooks/useOrganizationUsers';
 import { useProjects } from '../../../../../hooks/useProjects';
+import useApp from '../../../../../providers/App/useApp';
 import {
     useAiAgentAdminAgents,
     useAiAgentAdminReviewItems,
@@ -63,8 +66,13 @@ import {
 import { AgentNamePill } from '../AgentNamePill';
 import styles from './AiAgentAdminReviewItemsTable.module.css';
 import { EXAMPLE_REVIEW_ITEMS, isExampleReviewItem } from './onboarding';
+import {
+    buildAssigneeFacetOptions,
+    matchesAssigneeFilter,
+} from './reviewAssigneeFacet';
 import { ReviewItemActions } from './ReviewItemActions';
 import {
+    DEFAULT_VISIBLE_ROOT_CAUSES,
     formatReviewDate,
     getActionLabel,
     getIssueTitle,
@@ -78,6 +86,7 @@ import {
 import { SearchFilter } from './SearchFilter';
 
 const ACTIVE_REVIEW_ITEM_STATUSES: AiAgentReviewItemStatus[] = [
+    'triage',
     'open',
     'in_progress',
 ];
@@ -276,15 +285,6 @@ const rootCauseHelpOrder: AiAgentRootCause[] = [
     'ambiguous',
 ];
 
-const DEFAULT_HIDDEN_ROOT_CAUSES: AiAgentRootCause[] = [
-    'agent_configuration',
-    'runtime_reliability',
-];
-
-const DEFAULT_VISIBLE_ROOT_CAUSES = (
-    Object.keys(reviewRootCauseLabels) as AiAgentRootCause[]
-).filter((rootCause) => !DEFAULT_HIDDEN_ROOT_CAUSES.includes(rootCause));
-
 const ReviewConceptHelp = () => (
     <HoverCard
         width={380}
@@ -388,9 +388,14 @@ const AiAgentAdminReviewItemsTable = ({
     const [selectedSignals, setSelectedSignals] = useState<AiAgentTurnSignal[]>(
         [],
     );
+    const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
     const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
     const deferredSearch = useDeferredValue(search);
     const updateStatus = useUpdateAiAgentReviewItemStatus();
+
+    const { user } = useApp();
+    const currentUserUuid = user.data?.userUuid ?? null;
+    const orgUsersByUuid = useOrgUsersByUuid();
 
     // While the tour is running the table always shows the sample rows so the
     // tour is deterministic; otherwise it passes real data straight through
@@ -518,14 +523,20 @@ const AiAgentAdminReviewItemsTable = ({
     }, [searchFilteredReviewSignals, selectedProjectUuids]);
 
     const filteredReviewItems = useMemo(() => {
-        if (selectedRootCauses.length === 0) {
-            return projectFilteredReviewItems;
+        let items = projectFilteredReviewItems;
+        if (selectedRootCauses.length > 0) {
+            const rootCauseSet = new Set(selectedRootCauses);
+            items = items.filter((item) =>
+                rootCauseSet.has(item.primaryRootCause),
+            );
         }
-        const rootCauseSet = new Set(selectedRootCauses);
-        return projectFilteredReviewItems.filter((item) =>
-            rootCauseSet.has(item.primaryRootCause),
-        );
-    }, [projectFilteredReviewItems, selectedRootCauses]);
+        if (selectedAssignees.length > 0) {
+            items = items.filter((item) =>
+                matchesAssigneeFilter(item, selectedAssignees),
+            );
+        }
+        return items;
+    }, [projectFilteredReviewItems, selectedRootCauses, selectedAssignees]);
 
     const filteredReviewSignals = useMemo(() => {
         if (selectedSignals.length === 0) {
@@ -598,6 +609,16 @@ const AiAgentAdminReviewItemsTable = ({
             );
     }, [projectFilteredReviewItems]);
 
+    const assigneeFacetOptions = useMemo(
+        (): FilterFacetOption[] =>
+            buildAssigneeFacetOptions({
+                items: projectFilteredReviewItems,
+                usersByUuid: orgUsersByUuid,
+                currentUserUuid,
+            }),
+        [projectFilteredReviewItems, orgUsersByUuid, currentUserUuid],
+    );
+
     const _signalFacetOptions = useMemo((): FilterFacetOption[] => {
         const counts = new Map<AiAgentTurnSignal, number>();
         for (const signal of projectFilteredReviewSignals) {
@@ -623,12 +644,14 @@ const AiAgentAdminReviewItemsTable = ({
     const hasActiveFilters =
         selectedProjectUuids.length > 0 ||
         !hasDefaultRootCauseSelection ||
-        selectedSignals.length > 0;
+        selectedSignals.length > 0 ||
+        selectedAssignees.length > 0;
 
     const clearAllFilters = useCallback(() => {
         setSelectedProjectUuids([]);
         setSelectedRootCauses(DEFAULT_VISIBLE_ROOT_CAUSES);
         setSelectedSignals([]);
+        setSelectedAssignees([]);
     }, []);
 
     const handleRowSelectionChange = useCallback(
@@ -717,6 +740,15 @@ const AiAgentAdminReviewItemsTable = ({
                             }
                             emptyLabel="No root causes in current view"
                             tooltipLabel="Filter by root cause"
+                        />
+                        <FilterFacet
+                            label="Assignee"
+                            icon={IconUser}
+                            options={assigneeFacetOptions}
+                            selected={selectedAssignees}
+                            onChange={setSelectedAssignees}
+                            emptyLabel="No assignees in current view"
+                            tooltipLabel="Filter by assignee"
                         />
                         {hasActiveFilters && (
                             <Button

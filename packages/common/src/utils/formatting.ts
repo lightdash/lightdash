@@ -279,8 +279,9 @@ export const isTemporalValue = (value: unknown): boolean =>
 
 // Which timezone a formatter applies to a value. The shape predicate decides
 // every type-known item (dims, metrics, table calcs, custom dims). MIN/MAX are
-// the one opaque case — their aggregation type hides the temporal base — so only
-// there do we fall back to the value shape.
+// the one opaque case — their aggregation type hides the temporal base. When the
+// base is known we branch on it: a DATE base never shifts, a TIMESTAMP base
+// shifts. An unknown base (arbitrary-SQL metric) falls back to the value shape.
 export const getFormatterTimezone = (
     item: Item | AdditionalMetric | undefined,
     value: unknown,
@@ -291,11 +292,11 @@ export const getFormatterTimezone = (
     if (isCalendarValueItem(item)) return undefined;
     if (shouldShiftItemTimezone(item)) return timezone;
     const type = item ? getItemType(item) : undefined;
-    if (
-        (type === MetricType.MIN || type === MetricType.MAX) &&
-        isTemporalValue(value)
-    ) {
-        return timezone;
+    if (type === MetricType.MIN || type === MetricType.MAX) {
+        const baseType = isMetric(item) ? item.baseDimensionType : undefined;
+        if (baseType === DimensionType.DATE) return undefined;
+        if (baseType === DimensionType.TIMESTAMP) return timezone;
+        if (isTemporalValue(value)) return timezone;
     }
     return undefined;
 };
@@ -1232,6 +1233,29 @@ export function formatItemValue(
                         : 'NaT';
                 case MetricType.MAX:
                 case MetricType.MIN: {
+                    const baseType = isMetric(item)
+                        ? item.baseDimensionType
+                        : undefined;
+                    // Behind the flag, a MIN/MAX over a DATE base is a calendar
+                    // value: render the bare date at the base grain, never
+                    // timezone-shifted, like a DATE dimension. UTC components keep
+                    // a midnight-UTC value on the right day in any tz. Wins over a
+                    // date/timestamp display format (no real time-of-day); a
+                    // field-level format expression is still honoured earlier.
+                    if (
+                        timezone &&
+                        baseType === DimensionType.DATE &&
+                        isTemporalValue(value)
+                    ) {
+                        return formatDate(
+                            value,
+                            isMetric(item)
+                                ? item.baseDimensionTimeInterval
+                                : undefined,
+                            true,
+                            undefined,
+                        );
+                    }
                     // A temporal MIN/MAX shifts like a dimension; a user-chosen
                     // display format wins and falls through to applyCustomFormat.
                     const formatType = customFormat?.type;

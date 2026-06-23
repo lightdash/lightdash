@@ -222,6 +222,7 @@ export type DbAiAgentReviewItem = {
     pr_writeback_message: string | null;
     status_updated_at: Date | null;
     status_updated_by_user_uuid: string | null;
+    board_position: number | null;
     created_at: Date;
     updated_at: Date;
 };
@@ -261,6 +262,7 @@ export type DbAiAgentReviewRemediation = {
     source_thread_uuid: string;
     source_project_uuid: string;
     source_agent_uuid: string;
+    work_thread_uuid: string | null;
     pull_request_uuid: string | null;
     preview_project_uuid: string | null;
     preview_agent_uuid: string | null;

@@ -1,4 +1,9 @@
-import { AnyType, SEED_PROJECT, type Space } from '@lightdash/common';
+import {
+    ContentType,
+    SEED_PROJECT,
+    type AnyType,
+    type Space,
+} from '@lightdash/common';
 import type { Body } from '../helpers/api-client';
 import { login, loginAsEditor, loginAsViewer } from '../helpers/auth';
 import { chartMock } from '../helpers/mocks';
@@ -246,8 +251,27 @@ describe('Permission tests', () => {
             `${apiUrl}/content?spaceUuids=${parentSpace4?.uuid}&contentTypes=dashboard&contentTypes=chart&contentTypes=space&projectUuids=${SEED_PROJECT.project_uuid}&page=1&pageSize=999&sortBy=last_updated_at&sortDirection=desc`,
         );
         expect(res.status).toBe(200);
-        expect(res.body.results.data.length).toBe(1);
-        expect(res.body.results.data[0].name).toBe('Child Space 4.1');
+        expect(
+            res.body.results.data.every((item: AnyType) => {
+                switch (item.contentType) {
+                    case ContentType.SPACE:
+                        return item.parentSpaceUuid === parentSpace4?.uuid;
+                    case ContentType.CHART:
+                    case ContentType.DASHBOARD:
+                        return item.space.uuid === parentSpace4?.uuid;
+                    default:
+                        return false;
+                }
+            }),
+        ).toBe(true);
+        expect(res.body.results.data).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    contentType: ContentType.SPACE,
+                    name: 'Child Space 4.1',
+                }),
+            ]),
+        );
     });
 
     it('As a viewer, I should see public spaces and private spaces that belong to me', async () => {

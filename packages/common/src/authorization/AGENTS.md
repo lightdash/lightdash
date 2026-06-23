@@ -22,14 +22,14 @@ This folder is the main authorization surface for Lightdash. TypeScript files ar
 
 A user's ability is the union of two independent layers:
 
-| Layer        | Source                     | Builder                                                                                                                                                               |
-| ------------ | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Organization | `organization_memberships` | `organizationMemberAbility.ts` for normal human-user assignment; `buildAbilityFromScopes` when `role_uuid` is set, mainly service-account/internal-user custom roles. |
-| Project      | `project_memberships`      | `projectMemberAbility.ts` when `role_uuid` is null; `buildAbilityFromScopes` when `role_uuid` is set.                                                                 |
+| Layer        | Source                     | Builder                                                                                                                                                                                      |
+| ------------ | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Organization | `organization_memberships` | `organizationMemberAbility.ts` when `role_uuid` is null (system role); `buildAbilityFromScopes` when `role_uuid` is set — org-level custom roles, for both human users and service accounts. |
+| Project      | `project_memberships`      | `projectMemberAbility.ts` when `role_uuid` is null; `buildAbilityFromScopes` when `role_uuid` is set.                                                                                        |
 
 CASL rules are additive. Project permissions cannot revoke organization permissions. If the org layer grants a permission, a narrower project custom role cannot remove it.
 
-Human organization role assignment is system-role only in the public controller/model path (`UpsertOrganizationUserRoleAssignment` clears `role_uuid`; `setUserOrgAndProjectRoles` says no custom org role). Do not document org-level custom roles as a normal human-user surface.
+Org-level custom roles are a supported human-user surface. Assigning one (`upsertOrganizationUserRoleAssignment` with a custom `roleId`) sets `organization_memberships.role_uuid` and stores `role = 'member'`; the role's `level` must be `'organization'` (validated at assign time, alongside an org-ownership check). At runtime, when `role_uuid` is set and custom roles are enabled, the org layer is built from that role's scopes and **replaces** the system-role org abilities — it does not add on top of `member`. So an org-level custom role must be self-contained: it has to list every org scope its users need (including basic `view:*`), because the system-role defaults do not apply underneath it. This mirrors project custom roles, which replace the project system role rather than extending it. SCIM still assigns system org roles only (`setUserOrgAndProjectRoles`).
 
 ## Custom Roles Are Part Of The Contract
 
@@ -40,7 +40,7 @@ Treat each scope in `scopes.ts` as a user-facing permission contract:
 - Adding a new permission means adding/updating the scope vocabulary, not only adding a `can(...)` call to a system role.
 - Renaming, splitting, merging, or removing a scope needs a `scoped_roles` migration so existing custom roles keep their intended access.
 - `roleToScopeMapping.ts` must stay aligned with system-role abilities so duplicated system roles and parity tests keep working.
-- Assignment level matters for runtime internals: service-account custom roles build org-level conditions with `{ organizationUuid }`; project custom roles build project-level conditions with `{ projectUuid }`.
+- A role's `level` (`'project' | 'organization'`) gates which scopes it may hold and where it can be assigned: org-level roles may only contain org-assignable scopes (`getOrgAssignableScopes` / `isScopeAssignableAtLevel`) and build org-level conditions with `{ organizationUuid }`; project-level roles build project-level conditions with `{ projectUuid }`. This applies to both human-user and service-account custom roles.
 - Org-level grants are deliberately hard to restrict with project-level custom roles because layers are additive.
 
 ## Role Types

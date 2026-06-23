@@ -91,6 +91,7 @@ import {
     getJoinType,
     isInflationProofMetric,
     replaceUserAttributesAsStrings,
+    replaceUserAttributesInSqlTable,
     replaceUserAttributesRaw,
     sortDayOfWeekName,
     sortMonthName,
@@ -709,6 +710,63 @@ export class MetricQueryBuilder {
         );
     }
 
+    /**
+     * A MIN/MAX over a day-grain DATE dimension must aggregate the project-tz
+     * wall-clock date, not the raw UTC trunc. Re-point the aggregate at the
+     * dimension's timezone-aware compiledSql so the metric and its dimension
+     * agree on the calendar day. Plain DATE columns and TIMESTAMP/non-temporal
+     * bases are untouched; the substring swap is a safe no-op if it ever misses.
+     * Behind useTimezoneAwareDateTrunc.
+     */
+    private getTimezoneAwareMetricSql(
+        metricId: string,
+        metric: CompiledMetric,
+        adapterType: SupportedDbtAdapter,
+        startOfWeek: WeekDay | null | undefined,
+    ): string {
+        if (!this.args.useTimezoneAwareDateTrunc) return metric.compiledSql;
+        if (metric.type !== MetricType.MIN && metric.type !== MetricType.MAX) {
+            return metric.compiledSql;
+        }
+        // Only a calendar-DATE aggregation over a truncatable interval can drift:
+        // a plain DATE column carries no interval, and a TIMESTAMP base is not
+        // recast to a calendar date.
+        if (
+            metric.baseDimensionType !== DimensionType.DATE ||
+            !metric.baseDimensionTimeInterval ||
+            !truncatableTimeFrames.has(metric.baseDimensionTimeInterval)
+        ) {
+            return metric.compiledSql;
+        }
+        // Resolve the base dimension via the custom metric's baseDimensionName —
+        // only a custom metric aggregates a derived interval dimension.
+        const additionalMetric =
+            this.args.compiledMetricQuery.additionalMetrics?.find(
+                (am) => getItemId(am) === metricId,
+            );
+        if (!additionalMetric?.baseDimensionName) return metric.compiledSql;
+        const baseDimensionId = getItemId({
+            table: metric.table,
+            name: additionalMetric.baseDimensionName,
+        });
+        const baseDimension =
+            this.originalExploreDimensions[baseDimensionId] ??
+            this.exploreDimensions[baseDimensionId];
+        if (!baseDimension?.compiledSql) return metric.compiledSql;
+        const tzAwareDimensionSql = this.getTimezoneAwareDimensionSql(
+            baseDimension,
+            adapterType,
+            startOfWeek,
+        );
+        // No wrap happened (base is DATE, skipTimezoneConversion, etc.).
+        if (tzAwareDimensionSql === baseDimension.compiledSql) {
+            return metric.compiledSql;
+        }
+        return metric.compiledSql
+            .split(baseDimension.compiledSql)
+            .join(tzAwareDimensionSql);
+    }
+
     private buildDimensionsWhereClause(
         dimensionsFilterGroup?: FilterGroup,
     ): string | undefined {
@@ -1284,8 +1342,14 @@ export class MetricQueryBuilder {
                     return;
                 }
                 // Add select
+                const metricSql = this.getTimezoneAwareMetricSql(
+                    field,
+                    metric,
+                    adapterType,
+                    startOfWeek,
+                );
                 const sqlWithUserAttributes = replaceUserAttributesAsStrings(
-                    metric.compiledSql,
+                    metricSql,
                     this.args.intrinsicUserAttributes,
                     this.args.userAttributes ?? {},
                     warehouseSqlBuilder,
@@ -1854,7 +1918,7 @@ export class MetricQueryBuilder {
             intrinsicUserAttributes,
             userAttributes = {},
         } = this.args;
-        const baseTable = replaceUserAttributesRaw(
+        const baseTable = replaceUserAttributesInSqlTable(
             explore.tables[explore.baseTable].sqlTable,
             intrinsicUserAttributes,
             userAttributes,
@@ -1917,7 +1981,7 @@ export class MetricQueryBuilder {
         const joinSQL = explore.joinedTables
             .filter((join) => joinedTables.has(join.table) || join.always)
             .map((join) => {
-                const joinTable = replaceUserAttributesRaw(
+                const joinTable = replaceUserAttributesInSqlTable(
                     explore.tables[join.table].sqlTable,
                     intrinsicUserAttributes,
                     userAttributes,
@@ -2344,7 +2408,7 @@ export class MetricQueryBuilder {
                  * - Only join keys table and metrics table
                  * - No filters needed
                  */
-                const joinTable = replaceUserAttributesRaw(
+                const joinTable = replaceUserAttributesInSqlTable(
                     table.sqlTable,
                     intrinsicUserAttributes,
                     userAttributes,
@@ -2501,7 +2565,7 @@ export class MetricQueryBuilder {
                          * - Only join keys table and metrics table
                          * - No filters needed
                          */
-                        const popJoinTable = replaceUserAttributesRaw(
+                        const popJoinTable = replaceUserAttributesInSqlTable(
                             table.sqlTable,
                             intrinsicUserAttributes,
                             userAttributes,
@@ -2601,9 +2665,12 @@ export class MetricQueryBuilder {
                     ...Object.values(dimensionSelects),
                     ...unaffectedMetrics.map(
                         (metric) =>
-                            `  ${
-                                metric.compiledSql
-                            } AS ${fieldQuoteChar}${getItemId(
+                            `  ${this.getTimezoneAwareMetricSql(
+                                getItemId(metric),
+                                metric,
+                                adapterType,
+                                startOfWeek,
+                            )} AS ${fieldQuoteChar}${getItemId(
                                 metric,
                             )}${fieldQuoteChar}`,
                     ),

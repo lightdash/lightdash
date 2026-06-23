@@ -14,6 +14,7 @@ import {
 import { Group, Text } from '@mantine-8/core';
 import {
     IconBrandGithub,
+    IconBrandGitlab,
     IconCircleCheck,
     IconFile,
     IconLayoutDashboard,
@@ -98,14 +99,15 @@ const REPOSITORY_MENTION_GROUP = 'repository';
 const REPOSITORY_MENTION_CONTENT_TYPE = 'repository';
 const MAX_REPOSITORY_SUGGESTIONS = 8;
 
-// A GitHub repository the org's installation can access. Like file mentions it
-// carries no context payload — picking it inserts `owner/repo` as plain text so
-// the agent reads that repository's mount directly (it's the user pre-selecting
-// which repo to focus on, so the agent doesn't have to ask).
+// A GitHub or GitLab repository the org's installation can access. Like file
+// mentions it carries no context payload — picking it inserts `owner/repo` as
+// plain text so the agent reads that repository's mount directly (it's the user
+// pre-selecting which repo to focus on, so the agent doesn't have to ask).
 export type RepositoryMentionSuggestionItem = SuggestionItem & {
     kind: 'repository';
     fullName: string;
     ownerLogin: string;
+    provider?: 'github' | 'gitlab';
     group: typeof REPOSITORY_MENTION_GROUP;
 };
 
@@ -223,6 +225,7 @@ const getRepositorySuggestions = async (
         kind: 'repository',
         fullName: repo.fullName,
         ownerLogin: repo.ownerLogin,
+        provider: repo.provider,
         group: REPOSITORY_MENTION_GROUP,
     }));
 };
@@ -261,6 +264,18 @@ const getContextKey = (item: AiPromptContextInput[number]) => {
             return `dashboard:${item.dashboardUuid}`;
         case 'thread':
             return `thread:${item.threadUuid}`;
+        case 'file':
+            return `file:${item.path}`;
+        case 'repository':
+            return `repository:${item.fullName}`;
+        case 'pull_request':
+            return `pull_request:${item.prUrl}`;
+        case 'proposed_change':
+            return `proposed_change:${item.fingerprint}`;
+        case 'review_finding':
+            return `review_finding:${item.fingerprint}`;
+        case 'preview_environment':
+            return `preview_environment:${item.previewProjectUuid}`;
         default:
             return assertUnreachable(
                 item,
@@ -518,7 +533,11 @@ const renderRepositoryMentionItem = (
         >
             <Group wrap="nowrap" gap="xs" w="100%">
                 <MantineIcon
-                    icon={IconBrandGithub}
+                    icon={
+                        item.provider === 'gitlab'
+                            ? IconBrandGitlab
+                            : IconBrandGithub
+                    }
                     size="sm"
                     color="ldGray.6"
                 />
@@ -597,9 +616,11 @@ const renderContentMentionItem = (
 const generateContentMentionSuggestion = ({
     getProjectUuid,
     getPriorityItems,
+    onPopupOpenChange,
 }: {
     getProjectUuid: () => string | undefined;
     getPriorityItems: () => ContentMentionSuggestionItem[];
+    onPopupOpenChange?: (open: boolean) => void;
 }): MentionOptions['suggestion'] => ({
     char: '@',
     allowSpaces: true,
@@ -677,6 +698,7 @@ const generateContentMentionSuggestion = ({
 
         return {
             onStart: (props) => {
+                onPopupOpenChange?.(true);
                 component = new ReactRenderer(SuggestionList, {
                     props: {
                         ...props,
@@ -719,12 +741,14 @@ const generateContentMentionSuggestion = ({
             },
             onKeyDown: (props) => {
                 if (props.event.key === 'Escape') {
+                    onPopupOpenChange?.(false);
                     popup?.hide();
                     return true;
                 }
                 return component?.ref?.onKeyDown(props) ?? false;
             },
             onExit: () => {
+                onPopupOpenChange?.(false);
                 popup?.destroy();
                 component?.destroy();
                 popup = undefined;
@@ -737,9 +761,11 @@ const generateContentMentionSuggestion = ({
 export const createContentMentionExtension = ({
     getProjectUuid,
     getPriorityItems,
+    onPopupOpenChange,
 }: {
     getProjectUuid: () => string | undefined;
     getPriorityItems: () => ContentMentionSuggestionItem[];
+    onPopupOpenChange?: (open: boolean) => void;
 }) =>
     Mention.extend({
         name: CONTENT_MENTION_NAME,
@@ -786,6 +812,7 @@ export const createContentMentionExtension = ({
         suggestion: generateContentMentionSuggestion({
             getProjectUuid,
             getPriorityItems,
+            onPopupOpenChange,
         }),
         renderText: ({ node }) =>
             typeof node.attrs.label === 'string' ? node.attrs.label : '',
@@ -826,7 +853,10 @@ export const extractContentMentionContext = (
         if (node.type.name !== CONTENT_MENTION_NAME) return;
 
         const attrs = node.attrs as {
-            contentType?: ContentType;
+            contentType?:
+                | ContentType
+                | typeof FILE_MENTION_CONTENT_TYPE
+                | typeof REPOSITORY_MENTION_CONTENT_TYPE;
             uuid?: string;
             slug?: string | null;
             label?: string | null;
@@ -881,6 +911,30 @@ export const extractContentMentionContext = (
                 dashboardSlug: attrs.slug ?? null,
                 displayName: attrs.label ?? null,
                 pinnedVersionUuid: null,
+            });
+            return;
+        }
+
+        // File / repository mentions carry their reference in `label` (the path
+        // / `owner/repo`) — emit a structured context item so the agent knows
+        // it's a file or a repo, never having to disambiguate from the text.
+        if (
+            attrs.contentType === FILE_MENTION_CONTENT_TYPE &&
+            typeof attrs.label === 'string'
+        ) {
+            context.push({ type: 'file', path: attrs.label });
+            optimisticContext.push({ type: 'file', path: attrs.label });
+            return;
+        }
+
+        if (
+            attrs.contentType === REPOSITORY_MENTION_CONTENT_TYPE &&
+            typeof attrs.label === 'string'
+        ) {
+            context.push({ type: 'repository', fullName: attrs.label });
+            optimisticContext.push({
+                type: 'repository',
+                fullName: attrs.label,
             });
         }
     });

@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     CartesianSeriesType,
     getSeriesId,
+    hashFieldReference,
     isCompleteEchartsConfig,
     isCompleteLayout,
     isNumericItem,
@@ -16,6 +17,7 @@ import {
     type ItemsMap,
     type MarkLineData,
     type MetricQuery,
+    type PivotReference,
     type RowLimit,
     type Series,
     type SeriesMetadata,
@@ -63,8 +65,9 @@ type Args = {
     tableCalculationsMetadata?: TableCalculationMetadata[];
 };
 
-const getReferenceLineKey = ({ fieldId, data }: ReferenceLineField) =>
+const getReferenceLineKey = ({ fieldId, fieldRef, data }: ReferenceLineField) =>
     [
+        fieldRef ? hashFieldReference(fieldRef) : undefined,
         fieldId,
         data.uuid,
         data.value,
@@ -79,6 +82,39 @@ const getReferenceLineKey = ({ fieldId, data }: ReferenceLineField) =>
     ]
         .map((value) => value ?? '')
         .join('|');
+
+const getReferenceFieldId = (referenceLine: ReferenceLineField) =>
+    referenceLine.fieldRef?.field ?? referenceLine.fieldId;
+
+const getReferenceKey = (reference: PivotReference) =>
+    hashFieldReference(reference);
+
+const getReferenceLineSeriesKey = (referenceLine: ReferenceLineField) =>
+    referenceLine.fieldRef
+        ? getReferenceKey(referenceLine.fieldRef)
+        : undefined;
+
+const doesReferenceMatchSeries = (
+    referenceLine: ReferenceLineField,
+    serie: Series,
+) => {
+    const referenceKey = getReferenceLineSeriesKey(referenceLine);
+    if (!serie.encode) return false;
+
+    if (referenceKey) {
+        return (
+            referenceKey === getReferenceKey(serie.encode.xRef) ||
+            referenceKey === getReferenceKey(serie.encode.yRef)
+        );
+    }
+
+    const fieldId = referenceLine.fieldId;
+    if (fieldId === undefined) return false;
+    return (
+        fieldId === serie.encode.xRef.field ||
+        fieldId === serie.encode.yRef.field
+    );
+};
 
 const dedupeReferenceLines = (referenceLines: ReferenceLineField[]) => {
     const seen = new Set<string>();
@@ -110,13 +146,12 @@ const applyReferenceLines = (
 
         const referenceLinesForSerie = uniqueReferenceLines.filter(
             (referenceLine) => {
-                if (referenceLine.fieldId === undefined) return false;
-                if (appliedReferenceLines.includes(referenceLine.fieldId))
-                    return false;
-                return (
-                    referenceLine.fieldId === serie.encode?.xRef.field ||
-                    referenceLine.fieldId === serie.encode?.yRef.field
-                );
+                const appliedKey =
+                    getReferenceLineSeriesKey(referenceLine) ??
+                    getReferenceFieldId(referenceLine);
+                if (appliedKey === undefined) return false;
+                if (appliedReferenceLines.includes(appliedKey)) return false;
+                return doesReferenceMatchSeries(referenceLine, serie);
             },
         );
 
@@ -125,15 +160,18 @@ const applyReferenceLines = (
 
         const markLineData: MarkLineData[] = referenceLinesForSerie.map(
             (line) => {
-                if (line.fieldId === undefined) return line.data;
-                appliedReferenceLines.push(line.fieldId);
+                const fieldId = getReferenceFieldId(line);
+                if (fieldId === undefined) return line.data;
+                appliedReferenceLines.push(
+                    getReferenceLineSeriesKey(line) ?? fieldId,
+                );
                 const value = line.data.xAxis || line.data.yAxis;
                 if (value === undefined) return line.data;
 
                 const axis = getMarkLineAxis(
                     dirtyLayout?.xField,
                     dirtyLayout?.flipAxes || false,
-                    line.fieldId,
+                    fieldId,
                 );
 
                 return {
@@ -342,6 +380,25 @@ const useCartesianChartConfig = ({
         [],
     );
 
+    const setYMinInterval = useCallback(
+        (index: number, value: number | undefined) => {
+            setDirtyEchartsConfig((prevState) => {
+                return {
+                    ...prevState,
+                    yAxis: [
+                        prevState?.yAxis?.[0] || {},
+                        prevState?.yAxis?.[1] || {},
+                    ].map((axis, axisIndex) =>
+                        axisIndex === index
+                            ? { ...axis, minInterval: value }
+                            : axis,
+                    ),
+                };
+            });
+        },
+        [],
+    );
+
     const setXMinValue = useCallback(
         (index: number, value: string | undefined) => {
             setDirtyEchartsConfig((prevState) => {
@@ -352,6 +409,25 @@ const useCartesianChartConfig = ({
                         prevState?.xAxis?.[1] || {},
                     ].map((axis, axisIndex) =>
                         axisIndex === index ? { ...axis, min: value } : axis,
+                    ),
+                };
+            });
+        },
+        [],
+    );
+
+    const setXMinInterval = useCallback(
+        (index: number, value: number | undefined) => {
+            setDirtyEchartsConfig((prevState) => {
+                return {
+                    ...prevState,
+                    xAxis: [
+                        prevState?.xAxis?.[0] || {},
+                        prevState?.xAxis?.[1] || {},
+                    ].map((axis, axisIndex) =>
+                        axisIndex === index
+                            ? { ...axis, minInterval: value }
+                            : axis,
                     ),
                 };
             });
@@ -1063,6 +1139,11 @@ const useCartesianChartConfig = ({
                                       : serie.encode.yRef;
                             return {
                                 fieldId: axis.field,
+                                fieldRef:
+                                    markData.dynamicValue === 'average' ||
+                                    markData.type === 'average'
+                                        ? axis
+                                        : undefined,
                                 data: {
                                     label: serie.markLine?.label,
                                     lineStyle: serie.markLine?.lineStyle,
@@ -1320,7 +1401,9 @@ const useCartesianChartConfig = ({
         setFlipAxis,
         setYMinValue,
         setYMaxValue,
+        setYMinInterval,
         setXMinValue,
+        setXMinInterval,
         setXMinOffsetValue,
         setXMaxValue,
         setXMaxOffsetValue,

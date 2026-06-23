@@ -24,6 +24,8 @@ import {
     ApiAiAgentThreadGenerateTitleResponse,
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
+    ApiAiAgentThreadMessageInterruptResponse,
+    ApiAiAgentThreadMessageSteerResponse,
     ApiAiAgentThreadMessageVizQueryResponse,
     ApiAiAgentThreadPullRequestResponse,
     ApiAiAgentThreadResponse,
@@ -45,6 +47,7 @@ import {
     ApiConnectGithubMcpServerBody,
     ApiCreateAiAgent,
     ApiCreateAiAgentResponse,
+    ApiCreateAiAgentThreadMessageSteer,
     ApiCreateAiMcpServer,
     ApiCreateEvaluationRequest,
     ApiCreateEvaluationResponse,
@@ -1058,6 +1061,7 @@ export class AiAgentController extends BaseController {
                               agentUuid,
                               threadUuid,
                               enableSqlMode: body?.enableSqlMode ?? false,
+                              autoApproveSql: body?.autoApproveSql ?? false,
                               toolHints: body?.toolHints ?? [],
                           },
                       );
@@ -1111,6 +1115,63 @@ export class AiAgentController extends BaseController {
         req.res?.on('close', handleClientDisconnect);
         req.res?.on('error', handleClientDisconnect);
         req.on('aborted', handleClientDisconnect);
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/interrupt')
+    @OperationId('interruptAgentThreadMessage')
+    async interruptAgentThreadMessage(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Path() threadUuid: string,
+        @Path() messageUuid: string,
+    ): Promise<ApiAiAgentThreadMessageInterruptResponse> {
+        assertRegisteredAccount(req.account);
+        await this.getAiAgentService().interruptAgentThreadMessage(
+            toSessionUser(req.account),
+            {
+                agentUuid,
+                threadUuid,
+                messageUuid,
+            },
+        );
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: { interrupted: true },
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/steers')
+    @OperationId('createAgentThreadMessageSteer')
+    async createAgentThreadMessageSteer(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Path() threadUuid: string,
+        @Path() messageUuid: string,
+        @Body() body: ApiCreateAiAgentThreadMessageSteer,
+    ): Promise<ApiAiAgentThreadMessageSteerResponse> {
+        assertRegisteredAccount(req.account);
+        const steer =
+            await this.getAiAgentService().createAgentThreadMessageSteer(
+                toSessionUser(req.account),
+                {
+                    agentUuid,
+                    threadUuid,
+                    messageUuid,
+                    message: body.message,
+                },
+            );
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: { steer },
+        };
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])

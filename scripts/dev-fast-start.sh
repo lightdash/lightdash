@@ -134,9 +134,18 @@ if test -f .env.development.local; then
     # was first written (e.g. after stop-all the next start lands on a free slot).
     # A stale PGPORT/PORT silently points PM2 at a dead container, and the API
     # crash-loops on "Error migrating graphile worker" (its first DB op at boot).
+    # Upsert: update the key in place if present, otherwise append it. The append
+    # path matters when the file was created secrets-only (e.g. dev-op-pull.sh ran
+    # before the ports block was written) — without it the slot ports, PGHOST, and
+    # LD_INSTANCE_ID stay missing, the ecosystem falls back to the docker host
+    # "db-dev" and the generic "lightdash" name, and the API crash-loops.
     reconcile_env() {
         local key="$1" val="$2" cur
-        grep -q "^${key}=" .env.development.local || return 0
+        if ! grep -q "^${key}=" .env.development.local; then
+            printf '%s=%s\n' "$key" "$val" >> .env.development.local
+            ENV_PORTS_CHANGED=1
+            return 0
+        fi
         cur="$(grep "^${key}=" .env.development.local | head -1 | cut -d= -f2-)"
         [ "$cur" = "$val" ] && return 0
         awk -v k="$key" -v v="$val" 'BEGIN{FS=OFS="="} $1==k{print k"="v; next} {print}' \
@@ -148,6 +157,10 @@ if test -f .env.development.local; then
     # or wrong (e.g. the heredoc expanded it before the slot env was sourced), ecosystem
     # defaults to "lightdash" and collides with another worktree's generic stack.
     reconcile_env LD_INSTANCE_ID "${LD_INSTANCE_ID}"
+    # PGHOST must be reconciled too: a secrets-only file inherits the docker host
+    # "db-dev" from .env.development, which is unreachable from the host and makes
+    # the API crash-loop on its first DB op.
+    reconcile_env PGHOST localhost
     reconcile_env PGPORT "${LD_PG_PORT}"
     reconcile_env PORT "${PORT}"
     reconcile_env FE_PORT "${FE_PORT}"
@@ -159,6 +172,16 @@ if test -f .env.development.local; then
     reconcile_env SITE_URL "http://localhost:${FE_PORT}"
     reconcile_env INTERNAL_LIGHTDASH_HOST "http://localhost:${FE_PORT}"
     reconcile_env LIGHTDASH_API_URL "http://localhost:${PORT}"
+    # Infra keys the create-branch writes; reconcile them so a secrets-only file
+    # (created before the ports block) is brought up to a complete, host-reachable
+    # config rather than inheriting docker-internal defaults from .env.development.
+    reconcile_env S3_ENDPOINT "http://localhost:9000"
+    reconcile_env HEADLESS_BROWSER_HOST localhost
+    reconcile_env HEADLESS_BROWSER_PORT 3001
+    reconcile_env EMAIL_SMTP_HOST localhost
+    reconcile_env EMAIL_SMTP_PORT 1025
+    reconcile_env LDPAT ldpat_deadbeefdeadbeefdeadbeefdeadbeef
+    reconcile_env DBT_DEMO_DIR "$(pwd)/examples/full-jaffle-shop-demo"
     if [ "$ENV_PORTS_CHANGED" = 1 ]; then
         echo "OK: env file reconciled to slot ports (PGPORT=${LD_PG_PORT} PORT=${PORT} FE_PORT=${FE_PORT})"
     else

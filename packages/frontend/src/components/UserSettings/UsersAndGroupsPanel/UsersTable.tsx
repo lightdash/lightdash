@@ -2,8 +2,10 @@ import {
     FeatureFlags,
     isOrganizationMemberProfileWithGroups,
     OrganizationMemberRole,
+    OrganizationMemberRoleLabels,
     type OrganizationMemberProfile,
     type OrganizationMemberProfileWithGroups,
+    type Role,
 } from '@lightdash/common';
 import {
     Badge,
@@ -23,7 +25,6 @@ import {
     IconArrowUp,
     IconUserCircle,
 } from '@tabler/icons-react';
-import capitalize from 'lodash/capitalize';
 import {
     useCallback,
     useEffect,
@@ -34,7 +35,10 @@ import {
     type UIEvent,
 } from 'react';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
-import { useUpsertOrganizationUserRoleAssignmentMutation } from '../../../hooks/useOrganizationRoles';
+import {
+    useOrganizationRoles,
+    useUpsertOrganizationUserRoleAssignmentMutation,
+} from '../../../hooks/useOrganizationRoles';
 import { useInfiniteOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
@@ -137,6 +141,34 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
     }, [fetchMoreOnBottomReached]);
 
     const updateUserRole = useUpsertOrganizationUserRoleAssignmentMutation();
+    const organizationRolesQuery = useOrganizationRoles();
+
+    const organizationRoleOptions = useMemo(() => {
+        const systemRoles = Object.values(OrganizationMemberRole).map(
+            (orgMemberRole) => ({
+                value: orgMemberRole,
+                label: OrganizationMemberRoleLabels[orgMemberRole],
+            }),
+        );
+        const customRoles =
+            organizationRolesQuery.data
+                ?.filter(
+                    (role: Role) =>
+                        role.ownerType === 'user' &&
+                        role.level === 'organization',
+                )
+                .map((role: Role) => ({
+                    value: role.roleUuid,
+                    label: role.name,
+                })) ?? [];
+
+        return customRoles.length > 0
+            ? [
+                  { group: 'System roles', items: systemRoles },
+                  { group: 'Custom roles', items: customRoles },
+              ]
+            : systemRoles;
+    }, [organizationRolesQuery.data]);
 
     const canManageUsers =
         activeUser.data?.ability?.can('manage', 'OrganizationMemberProfile') ??
@@ -235,14 +267,7 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
                     const user = row.original;
                     return (
                         <Select
-                            data={Object.values(OrganizationMemberRole).map(
-                                (orgMemberRole) => ({
-                                    value: orgMemberRole,
-                                    label: capitalize(
-                                        orgMemberRole.replace('_', ' '),
-                                    ),
-                                }),
-                            )}
+                            data={organizationRoleOptions}
                             onChange={(newRole: string | null) => {
                                 if (newRole) {
                                     updateUserRole.mutate({
@@ -251,7 +276,8 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
                                     });
                                 }
                             }}
-                            value={user.role}
+                            value={user.roleUuid ?? user.role}
+                            disabled={organizationRolesQuery.isLoading}
                             w={180}
                             size="xs"
                         />
@@ -347,6 +373,8 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
         inviteSuccessFor,
         isGroupManagementEnabled,
         updateUserRole,
+        organizationRoleOptions,
+        organizationRolesQuery.isLoading,
         activeUser.data?.userUuid,
         flatData.length,
         canInvite,

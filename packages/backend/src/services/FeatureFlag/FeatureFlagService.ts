@@ -23,10 +23,7 @@ export class FeatureFlagService extends BaseService {
         user,
         featureFlagId,
     }: {
-        user?: Pick<
-            LightdashUser,
-            'userUuid' | 'organizationUuid' | 'organizationName'
-        >;
+        user?: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>;
         featureFlagId: string;
     }) {
         return this.featureFlagModel.get({ user, featureFlagId });

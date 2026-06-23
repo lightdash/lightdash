@@ -15,12 +15,14 @@ import { AiModel, AiProvider } from '../models/types';
 import { AiAgentSkillReference } from '../skills/types';
 import {
     AnalyzeFieldImpactFn,
+    ConsumePromptSteersFn,
     CreateContentFn,
     CreateOrUpdateArtifactFn,
     DescribeWarehouseTableFn,
     DiscoverReposFn,
     EditContentFn,
     EditDbtProjectFn,
+    EditProjectContextFn,
     ExploreRepoFn,
     FindContentFn,
     FindExploresFn,
@@ -31,6 +33,7 @@ import {
     GetProjectInfoFn,
     GetPromptFn,
     GetSavedChartFn,
+    IsPromptInterruptedFn,
     ListContentFn,
     ListExploresFn,
     ListKnowledgeDocumentsFn,
@@ -95,6 +98,9 @@ export type AiAgentArgs = AnyAiModel & {
     enableContentTools: boolean;
     enableSearchSemanticLayer: boolean;
     enableAiWriteback: boolean;
+    // Only on inside review-remediation work threads: lets the agent open/update
+    // the project_context.yml PR via the deterministic editProjectContext tool.
+    enableEditProjectContext: boolean;
     // Which GitHub identity a writeback PR would be attributed to (advisory,
     // resolved at prompt-assembly time). null when not applicable/unresolved.
     writebackAttribution: AiWritebackAttribution | null;
@@ -103,6 +109,9 @@ export type AiAgentArgs = AnyAiModel & {
     // dbt project root within the repo (from project_sub_path); '.' = repo root,
     // null when repo discovery is off or the project is not git-backed.
     repoFsRoot: string | null;
+    // Whether the repo host has server-side code search (GitHub yes, GitLab no).
+    // Drives whether the prompt tells the agent to use `search`.
+    repoFsSupportsCodeSearch: boolean;
     canRunSql: boolean;
     autoApproveSql: boolean;
     autoApproveSqlUserUuid: string | null;
@@ -122,6 +131,12 @@ export type AiAgentArgs = AnyAiModel & {
     siteUrl: string;
     canManageAgent: boolean;
     toolHints: string[];
+    /**
+     * When true, the first tool hint is *forced* on the opening step
+     * (toolChoice), not just suggested — used by the review Build-fix run to
+     * guarantee the agent opens a PR via editDbtProject.
+     */
+    forceToolHints?: boolean;
 };
 
 export type PerformanceMetrics = {
@@ -169,10 +184,13 @@ export type AiAgentDependencies = {
     storeToolCall: StoreToolCallFn;
     storeToolResults: StoreToolResultsFn;
     storeReasoning: StoreReasoningFn;
+    isPromptInterrupted: IsPromptInterruptedFn;
+    consumePromptSteers: ConsumePromptSteersFn;
     searchFieldValues: SearchFieldValuesFn;
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     editDbtProject: EditDbtProjectFn;
+    editProjectContext: EditProjectContextFn;
     syncDbtProject: SyncDbtProjectFn;
     setupPreviewDeploy: SetupPreviewDeployFn;
     exploreRepo: ExploreRepoFn;

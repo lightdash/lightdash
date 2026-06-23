@@ -1,0 +1,38 @@
+.panes {
+    align-items: stretch;
+    min-height: 0;
+}
+
+.pane {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.paneBody {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+/* Build is the primary pane (you act here); Test is the narrower verification rail. */
+.paneBuild {
+    flex: 1.4 1 0;
+}
+
+.paneTest {
+    flex: 1 1 0;
+}
+
+/* Tie the Test pane to the preview environment with the preview-banner blue. */
+.panePreview {
+    border-top: 2px solid var(--mantine-color-blue-6);
+}
+
+.connector {
+    flex: 0 0 auto;
+    align-self: center;
+    color: var(--mantine-color-dimmed);
+}

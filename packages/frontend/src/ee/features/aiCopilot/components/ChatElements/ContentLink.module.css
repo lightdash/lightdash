@@ -31,6 +31,20 @@
     );
 }
 
+/* Non-interactive reference chip (e.g. file/repository) — same chrome, but no
+   pointer or hover since there is nowhere to navigate. */
+.static {
+    cursor: default;
+}
+
+.static:hover {
+    background-color: transparent !important;
+    border-color: light-dark(
+        var(--mantine-color-ldGray-2),
+        var(--mantine-color-ldGray-3)
+    );
+}
+
 .contentLink[data-artifact-active='true'] {
     background-color: light-dark(
         color-mix(

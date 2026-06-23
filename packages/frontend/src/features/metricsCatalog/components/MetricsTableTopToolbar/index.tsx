@@ -644,10 +644,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                             switch (view) {
                                 case MetricCatalogView.LIST:
                                     void navigate({
-                                        pathname: location.pathname.replace(
-                                            /\/canvas/,
-                                            '',
-                                        ),
+                                        pathname: `/projects/${projectUuid}/metrics`,
                                         search: location.search,
                                     });
                                     break;
@@ -661,7 +658,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                         },
                                     });
                                     void navigate({
-                                        pathname: `${location.pathname}/canvas`,
+                                        pathname: `/projects/${projectUuid}/metrics/canvas`,
                                         search: location.search,
                                     });
                                     break;

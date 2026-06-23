@@ -26,6 +26,7 @@ import {
     AiMetricQueryWithFilters,
     AiModelOption,
     AiPromptContext,
+    AiPromptSteer,
     AiResultType,
     AiVizMetadata,
     AiWebAppPrompt,
@@ -65,6 +66,7 @@ import {
     GITHUB_MCP_SERVER_NAME,
     GITHUB_MCP_SERVER_URL,
     isGitProjectType,
+    isSlackMessageTooLongError,
     isSlackPrompt,
     isToolProposeChangeSuccessResult,
     KnexPaginateArgs,
@@ -244,10 +246,15 @@ import {
 import { RepoFs } from '../ai/repoFs/RepoFs';
 import { renderBlocks as renderSqlApprovalBlocks } from '../ai/tools/slackSqlAggregate';
 import { markSlackThreadAutoApproved } from '../ai/tools/sqlApprovals';
-import { AiAgentArgs, AiAgentDependencies } from '../ai/types/aiAgent';
+import {
+    AiAgentArgs,
+    AiAgentDependencies,
+    type AiAgentMcpServer,
+} from '../ai/types/aiAgent';
 import {
     DiscoverReposFn,
     EditDbtProjectFn,
+    EditProjectContextFn,
     ExploreRepoFn,
     GetPromptFn,
     SendFileFn,
@@ -265,9 +272,7 @@ import {
     buildSlackTaskUpdate,
     getAgentConfirmationBlocks,
     getAgentSelectionBlocks,
-    getArtifactBlocks,
     getDeepLinkBlocks,
-    getEditDbtProjectBlocks,
     getFeedbackBlocks,
     getFollowUpToolBlocks,
     getMarkdownBlocks,
@@ -278,6 +283,7 @@ import {
     getReferencedArtifactsBlocks,
     getTextBlocks,
     getThinkingBlocks,
+    splitMarkdownIntoMessages,
 } from '../ai/utils/getSlackBlocks';
 import { llmAsAJudge } from '../ai/utils/llmAsAJudge';
 import {
@@ -292,6 +298,7 @@ import { buildChangesetWritebackPrompt } from '../AiWritebackService/changesetPr
 import type { AiWritebackSource } from '../AiWritebackService/types';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
+import { ProjectContextService } from '../ProjectContextService/ProjectContextService';
 import { canGeneratePostResponseSuggestions } from './suggestionAccess';
 
 type ThreadMessageContext = Array<
@@ -373,6 +380,7 @@ type AiAgentServiceDependencies = {
     persistentDownloadFileService: PersistentDownloadFileService;
     aiAgentContentValidation: AiAgentContentValidation;
     aiWritebackService: AiWritebackService;
+    projectContextService: ProjectContextService;
     previewDeploySetupService: PreviewDeploySetupService;
     writebackPreviewService: WritebackPreviewService;
     githubAppInstallationsModel: GithubAppInstallationsModel;
@@ -381,7 +389,9 @@ type AiAgentServiceDependencies = {
     pullRequestsModel: Pick<PullRequestsModel, 'findByAiThreadUuid' | 'find'>;
     aiAgentReviewClassifierModel: Pick<
         AiAgentReviewClassifierModel,
-        'findReviewRemediationByPreviewThread'
+        | 'findReviewRemediationByPreviewThread'
+        | 'findReviewRemediationByWorkThread'
+        | 'createRemediationEvent'
     >;
     prometheusMetrics?: PrometheusMetrics;
 };
@@ -621,6 +631,8 @@ export class AiAgentService extends BaseService {
 
     private readonly aiWritebackService: AiWritebackService;
 
+    private readonly projectContextService: ProjectContextService;
+
     private readonly previewDeploySetupService: PreviewDeploySetupService;
 
     private readonly writebackPreviewService: WritebackPreviewService;
@@ -634,7 +646,9 @@ export class AiAgentService extends BaseService {
 
     private readonly aiAgentReviewClassifierModel: Pick<
         AiAgentReviewClassifierModel,
-        'findReviewRemediationByPreviewThread'
+        | 'findReviewRemediationByPreviewThread'
+        | 'findReviewRemediationByWorkThread'
+        | 'createRemediationEvent'
     >;
 
     private readonly aiAgentMcpRuntimeClient: AiAgentMcpRuntimeClient;
@@ -652,10 +666,9 @@ export class AiAgentService extends BaseService {
             context?.filter((item) => item.type === 'chart').length ?? 0;
         const pinnedDashboardCount =
             context?.filter((item) => item.type === 'dashboard').length ?? 0;
-        const pinnedThreadCount =
-            context?.filter((item) => item.type === 'thread').length ?? 0;
-        const pinnedContextCount =
-            pinnedChartCount + pinnedDashboardCount + pinnedThreadCount;
+        // Count every attached item (chart/dashboard/thread/file/repository) so
+        // the total stays accurate as new context types are added.
+        const pinnedContextCount = context?.length ?? 0;
 
         return {
             hasPinnedContext: pinnedContextCount > 0,
@@ -685,6 +698,24 @@ export class AiAgentService extends BaseService {
                     break;
                 case 'thread':
                     key = `thread:${item.threadUuid}`;
+                    break;
+                case 'file':
+                    key = `file:${item.path}`;
+                    break;
+                case 'repository':
+                    key = `repository:${item.fullName}`;
+                    break;
+                case 'pull_request':
+                    key = `pull_request:${item.prUrl}`;
+                    break;
+                case 'proposed_change':
+                    key = `proposed_change:${item.fingerprint}`;
+                    break;
+                case 'review_finding':
+                    key = `review_finding:${item.fingerprint}`;
+                    break;
+                case 'preview_environment':
+                    key = `preview_environment:${item.previewProjectUuid}`;
                     break;
                 default:
                     return assertUnreachable(
@@ -738,6 +769,53 @@ export class AiAgentService extends BaseService {
                         );
                     }
                     await this.validateThreadContextAccess(user, item);
+                    return;
+                }
+
+                if (item.type === 'file' || item.type === 'repository') {
+                    // Embedded AI never exposes source code.
+                    if (allowedSpaces) {
+                        throw new ForbiddenError(
+                            'Source files are not available in embedded AI',
+                        );
+                    }
+                    // The agent's exploreRepo tool is the real access boundary;
+                    // gate attaching a source reference on the same
+                    // view:SourceCode ability the file/repo listing uses.
+                    if (
+                        this.createAuditedAbility(user).cannot(
+                            'view',
+                            subject('SourceCode', {
+                                organizationUuid: agent.organizationUuid,
+                                projectUuid: agent.projectUuid,
+                            }),
+                        )
+                    ) {
+                        throw new ForbiddenError(
+                            'You do not have permission to view this project source code',
+                        );
+                    }
+                    return;
+                }
+
+                // review_finding / proposed_change carry a finding fingerprint
+                // and are only ever seeded by the remediation flow — a user
+                // @-mention of one (this is the user path) is rejected.
+                if (
+                    item.type === 'review_finding' ||
+                    item.type === 'proposed_change'
+                ) {
+                    throw new ForbiddenError(
+                        'This context item can only be attached by the review remediation flow',
+                    );
+                }
+
+                // pull_request / preview_environment have no extra access gate
+                // beyond the agent's project membership the request already has.
+                if (
+                    item.type === 'pull_request' ||
+                    item.type === 'preview_environment'
+                ) {
                     return;
                 }
 
@@ -842,6 +920,7 @@ export class AiAgentService extends BaseService {
             dependencies.persistentDownloadFileService;
         this.aiAgentContentValidation = dependencies.aiAgentContentValidation;
         this.aiWritebackService = dependencies.aiWritebackService;
+        this.projectContextService = dependencies.projectContextService;
         this.previewDeploySetupService = dependencies.previewDeploySetupService;
         this.writebackPreviewService = dependencies.writebackPreviewService;
         this.githubAppInstallationsModel =
@@ -1370,14 +1449,6 @@ export class AiAgentService extends BaseService {
         const { organizationUuid } = user;
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
-        }
-
-        const featureEnabled = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.AiAgentSuggestions,
-        });
-        if (!featureEnabled.enabled) {
-            return { chips: [] };
         }
 
         const agent = await this.getAgent(user, agentUuid, projectUuid);
@@ -3272,6 +3343,9 @@ export class AiAgentService extends BaseService {
         projectUuid: string,
         mcpServerUuid: string,
         body?: ApiAiMcpOAuthCredentialRequest,
+        options?: {
+            connectionStatusOnAuthorization?: 'connecting' | 'not_connected';
+        },
     ): Promise<string> {
         const server = await this.getProjectMcpServerOrThrow(
             projectUuid,
@@ -3303,6 +3377,8 @@ export class AiAgentService extends BaseService {
             userUuid: credentialScope === 'user' ? user.userUuid : undefined,
             actorUserUuid: user.userUuid,
             serverUrl: server.url,
+            connectionStatusOnAuthorization:
+                options?.connectionStatusOnAuthorization,
         });
     }
 
@@ -3952,12 +4028,14 @@ export class AiAgentService extends BaseService {
             agentUuid,
             threadUuid,
             enableSqlMode,
+            autoApproveSql,
             toolHints,
             runtimeOptions,
         }: {
             agentUuid: string;
             threadUuid: string;
             enableSqlMode: boolean;
+            autoApproveSql?: boolean;
             toolHints: string[];
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
         },
@@ -4009,6 +4087,7 @@ export class AiAgentService extends BaseService {
                     stream: true,
                     canManageAgent,
                     enableSqlMode,
+                    autoApproveSql,
                     toolHints,
                     runtimeOptions,
                 },
@@ -4017,6 +4096,142 @@ export class AiAgentService extends BaseService {
             Logger.error('Failed to generate agent thread response:', e);
             throw new ParameterError(getUserFacingErrorMessage(e));
         }
+    }
+
+    async interruptAgentThreadMessage(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid,
+            messageUuid,
+        }: {
+            agentUuid: string;
+            threadUuid: string;
+            messageUuid: string;
+        },
+    ): Promise<void> {
+        if (!user.organizationUuid) {
+            throw new ForbiddenError();
+        }
+
+        const prompt = await this.aiAgentModel.findWebAppPrompt(messageUuid);
+
+        if (
+            !prompt ||
+            prompt.organizationUuid !== user.organizationUuid ||
+            prompt.agentUuid !== agentUuid ||
+            prompt.threadUuid !== threadUuid
+        ) {
+            throw new NotFoundError(`Prompt not found: ${messageUuid}`);
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid: user.organizationUuid,
+            agentUuid,
+        });
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid: user.organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+        if (!thread) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+
+        const hasAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            thread.user.uuid,
+        );
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to interrupt this agent thread',
+            );
+        }
+
+        await this.aiAgentModel.createAiPromptInterrupt({
+            promptUuid: messageUuid,
+            createdByUserUuid: user.userUuid,
+        });
+    }
+
+    async createAgentThreadMessageSteer(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid,
+            messageUuid,
+            message,
+        }: {
+            agentUuid: string;
+            threadUuid: string;
+            messageUuid: string;
+            message: string;
+        },
+    ): Promise<AiPromptSteer> {
+        if (!user.organizationUuid) {
+            throw new ForbiddenError();
+        }
+
+        const trimmedMessage = message.trim();
+        if (trimmedMessage.length === 0) {
+            throw new ParameterError('Steer message is required');
+        }
+
+        const prompt = await this.aiAgentModel.findWebAppPrompt(messageUuid);
+
+        if (
+            !prompt ||
+            prompt.organizationUuid !== user.organizationUuid ||
+            prompt.agentUuid !== agentUuid ||
+            prompt.threadUuid !== threadUuid
+        ) {
+            throw new NotFoundError(`Prompt not found: ${messageUuid}`);
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid: user.organizationUuid,
+            agentUuid,
+        });
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid: user.organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+        if (!thread) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+
+        const hasAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            thread.user.uuid,
+        );
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to steer this agent thread',
+            );
+        }
+
+        const isInterrupted =
+            await this.aiAgentModel.hasAiPromptInterrupt(messageUuid);
+        if (isInterrupted) {
+            throw new ParameterError('Cannot steer an interrupted prompt');
+        }
+
+        return this.aiAgentModel.createAiPromptSteer({
+            promptUuid: messageUuid,
+            createdByUserUuid: user.userUuid,
+            message: trimmedMessage,
+        });
     }
 
     async getEmbedAgentModelOptions(
@@ -4235,10 +4450,27 @@ export class AiAgentService extends BaseService {
             agentUuid,
             threadUuid,
             autoApproveSql = false,
+            toolHints,
+            forceToolHints,
+            onStepProgress,
+            suppressWritebackPreview,
+            isReviewRemediationWorkThread,
         }: {
             agentUuid: string;
             threadUuid: string;
             autoApproveSql?: boolean;
+            toolHints?: string[];
+            forceToolHints?: boolean;
+            onStepProgress?: (
+                progress: string,
+                toolName?: string,
+                progressId?: string,
+                progressStatus?: 'in_progress' | 'complete' | 'error',
+            ) => void;
+            suppressWritebackPreview?: boolean;
+            // Enables the work-thread-only editProjectContext tool so the agent
+            // can open/change the project_context PR from this thread.
+            isReviewRemediationWorkThread?: boolean;
         },
     ): Promise<string> {
         try {
@@ -4276,6 +4508,11 @@ export class AiAgentService extends BaseService {
                     // Non-stream callers (eval, etc.) preserve flag-only gating.
                     enableSqlMode: true,
                     autoApproveSql,
+                    toolHints,
+                    forceToolHints,
+                    onSlackStepProgress: onStepProgress,
+                    suppressWritebackPreview,
+                    isReviewRemediationWorkThread,
                 },
             );
             return response;
@@ -5266,6 +5503,123 @@ export class AiAgentService extends BaseService {
         );
     }
 
+    private static getSlackMcpOAuthLoginServers(
+        mcpServers: AiAgentMcpServer[],
+        mcpToolSetup: AgentMcpToolSetup,
+    ) {
+        const oauthServersByUuid = new Map(
+            mcpServers
+                .filter((server) => server.authType === 'oauth')
+                .map((server) => [server.uuid, server]),
+        );
+        const seenServerUuids = new Set<string>();
+
+        return mcpToolSetup.unavailableMcpServers.flatMap(
+            (unavailableServer) => {
+                const mcpServer = oauthServersByUuid.get(
+                    unavailableServer.serverUuid,
+                );
+
+                if (
+                    !mcpServer ||
+                    unavailableServer.status !== 'not_connected' ||
+                    seenServerUuids.has(unavailableServer.serverUuid)
+                ) {
+                    return [];
+                }
+
+                seenServerUuids.add(unavailableServer.serverUuid);
+                return [{ ...unavailableServer, mcpServer }];
+            },
+        );
+    }
+
+    private async postSlackMcpOAuthLoginMessages({
+        user,
+        prompt,
+        mcpServers,
+        mcpToolSetup,
+    }: {
+        user: SessionUser;
+        prompt: SlackPrompt;
+        mcpServers: AiAgentMcpServer[];
+        mcpToolSetup: AgentMcpToolSetup;
+    }) {
+        const loginServers = AiAgentService.getSlackMcpOAuthLoginServers(
+            mcpServers,
+            mcpToolSetup,
+        );
+
+        if (loginServers.length === 0) {
+            return;
+        }
+
+        let client: WebClient;
+        try {
+            client = await this.slackClient.getWebClient(
+                prompt.organizationUuid,
+            );
+        } catch (error) {
+            Logger.error(
+                'Failed to get Slack client for MCP OAuth login messages',
+                error,
+            );
+            return;
+        }
+
+        await Promise.all(
+            loginServers.map(async ({ serverName, serverUuid, mcpServer }) => {
+                try {
+                    const authorizationUrl = await this.startMcpOAuthConnection(
+                        user,
+                        prompt.projectUuid,
+                        serverUuid,
+                        undefined,
+                        {
+                            connectionStatusOnAuthorization: 'not_connected',
+                        },
+                    );
+                    const text = `${serverName} MCP needs you to log in before I can use it.`;
+
+                    await client.chat.postEphemeral({
+                        channel: prompt.slackChannelId,
+                        user: prompt.slackUserId,
+                        thread_ts: prompt.slackThreadTs || prompt.promptSlackTs,
+                        text,
+                        blocks: [
+                            {
+                                type: 'section',
+                                text: {
+                                    type: 'mrkdwn',
+                                    text,
+                                },
+                            },
+                            {
+                                type: 'actions',
+                                elements: [
+                                    {
+                                        type: 'button',
+                                        text: {
+                                            type: 'plain_text',
+                                            text: `Log in to ${serverName}`,
+                                        },
+                                        url: authorizationUrl,
+                                        style: 'primary',
+                                    },
+                                ],
+                            },
+                        ],
+                    });
+                } catch (error) {
+                    Logger.error(
+                        `Failed to post Slack MCP OAuth login message for ${mcpServer.name}`,
+                        error,
+                    );
+                }
+            }),
+        );
+    }
+
     async retrieveRelevantArtifacts({
         promptUuid,
         organizationUuid,
@@ -5406,6 +5760,13 @@ export class AiAgentService extends BaseService {
         return { relevantVerifiedAnswers: verifiedArtifacts };
     }
 
+    static stripSlackMentions(text: string): string {
+        return text.replaceAll(/<@U\d+\w*?>/g, '').trim();
+    }
+
+    private static readonly EMPTY_PROMPT_WELCOME =
+        "Hi! 👋 What would you like to know? Ask me a question about your data and I'll take a look.";
+
     static createRelevantArtifactsMessage(
         artifacts: {
             chartConfig: Record<string, unknown>;
@@ -5438,9 +5799,9 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         if (context.length === 0) return null;
 
         const lines = context.map((item) => {
-            const name = item.displayName ?? '(name unavailable)';
             switch (item.type) {
                 case 'chart': {
+                    const name = item.displayName ?? '(name unavailable)';
                     const slugText = item.chartSlug ?? '(slug unavailable)';
                     const headline = `- Chart "${name}" (chartSlug: ${slugText})`;
                     const overrides = item.runtimeOverrides;
@@ -5464,14 +5825,57 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     if (overrideLines.length === 0) return headline;
                     return `${headline}\n  Runtime overrides applied when the chart was pinned:\n${overrideLines.join('\n')}`;
                 }
-                case 'dashboard':
+                case 'dashboard': {
+                    const name = item.displayName ?? '(name unavailable)';
                     return `- Dashboard "${name}" (dashboardSlug: ${item.dashboardSlug ?? '(slug unavailable)'})`;
-                case 'thread':
+                }
+                case 'thread': {
+                    const name = item.displayName ?? '(name unavailable)';
                     return `- Conversation "${name}" (threadUuid: ${item.threadUuid}${
                         item.promptUuid
                             ? `, the referenced turn is promptUuid: ${item.promptUuid}`
                             : ''
                     }) — a previous conversation attached as reference. Read it with the readPinnedThread tool. It may predate recent project changes, so verify any claims it contains against the current project instead of trusting them.`;
+                }
+                // Name the exact repo-filesystem mount path so the agent reads
+                // the right file/repo with exploreRepo and never mistakes a file
+                // path for an `owner/repo` repository.
+                case 'file':
+                    return `- File \`/dbt/${item.path}\` — a source file in this project's dbt repository. Read it with the exploreRepo tool.`;
+                case 'repository':
+                    return `- Repository \`${item.fullName}\` (mounted at \`/${item.fullName}\`) — explore it with the exploreRepo tool.`;
+                case 'pull_request': {
+                    const number = item.prNumber ? ` #${item.prNumber}` : '';
+                    const title = item.title ? ` "${item.title}"` : '';
+                    return `- Pull request${number} (${item.status ?? 'open'})${title} — the change is applied here; update it with the editProjectContext / editDbtProject tool.`;
+                }
+                case 'proposed_change': {
+                    if (item.payload.changeKind === 'project_context') {
+                        const { entry } = item.payload;
+                        const triggers =
+                            entry.terms.length > 0
+                                ? ` (triggers: ${entry.terms.join(', ')})`
+                                : '';
+                        return `- Proposed project-context entry: "${entry.content}"${triggers}.`;
+                    }
+                    return `- Proposed semantic-layer change: "${item.payload.recommendation.title}".`;
+                }
+                case 'review_finding': {
+                    const evidence = item.evidenceExcerpts
+                        .map((e) => (e.redacted ? '[redacted]' : `"${e.text}"`))
+                        .join(', ');
+                    const evidenceText = evidence
+                        ? ` Evidence: ${evidence}`
+                        : '';
+                    return `- Review finding: "${item.title}" (${item.rootCause}, seen ${item.findingCount}×).${evidenceText}`;
+                }
+                case 'preview_environment': {
+                    const name = item.projectName
+                        ? ` (${item.projectName})`
+                        : '';
+                    const status = item.status ? ` — ${item.status}` : '';
+                    return `- Preview environment${name}${status} — test the fix in this preview project.`;
+                }
                 default:
                     return assertUnreachable(
                         item,
@@ -5612,12 +6016,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const messagesWithToolCalls = await Promise.all(
             threadMessages.map(async (message, index) => {
-                const messages: ModelMessage[] = [
-                    {
-                        role: 'user',
-                        content: message.prompt,
-                    } satisfies UserModelMessage,
-                ];
+                const messages: ModelMessage[] =
+                    message.prompt.trim().length > 0
+                        ? [
+                              {
+                                  role: 'user',
+                                  content: message.prompt,
+                              } satisfies UserModelMessage,
+                          ]
+                        : [];
 
                 const pinnedContextMessage =
                     AiAgentService.createPinnedContextMessage(
@@ -5708,6 +6115,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const history = messagesWithToolCalls.flat();
 
         if (!options.compaction) {
+            if (history.length === 0) {
+                return [
+                    {
+                        role: 'user',
+                        content:
+                            "The user hasn't asked anything yet. Greet them and ask what they'd like to know about their data.",
+                    } satisfies UserModelMessage,
+                ];
+            }
             return history;
         }
 
@@ -5739,6 +6155,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 progressStatus?: 'in_progress' | 'complete' | 'error',
             ) => void;
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
+            suppressWritebackPreview?: boolean;
         },
     ) {
         const { projectUuid, organizationUuid } = prompt;
@@ -5979,6 +6396,31 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         onProgress: writebackProgressCallback,
                     }),
             );
+
+            // Build-fix seam: if this thread is a review remediation's work
+            // thread, every commit it lands (the initial run and each Continue
+            // PR turn) must be reflected on the remediation so the Test-fix
+            // verdict is marked stale (verdict staleness is derived from event
+            // ordering). null for ordinary writeback threads — a no-op.
+            const reviewRemediation = organizationUuid
+                ? await this.aiAgentReviewClassifierModel.findReviewRemediationByWorkThread(
+                      {
+                          organizationUuid,
+                          workThreadUuid: prompt.threadUuid,
+                      },
+                  )
+                : null;
+            if (reviewRemediation && result.prUrl) {
+                await this.aiAgentReviewClassifierModel.createRemediationEvent({
+                    remediationUuid: reviewRemediation.uuid,
+                    organizationUuid: reviewRemediation.organizationUuid,
+                    event: {
+                        eventType: 'pr_updated',
+                        payload: { prUrl: result.prUrl },
+                    },
+                });
+            }
+
             // On a successful PR open/update, add a green-tick reaction to the
             // user's original Slack mention so they see the outcome at a
             // glance without scrolling through the agent's reply. Best-effort
@@ -6038,7 +6480,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             // CI-posted URL. Returns null for unsupported projects (e.g.
             // CLI-deployed) or on any failure — those surface no preview.
             let previewUrl: string | null = null;
-            if (result.prUrl) {
+            if (
+                result.prUrl &&
+                !options?.suppressWritebackPreview &&
+                !reviewRemediation
+            ) {
                 const preview =
                     await this.writebackPreviewService.createPreviewForPullRequest(
                         {
@@ -6094,8 +6540,28 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     );
                 }
             };
-        // The installation-browse path (buildRepoFs) is GitHub-App-only.
         const onRepoFsTiming = makeRepoFsTiming('github');
+        // The browse path supports GitHub (installation, user+org union) and
+        // GitLab (org install, single token). Determine the project's provider
+        // once so the listing/mounting/search callbacks pick the right backend.
+        let repoProviderPromise: Promise<'github' | 'gitlab' | null> | null =
+            null;
+        const getRepoProvider = () => {
+            if (!repoProviderPromise) {
+                repoProviderPromise = (async () => {
+                    const project = await this.projectModel.get(projectUuid);
+                    switch (project.dbtConnection.type) {
+                        case DbtProjectType.GITHUB:
+                            return 'github';
+                        case DbtProjectType.GITLAB:
+                            return 'gitlab';
+                        default:
+                            return null;
+                    }
+                })();
+            }
+            return repoProviderPromise;
+        };
         let installationAccessPromise: ReturnType<
             typeof this.aiWritebackService.getInstallationRepoReadAccess
         > | null = null;
@@ -6108,6 +6574,21 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     });
             }
             return installationAccessPromise;
+        };
+        let gitlabAccessPromise: ReturnType<
+            typeof this.aiWritebackService.getGitlabInstallationRepoReadAccess
+        > | null = null;
+        const getGitlabAccess = () => {
+            if (!gitlabAccessPromise) {
+                gitlabAccessPromise =
+                    this.aiWritebackService.getGitlabInstallationRepoReadAccess(
+                        {
+                            user,
+                            projectUuid,
+                        },
+                    );
+            }
+            return gitlabAccessPromise;
         };
 
         const buildDbtRepoFs = async (): Promise<RepoFs> => {
@@ -6131,6 +6612,24 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             owner: string,
             repo: string,
         ): Promise<RepoFs> => {
+            if ((await getRepoProvider()) === 'gitlab') {
+                const access = await getGitlabAccess();
+                const { branch, token } = await access.resolveRepoAccess(
+                    owner,
+                    repo,
+                );
+                return new RepoFs(
+                    createGitlabRepoSource({
+                        owner,
+                        repo,
+                        branch,
+                        token,
+                        hostDomain: access.hostDomain,
+                        // No subPath => the whole repo is readable, root-relative.
+                        onTiming: makeRepoFsTiming('gitlab'),
+                    }),
+                );
+            }
             const access = await getInstallationAccess();
             // The token is per-repo: org-installation repos read with the
             // installation token, the user's own repos with their user token.
@@ -6163,6 +6662,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         project.dbtConnection.type === DbtProjectType.GITLAB;
                     return MountingRepoFileSystem.create({
                         listRepos: async () => {
+                            if ((await getRepoProvider()) === 'gitlab') {
+                                this.prometheusMetrics?.incrementRepoFsGitlabRequest(
+                                    'list',
+                                );
+                                return (await getGitlabAccess()).listRepos();
+                            }
                             this.prometheusMetrics?.incrementRepoFsGithubRequest(
                                 'list',
                             );
@@ -6172,6 +6677,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         buildDbtRepoFs,
                         buildRepoFs,
                         searchOwner: async (owner, query) => {
+                            // GitLab's RepoSource has no server-side code search
+                            // yet; the shell's grep falls back to reading files,
+                            // so there are no owner-wide search hits to surface.
+                            if ((await getRepoProvider()) === 'gitlab') {
+                                return [];
+                            }
                             const { installationToken, userToken } =
                                 await getInstallationAccess();
                             // Code search is token-scoped: the installation
@@ -6244,6 +6755,29 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             return (await getInstallationAccess()).listRepos();
         };
 
+        // Deterministic project_context.yml writeback (no sandbox). Only wired
+        // into review-remediation work threads; the source thread is linked
+        // from the PR body so a reviewer can trace the entry.
+        const editProjectContext: EditProjectContextFn = async (entry) => {
+            const sourceThread = prompt.agentUuid
+                ? {
+                      threadUrl: `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/ai-agents/${prompt.agentUuid}/threads/${prompt.threadUuid}`,
+                      promptUuid: prompt.promptUuid,
+                      threadUuid: prompt.threadUuid,
+                  }
+                : null;
+            const writeback = await this.projectContextService.writebackEntry({
+                projectUuid,
+                entry,
+                branchTimestamp: Date.now(),
+                sourceThread,
+            });
+            return {
+                prUrl: writeback.prUrl,
+                prAction: writeback.op === 'update' ? 'updated' : 'opened',
+            };
+        };
+
         return {
             listExplores: toolsRuntime.listExplores,
             getProjectContextDocument,
@@ -6277,8 +6811,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             storeToolCall,
             storeToolResults,
             storeReasoning,
+            isPromptInterrupted: (promptUuid: string) =>
+                this.aiAgentModel.hasAiPromptInterrupt(promptUuid),
+            consumePromptSteers: (args: {
+                promptUuid: string;
+                stepNumber: number;
+            }) =>
+                this.aiAgentModel.consumeUnconsumedPromptSteers({
+                    promptUuid: args.promptUuid,
+                    stepNumber: args.stepNumber,
+                }),
             searchFieldValues: toolsRuntime.searchFieldValues,
             editDbtProject,
+            editProjectContext,
             setupPreviewDeploy: toolsRuntime.setupPreviewDeploy,
             exploreRepo,
             discoverRepos,
@@ -6316,6 +6861,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             canManageAgent: boolean;
             enableSqlMode?: boolean;
             autoApproveSql?: boolean;
+            // Set by the review Build-fix flow, which owns preview compilation
+            // and verification itself — the editDbtProject tool must not also
+            // spin up its own preview project.
+            suppressWritebackPreview?: boolean;
+            // Forces the first tool hint on the opening step instead of merely
+            // suggesting it (review Build-fix guarantees editDbtProject runs).
+            forceToolHints?: boolean;
+            // Enables the work-thread-only editProjectContext tool.
+            isReviewRemediationWorkThread?: boolean;
             toolHints?: string[];
             onSlackStepProgress?: (
                 progress: string,
@@ -6353,6 +6907,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             canManageAgent: boolean;
             enableSqlMode?: boolean;
             autoApproveSql?: boolean;
+            suppressWritebackPreview?: boolean;
+            forceToolHints?: boolean;
+            isReviewRemediationWorkThread?: boolean;
             toolHints?: string[];
             onSlackStepProgress?: (
                 progress: string,
@@ -6429,8 +6986,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             storeToolCall,
             storeToolResults,
             storeReasoning,
+            isPromptInterrupted,
+            consumePromptSteers,
             searchFieldValues,
             editDbtProject,
+            editProjectContext,
             setupPreviewDeploy,
             exploreRepo,
             discoverRepos,
@@ -6449,6 +7009,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                           })
                     : undefined),
             runtimeOptions: options.runtimeOptions,
+            suppressWritebackPreview: options.suppressWritebackPreview,
         });
 
         const enableSqlMode = options.enableSqlMode ?? false;
@@ -6665,6 +7226,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 .replace(/\/+$/, '');
             repoFsRoot = raw === '' ? '.' : raw;
         }
+        // GitLab's repo source has no server-side code search, so the prompt
+        // must steer the agent off `search` (it returns nothing) toward a
+        // scoped single-repo grep. GitHub supports it.
+        const repoFsSupportsCodeSearch =
+            promptProject.dbtConnection.type !== DbtProjectType.GITLAB;
 
         const canUseContentTools =
             agentRevampEnabled &&
@@ -6691,6 +7257,21 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             provider: prompt.modelConfig?.modelProvider as AnyType,
         });
 
+        // editProjectContext is scoped to review-remediation work threads, so a
+        // normal chat never exposes it. Resolve from the thread (not just the
+        // explicit option) so user-driven follow-ups in the workspace — where
+        // people actually change the PR — also get the tool.
+        const isReviewRemediationWorkThread =
+            options.isReviewRemediationWorkThread ??
+            (isSlackPrompt(prompt)
+                ? false
+                : !!(await this.aiAgentReviewClassifierModel.findReviewRemediationByWorkThread(
+                      {
+                          organizationUuid: user.organizationUuid,
+                          workThreadUuid: prompt.threadUuid,
+                      },
+                  )));
+
         const args: AiAgentArgs = {
             organizationId: user.organizationUuid,
             userId: user.userUuid,
@@ -6715,10 +7296,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableContentTools: canUseContentTools,
             enableSearchSemanticLayer: searchSemanticLayerEnabled,
             enableAiWriteback: aiWritebackEnabled,
+            enableEditProjectContext: isReviewRemediationWorkThread,
             writebackAttribution,
             enablePreviewDeploySetup: aiPreviewDeploySetupEnabled,
             enableRepoDiscovery: repoDiscoveryEnabled,
             repoFsRoot,
+            repoFsSupportsCodeSearch,
             canRunSql,
             autoApproveSql: options.autoApproveSql ?? false,
             autoApproveSqlUserUuid: options.autoApproveSql
@@ -6738,6 +7321,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             siteUrl: this.lightdashConfig.siteUrl,
             canManageAgent: options.canManageAgent,
             toolHints: options.toolHints ?? [],
+            forceToolHints: options.forceToolHints ?? false,
         };
 
         const mcpToolSetup: AgentMcpToolSetup =
@@ -6747,6 +7331,20 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 debugLoggingEnabled:
                     this.lightdashConfig.ai.copilot.debugLoggingEnabled,
             });
+
+        if (isSlackPrompt(prompt) && hasTrustedPromptUserIdentity) {
+            void this.postSlackMcpOAuthLoginMessages({
+                user,
+                prompt,
+                mcpServers,
+                mcpToolSetup,
+            }).catch((error) => {
+                Logger.error(
+                    'Failed to post Slack MCP OAuth login messages',
+                    error,
+                );
+            });
+        }
 
         const dependencies: AiAgentDependencies = {
             listExplores,
@@ -6801,8 +7399,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             storeToolCall,
             storeToolResults,
             storeReasoning,
+            isPromptInterrupted,
+            consumePromptSteers,
             searchFieldValues,
             editDbtProject,
+            editProjectContext,
             setupPreviewDeploy,
             exploreRepo,
             discoverRepos,
@@ -7154,12 +7755,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             );
         }
 
-        const slackTagRegex = /<@U\d+\w*?>/g;
-
         const uuid = await this.aiAgentModel.createSlackPrompt({
             threadUuid,
             createdByUserUuid: data.userUuid,
-            prompt: data.prompt.replaceAll(slackTagRegex, '').trim(),
+            prompt: AiAgentService.stripSlackMentions(data.prompt),
             slackUserId: data.slackUserId,
             slackChannelId: data.slackChannelId,
             promptSlackTs: data.promptSlackTs,
@@ -7191,12 +7790,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         user,
         slackPrompt,
         agent,
-        useModernFeedback,
     }: {
         user: SessionUser;
         slackPrompt: SlackPrompt;
         agent: AiAgent | undefined;
-        useModernFeedback: boolean;
     }): Promise<(Block | KnownBlock)[]> {
         const referencedArtifactsMap =
             await this.aiAgentModel.findThreadReferencedArtifacts({
@@ -7226,7 +7823,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
               )
             : [];
         const feedbackBlocks =
-            useModernFeedback && legacyFeedbackBlocks.length > 0
+            legacyFeedbackBlocks.length > 0
                 ? buildFeedbackContextActions(slackPrompt.promptUuid)
                 : legacyFeedbackBlocks;
         const followUpToolBlocks = getFollowUpToolBlocks(
@@ -7246,45 +7843,29 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             return `${this.lightdashConfig.siteUrl}/share/${result.nanoid}`;
         };
 
-        const exploreBlocks = useModernFeedback
-            ? await getModernArtifactCardBlocks(
-                  slackPrompt,
-                  this.lightdashConfig.siteUrl,
-                  this.lightdashConfig.ai.copilot.maxQueryLimit,
-                  createShareUrl,
-                  (exploreName) =>
-                      this.getExplore(
-                          user,
-                          slackPrompt.projectUuid,
-                          null,
-                          exploreName,
-                      ),
-                  agent?.uuid,
-                  promptArtifacts,
-                  toolResults,
-              )
-            : await getArtifactBlocks(
-                  slackPrompt,
-                  this.lightdashConfig.siteUrl,
-                  this.lightdashConfig.ai.copilot.maxQueryLimit,
-                  createShareUrl,
-                  (exploreName) =>
-                      this.getExplore(
-                          user,
-                          slackPrompt.projectUuid,
-                          null,
-                          exploreName,
-                      ),
-                  promptArtifacts,
-              );
+        const exploreBlocks = await getModernArtifactCardBlocks(
+            slackPrompt,
+            this.lightdashConfig.siteUrl,
+            this.lightdashConfig.ai.copilot.maxQueryLimit,
+            createShareUrl,
+            (exploreName) =>
+                this.getExplore(
+                    user,
+                    slackPrompt.projectUuid,
+                    null,
+                    exploreName,
+                ),
+            agent?.uuid,
+            promptArtifacts,
+            toolResults,
+        );
         const proposeChangeBlocks = getProposeChangeBlocks(
             slackPrompt,
             this.lightdashConfig.siteUrl,
             toolResults,
         );
-        const editDbtProjectBlocks = useModernFeedback
-            ? getModernPullRequestCardBlocks(toolResults)
-            : getEditDbtProjectBlocks(toolResults);
+        const editDbtProjectBlocks =
+            getModernPullRequestCardBlocks(toolResults);
         const historyBlocks = agent
             ? getDeepLinkBlocks(
                   agent.uuid,
@@ -7315,6 +7896,155 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             ...feedbackBlocks,
             ...historyBlocks,
         ];
+    }
+
+    private getAgentThreadUrl(
+        slackPrompt: SlackPrompt,
+        agentUuid: string | undefined,
+    ): string {
+        return agentUuid
+            ? `${this.lightdashConfig.siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${agentUuid}/threads/${slackPrompt.threadUuid}`
+            : this.lightdashConfig.siteUrl;
+    }
+
+    private static agentFailedMessage(agentName: string | undefined): string {
+        return `${
+            agentName ?? 'Agent'
+        } failed to generate a response. Please try again.`;
+    }
+
+    private static slackLinkSection(text: string, url: string): KnownBlock {
+        return {
+            type: 'section',
+            text: {
+                type: 'mrkdwn',
+                text: `${text} <${url}|View it in Lightdash>.`,
+            },
+        };
+    }
+
+    // Delivers a finished answer across one or more Slack messages (first
+    // finalizes the stream, rest post as replies), falling back to a Lightdash
+    // link if too large — the answer is already persisted, so this never fails.
+    private async deliverModernSlackAnswer({
+        slackPrompt,
+        threadTs,
+        streamTs,
+        agentUuid,
+        agentName,
+        slackResponse,
+        slackifiedMarkdown,
+        trailingBlocks,
+    }: {
+        slackPrompt: SlackPrompt;
+        threadTs: string;
+        streamTs: string;
+        agentUuid: string | undefined;
+        agentName: string | undefined;
+        slackResponse: string;
+        slackifiedMarkdown: string;
+        trailingBlocks: (Block | KnownBlock)[];
+    }): Promise<void> {
+        const { messages: answerMessages, truncated } =
+            splitMarkdownIntoMessages(slackResponse);
+        // Always ≥1 message so the stream closes and trailing cards attach.
+        const messages = answerMessages.length > 0 ? answerMessages : [[]];
+        const threadUrl = this.getAgentThreadUrl(slackPrompt, agentUuid);
+
+        // Cards + feedback + any truncation notice ride on the last message only.
+        const lastExtraBlocks: (Block | KnownBlock)[] = [
+            ...trailingBlocks,
+            ...(truncated
+                ? [
+                      AiAgentService.slackLinkSection(
+                          ':scroll: This answer was too long to show in full here.',
+                          threadUrl,
+                      ),
+                  ]
+                : []),
+        ];
+        const linkFallbackBlocks: (Block | KnownBlock)[] = [
+            AiAgentService.slackLinkSection(
+                ':scroll: This answer was too long to show in Slack.',
+                threadUrl,
+            ),
+        ];
+        // Notification fallback only; keep it small.
+        const notificationText = slackifiedMarkdown.slice(0, 3000);
+        const isLast = (index: number) => index === messages.length - 1;
+
+        try {
+            await this.slackClient.stopAgentStream({
+                organizationUuid: slackPrompt.organizationUuid,
+                channelId: slackPrompt.slackChannelId,
+                threadTs,
+                messageTs: streamTs,
+                chunks: [
+                    {
+                        type: 'blocks',
+                        blocks: [
+                            ...messages[0],
+                            ...(isLast(0) ? lastExtraBlocks : []),
+                        ],
+                    },
+                ],
+            });
+        } catch (error) {
+            if (!isSlackMessageTooLongError(error)) throw error;
+            await this.slackClient
+                .stopAgentStream({
+                    organizationUuid: slackPrompt.organizationUuid,
+                    channelId: slackPrompt.slackChannelId,
+                    threadTs,
+                    messageTs: streamTs,
+                    chunks: [{ type: 'blocks', blocks: linkFallbackBlocks }],
+                })
+                .catch((e) =>
+                    Logger.error(
+                        'Failed to post Slack answer link fallback',
+                        e,
+                    ),
+                );
+            return;
+        }
+
+        for (let index = 1; index < messages.length; index += 1) {
+            try {
+                // eslint-disable-next-line no-await-in-loop
+                await this.slackClient.postMessage({
+                    organizationUuid: slackPrompt.organizationUuid,
+                    channel: slackPrompt.slackChannelId,
+                    thread_ts: threadTs,
+                    text: notificationText,
+                    blocks: [
+                        ...messages[index],
+                        ...(isLast(index) ? lastExtraBlocks : []),
+                    ],
+                    unfurl_links: false,
+                    ...(agentName ? { username: agentName } : {}),
+                });
+            } catch (error) {
+                if (!isSlackMessageTooLongError(error)) throw error;
+                // eslint-disable-next-line no-await-in-loop
+                await this.slackClient
+                    .postMessage({
+                        organizationUuid: slackPrompt.organizationUuid,
+                        channel: slackPrompt.slackChannelId,
+                        thread_ts: threadTs,
+                        text: 'The rest of your answer is in Lightdash.',
+                        blocks: linkFallbackBlocks,
+                        unfurl_links: false,
+                        ...(agentName ? { username: agentName } : {}),
+                    })
+                    .catch((e) =>
+                        Logger.error(
+                            'Failed to post Slack answer link fallback',
+                            e,
+                        ),
+                    );
+                break;
+            }
+        }
     }
 
     // Share URL for the latest successful runSql, used to resolve the model's
@@ -7409,30 +8139,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         return `${this.lightdashConfig.siteUrl}${path}?share=${nanoid}`;
     }
 
-    private static isSlackModernStreamUnsupported(error: unknown) {
-        const errorCode =
-            typeof error === 'object' && error !== null && 'data' in error
-                ? (error as { data?: { error?: string } }).data?.error
-                : undefined;
-        const message = getErrorMessage(error).toLowerCase();
-        return [
-            errorCode,
-            message.includes('missing_scope') ? 'missing_scope' : undefined,
-            message.includes('unknown_method') ? 'unknown_method' : undefined,
-            message.includes('not_allowed') ? 'not_allowed' : undefined,
-            message.includes('unsupported') ? 'unsupported' : undefined,
-        ].some((code) =>
-            [
-                'missing_scope',
-                'unknown_method',
-                'invalid_arguments',
-                'not_allowed_token_type',
-                'method_not_supported_for_channel_type',
-                'unsupported',
-            ].includes(code ?? ''),
-        );
-    }
-
     // Posts the SQL approval card as its own message after the task-list card
     // so the run can suspend and resume on the user's decision.
     private async postSqlApprovalCard(input: {
@@ -7518,6 +8224,30 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         });
     }
 
+    private static isSlackModernStreamUnsupported(error: unknown) {
+        const errorCode =
+            typeof error === 'object' && error !== null && 'data' in error
+                ? (error as { data?: { error?: string } }).data?.error
+                : undefined;
+        const message = getErrorMessage(error).toLowerCase();
+        return [
+            errorCode,
+            message.includes('missing_scope') ? 'missing_scope' : undefined,
+            message.includes('unknown_method') ? 'unknown_method' : undefined,
+            message.includes('not_allowed') ? 'not_allowed' : undefined,
+            message.includes('unsupported') ? 'unsupported' : undefined,
+        ].some((code) =>
+            [
+                'missing_scope',
+                'unknown_method',
+                'invalid_arguments',
+                'not_allowed_token_type',
+                'method_not_supported_for_channel_type',
+                'unsupported',
+            ].includes(code ?? ''),
+        );
+    }
+
     private async replyToSlackPromptWithModernBlocks({
         user,
         slackPrompt,
@@ -7532,7 +8262,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         agent: AiAgent | undefined;
         chatHistoryMessages: ModelMessage[];
         canManageAgent: boolean;
-    }): Promise<boolean> {
+    }): Promise<void> {
         const threadTs = slackPrompt.slackThreadTs || slackPrompt.promptSlackTs;
         const reasoningTaskId = 'agent_reasoning';
         let streamTs: string | undefined;
@@ -7631,26 +8361,55 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             }
         } catch (error) {
             if (AiAgentService.isSlackModernStreamUnsupported(error)) {
-                Logger.info(
-                    'Slack modern AI stream unavailable, falling back to classic blocks',
+                Sentry.captureException(error, {
+                    tags: { tag: 'slack.modernStreamUnsupported' },
+                });
+                Logger.warn(
+                    'Slack modern AI stream unsupported; asking workspace admin to reconnect Slack',
                     error,
                 );
-                return false;
+                const reconnectNotice =
+                    '⚠️ Lightdash AI cannot reply here yet. A workspace admin needs to reconnect Slack in Lightdash (Integrations → Slack) so the app has the latest permissions.';
+                await this.slackClient.updateMessage({
+                    organizationUuid: slackPrompt.organizationUuid,
+                    text: reconnectNotice,
+                    blocks: getMarkdownBlocks(reconnectNotice),
+                    channelId: slackPrompt.slackChannelId,
+                    messageTs: slackPrompt.response_slack_ts,
+                });
+                return;
             }
+            Logger.error('Failed to start Slack modern AI stream', error);
             throw error;
         }
 
         let taskUpdateChain: Promise<void> = Promise.resolve();
         let pendingTaskUpdateCount = 0;
+        // Keyed by tool type so repeated calls collapse into one counted block.
         const taskStates = new Map<
             string,
             {
                 toolName: string;
-                status: 'pending' | 'in_progress' | 'complete' | 'error';
+                calls: Map<string, 'in_progress' | 'complete' | 'error'>;
                 details?: string;
                 output?: string;
+                // Lines already streamed; Slack appends deltas, so send each once.
+                sent: Set<string>;
             }
         >();
+        const computeTaskAggregate = (
+            calls: Map<string, 'in_progress' | 'complete' | 'error'>,
+        ): { status: 'in_progress' | 'complete' | 'error'; count: number } => {
+            const statuses = [...calls.values()];
+            const count = statuses.length;
+            if (statuses.some((s) => s === 'in_progress')) {
+                return { status: 'in_progress', count };
+            }
+            if (statuses.some((s) => s === 'complete')) {
+                return { status: 'complete', count };
+            }
+            return { status: 'error', count };
+        };
         let currentReasoningStatus:
             | 'pending'
             | 'in_progress'
@@ -7749,40 +8508,48 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const finalizeToolTasksForSuccess = () => {
             if (!streamTs) return;
-            const unfinished = [...taskStates.entries()].filter(
-                ([, taskState]) => taskState.status !== 'complete',
-            );
-            for (const [taskId, taskState] of unfinished) {
-                const previousStatus = taskState.status;
-                taskState.status = 'complete';
-                enqueueTaskUpdate(() =>
-                    this.slackClient
-                        .appendAgentStream({
-                            organizationUuid: slackPrompt.organizationUuid,
-                            channelId: slackPrompt.slackChannelId,
-                            threadTs,
-                            messageTs: streamTs,
-                            chunks: [
-                                buildSlackTaskUpdate({
-                                    toolName: taskState.toolName,
-                                    taskId,
-                                    status: 'complete',
-                                    output:
-                                        taskState.output ??
-                                        (previousStatus === 'error'
-                                            ? 'Continued with another approach'
-                                            : (taskState.details ??
-                                              'Step finished')),
-                                }),
-                            ],
-                        })
-                        .catch((error) => {
-                            Logger.debug(
-                                'Failed to finalize Slack AI tool task:',
-                                error,
-                            );
-                        }),
-                );
+            for (const [taskId, taskState] of taskStates.entries()) {
+                const aggregate = computeTaskAggregate(taskState.calls);
+                if (aggregate.status !== 'complete') {
+                    const hadError = aggregate.status === 'error';
+                    for (const callId of taskState.calls.keys()) {
+                        taskState.calls.set(callId, 'complete');
+                    }
+                    const finalOutput =
+                        taskState.output ??
+                        (hadError
+                            ? 'Continued with another approach'
+                            : (taskState.details ?? 'Step finished'));
+                    // Skip if already streamed, else Slack appends a duplicate.
+                    const includeOutput = !taskState.sent.has(finalOutput);
+                    if (includeOutput) taskState.sent.add(finalOutput);
+                    enqueueTaskUpdate(() =>
+                        this.slackClient
+                            .appendAgentStream({
+                                organizationUuid: slackPrompt.organizationUuid,
+                                channelId: slackPrompt.slackChannelId,
+                                threadTs,
+                                messageTs: streamTs,
+                                chunks: [
+                                    buildSlackTaskUpdate({
+                                        toolName: taskState.toolName,
+                                        taskId,
+                                        status: 'complete',
+                                        count: aggregate.count,
+                                        ...(includeOutput
+                                            ? { output: finalOutput }
+                                            : {}),
+                                    }),
+                                ],
+                            })
+                            .catch((error) => {
+                                Logger.debug(
+                                    'Failed to finalize Slack AI tool task:',
+                                    error,
+                                );
+                            }),
+                    );
+                }
             }
         };
 
@@ -7827,13 +8594,25 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             ) {
                 resolvedStatus = 'complete';
             }
-            taskStates.set(progressId, {
+            const taskState = taskStates.get(resolvedToolName) ?? {
                 toolName: resolvedToolName,
-                status: resolvedStatus,
-                ...(resolvedStatus === 'complete' || resolvedStatus === 'error'
-                    ? { output: progress }
-                    : { details: progress }),
-            });
+                calls: new Map<string, 'in_progress' | 'complete' | 'error'>(),
+                sent: new Set<string>(),
+            };
+            taskState.calls.set(progressId, resolvedStatus);
+            const isDone =
+                resolvedStatus === 'complete' || resolvedStatus === 'error';
+            if (isDone) {
+                taskState.output = progress;
+            } else {
+                taskState.details = progress;
+            }
+            // Stream each distinct line at most once (Slack appends deltas).
+            const isNewLine =
+                progress.length > 0 && !taskState.sent.has(progress);
+            if (isNewLine) taskState.sent.add(progress);
+            taskStates.set(resolvedToolName, taskState);
+            const aggregate = computeTaskAggregate(taskState.calls);
             enqueueTaskUpdate(() =>
                 this.slackClient
                     .appendAgentStream({
@@ -7844,12 +8623,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         chunks: [
                             buildSlackTaskUpdate({
                                 toolName: resolvedToolName,
-                                taskId: progressId,
-                                status: resolvedStatus,
-                                ...(resolvedStatus === 'complete' ||
-                                resolvedStatus === 'error'
+                                taskId: resolvedToolName,
+                                status: aggregate.status,
+                                count: aggregate.count,
+                                ...(isNewLine && isDone
                                     ? { output: progress }
-                                    : { details: progress }),
+                                    : {}),
+                                ...(isNewLine && !isDone
+                                    ? { details: progress }
+                                    : {}),
                             }),
                         ],
                     })
@@ -7939,7 +8721,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     agentName: agent?.name,
                 });
                 await persistStreamResponseTsAndDeletePlaceholder();
-                return true;
+                return;
             }
 
             if (!response) {
@@ -7964,14 +8746,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     ],
                 });
                 await persistStreamResponseTsAndDeletePlaceholder();
-                return true;
+                return;
             }
 
             const blocks = await this.getSlackAgentFinalBlocks({
                 user,
                 slackPrompt,
                 agent,
-                useModernFeedback: true,
             });
             enqueueTaskUpdate(() =>
                 updatePlanTitle('Preparing the final answer...'),
@@ -7993,22 +8774,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             queueReasoningTaskUpdate({ status: 'complete' });
             await flushTaskUpdates();
             await updatePlanTitle('Answered');
-            await this.slackClient.stopAgentStream({
-                organizationUuid: slackPrompt.organizationUuid,
-                channelId: slackPrompt.slackChannelId,
+            await this.deliverModernSlackAnswer({
+                slackPrompt,
                 threadTs,
-                messageTs: streamTs,
-                text: slackifiedMarkdown,
-                chunks: [
-                    ...getMarkdownBlocks(slackResponse).map((block) => ({
-                        type: 'blocks' as const,
-                        blocks: [block],
-                    })),
-                    {
-                        type: 'blocks',
-                        blocks,
-                    },
-                ],
+                streamTs,
+                agentUuid: agent?.uuid,
+                agentName: agent?.name,
+                slackResponse,
+                slackifiedMarkdown,
+                trailingBlocks: blocks,
             });
 
             await persistStreamResponseTsAndDeletePlaceholder();
@@ -8022,11 +8796,48 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 threadMessages,
                 agent,
             );
-            return true;
         } catch (error) {
+            // Delivery failure on an already-persisted answer: link, don't fail.
+            if (isSlackMessageTooLongError(error)) {
+                await flushTaskUpdates();
+                await updatePlanTitle('Answered');
+                await this.slackClient
+                    .stopAgentStream({
+                        organizationUuid: slackPrompt.organizationUuid,
+                        channelId: slackPrompt.slackChannelId,
+                        threadTs,
+                        messageTs: streamTs,
+                        chunks: [
+                            {
+                                type: 'blocks',
+                                blocks: [
+                                    AiAgentService.slackLinkSection(
+                                        ':scroll: This answer was too long to show in Slack.',
+                                        this.getAgentThreadUrl(
+                                            slackPrompt,
+                                            agent?.uuid,
+                                        ),
+                                    ),
+                                ],
+                            },
+                        ],
+                    })
+                    .catch((e) =>
+                        Logger.error(
+                            'Failed to finalize Slack stream after msg_too_long',
+                            e,
+                        ),
+                    );
+                await persistStreamResponseTsAndDeletePlaceholder();
+                Logger.warn(
+                    'Slack agent answer too long to deliver; linked to Lightdash instead',
+                    error,
+                );
+                return;
+            }
             const userFacingMessage = getUserFacingErrorMessage(
                 error,
-                'Co-pilot failed to generate a response. Please try again.',
+                AiAgentService.agentFailedMessage(agent?.name),
             );
             queueReasoningTaskUpdate({
                 status: 'error',
@@ -8060,7 +8871,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 'Failed to generate modern Slack agent response',
                 error,
             );
-            return true;
+            return;
         } finally {
             void this.slackClient
                 .setAssistantStatus({
@@ -8110,7 +8921,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         promptUuid: string,
         initialSlackPrompt: SlackPrompt,
     ): Promise<void> {
-        let slackPrompt: SlackPrompt | undefined = initialSlackPrompt;
+        const slackPrompt: SlackPrompt = initialSlackPrompt;
 
         const user = await this.userModel.findSessionUserAndOrgByUuid(
             slackPrompt.createdByUserUuid,
@@ -8148,7 +8959,18 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             agent = await this.getAgent(user, thread.agentUuid);
         }
 
-        let response: string | undefined;
+        if (slackPrompt.prompt.trim().length === 0) {
+            const welcomeText = AiAgentService.EMPTY_PROMPT_WELCOME;
+            await this.slackClient.updateMessage({
+                organizationUuid: slackPrompt.organizationUuid,
+                text: welcomeText,
+                blocks: getMarkdownBlocks(welcomeText),
+                channelId: slackPrompt.slackChannelId,
+                messageTs: slackPrompt.response_slack_ts,
+            });
+            return;
+        }
+
         try {
             const chatHistoryMessages =
                 await this.getChatHistoryFromThreadMessages(threadMessages, {
@@ -8163,46 +8985,18 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     compaction: null,
                 });
 
-            const { enabled: modernSlackBlocksEnabled } =
-                await this.featureFlagService.get({
-                    user,
-                    featureFlagId: FeatureFlags.AiAgentSlackModernBlocks,
-                });
-            if (modernSlackBlocksEnabled) {
-                const handledByModernSlack =
-                    await this.replyToSlackPromptWithModernBlocks({
-                        user,
-                        slackPrompt,
-                        threadMessages,
-                        agent,
-                        chatHistoryMessages,
-                        canManageAgent,
-                    });
-                if (handledByModernSlack) {
-                    return;
-                }
-            }
-
-            await this.updateSlackResponseWithProgress(
-                slackPrompt,
-                'Thinking...',
-            );
-
-            response = await this.generateOrStreamAgentResponse(
+            await this.replyToSlackPromptWithModernBlocks({
                 user,
+                slackPrompt,
+                threadMessages,
+                agent,
                 chatHistoryMessages,
-                {
-                    prompt: slackPrompt,
-                    stream: false,
-                    canManageAgent,
-                    // Slack uses flag-only gating (no per-prompt toggle yet).
-                    enableSqlMode: true,
-                },
-            );
+                canManageAgent,
+            });
         } catch (e) {
             const userFacingMessage = getUserFacingErrorMessage(
                 e,
-                'Co-pilot failed to generate a response. Please try again.',
+                AiAgentService.agentFailedMessage(agent?.name),
             );
             await this.slackClient.postMessage({
                 organizationUuid: slackPrompt.organizationUuid,
@@ -8214,235 +9008,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
             Logger.error('Failed to generate response:', e);
             throw new Error('Failed to generate response');
-        }
-
-        if (!response) {
-            return;
-        }
-
-        // reload the slack prompt in case it was updated
-        slackPrompt = await this.aiAgentModel.findSlackPrompt(promptUuid);
-
-        if (slackPrompt === undefined) {
-            throw new Error('Could not reload slack prompt.');
-        }
-
-        // Fetch referenced artifacts for this prompt
-        const referencedArtifactsMap =
-            await this.aiAgentModel.findThreadReferencedArtifacts({
-                promptUuids: [slackPrompt.promptUuid],
-            });
-        const referencedArtifacts =
-            referencedArtifactsMap.get(slackPrompt.promptUuid) ?? [];
-
-        await this.slackClient.deleteMessage({
-            organizationUuid: slackPrompt.organizationUuid,
-            channelId: slackPrompt.slackChannelId,
-            messageTs: slackPrompt.response_slack_ts,
-        });
-
-        // Get artifacts for the thread to populate Slack blocks
-        const threadArtifacts =
-            await this.aiAgentModel.findArtifactsByThreadUuid(
-                slackPrompt.threadUuid,
-            );
-        const promptArtifacts = threadArtifacts.filter(
-            (artifact) => artifact.promptUuid === slackPrompt.promptUuid,
-        );
-
-        // Get tool results to check for proposeChange results
-        const toolResults = await this.aiAgentModel.getToolResultsForPrompt(
-            slackPrompt.promptUuid,
-        );
-
-        const feedbackBlocks = agent
-            ? getFeedbackBlocks(
-                  slackPrompt,
-                  toolResults,
-                  agent.uuid,
-                  this.lightdashConfig.siteUrl,
-              )
-            : [];
-        const followUpToolBlocks = getFollowUpToolBlocks(
-            slackPrompt,
-            promptArtifacts,
-        );
-
-        // Generates short share URLs for Slack (so that we can avoid the 3000 char URL limit)
-        const createShareUrl = async (
-            path: string,
-            params: string,
-        ): Promise<string> => {
-            const result = await this.shareService.createShareUrl(
-                user,
-                path,
-                params,
-            );
-            return `${this.lightdashConfig.siteUrl}/share/${result.nanoid}`;
-        };
-
-        const exploreBlocks = await getArtifactBlocks(
-            slackPrompt,
-            this.lightdashConfig.siteUrl,
-            this.lightdashConfig.ai.copilot.maxQueryLimit,
-            createShareUrl,
-            (exploreName) =>
-                this.getExplore(
-                    user,
-                    slackPrompt.projectUuid,
-                    null,
-                    exploreName,
-                ),
-            promptArtifacts,
-        );
-        const proposeChangeBlocks = getProposeChangeBlocks(
-            slackPrompt,
-            this.lightdashConfig.siteUrl,
-            toolResults,
-        );
-        const editDbtProjectBlocks = getEditDbtProjectBlocks(toolResults);
-        const historyBlocks = agent
-            ? getDeepLinkBlocks(
-                  agent.uuid,
-                  slackPrompt,
-                  this.lightdashConfig.siteUrl,
-                  promptArtifacts,
-              )
-            : undefined;
-
-        const referencedArtifactsBlocks =
-            agent && referencedArtifacts.length > 0
-                ? getReferencedArtifactsBlocks(
-                      agent.uuid,
-                      slackPrompt.projectUuid,
-                      this.lightdashConfig.siteUrl,
-                      referencedArtifacts,
-                      slackPrompt.threadUuid,
-                      slackPrompt.promptUuid,
-                  )
-                : [];
-
-        // Slack's `markdown` block renders GitHub-flavoured markdown natively,
-        // including tables — which the older mrkdwn-via-section path strips
-        // into pipe-text. We pass the agent's raw response straight through
-        // for the rich rendering, and keep slackifyMarkdown for the message-
-        // level `text` field that drives notifications + older client fallback.
-        const sqlRunnerUrl = await this.getSqlRunnerShareUrl(user, slackPrompt);
-        const slackResponse = AiAgentService.applySqlRunnerLinkForSlack(
-            response,
-            sqlRunnerUrl,
-        );
-        const slackifiedMarkdown = slackifyMarkdown(slackResponse).replace(
-            /\\\n/g,
-            '\n',
-        );
-
-        const blocks = [
-            ...getMarkdownBlocks(slackResponse),
-            ...exploreBlocks,
-            ...proposeChangeBlocks,
-            ...editDbtProjectBlocks,
-            ...referencedArtifactsBlocks,
-            ...followUpToolBlocks,
-            ...feedbackBlocks,
-            ...(historyBlocks || []),
-        ];
-
-        let newResponse;
-        try {
-            newResponse = await this.slackClient.postMessage({
-                organizationUuid: slackPrompt.organizationUuid,
-                text: slackifiedMarkdown,
-                username: agent?.name,
-                channel: slackPrompt.slackChannelId,
-                thread_ts: slackPrompt.slackThreadTs,
-                unfurl_links: false,
-                blocks,
-            });
-        } catch (error) {
-            Sentry.captureException(error, {
-                tags: {
-                    tag: 'replyToSlackPrompt.postMessage',
-                },
-                extra: { responseLength: slackifiedMarkdown.length },
-            });
-
-            const threadUrl = thread.agentUuid
-                ? `${this.lightdashConfig.siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${thread.agentUuid}/threads/${slackPrompt.threadUuid}`
-                : this.lightdashConfig.siteUrl;
-
-            newResponse = await this.slackClient.postMessage({
-                organizationUuid: slackPrompt.organizationUuid,
-                text: `⚠️ The response couldn't be displayed here. <${threadUrl}|View it in Lightdash>.`,
-                username: agent?.name,
-                channel: slackPrompt.slackChannelId,
-                thread_ts: slackPrompt.slackThreadTs,
-                unfurl_links: false,
-            });
-        }
-
-        await this.aiAgentModel.updateModelResponse({
-            promptUuid: slackPrompt.promptUuid,
-            response,
-        });
-
-        if (newResponse.ts) {
-            await this.aiAgentModel.updateSlackResponseTs({
-                promptUuid: slackPrompt.promptUuid,
-                responseSlackTs: newResponse.ts,
-            });
-        }
-
-        // Post helpful tip for multi-agent channel after first AI response
-        const slackSettings =
-            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
-                slackPrompt.organizationUuid,
-            );
-
-        const isMultiAgentChannel =
-            slackSettings?.aiMultiAgentChannelId === slackPrompt.slackChannelId;
-
-        // Only show tip for the first message in the thread
-        const isFirstMessage = threadMessages.length === 1;
-
-        if (isMultiAgentChannel && isFirstMessage && agent) {
-            // Get bot user ID from Slack client to create proper mention
-            const slackApp = this.slackClient.getApp();
-            let botMention = 'the app';
-
-            if (slackApp) {
-                try {
-                    const authTest = await slackApp.client.auth.test({
-                        token: slackSettings?.token,
-                    });
-                    if (authTest.user_id) {
-                        botMention = `<@${authTest.user_id}>`;
-                    }
-                } catch (error) {
-                    Logger.error(
-                        'Failed to get bot user ID for tip message',
-                        error,
-                    );
-                }
-            }
-
-            await this.slackClient.postMessage({
-                organizationUuid: slackPrompt.organizationUuid,
-                text: `💬 To continue this conversation, just tag ${botMention} in this thread!`,
-                channel: slackPrompt.slackChannelId,
-                thread_ts: slackPrompt.slackThreadTs,
-                blocks: [
-                    {
-                        type: 'context',
-                        elements: [
-                            {
-                                type: 'mrkdwn',
-                                text: `💬 *Tip:* To continue this conversation, just tag ${botMention} in this thread!`,
-                            },
-                        ],
-                    },
-                ],
-            });
         }
     }
 
@@ -11189,6 +11754,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         botId: context.botId,
                     });
                 }
+            }
+
+            if (
+                AiAgentService.stripSlackMentions(event.text ?? '').length === 0
+            ) {
+                const welcomeText = AiAgentService.EMPTY_PROMPT_WELCOME;
+                await say({
+                    username: agentConfig.name,
+                    thread_ts: event.thread_ts ?? event.ts,
+                    text: welcomeText,
+                    blocks: getMarkdownBlocks(welcomeText),
+                });
+                return;
             }
 
             [slackPromptUuid, createdThread] = await this.createSlackPrompt({

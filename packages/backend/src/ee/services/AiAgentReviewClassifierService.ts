@@ -405,7 +405,6 @@ export class AiAgentReviewClassifierService extends BaseService {
             user: {
                 userUuid: args.requestedByUserUuid ?? 'system',
                 organizationUuid: args.organizationUuid,
-                organizationName: args.organizationName ?? '',
             },
         });
 

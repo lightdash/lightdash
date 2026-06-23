@@ -152,6 +152,11 @@
                     "description": "Minimum value (or 'dataMin' for auto)",
                     "type": "string"
                 },
+                "minInterval": {
+                    "description": "Minimum interval between ticks (e.g. 1 to force integer ticks)",
+                    "format": "double",
+                    "type": "number"
+                },
                 "minOffset": {
                     "description": "Offset from minimum value",
                     "type": "string"
@@ -588,6 +593,10 @@
                             "type": "null"
                         }
                     ]
+                },
+                "textStyle": {
+                    "$ref": "#/$defs/ConditionalFormattingTextStyle",
+                    "description": "Text styling (bold/italic/underline) applied to matching cell text"
                 }
             },
             "required": ["rule", "color", "target"],
@@ -628,6 +637,10 @@
                             "type": "null"
                         }
                     ]
+                },
+                "textStyle": {
+                    "$ref": "#/$defs/ConditionalFormattingTextStyle",
+                    "description": "Text styling (bold/italic/underline) applied to matching cell text"
                 }
             },
             "required": ["rules", "color", "target"],
@@ -663,6 +676,23 @@
                 }
             },
             "required": ["max", "min"],
+            "type": "object"
+        },
+        "ConditionalFormattingTextStyle": {
+            "properties": {
+                "bold": {
+                    "description": "Render matching cell text in bold",
+                    "type": "boolean"
+                },
+                "italic": {
+                    "description": "Render matching cell text in italics",
+                    "type": "boolean"
+                },
+                "underline": {
+                    "description": "Underline matching cell text",
+                    "type": "boolean"
+                }
+            },
             "type": "object"
         },
         "ConditionalFormattingWithCompareTarget_number-or-string_": {

@@ -2,6 +2,7 @@ import {
     AgentToolOutput,
     AiAgentAdminConversationsSummary,
     AiAgentAdminFilters,
+    AiAgentAdminPromptActivityPoint,
     AiAgentAdminSort,
     AiAgentAdminThreadSummary,
     AiAgentEvaluation,
@@ -15,6 +16,7 @@ import {
     AiAgentMessageUser,
     AiAgentNotFoundError,
     AiAgentReasoning,
+    AiAgentReviewItemSummary,
     AiAgentSummary,
     AiAgentThreadSummary,
     AiAgentToolCall,
@@ -32,6 +34,8 @@ import {
     AiPromptContext,
     AiPromptContextInput,
     AiPromptContextItem,
+    AiPromptProposedChangePayload,
+    AiPromptSteer,
     AiResultType,
     AiThread,
     AiThreadCompaction,
@@ -60,10 +64,12 @@ import {
     NotImplementedError,
     ParameterError,
     ProjectType,
+    PullRequestProvider,
     SlackPrompt,
     ToolName,
     ToolNameSchema,
     toolProposeChangeOutputSchema,
+    UnexpectedServerError,
     UpdateSlackResponse,
     UpdateSlackResponseTs,
     UpdateWebAppResponse,
@@ -95,6 +101,8 @@ import {
     AiAgentToolResultTableName,
     AiPromptContextEntityType,
     AiPromptContextTableName,
+    AiPromptInterruptTableName,
+    AiPromptSteerTableName,
     AiPromptTableName,
     AiSlackPromptTableName,
     AiSlackThreadTableName,
@@ -108,6 +116,8 @@ import {
     DbAiAgentToolResult,
     DbAiPrompt,
     DbAiPromptContext,
+    DbAiPromptInterrupt,
+    DbAiPromptSteer,
     DbAiSlackPrompt,
     DbAiSlackThread,
     DbAiSqlApproval,
@@ -164,6 +174,7 @@ import {
     DbAiEvalRunResultAssessment,
 } from '../database/entities/aiEvals';
 import { type SqlApprovalDecision } from '../services/ai/tools/sqlApprovals';
+import { AiAgentReviewClassifierModel } from './AiAgentReviewClassifierModel';
 
 type Dependencies = {
     database: Knex;
@@ -291,6 +302,25 @@ const normalizeToolName = (toolName: string): string =>
 const isParseableToolName = (toolName: string): boolean =>
     isAiAgentToolName(normalizeToolName(toolName));
 
+type AiPromptSteerRow = Pick<
+    DbAiPromptSteer,
+    | 'ai_prompt_steer_uuid'
+    | 'ai_prompt_uuid'
+    | 'message'
+    | 'created_at'
+    | 'consumed_at'
+    | 'consumed_step'
+>;
+
+const toAiPromptSteer = (row: AiPromptSteerRow): AiPromptSteer => ({
+    uuid: row.ai_prompt_steer_uuid,
+    promptUuid: row.ai_prompt_uuid,
+    message: row.message,
+    createdAt: row.created_at.toISOString(),
+    consumedAt: row.consumed_at?.toISOString() ?? null,
+    consumedStep: row.consumed_step,
+});
+
 export class AiAgentModel {
     private database: Knex;
 
@@ -298,10 +328,15 @@ export class AiAgentModel {
 
     private encryptionUtil: EncryptionUtil;
 
+    private reviewClassifierModel: AiAgentReviewClassifierModel;
+
     constructor(dependencies: Dependencies) {
         this.database = dependencies.database;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.encryptionUtil = dependencies.encryptionUtil;
+        this.reviewClassifierModel = new AiAgentReviewClassifierModel({
+            database: this.database,
+        });
     }
 
     static async withTrx<T>(
@@ -2562,10 +2597,15 @@ export class AiAgentModel {
             )
             .where(`${AiPromptTableName}.ai_thread_uuid`, threadUuid)
             .where(`${AiPromptContextTableName}.entity_type`, 'thread')
-            .distinct<{ entity_uuid: string }[]>(
+            .distinct<{ entity_uuid: string | null }[]>(
                 `${AiPromptContextTableName}.entity_uuid`,
             );
-        return rows.map((row) => row.entity_uuid);
+        // entity_uuid is nullable at the column level (file/repository rows use
+        // entity_ref); thread rows always carry it, but honor the type rather
+        // than asserting non-null.
+        return rows
+            .map((row) => row.entity_uuid)
+            .filter((u): u is string => u !== null);
     }
 
     async findThreadOwnership({
@@ -3022,6 +3062,54 @@ export class AiAgentModel {
         };
     }
 
+    async findAdminPromptActivity({
+        organizationUuid,
+        projectUuid,
+        days,
+    }: {
+        organizationUuid: string;
+        projectUuid: string;
+        days: number;
+    }): Promise<AiAgentAdminPromptActivityPoint[]> {
+        const startDate = new Date();
+        startDate.setUTCHours(0, 0, 0, 0);
+        startDate.setUTCDate(startDate.getUTCDate() - (days - 1));
+
+        const rows = await this.database(AiPromptTableName)
+            .join(
+                AiThreadTableName,
+                `${AiPromptTableName}.ai_thread_uuid`,
+                `${AiThreadTableName}.ai_thread_uuid`,
+            )
+            .where(`${AiThreadTableName}.organization_uuid`, organizationUuid)
+            .where(`${AiThreadTableName}.project_uuid`, projectUuid)
+            .whereIn(`${AiThreadTableName}.created_from`, ['web_app', 'slack'])
+            .where(`${AiPromptTableName}.created_at`, '>=', startDate)
+            .groupBy('date')
+            .orderBy('date', 'asc')
+            .select<{ date: string; prompt_count: number }[]>([
+                this.database.raw(
+                    `to_char(${AiPromptTableName}.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') as date`,
+                ),
+                this.database.raw('COUNT(*)::integer as prompt_count'),
+            ]);
+
+        const promptCountByDate = new Map(
+            rows.map((row) => [row.date, row.prompt_count]),
+        );
+
+        return Array.from({ length: days }, (_, index) => {
+            const date = new Date(startDate);
+            date.setUTCDate(startDate.getUTCDate() + index);
+            const dateKey = date.toISOString().slice(0, 10);
+
+            return {
+                date: dateKey,
+                promptCount: promptCountByDate.get(dateKey) ?? 0,
+            };
+        });
+    }
+
     async getThread({
         organizationUuid,
         agentUuid,
@@ -3096,6 +3184,7 @@ export class AiAgentModel {
                     Pick<DbAiSlackPrompt, 'slack_user_id'> &
                     Pick<DbAiWebAppPrompt, 'user_uuid'> & {
                         user_name: string;
+                        interrupted: boolean;
                     })[]
             >(
                 `${AiPromptTableName}.ai_prompt_uuid`,
@@ -3118,6 +3207,9 @@ export class AiAgentModel {
                 `${AiSlackPromptTableName}.slack_user_id`,
                 `${AiWebAppPromptTableName}.user_uuid`,
                 this.database.raw(
+                    `${AiPromptInterruptTableName}.ai_prompt_uuid is not null as interrupted`,
+                ),
+                this.database.raw(
                     `COALESCE(NULLIF(TRIM(CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name)), ''), 'Unknown user') as user_name`,
                 ),
             )
@@ -3130,6 +3222,11 @@ export class AiAgentModel {
                 AiWebAppPromptTableName,
                 `${AiPromptTableName}.ai_prompt_uuid`,
                 `${AiWebAppPromptTableName}.ai_prompt_uuid`,
+            )
+            .leftJoin(
+                AiPromptInterruptTableName,
+                `${AiPromptTableName}.ai_prompt_uuid`,
+                `${AiPromptInterruptTableName}.ai_prompt_uuid`,
             )
             .where(`${AiPromptTableName}.ai_thread_uuid`, threadUuid)
             .andWhere(
@@ -3145,6 +3242,7 @@ export class AiAgentModel {
             { promptUuids },
         );
         const contextMap = await this.getContextForPromptUuids(promptUuids);
+        const steersMap = await this.findPromptSteers(promptUuids);
 
         const messagesPromises = promptRows.map(async (row) => {
             const messages: AiAgentMessage<{
@@ -3165,6 +3263,7 @@ export class AiAgentModel {
                     slackUserId: row.slack_user_id,
                 },
                 context: contextMap.get(row.ai_prompt_uuid) ?? [],
+                steers: steersMap.get(row.ai_prompt_uuid) ?? [],
                 hidden: row.hidden ?? false,
             });
 
@@ -3197,6 +3296,7 @@ export class AiAgentModel {
                 threadUuid: row.ai_thread_uuid,
                 message: row.response,
                 errorMessage: row.error_message,
+                interrupted: row.interrupted,
                 createdAt:
                     row.responded_at?.toISOString() ??
                     row.created_at.toISOString(),
@@ -3798,6 +3898,7 @@ export class AiAgentModel {
                     Pick<DbAiSlackPrompt, 'slack_user_id'> &
                     Pick<DbAiWebAppPrompt, 'user_uuid'> & {
                         user_name: string;
+                        interrupted: boolean;
                     })[]
             >(
                 `${AiPromptTableName}.ai_prompt_uuid`,
@@ -3819,6 +3920,9 @@ export class AiAgentModel {
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiSlackPromptTableName}.slack_user_id`,
                 `${AiWebAppPromptTableName}.user_uuid`,
+                this.database.raw(
+                    `${AiPromptInterruptTableName}.ai_prompt_uuid is not null as interrupted`,
+                ),
                 this.database.raw(
                     `COALESCE(NULLIF(TRIM(CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name)), ''), 'Unknown user') as user_name`,
                 ),
@@ -3842,6 +3946,11 @@ export class AiAgentModel {
                 AiWebAppPromptTableName,
                 `${AiPromptTableName}.ai_prompt_uuid`,
                 `${AiWebAppPromptTableName}.ai_prompt_uuid`,
+            )
+            .leftJoin(
+                AiPromptInterruptTableName,
+                `${AiPromptTableName}.ai_prompt_uuid`,
+                `${AiPromptInterruptTableName}.ai_prompt_uuid`,
             )
             .where(`${AiPromptTableName}.ai_thread_uuid`, threadUuid)
             .andWhere(
@@ -3895,6 +4004,10 @@ export class AiAgentModel {
         );
         const referencedArtifacts =
             referencedArtifactsMap.get(row.ai_prompt_uuid) ?? null;
+        const steers =
+            (await this.findPromptSteers([row.ai_prompt_uuid])).get(
+                row.ai_prompt_uuid,
+            ) ?? [];
 
         switch (role) {
             case 'user':
@@ -3914,6 +4027,7 @@ export class AiAgentModel {
                                 row.ai_prompt_uuid,
                             ])
                         ).get(row.ai_prompt_uuid) ?? [],
+                    steers,
                     hidden: row.hidden ?? false,
                 } satisfies AiAgentMessageUser;
             case 'assistant':
@@ -3938,6 +4052,7 @@ export class AiAgentModel {
                     threadUuid: row.ai_thread_uuid,
                     message: row.response ?? '',
                     errorMessage: row.error_message,
+                    interrupted: row.interrupted,
                     createdAt: row.responded_at?.toString() ?? '',
                     humanScore: row.human_score,
                     humanFeedback: row.human_feedback,
@@ -4260,6 +4375,125 @@ export class AiAgentModel {
                 ai_prompt_uuid: data.promptUuid,
             })
             .returning('ai_prompt_uuid');
+    }
+
+    async createAiPromptInterrupt(data: {
+        promptUuid: string;
+        createdByUserUuid: string;
+    }): Promise<DbAiPromptInterrupt> {
+        const [row] = await this.database(AiPromptInterruptTableName)
+            .insert({
+                ai_prompt_uuid: data.promptUuid,
+                created_by_user_uuid: data.createdByUserUuid,
+            })
+            .onConflict('ai_prompt_uuid')
+            .merge()
+            .returning([
+                'ai_prompt_interrupt_uuid',
+                'ai_prompt_uuid',
+                'created_by_user_uuid',
+                'created_at',
+            ]);
+
+        if (row === undefined) {
+            throw new UnexpectedServerError(
+                'Failed to create AI prompt interrupt',
+            );
+        }
+
+        return row;
+    }
+
+    async hasAiPromptInterrupt(promptUuid: string): Promise<boolean> {
+        const row = await this.database(AiPromptInterruptTableName)
+            .select('ai_prompt_uuid')
+            .where('ai_prompt_uuid', promptUuid)
+            .first();
+
+        return row !== undefined;
+    }
+
+    async createAiPromptSteer(data: {
+        promptUuid: string;
+        createdByUserUuid: string;
+        message: string;
+    }): Promise<AiPromptSteer> {
+        const [row] = await this.database(AiPromptSteerTableName)
+            .insert({
+                ai_prompt_uuid: data.promptUuid,
+                created_by_user_uuid: data.createdByUserUuid,
+                message: data.message,
+            })
+            .returning([
+                'ai_prompt_steer_uuid',
+                'ai_prompt_uuid',
+                'message',
+                'created_at',
+                'consumed_at',
+                'consumed_step',
+            ]);
+
+        if (row === undefined) {
+            throw new UnexpectedServerError('Failed to create AI prompt steer');
+        }
+
+        return toAiPromptSteer(row);
+    }
+
+    async findPromptSteers(
+        promptUuids: string[],
+    ): Promise<Map<string, AiPromptSteer[]>> {
+        if (promptUuids.length === 0) return new Map();
+
+        const rows = await this.database(AiPromptSteerTableName)
+            .select<AiPromptSteerRow[]>(
+                `${AiPromptSteerTableName}.ai_prompt_steer_uuid`,
+                `${AiPromptSteerTableName}.ai_prompt_uuid`,
+                `${AiPromptSteerTableName}.message`,
+                `${AiPromptSteerTableName}.created_at`,
+                `${AiPromptSteerTableName}.consumed_at`,
+                `${AiPromptSteerTableName}.consumed_step`,
+            )
+            .whereIn(`${AiPromptSteerTableName}.ai_prompt_uuid`, promptUuids)
+            .orderBy(`${AiPromptSteerTableName}.created_at`, 'asc');
+
+        return rows.reduce((map, row) => {
+            const steers = map.get(row.ai_prompt_uuid) ?? [];
+            steers.push(toAiPromptSteer(row));
+            map.set(row.ai_prompt_uuid, steers);
+            return map;
+        }, new Map<string, AiPromptSteer[]>());
+    }
+
+    async consumeUnconsumedPromptSteers(data: {
+        promptUuid: string;
+        stepNumber: number;
+    }): Promise<AiPromptSteer[]> {
+        return this.database.transaction(async (trx) => {
+            const consumedRows = await trx(AiPromptSteerTableName)
+                .where({
+                    ai_prompt_uuid: data.promptUuid,
+                    consumed_at: null,
+                })
+                .update({
+                    consumed_at: trx.fn.now(),
+                    consumed_step: data.stepNumber,
+                })
+                .returning<AiPromptSteerRow[]>([
+                    'ai_prompt_steer_uuid',
+                    'ai_prompt_uuid',
+                    'message',
+                    'created_at',
+                    'consumed_at',
+                    'consumed_step',
+                ]);
+
+            if (consumedRows.length === 0) return [];
+
+            return consumedRows
+                .sort((a, b) => a.created_at.getTime() - b.created_at.getTime())
+                .map(toAiPromptSteer);
+        });
     }
 
     async createThreadCompaction(data: {
@@ -4801,6 +5035,64 @@ export class AiAgentModel {
                             thread?.title ?? thread?.first_prompt ?? null,
                     };
                 }
+                // File / repository references are self-contained — the path /
+                // `owner/repo` is the natural key, stored in entity_ref (no
+                // uuid, nothing to resolve).
+                case 'file':
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type: 'file' as AiPromptContextEntityType,
+                        entity_uuid: null,
+                        entity_ref: ctx.path,
+                        display_name: ctx.path,
+                    };
+                case 'repository':
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type: 'repository' as AiPromptContextEntityType,
+                        entity_uuid: null,
+                        entity_ref: ctx.fullName,
+                        display_name: ctx.fullName,
+                    };
+                // Review-remediation references store their natural key
+                // (PR url / finding fingerprint) in entity_ref and resolve the
+                // live data at read time. preview_environment keys off a real
+                // project uuid, so it uses entity_uuid like the chart/dashboard.
+                case 'pull_request':
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type:
+                            'pull_request' as AiPromptContextEntityType,
+                        entity_uuid: null,
+                        entity_ref: ctx.prUrl,
+                        display_name: ctx.prUrl,
+                    };
+                case 'proposed_change':
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type:
+                            'proposed_change' as AiPromptContextEntityType,
+                        entity_uuid: null,
+                        entity_ref: ctx.fingerprint,
+                        display_name: null,
+                    };
+                case 'review_finding':
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type:
+                            'review_finding' as AiPromptContextEntityType,
+                        entity_uuid: null,
+                        entity_ref: ctx.fingerprint,
+                        display_name: null,
+                    };
+                case 'preview_environment':
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type:
+                            'preview_environment' as AiPromptContextEntityType,
+                        entity_uuid: ctx.previewProjectUuid,
+                        display_name: null,
+                    };
                 default:
                     return assertUnreachable(
                         ctx,
@@ -4825,7 +5117,8 @@ export class AiAgentModel {
 
         const chartUuids = rows
             .filter((r) => r.entity_type === 'chart')
-            .map((r) => r.entity_uuid);
+            .map((r) => r.entity_uuid)
+            .filter((u): u is string => u !== null);
         const chartDataByUuid = new Map(
             (
                 await this.database(SavedChartsTableName)
@@ -4853,7 +5146,8 @@ export class AiAgentModel {
         );
         const dashboardUuids = rows
             .filter((r) => r.entity_type === 'dashboard')
-            .map((r) => r.entity_uuid);
+            .map((r) => r.entity_uuid)
+            .filter((u): u is string => u !== null);
         const dashboardSlugByUuid = new Map(
             (
                 await this.database(DashboardsTableName)
@@ -4866,19 +5160,140 @@ export class AiAgentModel {
             ).map((r) => [r.dashboard_uuid, r.slug] as const),
         );
 
+        // review_finding / proposed_change pins resolve live finding data,
+        // scoped by the org of the prompt they hang off. Only worth the extra
+        // prompt -> thread -> org lookup when such a pin is actually present.
+        const hasReviewFindingRows = rows.some(
+            (row) =>
+                row.entity_type === 'review_finding' ||
+                row.entity_type === 'proposed_change',
+        );
+        const orgByPromptUuid = new Map(
+            hasReviewFindingRows
+                ? (
+                      await this.database(AiPromptTableName)
+                          .leftJoin(
+                              AiThreadTableName,
+                              `${AiPromptTableName}.ai_thread_uuid`,
+                              `${AiThreadTableName}.ai_thread_uuid`,
+                          )
+                          .whereIn(
+                              `${AiPromptTableName}.ai_prompt_uuid`,
+                              promptUuids,
+                          )
+                          .select<
+                              {
+                                  ai_prompt_uuid: string;
+                                  organization_uuid: string | null;
+                              }[]
+                          >({
+                              ai_prompt_uuid: `${AiPromptTableName}.ai_prompt_uuid`,
+                              organization_uuid: `${AiThreadTableName}.organization_uuid`,
+                          })
+                  ).map((r) => [r.ai_prompt_uuid, r.organization_uuid] as const)
+                : [],
+        );
+
+        const { reviewClassifierModel } = this;
+        const reviewItemByOrgFingerprint = new Map<
+            string,
+            AiAgentReviewItemSummary | null
+        >();
+        const orgFingerprintPairs = new Map<
+            string,
+            { organizationUuid: string; fingerprint: string }
+        >();
+        rows.filter(
+            (row) =>
+                row.entity_type === 'review_finding' ||
+                row.entity_type === 'proposed_change',
+        ).forEach((row) => {
+            const organizationUuid = orgByPromptUuid.get(row.ai_prompt_uuid);
+            if (organizationUuid && row.entity_ref !== null) {
+                orgFingerprintPairs.set(
+                    `${organizationUuid}:${row.entity_ref}`,
+                    {
+                        organizationUuid,
+                        fingerprint: row.entity_ref,
+                    },
+                );
+            }
+        });
+        await Promise.all(
+            [...orgFingerprintPairs.entries()].map(async ([key, pair]) => {
+                const item = await reviewClassifierModel.getReviewItem(
+                    pair.organizationUuid,
+                    pair.fingerprint,
+                );
+                reviewItemByOrgFingerprint.set(key, item);
+            }),
+        );
+
+        const previewProjectUuids = rows
+            .filter((r) => r.entity_type === 'preview_environment')
+            .map((r) => r.entity_uuid)
+            .filter((u): u is string => u !== null);
+        const projectNameByUuid = new Map(
+            (
+                await this.database(ProjectTableName)
+                    .whereIn('project_uuid', previewProjectUuids)
+                    .select<{ project_uuid: string; name: string }[]>(
+                        'project_uuid',
+                        'name',
+                    )
+            ).map((r) => [r.project_uuid, r.name] as const),
+        );
+
         for (const row of rows) {
+            const organizationUuid =
+                orgByPromptUuid.get(row.ai_prompt_uuid) ?? null;
+            const reviewItem =
+                organizationUuid && row.entity_ref !== null
+                    ? (reviewItemByOrgFingerprint.get(
+                          `${organizationUuid}:${row.entity_ref}`,
+                      ) ?? null)
+                    : null;
             const existing = grouped.get(row.ai_prompt_uuid) ?? [];
             existing.push(
                 AiAgentModel.toAiPromptContextItem(
                     row,
                     chartDataByUuid,
                     dashboardSlugByUuid,
+                    reviewItem,
+                    projectNameByUuid,
                 ),
             );
             grouped.set(row.ai_prompt_uuid, existing);
         }
 
         return grouped;
+    }
+
+    // Builds the resolved proposed-change payload from a finding: a
+    // project_context entry takes precedence, otherwise the semantic-layer
+    // recommendation. Falls back to an empty semantic_layer change when the
+    // finding is missing or carries neither.
+    private static toProposedChangePayload(
+        reviewItem: AiAgentReviewItemSummary | null,
+    ): AiPromptProposedChangePayload {
+        const entry = reviewItem?.latestFinding?.projectContextEntry ?? null;
+        if (reviewItem?.primaryRootCause === 'project_context' && entry) {
+            return { changeKind: 'project_context', entry };
+        }
+        const recommendation =
+            reviewItem?.latestFinding?.recommendation ?? null;
+        if (recommendation) {
+            return { changeKind: 'semantic_layer', recommendation };
+        }
+        return {
+            changeKind: 'semantic_layer',
+            recommendation: {
+                actionType: 'no_action',
+                title: '(change unavailable)',
+                rationale: '',
+                targetRefs: [],
+            },
+        };
     }
 
     private static toAiPromptContextItem(
@@ -4888,13 +5303,28 @@ export class AiAgentModel {
             { chartKind: ChartKind | null; slug: string }
         >,
         dashboardSlugByUuid: Map<string, string>,
+        reviewItem: AiAgentReviewItemSummary | null,
+        projectNameByUuid: Map<string, string>,
     ): AiPromptContextItem {
+        // chart/dashboard/thread are uuid-keyed: entity_uuid is a non-null
+        // invariant (only file/repository leave it null, using entity_ref).
+        // A null here means a corrupt row — fail loud rather than emit a broken
+        // reference with an empty uuid.
+        const requireEntityUuid = (): string => {
+            if (row.entity_uuid === null) {
+                throw new Error(
+                    `ai_prompt_context row ${row.ai_prompt_context_uuid} of type '${row.entity_type}' is missing entity_uuid`,
+                );
+            }
+            return row.entity_uuid;
+        };
         switch (row.entity_type) {
             case 'chart': {
-                const chartData = chartDataByUuid.get(row.entity_uuid);
+                const entityUuid = requireEntityUuid();
+                const chartData = chartDataByUuid.get(entityUuid);
                 return {
                     type: 'chart',
-                    chartUuid: row.entity_uuid,
+                    chartUuid: entityUuid,
                     chartSlug: chartData?.slug ?? null,
                     pinnedVersionUuid: row.pinned_version_uuid,
                     displayName: row.display_name,
@@ -4902,27 +5332,95 @@ export class AiAgentModel {
                     chartKind: chartData?.chartKind ?? null,
                 };
             }
-            case 'dashboard':
+            case 'dashboard': {
+                const entityUuid = requireEntityUuid();
                 return {
                     type: 'dashboard',
-                    dashboardUuid: row.entity_uuid,
-                    dashboardSlug:
-                        dashboardSlugByUuid.get(row.entity_uuid) ?? null,
+                    dashboardUuid: entityUuid,
+                    dashboardSlug: dashboardSlugByUuid.get(entityUuid) ?? null,
                     pinnedVersionUuid: row.pinned_version_uuid,
                     displayName: row.display_name,
                 };
+            }
             case 'thread':
                 return {
                     type: 'thread',
-                    threadUuid: row.entity_uuid,
+                    threadUuid: requireEntityUuid(),
                     promptUuid: row.pinned_version_uuid,
                     displayName: row.display_name,
                 };
+            // File / repository references store their natural key in
+            // entity_ref; there is nothing to join back to.
+            case 'file':
+                return { type: 'file', path: row.entity_ref ?? '' };
+            case 'repository':
+                return { type: 'repository', fullName: row.entity_ref ?? '' };
+            case 'pull_request': {
+                const prUrl = row.entity_ref ?? '';
+                return {
+                    type: 'pull_request',
+                    prUrl,
+                    prNumber: AiAgentModel.parsePrNumber(prUrl),
+                    provider: AiAgentModel.parsePrProvider(prUrl),
+                    status: null,
+                    title: null,
+                };
+            }
+            case 'proposed_change':
+                return {
+                    type: 'proposed_change',
+                    fingerprint: row.entity_ref ?? '',
+                    payload: AiAgentModel.toProposedChangePayload(reviewItem),
+                };
+            case 'review_finding':
+                return {
+                    type: 'review_finding',
+                    fingerprint: row.entity_ref ?? '',
+                    title: reviewItem?.title ?? '(finding unavailable)',
+                    rootCause: reviewItem?.primaryRootCause ?? 'ambiguous',
+                    findingCount: reviewItem?.findingCount ?? 0,
+                    evidenceExcerpts:
+                        reviewItem?.latestFinding?.evidenceExcerpts ?? [],
+                };
+            case 'preview_environment': {
+                const entityUuid = requireEntityUuid();
+                return {
+                    type: 'preview_environment',
+                    previewProjectUuid: entityUuid,
+                    previewThreadUuid: null,
+                    status: null,
+                    projectName: projectNameByUuid.get(entityUuid) ?? null,
+                };
+            }
             default:
                 return assertUnreachable(
                     row.entity_type,
                     `Unknown ai_prompt_context.entity_type`,
                 );
+        }
+    }
+
+    // PR url -> trailing number (e.g. .../pull/123 or .../merge_requests/123).
+    private static parsePrNumber(prUrl: string): number | null {
+        const match = prUrl.match(/(\d+)\/?$/);
+        if (!match) return null;
+        const parsed = Number.parseInt(match[1], 10);
+        return Number.isNaN(parsed) ? null : parsed;
+    }
+
+    private static parsePrProvider(prUrl: string): PullRequestProvider | null {
+        if (!prUrl) return null;
+        try {
+            const host = new URL(prUrl).hostname;
+            if (host.includes('github.com')) {
+                return PullRequestProvider.GITHUB;
+            }
+            if (host.includes('gitlab.com')) {
+                return PullRequestProvider.GITLAB;
+            }
+            return null;
+        } catch {
+            return null;
         }
     }
 

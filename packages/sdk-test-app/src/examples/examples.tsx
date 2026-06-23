@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 import type { EmbedConfigState } from '../hooks/useEmbedConfig';
 import { AiAgentExamplePage } from './AiAgentExamplePage';
+import { ContentCatalogExamplePage } from './ContentCatalogExamplePage';
 import { DashboardBuilderExamplePage } from './DashboardBuilderExamplePage';
 import { FiltersExamplePage } from './FiltersExamplePage';
 import { I18nExamplePage } from './I18nExamplePage';
@@ -25,6 +26,16 @@ export const examples: ExampleDefinition[] = [
             'Embed an AI agent using an AI-agent embed token scoped to the configured write space.',
         sourcePath: 'packages/sdk-test-app/src/examples/AiAgentExamplePage.tsx',
         component: AiAgentExamplePage,
+    },
+    {
+        slug: 'content-catalog',
+        path: '/examples/content-catalog',
+        title: 'Content catalog hooks demo',
+        description:
+            'List spaces, dashboards, and charts with useLightdashContent.',
+        sourcePath:
+            'packages/sdk-test-app/src/examples/ContentCatalogExamplePage.tsx',
+        component: ContentCatalogExamplePage,
     },
     {
         slug: 'dashboard-builder',

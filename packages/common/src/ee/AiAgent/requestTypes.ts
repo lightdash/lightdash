@@ -1,8 +1,17 @@
 import { type DateZoom } from '../../types/api/paginatedQuery';
 import { type DashboardFilters } from '../../types/filter';
+import { type PullRequestProvider } from '../../types/gitIntegration';
 import { type ParametersValuesMap } from '../../types/parameters';
 import { type ChartKind } from '../../types/savedCharts';
 import { type TraceTaskBase } from '../../types/scheduler';
+import {
+    type AiAgentEvidenceExcerpt,
+    type AiAgentJudgeProjectContextEntry,
+    type AiAgentRecommendation,
+    type AiAgentReviewItemPrState,
+    type AiAgentReviewRemediationStatus,
+    type AiAgentRootCause,
+} from './aiAgentReviewClassifierTypes';
 
 /**
  * Runtime state captured at pin time for a chart context. When a user pins a
@@ -107,9 +116,48 @@ export type AiPromptContextItemInput =
           threadUuid: string;
           // The turn the reference points at (e.g. a flagged prompt).
           promptUuid?: string | null;
+      }
+    | {
+          // A dbt source file the user @-mentioned. `path` is relative to the
+          // dbt sub-folder (as the project-files endpoint returns it); the
+          // agent's repo filesystem mounts that folder at `/dbt`.
+          type: 'file';
+          path: string;
+      }
+    | {
+          // A GitHub repository the user @-mentioned, as `owner/repo`. The
+          // agent's repo filesystem mounts it at `/owner/repo`.
+          type: 'repository';
+          fullName: string;
+      }
+    | {
+          // The review-remediation pull request applying the proposed change.
+          type: 'pull_request';
+          prUrl: string;
+      }
+    | {
+          // The change a writeback applies, resolved from the review finding.
+          // System-only: seeded by the remediation flow, never user-attached.
+          type: 'proposed_change';
+          fingerprint: string;
+      }
+    | {
+          // The review finding being remediated. System-only.
+          type: 'review_finding';
+          fingerprint: string;
+      }
+    | {
+          // The preview project where a semantic-layer fix can be tested.
+          type: 'preview_environment';
+          previewProjectUuid: string;
       };
 
 export type AiPromptContextInput = AiPromptContextItemInput[];
+
+// The concrete change a writeback applies — one card concept, two payloads.
+export type AiPromptProposedChangePayload =
+    | { changeKind: 'project_context'; entry: AiAgentJudgeProjectContextEntry }
+    | { changeKind: 'semantic_layer'; recommendation: AiAgentRecommendation };
 
 export type AiPromptContextItem =
     | {
@@ -133,6 +181,45 @@ export type AiPromptContextItem =
           threadUuid: string;
           promptUuid: string | null;
           displayName: string | null;
+      }
+    | {
+          // Resolved file reference — a passthrough of the input (the path is
+          // self-contained, there is nothing to look up server-side).
+          type: 'file';
+          path: string;
+      }
+    | {
+          // Resolved repository reference — a passthrough of the input.
+          type: 'repository';
+          fullName: string;
+      }
+    | {
+          type: 'pull_request';
+          prUrl: string;
+          prNumber: number | null;
+          provider: PullRequestProvider | null;
+          status: AiAgentReviewItemPrState | null;
+          title: string | null;
+      }
+    | {
+          type: 'proposed_change';
+          fingerprint: string;
+          payload: AiPromptProposedChangePayload;
+      }
+    | {
+          type: 'review_finding';
+          fingerprint: string;
+          title: string;
+          rootCause: AiAgentRootCause;
+          findingCount: number;
+          evidenceExcerpts: AiAgentEvidenceExcerpt[];
+      }
+    | {
+          type: 'preview_environment';
+          previewProjectUuid: string;
+          previewThreadUuid: string | null;
+          status: AiAgentReviewRemediationStatus | null;
+          projectName: string | null;
       };
 
 export type AiPromptContext = AiPromptContextItem[];

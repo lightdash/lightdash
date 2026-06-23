@@ -141,3 +141,5 @@ export type ScimAccessTokenEvent = BaseTrack & {
         organizationId: string;
     };
 };
+
+export * from './externalConnections';

@@ -18,6 +18,7 @@ import {
     type ConditionalFormattingConfigWithSingleColor,
     type ConditionalFormattingMinMax,
     type ConditionalFormattingMinMaxMap,
+    type ConditionalFormattingTextStyle,
     type ConditionalFormattingWithFilterOperator,
 } from '../types/conditionalFormatting';
 import { LightdashError, NotImplementedError } from '../types/errors';
@@ -752,12 +753,11 @@ export const getConditionalFormattingColor = ({
 };
 
 /**
- * Row-level conditional formatting (PROD-8058): returns the background color to
- * paint across an entire row when a single `applyTo: ROW` rule's trigger field
- * matches. Evaluated once per row, independent of the cell being drawn.
- * Returns null when no ROW rule matches.
+ * Row-level conditional formatting (PROD-8058): returns the matching `applyTo:
+ * ROW` config whose trigger field matches, or undefined. Evaluated once per
+ * row, independent of the cell being drawn.
  */
-export const getRowConditionalFormattingColor = ({
+export const getRowConditionalFormattingConfig = ({
     conditionalFormattings,
     rowFields,
     minMaxMap = {},
@@ -765,10 +765,10 @@ export const getRowConditionalFormattingColor = ({
     conditionalFormattings: ConditionalFormattingConfig[] | undefined;
     rowFields: ConditionalFormattingRowFields;
     minMaxMap: ConditionalFormattingMinMaxMap | undefined;
-}): string | null => {
-    if (!conditionalFormattings) return null;
+}): ConditionalFormattingConfig | undefined => {
+    if (!conditionalFormattings) return undefined;
 
-    const match = conditionalFormattings.find((config) => {
+    return conditionalFormattings.find((config) => {
         if (config.applyTo !== ConditionalFormattingColorApplyTo.ROW) {
             return false;
         }
@@ -784,11 +784,51 @@ export const getRowConditionalFormattingColor = ({
             rowFields,
         );
     });
+};
+
+/**
+ * Row-level conditional formatting (PROD-8058): returns the background color to
+ * paint across an entire row when a single `applyTo: ROW` rule's trigger field
+ * matches. Returns null when no ROW rule matches.
+ */
+export const getRowConditionalFormattingColor = (args: {
+    conditionalFormattings: ConditionalFormattingConfig[] | undefined;
+    rowFields: ConditionalFormattingRowFields;
+    minMaxMap: ConditionalFormattingMinMaxMap | undefined;
+}): string | null => {
+    const match = getRowConditionalFormattingConfig(args);
 
     if (!match) return null;
     return isConditionalFormattingConfigWithSingleColor(match)
         ? match.color
         : null;
+};
+
+/**
+ * Merges the text styling (bold/italic/underline) from every matching config
+ * that applies to a cell — its cell-level, text-level and row-level matches —
+ * into a single style. Returns undefined when no style is set so callers can
+ * skip styling entirely.
+ */
+export const getConditionalFormattingTextStyle = (
+    configs: Array<ConditionalFormattingConfig | undefined>,
+): ConditionalFormattingTextStyle | undefined => {
+    const merged = configs.reduce<ConditionalFormattingTextStyle>(
+        (acc, config) => {
+            const style = config?.textStyle;
+            if (!style) return acc;
+            return {
+                bold: acc.bold || !!style.bold,
+                italic: acc.italic || !!style.italic,
+                underline: acc.underline || !!style.underline,
+            };
+        },
+        { bold: false, italic: false, underline: false },
+    );
+
+    return merged.bold || merged.italic || merged.underline
+        ? merged
+        : undefined;
 };
 
 /**

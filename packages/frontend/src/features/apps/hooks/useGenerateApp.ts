@@ -4,6 +4,7 @@ import {
     type AppChartReference,
     type AppClarification,
     type AppDashboardReference,
+    type AppExternalConnectionReference,
     type DataAppClaudeModel,
     type DataAppTemplate,
 } from '@lightdash/common';
@@ -25,6 +26,8 @@ type GenerateAppParams = {
     // the org default; `null` explicitly opts out of any theme; a uuid picks
     // a specific theme.
     designUuid?: string | null;
+    // External connections to link to the app before generation.
+    externalConnections?: AppExternalConnectionReference[];
 };
 
 type GenerateAppResult = ApiGenerateAppResponse['results'];
@@ -41,6 +44,7 @@ const generateApp = async ({
     spaceUuid,
     claudeModel,
     designUuid,
+    externalConnections,
 }: GenerateAppParams): Promise<GenerateAppResult> => {
     const data = await lightdashApi<GenerateAppResult>({
         method: 'POST',
@@ -55,6 +59,7 @@ const generateApp = async ({
             clarifications,
             spaceUuid,
             claudeModel,
+            externalConnections,
             // Send only when defined: `null` means "no theme"; `undefined`
             // means "honor org default" and omitting from the JSON body lets
             // the backend distinguish the two.

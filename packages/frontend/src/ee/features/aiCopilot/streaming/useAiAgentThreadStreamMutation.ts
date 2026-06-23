@@ -42,6 +42,7 @@ export interface AiAgentThreadStreamOptions {
     threadUuid: string;
     messageUuid: string;
     enableSqlMode?: boolean;
+    autoApproveSql?: boolean;
     toolHints?: string[];
     onFinish?: () => void;
     onError?: (error: string) => void;
@@ -88,6 +89,7 @@ const getAgentThreadReadableStream = async (
     agentUuid: string,
     threadUuid: string,
     enableSqlMode: boolean,
+    autoApproveSql: boolean,
     toolHints: string[],
     { signal }: { signal: AbortSignal },
 ) => {
@@ -96,7 +98,7 @@ const getAgentThreadReadableStream = async (
             projectUuid,
         )}/${agentUuid}/threads/${threadUuid}/stream`,
         method: 'POST',
-        body: JSON.stringify({ enableSqlMode, toolHints }),
+        body: JSON.stringify({ enableSqlMode, autoApproveSql, toolHints }),
         signal,
     });
 
@@ -264,6 +266,7 @@ export function useAiAgentThreadStreamMutation() {
             threadUuid,
             messageUuid,
             enableSqlMode = false,
+            autoApproveSql = false,
             toolHints = [],
             onFinish,
             onError,
@@ -282,6 +285,7 @@ export function useAiAgentThreadStreamMutation() {
                     agentUuid,
                     threadUuid,
                     enableSqlMode,
+                    autoApproveSql,
                     toolHints,
                     {
                         signal: abortController.signal,

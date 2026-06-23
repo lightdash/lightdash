@@ -42,6 +42,7 @@ import { EventEmitter } from 'events';
 import { Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../config/parseConfig';
+import { type ExternalConnectionEvent } from '../ee/analytics';
 import { VERSION } from '../version';
 
 type Identify = {
@@ -1469,10 +1470,35 @@ export type AiWritebackFailedEvent = BaseTrack & {
     };
 };
 
+// Fired when a user merges a write-back PR from the chat PR card. Only
+// successful merges are tracked — the merge endpoint throws on conflicts,
+// stale heads, or blocked branches, so this is a server-authoritative count of
+// PRs that actually landed (not merge-button clicks).
+export type AiWritebackMergedEvent = BaseTrack & {
+    event: 'ai_writeback.merged';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        prUrl: string;
+        // Parsed from the PR URL; null when it isn't a recognised
+        // github.com/owner/repo/pull/N link (e.g. a GitLab MR).
+        owner: string | null;
+        repo: string | null;
+        pullNumber: number | null;
+        // The merge commit SHA the provider returned, when available.
+        mergeCommitSha: string | null;
+        // Whether a dbt recompile was scheduled after the merge. Only
+        // git-connected projects re-clone on compile, so others are skipped.
+        compileScheduled: boolean;
+    };
+};
+
 export type AiWritebackEvent =
     | AiWritebackStartedEvent
     | AiWritebackCompletedEvent
-    | AiWritebackFailedEvent;
+    | AiWritebackFailedEvent
+    | AiWritebackMergedEvent;
 
 export type CommentsEvent = BaseTrack & {
     event:
@@ -2400,6 +2426,7 @@ type TypedEvent =
     | SchedulerJobEvent
     | SchedulerNotificationJobEvent
     | DataAppEvent
+    | ExternalConnectionEvent
     | AiWritebackEvent
     | PinnedListUpdated
     | FavoriteToggled

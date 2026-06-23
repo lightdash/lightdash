@@ -478,6 +478,22 @@ export class AppModel {
         return row;
     }
 
+    async updateDesignUuid(
+        appId: string,
+        projectUuid: string,
+        designUuid: string | null,
+    ): Promise<DbApp> {
+        const [row] = await this.database(AppsTableName)
+            .where({ app_id: appId, project_uuid: projectUuid })
+            .whereNull('deleted_at')
+            .update({ design_uuid: designUuid })
+            .returning('*');
+        if (!row) {
+            throw new NotFoundError(`App not found: ${appId}`);
+        }
+        return row;
+    }
+
     /**
      * Record that a preview app has been promoted into a production app. The
      * link lives on the preview (source) row so one production app can be the

@@ -52,7 +52,7 @@ if (isMyFeatureEnabled && ability?.can('manage', 'Organization')) {
 The sidebar's search is data-driven (no DOM walking) and its state lives directly in `Settings.tsx`:
 
 - `search` (raw, feeds the input) plus a debounced copy (feeds `filterSettingsNavigation`). The search resets on navigation, computed during render so it never lags the route change.
-- `isSidebarCollapsed` — a plain `useState` toggling the collapsible panel; not persisted.
+- `isSidebarCollapsed` — persisted with localStorage in `Settings.tsx`.
 
 `SettingsNavigation` takes `sections` + `searchQuery`. Group expansion stays uncontrolled via Mantine's `defaultOpened` (open on the active route, or forced open while filtering); the nav remounts on the filtering toggle so `defaultOpened` re-evaluates. Matching label text is highlighted with Mantine's `<Highlight>`.
 </sidebarInteraction>

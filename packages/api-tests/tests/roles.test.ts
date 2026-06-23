@@ -6,7 +6,12 @@ import {
     SEED_PROJECT,
 } from '@lightdash/common';
 import { Body } from '../helpers/api-client';
-import { anotherLogin, login, loginWithPermissions } from '../helpers/auth';
+import {
+    anotherLogin,
+    login,
+    loginWithEmail,
+    loginWithPermissions,
+} from '../helpers/auth';
 
 type RoleResult = {
     roleUuid: string;
@@ -26,6 +31,7 @@ type ErrorBody = { status: string; error: { message: string } };
 
 const orgRolesApiUrl = '/api/v2/orgs';
 const projectRolesApiUrl = '/api/v2/projects';
+const apiUrl = '/api/v1';
 
 describe('Roles API Tests', () => {
     let admin: Awaited<ReturnType<typeof login>>;
@@ -734,6 +740,100 @@ describe('Roles API Tests', () => {
             expect(assignResp.body.error.message).toContain(
                 'Custom role must have at least one scope',
             );
+        });
+
+        it('should allow project-scoped custom role to create preview without copying content', async () => {
+            let previewProjectUuid: string | undefined;
+            const roleResp = await admin.post<Body<RoleResult>>(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles`,
+                {
+                    name: `Preview No Copy ${Date.now()}`,
+                    description: 'Preview role for permission testing',
+                    scopes: [
+                        'view:Project',
+                        'create:Project@preview',
+                        'create:Job',
+                        'manage:CompileProject',
+                        'view:JobStatus@self',
+                        'view:Job@self',
+                    ],
+                },
+            );
+            const { roleUuid } = roleResp.body.results;
+            rolesToCleanup.push(roleUuid);
+
+            const { client: member, email } = await loginWithPermissions(
+                'member',
+                [],
+            );
+            const me = await member.get<Body<{ userUuid: string }>>(
+                `${apiUrl}/user`,
+            );
+            const memberUserUuid = me.body.results.userUuid;
+
+            await admin.post<Body<AssignmentResult>>(
+                `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/user/${memberUserUuid}`,
+                { roleId: roleUuid },
+            );
+
+            const previewUser = await loginWithEmail(email);
+
+            try {
+                const seedCharts = await admin.get<Body<unknown[]>>(
+                    `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts`,
+                );
+                const seedDashboards = await admin.get<Body<unknown[]>>(
+                    `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/dashboards`,
+                );
+                expect(seedCharts.body.results.length).toBeGreaterThan(0);
+                expect(seedDashboards.body.results.length).toBeGreaterThan(0);
+
+                const resp = await previewUser.post<
+                    Body<{ projectUuid: string; compileJobUuid: string }>
+                >(
+                    `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/createPreview`,
+                    {
+                        name: `No Copy Preview ${Date.now()}`,
+                        copyContent: false,
+                    },
+                );
+
+                expect(resp.status).toBe(200);
+                previewProjectUuid = resp.body.results.projectUuid;
+                expect(previewProjectUuid).toBeDefined();
+
+                const previewCharts = await admin.get<Body<unknown[]>>(
+                    `${apiUrl}/projects/${previewProjectUuid}/charts`,
+                );
+                const previewDashboards = await admin.get<Body<unknown[]>>(
+                    `${apiUrl}/projects/${previewProjectUuid}/dashboards`,
+                );
+                const previewProject = await admin.get<
+                    Body<{ upstreamProjectUuid?: string | null }>
+                >(`${apiUrl}/projects/${previewProjectUuid}`);
+                const previewProjectAsCreator = await previewUser.get(
+                    `${apiUrl}/projects/${previewProjectUuid}`,
+                );
+                expect(previewCharts.body.results).toHaveLength(0);
+                expect(previewDashboards.body.results).toHaveLength(0);
+                expect(previewProject.body.results.upstreamProjectUuid).toBe(
+                    SEED_PROJECT.project_uuid,
+                );
+                expect(previewProjectAsCreator.status).toBe(200);
+            } finally {
+                if (previewProjectUuid) {
+                    await admin.delete(
+                        `/api/v1/org/projects/${previewProjectUuid}`,
+                        { failOnStatusCode: false },
+                    );
+                }
+                if (memberUserUuid) {
+                    await admin.delete(
+                        `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/user/${memberUserUuid}`,
+                        { failOnStatusCode: false },
+                    );
+                }
+            }
         });
     });
 

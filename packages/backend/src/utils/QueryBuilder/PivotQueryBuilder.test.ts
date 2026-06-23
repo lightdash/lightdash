@@ -2818,6 +2818,55 @@ SELECT * FROM group_by_query LIMIT 50`);
                 'dense_rank() over (order by g."amount_binned_amount_order" asc, g."orders_category" desc)',
             );
         });
+
+        test('Should include _order column in group_by_query when sorted bin dimension is a sortOnlyDimension', () => {
+            // A custom bin dimension used as a hidden, sorted pivot column lands
+            // in sortOnlyDimensions. Its _order companion drives the column
+            // ORDER BY, so it must be carried through group_by_query — otherwise
+            // the warehouse errors with "column amount_binned_amount_order does not exist".
+            const itemsMap: ItemsMap = {
+                amount_binned_amount: binDimension,
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'event_type' }],
+                sortBy: [
+                    {
+                        reference: 'amount_binned_amount',
+                        direction: SortByDirection.DESC,
+                    },
+                ],
+                sortOnlyDimensions: [{ reference: 'amount_binned_amount' }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql();
+
+            // _order column must be carried through group_by_query SELECT and GROUP BY
+            expect(result).toContain('"amount_binned_amount_order"');
+            expect(replaceWhitespace(result)).toContain(
+                'group by "event_type", "amount_binned_amount", "date", "amount_binned_amount_order"',
+            );
+
+            // column ordering should reference the carried-through _order column
+            expect(result.toLowerCase()).toContain(
+                'g."amount_binned_amount_order" desc',
+            );
+        });
     });
 
     describe('Pivot table calculations referencing metrics not in valuesColumns', () => {

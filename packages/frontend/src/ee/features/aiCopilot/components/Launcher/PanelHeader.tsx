@@ -1,5 +1,12 @@
 import { type AiAgentSummary } from '@lightdash/common';
-import { ActionIcon, Group, Menu, Text, UnstyledButton } from '@mantine-8/core';
+import {
+    ActionIcon,
+    Avatar,
+    Group,
+    Menu,
+    Text,
+    UnstyledButton,
+} from '@mantine-8/core';
 import {
     IconCheck,
     IconChevronDown,
@@ -10,17 +17,27 @@ import { type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { useAiRouterConfig } from '../../hooks/useAiRouter';
 import { closePanel, openPanel } from '../../store/aiAgentLauncherSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
+import {
+    AI_ROUTING_AUTO_VALUE,
+    AI_ROUTING_SEARCH_PARAM,
+} from '../AgentSelector/AgentSelectorUtils';
 import styles from './AiAgentsLauncher.module.css';
+import {
+    getConcreteLauncherAgent,
+    isLauncherAutoAgent,
+    LAUNCHER_AUTO_AGENT,
+} from './launcherAgentSelection';
 import { launcherSession } from './launcherSession';
 
 type Props = {
     projectUuid: string;
-    agent: AiAgentSummary | null;
+    agent: AiAgentSummary | typeof LAUNCHER_AUTO_AGENT | null;
     agents: AiAgentSummary[];
     title: string;
     threadId: string | null;
@@ -38,8 +55,14 @@ export const PanelHeader: FC<Props> = ({
     const pendingContext = useAiAgentStoreSelector(
         (state) => state.aiAgentLauncher.pendingContext,
     );
+    const { data: aiRouterConfig } = useAiRouterConfig();
+    const isAuto = isLauncherAutoAgent(agent);
+    const showAutoOption =
+        agents.length > 1 && aiRouterConfig?.enabled === true;
+    const selectedAgentUuid = getConcreteLauncherAgent(agent)?.uuid ?? null;
 
-    const canSwitchAgent = threadId === null && agents.length > 1;
+    const canSwitchAgent =
+        threadId === null && (agents.length > 1 || showAutoOption);
 
     const handleClose = () => dispatch(closePanel());
     const handleSwitchAgent = (nextAgentUuid: string) => {
@@ -56,6 +79,7 @@ export const PanelHeader: FC<Props> = ({
         launcherSession.markExpandedFromBubble();
         let target;
         if (threadId) {
+            if (isAuto) return;
             target = `/projects/${projectUuid}/ai-agents/${agent.uuid}/threads/${threadId}`;
         } else {
             const params = new URLSearchParams();
@@ -65,10 +89,15 @@ export const PanelHeader: FC<Props> = ({
             if (pendingContext?.dashboardUuid) {
                 params.set('dashboardUuid', pendingContext.dashboardUuid);
             }
+            if (isAuto) {
+                params.set(AI_ROUTING_SEARCH_PARAM, AI_ROUTING_AUTO_VALUE);
+            }
             const search = params.toString();
-            target = `/projects/${projectUuid}/ai-agents/${agent.uuid}/threads${
-                search ? `?${search}` : ''
-            }`;
+            target = isAuto
+                ? `/projects/${projectUuid}/ai-agents${search ? `?${search}` : ''}`
+                : `/projects/${projectUuid}/ai-agents/${agent.uuid}/threads${
+                      search ? `?${search}` : ''
+                  }`;
         }
         dispatch(closePanel());
         void navigate(target);
@@ -82,11 +111,27 @@ export const PanelHeader: FC<Props> = ({
                         <Menu.Target>
                             <UnstyledButton aria-label="Switch agent">
                                 <Group gap="xs" wrap="nowrap">
-                                    <LightdashUserAvatar
-                                        size="sm"
-                                        name={agent?.name ?? 'AI'}
-                                        src={agent?.imageUrl}
-                                    />
+                                    {isAuto ? (
+                                        <Avatar
+                                            size="sm"
+                                            color="ldGray"
+                                            radius="xl"
+                                        >
+                                            <Text
+                                                size="10px"
+                                                fw={700}
+                                                c="ldGray.6"
+                                            >
+                                                AI
+                                            </Text>
+                                        </Avatar>
+                                    ) : (
+                                        <LightdashUserAvatar
+                                            size="sm"
+                                            name={agent?.name ?? 'AI'}
+                                            src={agent?.imageUrl}
+                                        />
+                                    )}
                                     <Text
                                         size="sm"
                                         fw={500}
@@ -103,6 +148,35 @@ export const PanelHeader: FC<Props> = ({
                             </UnstyledButton>
                         </Menu.Target>
                         <Menu.Dropdown>
+                            {showAutoOption && (
+                                <Menu.Item
+                                    leftSection={
+                                        <Avatar
+                                            size="xs"
+                                            color="ldGray"
+                                            radius="xl"
+                                        >
+                                            <Text
+                                                size="9px"
+                                                fw={700}
+                                                c="ldGray.6"
+                                            >
+                                                AI
+                                            </Text>
+                                        </Avatar>
+                                    }
+                                    rightSection={
+                                        isAuto ? (
+                                            <MantineIcon icon={IconCheck} />
+                                        ) : null
+                                    }
+                                    onClick={() =>
+                                        handleSwitchAgent(LAUNCHER_AUTO_AGENT)
+                                    }
+                                >
+                                    Auto
+                                </Menu.Item>
+                            )}
                             {agents.map((a) => (
                                 <Menu.Item
                                     key={a.uuid}
@@ -114,7 +188,7 @@ export const PanelHeader: FC<Props> = ({
                                         />
                                     }
                                     rightSection={
-                                        a.uuid === agent?.uuid ? (
+                                        a.uuid === selectedAgentUuid ? (
                                             <MantineIcon icon={IconCheck} />
                                         ) : null
                                     }
@@ -127,11 +201,19 @@ export const PanelHeader: FC<Props> = ({
                     </Menu>
                 ) : (
                     <Group gap="xs" wrap="nowrap" className={styles.minWidth0}>
-                        <LightdashUserAvatar
-                            size="sm"
-                            name={agent?.name ?? 'AI'}
-                            src={agent?.imageUrl}
-                        />
+                        {isAuto ? (
+                            <Avatar size="sm" color="ldGray" radius="xl">
+                                <Text size="10px" fw={700} c="ldGray.6">
+                                    AI
+                                </Text>
+                            </Avatar>
+                        ) : (
+                            <LightdashUserAvatar
+                                size="sm"
+                                name={agent?.name ?? 'AI'}
+                                src={agent?.imageUrl}
+                            />
+                        )}
                         <Text
                             size="sm"
                             fw={500}

@@ -1,0 +1,207 @@
+.toolbar {
+    flex-wrap: wrap;
+    align-items: center;
+}
+.card {
+    position: relative;
+    background: var(--mantine-color-body);
+    border: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+    border-radius: var(--mantine-radius-md);
+    box-shadow: 0 1px 2px rgba(20, 22, 28, 0.04);
+    width: 100%;
+    transition:
+        border-color 120ms ease,
+        box-shadow 120ms ease;
+    overflow: hidden;
+}
+.card:has(.cardBody:hover),
+.card:has(.cardFooter:hover) {
+    border-color: var(--mantine-color-indigo-4);
+    box-shadow: 0 4px 14px rgba(80, 60, 180, 0.1);
+}
+.cardSelected {
+    border-color: var(--mantine-color-indigo-5);
+}
+.cardSkeleton {
+    background: var(--mantine-color-body);
+    border: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+    border-radius: var(--mantine-radius-md);
+    opacity: 0.7;
+}
+.cardBody {
+    display: block;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+}
+.cardFooter {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    border-top: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+    background: light-dark(
+        var(--mantine-color-gray-0),
+        var(--mantine-color-dark-6)
+    );
+    color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-dark-1));
+    text-decoration: none;
+    transition: background 100ms ease;
+}
+.cardFooter:hover {
+    background: light-dark(
+        var(--mantine-color-gray-1),
+        var(--mantine-color-dark-5)
+    );
+}
+.startAction {
+    position: absolute;
+    top: var(--mantine-spacing-xs);
+    right: var(--mantine-spacing-xs);
+    opacity: 0;
+    transition:
+        opacity 120ms ease,
+        transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
+    background: var(--mantine-color-indigo-filled);
+    box-shadow: var(--mantine-shadow-sm);
+}
+.card:hover .startAction,
+.cardSelected .startAction {
+    opacity: 1;
+}
+.startAction:active {
+    transform: scale(0.96);
+}
+.assigneeUnassigned {
+    opacity: 0.4;
+    transition: opacity 120ms ease;
+}
+.card:hover .assigneeUnassigned {
+    opacity: 1;
+}
+.pulse {
+    animation: ldReviewPing 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+@keyframes ldReviewPing {
+    0% {
+        transform: scale(1);
+        opacity: 0.55;
+    }
+    70% {
+        transform: scale(2.6);
+        opacity: 0;
+    }
+    100% {
+        transform: scale(2.6);
+        opacity: 0;
+    }
+}
+.boardWrapper {
+    background: light-dark(
+        var(--mantine-color-gray-0),
+        var(--mantine-color-dark-6)
+    );
+    border: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+    border-radius: var(--mantine-radius-md);
+    padding: var(--mantine-spacing-md);
+    min-height: 0;
+    flex: 1;
+}
+.board {
+    display: flex;
+    gap: var(--mantine-spacing-md);
+    align-items: stretch;
+    overflow-x: auto;
+    width: 100%;
+    min-height: 0;
+}
+.lane {
+    width: 320px;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+.laneScroll {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-xs);
+    padding: 2px;
+    border-radius: var(--mantine-radius-md);
+    outline: 1.5px dashed transparent;
+    outline-offset: 2px;
+    transition:
+        background 120ms ease,
+        outline-color 120ms ease;
+}
+.spacer {
+    flex: 1;
+}
+.emptyLane {
+    border: 1px dashed
+        light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
+    border-radius: var(--mantine-radius-md);
+    padding: var(--mantine-spacing-md);
+    text-align: center;
+}
+/* Lane the cursor is currently over — strongest affordance. */
+.laneOver {
+    background: light-dark(
+        var(--mantine-color-indigo-0),
+        var(--mantine-color-dark-5)
+    );
+    outline-color: var(--mantine-color-indigo-4);
+}
+/* Every lane the dragged card *could* land in, while a drag is in flight. */
+.laneValidTarget {
+    outline-color: light-dark(
+        var(--mantine-color-indigo-2),
+        var(--mantine-color-dark-3)
+    );
+}
+.draggableCard {
+    cursor: grab;
+}
+.draggableCard:active {
+    cursor: grabbing;
+}
+.cardGhost {
+    opacity: 0.4;
+    pointer-events: none;
+}
+.dragOverlayCard {
+    transform: rotate(2.5deg) scale(1.02);
+    box-shadow: 0 12px 28px rgba(20, 22, 28, 0.22);
+    border-radius: var(--mantine-radius-md);
+    cursor: grabbing;
+}
+.dropPlaceholder {
+    flex: none;
+    height: 56px;
+    border: 1.5px dashed var(--mantine-color-indigo-4);
+    border-radius: var(--mantine-radius-md);
+    background: light-dark(
+        var(--mantine-color-indigo-0),
+        var(--mantine-color-dark-5)
+    );
+    animation: ldDropPlaceholderIn 140ms ease;
+}
+@keyframes ldDropPlaceholderIn {
+    from {
+        opacity: 0;
+        transform: scaleY(0.6);
+    }
+    to {
+        opacity: 1;
+        transform: scaleY(1);
+    }
+}
+.assigneeTrigger {
+    cursor: pointer;
+}

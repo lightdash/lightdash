@@ -114,12 +114,19 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                                     line.data.uuid === lineId ||
                                     line.data.value === lineId ||
                                     line.data.name === lineId
-                                )
+                                ) {
+                                    const fieldRef =
+                                        useAverage &&
+                                        line.fieldRef?.field === fieldId
+                                            ? line.fieldRef
+                                            : undefined;
                                     return {
-                                        fieldId: fieldId,
+                                        fieldId,
+                                        fieldRef,
                                         data: dataWithAxis,
                                     };
-                                else return line;
+                                }
+                                return line;
                             });
 
                         setReferenceLines(updatedReferenceLines);

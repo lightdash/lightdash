@@ -682,6 +682,8 @@ type Axis = {
     min?: string | undefined;
     /** Maximum value (or 'dataMax' for auto) */
     max?: string | undefined;
+    /** Minimum interval between ticks (e.g. 1 to force integer ticks) */
+    minInterval?: number | undefined;
     /** Offset from minimum value */
     minOffset?: string | undefined;
     /** Offset from maximum value */
@@ -993,11 +995,15 @@ export type CreateSavedChartVersion = Omit<
     | 'verification'
 > &
     // For Charts created within a dashboard
-    Partial<Pick<SavedChart, 'dashboardUuid' | 'dashboardName'>>;
+    Partial<Pick<SavedChart, 'dashboardUuid' | 'dashboardName'>> & {
+        preserveVerification?: boolean;
+    };
 
 export type UpdateSavedChart = Partial<
     Pick<SavedChart, 'name' | 'description' | 'spaceUuid' | 'colorPaletteUuid'>
->;
+> & {
+    preserveVerification?: boolean;
+};
 
 export type UpdateMultipleSavedChart = Pick<
     SavedChart,

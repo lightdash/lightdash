@@ -81,7 +81,7 @@ export class OrganizationRolesController extends BaseController {
     }
 
     /**
-     * List organization role assignments (system roles only)
+     * List organization role assignments
      * @summary List organization role assignments
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -131,7 +131,7 @@ export class OrganizationRolesController extends BaseController {
     }
 
     /**
-     * Assign system role to user at organization level
+     * Assign system or organization-level custom role to user at organization level
      * @summary Assign organization role to user
      */
     @Middlewares([

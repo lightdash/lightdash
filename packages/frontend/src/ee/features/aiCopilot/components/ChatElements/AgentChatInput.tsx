@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     type AgentSuggestion,
     type AiPromptContextInput,
     type AiPromptContextItem,
@@ -7,7 +6,11 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, Paper, Text, Tooltip } from '@mantine-8/core';
 import { RichTextEditor } from '@mantine/tiptap';
-import { IconArrowUp, IconTerminal2 } from '@tabler/icons-react';
+import {
+    IconArrowUp,
+    IconPlayerStop,
+    IconTerminal2,
+} from '@tabler/icons-react';
 import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
 import { useEditor, type Editor } from '@tiptap/react';
@@ -17,10 +20,14 @@ import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { ModelSelector } from '../../../../../components/common/ModelSelector/ModelSelector';
 import useUser from '../../../../../hooks/user/useUser';
-import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import { useAgentSuggestions } from '../../hooks/useAgentSuggestions';
+import {
+    useCreateAiAgentThreadMessageSteerMutation,
+    useInterruptAiAgentThreadMessageMutation,
+} from '../../hooks/useProjectAiAgents';
+import { useAiAgentThreadStreamQuery } from '../../streaming/useAiAgentThreadStreamQuery';
 import { AgentSelector } from '../AgentSelector';
 import { type Agent } from '../AgentSelector/AgentSelectorUtils';
 import styles from './AgentChatInput.module.css';
@@ -146,15 +153,26 @@ export const AgentChatInput = ({
     disabledRef.current = disabled;
     const clearOnSubmitRef = useRef(clearOnSubmit);
     clearOnSubmitRef.current = clearOnSubmit;
+    const canSteerRef = useRef(false);
+    const handleSubmitRef = useRef<() => void>(() => undefined);
     const projectUuidRef = useRef(projectUuid);
     projectUuidRef.current = projectUuid;
     const contentMentionPriorityItemsRef = useRef(contentMentionPriorityItems);
     contentMentionPriorityItemsRef.current = contentMentionPriorityItems;
+    // Tracks whether the @-mention dropdown is open, sourced from the suggestion
+    // render lifecycle. Enter must select from the dropdown (or be a no-op while
+    // it loads), never submit, so we guard on this in addition to the plugin's
+    // `active` flag — which can read stale in the keydown vs async-items race.
+    const contentMentionPopupOpenRef = useRef(false);
 
     // Hide the chip strip while the user is scrolled away from the input.
     // Reappears as they scroll back toward the bottom of the thread — chips
     // are noise when reading history.
     const [chipsNearBottom, setChipsNearBottom] = useState(true);
+    const [hasRequestedInterrupt, setHasRequestedInterrupt] = useState(false);
+    const threadStream = useAiAgentThreadStreamQuery(threadUuid ?? '');
+    const interruptMutation = useInterruptAiAgentThreadMessageMutation();
+    const steerMutation = useCreateAiAgentThreadMessageSteerMutation();
     useEffect(() => {
         const el = rootRef.current;
         if (!el) return undefined;
@@ -209,18 +227,13 @@ export const AgentChatInput = ({
     );
     const isMinimalMode = !showModelSelector && !showAgentSelector;
 
-    const suggestionsFlag = useServerFeatureFlag(
-        FeatureFlags.AiAgentSuggestions,
-    );
-
     const { emptyStateMode, postResponseMode } = getAgentSuggestionModes({
         disabled,
         isMinimalMode,
         loading,
         messageCount,
         latestAssistantMessageUuid,
-        suggestionsEnabled:
-            showSuggestions && suggestionsFlag.data?.enabled === true,
+        suggestionsEnabled: showSuggestions,
         threadUuid,
     });
 
@@ -262,6 +275,9 @@ export const AgentChatInput = ({
             createContentMentionExtension({
                 getProjectUuid: () => projectUuidRef.current,
                 getPriorityItems: () => contentMentionPriorityItemsRef.current,
+                onPopupOpenChange: (open) => {
+                    contentMentionPopupOpenRef.current = open;
+                },
             }),
         ],
         editable: !disabled,
@@ -280,27 +296,23 @@ export const AgentChatInput = ({
                     !event.isComposing
                 ) {
                     const ed = editorRef.current;
-                    if (isContentMentionSuggestionActive(ed)) {
+                    if (
+                        isContentMentionSuggestionActive(ed) ||
+                        contentMentionPopupOpenRef.current
+                    ) {
                         return false;
                     }
-                    if (loadingRef.current || disabledRef.current) {
+                    if (
+                        disabledRef.current ||
+                        (loadingRef.current && !canSteerRef.current)
+                    ) {
                         return true;
                     }
                     if (!ed) return false;
                     const text = ed.getText().trim();
                     if (!text) return true;
                     event.preventDefault();
-                    const mentionedContext = extractContentMentionContext(ed);
-                    onSubmitRef.current({
-                        message: text,
-                        toolHints: extractToolHints(ed),
-                        context: mentionedContext.context,
-                        optimisticContext: mentionedContext.optimisticContext,
-                    });
-                    if (clearOnSubmitRef.current) {
-                        ed.commands.clearContent();
-                        setValueState('');
-                    }
+                    handleSubmitRef.current();
                     return true;
                 }
                 return false;
@@ -313,6 +325,12 @@ export const AgentChatInput = ({
         if (!editor) return;
         editor.setEditable(!disabled);
     }, [editor, disabled]);
+
+    useEffect(() => {
+        if (hasRequestedInterrupt && !threadStream?.isStreaming) {
+            setHasRequestedInterrupt(false);
+        }
+    }, [hasRequestedInterrupt, threadStream?.isStreaming]);
 
     const handleChipClick = useCallback(
         (chip: AgentSuggestion, index: number) => {
@@ -406,12 +424,30 @@ export const AgentChatInput = ({
     const showDisabledBanner = disabled && disabledReason;
     const isThreadInput = Boolean(threadUuid);
     const showSqlModeControl = Boolean(onSqlModeChange && !disabled);
+    const activeMessageUuid = threadStream?.isStreaming
+        ? threadStream.messageUuid
+        : undefined;
+    const canInterrupt = Boolean(
+        projectUuid &&
+        agentUuid &&
+        threadUuid &&
+        threadStream?.isStreaming &&
+        activeMessageUuid,
+    );
+    const canSteer = canInterrupt && !disabled && !hasRequestedInterrupt;
+    canSteerRef.current = canSteer;
 
     const handleSubmit = () => {
         const ed = editorRef.current;
         if (!ed) return;
         const text = ed.getText().trim();
-        if (!text || disabled || loading) return;
+        if (!text || disabled) return;
+        if (canSteer) {
+            if (steerMutation.isLoading) return;
+            void handleSteer(text);
+            return;
+        }
+        if (loading) return;
         onSubmitRef.current({
             message: text,
             toolHints: extractToolHints(ed),
@@ -421,6 +457,37 @@ export const AgentChatInput = ({
             ed.commands.clearContent();
             setValueState('');
         }
+    };
+    handleSubmitRef.current = handleSubmit;
+
+    const handleSteer = async (message: string) => {
+        if (!projectUuid || !agentUuid || !threadUuid || !activeMessageUuid) {
+            return;
+        }
+
+        await steerMutation.mutateAsync({
+            projectUuid,
+            agentUuid,
+            threadUuid,
+            messageUuid: activeMessageUuid,
+            message,
+        });
+        editorRef.current?.commands.clearContent();
+        setValueState('');
+    };
+
+    const handleInterrupt = async () => {
+        if (!projectUuid || !agentUuid || !threadUuid || !activeMessageUuid) {
+            return;
+        }
+
+        await interruptMutation.mutateAsync({
+            projectUuid,
+            agentUuid,
+            threadUuid,
+            messageUuid: activeMessageUuid,
+        });
+        setHasRequestedInterrupt(true);
     };
 
     const chipRow = useMemo(() => {
@@ -548,24 +615,64 @@ export const AgentChatInput = ({
                             </Text>
                         )}
 
-                        <ActionIcon
-                            right={12}
-                            bottom={10}
-                            variant="filled"
-                            size="md"
-                            className={styles.minimalSubmitButton}
-                            disabled={disabled || !hasValue}
-                            loading={loading}
-                            onClick={handleSubmit}
-                            aria-label="Send message"
-                        >
-                            <MantineIcon
-                                icon={IconArrowUp}
-                                color="ldGray.0"
-                                size={18}
-                                stroke={2}
-                            />
-                        </ActionIcon>
+                        {canSteer && hasValue ? (
+                            <ActionIcon
+                                variant="filled"
+                                size="md"
+                                className={`${styles.minimalSubmitButton} ${styles.minimalStreamActionButton}`}
+                                disabled={steerMutation.isLoading}
+                                loading={steerMutation.isLoading}
+                                onClick={handleSubmit}
+                                aria-label="Send guidance"
+                            >
+                                <MantineIcon
+                                    icon={IconArrowUp}
+                                    color="ldGray.0"
+                                    size={18}
+                                    stroke={2}
+                                />
+                            </ActionIcon>
+                        ) : canInterrupt ? (
+                            <ActionIcon
+                                variant="filled"
+                                color="red"
+                                size="md"
+                                className={`${styles.minimalSubmitButton} ${styles.minimalStreamActionButton}`}
+                                disabled={hasRequestedInterrupt}
+                                loading={
+                                    interruptMutation.isLoading ||
+                                    hasRequestedInterrupt
+                                }
+                                onClick={() => void handleInterrupt()}
+                                aria-label="Stop agent"
+                            >
+                                <MantineIcon
+                                    icon={IconPlayerStop}
+                                    color="ldGray.0"
+                                    size={18}
+                                    stroke={2}
+                                />
+                            </ActionIcon>
+                        ) : (
+                            <ActionIcon
+                                right={12}
+                                bottom={10}
+                                variant="filled"
+                                size="md"
+                                className={styles.minimalSubmitButton}
+                                disabled={disabled || !hasValue}
+                                loading={loading}
+                                onClick={handleSubmit}
+                                aria-label="Send message"
+                            >
+                                <MantineIcon
+                                    icon={IconArrowUp}
+                                    color="ldGray.0"
+                                    size={18}
+                                    stroke={2}
+                                />
+                            </ActionIcon>
+                        )}
                     </Box>
                 </Box>
 
@@ -656,22 +763,62 @@ export const AgentChatInput = ({
                                 </Box>
                             )}
 
-                        <ActionIcon
-                            variant="filled"
-                            size="lg"
-                            className={styles.submitButton}
-                            disabled={disabled || !hasValue}
-                            loading={loading}
-                            onClick={handleSubmit}
-                            aria-label="Send message"
-                        >
-                            <MantineIcon
-                                icon={IconArrowUp}
-                                color="ldGray.0"
-                                size={20}
-                                stroke={2}
-                            />
-                        </ActionIcon>
+                        {canSteer && hasValue ? (
+                            <ActionIcon
+                                variant="filled"
+                                size="lg"
+                                className={styles.submitButton}
+                                disabled={steerMutation.isLoading}
+                                loading={steerMutation.isLoading}
+                                onClick={handleSubmit}
+                                aria-label="Send guidance"
+                            >
+                                <MantineIcon
+                                    icon={IconArrowUp}
+                                    color="ldGray.0"
+                                    size={20}
+                                    stroke={2}
+                                />
+                            </ActionIcon>
+                        ) : canInterrupt ? (
+                            <ActionIcon
+                                variant="filled"
+                                color="red"
+                                size="lg"
+                                className={styles.submitButton}
+                                disabled={hasRequestedInterrupt}
+                                loading={
+                                    interruptMutation.isLoading ||
+                                    hasRequestedInterrupt
+                                }
+                                onClick={() => void handleInterrupt()}
+                                aria-label="Stop agent"
+                            >
+                                <MantineIcon
+                                    icon={IconPlayerStop}
+                                    color="ldGray.0"
+                                    size={20}
+                                    stroke={2}
+                                />
+                            </ActionIcon>
+                        ) : (
+                            <ActionIcon
+                                variant="filled"
+                                size="lg"
+                                className={styles.submitButton}
+                                disabled={disabled || !hasValue}
+                                loading={loading}
+                                onClick={handleSubmit}
+                                aria-label="Send message"
+                            >
+                                <MantineIcon
+                                    icon={IconArrowUp}
+                                    color="ldGray.0"
+                                    size={20}
+                                    stroke={2}
+                                />
+                            </ActionIcon>
+                        )}
                     </Group>
                 </Box>
             </Box>

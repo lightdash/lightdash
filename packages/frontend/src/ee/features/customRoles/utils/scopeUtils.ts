@@ -1,4 +1,10 @@
-import { getScopes, ScopeGroup, type Scope } from '@lightdash/common';
+import {
+    getScopes,
+    isScopeAssignableAtLevel,
+    ScopeGroup,
+    type RoleLevel,
+    type Scope,
+} from '@lightdash/common';
 import startCase from 'lodash/startCase';
 
 const GROUP_DISPLAY_NAMES: Record<ScopeGroup, string> = {
@@ -17,10 +23,18 @@ export type GroupedScopes = {
     scopes: Scope[];
 };
 
-export const getScopesByGroup = (isEnterprise = false): GroupedScopes[] => {
+export const getScopesByGroup = (
+    isEnterprise = false,
+    level?: RoleLevel,
+): GroupedScopes[] => {
     const allScopes = getScopes({ isEnterprise });
+    const assignableScopes = level
+        ? allScopes.filter((scope) =>
+              isScopeAssignableAtLevel(scope.name, level),
+          )
+        : allScopes;
 
-    const grouped = allScopes.reduce(
+    const grouped = assignableScopes.reduce(
         (acc, scope) => {
             if (!acc[scope.group]) {
                 acc[scope.group] = [];

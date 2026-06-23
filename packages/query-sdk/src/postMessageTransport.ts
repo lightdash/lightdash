@@ -10,7 +10,11 @@
  */
 
 import { createApiTransport, type FetchAdapter } from './apiTransport';
-import type { Transport } from './types';
+import type {
+    ExternalFetchOptions,
+    ExternalFetchResult,
+    Transport,
+} from './types';
 
 // ---------------------------------------------------------------------------
 // Protocol types — shared with the parent-side bridge (useAppSdkBridge)
@@ -103,6 +107,27 @@ export type SdkGsheetExportResponse = {
 };
 
 // ---------------------------------------------------------------------------
+// External-fetch protocol — proxies app→external-API calls through the parent
+// ---------------------------------------------------------------------------
+
+export type SdkExternalFetchRequest = {
+    type: 'lightdash:sdk:external-fetch';
+    id: string;
+    alias: string;
+    method?: 'GET' | 'POST';
+    path: string;
+    query?: Record<string, string>;
+    body?: unknown;
+};
+
+export type SdkExternalFetchResponse = {
+    type: 'lightdash:sdk:external-fetch-response';
+    id: string;
+    result?: ExternalFetchResult;
+    error?: string;
+};
+
+// ---------------------------------------------------------------------------
 // postMessage FetchAdapter
 // ---------------------------------------------------------------------------
 
@@ -135,6 +160,9 @@ function createPostMessageFetchAdapter(config: {
     }, READY_TIMEOUT_MS);
 
     window.addEventListener('message', (event: MessageEvent) => {
+        // Only accept messages from the window we post to (the parent host).
+        // The UUID ids already make spoofing hard — this closes the gap cheaply.
+        if (event.source !== targetWindow) return;
         const { data } = event;
         if (!data || typeof data !== 'object' || typeof data.type !== 'string') {
             return;
@@ -199,6 +227,115 @@ function createPostMessageFetchAdapter(config: {
 }
 
 // ---------------------------------------------------------------------------
+// postMessage ExternalFetch channel
+// ---------------------------------------------------------------------------
+
+type ExternalFetchVia = (
+    alias: string,
+    opts: ExternalFetchOptions,
+) => Promise<ExternalFetchResult>;
+
+type PendingExternalFetch = {
+    resolve: (value: ExternalFetchResult) => void;
+    reject: (reason: Error) => void;
+    timer: ReturnType<typeof setTimeout>;
+};
+
+/**
+ * Creates an `externalFetch` implementation that posts external-fetch
+ * requests to the parent window and resolves the matching response by id.
+ * Uses the same readiness gate and timeout discipline as the HTTP adapter.
+ */
+function createPostMessageExternalFetch(config: {
+    targetWindow: Window;
+    timeoutMs?: number;
+}): ExternalFetchVia {
+    const { targetWindow, timeoutMs = DEFAULT_TIMEOUT_MS } = config;
+    const pending = new Map<string, PendingExternalFetch>();
+
+    let ready = false;
+    let readyResolve: (() => void) | null = null;
+    const readyPromise = new Promise<void>((resolve) => {
+        readyResolve = () => {
+            ready = true;
+            resolve();
+        };
+    });
+    const readyTimer = setTimeout(() => {
+        readyResolve?.();
+    }, READY_TIMEOUT_MS);
+
+    window.addEventListener('message', (event: MessageEvent) => {
+        // Only accept messages from the window we post to (the parent host).
+        // The UUID ids already make spoofing hard — this closes the gap cheaply.
+        if (event.source !== targetWindow) return;
+        const { data } = event;
+        if (!data || typeof data !== 'object' || typeof data.type !== 'string') {
+            return;
+        }
+
+        if (data.type === 'lightdash:sdk:ready' && !ready) {
+            clearTimeout(readyTimer);
+            readyResolve?.();
+            readyResolve = null;
+            return;
+        }
+
+        if (data.type === 'lightdash:sdk:external-fetch-response') {
+            const msg = data as SdkExternalFetchResponse;
+            const req = pending.get(msg.id);
+            if (!req) return;
+
+            clearTimeout(req.timer);
+            pending.delete(msg.id);
+
+            if (msg.error) {
+                req.reject(new Error(msg.error));
+            } else if (msg.result) {
+                req.resolve(msg.result);
+            } else {
+                req.reject(
+                    new Error('External fetch returned no result or error'),
+                );
+            }
+        }
+    });
+
+    return async (
+        alias: string,
+        opts: ExternalFetchOptions,
+    ): Promise<ExternalFetchResult> => {
+        await readyPromise;
+
+        const id = crypto.randomUUID();
+
+        return new Promise<ExternalFetchResult>((resolve, reject) => {
+            const timer = setTimeout(() => {
+                pending.delete(id);
+                reject(
+                    new Error(
+                        `SDK external fetch timed out after ${timeoutMs}ms: ${alias} ${opts.path}`,
+                    ),
+                );
+            }, timeoutMs);
+
+            pending.set(id, { resolve, reject, timer });
+
+            const message: SdkExternalFetchRequest = {
+                type: 'lightdash:sdk:external-fetch',
+                id,
+                alias,
+                method: opts.method ?? 'GET',
+                path: opts.path,
+                ...(opts.query ? { query: opts.query } : {}),
+                ...(opts.body !== undefined ? { body: opts.body } : {}),
+            };
+            targetWindow.postMessage(message, '*');
+        });
+    };
+}
+
+// ---------------------------------------------------------------------------
 // Transport factory
 // ---------------------------------------------------------------------------
 
@@ -222,8 +359,19 @@ export function createPostMessageTransport(
         targetWindow: config.targetWindow,
         timeoutMs: config.timeoutMs,
     });
-    return createApiTransport(
+    const httpTransport = createApiTransport(
         { apiKey: '', baseUrl: '', projectUuid: config.projectUuid },
         adapter,
     );
+    const externalFetch = createPostMessageExternalFetch({
+        targetWindow: config.targetWindow,
+        timeoutMs: config.timeoutMs,
+    });
+    return {
+        ...httpTransport,
+        // The apiTransport's externalFetch would route to the parent HTTP
+        // proxy + allowlist, which deliberately does NOT include the EE
+        // endpoint. Override it with the dedicated external-fetch channel.
+        externalFetch,
+    };
 }

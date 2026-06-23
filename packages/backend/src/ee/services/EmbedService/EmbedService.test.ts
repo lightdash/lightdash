@@ -2,6 +2,7 @@ import {
     ForbiddenError,
     type AnonymousAccount,
     type CreateEmbedJwt,
+    type SessionUser,
 } from '@lightdash/common';
 import { EmbedService } from './EmbedService';
 import {
@@ -255,6 +256,66 @@ describe('EmbedService', () => {
                 type: 'dataApp',
                 explores: [],
             });
+        });
+    });
+
+    describe('getEmbedWriteUser', () => {
+        test('uses apiAccess service account over writeActions user', async () => {
+            const serviceAccountUserUuid = 'service-account-user-uuid';
+            const userModel = {
+                findSessionUserAndOrgByUuid: jest.fn().mockResolvedValue({
+                    userUuid: serviceAccountUserUuid,
+                    isActive: false,
+                }),
+                findServiceAccountByUserUuid: jest.fn().mockResolvedValue({
+                    uuid: 'service-account-uuid',
+                    organizationUuid: mockOrganizationUuid,
+                    description: 'Embedded customer actions',
+                }),
+            };
+            const scopedService = new EmbedService({
+                ...EmbedServiceArgumentsMock,
+                userModel,
+            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+            const getEmbedWriteUser = (
+                scopedService as unknown as {
+                    getEmbedWriteUser: (
+                        decodedToken: CreateEmbedJwt,
+                        organizationUuid: string,
+                    ) => Promise<SessionUser | undefined>;
+                }
+            ).getEmbedWriteUser.bind(scopedService);
+
+            const embedWriteUser = await getEmbedWriteUser(
+                {
+                    content: {
+                        type: 'apiAccess',
+                        serviceAccountUserUuid,
+                    },
+                    writeActions: {
+                        spaceUuid: 'legacy-space-uuid',
+                        userUuid: mockUserUuid,
+                    },
+                },
+                mockOrganizationUuid,
+            );
+
+            expect(userModel.findSessionUserAndOrgByUuid).toHaveBeenCalledWith(
+                serviceAccountUserUuid,
+                mockOrganizationUuid,
+            );
+            expect(userModel.findServiceAccountByUserUuid).toHaveBeenCalledWith(
+                serviceAccountUserUuid,
+            );
+            expect(embedWriteUser).toEqual(
+                expect.objectContaining({
+                    userUuid: serviceAccountUserUuid,
+                    serviceAccount: {
+                        uuid: 'service-account-uuid',
+                        description: 'Embedded customer actions',
+                    },
+                }),
+            );
         });
     });
 

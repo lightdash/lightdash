@@ -1,0 +1,5 @@
+.pathPrefixRow {
+    display: flex;
+    gap: var(--mantine-spacing-xs);
+    align-items: center;
+}

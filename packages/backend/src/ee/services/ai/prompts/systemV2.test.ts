@@ -33,6 +33,20 @@ describe('getSystemPromptV2 project context', () => {
     });
 });
 
+describe('getSystemPromptV2 MCP connections', () => {
+    test('lists unauthenticated MCP server login status', () => {
+        const content = promptText({
+            availableExplores: [],
+            unauthenticatedMcpServerNames: ['Linear'],
+        });
+
+        expect(content).toContain('## MCP connections');
+        expect(content).toContain(
+            'Linear MCP connection is setup, but the current user is not logged in',
+        );
+    });
+});
+
 describe('getSystemPromptV2 writeback attribution', () => {
     test('omits the writeback section entirely when writeback is disabled', () => {
         const content = promptText({
@@ -167,6 +181,47 @@ describe('getSystemPromptV2 change-validation policy', () => {
         });
         expect(content).not.toContain(
             'Validate that a value-affecting change is correct before calling it safe',
+        );
+    });
+});
+
+describe('getSystemPromptV2 repo-fs code search caveat', () => {
+    const repoFsArgs = {
+        availableExplores: [],
+        enableRepoDiscovery: true,
+        repoFsRoot: '.',
+    };
+
+    test('appends the no-search caveat when code search is unsupported (GitLab)', () => {
+        const content = promptText({
+            ...repoFsArgs,
+            repoFsSupportsCodeSearch: false,
+        });
+        expect(content).toContain(
+            "`search` is unavailable for this project's repositories",
+        );
+    });
+
+    test('omits the caveat when code search is supported (GitHub / default)', () => {
+        expect(
+            promptText({ ...repoFsArgs, repoFsSupportsCodeSearch: true }),
+        ).not.toContain(
+            "`search` is unavailable for this project's repositories",
+        );
+        // Default (arg omitted) is "supported", so no caveat either.
+        expect(promptText(repoFsArgs)).not.toContain(
+            "`search` is unavailable for this project's repositories",
+        );
+    });
+
+    test('never adds the caveat when repo discovery is off', () => {
+        const content = promptText({
+            availableExplores: [],
+            enableRepoDiscovery: false,
+            repoFsSupportsCodeSearch: false,
+        });
+        expect(content).not.toContain(
+            "`search` is unavailable for this project's repositories",
         );
     });
 });

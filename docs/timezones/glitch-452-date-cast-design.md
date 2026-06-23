@@ -1,9 +1,9 @@
 # GLITCH-452 — Cast day-or-coarser DATE_TRUNCs to DATE at compile time
 
-**Status:** implemented — in review · **Flag:** `EnableTimezoneSupport` (TimezoneV2), default OFF
+**Status:** shipped (v2 Phase 2, Done) · **Flag:** `EnableTimezoneSupport` (TimezoneV2), default OFF
 **PRs:** #24231 (SQL cast) + #24251 (display / predicate collapse), stacked — ship together · design doc #24208 (merged)
 **Depends on:** GLITCH-450 (merged, #24086) — the consolidated calendar-value predicate this ticket updates.
-**Follow-ups:** GLITCH-499 (MIN/MAX), GLITCH-503 (raw-export ISO-midnight), GLITCH-505 (Date Zoom cast consistency).
+**Follow-ups (all resolved):** GLITCH-499 (MIN/MAX), GLITCH-503 (raw-export ISO-midnight), GLITCH-505 (Date Zoom cast consistency), GLITCH-510 (raw-base TIMESTAMP date-zoom), GLITCH-506 (raw-SQL table calcs), GLITCH-508 (per-adapter cast refactor), GLITCH-507 (process-TZ raw value), GLITCH-519 (picker affordance).
 
 ## Summary
 
@@ -21,7 +21,7 @@ Ships behind `EnableTimezoneSupport` (default OFF) — no behavior change for an
 - **`normalizeCellRawForFilter` is now inert** — the predicate collapse makes its `type === DATE` ∧ `shouldShiftItemTimezone` gates mutually exclusive; kept as a defensive guard, removal tracked separately.
 
 **Resolved design open-questions:**
-- *Date-zoom cast (§1)* — tracked as **GLITCH-505** (now resolved). The ticket's premise (date-zoom dims bypass the cast via the un-cast `getDimensionFromId` path) turned out not to match the code: standard-granularity date-zoom replaces the dim **in place** in the explore (`updateExploreWithDateZoom` → `createDimensionWithGranularity`), so it's found directly and its SELECT is recomputed by `getTimezoneAwareDimensionSql` — already cast to `DATE` under the flag. The one genuinely un-cast path was the **period-over-period range pre-filter** (see audit below). Edge case still open: zooming the *raw base* TIMESTAMP dim in place self-references in `getTimezoneAwareDimensionSql` and emits a plain `DATE_TRUNC` (no tz wrap, no cast) — rare (axes usually carry a grain dim), filed separately.
+- *Date-zoom cast (§1)* — tracked as **GLITCH-505** (now resolved). The ticket's premise (date-zoom dims bypass the cast via the un-cast `getDimensionFromId` path) turned out not to match the code: standard-granularity date-zoom replaces the dim **in place** in the explore (`updateExploreWithDateZoom` → `createDimensionWithGranularity`), so it's found directly and its SELECT is recomputed by `getTimezoneAwareDimensionSql` — already cast to `DATE` under the flag. The one genuinely un-cast path was the **period-over-period range pre-filter** (see audit below). Edge case resolved in **GLITCH-510** (Done): zooming the *raw base* TIMESTAMP dim in place self-referenced in `getTimezoneAwareDimensionSql` and emitted a plain `DATE_TRUNC` (no tz wrap, no cast) — rare (axes usually carry a grain dim), fixed separately.
 - *MIN/MAX (§3)* — split to **GLITCH-499**.
 - *Raw exports ISO-midnight (§4)* — XLSX/CSV "raw" mode still emits ISO-midnight (correct calendar date, not bare `YYYY-MM-DD`); tracked as **GLITCH-503**.
 - *Pre-aggregate column type (scope)* — left as-is; still a follow-up (no ticket yet).

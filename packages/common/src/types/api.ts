@@ -4,6 +4,7 @@ import { type ExploreWarningReport } from '../compiler/compilationReport';
 import type {
     ApiAgentSuggestionsResponse,
     ApiAiAgentAdminConversationsResponse,
+    ApiAiAgentAdminPromptActivityResponse,
     ApiAiAgentArtifactResponse,
     ApiAiAgentEvaluationResponse,
     ApiAiAgentEvaluationRunResponse,
@@ -17,6 +18,8 @@ import type {
     ApiAiAgentThreadCreateResponse,
     ApiAiAgentThreadGenerateTitleResponse,
     ApiAiAgentThreadMessageCreateResponse,
+    ApiAiAgentThreadMessageInterruptResponse,
+    ApiAiAgentThreadMessageSteerResponse,
     ApiAiAgentThreadMessageVizQueryResponse,
     ApiAiAgentThreadMessageVizResponse,
     ApiAiAgentThreadPullRequestResponse,
@@ -54,8 +57,12 @@ import type {
     ApiPromoteAppResponse,
     ApiUpdateAiOrganizationSettingsResponse,
     ApiUpdateUserAgentPreferencesResponse,
+    AppExternalConnectionLink,
     DecodedEmbed,
     EmbedUrl,
+    ExternalConnection,
+    ExternalConnectionSample,
+    ExternalFetchResponse,
 } from '../ee';
 import type { DashboardPreAggregateAudit } from '../ee/preAggregates/audit';
 import type { PivotValuesColumn } from '../visualizations/types';
@@ -545,9 +552,6 @@ export type HealthState = {
         analyticsDashboardUuid?: string;
         isAmbientAiEnabled: boolean;
     };
-    echarts6: {
-        enabled: boolean;
-    };
     funnelBuilder: {
         enabled: boolean;
     };
@@ -635,6 +639,7 @@ export enum DBFieldTypes {
 export const sensitiveDbtCredentialsFieldNames = [
     'personal_access_token',
     'api_key',
+    'webhook_hmac_secret',
 ] as const;
 
 export const DbtProjectTypeLabels: Record<DbtProjectType, string> = {
@@ -1096,12 +1101,15 @@ type ApiResults =
     | ApiAiAgentThreadShareResponse['results']
     | ApiCloneAiAgentThreadShareResponse['results']
     | ApiAiAgentThreadMessageCreateResponse['results']
+    | ApiAiAgentThreadMessageInterruptResponse['results']
+    | ApiAiAgentThreadMessageSteerResponse['results']
     | ApiAiAgentArtifactResponse['results']
     | ApiAiAgentThreadGenerateTitleResponse['results']
     | ApiAiAgentThreadSummaryListResponse['results']
     | ApiAiAgentProjectThreadSummaryListResponse['results']
     | Account
     | ApiAiAgentAdminConversationsResponse['results']
+    | ApiAiAgentAdminPromptActivityResponse['results']
     | ApiAiAgentReviewItemWritebackPreviewResponse['results']
     | ApiAiAgentReviewItemPrDiffResponse['results']
     | ApiAiAgentReviewItemActivityResponse['results']
@@ -1156,7 +1164,14 @@ type ApiResults =
     | ApiManagedAgentRunResponse['results']
     | ApiManagedAgentRunsListResponse['results']
     | ApiManagedAgentActionResponse['results']
-    | DashboardPreAggregateAudit;
+    | DashboardPreAggregateAudit
+    | ExternalConnection
+    | ExternalConnection[]
+    | ExternalConnectionSample
+    | ExternalConnectionSample[]
+    | AppExternalConnectionLink
+    | AppExternalConnectionLink[]
+    | ExternalFetchResponse;
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 

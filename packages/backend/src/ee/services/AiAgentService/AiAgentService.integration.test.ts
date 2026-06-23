@@ -845,6 +845,9 @@ describe('AiAgentService MCP support', () => {
                 userUuid: viewerUser.userUuid,
             }),
         );
+        expect(startOAuthConnectionSpy.mock.calls[0][0]).not.toHaveProperty(
+            'connectionStatusOnAuthorization',
+        );
 
         await expect(
             services.aiAgentService.disconnectMcpOAuthConnection(

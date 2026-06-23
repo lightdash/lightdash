@@ -2,6 +2,7 @@ import {
     CommercialFeatureFlags,
     ServiceAccountScope,
     type ProjectMemberRole,
+    type RoleLevel,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -95,35 +96,53 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
     const isCustomRolesEnabled =
         health?.isCustomRolesEnabled || customRolesFlag?.enabled;
 
-    const customRoleOptions = useMemo(
-        () =>
-            isCustomRolesEnabled
-                ? (listRoles.data ?? [])
-                      .map((role) => ({
-                          value: `role:${role.roleUuid}`,
-                          label: role.name,
-                      }))
-                      .sort((a, b) =>
-                          a.label.localeCompare(b.label, undefined, {
-                              sensitivity: 'base',
-                          }),
-                      )
-                : [],
-        [listRoles.data, isCustomRolesEnabled],
-    );
-
-    const roleOptions = useMemo(() => {
-        const groups: {
-            group: string;
-            items: { value: string; label: string }[];
-        }[] = [
-            { group: 'Organization system roles', items: SYSTEM_ROLE_OPTIONS },
-        ];
-        if (customRoleOptions.length > 0) {
-            groups.push({ group: 'Custom roles', items: customRoleOptions });
+    const customRoleOptions = useMemo(() => {
+        if (!isCustomRolesEnabled) {
+            return {
+                organization: [],
+                project: [],
+            };
         }
-        return groups;
-    }, [customRoleOptions]);
+
+        const buildOptions = (level: RoleLevel) =>
+            (listRoles.data ?? [])
+                .filter((role) => role.level === level)
+                .map((role) => ({
+                    value: `role:${role.roleUuid}`,
+                    label: role.name,
+                }))
+                .sort((a, b) =>
+                    a.label.localeCompare(b.label, undefined, {
+                        sensitivity: 'base',
+                    }),
+                );
+
+        return {
+            organization: buildOptions('organization'),
+            project: buildOptions('project'),
+        };
+    }, [listRoles.data, isCustomRolesEnabled]);
+
+    const organizationCustomRoleOptions = customRoleOptions.organization;
+    const projectCustomRoleOptions = customRoleOptions.project;
+
+    const roleOptions = useMemo(
+        () => [
+            {
+                group: 'Organization system roles',
+                items: SYSTEM_ROLE_OPTIONS,
+            },
+            ...(organizationCustomRoleOptions.length > 0
+                ? [
+                      {
+                          group: 'Custom roles',
+                          items: organizationCustomRoleOptions,
+                      },
+                  ]
+                : []),
+        ],
+        [organizationCustomRoleOptions],
+    );
 
     // Per-row role picker for project mode. Same grouped shape as the
     // org-mode role select so the dropdown visually matches and custom
@@ -133,11 +152,14 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
             group: string;
             items: { value: string; label: string }[];
         }[] = [{ group: 'System roles', items: SYSTEM_PROJECT_ROLE_OPTIONS }];
-        if (customRoleOptions.length > 0) {
-            groups.push({ group: 'Custom roles', items: customRoleOptions });
+        if (projectCustomRoleOptions.length > 0) {
+            groups.push({
+                group: 'Custom roles',
+                items: projectCustomRoleOptions,
+            });
         }
         return groups;
-    }, [customRoleOptions]);
+    }, [projectCustomRoleOptions]);
 
     const form = useForm({
         initialValues: {

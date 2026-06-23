@@ -3,6 +3,7 @@ import {
     type CaslSubjectNames,
 } from '../authorization/types';
 import { type ProjectType } from './projects';
+import { type RoleLevel } from './roles';
 
 /**
  * Scope groups to organize permissions in the UI for admins.
@@ -84,6 +85,11 @@ export type Scope = {
      * The grouping from the ScopeGroup enum
      */
     group: ScopeGroup;
+    /**
+     * The level at which this scope can be granted by a custom role.
+     * Defaults to 'project'. Single source of truth for level classification.
+     */
+    level?: RoleLevel;
     /**
      * Get the conditions to be applied to the CASL ability derived from the
      * scope. Returning null means the scope emits no rule for this context

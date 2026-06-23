@@ -9,7 +9,13 @@ import { createApiTransport } from './apiTransport';
 import { mountInspector } from './inspector';
 import { createPostMessageTransport } from './postMessageTransport';
 import { QueryBuilder } from './query';
-import type { LightdashClientConfig, LightdashUser, Transport } from './types';
+import type {
+    ExternalFetchOptions,
+    ExternalFetchResult,
+    LightdashClientConfig,
+    LightdashUser,
+    Transport,
+} from './types';
 
 export class LightdashClient {
     readonly config: LightdashClientConfig;
@@ -27,6 +33,26 @@ export class LightdashClient {
     /** Start building a query against a model */
     model(exploreName: string): QueryBuilder {
         return new QueryBuilder(exploreName);
+    }
+
+    /**
+     * Call an external API through a Lightdash-managed connection.
+     *
+     * Supply only the connection `alias` and a relative request — Lightdash
+     * resolves the alias to a stored connection, attaches its credentials,
+     * and proxies the call. The app never sees the URL, headers, or secrets.
+     *
+     *   const res = await lightdash.externalFetch('stripe', {
+     *       path: '/v1/charges',
+     *       query: { limit: '10' },
+     *   });
+     *   // res.body is the parsed JSON
+     */
+    externalFetch(
+        alias: string,
+        opts: ExternalFetchOptions,
+    ): Promise<ExternalFetchResult> {
+        return this.transport.externalFetch(alias, opts);
     }
 }
 

@@ -100,6 +100,7 @@ export const lightdashConfigMock: LightdashConfig = {
         eventMetricsEnabled: false,
         allQueryMetricsEnabled: false,
         extendedMetricsEnabled: false,
+        httpMetricsEnabled: false,
     },
     dashboard: {
         maxTilesPerTab: 50,
@@ -321,9 +322,6 @@ export const lightdashConfigMock: LightdashConfig = {
         runSqlMaxLimit: 5000,
     },
     customRoles: {
-        enabled: false,
-    },
-    echarts6: {
         enabled: false,
     },
     editYamlInUi: {

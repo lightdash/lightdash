@@ -159,6 +159,23 @@ When users send follow-up prompts, the system creates a new `DbAppVersion` and e
 
 This means Claude can see what it built previously and make targeted changes rather than starting from scratch.
 
+### Changing themes
+
+The org design (theme) can be applied, changed, or removed from an existing app from the theme chip above the prompt
+input. This creates a normal new app version, but the backend sends Claude a constrained style-only instruction instead
+of treating it like an open-ended user prompt: preserve content, queries, filters, chart semantics, layout intent, and
+interactions; only rework visual styling and theme asset usage.
+
+How the theme-change flow differs from a regular iteration:
+
+- The frontend sends `designUuid` on `POST /api/v1/ee/projects/{projectUuid}/apps/{appUuid}/versions`. Omitted means
+  "inherit the current app theme"; a UUID switches to that org design; `null` removes the theme.
+- The backend validates that the selected design belongs to the app's organization, snapshots it onto
+  `app_versions.resources.design`, updates `apps.design_uuid` for future iterations, and enqueues the normal generation
+  pipeline with the resolved design UUID.
+- The pipeline still calls `copyDesignIntoSandbox` before Claude runs. When the design UUID is `null`, it removes
+  `/app/src/design` from the sandbox so warm sandboxes do not retain stale theme files.
+
 ### Model selection
 
 The chat input carries a `ModelPicker` (next to the send button) that lets the user choose which Claude model runs the generation: `opus` (highest quality, best for complex apps), `sonnet` (default, balanced), or `haiku` (fastest). The choice is editable on every turn — `claude --continue` keeps the prior conversation context but accepts a fresh `--model` flag per invocation, so switching mid-iteration doesn't reset Claude's memory of what it already built.
@@ -741,6 +758,43 @@ defences keep the path robust:
    preview `contentWindow` are accepted, so a sibling window can't deliver a fake blob to upload.
 2. **Capability handshake** — the parent only shows the Screenshot button after the iframe announces capability,
    so the user can't trigger a request against a template that never installed the handler.
+
+---
+
+## External connections
+
+External connections let a project admin register a third-party HTTP API (base URL, auth) that generated data apps can fetch from at runtime, through a parent-mediated proxy that mirrors the metric-query [PostMessage Bridge](#postmessage-bridge-useappsdkbridge). The feature is enterprise-only and gated on the `manage:ExternalConnection` scope for configuration.
+
+### Connection model
+
+A connection lives on the `external_connections` table (`packages/backend/src/ee/database/entities/externalConnections.ts`), scoped to a project. It stores a human-readable **alias**, a **base URL** (origin), the auth method, and an **encrypted secret** (never returned to the client — stripped on read, only decrypted server-side for an actual fetch). Apps opt into a connection by linking it (`app_external_connections`); an app can reference a connection's data only after the admin links it.
+
+### Proxy security model
+
+The sandboxed preview iframe has no network access of its own (`default-src 'none'` CSP, opaque origin). External fetches therefore route through the same parent → backend proxy path as metric queries:
+
+1. The app SDK requests an external fetch over postMessage.
+2. The parent forwards it to the backend external-fetch route, which loads the linked connection, decrypts its secret server-side, and runs the request through `executeExternalFetch`.
+3. `executeExternalFetch` validates the request, enforces the SSRF guard (the request must resolve under the connection's configured base URL/host; private/loopback/link-local targets are rejected), injects the secret as the configured auth, reads a **bounded** response body, and returns `{ status, contentType, body, truncated }`.
+4. The bounded response is posted back to the iframe. The decrypted secret never crosses to the frontend.
+
+### GET / POST rules
+
+Only `GET` and `POST` are allowed. `GET` is for reads; `POST` carries a JSON body. Other methods are rejected. The request `path` is resolved against the connection's base URL and cannot escape its host (SSRF guard). Responses are size-capped; oversized bodies come back with `truncated: true` rather than streaming unbounded data into the browser.
+
+### Why the exfiltration warning matters
+
+Because the proxy injects a server-held secret and can reach an admin-configured external host, a **generated app could be coaxed into exfiltrating warehouse data** to that host (e.g. POST query results to an attacker-influenced endpoint). The trust model is therefore: **only a project admin can configure and link connections** (`manage:ExternalConnection`), the base URL is admin-pinned (the app can't redirect the fetch to an arbitrary host), and methods/paths are constrained. Admins should only link connections to hosts they trust with project data, and review which apps are linked to which connections.
+
+### Admin "Test connection"
+
+Admins can test a connection from the app's connections panel before relying on it. The **Test connection** action calls `POST /api/v1/ee/projects/{projectUuid}/external-connections/{connectionUuid}/test`, which runs through the **exact same** `executeExternalFetch` core as the runtime proxy (`ExternalConnectionService.testConnection`) — so a passing test reflects real proxy behavior, including the SSRF guard and secret injection. The response is bounded and shown with its status, content type, and a truncation indicator.
+
+### Saved samples → `/tmp/external-data`
+
+From a successful test, an admin can **Save as sample** (`POST .../external-connections/{connectionUuid}/sample` → `ExternalConnectionService.saveSample`). The sample is **sanitized and truncated** (capped to ~16 KB / 50 rows, with known auth keys redacted) and persisted to `external_connections.last_test_sample`; it never contains secret material (`saveSample` never decrypts the connection's credential).
+
+During a generation, for every linked connection that has a saved sample, the pipeline (`AppGenerateService.writeCatalogAndPrompt` → `writeExternalConnectionSamples`) writes `/tmp/external-data/{alias}.json` into the sandbox and prepends a one-line reference to `/tmp/prompt.txt`, mirroring how chart-reference and image files are surfaced. This grounds Claude in the API's response shape (field names, nesting, formats) so its fetch/render code matches reality. The sample is for code generation only — at runtime the app fetches live data through the proxy, never from these files. The skill (`sandboxes/data-apps/template/skill.md`, "Linked external connections" section) documents the convention; keep the prompt-prepend wording and that section in sync.
 
 ---
 

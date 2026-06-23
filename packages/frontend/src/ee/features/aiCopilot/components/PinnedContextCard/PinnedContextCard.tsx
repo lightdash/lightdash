@@ -1,6 +1,7 @@
 import { assertUnreachable, type AiPromptContextItem } from '@lightdash/common';
 import { type FC } from 'react';
 import { ContentReferenceLink } from '../ChatElements/ContentReferenceLink';
+import { PinnedReviewEntityCard } from './PinnedReviewEntityCard';
 
 type Props = {
     item: AiPromptContextItem;
@@ -8,13 +9,16 @@ type Props = {
 };
 
 type ItemMeta = {
-    kind: 'chart' | 'dashboard' | 'thread';
+    kind: 'chart' | 'dashboard' | 'thread' | 'file' | 'repository';
     label: string;
     href: string | null;
 };
 
 const getItemMeta = (
-    item: AiPromptContextItem,
+    item: Extract<
+        AiPromptContextItem,
+        { type: 'chart' | 'dashboard' | 'thread' | 'file' | 'repository' }
+    >,
     projectUuid: string,
 ): ItemMeta => {
     switch (item.type) {
@@ -38,22 +42,41 @@ const getItemMeta = (
                 label: item.displayName ?? 'Conversation',
                 href: null,
             };
+        case 'file':
+            return { kind: 'file', label: item.path, href: null };
+        case 'repository':
+            return { kind: 'repository', label: item.fullName, href: null };
         default:
             return assertUnreachable(item, 'Unknown AiPromptContextItem type');
     }
 };
 
 export const PinnedContextCard: FC<Props> = ({ item, projectUuid }) => {
-    const meta = getItemMeta(item, projectUuid);
-    return (
-        <ContentReferenceLink
-            kind={meta.kind}
-            rel="noreferrer"
-            to={meta.href ?? undefined}
-            target={meta.href ? '_blank' : undefined}
-            showArrow={meta.href !== null}
-        >
-            {meta.label}
-        </ContentReferenceLink>
-    );
+    switch (item.type) {
+        case 'chart':
+        case 'dashboard':
+        case 'thread':
+        case 'file':
+        case 'repository': {
+            const meta = getItemMeta(item, projectUuid);
+            return (
+                <ContentReferenceLink
+                    kind={meta.kind}
+                    rel="noreferrer"
+                    to={meta.href ?? undefined}
+                    target={meta.href ? '_blank' : undefined}
+                    showArrow={meta.href !== null}
+                >
+                    {meta.label}
+                </ContentReferenceLink>
+            );
+        }
+        case 'pull_request':
+        case 'proposed_change':
+        case 'review_finding':
+        case 'preview_environment':
+            return <PinnedReviewEntityCard item={item} />;
+        default:
+            return assertUnreachable(item, 'Unknown AiPromptContextItem type');
+    }
 };

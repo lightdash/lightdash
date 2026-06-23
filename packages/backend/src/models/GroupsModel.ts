@@ -18,6 +18,7 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { uniq } from 'lodash';
+import difference from 'lodash/difference';
 import differenceBy from 'lodash/differenceBy';
 import { DatabaseError } from 'pg';
 import { DbEmail, EmailTableName } from '../database/entities/emails';
@@ -523,6 +524,7 @@ export class GroupsModel {
                     const newMembers = await trx
                         .select([
                             'groups.group_uuid',
+                            'users.user_uuid',
                             'users.user_id',
                             'organization_memberships.organization_id',
                         ])
@@ -544,13 +546,21 @@ export class GroupsModel {
                         .andWhere('groups.group_uuid', groupUuid);
 
                     if (newMembers.length !== membersToAdd.length) {
+                        const invalidUserUuids = difference(
+                            membersToAdd.map((member) => member.userUuid),
+                            newMembers.map((member) => member.user_uuid),
+                        ).join(', ');
                         throw new ParameterError(
-                            'Some provided user UUIDs are invalid',
+                            `Some provided user UUIDs are invalid: ${invalidUserUuids}`,
                         );
                     }
 
                     await trx('group_memberships')
-                        .insert(newMembers)
+                        .insert(
+                            newMembers.map(
+                                ({ user_uuid: _userUuid, ...member }) => member,
+                            ),
+                        )
                         .onConflict()
                         .ignore();
                 }

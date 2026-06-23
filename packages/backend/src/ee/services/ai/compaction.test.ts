@@ -48,6 +48,7 @@ describe('AI context compaction helpers', () => {
                         chartKind: null,
                     },
                 ],
+                steers: [],
                 hidden: false,
             },
             {
@@ -57,6 +58,7 @@ describe('AI context compaction helpers', () => {
                 threadUuid: 'thread-1',
                 message: 'Running checks',
                 errorMessage: null,
+                interrupted: false,
                 createdAt: new Date().toISOString(),
                 humanScore: null,
                 toolCalls: [
@@ -97,6 +99,32 @@ describe('AI context compaction helpers', () => {
         expect(serialized).toContain('[Assistant tool calls]:');
         expect(serialized).toContain('[Tool result: findContent]:');
         expect(serialized).toContain('[truncated 500 chars]');
+    });
+
+    it('serializes a same-named file and repository as distinct, unambiguous lines', () => {
+        const serialized = Compaction.serializeConversation([
+            {
+                role: 'user',
+                uuid: 'prompt-1',
+                threadUuid: 'thread-1',
+                message: 'Look at hello/world',
+                createdAt: new Date().toISOString(),
+                user: { uuid: 'user-1', name: 'Test User' },
+                context: [
+                    { type: 'file', path: 'hello/world' },
+                    { type: 'repository', fullName: 'hello/world' },
+                ],
+                steers: [],
+                hidden: false,
+            },
+        ]);
+
+        // The bare text 'hello/world' is ambiguous, but the pinned context
+        // names each one's repo-filesystem mount path so they can't be confused.
+        expect(serialized).toContain('file /dbt/hello/world');
+        expect(serialized).toContain(
+            'repository hello/world (mounted at /hello/world',
+        );
     });
 
     it('filters raw prompt rows after the latest compaction boundary', () => {

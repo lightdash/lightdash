@@ -193,6 +193,35 @@ export class Compaction {
                 return `dashboard ${item.displayName ?? item.dashboardUuid} (${item.dashboardUuid})`;
             case 'thread':
                 return `conversation ${item.displayName ?? item.threadUuid} (${item.threadUuid})`;
+            // Spell out the repo-filesystem mount path so the agent reads the
+            // exact file/repo with exploreRepo and never confuses a file path
+            // with an `owner/repo` repository.
+            case 'file':
+                return `file /dbt/${item.path} (a source file in the dbt project; read it with exploreRepo)`;
+            case 'repository':
+                return `repository ${item.fullName} (mounted at /${item.fullName}; explore it with exploreRepo)`;
+            case 'pull_request': {
+                const number = item.prNumber ? ` #${item.prNumber}` : '';
+                return `pull request${number} (${item.status ?? 'open'})${
+                    item.title ? ` "${item.title}"` : ''
+                }`;
+            }
+            case 'proposed_change':
+                return item.payload.changeKind === 'project_context'
+                    ? `proposed project-context entry "${item.payload.entry.content}"`
+                    : `proposed semantic-layer change "${item.payload.recommendation.title}"`;
+            case 'review_finding': {
+                const evidence = item.evidenceExcerpts
+                    .map((e) => (e.redacted ? '[redacted]' : `"${e.text}"`))
+                    .join(', ');
+                return `review finding "${item.title}" (${item.rootCause}, seen ${item.findingCount}×)${
+                    evidence ? `; evidence: ${evidence}` : ''
+                }`;
+            }
+            case 'preview_environment':
+                return `preview environment${
+                    item.projectName ? ` (${item.projectName})` : ''
+                }${item.status ? ` — ${item.status}` : ''}`;
             default:
                 return assertUnreachable(
                     item,

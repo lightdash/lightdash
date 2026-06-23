@@ -76,6 +76,17 @@ export type AppDashboardReference = {
 };
 
 /**
+ * An external connection attached to a generation request. Linked to the app
+ * (under `alias`) server-side at creation — before the catalog stage — so the
+ * generated app can call it via `client.externalFetch(alias, …)`. Validated
+ * (must belong to the app's project) and gated on the external-access flag.
+ */
+export type AppExternalConnectionReference = {
+    externalConnectionUuid: string;
+    alias: string;
+};
+
+/**
  * A clarifying question the backend posed to the user before the build, paired
  * with the user's answer. Persisted on the version's `resources.clarifications`
  * so the chat can render them as a structured Q&A card on the user message.
@@ -123,10 +134,17 @@ export type GenerateAppRequestBody = {
     // conversation context but accepts a fresh `--model` flag per turn.
     claudeModel?: DataAppClaudeModel;
     // Theme (org design) to apply to this app's source tree and system
-    // prompt. Only honored on initial creation — iterations always inherit
-    // from the parent app's `apps.design_uuid`. Omit (or null) for "no
-    // theme"; the org default is resolved server-side when this is null.
+    // prompt. On initial creation, omit to use the org default, null for no
+    // theme, or pass a uuid for a specific theme. On iteration, omit to
+    // inherit the current app theme; pass a uuid/null to change the app theme
+    // and run a style-only rebuild.
     designUuid?: string | null;
+    // External connections to link to the app before the catalog stage of this
+    // build, so the generated app can call them via client.externalFetch.
+    // Applied on both creation and iteration (linking is idempotent), validated
+    // server-side (must belong to the project), and gated on the external-access
+    // feature flag.
+    externalConnections?: AppExternalConnectionReference[];
 };
 
 export type ApiClarifyAppRequest = {

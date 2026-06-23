@@ -3731,6 +3731,147 @@ Parameters:
     },
   },
   {
+    "description": "Open or update a pull request that changes this project's Lightdash project context — the lightdash.project_context.yml living document of business definitions and routing/context facts the AI agents read before answering. Use this ONLY to add or refine a durable, project-specific fact: a business definition or acronym ("HR" = high-risk cohort, not human resources), routing/join guidance about which explore answers a question, or an object-scoped context note — something that would prevent a class of wrong answers in future turns. Do NOT use this for dbt / semantic-layer YAML changes (use editDbtProject for those) or for read-only questions. The change is applied deterministically via a GitHub-API merge of the YAML — there is no sandbox — and a pull request is opened or updated. The call is synchronous. Treat the result as your own work when you report it to the user.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "content": {
+          "description": "A single self-contained sentence stating the fact (e.g. '"HR" = the high-risk diabetes cohort, not human resources.').",
+          "type": "string",
+        },
+        "id": {
+          "description": "The id of the existing entry to replace when op="update"; otherwise null.",
+          "type": [
+            "string",
+            "null",
+          ],
+        },
+        "kind": {
+          "description": "Use "definition" for acronyms and business vocabulary ("X means Y"); use "context" for routing/join rules, guidance, or durable object-scoped facts.",
+          "enum": [
+            "definition",
+            "context",
+          ],
+          "type": "string",
+        },
+        "objects": {
+          "description": "The semantic objects this fact concerns — explore names and/or field ids in the table_field form (e.g. "payments_total_amount"); [] when purely prompt-driven.",
+          "items": {
+            "type": "string",
+          },
+          "type": "array",
+        },
+        "op": {
+          "description": "Use "update" to replace an existing project-context entry (set id), otherwise "create".",
+          "enum": [
+            "create",
+            "update",
+          ],
+          "type": "string",
+        },
+        "terms": {
+          "description": "The prompt-facing trigger words/phrases that should surface this entry (e.g. ["HR","high risk"]). Required for definitions.",
+          "items": {
+            "type": "string",
+          },
+          "type": "array",
+        },
+      },
+      "required": [
+        "op",
+        "id",
+        "kind",
+        "content",
+        "terms",
+        "objects",
+      ],
+      "type": "object",
+    },
+    "name": "editProjectContext",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "prAction": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "opened",
+                        "updated",
+                      ],
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "prUrl": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "status": {
+                  "const": "success",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "status",
+                "prUrl",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "errorCode": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "github_not_installed",
+                        "unsupported_source_control",
+                        "git_write_permission",
+                        "unknown",
+                      ],
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "status": {
+                  "const": "error",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "status",
+              ],
+              "type": "object",
+            },
+          ],
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
+  },
+  {
     "description": "Open a pull request that sets up Lightdash preview-project deploys for this project via GitHub Actions. Call this whenever the user wants to add Lightdash preview deploys — EITHER when they accept the offer surfaced by editDbtProject, OR when they ask directly (e.g. "set up preview deploys", "add the Lightdash preview GitHub Action", "deploy a preview project for each PR"). A prior writeback or offer is NOT required. It adds the canonical Lightdash preview workflow (a temporary preview project per pull request, torn down when the PR closes) on its own pull request. The target repository and dbt sub-folder are resolved server-side; this tool takes no arguments. The run is synchronous and can take a few minutes.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -6767,6 +6908,7 @@ exports[`AI agent tool contracts matches the shared agent tool definition names 
   "loadProjectContext",
   "proposeChange",
   "editDbtProject",
+  "editProjectContext",
   "syncDbtProject",
   "exploreRepo",
   "discoverRepos",

@@ -1,0 +1,63 @@
+.heading {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--mantine-color-dimmed);
+}
+
+.sparkline {
+    display: block;
+    width: 100%;
+    height: 42px;
+}
+
+.axisLabel {
+    font-size: 10px;
+    color: var(--mantine-color-dimmed);
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 8px;
+    border-radius: var(--mantine-radius-sm);
+    color: var(--mantine-color-text);
+    text-decoration: none;
+}
+
+.row:hover {
+    background-color: var(--mantine-color-default-hover);
+}
+
+.title {
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+}
+
+.tag {
+    flex-shrink: 0;
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--mantine-color-dimmed);
+}
+
+.footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 4px;
+    padding: 9px 8px 5px;
+    border-top: 1px solid var(--mantine-color-default-border);
+    color: var(--mantine-color-text);
+    text-decoration: none;
+}
+
+.footer:hover {
+    color: var(--mantine-color-bright);
+}

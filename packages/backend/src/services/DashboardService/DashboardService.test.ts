@@ -9,8 +9,10 @@ import {
     OrganizationMemberRole,
     PossibleAbilities,
     ProjectMemberRole,
+    SchedulerFormat,
     SessionUser,
     type Account,
+    type ContentVerificationInfo,
     type Dashboard,
     type DashboardChartTile,
     type DashboardFilterRule,
@@ -94,12 +96,22 @@ const savedSqlModel = {
 
 const projectModel = {
     getCachedExploreNames: jest.fn(async () => []),
+    get: jest.fn(async () => ({ schedulerTimezone: 'UTC' })),
 };
 
 const schedulerModel = {
     getScheduler: jest.fn(),
     getProjectSchedulerRuns: jest.fn(),
     getSchedulers: jest.fn(),
+    createScheduler: jest.fn(),
+};
+
+const slackClient = {
+    joinChannels: jest.fn(async () => undefined),
+};
+
+const schedulerClient = {
+    generateDailyJobsForScheduler: jest.fn(async () => undefined),
 };
 
 const dashboardChartsResult = {
@@ -118,6 +130,9 @@ const searchModel = {
 };
 
 const contentVerificationModel = {
+    getByContent: jest.fn(
+        async (): Promise<ContentVerificationInfo | null> => null,
+    ),
     unverify: jest.fn(async () => undefined),
 };
 
@@ -178,8 +193,8 @@ describe('DashboardService', () => {
         savedSqlModel: savedSqlModel as unknown as SavedSqlModel,
         savedChartService: {} as SavedChartService, // Mock for test
         projectModel: projectModel as unknown as ProjectModel,
-        slackClient: {} as SlackClient,
-        schedulerClient: {} as SchedulerClient,
+        slackClient: slackClient as unknown as SlackClient,
+        schedulerClient: schedulerClient as unknown as SchedulerClient,
         catalogModel: {} as CatalogModel,
         organizationModel: {
             findColorPalette: jest.fn(async () => null),
@@ -631,7 +646,21 @@ describe('DashboardService', () => {
 
         expect(result).toEqual([]);
     });
-    test('should auto-unverify dashboard when details are updated', async () => {
+    test('should preserve dashboard verification when verifier updates details', async () => {
+        contentVerificationModel.getByContent.mockResolvedValueOnce({
+            verifiedBy: {
+                userUuid: user.userUuid,
+                firstName: user.firstName,
+                lastName: user.lastName,
+            },
+            verifiedAt: new Date(),
+        });
+
+        await service.update(user, dashboardUuid, updateDashboard);
+
+        expect(contentVerificationModel.unverify).not.toHaveBeenCalled();
+    });
+    test('should auto-unverify dashboard when details are updated without preserving', async () => {
         await service.update(user, dashboardUuid, updateDashboard);
 
         expect(contentVerificationModel.unverify).toHaveBeenCalledWith(
@@ -639,7 +668,7 @@ describe('DashboardService', () => {
             dashboardUuid,
         );
     });
-    test('should auto-unverify dashboard when tiles are updated', async () => {
+    test('should auto-unverify dashboard when tiles are updated without preserving', async () => {
         await service.update(user, dashboardUuid, updateDashboardTiles);
 
         expect(contentVerificationModel.unverify).toHaveBeenCalledWith(
@@ -923,6 +952,17 @@ describe('DashboardService', () => {
             ).not.toHaveBeenCalled();
         });
 
+        test('returns runs when the dashboard is addressed by slug', async () => {
+            const result = await service.getSchedulerRuns(
+                editorOwnUser,
+                dashboard.slug,
+                schedulerUuid,
+            );
+
+            expect(result).toBe(runsPayload);
+            expect(schedulerModel.getProjectSchedulerRuns).toHaveBeenCalled();
+        });
+
         test('throws NotFoundError when the scheduler belongs to a different dashboard', async () => {
             schedulerModel.getScheduler.mockResolvedValueOnce({
                 schedulerUuid,
@@ -1012,6 +1052,69 @@ describe('DashboardService', () => {
                         createdByUserUuids: [user.userUuid],
                     },
                 }),
+            );
+        });
+
+        test('resolves slug to uuid when filtering schedulers', async () => {
+            await service.getSchedulers(adminUser, dashboard.slug);
+
+            expect(schedulerModel.getSchedulers).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    filters: {
+                        resourceType: 'dashboard',
+                        resourceUuids: [dashboard.uuid],
+                    },
+                }),
+            );
+        });
+    });
+
+    describe('createScheduler', () => {
+        const editorUser: SessionUser = {
+            ...user,
+            ability: defineUserAbility(
+                {
+                    ...user,
+                    role: OrganizationMemberRole.MEMBER,
+                },
+                [
+                    {
+                        projectUuid: dashboard.projectUuid,
+                        role: ProjectMemberRole.EDITOR,
+                        userUuid: user.userUuid,
+                        roleUuid: undefined,
+                    },
+                ],
+            ),
+        };
+        const newScheduler = {
+            name: 'My delivery',
+            format: SchedulerFormat.CSV,
+            cron: '0 9 * * *',
+            timezone: 'UTC',
+            includeLinks: true,
+            targets: [],
+            options: { formatted: true, limit: 'table' },
+        } as unknown as Parameters<typeof service.createScheduler>[2];
+
+        beforeEach(() => {
+            schedulerModel.createScheduler.mockImplementation(
+                async (input) => ({
+                    ...input,
+                    schedulerUuid: 'new-scheduler-uuid',
+                }),
+            );
+        });
+
+        test('creates the scheduler with the resolved uuid when addressed by slug', async () => {
+            await service.createScheduler(
+                editorUser,
+                dashboard.slug,
+                newScheduler,
+            );
+
+            expect(schedulerModel.createScheduler).toHaveBeenCalledWith(
+                expect.objectContaining({ dashboardUuid: dashboard.uuid }),
             );
         });
     });

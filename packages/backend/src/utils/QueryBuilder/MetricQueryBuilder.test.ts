@@ -5166,6 +5166,21 @@ describe('Timezone-aware DATE_TRUNC day-or-coarser → DATE cast (GLITCH-452)', 
                         timeIntervalBaseDimensionName: 'occurred_at',
                         timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
                     },
+                    occurred_at_month: {
+                        type: DimensionType.DATE,
+                        name: 'occurred_at_month',
+                        label: 'occurred_at_month',
+                        table: 'events',
+                        tableLabel: 'events',
+                        fieldType: FieldType.DIMENSION,
+                        sql: `DATE_TRUNC('MONTH', \${TABLE}.occurred_at)`,
+                        compiledSql: `DATE_TRUNC('MONTH', "events".occurred_at)`,
+                        tablesReferences: ['events'],
+                        hidden: false,
+                        timeInterval: TimeFrames.MONTH,
+                        timeIntervalBaseDimensionName: 'occurred_at',
+                        timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+                    },
                 },
                 metrics: {
                     event_count: {
@@ -5366,6 +5381,302 @@ describe('Timezone-aware DATE_TRUNC day-or-coarser → DATE cast (GLITCH-452)', 
             /DATE_TRUNC\('DAY', "events"\.occurred_at\)\s*>=/,
         );
         expect(query).not.toContain(`AT TIME ZONE`);
+    });
+
+    // A MIN/MAX over a day-grain DATE dim aggregates the project-tz wall-clock
+    // date (the same DATE-cast the dimension SELECT uses), not the raw UTC trunc.
+    const maxDayQuery: CompiledMetricQuery = {
+        ...dayQuery,
+        dimensions: [],
+        metrics: ['events_max_day'],
+        additionalMetrics: [
+            {
+                table: 'events',
+                name: 'max_day',
+                label: 'Max of occurred at day',
+                type: MetricType.MAX,
+                sql: `DATE_TRUNC('DAY', \${TABLE}.occurred_at)`,
+                baseDimensionName: 'occurred_at_day',
+            },
+        ],
+        compiledAdditionalMetrics: [
+            {
+                type: MetricType.MAX,
+                fieldType: FieldType.METRIC,
+                table: 'events',
+                tableLabel: 'events',
+                name: 'max_day',
+                label: 'Max of occurred at day',
+                sql: `DATE_TRUNC('DAY', \${TABLE}.occurred_at)`,
+                compiledSql: `MAX(DATE_TRUNC('DAY', "events".occurred_at))`,
+                tablesReferences: ['events'],
+                hidden: false,
+                baseDimensionType: DimensionType.DATE,
+                baseDimensionTimeInterval: TimeFrames.DAY,
+            },
+        ],
+    };
+
+    test('MIN/MAX over a day-grain DATE dim aggregates the tz-aware DATE-cast (Postgres)', () => {
+        const { query } = buildQuery({
+            explore: buildDayExplore(),
+            compiledMetricQuery: maxDayQuery,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: true,
+        });
+        expect(query).toContain(
+            `MAX(CAST(DATE_TRUNC('DAY', ("events".occurred_at)::timestamptz AT TIME ZONE 'America/New_York') AS DATE)) AS "events_max_day"`,
+        );
+    });
+
+    test('flag off leaves the MIN/MAX aggregate un-cast (byte-identical)', () => {
+        const { query } = buildQuery({
+            explore: buildDayExplore(),
+            compiledMetricQuery: maxDayQuery,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: false,
+        });
+        expect(query).toContain(
+            `MAX(DATE_TRUNC('DAY', "events".occurred_at)) AS "events_max_day"`,
+        );
+        expect(query).not.toContain('AT TIME ZONE');
+    });
+
+    // A MAX over a raw TIMESTAMP base is an instant, not a calendar date — it
+    // stays an un-cast MAX, shifted only at display time.
+    const maxTsQuery: CompiledMetricQuery = {
+        ...dayQuery,
+        dimensions: [],
+        metrics: ['events_max_ts'],
+        additionalMetrics: [
+            {
+                table: 'events',
+                name: 'max_ts',
+                label: 'Max of occurred at',
+                type: MetricType.MAX,
+                sql: '${TABLE}.occurred_at',
+                baseDimensionName: 'occurred_at',
+            },
+        ],
+        compiledAdditionalMetrics: [
+            {
+                type: MetricType.MAX,
+                fieldType: FieldType.METRIC,
+                table: 'events',
+                tableLabel: 'events',
+                name: 'max_ts',
+                label: 'Max of occurred at',
+                sql: '${TABLE}.occurred_at',
+                compiledSql: `MAX("events".occurred_at)`,
+                tablesReferences: ['events'],
+                hidden: false,
+                baseDimensionType: DimensionType.TIMESTAMP,
+            },
+        ],
+    };
+
+    test('MAX over a TIMESTAMP base is NOT cast (unchanged)', () => {
+        const { query } = buildQuery({
+            explore: buildDayExplore(),
+            compiledMetricQuery: maxTsQuery,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: true,
+        });
+        expect(query).toContain(`MAX("events".occurred_at) AS "events_max_ts"`);
+        expect(query).not.toMatch(/MAX\(CAST/);
+    });
+
+    // A coarser grain (month) is just as truncatable as day — it takes the same
+    // DATE-cast so the metric still agrees with its month dimension.
+    const maxMonthQuery: CompiledMetricQuery = {
+        ...dayQuery,
+        dimensions: [],
+        metrics: ['events_max_month'],
+        additionalMetrics: [
+            {
+                table: 'events',
+                name: 'max_month',
+                label: 'Max of occurred at month',
+                type: MetricType.MAX,
+                sql: `DATE_TRUNC('MONTH', \${TABLE}.occurred_at)`,
+                baseDimensionName: 'occurred_at_month',
+            },
+        ],
+        compiledAdditionalMetrics: [
+            {
+                type: MetricType.MAX,
+                fieldType: FieldType.METRIC,
+                table: 'events',
+                tableLabel: 'events',
+                name: 'max_month',
+                label: 'Max of occurred at month',
+                sql: `DATE_TRUNC('MONTH', \${TABLE}.occurred_at)`,
+                compiledSql: `MAX(DATE_TRUNC('MONTH', "events".occurred_at))`,
+                tablesReferences: ['events'],
+                hidden: false,
+                baseDimensionType: DimensionType.DATE,
+                baseDimensionTimeInterval: TimeFrames.MONTH,
+            },
+        ],
+    };
+
+    test('a coarser (month) grain takes the same tz-aware DATE-cast', () => {
+        const { query } = buildQuery({
+            explore: buildDayExplore(),
+            compiledMetricQuery: maxMonthQuery,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: true,
+        });
+        expect(query).toContain(
+            `MAX(CAST(DATE_TRUNC('MONTH', ("events".occurred_at)::timestamptz AT TIME ZONE 'America/New_York') AS DATE)) AS "events_max_month"`,
+        );
+    });
+
+    // Defensive no-op: all gates pass, but the base dimension's compiledSql is not
+    // a substring of the metric's compiledSql, so the swap finds nothing and the
+    // original aggregate is emitted unchanged (never corrupted).
+    const maxNoMatchQuery: CompiledMetricQuery = {
+        ...dayQuery,
+        dimensions: [],
+        metrics: ['events_max_no_match'],
+        additionalMetrics: [
+            {
+                table: 'events',
+                name: 'max_no_match',
+                label: 'Max no match',
+                type: MetricType.MAX,
+                sql: `DATE_TRUNC('DAY', \${TABLE}.occurred_at)`,
+                baseDimensionName: 'occurred_at_day',
+            },
+        ],
+        compiledAdditionalMetrics: [
+            {
+                type: MetricType.MAX,
+                fieldType: FieldType.METRIC,
+                table: 'events',
+                tableLabel: 'events',
+                name: 'max_no_match',
+                label: 'Max no match',
+                sql: `DATE_TRUNC('DAY', \${TABLE}.occurred_at)`,
+                // Does not contain the base dim's compiledSql, so the swap is inert.
+                compiledSql: `MAX("events".some_other_expr)`,
+                tablesReferences: ['events'],
+                hidden: false,
+                baseDimensionType: DimensionType.DATE,
+                baseDimensionTimeInterval: TimeFrames.DAY,
+            },
+        ],
+    };
+
+    test('swap is a safe no-op when the base SQL is not found in the aggregate', () => {
+        const { query } = buildQuery({
+            explore: buildDayExplore(),
+            compiledMetricQuery: maxNoMatchQuery,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: true,
+        });
+        expect(query).toContain(
+            `MAX("events".some_other_expr) AS "events_max_no_match"`,
+        );
+        expect(query).not.toMatch(/CAST/);
+    });
+
+    // A DATE MIN/MAX computed inside the fanout-protection flow must also be
+    // wrapped. MIN/MAX are inflation-proof, so under a fanout join they are
+    // emitted from the cte_unaffected CTE (not the per-table dedup CTE) — the
+    // path that previously emitted the raw UTC trunc instead of the plain SELECT.
+    const buildFanoutDayExplore = (): Explore => {
+        const base = buildDayExplore();
+        return {
+            ...base,
+            joinedTables: [
+                {
+                    table: 'other',
+                    sqlOn: '${other.event_id} = ${events.id}',
+                    compiledSqlOn: '("other".event_id) = ("events".id)',
+                    type: undefined,
+                    tablesReferences: ['events', 'other'],
+                    relationship: JoinRelationship.MANY_TO_MANY,
+                },
+            ],
+            tables: {
+                ...base.tables,
+                other: {
+                    name: 'other',
+                    label: 'other',
+                    database: 'db',
+                    schema: 's',
+                    sqlTable: '"other"',
+                    primaryKey: ['id'],
+                    dimensions: {},
+                    metrics: {
+                        count: {
+                            type: MetricType.COUNT,
+                            fieldType: FieldType.METRIC,
+                            table: 'other',
+                            tableLabel: 'other',
+                            name: 'count',
+                            label: 'other count',
+                            sql: '${TABLE}.id',
+                            compiledSql: 'COUNT("other".id)',
+                            tablesReferences: ['other'],
+                            hidden: false,
+                        },
+                    },
+                    lineageGraph: {},
+                },
+            },
+        };
+    };
+
+    const fanoutMaxDayQuery: CompiledMetricQuery = {
+        ...maxDayQuery,
+        metrics: ['events_max_day', 'other_count'],
+    };
+
+    test('a DATE MIN/MAX in the fanout flow gets the tz-aware wrap (Postgres)', () => {
+        const { query } = buildQuery({
+            explore: buildFanoutDayExplore(),
+            compiledMetricQuery: fanoutMaxDayQuery,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: true,
+        });
+        // Guard: confirm the fanout-protection flow is actually exercised.
+        expect(query).toContain('cte_unaffected');
+        expect(query).toContain(
+            `MAX(CAST(DATE_TRUNC('DAY', ("events".occurred_at)::timestamptz AT TIME ZONE 'America/New_York') AS DATE)) AS "events_max_day"`,
+        );
+        expect(query).not.toContain(
+            `MAX(DATE_TRUNC('DAY', "events".occurred_at))`,
+        );
+    });
+
+    test('flag off leaves the fanout DATE MIN/MAX un-wrapped (byte-identical)', () => {
+        const { query } = buildQuery({
+            explore: buildFanoutDayExplore(),
+            compiledMetricQuery: fanoutMaxDayQuery,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: false,
+        });
+        expect(query).toContain('cte_unaffected');
+        expect(query).toContain(
+            `MAX(DATE_TRUNC('DAY', "events".occurred_at)) AS "events_max_day"`,
+        );
+        expect(query).not.toContain('AT TIME ZONE');
     });
 });
 

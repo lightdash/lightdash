@@ -1,4 +1,15 @@
-import { Box, Button, Flex, Stack, Textarea, TextInput } from '@mantine-8/core';
+import { isScopeAssignableAtLevel, type RoleLevel } from '@lightdash/common';
+import {
+    Box,
+    Button,
+    Flex,
+    Input,
+    SegmentedControl,
+    Stack,
+    Text,
+    Textarea,
+    TextInput,
+} from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
 import { Link } from 'react-router';
@@ -12,11 +23,13 @@ type Props = {
     initialValues: {
         name: string;
         description: string;
+        level: RoleLevel;
         scopes: string[];
     };
     onSubmit: (values: {
         name: string;
         description: string;
+        level: RoleLevel;
         scopes: string[];
     }) => void;
     isWorking: boolean;
@@ -42,6 +55,7 @@ export const RoleBuilder: FC<Props> = ({
         initialValues: {
             name: initialValues.name,
             description: initialValues.description,
+            level: initialValues.level,
             scopes: initialScopesObject,
         },
         validate: {
@@ -58,9 +72,30 @@ export const RoleBuilder: FC<Props> = ({
         onSubmit({
             name: values.name,
             description: values.description,
+            level: values.level,
             scopes: scopeNames,
         });
     });
+
+    const handleLevelChange = (value: string) => {
+        const level = value as RoleLevel;
+        const scopes = Object.entries(form.values.scopes).reduce<
+            Record<string, boolean>
+        >(
+            (acc, [scopeName, isSelected]) => ({
+                ...acc,
+                [scopeName]:
+                    isSelected && isScopeAssignableAtLevel(scopeName, level),
+            }),
+            {},
+        );
+
+        form.setValues({
+            ...form.values,
+            level,
+            scopes,
+        });
+    };
 
     return (
         <form onSubmit={handleSubmit} className={styles.container}>
@@ -82,12 +117,38 @@ export const RoleBuilder: FC<Props> = ({
                                 disabled={isWorking}
                                 {...form.getInputProps('description')}
                             />
+                            <Stack gap="two">
+                                <Input.Label>Level</Input.Label>
+                                <SegmentedControl
+                                    data={[
+                                        {
+                                            value: 'project',
+                                            label: 'Project',
+                                        },
+                                        {
+                                            value: 'organization',
+                                            label: 'Organization',
+                                        },
+                                    ]}
+                                    disabled={isWorking || mode === 'edit'}
+                                    value={form.values.level}
+                                    onChange={handleLevelChange}
+                                />
+                                {mode === 'edit' && (
+                                    <Text fz="xs" c="dimmed">
+                                        Level can't be changed after creation.
+                                    </Text>
+                                )}
+                            </Stack>
                         </Stack>
                     </SettingsCard>
 
                     <SettingsCard className={styles.permissionsCard}>
                         <Box className={styles.permissionsContent}>
-                            <ScopeSelector form={form} />
+                            <ScopeSelector
+                                form={form}
+                                level={form.values.level}
+                            />
                         </Box>
                         <Flex
                             justify="flex-end"

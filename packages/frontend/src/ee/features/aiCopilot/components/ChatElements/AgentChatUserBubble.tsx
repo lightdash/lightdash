@@ -1,5 +1,13 @@
 import { type AiAgentMessageUser, type AiAgentUser } from '@lightdash/common';
-import { Anchor, Card, Group, Stack, Text, Tooltip } from '@mantine-8/core';
+import {
+    Anchor,
+    Box,
+    Card,
+    Group,
+    Stack,
+    Text,
+    Tooltip,
+} from '@mantine-8/core';
 import MDEditor from '@uiw/react-md-editor';
 import { format, parseISO } from 'date-fns';
 import { type FC } from 'react';
@@ -7,6 +15,8 @@ import { Link, useParams } from 'react-router';
 import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
 import useApp from '../../../../../providers/App/useApp';
 import { PinnedContextCard } from '../PinnedContextCard/PinnedContextCard';
+import { PinnedReviewContextGroup } from '../PinnedContextCard/PinnedReviewEntityCard';
+import { isReviewEntityItem } from '../PinnedContextCard/reviewEntityItem';
 import styles from './AgentChatUserBubble.module.css';
 import { ContentReferenceLink } from './ContentReferenceLink';
 import {
@@ -18,6 +28,9 @@ import {
 type Props = {
     message: AiAgentMessageUser<AiAgentUser>;
     isActive?: boolean;
+    // Explicit for routes where projectUuid isn't a URL param (the review
+    // remediation workspace); falls back to params for the normal agent chat.
+    projectUuid?: string;
 };
 
 const getVisibleUserName = (name: string) => {
@@ -29,13 +42,19 @@ const getVisibleUserName = (name: string) => {
     return trimmedName;
 };
 
-export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
-    const { projectUuid, agentUuid } = useParams();
+export const UserBubble: FC<Props> = ({
+    message,
+    isActive = false,
+    projectUuid: projectUuidProp,
+}) => {
+    const { projectUuid: paramsProjectUuid, agentUuid } = useParams();
+    const projectUuid = projectUuidProp ?? paramsProjectUuid;
     const timeAgo = useTimeAgo(message.createdAt);
     const name = getVisibleUserName(message.user.name);
     const app = useApp();
     const showUserName =
         !!name && app.user?.data?.userUuid !== message.user.uuid;
+    const isEmptyMessage = message.message.trim().length === 0;
     const { matchedKeys, segments } = buildContentReferenceSegments(
         message.message,
         message.context,
@@ -47,6 +66,11 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
         if (!hasInlineReferences) return true;
         return !matchedKeys.has(getPromptContextItemKey(item));
     });
+    // Review entities share one quiet grouped card; everything else stays a chip.
+    const reviewContext = remainingContext.filter(isReviewEntityItem);
+    const otherContext = remainingContext.filter(
+        (item) => !isReviewEntityItem(item),
+    );
 
     return (
         <Stack
@@ -76,20 +100,26 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
             </Stack>
 
             {remainingContext.length > 0 && projectUuid && (
-                <Group
+                <Stack
                     gap="xs"
-                    wrap="wrap"
-                    justify="flex-end"
+                    align="flex-end"
                     className={styles.contextGroup}
                 >
-                    {remainingContext.map((item, idx) => (
-                        <PinnedContextCard
-                            key={`${getPromptContextItemKey(item)}-${idx}`}
-                            item={item}
-                            projectUuid={projectUuid}
-                        />
-                    ))}
-                </Group>
+                    {otherContext.length > 0 && (
+                        <Group gap="xs" wrap="wrap" justify="flex-end">
+                            {otherContext.map((item, idx) => (
+                                <PinnedContextCard
+                                    key={`${getPromptContextItemKey(item)}-${idx}`}
+                                    item={item}
+                                    projectUuid={projectUuid}
+                                />
+                            ))}
+                        </Group>
+                    )}
+                    {reviewContext.length > 0 && (
+                        <PinnedReviewContextGroup items={reviewContext} />
+                    )}
+                </Stack>
             )}
 
             <Card
@@ -99,18 +129,34 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
                 px="sm"
                 withBorder
                 color="white"
-                className={styles.messageCard}
+                className={`${styles.messageCard} ${
+                    isEmptyMessage ? styles.emptyMessageCard : ''
+                }`}
             >
-                {hasInlineReferences && projectUuid ? (
-                    <div className={`${styles.markdown} ${styles.messageText}`}>
-                        {segments.map((segment, idx) =>
-                            segment.type === 'text' ? (
-                                <MDEditor.Markdown
-                                    key={`text-${idx}`}
-                                    source={segment.text}
-                                    className={`${styles.markdown} ${styles.inlineMarkdown}`}
-                                />
-                            ) : (
+                {isEmptyMessage ? (
+                    <Text size="xs" fs="italic" c="dimmed">
+                        No message
+                    </Text>
+                ) : hasInlineReferences && projectUuid ? (
+                    <Box className={`${styles.markdown} ${styles.messageText}`}>
+                        {segments.map((segment, idx) => {
+                            if (segment.type === 'text') {
+                                return (
+                                    <MDEditor.Markdown
+                                        key={`text-${idx}`}
+                                        source={segment.text}
+                                        className={`${styles.markdown} ${styles.inlineMarkdown}`}
+                                    />
+                                );
+                            }
+                            // File/repository (and thread) references have no
+                            // in-app destination — only show the arrow and link
+                            // affordance when there is somewhere to navigate to.
+                            const href = getPromptContextItemHref(
+                                segment.item,
+                                projectUuid,
+                            );
+                            return (
                                 <ContentReferenceLink
                                     key={`${segment.key}-${idx}`}
                                     chartKind={
@@ -120,20 +166,16 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
                                             : undefined
                                     }
                                     kind={segment.item.type}
-                                    rel="noreferrer"
-                                    target="_blank"
-                                    to={
-                                        getPromptContextItemHref(
-                                            segment.item,
-                                            projectUuid,
-                                        ) ?? undefined
-                                    }
+                                    rel={href ? 'noreferrer' : undefined}
+                                    target={href ? '_blank' : undefined}
+                                    to={href ?? undefined}
+                                    showArrow={href !== null}
                                 >
                                     {segment.label}
                                 </ContentReferenceLink>
-                            ),
-                        )}
-                    </div>
+                            );
+                        })}
+                    </Box>
                 ) : (
                     <MDEditor.Markdown
                         source={message.message}
@@ -141,6 +183,26 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
                     />
                 )}
             </Card>
+
+            {message.steers.length > 0 && (
+                <Stack gap={4} align="flex-end">
+                    {message.steers.map((steer) => (
+                        <Card
+                            key={steer.uuid}
+                            radius="md"
+                            py={4}
+                            px="xs"
+                            withBorder
+                            className={styles.steerCard}
+                        >
+                            <MDEditor.Markdown
+                                source={steer.message}
+                                className={`${styles.markdown} ${styles.steerMarkdown}`}
+                            />
+                        </Card>
+                    ))}
+                </Stack>
+            )}
         </Stack>
     );
 };

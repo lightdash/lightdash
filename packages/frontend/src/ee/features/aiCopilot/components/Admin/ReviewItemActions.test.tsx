@@ -1,14 +1,23 @@
 import { type AiAgentReviewItemSummary } from '@lightdash/common';
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { ReviewItemActions } from './ReviewItemActions';
+
+const { updateStatusMutate } = vi.hoisted(() => ({
+    updateStatusMutate: vi.fn(),
+}));
 
 vi.mock('../../hooks/useAiAgentAdmin', () => ({
     useAiAgentAdminReviewItem: () => ({ data: undefined }),
     useCreateAiAgentReviewItemWriteback: () => ({
         isLoading: false,
         mutate: vi.fn(),
+    }),
+    useUpdateAiAgentReviewItemStatus: () => ({
+        isLoading: false,
+        mutate: updateStatusMutate,
     }),
 }));
 
@@ -72,7 +81,12 @@ const makeReviewItem = (
 describe('ReviewItemActions', () => {
     it('does not render the unsupported root cause blocked reason', () => {
         renderWithProviders(
-            <ReviewItemActions reviewItem={makeReviewItem()} mode="drawer" />,
+            <MemoryRouter>
+                <ReviewItemActions
+                    reviewItem={makeReviewItem()}
+                    mode="drawer"
+                />
+            </MemoryRouter>,
         );
 
         expect(
@@ -82,21 +96,55 @@ describe('ReviewItemActions', () => {
 
     it('still renders other blocked reasons', () => {
         renderWithProviders(
-            <ReviewItemActions
-                reviewItem={makeReviewItem({
-                    writebackEligibility: {
-                        eligible: false,
-                        reason: 'missing_project',
-                        strategy: null,
-                        provider: null,
-                    },
-                })}
-                mode="drawer"
-            />,
+            <MemoryRouter>
+                <ReviewItemActions
+                    reviewItem={makeReviewItem({
+                        writebackEligibility: {
+                            eligible: false,
+                            reason: 'missing_project',
+                            strategy: null,
+                            provider: null,
+                        },
+                    })}
+                    mode="drawer"
+                />
+            </MemoryRouter>,
         );
 
         expect(
             screen.getByText('No project is linked to this finding'),
         ).toBeInTheDocument();
+    });
+
+    it('lets you dismiss an item that has moved past triage', () => {
+        updateStatusMutate.mockClear();
+        renderWithProviders(
+            <MemoryRouter>
+                <ReviewItemActions
+                    reviewItem={makeReviewItem({ status: 'open' })}
+                    mode="drawer"
+                />
+            </MemoryRouter>,
+        );
+
+        fireEvent.click(screen.getByText('Dismiss'));
+
+        expect(updateStatusMutate).toHaveBeenCalledWith({
+            fingerprint: 'review-1',
+            body: { status: 'dismissed', dismissedReason: 'not_actionable' },
+        });
+    });
+
+    it('does not offer dismiss on a terminal item', () => {
+        renderWithProviders(
+            <MemoryRouter>
+                <ReviewItemActions
+                    reviewItem={makeReviewItem({ status: 'resolved' })}
+                    mode="drawer"
+                />
+            </MemoryRouter>,
+        );
+
+        expect(screen.queryByText('Dismiss')).not.toBeInTheDocument();
     });
 });

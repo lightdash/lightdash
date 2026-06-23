@@ -28,6 +28,8 @@ import {
     DashboardAsCode,
     DbtExposure,
     DbtProjectEnvironmentVariable,
+    ForbiddenError,
+    getErrorMessage,
     getRequestMethod,
     isDuplicateDashboardParams,
     LightdashRequestMethodHeader,
@@ -84,6 +86,7 @@ import {
 import express from 'express';
 import { toSessionUser } from '../auth/account';
 import type { DbTagUpdate } from '../database/entities/tags';
+import Logger from '../logging/logger';
 import {
     allowApiKeyAuthentication,
     getDeprecatedRouteMiddleware,
@@ -91,6 +94,8 @@ import {
     unauthorisedInDemo,
 } from './authentication';
 import { BaseController } from './baseController';
+
+const isPositiveIntegerString = (value: string): boolean => /^\d+$/.test(value);
 
 @Route('/api/v1/projects')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -1632,17 +1637,46 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         @Path() projectUuid: string,
         @Body() body: AnyType,
     ) {
-        // TODO validate webhook signature https://docs.getdbt.com/docs/deploy/webhooks#validate-a-webhook
         if (!body) {
             throw new ParameterError('Invalid body');
         }
         if (body.eventType === 'job.run.completed') {
-            // TODO: validate body is an object and has the account id and run id
-            const accountId: string = body.accountId as string;
-            const runId: string = body.data.runId as string;
-            await this.services
-                .getProjectService()
-                .createPreviewWithExplores(projectUuid, accountId, runId);
+            const accountId = String(body.accountId);
+            const runId =
+                typeof body.data === 'object' && body.data !== null
+                    ? String(body.data.runId)
+                    : '';
+            if (
+                !isPositiveIntegerString(accountId) ||
+                !isPositiveIntegerString(runId)
+            ) {
+                throw new ParameterError('Invalid accountId or runId');
+            }
+            try {
+                await this.services
+                    .getProjectService()
+                    .createPreviewFromDbtCloudWebhook(
+                        projectUuid,
+                        Number(accountId),
+                        Number(runId),
+                        {
+                            rawBody: req.rawBody ?? null,
+                            signature: req.header('authorization') ?? null,
+                        },
+                    );
+            } catch (e) {
+                // Reject invalid signatures, but acknowledge other failures
+                // (e.g. dbt Cloud's test webhook references a non-existent run)
+                // so they don't surface as a 500.
+                if (e instanceof ForbiddenError) {
+                    throw e;
+                }
+                Logger.error(
+                    `dbt Cloud webhook for project ${projectUuid} could not create a preview: ${getErrorMessage(
+                        e,
+                    )}`,
+                );
+            }
         }
 
         this.setStatus(200);

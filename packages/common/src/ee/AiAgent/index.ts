@@ -219,12 +219,22 @@ export type AiAgentMessageUser<TUser extends AiAgentUser = AiAgentUser> = {
 
     user: TUser;
     context: AiPromptContext;
+    steers: AiPromptSteer[];
     /**
      * Hidden turn: the agent received and responded to this prompt, but the UI
      * should not render its user bubble (e.g. the post-merge migration prompt
      * injected from the writeback PR card).
      */
     hidden: boolean;
+};
+
+export type AiPromptSteer = {
+    uuid: string;
+    promptUuid: string;
+    message: string;
+    createdAt: string;
+    consumedAt: string | null;
+    consumedStep: number | null;
 };
 
 export type AiAgentMessageAssistantArtifact = Pick<
@@ -247,6 +257,7 @@ export type AiAgentMessageAssistant = {
     message: string | null;
     // ai_prompt.error_message
     errorMessage: string | null;
+    interrupted: boolean;
     // ai_prompt.responded_at but this can not be null because
     // we check for null before creating the agent message
     createdAt: string;
@@ -510,6 +521,12 @@ export type ApiAiAgentThreadStreamRequest = {
      */
     enableSqlMode?: boolean;
     /**
+     * Skips the SQL human-approval gate for this stream. Used by the review
+     * remediation workspace so Continue PR turns run frictionlessly. Defaults
+     * to false — normal chat still asks the user to approve SQL.
+     */
+    autoApproveSql?: boolean;
+    /**
      * Tool names hinted by the user when they composed the message (via
      * suggestion chips that carry a tool id). agentV2 appends a soft hint
      * to the user message before sending it to the LLM. Transient — never
@@ -521,6 +538,18 @@ export type ApiAiAgentThreadStreamRequest = {
 export type ApiAiAgentSqlApprovalResponse = ApiSuccess<{
     decision: 'approved' | 'rejected';
 }>;
+
+export type ApiAiAgentThreadMessageInterruptResponse = ApiSuccess<{
+    interrupted: true;
+}>;
+
+export type ApiAiAgentThreadMessageSteerResponse = ApiSuccess<{
+    steer: AiPromptSteer;
+}>;
+
+export type ApiCreateAiAgentThreadMessageSteer = {
+    message: string;
+};
 
 export type ApiAiAgentThreadMessageCreateResponse = ApiSuccess<
     AiAgentMessageUser<AiAgentUser>

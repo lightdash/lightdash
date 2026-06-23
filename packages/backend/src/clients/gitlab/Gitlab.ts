@@ -839,6 +839,7 @@ export const getGitlabProjects = async (
             pathWithNamespace: project.path_with_namespace,
             webUrl: project.web_url,
             defaultBranch: project.default_branch,
+            visibility: project.visibility,
         }));
     } catch (error) {
         throw new UnexpectedGitError(getErrorMessage(error));

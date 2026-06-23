@@ -7,6 +7,7 @@ export * from './warehouseClients/DatabricksWarehouseClient';
 export * from './warehouseClients/DuckdbWarehouseClient';
 export * from './warehouseClients/PostgresWarehouseClient';
 export * from './warehouseClients/RedshiftWarehouseClient';
+export * from './warehouseClients/redshiftIamCredentials';
 export * from './warehouseClients/SnowflakeWarehouseClient';
 export * from './warehouseClients/TrinoWarehouseClient';
 export * from './warehouseSqlBuilderFromType';

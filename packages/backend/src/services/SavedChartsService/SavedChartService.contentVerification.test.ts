@@ -187,8 +187,32 @@ describe('SavedChartService - Content Verification', () => {
         });
     });
 
-    describe('Auto-unverify on edit', () => {
-        it('should auto-unverify chart when content is edited via createVersion', async () => {
+    describe('Preserve verification on edit', () => {
+        it('should preserve chart verification when admin edits content via createVersion', async () => {
+            const result = await service.createVersion(
+                adminUser,
+                'chart-uuid',
+                {
+                    tableName: 'test_table',
+                    metricQuery: {
+                        exploreName: 'test',
+                        dimensions: [],
+                        metrics: [],
+                        filters: {},
+                        sorts: [],
+                        limit: 500,
+                        tableCalculations: [],
+                    },
+                    chartConfig: { type: ChartType.CARTESIAN },
+                    tableConfig: { columnOrder: [] },
+                },
+            );
+
+            expect(result.verification).toEqual(verificationInfo);
+            expect(contentVerificationModel.unverify).not.toHaveBeenCalled();
+        });
+
+        it('should auto-unverify chart when content is edited with preserveVerification=false', async () => {
             await service.createVersion(adminUser, 'chart-uuid', {
                 tableName: 'test_table',
                 metricQuery: {
@@ -202,6 +226,7 @@ describe('SavedChartService - Content Verification', () => {
                 },
                 chartConfig: { type: ChartType.CARTESIAN },
                 tableConfig: { columnOrder: [] },
+                preserveVerification: false,
             });
 
             expect(contentVerificationModel.unverify).toHaveBeenCalledWith(
@@ -210,8 +235,17 @@ describe('SavedChartService - Content Verification', () => {
             );
         });
 
-        it('should auto-unverify chart when metadata is edited via update', async () => {
-            await service.update(adminUser, 'chart-uuid', {
+        it('should preserve chart verification when admin edits metadata via update', async () => {
+            const result = await service.update(adminUser, 'chart-uuid', {
+                name: 'updated chart name',
+            });
+
+            expect(result.verification).toEqual(verificationInfo);
+            expect(contentVerificationModel.unverify).not.toHaveBeenCalled();
+        });
+
+        it('should auto-unverify chart when another editor edits metadata', async () => {
+            await service.update(editorUser, 'chart-uuid', {
                 name: 'updated chart name',
             });
 

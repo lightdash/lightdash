@@ -4,6 +4,8 @@ import styles from './AiAgentIcon.module.css';
 type Props = {
     size?: number | string;
     muted?: boolean;
+    animated?: boolean;
+    calm?: boolean;
     className?: string;
     style?: CSSProperties;
 };
@@ -11,6 +13,8 @@ type Props = {
 export const AiAgentIcon: FC<Props> = ({
     size = 16,
     muted = false,
+    animated = false,
+    calm = false,
     className,
     style,
 }) => {
@@ -19,7 +23,13 @@ export const AiAgentIcon: FC<Props> = ({
     return (
         <span
             aria-hidden="true"
-            className={[styles.root, muted && styles.muted, className]
+            className={[
+                styles.root,
+                muted && styles.muted,
+                animated && styles.animated,
+                calm && styles.calm,
+                className,
+            ]
                 .filter(Boolean)
                 .join(' ')}
             style={

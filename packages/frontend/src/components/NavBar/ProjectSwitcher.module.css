@@ -3,13 +3,8 @@
     overflow: visible;
 }
 
-.groupHeader {
-    width: 100%;
-    padding: var(--mantine-spacing-xs);
-
-    &:hover {
-        background-color: var(--mantine-color-ldDark-3);
-    }
+.sectionHeader {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
 }
 
 .badge {
@@ -17,13 +12,25 @@
 }
 
 .targetButton {
-    max-width: 200px;
+    max-width: 260px;
 
     &:disabled {
         color: var(--mantine-color-white);
         background-color: var(--mantine-color-ldDark-6);
         border-color: var(--mantine-color-ldDark-4);
     }
+}
+
+.breadcrumbSeparator {
+    flex-shrink: 0;
+}
+
+.upstreamName {
+    flex-shrink: 0;
+}
+
+.previewName {
+    min-width: 0;
 }
 
 .searchHeader {
@@ -38,6 +45,40 @@
     &:focus {
         border-color: var(--mantine-color-blue-6);
     }
+}
+
+.previewCountChip {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    padding: 2px var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-sm);
+    color: var(--mantine-color-ldGray-6);
+    cursor: pointer;
+
+    &:hover {
+        background-color: var(--mantine-color-ldDark-4);
+        color: var(--mantine-color-ldGray-9);
+    }
+}
+
+.drillHeader {
+    width: 100%;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    border: none;
+    background-color: transparent;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+        background-color: var(--mantine-color-ldDark-3);
+    }
+}
+
+.activePreviewItem {
+    background-color: rgba(38, 128, 235, 0.1);
+    box-shadow: inset 2px 0 0 var(--mantine-color-blue-6);
 }
 
 .stickyFooter {

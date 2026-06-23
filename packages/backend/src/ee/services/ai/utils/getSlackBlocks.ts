@@ -97,6 +97,61 @@ export const getMarkdownBlocks = (text: string): (Block | KnownBlock)[] =>
             }) as unknown as Block,
     );
 
+// Well below the (undocumented) size that triggers msg_too_long; ~25k chars failed.
+const SLACK_MESSAGE_TEXT_BUDGET = 11000;
+// Under Slack's 50-block message cap, leaving headroom for trailing cards.
+const SLACK_MESSAGE_BLOCK_LIMIT = 45;
+export const SLACK_MAX_ANSWER_MESSAGES = 4;
+
+export type SlackMarkdownMessages = {
+    messages: (Block | KnownBlock)[][];
+    truncated: boolean;
+};
+
+// Markdown blocks carry their content as a top-level string `text`, which isn't
+// in the Slack block union — read it loosely and verify the type at runtime.
+const getBlockTextLength = (block: Block | KnownBlock): number => {
+    const { text } = block as { text?: unknown };
+    return typeof text === 'string' ? text.length : 0;
+};
+
+/**
+ * Splits a long markdown answer into Slack messages within the size budget.
+ * Returns `truncated: true` (and only the first `maxMessages`) when it doesn't fit.
+ */
+export const splitMarkdownIntoMessages = (
+    text: string,
+    maxMessages: number = SLACK_MAX_ANSWER_MESSAGES,
+): SlackMarkdownMessages => {
+    const blocks = getMarkdownBlocks(text);
+    const messages: (Block | KnownBlock)[][] = [];
+    let current: (Block | KnownBlock)[] = [];
+    let currentChars = 0;
+
+    for (const block of blocks) {
+        const blockChars = getBlockTextLength(block);
+        const exceedsBudget =
+            current.length > 0 &&
+            (currentChars + blockChars > SLACK_MESSAGE_TEXT_BUDGET ||
+                current.length >= SLACK_MESSAGE_BLOCK_LIMIT);
+        if (exceedsBudget) {
+            messages.push(current);
+            current = [];
+            currentChars = 0;
+        }
+        current.push(block);
+        currentChars += blockChars;
+    }
+    if (current.length > 0) {
+        messages.push(current);
+    }
+
+    if (messages.length <= maxMessages) {
+        return { messages, truncated: false };
+    }
+    return { messages: messages.slice(0, maxMessages), truncated: true };
+};
+
 const TOOL_TASK_TITLES: Record<string, string> = {
     agent_reasoning: 'Working through the answer',
     loadProjectContext: 'Reading project context',
@@ -163,12 +218,15 @@ export const buildSlackTaskUpdate = ({
     status,
     details,
     output,
+    count,
 }: {
     toolName: string;
     taskId?: string;
     status: 'pending' | 'in_progress' | 'complete' | 'error';
     details?: string;
     output?: string;
+    // Times this tool type ran; >1 renders "×N" instead of one block per call.
+    count?: number;
 }): SlackStreamChunk => {
     const title = getSlackToolTitle(toolName);
     const resolvedDetails =
@@ -183,7 +241,7 @@ export const buildSlackTaskUpdate = ({
     return {
         type: 'task_update',
         id: getSlackTaskId(taskId ?? toolName),
-        title,
+        title: count && count > 1 ? `${title} ×${count}` : title,
         status,
         ...(resolvedDetails
             ? { details: truncateTaskText(resolvedDetails) }
@@ -701,108 +759,6 @@ export function getFeedbackBlocks(
     ];
 }
 
-export async function getArtifactBlocks(
-    slackPrompt: SlackPrompt,
-    siteUrl: string,
-    maxQueryLimit: number,
-    createShareUrl: (path: string, params: string) => Promise<string>,
-    getExplore: (exploreName: string) => Promise<Explore>,
-    artifacts?: AiArtifact[],
-): Promise<(Block | KnownBlock)[]> {
-    // TODO: Assuming each thread has just one artifact for now
-    if (!artifacts || artifacts.length === 0) {
-        return [];
-    }
-
-    // Find the first chart artifact (assuming one artifact per thread for now)
-    const chartArtifact = artifacts.find((artifact) => artifact.chartConfig);
-    if (!chartArtifact || !chartArtifact.chartConfig) {
-        return [];
-    }
-
-    const vizConfig = parseVizConfig(chartArtifact.chartConfig, maxQueryLimit);
-    if (!vizConfig) {
-        throw new Error('Failed to parse viz config');
-    }
-
-    // Get explore to populate SQL for additional metrics
-    const explore = await getExplore(vizConfig.metricQuery.exploreName);
-    const additionalMetricsWithSql = populateCustomMetricsSQL(
-        vizConfig.metricQuery.additionalMetrics,
-        explore,
-    );
-
-    // Build column order including all field types
-    const additionalMetricFieldIds = additionalMetricsWithSql.map(
-        (m) => `${m.table}_${m.name}`,
-    );
-    const tableCalculationNames = vizConfig.metricQuery.tableCalculations.map(
-        (tc) => tc.name,
-    );
-    const columnOrder = [
-        ...vizConfig.metricQuery.dimensions,
-        ...vizConfig.metricQuery.metrics,
-        ...additionalMetricFieldIds,
-        ...tableCalculationNames,
-    ];
-
-    const configState = {
-        tableName: vizConfig.metricQuery.exploreName,
-        metricQuery: {
-            ...vizConfig.metricQuery,
-            additionalMetrics: additionalMetricsWithSql,
-        },
-        tableConfig: {
-            columnOrder,
-        },
-        chartConfig: {
-            type: 'table',
-            config: {
-                showColumnCalculation: false,
-                showRowCalculation: false,
-                showTableNames: true,
-                showResultsTotal: false,
-                showSubtotals: false,
-                columns: {},
-                hideRowNumbers: false,
-                conditionalFormattings: [],
-                metricsAsRows: false,
-            },
-        },
-    };
-
-    const path = `/projects/${slackPrompt.projectUuid}/tables/${vizConfig.metricQuery.exploreName}`;
-    const params = `?create_saved_chart_version=${encodeURIComponent(
-        JSON.stringify(configState),
-    )}`;
-
-    let exploreUrl: string;
-    try {
-        exploreUrl = await createShareUrl(path, params);
-    } catch {
-        // Fall back to full URL if share creation fails
-        exploreUrl = `${siteUrl}${path}${params}`;
-    }
-
-    return [
-        {
-            type: 'actions',
-            elements: [
-                {
-                    type: 'button',
-                    url: exploreUrl,
-                    action_id: 'actions.explore_button_click',
-                    text: {
-                        type: 'plain_text',
-                        text: '⚡️ Explore in Lightdash',
-                        emoji: true,
-                    },
-                },
-            ],
-        },
-    ];
-}
-
 export function getDeepLinkBlocks(
     agentUuid: string,
     slackPrompt: SlackPrompt,
@@ -875,44 +831,6 @@ export function getProposeChangeBlocks(
                     },
                 },
             ],
-        },
-    ];
-}
-
-export function getEditDbtProjectBlocks(
-    toolResults?: AiAgentToolResult[],
-): (Block | KnownBlock)[] {
-    if (!toolResults || toolResults.length === 0) {
-        return [];
-    }
-
-    const prUrls = toolResults
-        .filter(isToolEditDbtProjectResult)
-        .map((result) =>
-            result.metadata.status === 'success' ? result.metadata.prUrl : null,
-        )
-        .filter((prUrl): prUrl is string => Boolean(prUrl));
-
-    if (prUrls.length === 0) {
-        return [];
-    }
-
-    return [
-        {
-            type: 'divider',
-        },
-        {
-            type: 'actions',
-            elements: prUrls.map((prUrl, index) => ({
-                type: 'button',
-                url: prUrl,
-                style: 'primary',
-                action_id: `actions.view_pull_request_button_click.${index}`,
-                text: {
-                    type: 'plain_text',
-                    text: 'View pull request',
-                },
-            })),
         },
     ];
 }

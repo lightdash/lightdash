@@ -141,6 +141,7 @@ const makeRemediationRow = (
     source_thread_uuid: THREAD_UUID,
     source_project_uuid: PROJECT_UUID,
     source_agent_uuid: AGENT_UUID,
+    work_thread_uuid: null,
     pull_request_uuid: PULL_REQUEST_UUID,
     linked_pr_url: 'https://github.com/acme/dbt/pull/42',
     preview_project_uuid: PREVIEW_PROJECT_UUID,
@@ -217,6 +218,18 @@ describe('AiAgentReviewClassifierModel', () => {
             const [query] = tracker.history.select;
             expect(query.sql).toContain('project_type');
             expect(query.bindings).toContain(ProjectType.PREVIEW);
+        });
+
+        it('excludes remediation build-fix work threads', async () => {
+            tracker.on.select(AiPromptTableName).responseOnce([]);
+
+            await model.listTurnReviewCandidates({
+                organizationUuid: ORGANIZATION_UUID,
+            });
+
+            const [query] = tracker.history.select;
+            expect(query.sql).toContain(AiAgentReviewRemediationTableName);
+            expect(query.sql).toContain('work_thread_uuid');
         });
     });
 
@@ -503,7 +516,7 @@ describe('AiAgentReviewClassifierModel', () => {
                     uuid: FINGERPRINT,
                     fingerprint: FINGERPRINT,
                     title: 'Review revenue metric',
-                    status: 'open',
+                    status: 'triage',
                     linkedPrUrl: null,
                     prState: null,
                     remediation: null,
@@ -865,6 +878,7 @@ describe('AiAgentReviewClassifierModel', () => {
                 sourceThreadUuid: THREAD_UUID,
                 sourceProjectUuid: PROJECT_UUID,
                 sourceAgentUuid: AGENT_UUID,
+                workThreadUuid: null,
                 retryPrompt: 'Show revenue',
                 createdByUserUuid: null,
             });

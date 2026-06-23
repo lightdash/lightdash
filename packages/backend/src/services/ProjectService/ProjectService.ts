@@ -202,6 +202,7 @@ import {
     warehouseSqlBuilderFromType,
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
+import { createHmac, timingSafeEqual } from 'crypto';
 import * as fs from 'fs';
 import * as yaml from 'js-yaml';
 import { uniq } from 'lodash';
@@ -351,6 +352,20 @@ export type ProjectServiceArguments = {
     // AppGenerateService depends on ProjectService, so eager injection would
     // create a construction cycle. Resolves undefined in core (non-EE) builds.
     getAppGenerateService?: () => AppGenerateService | undefined;
+};
+
+const isValidDbtCloudWebhookSignature = (
+    secret: string,
+    rawBody: Buffer,
+    signature: string,
+): boolean => {
+    const expected = createHmac('sha256', secret).update(rawBody).digest('hex');
+    const expectedBuffer = Buffer.from(expected, 'utf8');
+    const signatureBuffer = Buffer.from(signature, 'utf8');
+    if (expectedBuffer.length !== signatureBuffer.length) {
+        return false;
+    }
+    return timingSafeEqual(expectedBuffer, signatureBuffer);
 };
 
 export class ProjectService extends BaseService {
@@ -3066,19 +3081,6 @@ export class ProjectService extends BaseService {
         const updatedProject =
             await this.projectModel.getWithSensitiveFields(projectUuid);
 
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot('update', subject('Project', updatedProject))
-        ) {
-            throw new ForbiddenError();
-        }
-
-        if (updatedProject.warehouseConnection === undefined) {
-            throw new Error(
-                `Missing warehouseConnection details on project ${projectUuid}'}`,
-            );
-        }
-
         // This job is the job model we use to compile projects
         // This is not the graphile Job id we use on scheduler
         // TODO: remove this old job method and replace with scheduler log details
@@ -3106,6 +3108,22 @@ export class ProjectService extends BaseService {
         };
 
         try {
+            const auditedAbility = this.createAuditedAbility(user);
+            if (
+                auditedAbility.cannot(
+                    'update',
+                    subject('Project', updatedProject),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+
+            if (updatedProject.warehouseConnection === undefined) {
+                throw new Error(
+                    `Missing warehouseConnection details on project ${projectUuid}'}`,
+                );
+            }
+
             await this.jobModel.update(job.jobUuid, {
                 jobStatus: JobStatusType.RUNNING,
             });
@@ -6217,6 +6235,13 @@ export class ProjectService extends BaseService {
                 }),
             )
         ) {
+            await this._markJobAsFailed(jobUuid).catch((e) => {
+                this.logger.error(
+                    `Failed to mark compile job as failed: ${
+                        e instanceof Error ? e.stack : e
+                    }`,
+                );
+            });
             throw new ForbiddenError();
         }
 
@@ -7974,7 +7999,8 @@ export class ProjectService extends BaseService {
                 project.dbtConnection,
                 data.dbtConnectionOverrides ?? {},
             ),
-            upstreamProjectUuid: data.copyContent ? projectUuid : undefined,
+            upstreamProjectUuid: projectUuid,
+            copyContent: data.copyContent,
             organizationWarehouseCredentialsUuid:
                 project.organizationWarehouseCredentialsUuid,
             dbtVersion: project.dbtVersion,
@@ -9080,10 +9106,11 @@ export class ProjectService extends BaseService {
         return updatedCharts;
     }
 
-    async createPreviewWithExplores(
+    async createPreviewFromDbtCloudWebhook(
         projectUuid: string,
-        accountId: string,
-        runId: string,
+        accountId: number,
+        runId: number,
+        webhookAuth: { rawBody: Buffer | null; signature: string | null },
     ): Promise<string> {
         // create preview project permissions are checked in `createWithoutCompile`
         const project =
@@ -9098,6 +9125,25 @@ export class ProjectService extends BaseService {
         if (project.dbtConnection.type !== DbtProjectType.DBT_CLOUD_IDE) {
             throw new ParameterError(
                 `Project ${projectUuid} is not a dbt Cloud IDE project`,
+            );
+        }
+
+        const webhookSecret = project.dbtConnection.webhook_hmac_secret;
+        if (webhookSecret) {
+            if (
+                !webhookAuth.rawBody ||
+                !webhookAuth.signature ||
+                !isValidDbtCloudWebhookSignature(
+                    webhookSecret,
+                    webhookAuth.rawBody,
+                    webhookAuth.signature,
+                )
+            ) {
+                throw new ForbiddenError('Invalid dbt Cloud webhook signature');
+            }
+        } else {
+            this.logger.info(
+                `dbt Cloud webhook for project ${projectUuid} processed without signature verification (no webhook_hmac_secret configured)`,
             );
         }
 

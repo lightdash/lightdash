@@ -10,6 +10,8 @@ import type {
     ApiAiAgentThreadGenerateTitleResponse,
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
+    ApiAiAgentThreadMessageInterruptResponse,
+    ApiAiAgentThreadMessageSteerResponse,
     ApiAiAgentThreadMessageVizQuery,
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadShareResponse,
@@ -630,6 +632,34 @@ const toOptimisticContextItem = (
                 promptUuid: item.promptUuid ?? null,
                 displayName: null,
             };
+        case 'file':
+            return { type: 'file', path: item.path };
+        case 'repository':
+            return { type: 'repository', fullName: item.fullName };
+        case 'pull_request':
+            return {
+                type: 'pull_request',
+                prUrl: item.prUrl,
+                prNumber: null,
+                provider: null,
+                status: null,
+                title: null,
+            };
+        case 'preview_environment':
+            return {
+                type: 'preview_environment',
+                previewProjectUuid: item.previewProjectUuid,
+                previewThreadUuid: null,
+                status: null,
+                projectName: null,
+            };
+        // System-only pins are seeded by the remediation flow, never optimistically
+        // attached from the UI, so they have no client-resolvable shape.
+        case 'proposed_change':
+        case 'review_finding':
+            throw new Error(
+                `Cannot optimistically resolve system-only context item: ${item.type}`,
+            );
         default:
             return assertUnreachable(
                 item,
@@ -667,6 +697,7 @@ const createOptimisticMessages = (
                 uuid: user?.userUuid ?? 'unknown',
             },
             context,
+            steers: [],
             hidden,
         },
         {
@@ -676,6 +707,7 @@ const createOptimisticMessages = (
             threadUuid,
             message: '',
             errorMessage: null,
+            interrupted: false,
             createdAt: new Date().toISOString(),
             user: {
                 name: agent?.name ?? 'Unknown',
@@ -1001,6 +1033,7 @@ export const useCreateAgentThreadMessageMutation = (
         ApiAiAgentThreadMessageCreateRequest & {
             optimisticContext?: AiPromptContext;
             enableSqlMode?: boolean;
+            autoApproveSql?: boolean;
             toolHints?: string[];
         },
         { messageUuid: string }
@@ -1008,6 +1041,7 @@ export const useCreateAgentThreadMessageMutation = (
         mutationFn: ({
             optimisticContext: _optimisticContext,
             enableSqlMode: _enableSqlMode,
+            autoApproveSql: _autoApproveSql,
             toolHints: _toolHints,
             ...data
         }) =>
@@ -1087,6 +1121,7 @@ export const useCreateAgentThreadMessageMutation = (
                 threadUuid: threadUuid!,
                 messageUuid: data.uuid,
                 enableSqlMode: vars.enableSqlMode,
+                autoApproveSql: vars.autoApproveSql,
                 toolHints: vars.toolHints,
                 onFinish: () =>
                     queryClient.invalidateQueries([
@@ -1203,6 +1238,81 @@ export const useRetryAiAgentThreadMessageMutation = () => {
                 'threads',
                 threadUuid,
             ]);
+        },
+    });
+};
+
+export const useInterruptAiAgentThreadMessageMutation = () =>
+    useMutation<
+        ApiAiAgentThreadMessageInterruptResponse['results'],
+        ApiError,
+        {
+            projectUuid: string;
+            agentUuid: string;
+            threadUuid: string;
+            messageUuid: string;
+        }
+    >({
+        mutationFn: ({ projectUuid, agentUuid, threadUuid, messageUuid }) =>
+            lightdashApi<ApiAiAgentThreadMessageInterruptResponse['results']>({
+                url: `${getAiAgentApiBase(
+                    projectUuid,
+                )}/${agentUuid}/threads/${threadUuid}/messages/${messageUuid}/interrupt`,
+                method: 'POST',
+                body: undefined,
+            }),
+    });
+
+export const useCreateAiAgentThreadMessageSteerMutation = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation<
+        ApiAiAgentThreadMessageSteerResponse['results'],
+        ApiError,
+        {
+            projectUuid: string;
+            agentUuid: string;
+            threadUuid: string;
+            messageUuid: string;
+            message: string;
+        }
+    >({
+        mutationFn: ({
+            projectUuid,
+            agentUuid,
+            threadUuid,
+            messageUuid,
+            message,
+        }) =>
+            lightdashApi<ApiAiAgentThreadMessageSteerResponse['results']>({
+                url: `${getAiAgentApiBase(
+                    projectUuid,
+                )}/${agentUuid}/threads/${threadUuid}/messages/${messageUuid}/steers`,
+                method: 'POST',
+                body: JSON.stringify({ message }),
+            }),
+        onSuccess: (
+            result,
+            { projectUuid, agentUuid, threadUuid, messageUuid },
+        ) => {
+            queryClient.setQueryData<ApiAiAgentThreadResponse['results']>(
+                [AI_AGENTS_KEY, projectUuid, agentUuid, 'threads', threadUuid],
+                (currentData) => {
+                    if (!currentData) return currentData;
+
+                    return {
+                        ...currentData,
+                        messages: currentData.messages.map((item) =>
+                            item.role === 'user' && item.uuid === messageUuid
+                                ? {
+                                      ...item,
+                                      steers: [...item.steers, result.steer],
+                                  }
+                                : item,
+                        ),
+                    };
+                },
+            );
         },
     });
 };

@@ -2,6 +2,7 @@ import {
     ChartKind,
     type ChartContent,
     type DataAppClaudeModel,
+    type ExternalConnection,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -30,6 +31,7 @@ import {
     IconDatabasePlus,
     IconLayoutDashboard,
     IconPhoto,
+    IconPlugConnected,
     IconPlus,
     IconSearch,
     IconSparkles,
@@ -43,6 +45,7 @@ import { ChartIcon, IconBox } from '../../components/common/ResourceIcon';
 import { getChartIcon } from '../../components/common/ResourceIcon/utils';
 import { useDashboards } from '../../hooks/dashboard/useDashboards';
 import { useChartSummariesV2 } from '../../hooks/useChartSummariesV2';
+import { useExternalConnections } from '../externalConnections/hooks/useExternalConnections';
 import classes from './AppResourcePicker.module.css';
 
 export type SelectedChart = {
@@ -65,6 +68,20 @@ export type SelectedDashboard = {
      */
     includeSampleData: boolean;
 };
+
+export type SelectedConnection = {
+    externalConnectionUuid: string;
+    name: string;
+    /** Handle the generated app calls it by: client.externalFetch(alias, …). */
+    alias: string;
+};
+
+/** Derive a stable, code-safe alias from a connection name. */
+const aliasFromName = (name: string): string =>
+    name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '');
 
 const SAMPLE_DATA_TOOLTIP =
     'Include sample data - runs this query and shares up to 10 rows with the app generator so it can see actual values (date ranges, labels, magnitudes). Off by default because rows can be sensitive.';
@@ -711,7 +728,125 @@ const DashboardPickerView: FC<{
     );
 };
 
-type AttachView = 'menu' | 'queries' | 'dashboard';
+/**
+ * Internal: external-connection list with search. Mirrors `QueryPickerView`.
+ * Selecting a connection adds it to the parent and keeps the picker open so
+ * multiple can be added in one flow.
+ */
+const ConnectionPickerView: FC<{
+    selectedConnections: SelectedConnection[];
+    onSelect: (connection: SelectedConnection) => void;
+    onDeselect: (uuid: string) => void;
+    onDone: () => void;
+    enabled: boolean;
+}> = ({ selectedConnections, onSelect, onDeselect, onDone, enabled }) => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const [searchQuery, setSearchQuery] = useState('');
+    const { data: connections, isInitialLoading } = useExternalConnections(
+        enabled ? projectUuid : undefined,
+    );
+
+    const selectedUuids = useMemo(
+        () => new Set(selectedConnections.map((c) => c.externalConnectionUuid)),
+        [selectedConnections],
+    );
+
+    const filtered = useMemo(() => {
+        const q = searchQuery.trim().toLowerCase();
+        const list = connections ?? [];
+        if (!q) return list;
+        return list.filter(
+            (c) =>
+                c.name.toLowerCase().includes(q) ||
+                c.origin.toLowerCase().includes(q),
+        );
+    }, [connections, searchQuery]);
+
+    const handleToggle = useCallback(
+        (connection: ExternalConnection) => {
+            if (selectedUuids.has(connection.externalConnectionUuid)) {
+                onDeselect(connection.externalConnectionUuid);
+            } else {
+                onSelect({
+                    externalConnectionUuid: connection.externalConnectionUuid,
+                    name: connection.name,
+                    alias: aliasFromName(connection.name),
+                });
+            }
+        },
+        [onSelect, onDeselect, selectedUuids],
+    );
+
+    return (
+        <>
+            <Box px="xs" pb="xs">
+                <TextInput
+                    size="xs"
+                    placeholder="Search connections..."
+                    leftSection={<MantineIcon icon={IconSearch} size={14} />}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.currentTarget.value)}
+                    autoFocus
+                />
+            </Box>
+            <ScrollArea.Autosize mah={350} px="xs" pb="xs">
+                {isInitialLoading ? (
+                    <Group justify="center" p="sm">
+                        <Loader size="sm" />
+                    </Group>
+                ) : filtered.length === 0 ? (
+                    <Text size="xs" c="dimmed" ta="center" p="sm">
+                        No external connections found
+                    </Text>
+                ) : (
+                    filtered.map((connection) => {
+                        const isSelected = selectedUuids.has(
+                            connection.externalConnectionUuid,
+                        );
+                        return (
+                            <Box
+                                key={connection.externalConnectionUuid}
+                                className={`${classes.chartItem} ${
+                                    isSelected ? classes.chartItemSelected : ''
+                                }`}
+                                onClick={() => handleToggle(connection)}
+                            >
+                                <MantineIcon icon={IconPlugConnected} />
+                                <Box flex={1} miw={0}>
+                                    <Text size="xs" fw={500} truncate>
+                                        {connection.name}
+                                    </Text>
+                                    <Text size="xs" c="dimmed" truncate>
+                                        {connection.origin}
+                                    </Text>
+                                </Box>
+                                {isSelected && (
+                                    <Box
+                                        className={
+                                            classes.chartItemSelectedIcon
+                                        }
+                                    >
+                                        <MantineIcon
+                                            icon={IconCheck}
+                                            size={14}
+                                        />
+                                    </Box>
+                                )}
+                            </Box>
+                        );
+                    })
+                )}
+            </ScrollArea.Autosize>
+            <Box className={classes.attachPickerFooter}>
+                <Button size="compact-xs" radius="md" onClick={onDone}>
+                    Done
+                </Button>
+            </Box>
+        </>
+    );
+};
+
+type AttachView = 'menu' | 'queries' | 'dashboard' | 'connections';
 
 /**
  * Compact `+` trigger that opens a single Popover whose contents switch
@@ -727,6 +862,9 @@ export const AttachButton: FC<{
     selectedDashboard: SelectedDashboard | null;
     onSelectDashboard: (dashboard: SelectedDashboard) => void;
     onDeselectDashboard: () => void;
+    selectedConnections: SelectedConnection[];
+    onSelectConnection: (connection: SelectedConnection) => void;
+    onDeselectConnection: (uuid: string) => void;
     onAddImages: () => void;
     disabled: boolean;
     imagesDisabled: boolean;
@@ -737,6 +875,9 @@ export const AttachButton: FC<{
     selectedDashboard,
     onSelectDashboard,
     onDeselectDashboard,
+    selectedConnections,
+    onSelectConnection,
+    onDeselectConnection,
     onAddImages,
     disabled,
     imagesDisabled,
@@ -764,11 +905,20 @@ export const AttachButton: FC<{
         onAddImages();
     }, [onAddImages]);
 
-    const headerTitle = view === 'queries' ? 'Add queries' : 'Add a dashboard';
+    const headerTitle =
+        // eslint-disable-next-line no-nested-ternary
+        view === 'queries'
+            ? 'Add queries'
+            : view === 'connections'
+              ? 'Add external connections'
+              : 'Add a dashboard';
     const headerSubtitle =
+        // eslint-disable-next-line no-nested-ternary
         view === 'queries'
             ? 'Select queries to include in the app'
-            : 'All chart tiles will be included as references';
+            : view === 'connections'
+              ? 'Let the app fetch from these external APIs'
+              : 'All chart tiles will be included as references';
 
     return (
         <Popover
@@ -842,6 +992,20 @@ export const AttachButton: FC<{
                                 </Text>
                             </Box>
                         </UnstyledButton>
+                        <UnstyledButton
+                            className={classes.attachMenuItem}
+                            onClick={() => setView('connections')}
+                        >
+                            <MantineIcon icon={IconPlugConnected} />
+                            <Box flex={1}>
+                                <Text size="sm" fw={500}>
+                                    External connections
+                                </Text>
+                                <Text size="xs" c="dimmed">
+                                    Let the app fetch from external APIs
+                                </Text>
+                            </Box>
+                        </UnstyledButton>
                     </Box>
                 ) : (
                     <>
@@ -872,6 +1036,17 @@ export const AttachButton: FC<{
                                 selectedCharts={selectedCharts}
                                 onSelect={onSelectChart}
                                 onDeselect={onDeselectChart}
+                                onDone={() => {
+                                    setOpened(false);
+                                    setView('menu');
+                                }}
+                                enabled={opened}
+                            />
+                        ) : view === 'connections' ? (
+                            <ConnectionPickerView
+                                selectedConnections={selectedConnections}
+                                onSelect={onSelectConnection}
+                                onDeselect={onDeselectConnection}
                                 onDone={() => {
                                     setOpened(false);
                                     setView('menu');

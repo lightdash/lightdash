@@ -89,6 +89,14 @@ export enum FeatureFlags {
     EnableDataApps = 'enable-data-apps',
 
     /**
+     * Enable the data-app external-fetch proxy: external connections, the proxy
+     * endpoint, the admin settings page, and the iframe bridge path. Disabled by
+     * default; must be turned on per organization. When off, every external-access
+     * code path is locked down.
+     */
+    EnableDataAppExternalAccess = 'enable-data-app-external-access',
+
+    /**
      * Enable AI Dashboard Summary feature (generates summaries of dashboard
      * contents using the AI Copilot).
      */
@@ -106,14 +114,6 @@ export enum FeatureFlags {
      * tools in the agent tool surface.
      */
     AiAgentRevamp = 'ai-agent-revamp',
-
-    /**
-     * Use Slack's modern AI-agent message primitives for Lightdash AI agent
-     * replies: assistant status, streamed markdown, task updates, and
-     * context-action feedback. Falls back to classic Slack blocks when the
-     * workspace has not re-authorized the required Slack scopes.
-     */
-    AiAgentSlackModernBlocks = 'ai-agent-slack-modern-blocks',
 
     /**
      * Enable the Hexbin (H3 hexagonal binning) layer type for Map charts.
@@ -156,14 +156,6 @@ export enum FeatureFlags {
      * if the flag is later turned off.
      */
     LockDashboardFilters = 'lock-dashboard-filters',
-
-    /**
-     * Show empty-state suggestion chips above the AI agent chat input. Each
-     * chip carries a tool hint that biases the agent toward the implied tool
-     * on the first turn. Gated for staged rollout while we tune the Haiku
-     * prompt and measure click-through.
-     */
-    AiAgentSuggestions = 'ai-agent-suggestions',
 
     /**
      * Enable the new pivot-column-sort UI: per-pivot-column sort menu on
@@ -286,6 +278,13 @@ export enum FeatureFlags {
      * feature is built out across the roadmap service and app.
      */
     Roadmap = 'roadmap',
+
+    /**
+     * Show the AWS IAM authentication option on the Redshift connection form.
+     * When off, only username/password auth is offered. Lets IAM auth be
+     * rolled out / disabled per-org at runtime without a deploy.
+     */
+    RedshiftIamAuth = 'redshift-iam-auth',
 }
 
 export type FeatureFlag = {

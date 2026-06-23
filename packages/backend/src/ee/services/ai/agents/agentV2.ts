@@ -23,6 +23,7 @@ import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
 import { getDiscoverRepos } from '../tools/discoverRepos';
 import { getEditContent } from '../tools/editContent';
 import { getEditDbtProject } from '../tools/editDbtProject';
+import { getEditProjectContext } from '../tools/editProjectContext';
 import { getExploreRepo } from '../tools/exploreRepo';
 import { getFindContent } from '../tools/findContent';
 import { getGenerateDashboardV2 } from '../tools/generateDashboardV2';
@@ -137,6 +138,71 @@ export const defaultAgentOptions = {
     toolChoice: 'auto' as const,
     stopWhen: stepCountIs(STEP_CAP),
     maxRetries: 6, // Increased for Bedrock rate limits
+};
+
+/**
+ * When forceToolHints is set, force the first hinted tool on the opening step
+ * (toolChoice) and release to auto afterwards. Used by the review Build-fix run
+ * to guarantee the agent opens a PR via editDbtProject rather than just
+ * discussing the fix. No-op if the forced tool isn't in the registered set.
+ */
+const buildForcedFirstStep = (args: AiAgentArgs, tools: ToolSet) => {
+    if (!args.forceToolHints) return undefined;
+    const forcedTool = args.toolHints[0];
+    if (!forcedTool || !(forcedTool in tools)) return undefined;
+    return ({ stepNumber }: { stepNumber: number }) =>
+        stepNumber === 0
+            ? { toolChoice: { type: 'tool' as const, toolName: forcedTool } }
+            : {};
+};
+
+const buildPrepareStep = ({
+    args,
+    dependencies,
+    tools,
+    logger,
+}: {
+    args: AiAgentArgs;
+    dependencies: AiAgentDependencies;
+    tools: ToolSet;
+    logger: ReturnType<typeof createAiAgentLogger>;
+}) => {
+    const forcedFirstStep = buildForcedFirstStep(args, tools);
+
+    return async ({
+        stepNumber,
+        messages,
+    }: {
+        stepNumber: number;
+        messages: ModelMessage[];
+    }) => {
+        const forced = forcedFirstStep?.({ stepNumber }) ?? {};
+        const steers = await dependencies.consumePromptSteers({
+            promptUuid: args.promptUuid,
+            stepNumber,
+        });
+
+        if (steers.length === 0) return forced;
+
+        logger(
+            'Prepare Step',
+            `Injecting ${steers.length} steer(s) for prompt UUID: ${args.promptUuid}`,
+        );
+
+        return {
+            ...forced,
+            messages: [
+                ...messages,
+                {
+                    role: 'user' as const,
+                    content: [
+                        'Additional guidance from the user while you were working:',
+                        ...steers.map((steer) => `- ${steer.message}`),
+                    ].join('\n'),
+                },
+            ],
+        };
+    };
 };
 
 const getAgentTools = (
@@ -291,6 +357,14 @@ const getAgentTools = (
           })
         : null;
 
+    // Only present in review-remediation work threads, where the user can
+    // rebuild/change the project_context PR conversationally.
+    const editProjectContext = args.enableEditProjectContext
+        ? getEditProjectContext({
+              editProjectContext: dependencies.editProjectContext,
+          })
+        : null;
+
     const syncDbtProject = args.enableAiWriteback
         ? getSyncDbtProject({
               syncDbtProject: dependencies.syncDbtProject,
@@ -402,6 +476,7 @@ const getAgentTools = (
         generateUuids,
         ...(args.canManageAgent ? { improveContext } : {}),
         ...(editDbtProject ? { editDbtProject } : {}),
+        ...(editProjectContext ? { editProjectContext } : {}),
         ...(syncDbtProject ? { syncDbtProject } : {}),
         ...(setupPreviewDeploy ? { setupPreviewDeploy } : {}),
         ...(exploreRepo ? { exploreRepo } : {}),
@@ -463,7 +538,30 @@ const withEarlyToolProgress = (
         }),
     ) as ToolSet;
 
-const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
+const getUnauthenticatedMcpServerNames = (
+    args: AiAgentArgs,
+    mcpToolSetup: AgentMcpToolSetup,
+) => {
+    const oauthServerUuids = new Set(
+        args.mcpServers
+            .filter((server) => server.authType === 'oauth')
+            .map((server) => server.uuid),
+    );
+
+    return mcpToolSetup.unavailableMcpServers
+        .filter(
+            (server) =>
+                server.status === 'not_connected' &&
+                oauthServerUuids.has(server.serverUuid),
+        )
+        .map((server) => server.serverName);
+};
+
+const getAgentMessages = (
+    args: AiAgentArgs,
+    availableExplores: Explore[],
+    mcpToolSetup: AgentMcpToolSetup,
+) => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger('Agent Messages', 'Getting agent messages.');
 
@@ -489,6 +587,7 @@ const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
             siteUrl: args.siteUrl,
             enableRepoDiscovery: args.enableRepoDiscovery,
             repoFsRoot: args.repoFsRoot,
+            repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
             enableContentTools:
                 args.enableAgentRevamp &&
                 args.enableDataAccess &&
@@ -496,6 +595,10 @@ const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
             canRunSql: args.canRunSql,
             warehouseType: args.warehouseType,
             warehouseSchema: args.warehouseSchema,
+            unauthenticatedMcpServerNames: getUnauthenticatedMcpServerNames(
+                args,
+                mcpToolSetup,
+            ),
         }),
         ...messageHistory,
     ];
@@ -554,14 +657,25 @@ export const generateAgentResponse = async ({
             getAgentTools(args, dependencies, availableExplores, mcpToolSetup),
             dependencies.updateProgress,
         );
-        const messages = getAgentMessages(args, availableExplores);
+        const messages = getAgentMessages(
+            args,
+            availableExplores,
+            mcpToolSetup,
+        );
         logger(
             'Generate Agent Response',
             `Calling generateText with model: ${modelName}`,
         );
+        const prepareStep = buildPrepareStep({
+            args,
+            dependencies,
+            tools,
+            logger,
+        });
         const result = await generateText({
             ...defaultAgentOptions,
             ...args.callOptions,
+            prepareStep,
             providerOptions: args.providerOptions,
             model: args.model,
             tools,
@@ -784,14 +898,38 @@ export const streamAgentResponse = async ({
             availableExplores,
             mcpToolSetup,
         );
-        const messages = getAgentMessages(args, availableExplores);
+        const messages = getAgentMessages(
+            args,
+            availableExplores,
+            mcpToolSetup,
+        );
         logger(
             'Stream Agent Response',
             `Calling streamText with model: ${modelName}`,
         );
+        const prepareStep = buildPrepareStep({
+            args,
+            dependencies,
+            tools,
+            logger,
+        });
+        const stopWhenPromptInterrupted = async () => {
+            const interrupted = await dependencies.isPromptInterrupted(
+                args.promptUuid,
+            );
+            if (interrupted) {
+                logger(
+                    'Stream Agent Response',
+                    `Stopping stream for interrupted prompt UUID: ${args.promptUuid}`,
+                );
+            }
+            return interrupted;
+        };
         const result = streamText({
             ...defaultAgentOptions,
             ...args.callOptions,
+            prepareStep,
+            stopWhen: [stepCountIs(STEP_CAP), stopWhenPromptInterrupted],
             providerOptions: args.providerOptions,
             model: args.model,
             tools,

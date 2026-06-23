@@ -1,7 +1,7 @@
 import { ProjectType } from '@lightdash/common';
 import { Drawer } from '@mantine-8/core';
 import { useHotkeys } from '@mantine/hooks';
-import { type FC } from 'react';
+import { lazy, Suspense, type FC } from 'react';
 import {
     BANNER_HEIGHT,
     NAVBAR_HEIGHT,
@@ -9,8 +9,11 @@ import {
 import { useActiveProjectUuid } from '../../../../hooks/useActiveProject';
 import { useProject } from '../../../../hooks/useProject';
 import { useSourceCodeEditor } from '../../context/useSourceCodeEditor';
-import SourceCodeEditorContent from '../SourceCodeEditorContent';
 import styles from './SourceCodeDrawer.module.css';
+
+const SourceCodeEditorContent = lazy(
+    () => import('../SourceCodeEditorContent'),
+);
 
 /**
  * Inner drawer content that fetches project data.
@@ -52,7 +55,9 @@ const SourceCodeDrawerContent: FC<{ onClose: () => void }> = ({ onClose }) => {
                 '--drawer-top-offset': `${topOffset}px`,
             }}
         >
-            <SourceCodeEditorContent />
+            <Suspense fallback={null}>
+                <SourceCodeEditorContent />
+            </Suspense>
         </Drawer>
     );
 };
