@@ -45,7 +45,10 @@ import { CustomMetricModal } from './CustomMetricModal';
 import ExplorerHeader from './ExplorerHeader';
 import FiltersCard from './FiltersCard/FiltersCard';
 import { FormatModal } from './FormatModal';
-import { getExploreParameterDefinitions } from './parameters';
+import {
+    getExploreParameterDefinitions,
+    getReferencedParameterDefinitions,
+} from './parameters';
 import ParametersCard from './ParametersCard/ParametersCard';
 import { PeriodOverPeriodComparisonModal } from './PeriodOverPeriodComparisonModal/PeriodOverPeriodComparisonModal';
 import ResultsCard from './ResultsCard/ResultsCard';
@@ -195,6 +198,19 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             );
         }, [parameterDefinitions, dispatch]);
 
+        // Only user-editable parameters drive the Parameters card. A reserved system
+        // variable referenced on its own (no user definition) should not show the card.
+        const hasReferencedUserParameters = useMemo(
+            () =>
+                Object.keys(
+                    getReferencedParameterDefinitions(
+                        parameterDefinitions,
+                        parameterReferencesFromRedux ?? undefined,
+                    ),
+                ).length > 0,
+            [parameterDefinitions, parameterReferencesFromRedux],
+        );
+
         // Seed parameter values from virtual view's savedParameterValues
         // when no parameter values have been set yet
         const hasSeededParams = useRef(false);
@@ -233,15 +249,13 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                             !savedChart && <RefreshDbtButton />
                         ))}
 
-                    {!!tableName &&
-                        parameterReferencesFromRedux &&
-                        parameterReferencesFromRedux?.length > 0 && (
-                            <ParametersCard
-                                parameterReferences={
-                                    parameterReferencesFromRedux
-                                }
-                            />
-                        )}
+                    {!!tableName && hasReferencedUserParameters && (
+                        <ParametersCard
+                            parameterReferences={
+                                parameterReferencesFromRedux ?? undefined
+                            }
+                        />
+                    )}
 
                     <FiltersCard />
 

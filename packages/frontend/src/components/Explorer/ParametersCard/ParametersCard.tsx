@@ -16,6 +16,7 @@ import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
+import { getReferencedParameterDefinitions } from '../parameters';
 
 const ParametersCard = memo(
     ({ parameterReferences }: { parameterReferences?: string[] }) => {
@@ -39,13 +40,14 @@ const ParametersCard = memo(
             [dispatch],
         );
 
-        const filteredParameterDefinitions = useMemo(() => {
-            return Object.fromEntries(
-                Object.entries(parameterDefinitions).filter(([key]) =>
-                    parameterReferences?.includes(key),
+        const filteredParameterDefinitions = useMemo(
+            () =>
+                getReferencedParameterDefinitions(
+                    parameterDefinitions,
+                    parameterReferences,
                 ),
-            );
-        }, [parameterDefinitions, parameterReferences]);
+            [parameterDefinitions, parameterReferences],
+        );
 
         // User params sharing a reserved name shadow it; flag them as overriding it.
         const shadowedReservedNames = useMemo(
