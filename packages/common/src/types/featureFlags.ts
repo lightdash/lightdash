@@ -257,6 +257,13 @@ export enum FeatureFlags {
     ProLimits = 'pro-limits',
 
     /**
+     * Gate the customer-facing read-only Roadmap page and its instance-side
+     * backend proxy to the central roadmap service. Off by default while the
+     * feature is built out across the roadmap service and app.
+     */
+    Roadmap = 'roadmap',
+
+    /**
      * Show the AWS IAM authentication option on the Redshift connection form.
      * When off, only username/password auth is offered. Lets IAM auth be
      * rolled out / disabled per-org at runtime without a deploy.
