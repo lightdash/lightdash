@@ -20,35 +20,12 @@
     min-width: 300px;
 }
 
-/* Template-pick stage: the picker owns the full viewport, centered both
-   axes. No split panel / empty preview pane until a template is chosen. */
-.pickerLayout {
-    height: calc(100vh - 50px);
-    overflow-y: auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: var(--mantine-spacing-xl);
-
-    @mixin light {
-        background-color: var(--mantine-color-ldGray-0);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-dark-8);
-    }
-}
-
-:global(body:has(#preview-banner)) .pickerLayout,
-:global(body:has(#impersonation-banner)) .pickerLayout {
-    height: calc(100vh - 50px - 35px);
-}
-
 /* Compose stage: the chat panel becomes a centered card on the muted
    backdrop, then morphs into the split sidebar (see .chatPanel's
    view-transition-name) on first submit. */
 .composeLayout {
     height: calc(100vh - 50px);
-    overflow: hidden;
+    overflow: visible;
     display: flex;
     justify-content: center;
     padding: var(--mantine-spacing-xl);
@@ -111,6 +88,11 @@
     letter-spacing: -0.02em;
 }
 
+.startingFromChip {
+    white-space: nowrap;
+    align-self: center;
+}
+
 .chatPanelCompose {
     position: relative;
     max-width: 760px;
@@ -137,15 +119,6 @@
             0 1px 2px alpha(var(--mantine-color-black), 0.2),
             0 16px 40px -12px alpha(var(--mantine-color-black), 0.5);
     }
-}
-
-/* Top row of the compose card — the back button sits where the picker's
-   window-chrome dots are, replacing them on this stage. */
-.composeBackBar {
-    display: flex;
-    align-items: center;
-    min-height: 36px;
-    padding: 8px 12px 0 12px;
 }
 
 .chatMessages {
