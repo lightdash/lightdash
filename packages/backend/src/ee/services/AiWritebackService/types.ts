@@ -158,17 +158,32 @@ export type AgentToolCall = {
  */
 export type AgentStreamEvent =
     | { type: 'assistant'; text: string | null; toolCalls: AgentToolCall[] }
-    | {
+    | ({
           type: 'result';
-          costUsd: number | null;
           /** Total agent wall-clock (ms) as reported by Claude Code. */
           durationMs: number | null;
-          /** Time (ms) spent in LLM API calls — the rest is local tool execution. */
-          durationApiMs: number | null;
-          /** Number of agent turns. */
-          numTurns: number | null;
-      }
+      } & AiWritebackUsage)
     | { type: 'ignored' };
+
+/**
+ * Token/turn/cost usage for one agent run, parsed from the stream-json `result`
+ * event (token counts nested under `usage.*`, the rest top-level). Mirrors the
+ * data-apps `ClaudeGenerationUsage` shape so both features report AI spend with
+ * the same field names. Nullable throughout: a run that crashes before the
+ * `result` event leaves these unknown rather than zero.
+ */
+export type AiWritebackUsage = {
+    /** Total run cost in USD as computed by the CLI from token usage. */
+    costUsd: number | null;
+    inputTokens: number | null;
+    outputTokens: number | null;
+    cacheReadInputTokens: number | null;
+    cacheCreationInputTokens: number | null;
+    /** Number of agent turns. */
+    numTurns: number | null;
+    /** Time (ms) spent in LLM API calls — the rest is local tool execution. */
+    durationApiMs: number | null;
+};
 
 /** Title/description/summary parsed out of the agent's final stdout. */
 export type PrMetadata = {

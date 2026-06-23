@@ -330,14 +330,27 @@ export const interpretAgentEvent = (event: unknown): AgentStreamEvent => {
         duration_ms?: number;
         duration_api_ms?: number;
         num_turns?: number;
+        // Token counts live nested under `usage` on the result event; the rest
+        // are top-level. Same shape data apps reads in ClaudeStreamProcessor.
+        usage?: {
+            input_tokens?: number;
+            output_tokens?: number;
+            cache_read_input_tokens?: number;
+            cache_creation_input_tokens?: number;
+        };
     };
     if (typed.type === 'result') {
+        const usage = typed.usage ?? {};
         return {
             type: 'result',
             costUsd: typed.total_cost_usd ?? null,
             durationMs: typed.duration_ms ?? null,
             durationApiMs: typed.duration_api_ms ?? null,
             numTurns: typed.num_turns ?? null,
+            inputTokens: usage.input_tokens ?? null,
+            outputTokens: usage.output_tokens ?? null,
+            cacheReadInputTokens: usage.cache_read_input_tokens ?? null,
+            cacheCreationInputTokens: usage.cache_creation_input_tokens ?? null,
         };
     }
     if (typed.type !== 'assistant') return { type: 'ignored' };

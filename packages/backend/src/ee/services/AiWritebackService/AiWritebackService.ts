@@ -86,6 +86,7 @@ import type {
     AdoptedPullRequest,
     AiWritebackRunArgs,
     AiWritebackSource,
+    AiWritebackUsage,
     AppliedChanges,
     CloneTarget,
     GitInstallation,
@@ -1260,6 +1261,7 @@ export class AiWritebackService extends BaseService {
                     exitCode: agent.exitCode,
                     hasChanges,
                     prCreated: false,
+                    usage: agent.usage,
                 });
                 const crashPrUrl =
                     turn.existingRow?.pr_url ?? adoptedPr?.prUrl ?? null;
@@ -1300,6 +1302,7 @@ export class AiWritebackService extends BaseService {
                 exitCode: agent.exitCode,
                 hasChanges,
                 prCreated: applied.prCreated,
+                usage: agent.usage,
             });
 
             this.logger.info('AI writeback run completed', {
@@ -1493,14 +1496,26 @@ export class AiWritebackService extends BaseService {
                 exitCode: number;
                 hasChanges: boolean;
                 prCreated: boolean;
+                usage: AiWritebackUsage | null;
             }) =>
                 this.analytics.track({
                     event: 'ai_writeback.completed',
                     userId: user.userUuid,
                     properties: {
                         ...eventBase,
-                        ...props,
+                        exitCode: props.exitCode,
+                        hasChanges: props.hasChanges,
+                        prCreated: props.prCreated,
                         totalDurationMs: Date.now() - startedAt,
+                        costUsd: props.usage?.costUsd ?? null,
+                        inputTokens: props.usage?.inputTokens ?? null,
+                        outputTokens: props.usage?.outputTokens ?? null,
+                        cacheReadInputTokens:
+                            props.usage?.cacheReadInputTokens ?? null,
+                        cacheCreationInputTokens:
+                            props.usage?.cacheCreationInputTokens ?? null,
+                        numTurns: props.usage?.numTurns ?? null,
+                        durationApiMs: props.usage?.durationApiMs ?? null,
                     },
                 }),
             failed: (stage: AiWritebackFailureStage, error: unknown) =>
@@ -1719,7 +1734,11 @@ export class AiWritebackService extends BaseService {
         skillKey: WarehouseSkillKey | null;
         warehouseType: WarehouseTypes | null;
         dbtVersion: SupportedDbtVersions;
-    }): Promise<{ stdout: string; exitCode: number }> {
+    }): Promise<{
+        stdout: string;
+        exitCode: number;
+        usage: AiWritebackUsage | null;
+    }> {
         await sandbox.files.write(SYSTEM_PROMPT_PATH, systemPrompt);
         await sandbox.files.write(PROMPT_PATH, prompt);
 
@@ -1770,6 +1789,9 @@ export class AiWritebackService extends BaseService {
         // user-facing reply and the PR_TITLE/PR_DESCRIPTION blocks.
         let buffer = '';
         let assistantText = '';
+        // Token/turn/cost usage from the run's `result` event, captured so the
+        // caller can attach it to the `ai_writeback.completed` analytics event.
+        let agentUsage: AiWritebackUsage | null = null;
         const toolCounts: Record<string, number> = {};
 
         let stderrTail = '';
@@ -1790,6 +1812,16 @@ export class AiWritebackService extends BaseService {
                     interpreted.durationApiMs !== null
                         ? interpreted.durationMs - interpreted.durationApiMs
                         : null;
+                agentUsage = {
+                    costUsd: interpreted.costUsd,
+                    inputTokens: interpreted.inputTokens,
+                    outputTokens: interpreted.outputTokens,
+                    cacheReadInputTokens: interpreted.cacheReadInputTokens,
+                    cacheCreationInputTokens:
+                        interpreted.cacheCreationInputTokens,
+                    numTurns: interpreted.numTurns,
+                    durationApiMs: interpreted.durationApiMs,
+                };
                 this.logger.info(
                     `AI writeback agent run summary (wall=${
                         interpreted.durationMs ?? '?'
@@ -1797,6 +1829,10 @@ export class AiWritebackService extends BaseService {
                         localToolMs ?? '?'
                     }ms, turns=${interpreted.numTurns ?? '?'}, cost=$${
                         interpreted.costUsd ?? '?'
+                    }, in=${interpreted.inputTokens ?? '?'}, out=${
+                        interpreted.outputTokens ?? '?'
+                    }, cacheRead=${
+                        interpreted.cacheReadInputTokens ?? '?'
                     }, tools=${JSON.stringify(toolCounts)})`,
                     {
                         event: 'ai_writeback.run.summary',
@@ -1807,6 +1843,11 @@ export class AiWritebackService extends BaseService {
                         durationApiMs: interpreted.durationApiMs,
                         localToolMs,
                         numTurns: interpreted.numTurns,
+                        inputTokens: interpreted.inputTokens,
+                        outputTokens: interpreted.outputTokens,
+                        cacheReadInputTokens: interpreted.cacheReadInputTokens,
+                        cacheCreationInputTokens:
+                            interpreted.cacheCreationInputTokens,
                         warehouseType,
                         toolCounts,
                     },
@@ -2009,7 +2050,11 @@ export class AiWritebackService extends BaseService {
             );
         }
 
-        return { stdout: assistantText, exitCode: result.exitCode };
+        return {
+            stdout: assistantText,
+            exitCode: result.exitCode,
+            usage: agentUsage,
+        };
     }
 
     /**
