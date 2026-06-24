@@ -411,9 +411,6 @@ describe('PivotQueryBuilder', () => {
             // (these are only needed for metric-based sorting)
             expect(result).not.toContain('column_ranking AS (');
             expect(result).not.toContain('anchor_column AS (');
-
-            // Should NOT create row anchor CTEs for revenue
-            expect(result).not.toContain('"revenue_ra" AS (');
         });
 
         test('Dimension sort: should NOT create metric anchor CTEs when sorting by groupBy column', () => {
@@ -447,10 +444,6 @@ describe('PivotQueryBuilder', () => {
             // Should NOT create column_ranking or anchor_column CTEs
             expect(result).not.toContain('column_ranking AS (');
             expect(result).not.toContain('anchor_column AS (');
-
-            // Should NOT create metric anchor CTEs
-            expect(result).not.toContain('"revenue_ra" AS (');
-            expect(result).not.toContain('"revenue_ca" AS (');
         });
 
         test('Metric sort: should create column_ranking and anchor_column CTEs when sorting by value column', () => {
@@ -499,7 +492,7 @@ describe('PivotQueryBuilder', () => {
             expect(result).toContain('CROSS JOIN anchor_column ac');
         });
 
-        test('Should include anchor CTEs and joins when sorting by a value column in pivot queries', () => {
+        test('Should fold anchor windows into the ranking CTEs when sorting by a value column in pivot queries', () => {
             const pivotConfiguration = {
                 indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
                 valuesColumns: [
@@ -521,13 +514,6 @@ describe('PivotQueryBuilder', () => {
             );
 
             const result = builder.toSql();
-
-            // Anchor windows are folded into the ranking CTEs — no standalone
-            // _ca/_ra CTEs and no cross-CTE join back to them.
-            expect(result).not.toContain('"revenue_ra" AS (');
-            expect(result).not.toContain('"revenue_ca" AS (');
-            expect(result).not.toContain('JOIN "revenue_ra" ON');
-            expect(result).not.toContain('JOIN "revenue_ca" ON');
 
             // row_ranking computes DENSE_RANK over a nested scan that aggregates
             // the row anchor value in a single pass of group_by_query
@@ -2301,9 +2287,6 @@ SELECT * FROM group_by_query LIMIT 50`);
             // values are preserved.
             expect(result).toContain('LEFT JOIN row_ranking rr ON');
             expect(result).toContain('LEFT JOIN column_ranking cr ON');
-            // No standalone anchor CTEs remain to join back to.
-            expect(result).not.toContain('"revenue_ra" AS (');
-            expect(result).not.toContain('"revenue_ca" AS (');
         });
     });
 

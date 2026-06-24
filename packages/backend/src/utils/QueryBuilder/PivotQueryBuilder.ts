@@ -816,69 +816,6 @@ export class PivotQueryBuilder {
     }
 
     /**
-     * Generates the column_ranking CTE that computes column_index for each distinct groupBy combination.
-     * This is needed to identify the anchor column (column_index = 1) for row sorting.
-     *
-     * @param groupByColumns - Group by columns (visible pivot-column dims)
-     * @param valuesColumns - Value columns configuration
-     * @param sortBy - Sort configuration
-     * @param columnAnchorCTEs - Column anchor CTEs for metric-based column sorting
-     * @param sortOnlyDimensions - Hidden pivot-column dims available in group_by_query
-     *   that should influence the ORDER BY of column_ranking (and thus column order)
-     *   but should NOT appear in the DISTINCT SELECT (so they don't create extra groups).
-     * @returns SQL for the column_ranking CTE
-     */
-    private getColumnRankingSQL(
-        groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
-        valuesColumns: PivotConfiguration['valuesColumns'],
-        sortBy: PivotConfiguration['sortBy'],
-        columnAnchorCTEs: Record<string, { cteName: string; sql: string }>,
-        sortOnlyDimensions?: PivotConfiguration['sortOnlyDimensions'],
-    ): string {
-        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
-
-        // DISTINCT SELECT contains only visible groupBy columns so that each
-        // pivot column header combination maps to exactly one col_idx.
-        // sortOnlyDimensions are NOT included here — they are helper dims that
-        // only drive the ORDER BY, not the column identity.
-        // Alias to bare names for downstream resolution (ClickHouse multi-join scoping).
-        const groupByRefs = groupByColumns
-            .map(
-                (col) =>
-                    `g.${q}${col.reference}${q} AS ${q}${col.reference}${q}`,
-            )
-            .join(', ');
-
-        // Build ORDER BY clause for column_index.
-        // sortOnlyDimensions participate in the ORDER BY so they influence which
-        // groupBy combination gets col_idx = 1, 2, 3, …
-        const groupByOrderBy = this.buildGroupByOrderBy(
-            groupByColumns,
-            valuesColumns,
-            sortBy,
-            columnAnchorCTEs,
-            q,
-            sortOnlyDimensions,
-        );
-
-        // When sorting by a metric, the FIRST_VALUE anchor windows are folded
-        // into a nested derived table (aliased `g`) so group_by_query is scanned
-        // once. Without metric sort there are no anchors — read group_by_query
-        // directly (dimension-sort path).
-        const fromClause =
-            Object.keys(columnAnchorCTEs).length > 0
-                ? `(${this.buildColumnAnchorSubquerySQL(
-                      valuesColumns,
-                      groupByColumns,
-                      sortBy,
-                      sortOnlyDimensions,
-                  )}) g`
-                : 'group_by_query g';
-
-        return `SELECT DISTINCT ${groupByRefs}, DENSE_RANK() OVER (ORDER BY ${groupByOrderBy}) AS ${q}col_idx${q} FROM ${fromClause}`;
-    }
-
-    /**
      * Builds the nested derived table for column_ranking: a single DISTINCT scan
      * of group_by_query that produces the groupBy columns (plus any sort-only
      * dims / _order companions needed by the outer ORDER BY) and one
@@ -946,6 +883,70 @@ export class PivotQueryBuilder {
         );
 
         return `SELECT DISTINCT ${selectParts} FROM group_by_query`;
+    }
+
+    /**
+     * Generates the column_ranking CTE that computes column_index for each distinct groupBy combination.
+     * This is needed to identify the anchor column (column_index = 1) for row sorting.
+     *
+     * @param groupByColumns - Group by columns (visible pivot-column dims)
+     * @param valuesColumns - Value columns configuration
+     * @param sortBy - Sort configuration
+     * @param columnAnchorCTEs - Column anchor CTEs for metric-based column sorting
+     * @param sortOnlyDimensions - Hidden pivot-column dims available in group_by_query
+     *   that should influence the ORDER BY of column_ranking (and thus column order)
+     *   but should NOT appear in the DISTINCT SELECT (so they don't create extra groups).
+     * @returns SQL for the column_ranking CTE
+     */
+    private getColumnRankingSQL(
+        groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
+        valuesColumns: PivotConfiguration['valuesColumns'],
+        sortBy: PivotConfiguration['sortBy'],
+        columnAnchorCTEs: Record<string, { cteName: string; sql: string }>,
+        sortOnlyDimensions?: PivotConfiguration['sortOnlyDimensions'],
+    ): string {
+        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
+
+        // DISTINCT SELECT contains only visible groupBy columns so that each
+        // pivot column header combination maps to exactly one col_idx.
+        // sortOnlyDimensions are NOT included here — they are helper dims that
+        // only drive the ORDER BY, not the column identity.
+        // Alias to bare names for downstream resolution (ClickHouse multi-join scoping).
+        const groupByRefs = groupByColumns
+            .map(
+                (col) =>
+                    `g.${q}${col.reference}${q} AS ${q}${col.reference}${q}`,
+            )
+            .join(', ');
+
+        // Build ORDER BY clause for column_index.
+        // sortOnlyDimensions participate in the ORDER BY so they influence which
+        // groupBy combination gets col_idx = 1, 2, 3, …
+        const groupByOrderBy = this.buildGroupByOrderBy(
+            groupByColumns,
+            valuesColumns,
+            sortBy,
+            columnAnchorCTEs,
+            q,
+            sortOnlyDimensions,
+        );
+
+        // The row source is aliased `g` — the same alias group_by_query carries
+        // everywhere else — so the shared ORDER BY builders resolve their
+        // `g.`-qualified columns identically. With a metric sort it is the folded
+        // anchor subquery (group_by_query scanned once); otherwise it is
+        // group_by_query directly (dimension-sort path).
+        const fromClause =
+            Object.keys(columnAnchorCTEs).length > 0
+                ? `(${this.buildColumnAnchorSubquerySQL(
+                      valuesColumns,
+                      groupByColumns,
+                      sortBy,
+                      sortOnlyDimensions,
+                  )}) g`
+                : 'group_by_query g';
+
+        return `SELECT DISTINCT ${groupByRefs}, DENSE_RANK() OVER (ORDER BY ${groupByOrderBy}) AS ${q}col_idx${q} FROM ${fromClause}`;
     }
 
     /**
@@ -1178,9 +1179,9 @@ export class PivotQueryBuilder {
         rowAnchorQueries: Record<string, { cteName: string; sql: string }>;
         perMetricAnchorCte: Map<string, string>;
     } {
-        // Get column anchor metadata (for column ordering). These are no longer
-        // emitted as standalone CTEs — they are folded into column_ranking — but
-        // the map's keys still gate the ORDER BY value parts.
+        // Column anchor metadata (for column ordering). The map's keys gate which
+        // ORDER BY value parts are emitted; the FIRST_VALUE windows themselves are
+        // folded into column_ranking's nested scan.
         const columnAnchorQueries = this.getColumnAnchorCTEs(
             valuesColumns,
             groupByColumns,
@@ -1297,64 +1298,6 @@ export class PivotQueryBuilder {
      */
 
     /**
-     * Generates the row_ranking CTE that computes row_index for each distinct
-     * index column combination. Isolates Window function + anchor value references
-     * in a self-contained CTE so Databricks/Spark can resolve them when inlining.
-     *
-     * @param indexColumns - Index columns for row identification
-     * @param valuesColumns - Value columns configuration
-     * @param groupByColumns - Group by columns (used to match the anchor column)
-     * @param sortBy - Sort configuration
-     * @param rowAnchorQueries - Row anchor map (presence drives whether the
-     *   anchor aggregation is folded into a nested subquery)
-     * @param perMetricAnchorCte - Optional metric → anchor CTE map for pinned sorts
-     * @returns SQL for the row_ranking CTE
-     */
-    private getRowRankingSQL(
-        indexColumns: ReturnType<typeof normalizeIndexColumns>,
-        valuesColumns: PivotConfiguration['valuesColumns'],
-        groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
-        sortBy: PivotConfiguration['sortBy'],
-        rowAnchorQueries: Record<string, { cteName: string; sql: string }>,
-        perMetricAnchorCte?: Map<string, string>,
-    ): string {
-        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
-
-        // Alias to bare names for downstream resolution (ClickHouse multi-join scoping).
-        const indexRefs = indexColumns
-            .map(
-                (col) =>
-                    `g.${q}${col.reference}${q} AS ${q}${col.reference}${q}`,
-            )
-            .join(', ');
-
-        // Reuse buildRowIndexOrderBy to get the same ORDER BY logic
-        const rowIndexOrderBy = this.buildRowIndexOrderBy(
-            indexColumns,
-            valuesColumns,
-            sortBy,
-            rowAnchorQueries,
-            q,
-        );
-
-        // With metric sort, fold the anchor aggregation into a nested derived
-        // table (aliased `g`) scanned once. Without row anchors (dimension-sort
-        // path), read group_by_query directly.
-        const fromClause =
-            Object.keys(rowAnchorQueries).length > 0
-                ? `(${this.buildRowAnchorSubquerySQL(
-                      indexColumns,
-                      valuesColumns,
-                      groupByColumns,
-                      sortBy,
-                      perMetricAnchorCte,
-                  )}) g`
-                : 'group_by_query g';
-
-        return `SELECT DISTINCT ${indexRefs}, DENSE_RANK() OVER (ORDER BY ${rowIndexOrderBy}) AS ${q}row_index${q} FROM ${fromClause}`;
-    }
-
-    /**
      * Builds the nested derived table for row_ranking: a single scan of
      * group_by_query grouped by the index columns that produces one
      * MAX(CASE …) `${ref}_ra_value` column per sorted value column — the metric
@@ -1435,6 +1378,66 @@ export class PivotQueryBuilder {
         return `SELECT ${indexSelect}, ${maxCaseSelects.join(
             ', ',
         )} FROM group_by_query q ${crossJoins} GROUP BY ${indexSelect}`;
+    }
+
+    /**
+     * Generates the row_ranking CTE that computes row_index for each distinct
+     * index column combination. Isolates Window function + anchor value references
+     * in a self-contained CTE so Databricks/Spark can resolve them when inlining.
+     *
+     * @param indexColumns - Index columns for row identification
+     * @param valuesColumns - Value columns configuration
+     * @param groupByColumns - Group by columns (used to match the anchor column)
+     * @param sortBy - Sort configuration
+     * @param rowAnchorQueries - Row anchor map (presence drives whether the
+     *   anchor aggregation is folded into a nested subquery)
+     * @param perMetricAnchorCte - Optional metric → anchor CTE map for pinned sorts
+     * @returns SQL for the row_ranking CTE
+     */
+    private getRowRankingSQL(
+        indexColumns: ReturnType<typeof normalizeIndexColumns>,
+        valuesColumns: PivotConfiguration['valuesColumns'],
+        groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
+        sortBy: PivotConfiguration['sortBy'],
+        rowAnchorQueries: Record<string, { cteName: string; sql: string }>,
+        perMetricAnchorCte?: Map<string, string>,
+    ): string {
+        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
+
+        // Alias to bare names for downstream resolution (ClickHouse multi-join scoping).
+        const indexRefs = indexColumns
+            .map(
+                (col) =>
+                    `g.${q}${col.reference}${q} AS ${q}${col.reference}${q}`,
+            )
+            .join(', ');
+
+        // Reuse buildRowIndexOrderBy to get the same ORDER BY logic
+        const rowIndexOrderBy = this.buildRowIndexOrderBy(
+            indexColumns,
+            valuesColumns,
+            sortBy,
+            rowAnchorQueries,
+            q,
+        );
+
+        // The row source is aliased `g` — the same alias group_by_query carries
+        // everywhere else — so the shared ORDER BY builder resolves its
+        // `g.`-qualified columns identically. With a metric sort it is the folded
+        // anchor subquery (group_by_query scanned once); otherwise it is
+        // group_by_query directly (dimension-sort path).
+        const fromClause =
+            Object.keys(rowAnchorQueries).length > 0
+                ? `(${this.buildRowAnchorSubquerySQL(
+                      indexColumns,
+                      valuesColumns,
+                      groupByColumns,
+                      sortBy,
+                      perMetricAnchorCte,
+                  )}) g`
+                : 'group_by_query g';
+
+        return `SELECT DISTINCT ${indexRefs}, DENSE_RANK() OVER (ORDER BY ${rowIndexOrderBy}) AS ${q}row_index${q} FROM ${fromClause}`;
     }
 
     private getPivotQuerySQL(
