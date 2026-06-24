@@ -20,6 +20,8 @@ import type {
     AiAgentReviewClassifierTurnCandidate,
     AiAgentReviewClassifierTurnSignal,
     AiAgentReviewItemDismissedReason,
+    AiAgentReviewItemEvent,
+    AiAgentReviewItemEventDetail,
     AiAgentReviewItemPrState,
     AiAgentReviewItemStatus,
     AiAgentReviewItemSummary,
@@ -49,17 +51,20 @@ import {
 } from '../database/entities/ai';
 import {
     AiAgentReviewClassifierRunTableName,
+    AiAgentReviewItemEventsTableName,
     AiAgentReviewItemTableName,
     AiAgentReviewRemediationEventsTableName,
     AiAgentReviewRemediationTableName,
     AiAgentTurnSignalTableName,
     type AiAgentReviewClassifierRunTable,
+    type AiAgentReviewItemEventsTable,
     type AiAgentReviewItemTable,
     type AiAgentReviewRemediationEventsTable,
     type AiAgentReviewRemediationTable,
     type AiAgentTurnSignalTable,
     type DbAiAgentReviewClassifierRun,
     type DbAiAgentReviewItem,
+    type DbAiAgentReviewItemEvent,
     type DbAiAgentReviewRemediation,
     type DbAiAgentReviewRemediationEvent,
     type DbAiAgentTurnSignal,
@@ -1504,6 +1509,55 @@ export class AiAgentReviewClassifierModel {
             eventType: row.event_type,
             payload: row.payload,
         } as AiAgentReviewRemediationEvent;
+    }
+
+    async createReviewItemEvent(args: {
+        fingerprint: string;
+        organizationUuid: string;
+        event: AiAgentReviewItemEventDetail;
+        occurredAt?: Date;
+        createdByUserUuid?: string | null;
+        trx?: Knex;
+    }): Promise<void> {
+        const db = args.trx ?? this.database;
+        await db<AiAgentReviewItemEventsTable>(
+            AiAgentReviewItemEventsTableName,
+        ).insert({
+            fingerprint: args.fingerprint,
+            organization_uuid: args.organizationUuid,
+            event_type: args.event.eventType,
+            payload: args.event.payload,
+            occurred_at: args.occurredAt ?? (db.fn.now() as never),
+            created_by_user_uuid: args.createdByUserUuid ?? null,
+        });
+    }
+
+    async listReviewItemEvents(args: {
+        fingerprint: string;
+        organizationUuid: string;
+    }): Promise<AiAgentReviewItemEvent[]> {
+        const rows = await this.database<AiAgentReviewItemEventsTable>(
+            AiAgentReviewItemEventsTableName,
+        )
+            .where('fingerprint', args.fingerprint)
+            .where('organization_uuid', args.organizationUuid)
+            .orderBy('occurred_at', 'asc')
+            .select('*');
+
+        return rows.map(AiAgentReviewClassifierModel.mapReviewItemEvent);
+    }
+
+    private static mapReviewItemEvent(
+        row: DbAiAgentReviewItemEvent,
+    ): AiAgentReviewItemEvent {
+        return {
+            uuid: row.ai_agent_review_item_event_uuid,
+            fingerprint: row.fingerprint,
+            occurredAt: row.occurred_at,
+            createdByUserUuid: row.created_by_user_uuid,
+            eventType: row.event_type,
+            payload: row.payload,
+        } as AiAgentReviewItemEvent;
     }
 
     /**

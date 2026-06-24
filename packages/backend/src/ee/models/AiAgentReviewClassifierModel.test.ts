@@ -4,6 +4,7 @@ import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { AiPromptTableName } from '../database/entities/ai';
 import {
     AiAgentReviewClassifierRunTableName,
+    AiAgentReviewItemEventsTableName,
     AiAgentReviewItemTableName,
     AiAgentReviewRemediationEventsTableName,
     AiAgentReviewRemediationTableName,
@@ -370,6 +371,78 @@ describe('AiAgentReviewClassifierModel', () => {
                         prNumber: 42,
                     },
                     createdByUserUuid: null,
+                },
+            ]);
+        });
+    });
+
+    describe('review item events', () => {
+        it('inserts an issue event with the mapped columns', async () => {
+            tracker.on
+                .insert(AiAgentReviewItemEventsTableName)
+                .responseOnce([]);
+            const occurredAt = new Date('2026-06-24T10:00:00.000Z');
+
+            await model.createReviewItemEvent({
+                fingerprint: FINGERPRINT,
+                organizationUuid: ORGANIZATION_UUID,
+                event: {
+                    eventType: 'status_changed',
+                    payload: {
+                        from: 'open',
+                        to: 'in_progress',
+                        dismissedReason: null,
+                    },
+                },
+                occurredAt,
+                createdByUserUuid: USER_UUID,
+            });
+
+            const [insert] = tracker.history.insert;
+            expect(insert.sql).toContain(AiAgentReviewItemEventsTableName);
+            expect(insert.bindings).toContain(FINGERPRINT);
+            expect(insert.bindings).toContain('status_changed');
+            expect(insert.bindings).toContain(USER_UUID);
+            expect(insert.bindings).toContainEqual(occurredAt);
+        });
+
+        it('lists issue events ordered by occurrence', async () => {
+            tracker.on.select(AiAgentReviewItemEventsTableName).responseOnce([
+                {
+                    ai_agent_review_item_event_uuid: 'event-1',
+                    fingerprint: FINGERPRINT,
+                    organization_uuid: ORGANIZATION_UUID,
+                    event_type: 'status_changed',
+                    occurred_at: SEEN_AT,
+                    payload: {
+                        from: 'open',
+                        to: 'in_progress',
+                        dismissedReason: null,
+                    },
+                    created_by_user_uuid: USER_UUID,
+                    created_at: SEEN_AT,
+                },
+            ]);
+
+            const events = await model.listReviewItemEvents({
+                fingerprint: FINGERPRINT,
+                organizationUuid: ORGANIZATION_UUID,
+            });
+
+            const [query] = tracker.history.select;
+            expect(query.sql).toContain('occurred_at');
+            expect(events).toEqual([
+                {
+                    uuid: 'event-1',
+                    fingerprint: FINGERPRINT,
+                    eventType: 'status_changed',
+                    occurredAt: SEEN_AT,
+                    payload: {
+                        from: 'open',
+                        to: 'in_progress',
+                        dismissedReason: null,
+                    },
+                    createdByUserUuid: USER_UUID,
                 },
             ]);
         });
