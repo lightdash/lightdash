@@ -9,15 +9,12 @@ import PageBreadcrumbs from '../../../components/common/PageBreadcrumbs';
 import PageSpinner from '../../../components/PageSpinner';
 import { AddRoleButton } from '../../features/customRoles/components/AddRoleButton';
 import { CustomRolesTable } from '../../features/customRoles/CustomRolesTable';
-import { DuplicateRoleModal } from '../../features/customRoles/DuplicateRoleModal';
 import { useCustomRoles } from '../../features/customRoles/useCustomRoles';
 import classes from './CustomRoles.module.css';
 
 export const CustomRoles = () => {
     const navigate = useNavigate();
-    const { listRoles, deleteRole, getAllRoles, duplicateRole } =
-        useCustomRoles();
-    const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
+    const { listRoles, deleteRole } = useCustomRoles();
     const [level, setLevel] = useState<RoleLevel>('project');
 
     const handleEditRole = (role: RoleWithScopes) => {
@@ -26,16 +23,6 @@ export const CustomRoles = () => {
 
     const handleDeleteRole = (uuid: string) => {
         deleteRole.mutate(uuid);
-    };
-
-    const handleDuplicateRole = async (data: {
-        roleId: string;
-        name: string;
-        description: string;
-    }) => {
-        const result = await duplicateRole.mutateAsync(data);
-        setIsDuplicateModalOpen(false);
-        void navigate(`/generalSettings/customRoles/${result.roleUuid}`);
     };
 
     // Sort roles alphabetically (case-insensitive) so the table stays
@@ -93,12 +80,7 @@ export const CustomRoles = () => {
                         },
                     ]}
                 />
-                {hasRoles && (
-                    <AddRoleButton
-                        onClickDuplicate={() => setIsDuplicateModalOpen(true)}
-                        size="xs"
-                    />
-                )}
+                {hasRoles && <AddRoleButton size="xs" />}
             </Group>
 
             {hasRoles ? (
@@ -187,20 +169,9 @@ export const CustomRoles = () => {
                     title="No custom roles"
                     description="You haven't created any custom roles yet. Custom roles allow you to define specific permissions for your organization."
                 >
-                    <AddRoleButton
-                        onClickDuplicate={() => setIsDuplicateModalOpen(true)}
-                        size="md"
-                    />
+                    <AddRoleButton size="md" />
                 </EmptyState>
             )}
-
-            <DuplicateRoleModal
-                isOpen={isDuplicateModalOpen}
-                onClose={() => setIsDuplicateModalOpen(false)}
-                onSubmit={handleDuplicateRole}
-                isSubmitting={duplicateRole.isLoading}
-                roles={getAllRoles.data || []}
-            />
         </Stack>
     );
 };
