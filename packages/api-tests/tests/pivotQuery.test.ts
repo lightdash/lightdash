@@ -1,7 +1,12 @@
 import { SEED_PROJECT } from '@lightdash/common';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ApiClient, Body } from '../helpers/api-client';
 import { login } from '../helpers/auth';
+import {
+    createAndRefreshProject,
+    deleteProjectsByName,
+    getAvailableWarehouseConfigs,
+} from '../helpers/projects';
 
 const apiUrl = '/api/v2';
 
@@ -76,15 +81,11 @@ const getRawValues = (
         })
         .filter((value) => value !== undefined && value !== null);
 
-describe('Pivot query API', () => {
-    const projectUuid = SEED_PROJECT.project_uuid;
-    let admin: ApiClient;
+type PivotTestContext = { client: ApiClient; projectUuid: string };
 
-    beforeAll(async () => {
-        admin = await login();
-    });
-
+function registerPivotQueryTests(getContext: () => PivotTestContext) {
     it('excludes a sort-only metric from pivoted results', async () => {
+        const { client, projectUuid } = getContext();
         const query = {
             exploreName: 'orders',
             dimensions: ['customers_customer_id', 'orders_is_completed'],
@@ -117,7 +118,7 @@ describe('Pivot query API', () => {
         };
 
         const results = await runPivotQuery(
-            admin,
+            client,
             projectUuid,
             query,
             pivotConfiguration,
@@ -135,6 +136,7 @@ describe('Pivot query API', () => {
     });
 
     it('excludes a sort-only table calculation from pivoted results', async () => {
+        const { client, projectUuid } = getContext();
         const query = {
             exploreName: 'orders',
             dimensions: ['customers_customer_id', 'orders_is_completed'],
@@ -173,7 +175,7 @@ describe('Pivot query API', () => {
         };
 
         const results = await runPivotQuery(
-            admin,
+            client,
             projectUuid,
             query,
             pivotConfiguration,
@@ -186,6 +188,7 @@ describe('Pivot query API', () => {
     });
 
     it('keeps a self-sorted x-axis table calculation as an index column', async () => {
+        const { client, projectUuid } = getContext();
         const query = {
             exploreName: 'orders',
             dimensions: [
@@ -227,7 +230,7 @@ describe('Pivot query API', () => {
         };
 
         const results = await runPivotQuery(
-            admin,
+            client,
             projectUuid,
             query,
             pivotConfiguration,
@@ -239,6 +242,7 @@ describe('Pivot query API', () => {
     });
 
     it('keeps a self-sorted x-axis metric as an index column', async () => {
+        const { client, projectUuid } = getContext();
         const query = {
             exploreName: 'orders',
             dimensions: ['orders_is_completed'],
@@ -268,7 +272,7 @@ describe('Pivot query API', () => {
         };
 
         const results = await runPivotQuery(
-            admin,
+            client,
             projectUuid,
             query,
             pivotConfiguration,
@@ -278,4 +282,53 @@ describe('Pivot query API', () => {
             getRawValues(results.rows, 'orders_unique_order_count').length,
         ).toBeGreaterThan(0);
     });
+}
+
+// Postgres is covered by the seed project below, so exclude it here and run the
+// suite against every other warehouse whose credentials are available.
+const pivotWarehouseEntries = getAvailableWarehouseConfigs({
+    includePostgres: false,
+});
+
+describe('Pivot query API', () => {
+    // Postgres: reuse the already-seeded project (no create/refresh needed).
+    describe('postgres (seed project)', () => {
+        let admin: ApiClient;
+
+        beforeAll(async () => {
+            admin = await login();
+        });
+
+        registerPivotQueryTests(() => ({
+            client: admin,
+            projectUuid: SEED_PROJECT.project_uuid,
+        }));
+    });
+
+    // Every other warehouse: spin up a project against its jaffle dataset and
+    // run the same pivot suite. Skipped automatically when creds are absent.
+    for (const { name, config } of pivotWarehouseEntries) {
+        describe(name, () => {
+            const projectName = `pivot ${name} parity test`;
+            let admin: ApiClient;
+            let projectUuid: string;
+
+            beforeAll(async () => {
+                admin = await login();
+                projectUuid = await createAndRefreshProject(
+                    admin,
+                    projectName,
+                    config,
+                );
+            }, 180_000);
+
+            afterAll(async () => {
+                if (projectUuid) {
+                    await deleteProjectsByName(admin, [projectName]);
+                }
+            });
+
+            registerPivotQueryTests(() => ({ client: admin, projectUuid }));
+        });
+    }
 });
