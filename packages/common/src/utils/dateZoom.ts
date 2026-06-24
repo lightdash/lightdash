@@ -265,3 +265,33 @@ export const normalizeGranularityParam = (
     Object.values(DateGranularity).find(
         (grain) => grain.toLowerCase() === param.toLowerCase(),
     ) ?? param;
+
+export const copyDateZoomTileTargets = (
+    config: DateZoomConfig,
+    mapping: Array<{ fromTileUuid: string; toTileUuid: string }>,
+): DateZoomConfig => {
+    const tileTargets = { ...config.tileTargets };
+    let changed = false;
+    mapping.forEach(({ fromTileUuid, toTileUuid }) => {
+        const source = config.tileTargets[fromTileUuid];
+        if (source) {
+            tileTargets[toTileUuid] = { ...source };
+            changed = true;
+        }
+    });
+    return changed ? { ...config, tileTargets } : config;
+};
+
+export const pruneDateZoomConfig = (config: DateZoomConfig): DateZoomConfig => {
+    const validControlUuids = new Set(config.controls.map((c) => c.uuid));
+    const liveTargets = Object.entries(config.tileTargets).filter(
+        ([, target]) => validControlUuids.has(target.controlUuid),
+    );
+    const referenced = new Set(
+        liveTargets.map(([, target]) => target.controlUuid),
+    );
+    return {
+        controls: config.controls.filter((c) => referenced.has(c.uuid)),
+        tileTargets: Object.fromEntries(liveTargets),
+    };
+};

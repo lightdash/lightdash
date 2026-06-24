@@ -7,6 +7,7 @@ import type { MetricQuery } from '../types/metricQuery';
 import { ChartType, type ChartConfig } from '../types/savedCharts';
 import { DateGranularity } from '../types/timeFrames';
 import {
+    copyDateZoomTileTargets,
     EMPTY_DATE_ZOOM_CONFIG,
     getControlActiveGranularity,
     getDateZoomCapabilities,
@@ -16,6 +17,7 @@ import {
     isEmptyDateZoomConfig,
     normalizeDateZoomConfig,
     normalizeGranularityParam,
+    pruneDateZoomConfig,
     resolveBaseDimension,
     resolveTileDateZoom,
 } from './dateZoom';
@@ -455,6 +457,50 @@ describe('normalizeGranularityParam', () => {
         expect(normalizeGranularityParam('orders_custom_period')).toBe(
             'orders_custom_period',
         );
+    });
+});
+
+describe('lifecycle helpers', () => {
+    it('copies a tile target to a duplicated tile, inheriting control + field', () => {
+        const next = copyDateZoomTileTargets(controlConfig(), [
+            { fromTileUuid: 'tileA', toTileUuid: 'tileA-copy' },
+        ]);
+        expect(next.tileTargets['tileA-copy']).toEqual({
+            controlUuid: 'ctrl-1',
+            fieldId: 'orders_fiscal_date',
+            tableName: 'orders',
+        });
+    });
+
+    it('returns the same config when the source tile is unassigned', () => {
+        const cfg = controlConfig();
+        expect(
+            copyDateZoomTileTargets(cfg, [
+                { fromTileUuid: 'tileZ', toTileUuid: 'tileZ-copy' },
+            ]),
+        ).toBe(cfg);
+    });
+
+    it('prunes controls that have no targets', () => {
+        const emptied: DateZoomConfig = {
+            controls: controlConfig().controls,
+            tileTargets: {},
+        };
+        expect(pruneDateZoomConfig(emptied)).toEqual(EMPTY_DATE_ZOOM_CONFIG);
+    });
+
+    it('prunes targets whose control was removed (dangling)', () => {
+        const cfg: DateZoomConfig = {
+            controls: [],
+            tileTargets: {
+                tileA: {
+                    controlUuid: 'ctrl-gone',
+                    fieldId: 'f',
+                    tableName: 't',
+                },
+            },
+        };
+        expect(pruneDateZoomConfig(cfg)).toEqual(EMPTY_DATE_ZOOM_CONFIG);
     });
 });
 
