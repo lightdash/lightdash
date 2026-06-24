@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    copyDateZoomTileTargets,
     getShadowedReservedNames,
     ContentType,
     DateGranularity,
@@ -83,6 +84,8 @@ const Dashboard: FC = () => {
     const setDashboardFilters = useDashboardContext(
         (c) => c.setDashboardFilters,
     );
+    const dateZoomConfig = useDashboardContext((c) => c.dateZoomConfig);
+    const setDateZoomConfig = useDashboardContext((c) => c.setDateZoomConfig);
     const resetDashboardFilters = useDashboardContext(
         (c) => c.resetDashboardFilters,
     );
@@ -494,6 +497,22 @@ const Dashboard: FC = () => {
                     return { ...prev, dimensions: updatedDimensions };
                 });
                 setHaveFiltersChanged(true);
+
+                // Mirror the filter remap for date-zoom controls: copy each
+                // source tile's target onto its duplicate.
+                const mapping = Object.entries(tileUuidMapping).map(
+                    ([toTileUuid, fromTileUuid]) => ({
+                        fromTileUuid,
+                        toTileUuid,
+                    }),
+                );
+                const nextDateZoomConfig = copyDateZoomTileTargets(
+                    dateZoomConfig,
+                    mapping,
+                );
+                if (nextDateZoomConfig !== dateZoomConfig) {
+                    setDateZoomConfig(nextDateZoomConfig);
+                }
             }
         },
         [
@@ -505,6 +524,8 @@ const Dashboard: FC = () => {
             setHaveTabsChanged,
             setDashboardFilters,
             setHaveFiltersChanged,
+            dateZoomConfig,
+            setDateZoomConfig,
         ],
     );
 
