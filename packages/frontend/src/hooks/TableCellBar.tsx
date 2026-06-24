@@ -15,7 +15,7 @@ export const TableCellBar = ({
     max,
     color = '#5470c6',
 }: TableCellBarProps) => {
-    // Calculate bar width percentage
+    // Calculate bar width percentage relative to the full cell width
     const range = max - min;
     const percentage =
         range > 0
@@ -28,10 +28,12 @@ export const TableCellBar = ({
     return (
         <Box
             style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr auto',
+                position: 'relative',
+                display: 'flex',
                 alignItems: 'center',
-                gap: '4px',
+                justifyContent: 'flex-end',
+                width: '100%',
+                minHeight: '20px',
             }}
         >
             {showBar && (
@@ -39,15 +41,22 @@ export const TableCellBar = ({
                     h="20px"
                     w={`${percentage}%`}
                     bg={color}
-                    maw="100%"
-                    // Always show visible bar for positive values
+                    // Always show a visible bar for positive values
                     miw="2px"
                     style={{
+                        position: 'absolute',
+                        left: 0,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
                         borderRadius: '2px',
                     }}
                 />
             )}
-            <Text span style={{ whiteSpace: 'nowrap' }} fz="xs">
+            <Text
+                span
+                style={{ whiteSpace: 'nowrap', position: 'relative' }}
+                fz="xs"
+            >
                 {formatted}
             </Text>
         </Box>
