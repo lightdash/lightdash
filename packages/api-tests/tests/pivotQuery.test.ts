@@ -87,8 +87,11 @@ const getRawValues = (
 
 type PivotTestContext = { client: ApiClient; projectUuid: string };
 
-function registerPivotQueryTests(getContext: () => PivotTestContext) {
-    it('excludes a sort-only metric from pivoted results', async () => {
+function registerPivotQueryTests(
+    label: string,
+    getContext: () => PivotTestContext,
+) {
+    it(`[${label}] excludes a sort-only metric from pivoted results`, async () => {
         const { client, projectUuid } = getContext();
         const query = {
             exploreName: 'orders',
@@ -139,7 +142,7 @@ function registerPivotQueryTests(getContext: () => PivotTestContext) {
         );
     });
 
-    it('excludes a sort-only table calculation from pivoted results', async () => {
+    it(`[${label}] excludes a sort-only table calculation from pivoted results`, async () => {
         const { client, projectUuid } = getContext();
         const query = {
             exploreName: 'orders',
@@ -191,7 +194,7 @@ function registerPivotQueryTests(getContext: () => PivotTestContext) {
         );
     });
 
-    it('keeps a self-sorted x-axis table calculation as an index column', async () => {
+    it(`[${label}] keeps a self-sorted x-axis table calculation as an index column`, async () => {
         const { client, projectUuid } = getContext();
         const query = {
             exploreName: 'orders',
@@ -245,7 +248,7 @@ function registerPivotQueryTests(getContext: () => PivotTestContext) {
         expect(new Set(labels).size).toBeGreaterThan(1);
     });
 
-    it('keeps a self-sorted x-axis metric as an index column', async () => {
+    it(`[${label}] keeps a self-sorted x-axis metric as an index column`, async () => {
         const { client, projectUuid } = getContext();
         const query = {
             exploreName: 'orders',
@@ -303,7 +306,7 @@ describe('Pivot query API', () => {
             admin = await login();
         });
 
-        registerPivotQueryTests(() => ({
+        registerPivotQueryTests('postgres', () => ({
             client: admin,
             projectUuid: SEED_PROJECT.project_uuid,
         }));
@@ -332,7 +335,10 @@ describe('Pivot query API', () => {
                 }
             });
 
-            registerPivotQueryTests(() => ({ client: admin, projectUuid }));
+            registerPivotQueryTests(name, () => ({
+                client: admin,
+                projectUuid,
+            }));
         });
     }
 });
