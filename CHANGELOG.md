@@ -1,3 +1,10 @@
+# [0.3231.0](https://github.com/lightdash/lightdash/compare/0.3230.2...0.3231.0) (2026-06-24)
+
+
+### Features
+
+* add org AI model defaults ([#24613](https://github.com/lightdash/lightdash/issues/24613)) ([8f6d749](https://github.com/lightdash/lightdash/commit/8f6d749a40512a623c22f6b3068e6be4854eb11e))
+
 ## [0.3230.2](https://github.com/lightdash/lightdash/compare/0.3230.1...0.3230.2) (2026-06-23)
 
 
