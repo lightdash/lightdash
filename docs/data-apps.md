@@ -833,7 +833,7 @@ What each span type carries, and the question it answers:
 
 | Span                     | Key attributes                                                                       | Answers                                                            |
 | ------------------------ | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
-| `DataApp.generate`       | app / version / org / project / user uuid, install id                                | Who generated this, and how long the whole pipeline took          |
+| `DataApp.generate`       | app / version / org / project / user uuid, `is_iteration`                             | Who generated this, and how long the whole pipeline took          |
 | `claude_code.interaction`| session id, identity (`user.email`, `user.account_uuid`, `organization.id`)          | Overall agent-loop duration                                       |
 | `claude_code.llm_request`| model, `ttft_ms`, `duration_ms`, input / output / cache tokens, `stop_reason`        | Per-call latency and context-window size                          |
 | `claude_code.tool`       | `tool_name`, `duration_ms`, `result_tokens`                                          | Per-tool timing                                                   |
@@ -848,8 +848,8 @@ works for the headless mode data apps run in.)
 
 The parent span is created with `wrapSentryTransaction('DataApp.generate', ...)` around the
 generation pipeline in `AppGenerateService.ts`, tagged with the app, version, org, project, and user
-uuids plus the instance `installId` for attribution. The `traceparent` is read from the active span
-context by `getOtelTraceHeaders()` in `packages/backend/src/tracing/tracing.ts`.
+uuids plus `is_iteration` for attribution. The `traceparent` is read from the active span context by
+`getOtelTraceHeaders()` in `packages/backend/src/tracing/tracing.ts`.
 
 One non-obvious wrinkle lives in `getOtelTraceHeaders`: `@sentry/node` registers its own
 (`sentry-trace`) propagator as the OTel global, so a plain `propagation.inject` never emits a W3C
@@ -872,9 +872,9 @@ on, it sets:
   `TRACEPARENT`.
 - `OTEL_TRACES_EXPORT_INTERVAL=1000`. Generations are short-lived and the CLI flushes on clean exit;
   a low interval makes spans land before the sandbox is paused or torn down.
-- `OTEL_RESOURCE_ATTRIBUTES` carrying `service.name=lightdash-data-app` plus the same app / org /
-  project / user uuids and install id as the parent span, so the sandbox spans are attributable on
-  their own.
+- `OTEL_RESOURCE_ATTRIBUTES` carrying `service.name=lightdash-data-app` plus the app / version / org
+  / project / user uuids and the instance install id (`lightdash.install_id`, from
+  `LIGHTDASH_INSTALL_ID`), so the sandbox spans are attributable on their own.
 - `OTEL_LOG_USER_PROMPTS=1` and `OTEL_LOG_TOOL_DETAILS=1`. Data apps opt into capturing the prompt
   and tool inputs/results because the generation PII surface is bounded (metadata-only schema plus
   the prompt, no warehouse-query tool, real rows only via opt-in sample data). Raw API bodies
@@ -923,8 +923,13 @@ LIGHTDASH_OTEL_TRACES_ENABLED=true                 # Master switch (backend + sa
 OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4318  # OTLP collector (GCP collector in prod, local Jaeger in dev)
 OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf           # Defaults to http/protobuf
 OTEL_EXPORTER_OTLP_HEADERS=...                       # Optional auth headers for the collector
-OTEL_SDK_DISABLED=false
+OTEL_SDK_DISABLED=false                             # Must not be 'true' (kill switch)
+OTEL_TRACES_EXPORTER=otlp                           # Must not be 'none' (kill switch)
 ```
+
+Enablement is gated on all three of `LIGHTDASH_OTEL_TRACES_ENABLED === 'true'`,
+`OTEL_SDK_DISABLED !== 'true'`, and `OTEL_TRACES_EXPORTER !== 'none'` (see `parseConfig.ts`); the
+last two default to off/unset, so setting the master switch is normally enough.
 
 `appRuntime.otel` (in `parseConfig.ts`) is structurally a subset of this and is passed straight to
 `buildClaudeCodeTelemetryEnv`; its `enabled` mirrors the backend tracer's `otelTracingEnabled()`.
