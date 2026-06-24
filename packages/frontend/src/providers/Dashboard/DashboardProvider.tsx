@@ -14,6 +14,7 @@ import {
     isStandardDateGranularity,
     isSubDayGranularity,
     normalizeDateZoomConfig,
+    normalizeGranularityParam,
     stripOverridesForLockedFiltersOnTab,
     type Dashboard,
     type DashboardFilterableField,
@@ -639,6 +640,34 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         }
     }, [dateZoomGranularity, search, navigate, pathname, embed.mode]);
 
+    // Sync per-control runtime grain overrides to `dateZoom.<controlUuid>` URL
+    // params (the global `?dateZoom` above is unchanged and drives the Default).
+    // Written lowercased to match the global write; normalized back to canonical
+    // DateGranularity case on read.
+    useEffect(() => {
+        if (embed.mode === 'sdk') {
+            return;
+        }
+
+        const currentParams = new URLSearchParams(search);
+        const newParams = new URLSearchParams(search);
+
+        [...newParams.keys()]
+            .filter((key) => key.startsWith('dateZoom.'))
+            .forEach((key) => newParams.delete(key));
+
+        Object.entries(controlGranularities).forEach(([uuid, grain]) => {
+            newParams.set(`dateZoom.${uuid}`, grain.toString().toLowerCase());
+        });
+
+        if (currentParams.toString() !== newParams.toString()) {
+            void navigate(
+                { pathname, search: newParams.toString() },
+                { replace: true },
+            );
+        }
+    }, [controlGranularities, search, navigate, pathname, embed.mode]);
+
     const {
         overridesForSavedDashboardFilters,
         addSavedFilterOverride,
@@ -1090,6 +1119,20 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                 // Custom granularity — use the param value directly
                 setDateZoomGranularity(dateZoomParam);
             }
+        }
+
+        // Per-control date zoom grain overrides (`dateZoom.<controlUuid>`),
+        // normalized back to canonical DateGranularity case so the runtime grain
+        // that reaches the wire is e.g. 'Week', never a lowercased 'week'.
+        const controlOverrides: Record<string, DateGranularity | string> = {};
+        searchParams.forEach((value, key) => {
+            if (key.startsWith('dateZoom.')) {
+                controlOverrides[key.slice('dateZoom.'.length)] =
+                    normalizeGranularityParam(value);
+            }
+        });
+        if (Object.keys(controlOverrides).length > 0) {
+            setControlGranularities(controlOverrides);
         }
 
         // Temp filters
