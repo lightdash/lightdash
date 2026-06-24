@@ -2,8 +2,7 @@ import type { Explore } from '../types/explore';
 import { DimensionType, type CompiledDimension } from '../types/field';
 import type { MetricQuery } from '../types/metricQuery';
 import { isCartesianChartConfig, type ChartConfig } from '../types/savedCharts';
-import { getDimensions } from './fields';
-import { getItemId, isDateItem } from './item';
+import { getItemId } from './item';
 import { getDateDimension } from './timeFrames';
 
 /**
@@ -157,11 +156,14 @@ export const getDateZoomCapabilities = (
 
 /**
  * Resolves which field a chart's date zoom should target. For cartesian charts
- * whose x-axis is a date/time dimension, that's the x-axis field — so callers
- * can pass it as `dateZoom.xAxisFieldId` and have the backend re-grain the same
- * field the chart actually plots, instead of auto-picking the first date
- * dimension in the query. Returns undefined when the backend's auto-pick should
- * stand (non-cartesian charts, non-date x-axis, or no x-axis).
+ * whose x-axis resolves to a time dimension, that's the x-axis field — so
+ * callers can pass it as `dateZoom.xAxisFieldId` and have the backend re-grain
+ * the same field the chart actually plots, instead of auto-picking the first
+ * date dimension in the query. Uses the same `resolveToBaseTimeDimension` check
+ * the backend applies, so custom/string-typed interval x-axes (e.g. a
+ * fiscal-quarter dimension) are targeted too. Returns undefined when the
+ * backend's auto-pick should stand (non-cartesian charts, non-time x-axis, or
+ * no x-axis).
  */
 export const getDateZoomXAxisFieldId = (
     chartConfig: ChartConfig,
@@ -174,9 +176,10 @@ export const getDateZoomXAxisFieldId = (
     if (!xFieldId) {
         return undefined;
     }
-    const isDateXField = getDimensions(explore).some(
-        (dimension) =>
-            getItemId(dimension) === xFieldId && isDateItem(dimension),
+    const baseTimeDimension = resolveToBaseTimeDimension(
+        xFieldId,
+        getAllDimensionsMap(explore),
+        getTimeDimensionsMap(explore),
     );
-    return isDateXField ? xFieldId : undefined;
+    return baseTimeDimension ? xFieldId : undefined;
 };

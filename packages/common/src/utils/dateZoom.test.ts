@@ -690,6 +690,30 @@ describe('getDateZoomXAxisFieldId', () => {
         ).toBe('orders_created_at');
     });
 
+    it('returns a string-typed custom interval x-axis (resolves via base dimension)', () => {
+        const explore = makeExplore([
+            makeDimension({
+                name: 'order_date',
+                table: 'orders',
+                type: DimensionType.DATE,
+            }),
+            makeDimension({
+                name: 'order_date_fiscal_quarter',
+                table: 'orders',
+                type: DimensionType.STRING,
+                customTimeInterval: 'fiscal_quarter',
+                timeIntervalBaseDimensionName: 'order_date',
+            }),
+        ]);
+
+        expect(
+            getDateZoomXAxisFieldId(
+                makeCartesianConfig('orders_order_date_fiscal_quarter'),
+                explore,
+            ),
+        ).toBe('orders_order_date_fiscal_quarter');
+    });
+
     it('returns undefined when the xField is not a date dimension', () => {
         const explore = makeExplore([
             makeDimension({
