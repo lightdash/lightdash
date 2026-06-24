@@ -5,9 +5,11 @@ import {
     formatTooltipValue,
     FunnelChartLabelPosition,
     FunnelChartLegendPosition,
+    getGranularityMapFromItems,
     getLegendStyle,
     getReadableTextColor,
     getTooltipStyle,
+    resolveGranularityInLabel,
     type Metric,
     type ResultRow,
     type ResultValue,
@@ -106,12 +108,19 @@ const useEchartsFunnelConfig = (
             colorDefaults,
         } = chartConfig;
 
+        const granularityMap = getGranularityMapFromItems(itemsMap);
+
         return {
             type: 'funnel',
             gap: 3,
             data: seriesData.map(({ id, name, value, meta }) => {
+                const labelOverride = labelOverrides?.[id] ?? name;
                 return {
-                    name: labelOverrides?.[id] ?? name,
+                    name:
+                        resolveGranularityInLabel(
+                            labelOverride,
+                            granularityMap,
+                        ) ?? labelOverride,
                     value,
                     meta,
                     itemStyle: {
@@ -205,6 +214,7 @@ const useEchartsFunnelConfig = (
         parameters,
         theme.colors.foreground,
         resolvedTimezone,
+        itemsMap,
     ]);
 
     const { tooltip: legendDoubleClickTooltip } = useLegendDoubleClickTooltip();
