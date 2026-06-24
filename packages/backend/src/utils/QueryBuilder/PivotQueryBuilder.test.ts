@@ -203,6 +203,49 @@ describe('PivotQueryBuilder', () => {
             expect(finalProjection).not.toContain('__grp_rn');
         });
 
+        test.each([SupportedDbtAdapter.TRINO, SupportedDbtAdapter.ATHENA])(
+            'Omits the __grp_rn window ORDER BY on %s (it throws "Could not instantiate sink" otherwise)',
+            (adapterType) => {
+                const pivotConfiguration = {
+                    indexColumn: [
+                        { reference: 'date', type: VizIndexType.TIME },
+                    ],
+                    valuesColumns: [
+                        {
+                            reference: 'event_id',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                    ],
+                    groupByColumns: [{ reference: 'event_type' }],
+                    sortBy: [
+                        { reference: 'date', direction: SortByDirection.ASC },
+                    ],
+                };
+
+                const builder = new PivotQueryBuilder(
+                    baseSql,
+                    pivotConfiguration,
+                    {
+                        ...mockWarehouseSqlBuilder,
+                        getAdapterType: () => adapterType,
+                    } as unknown as WarehouseSqlBuilder,
+                    100,
+                );
+
+                const result = replaceWhitespace(
+                    builder.toSql({ columnLimit: 100 }),
+                );
+
+                // Presto-family engines reject any ORDER BY in this nested window.
+                expect(result).toContain(
+                    'ROW_NUMBER() OVER (PARTITION BY "event_type") AS "__grp_rn" FROM filtered_rows f',
+                );
+                expect(result).not.toContain(
+                    'PARTITION BY "event_type" ORDER BY',
+                );
+            },
+        );
+
         test('Should handle multiple group by columns', () => {
             const pivotConfiguration = {
                 indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],

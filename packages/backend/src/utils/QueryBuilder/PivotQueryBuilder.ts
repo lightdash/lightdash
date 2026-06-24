@@ -16,6 +16,7 @@ import {
     parseTableCalculationFunctions,
     renderFilterRuleSql,
     SortByDirection,
+    SupportedDbtAdapter,
     TableCalculationFunctionCompiler,
     TimeFrames,
     VizAggregationOptions,
@@ -1855,9 +1856,19 @@ export class PivotQueryBuilder {
         ).join(', ');
 
         // __grp_rn flags one row per groupBy combination; its value isn't
-        // order-dependent, but Snowflake requires ROW_NUMBER() windows to have a
-        // deterministic ORDER BY. Reuse the partition columns to satisfy this.
-        const finalSelect = `SELECT ${outputColumns}, total_columns FROM (SELECT p.*, SUM(CASE WHEN p.${q}__grp_rn${q} = 1 THEN 1 ELSE 0 END) OVER ()${totalColumnsMultiplier} AS total_columns FROM (SELECT f.*, ROW_NUMBER() OVER (PARTITION BY ${groupByPartition} ORDER BY ${groupByPartition}) AS ${q}__grp_rn${q} FROM filtered_rows f) p) pivoted${columnIndexFilterSql} order by ${q}row_index${q}, ${q}column_index${q}`;
+        // order-dependent, but warehouses disagree on the window's ORDER BY:
+        // Snowflake (and other strict engines) reject ROW_NUMBER() without one,
+        // while Trino/Athena throw GENERIC_INTERNAL_ERROR "Could not instantiate
+        // sink" when this nested window carries any ORDER BY. So emit it
+        // everywhere except the Presto-family engines, which neither need nor
+        // tolerate it here.
+        const adapterType = this.warehouseSqlBuilder.getAdapterType();
+        const grpRnOrderBy =
+            adapterType === SupportedDbtAdapter.TRINO ||
+            adapterType === SupportedDbtAdapter.ATHENA
+                ? ''
+                : ` ORDER BY ${groupByPartition}`;
+        const finalSelect = `SELECT ${outputColumns}, total_columns FROM (SELECT p.*, SUM(CASE WHEN p.${q}__grp_rn${q} = 1 THEN 1 ELSE 0 END) OVER ()${totalColumnsMultiplier} AS total_columns FROM (SELECT f.*, ROW_NUMBER() OVER (PARTITION BY ${groupByPartition}${grpRnOrderBy}) AS ${q}__grp_rn${q} FROM filtered_rows f) p) pivoted${columnIndexFilterSql} order by ${q}row_index${q}, ${q}column_index${q}`;
 
         return PivotQueryBuilder.assembleSqlParts([
             PivotQueryBuilder.buildCtesSQL(ctes),
