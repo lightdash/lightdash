@@ -306,6 +306,22 @@ export type AiAgentReviewItemDismissedReason =
     | 'low_confidence'
     | 'other';
 
+// A recurring finding reopens a closed item so its "fixed → regressed" history
+// stays on one card — except items dismissed as expected behavior, which stay
+// dismissed rather than clawing back open on every recurrence.
+export const shouldReopenReviewItem = (
+    status: AiAgentReviewItemStatus,
+    dismissedReason: AiAgentReviewItemDismissedReason | null,
+): boolean => {
+    if (status === 'resolved') {
+        return true;
+    }
+    if (status === 'dismissed') {
+        return dismissedReason !== 'expected_behavior';
+    }
+    return false;
+};
+
 export type AiAgentReviewItemOwnerType =
     | 'semantic_layer_owner'
     | 'agent_admin'

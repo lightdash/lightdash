@@ -1,4 +1,8 @@
-import { ProjectType, QueryExecutionContext } from '@lightdash/common';
+import {
+    ProjectType,
+    QueryExecutionContext,
+    shouldReopenReviewItem,
+} from '@lightdash/common';
 import type {
     AiAgentConfigSnapshot,
     AiAgentEvidenceExcerpt,
@@ -1959,6 +1963,12 @@ export class AiAgentReviewClassifierModel {
             // Write the review item in the same transaction so a signal and the
             // item it promotes are always created together.
             if (newFingerprint) {
+                const existingItem = await trx<AiAgentReviewItemTable>(
+                    AiAgentReviewItemTableName,
+                )
+                    .where('fingerprint', newFingerprint)
+                    .first('status', 'dismissed_reason');
+
                 await trx<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
                     .insert({
                         fingerprint: newFingerprint,
@@ -1968,6 +1978,25 @@ export class AiAgentReviewClassifierModel {
                     })
                     .onConflict('fingerprint')
                     .merge({ updated_at: trx.fn.now() });
+
+                // The same problem recurring on a closed item reopens it, so the
+                // card carries its "fixed → regressed" history.
+                if (
+                    existingItem &&
+                    shouldReopenReviewItem(
+                        existingItem.status,
+                        existingItem.dismissed_reason,
+                    )
+                ) {
+                    await trx<AiAgentReviewItemTable>(
+                        AiAgentReviewItemTableName,
+                    )
+                        .where('fingerprint', newFingerprint)
+                        .update({
+                            status: 'open',
+                            status_updated_at: trx.fn.now() as never,
+                        });
+                }
             }
 
             // Reconcile: a superseded finding can leave its review item with no
