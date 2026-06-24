@@ -1,3 +1,10 @@
+## [0.3237.2](https://github.com/lightdash/lightdash/compare/0.3237.1...0.3237.2) (2026-06-24)
+
+
+### Bug Fixes
+
+* allow geo json mime types in external connections ([#24691](https://github.com/lightdash/lightdash/issues/24691)) ([6e6dfeb](https://github.com/lightdash/lightdash/commit/6e6dfeb361e5018422fe46c5837ae7c8d3f57da4))
+
 ## [0.3237.1](https://github.com/lightdash/lightdash/compare/0.3237.0...0.3237.1) (2026-06-24)
 
 
