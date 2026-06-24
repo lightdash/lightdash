@@ -313,6 +313,28 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         setHasDateZoomConfigChanged(true);
     }, []);
 
+    // Per-control runtime grain overrides only; an absent entry means "use the
+    // control's persisted default" (the resolver applies `?? control.granularity`).
+    const [controlGranularities, setControlGranularities] = useState<
+        Record<string, DateGranularity | string>
+    >({});
+
+    const setControlGranularity = useCallback(
+        (
+            controlUuid: string,
+            granularity: DateGranularity | string | undefined,
+        ) => {
+            setControlGranularities((prev) => {
+                if (granularity === undefined) {
+                    const { [controlUuid]: _removed, ...rest } = prev;
+                    return rest;
+                }
+                return { ...prev, [controlUuid]: granularity };
+            });
+        },
+        [],
+    );
+
     // Set parameters to saved parameters when they are loaded
     useEffect(() => {
         if (savedParameters) {
@@ -367,6 +389,12 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         setDateZoomConfigState(normalizeDateZoomConfig(dashboard?.config));
         setHasDateZoomConfigChanged(false);
     }, [dashboard?.uuid, dashboard?.config]);
+
+    // Reset per-control runtime overrides when the dashboard identity changes;
+    // each control's default comes from its persisted granularity.
+    useEffect(() => {
+        setControlGranularities({});
+    }, [dashboard?.uuid]);
 
     // Set active tab when dashboard and tabs are loaded.
     // In view mode, hidden tabs are not selectable — fall back to the first
@@ -1592,6 +1620,8 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         setDateZoomConfig,
         hasDateZoomConfigChanged,
         setHasDateZoomConfigChanged,
+        controlGranularities,
+        setControlGranularity,
         dashboardCommentsCheck,
         dashboardComments,
         hasTileComments,

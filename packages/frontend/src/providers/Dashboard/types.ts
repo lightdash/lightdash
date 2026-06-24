@@ -113,6 +113,11 @@ export type DashboardContextType = {
     setDateZoomConfig: (config: DateZoomConfig) => void;
     hasDateZoomConfigChanged: boolean;
     setHasDateZoomConfigChanged: Dispatch<SetStateAction<boolean>>;
+    controlGranularities: Record<string, DateGranularity | string>;
+    setControlGranularity: (
+        controlUuid: string,
+        granularity: DateGranularity | string | undefined,
+    ) => void;
     dashboardCommentsCheck?: ReturnType<typeof useDashboardCommentsCheck>;
     dashboardComments?: ReturnType<typeof useGetComments>['data'];
     hasTileComments: (tileUuid: string) => boolean;
