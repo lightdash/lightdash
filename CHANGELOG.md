@@ -1,3 +1,18 @@
+# [0.3237.0](https://github.com/lightdash/lightdash/compare/0.3236.0...0.3237.0) (2026-06-24)
+
+
+### Bug Fixes
+
+* **date-zoom:** complete x-axis targeting (downloads, custom intervals, query key) ([#24667](https://github.com/lightdash/lightdash/issues/24667)) ([ac3a13a](https://github.com/lightdash/lightdash/commit/ac3a13ad5cd1a182d6e1939f02dce23c8d68c5ac)), closes [#24634](https://github.com/lightdash/lightdash/issues/24634)
+
+
+### Features
+
+* **ai-reviews:** reopen a closed review item when its finding recurs (ZAP-538) ([#24674](https://github.com/lightdash/lightdash/issues/24674)) ([fe96594](https://github.com/lightdash/lightdash/commit/fe965945d626e81a18dbebe8053ac59829dc8832))
+* **ai-reviews:** two-mode finding fingerprint (ZAP-537) ([#24673](https://github.com/lightdash/lightdash/issues/24673)) ([5981aa8](https://github.com/lightdash/lightdash/commit/5981aa8aa0d148c941739a33fab0d4a83e4a107d))
+* **roles:** duplicate roles on a full editable page with level choice ([#24676](https://github.com/lightdash/lightdash/issues/24676)) ([b634783](https://github.com/lightdash/lightdash/commit/b634783485850682a1f6a939702122919e879c20))
+* support date zoom variables in cartesian labels ([#24634](https://github.com/lightdash/lightdash/issues/24634)) ([27964f8](https://github.com/lightdash/lightdash/commit/27964f8ec327fe95de111e6bdd4d88d44b1de45b))
+
 # [0.3236.0](https://github.com/lightdash/lightdash/compare/0.3235.0...0.3236.0) (2026-06-24)
 
 
