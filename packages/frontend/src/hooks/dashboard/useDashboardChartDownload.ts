@@ -17,6 +17,7 @@ export const useDashboardChartDownload = (
     dashboardUuid: string | undefined,
     originalQueryUuid: string,
     canExportPivotedData: boolean,
+    dateZoomXAxisFieldId?: string,
 ) => {
     // Get dashboard filters and sorts for this tile
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
@@ -66,7 +67,12 @@ export const useDashboardChartDownload = (
                         dashboardFilters: dashboardFilters || {},
                         dashboardSorts: dashboardSorts || [],
                         dateZoom: dateZoomGranularity
-                            ? { granularity: dateZoomGranularity }
+                            ? {
+                                  granularity: dateZoomGranularity,
+                                  ...(dateZoomXAxisFieldId
+                                      ? { xAxisFieldId: dateZoomXAxisFieldId }
+                                      : {}),
+                              }
                             : undefined,
                         limit,
                         invalidateCache: false,
@@ -102,6 +108,7 @@ export const useDashboardChartDownload = (
             dashboardFilters,
             dashboardSorts,
             dateZoomGranularity,
+            dateZoomXAxisFieldId,
             parameters,
             canExportPivotedData,
             originalQueryUuid,
