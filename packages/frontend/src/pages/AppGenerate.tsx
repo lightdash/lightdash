@@ -103,6 +103,10 @@ import {
 import AppTemplatePicker from '../features/apps/AppTemplatePicker';
 import ChatBubbleMeta from '../features/apps/ChatBubbleMeta';
 import ChatMessageContent from '../features/apps/ChatMessageContent';
+import {
+    DataAppFavoriteMenuItem,
+    FavoritePersonalDataAppModal,
+} from '../features/apps/components/DataAppFavoriteMenuItem';
 import { PromoteAppModal } from '../features/apps/components/PromoteAppModal';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppImageUpload } from '../features/apps/hooks/useAppImageUpload';
@@ -685,6 +689,8 @@ const AppGenerate: FC = () => {
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true, {});
 
     const [isMoveToSpaceOpen, setIsMoveToSpaceOpen] = useState(false);
+    const [isFavoriteSpaceModalOpen, setIsFavoriteSpaceModalOpen] =
+        useState(false);
     const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isPromoteModalOpen, setIsPromoteModalOpen] = useState(false);
@@ -2824,6 +2830,16 @@ const AppGenerate: FC = () => {
                                                     Preview latest
                                                 </Menu.Item>
                                             )}
+                                            <DataAppFavoriteMenuItem
+                                                projectUuid={projectUuid}
+                                                appUuid={activeAppUuid}
+                                                appSpaceUuid={appSpaceUuid}
+                                                onAddPersonalAppToSpace={() =>
+                                                    setIsFavoriteSpaceModalOpen(
+                                                        true,
+                                                    )
+                                                }
+                                            />
                                             <Menu.Item
                                                 leftSection={
                                                     <MantineIcon
@@ -2945,6 +2961,27 @@ const AppGenerate: FC = () => {
                                         </Menu.Dropdown>
                                     </Menu>
                                 </Box>
+                            )}
+                            {isFavoriteSpaceModalOpen && activeAppUuid && (
+                                <FavoritePersonalDataAppModal
+                                    projectUuid={projectUuid}
+                                    opened
+                                    onClose={() =>
+                                        setIsFavoriteSpaceModalOpen(false)
+                                    }
+                                    app={{
+                                        uuid: activeAppUuid,
+                                        name: appName || 'Untitled app',
+                                        description:
+                                            appDescription || undefined,
+                                        spaceUuid: appSpaceUuid,
+                                        createdByUserUuid: appCreatedByUserUuid,
+                                        latestVersionNumber:
+                                            latestReadyVersion?.version ?? null,
+                                        latestVersionStatus:
+                                            latestReadyVersion?.status ?? null,
+                                    }}
+                                />
                             )}
                             {isMoveToSpaceOpen && activeAppUuid && (
                                 <TransferItemsModal
