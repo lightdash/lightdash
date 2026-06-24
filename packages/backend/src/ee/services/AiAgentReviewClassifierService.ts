@@ -39,7 +39,7 @@ import { getModel } from './ai/models';
 import { type AiAgentReviewNotificationService } from './AiAgentReviewNotificationService';
 
 const REVIEW_AGENT_VERSION = 'llm-judge-v1';
-const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v3';
+const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v10';
 const WRITEBACK_TOOL_NAMES = new Set([
     'editDbtProject',
     'propose_writeback',
@@ -710,6 +710,7 @@ export class AiAgentReviewClassifierService extends BaseService {
             organizationUuid: candidate.subject.organizationUuid,
             projectUuid: candidate.subject.projectUuid,
             agentUuid: candidate.subject.agentUuid,
+            threadUuid: candidate.subject.threadUuid,
             primaryRootCause: judgeOutput.primaryRootCause,
             subcategories: judgeOutput.subcategories,
             fixTargets: judgeOutput.fixTargets,
@@ -1098,6 +1099,8 @@ For targetRefs, return compact refs:
 - key: runtime/product capability key when useful, otherwise null.
 reviewItem.title should be concise and admin-facing.
 reviewItem.description should summarize why this grouping exists.
+
+Always populate targetRefs with every object the fix would touch (model, dimension, metric, join, explore). For semantic_layer and project_context findings these drive how findings collapse into one review item, so name the same object consistently across turns rather than varying the wording.
 
 Set projectContextEntry ONLY when primaryRootCause=project_context and a single durable, project-specific fact (a business definition or acronym, routing/join guidance, or object-scoped context) would prevent this class of failure in future turns. Otherwise set it to null.
 - op: "update" if one of the project context entries already injected into the reviewed turn was present but insufficient (reference its id); otherwise "create".

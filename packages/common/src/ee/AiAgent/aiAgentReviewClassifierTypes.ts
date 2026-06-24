@@ -937,6 +937,7 @@ export type AiAgentReviewItemFingerprintInput = {
     organizationUuid: string;
     projectUuid: string | null;
     agentUuid: string | null;
+    threadUuid?: string | null;
     primaryRootCause: AiAgentRootCause;
     subcategories: string[];
     fixTargets: AiAgentFixTarget[];
@@ -1014,20 +1015,119 @@ export const getAiAgentReviewItemFingerprintScope = (
     }
 };
 
+// Only runtime_reliability is a true per-conversation incident.
+const MODE_A_INCIDENT_ROOT_CAUSES = new Set<AiAgentRootCause>([
+    'runtime_reliability',
+]);
+
+// Durable project objects whose dedup identity is the affected object, across
+// threads. agent_configuration / product_capability already dedup cross-thread
+// on their own scope via the fallback, so they are intentionally excluded.
+const MODE_B_OBJECT_ROOT_CAUSES = new Set<AiAgentRootCause>([
+    'semantic_layer',
+    'project_context',
+]);
+
+// Field-level refs identify the actual broken object; model/explore/join are
+// context the judge names inconsistently across turns. We key on the field leaf
+// names (ignoring modelName) so the same broken field collapses even when the
+// judge varies the model or the surrounding context refs.
+const FIELD_LEVEL_REF_TYPES = new Set<AiAgentTargetRef['type']>([
+    'metric',
+    'dimension',
+    'additional_dimension',
+    'required_filter',
+    'ai_hint',
+]);
+
+// Lightdash field ids are `{model}_{field}`, and the judge uses the qualified
+// and unqualified forms interchangeably. Canonicalize to the unqualified field
+// so `orders_total_order_amount` and `total_order_amount` are one object.
+const stripModelPrefix = (name: string, modelName: string): string =>
+    name.startsWith(`${modelName}_`) ? name.slice(modelName.length + 1) : name;
+
+const getRefLeafName = (ref: AiAgentTargetRef): string | null => {
+    switch (ref.type) {
+        case 'metric':
+            return stripModelPrefix(ref.metricName, ref.modelName);
+        case 'dimension':
+        case 'additional_dimension':
+            return stripModelPrefix(ref.dimensionName, ref.modelName);
+        case 'required_filter':
+            return stripModelPrefix(ref.fieldName, ref.modelName);
+        case 'ai_hint':
+            return ref.targetName;
+        case 'explore':
+            return ref.exploreName;
+        case 'join':
+            return ref.joinName;
+        case 'model':
+            return ref.modelName;
+        default:
+            return null;
+    }
+};
+
+// Identity is the PRIMARY object the finding is about — the first field-level
+// ref. The judge lists the broken object first and varies the rest (related
+// metrics it suggests, surrounding explores), so keying on the whole set splits
+// findings that are really about the same object. Falls back to the first ref
+// of any kind, then empty.
+const getNormalizedObjectKey = (
+    input: AiAgentReviewItemFingerprintInput,
+): string => {
+    const primaryRef =
+        input.targetRefs.find((ref) => FIELD_LEVEL_REF_TYPES.has(ref.type)) ??
+        input.targetRefs[0];
+    const leaf = primaryRef ? getRefLeafName(primaryRef) : null;
+    return leaf ? leaf.trim().toLowerCase() : '';
+};
+
+const getAiAgentReviewItemFingerprintPayload = (
+    input: AiAgentReviewItemFingerprintInput,
+): unknown => {
+    // Mode A — incident: one conversation went sideways. Collapse every
+    // runtime finding in the thread onto one item; which object each retry
+    // touched, and the exact error, are noise.
+    if (
+        MODE_A_INCIDENT_ROOT_CAUSES.has(input.primaryRootCause) &&
+        input.threadUuid
+    ) {
+        return {
+            kind: 'incident',
+            threadUuid: input.threadUuid,
+            primaryRootCause: input.primaryRootCause,
+        };
+    }
+
+    // Mode B — object: a durable project object that recurs across threads.
+    // Identity is the normalized object from targetRefs, not the LLM's phrasing.
+    if (MODE_B_OBJECT_ROOT_CAUSES.has(input.primaryRootCause)) {
+        return {
+            kind: 'object',
+            scope: getAiAgentReviewItemFingerprintScope(input),
+            primaryRootCause: input.primaryRootCause,
+            normalizedObject: getNormalizedObjectKey(input),
+        };
+    }
+
+    return {
+        kind: 'scope',
+        scope: getAiAgentReviewItemFingerprintScope(input),
+        primaryRootCause: input.primaryRootCause,
+        subcategories: input.subcategories,
+        fixTargets: input.fixTargets,
+        targetRefs: input.targetRefs,
+        agentConfigurationSettings: input.agentConfigurationSettings,
+        capabilityKey: input.capabilityKey,
+    };
+};
+
 export const getAiAgentReviewItemFingerprint = (
     input: AiAgentReviewItemFingerprintInput,
 ): string => {
-    const scope = getAiAgentReviewItemFingerprintScope(input);
     const canonicalJson = JSON.stringify(
-        normalizeForHash({
-            scope,
-            primaryRootCause: input.primaryRootCause,
-            subcategories: input.subcategories,
-            fixTargets: input.fixTargets,
-            targetRefs: input.targetRefs,
-            agentConfigurationSettings: input.agentConfigurationSettings,
-            capabilityKey: input.capabilityKey,
-        }),
+        normalizeForHash(getAiAgentReviewItemFingerprintPayload(input)),
     );
 
     return `ai_agent_review_item:${hashCanonicalJson(canonicalJson)}`;

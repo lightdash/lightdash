@@ -196,6 +196,10 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
     const seenTooltip = selectedReviewItem
         ? `First seen ${formatReviewDate(selectedReviewItem.firstSeenAt)}. Last seen ${formatReviewDate(selectedReviewItem.lastSeenAt)}.`
         : null;
+    const recurrenceValue =
+        selectedReviewItem && selectedReviewItem.findingCount > 1
+            ? `${selectedReviewItem.findingCount} times`
+            : null;
     const [showDetails, setShowDetails] = useState(false);
     const [showWhy, setShowWhy] = useState(false);
     const reasoningText = selectedReviewItem
@@ -423,6 +427,13 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                                             seenTooltip ??
                                                             undefined
                                                         }
+                                                    />
+                                                )}
+                                                {recurrenceValue && (
+                                                    <ReviewMetadataField
+                                                        label="Recurrence"
+                                                        value={recurrenceValue}
+                                                        tooltip="Findings grouped into this item across threads"
                                                     />
                                                 )}
                                                 {selectedDetail && (
