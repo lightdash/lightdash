@@ -6,6 +6,7 @@ import {
     type DashboardFilters,
     type DashboardParameters,
     type DateGranularity,
+    type DateZoomConfig,
     type FilterableDimension,
     type Metric,
     type ParameterDefinitions,
@@ -108,6 +109,10 @@ export type DashboardContextType = {
     setChartsWithDateZoomApplied: Dispatch<
         SetStateAction<Set<string> | undefined>
     >;
+    dateZoomConfig: DateZoomConfig;
+    setDateZoomConfig: (config: DateZoomConfig) => void;
+    hasDateZoomConfigChanged: boolean;
+    setHasDateZoomConfigChanged: Dispatch<SetStateAction<boolean>>;
     dashboardCommentsCheck?: ReturnType<typeof useDashboardCommentsCheck>;
     dashboardComments?: ReturnType<typeof useGetComments>['data'];
     hasTileComments: (tileUuid: string) => boolean;

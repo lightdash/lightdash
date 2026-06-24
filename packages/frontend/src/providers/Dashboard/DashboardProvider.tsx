@@ -4,6 +4,7 @@ import {
     convertDashboardFiltersParamToDashboardFilters,
     DashboardTileTypes,
     DateGranularity,
+    EMPTY_DATE_ZOOM_CONFIG,
     FilterInteractivityValues,
     getFilterInteractivityValue,
     getItemId,
@@ -12,12 +13,14 @@ import {
     isFilterLockedOnTab,
     isStandardDateGranularity,
     isSubDayGranularity,
+    normalizeDateZoomConfig,
     stripOverridesForLockedFiltersOnTab,
     type Dashboard,
     type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardFilters,
     type DashboardParameters,
+    type DateZoomConfig,
     type FilterableDimension,
     type InteractivityOptions,
     type Metric,
@@ -298,6 +301,18 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         setHasDefaultDateZoomGranularityChanged,
     ] = useState<boolean>(false);
 
+    // Configurable date zoom controls (named controls + per-tile targets).
+    const [dateZoomConfig, setDateZoomConfigState] = useState<DateZoomConfig>(
+        EMPTY_DATE_ZOOM_CONFIG,
+    );
+    const [hasDateZoomConfigChanged, setHasDateZoomConfigChanged] =
+        useState(false);
+
+    const setDateZoomConfig = useCallback((config: DateZoomConfig) => {
+        setDateZoomConfigState(config);
+        setHasDateZoomConfigChanged(true);
+    }, []);
+
     // Set parameters to saved parameters when they are loaded
     useEffect(() => {
         if (savedParameters) {
@@ -345,6 +360,13 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
             dashboard?.config?.defaultDateZoomGranularity,
         );
     }, [dashboard?.config?.defaultDateZoomGranularity]);
+
+    // Sync date zoom control config from dashboard config (normalizing an
+    // absent config to the empty controls/tileTargets shape).
+    useEffect(() => {
+        setDateZoomConfigState(normalizeDateZoomConfig(dashboard?.config));
+        setHasDateZoomConfigChanged(false);
+    }, [dashboard?.uuid, dashboard?.config]);
 
     // Set active tab when dashboard and tabs are loaded.
     // In view mode, hidden tabs are not selectable — fall back to the first
@@ -1566,6 +1588,10 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         setDateZoomGranularity,
         chartsWithDateZoomApplied,
         setChartsWithDateZoomApplied,
+        dateZoomConfig,
+        setDateZoomConfig,
+        hasDateZoomConfigChanged,
+        setHasDateZoomConfigChanged,
         dashboardCommentsCheck,
         dashboardComments,
         hasTileComments,
