@@ -766,6 +766,43 @@ export type AiAgentReviewRemediationEvent = {
     createdByUserUuid: string | null;
 } & AiAgentReviewRemediationEventDetail;
 
+export type AiAgentReviewItemEventDetail =
+    | { eventType: 'created'; payload: { rootCause: AiAgentRootCause } }
+    | {
+          eventType: 'status_changed';
+          payload: {
+              from: AiAgentReviewItemStatus | null;
+              to: AiAgentReviewItemStatus;
+              dismissedReason: AiAgentReviewItemDismissedReason | null;
+          };
+      }
+    | {
+          eventType: 'assignee_changed';
+          payload: {
+              fromUserUuid: string | null;
+              toUserUuid: string | null;
+          };
+      }
+    | {
+          eventType: 'recurred';
+          payload: { threadUuid: string; promptUuid: string };
+      };
+
+export type AiAgentReviewItemEventType =
+    AiAgentReviewItemEventDetail['eventType'];
+
+export type AiAgentReviewItemEvent = {
+    uuid: string;
+    fingerprint: string;
+    occurredAt: Date;
+    createdByUserUuid: string | null;
+} & AiAgentReviewItemEventDetail;
+
+/** One row of the merged issue activity feed. */
+export type AiAgentReviewActivityEvent =
+    | ({ kind: 'remediation' } & AiAgentReviewRemediationEvent)
+    | ({ kind: 'issue' } & AiAgentReviewItemEvent);
+
 /**
  * The in-flight step of a remediation, derived from current status + which
  * events exist — never stored. Renders as the single accented "live" row.
@@ -776,7 +813,7 @@ export type AiAgentReviewRemediationLiveState =
     | 'verifying';
 
 export type AiAgentReviewItemActivity = {
-    events: AiAgentReviewRemediationEvent[];
+    events: AiAgentReviewActivityEvent[];
     liveState: AiAgentReviewRemediationLiveState | null;
     /** Streaming progress text for the live row (writeback step messages). */
     liveMessage: string | null;
