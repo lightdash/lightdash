@@ -1,3 +1,15 @@
+# [0.3238.0](https://github.com/lightdash/lightdash/compare/0.3237.4...0.3238.0) (2026-06-24)
+
+
+### Bug Fixes
+
+* **ai:** make AI-response dashboard & chart content links clickable ([#24700](https://github.com/lightdash/lightdash/issues/24700)) ([24b8a52](https://github.com/lightdash/lightdash/commit/24b8a52aedcc2fef546b602efe13bfdc48b47f28)), closes [#24437](https://github.com/lightdash/lightdash/issues/24437)
+
+
+### Features
+
+* improve UI for data app connections ([#24694](https://github.com/lightdash/lightdash/issues/24694)) ([8fc78e5](https://github.com/lightdash/lightdash/commit/8fc78e5c2f3e826c2bc62ddff6bac0ed0b4aca84))
+
 ## [0.3237.4](https://github.com/lightdash/lightdash/compare/0.3237.3...0.3237.4) (2026-06-24)
 
 
