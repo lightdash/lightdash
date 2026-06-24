@@ -446,7 +446,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     analytics: context.lightdashAnalytics,
                     externalConnectionModel:
                         models.getExternalConnectionModel(),
-                    featureFlagModel: models.getFeatureFlagModel(),
                     appModel: models.getAppModel(),
                     spacePermissionService:
                         repository.getSpacePermissionService(),
