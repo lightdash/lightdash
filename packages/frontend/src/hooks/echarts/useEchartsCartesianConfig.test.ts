@@ -23,6 +23,7 @@ import {
     getStackTotalSeries,
     mergeLegendSettings,
     padDatasetForContinuousAxis,
+    resolveCartesianGranularityLabels,
     selectContinuousDateRange,
 } from './useEchartsCartesianConfig';
 
@@ -30,6 +31,57 @@ dayjs.extend(utcPlugin);
 dayjs.extend(timezonePlugin);
 
 vi.mock('./../../providers/TrackingProvider');
+
+describe('resolveCartesianGranularityLabels', () => {
+    test('resolves x-axis and y-axis name placeholders', () => {
+        const result = resolveCartesianGranularityLabels({
+            xAxis: [{ name: 'Revenue by ${orders_order_date.granularity}' }],
+            yAxis: [{ name: '${orders_order_date.granularity} revenue' }],
+            series: [],
+            granularityMap: { orders_order_date: 'Week' },
+        });
+
+        expect(result.xAxis[0].name).toBe('Revenue by week');
+        expect(result.yAxis[0].name).toBe('week revenue');
+    });
+
+    test('resolves series name placeholders', () => {
+        const result = resolveCartesianGranularityLabels({
+            xAxis: [],
+            yAxis: [],
+            series: [
+                {
+                    name: '${orders_order_date.granularity} revenue',
+                    type: CartesianSeriesType.BAR,
+                } as EChartsSeries,
+            ],
+            granularityMap: { orders_order_date: 'Month' },
+        });
+
+        expect(result.series[0].name).toBe('month revenue');
+    });
+
+    test('preserves unresolved placeholders', () => {
+        const result = resolveCartesianGranularityLabels({
+            xAxis: [{ name: 'Revenue by ${orders_order_date.granularity}' }],
+            yAxis: [],
+            series: [
+                {
+                    name: '${orders_order_date.granularity} revenue',
+                    type: CartesianSeriesType.LINE,
+                } as EChartsSeries,
+            ],
+            granularityMap: {},
+        });
+
+        expect(result.xAxis[0].name).toBe(
+            'Revenue by ${orders_order_date.granularity}',
+        );
+        expect(result.series[0].name).toBe(
+            '${orders_order_date.granularity} revenue',
+        );
+    });
+});
 
 describe('getAxisDefaultMinValue', () => {
     test('should return undefined', () => {

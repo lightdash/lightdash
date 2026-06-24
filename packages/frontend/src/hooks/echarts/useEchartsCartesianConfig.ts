@@ -27,6 +27,7 @@ import {
     getDateGroupLabel,
     getFormattedValue,
     getFormatterTimezone,
+    getGranularityMapFromItems,
     getIndexFromEncode,
     getItemLabelWithoutTableName,
     getItemType,
@@ -49,6 +50,7 @@ import {
     isTableCalculation,
     LightdashParameters,
     MetricType,
+    resolveGranularityInLabel,
     StackType,
     TableCalculationType,
     TimeFrames,
@@ -60,6 +62,7 @@ import {
     type EChartsSeries,
     type EchartsLegend,
     type Field,
+    type GranularityMap,
     type Item,
     type ItemsMap,
     type MarkLine,
@@ -124,6 +127,36 @@ type TooltipOption = Omit<TooltipComponentOption, 'formatter'> & {
               TooltipFormatterParams | TooltipFormatterParams[]
           >;
 };
+
+const resolveName = (name: unknown, granularityMap: GranularityMap): unknown =>
+    typeof name === 'string'
+        ? resolveGranularityInLabel(name, granularityMap)
+        : name;
+
+export const resolveCartesianGranularityLabels = ({
+    xAxis,
+    yAxis,
+    series,
+    granularityMap,
+}: {
+    xAxis: Record<string, unknown>[];
+    yAxis: Record<string, unknown>[];
+    series: EChartsSeries[] | undefined;
+    granularityMap: GranularityMap;
+}) => ({
+    xAxis: xAxis.map((axis) => ({
+        ...axis,
+        name: resolveName(axis.name, granularityMap),
+    })),
+    yAxis: yAxis.map((axis) => ({
+        ...axis,
+        name: resolveName(axis.name, granularityMap),
+    })),
+    series: (series ?? []).map((serie) => ({
+        ...serie,
+        name: resolveName(serie.name, granularityMap) as EChartsSeries['name'],
+    })),
+});
 
 const getLabelFromField = (fields: ItemsMap, key: string | undefined) => {
     const item = key ? fields[key] : undefined;
@@ -3635,6 +3668,12 @@ const useEchartsCartesianConfig = (
         const enableDataZoom =
             validCartesianConfig?.eChartsConfig?.xAxis?.[0]?.enableDataZoom;
         const flipAxes = validCartesianConfig?.layout?.flipAxes;
+        const resolvedLabels = resolveCartesianGranularityLabels({
+            xAxis: sortedAxes.xAxis,
+            yAxis: sortedAxes.yAxis,
+            series: sortedSeriesForChart,
+            granularityMap: getGranularityMapFromItems(itemsMap),
+        });
 
         const dataZoomAnchor =
             validCartesianConfig?.eChartsConfig?.xAxis?.[0]?.dataZoomAnchor ??
@@ -3654,10 +3693,10 @@ const useEchartsCartesianConfig = (
                 : Math.min(dataZoomLastIndex, dataZoomSpan);
 
         const baseOptions = {
-            xAxis: sortedAxes.xAxis,
-            yAxis: sortedAxes.yAxis,
+            xAxis: resolvedLabels.xAxis,
+            yAxis: resolvedLabels.yAxis,
             useUTC: true,
-            series: sortedSeriesForChart,
+            series: resolvedLabels.series,
             animation: !(isInDashboard || minimal),
             legend: legendConfigWithInstructionsTooltip,
             dataset: {
@@ -3703,6 +3742,7 @@ const useEchartsCartesianConfig = (
     }, [
         sortedAxes,
         sortedSeriesForChart,
+        itemsMap,
         isInDashboard,
         minimal,
         legendConfigWithInstructionsTooltip,
