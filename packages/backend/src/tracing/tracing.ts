@@ -5,6 +5,7 @@ import type {
 } from '@opentelemetry/api';
 import {
     context,
+    isSpanContextValid,
     propagation,
     SpanStatusCode,
     trace,
@@ -138,6 +139,20 @@ export const getOtelTraceHeaders = (): OtelTraceHeaders => {
 
     const carrier: Record<string, string> = {};
     propagation.inject(context.active(), carrier);
+
+    // When @sentry/node is initialized it registers its own (sentry-trace)
+    // propagator as the OTel global, so `propagation.inject` above never emits a
+    // W3C `traceparent`. Derive it from the active span context directly so
+    // downstream OTLP consumers (e.g. Claude Code in the data-app sandbox) get a
+    // valid header to nest under.
+    if (!carrier.traceparent) {
+        const spanContext = trace.getSpanContext(context.active());
+        if (spanContext && isSpanContextValid(spanContext)) {
+            // sampled flag = lowest bit of traceFlags; `% 2` avoids no-bitwise.
+            const sampledFlag = spanContext.traceFlags % 2 === 1 ? '01' : '00';
+            carrier.traceparent = `00-${spanContext.traceId}-${spanContext.spanId}-${sampledFlag}`;
+        }
+    }
 
     return {
         traceparent: carrier.traceparent ?? carrier['sentry-trace'],

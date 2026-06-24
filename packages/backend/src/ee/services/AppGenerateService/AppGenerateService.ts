@@ -79,6 +79,8 @@ import type { ProjectService } from '../../../services/ProjectService/ProjectSer
 import type { PromoteService } from '../../../services/PromoteService/PromoteService';
 import type { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
+import { getOtelTraceHeaders } from '../../../tracing/tracing';
+import { wrapSentryTransaction } from '../../../utils';
 import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { getModel } from '../ai/models';
@@ -89,6 +91,7 @@ import {
 } from './claudeCliFailure';
 import {
     buildClaudeCodeEnv,
+    buildClaudeCodeTelemetryEnv,
     claudeCodeAllowedHosts,
     describeClaudeCodeEnv,
 } from './claudeCodeEnv';
@@ -994,6 +997,7 @@ export class AppGenerateService extends BaseService {
             network: {
                 allowOut: claudeCodeAllowedHosts(
                     this.lightdashConfig.ai.copilot,
+                    this.lightdashConfig.appRuntime.otel,
                 ),
                 denyOut: [ALL_TRAFFIC],
             },
@@ -2562,18 +2566,75 @@ export class AppGenerateService extends BaseService {
         }, HEARTBEAT_INTERVAL_MS);
 
         try {
-            await this.runPipelineStages(
-                sandbox,
-                payload,
-                s3Client,
-                bucket,
-                durations,
-                overallStart,
-                currentStatus,
-                wasResumed,
-                claudeCodeEnv,
-                imageIds,
-                chartReferences,
+            await wrapSentryTransaction(
+                'DataApp.generate',
+                {
+                    'data_app.app_uuid': appUuid,
+                    'data_app.version': version,
+                    'organization.uuid': payload.organizationUuid,
+                    'project.uuid': projectUuid,
+                    'user.uuid': payload.userUuid,
+                    'data_app.is_iteration': isIteration,
+                },
+                async () => {
+                    // Turn on Claude Code's native OTEL tracing inside the
+                    // sandbox and nest its spans under this backend parent via
+                    // the active trace context's W3C TRACEPARENT, so the whole
+                    // generation is one cross-service trace. No-op when OTEL
+                    // tracing is off. Telemetry is a side channel: if anything
+                    // about its setup fails (misconfigured OTEL, propagator
+                    // error), fall back to the plain env and generate without
+                    // tracing rather than failing the generation.
+                    let claudeCodeEnvWithTelemetry = claudeCodeEnv;
+                    try {
+                        const installId = process.env.LIGHTDASH_INSTALL_ID;
+                        claudeCodeEnvWithTelemetry = {
+                            ...claudeCodeEnv,
+                            ...buildClaudeCodeTelemetryEnv(
+                                this.lightdashConfig.appRuntime.otel,
+                                {
+                                    traceparent:
+                                        getOtelTraceHeaders().traceparent ??
+                                        null,
+                                    resourceAttributes: {
+                                        'service.name': 'lightdash-data-app',
+                                        'data_app.app_uuid': appUuid,
+                                        'data_app.version': String(version),
+                                        'organization.uuid':
+                                            payload.organizationUuid,
+                                        'project.uuid': projectUuid,
+                                        'user.uuid': payload.userUuid,
+                                        ...(installId
+                                            ? {
+                                                  'lightdash.install_id':
+                                                      installId,
+                                              }
+                                            : {}),
+                                    },
+                                },
+                            ),
+                        };
+                    } catch (e) {
+                        this.logger.warn(
+                            `App ${appUuid}: OTEL telemetry setup failed; continuing without sandbox tracing: ${getErrorMessage(
+                                e,
+                            )}`,
+                        );
+                    }
+                    await this.runPipelineStages(
+                        sandbox,
+                        payload,
+                        s3Client,
+                        bucket,
+                        durations,
+                        overallStart,
+                        currentStatus,
+                        wasResumed,
+                        claudeCodeEnvWithTelemetry,
+                        imageIds,
+                        chartReferences,
+                    );
+                },
             );
         } finally {
             clearInterval(heartbeat);

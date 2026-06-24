@@ -1,7 +1,9 @@
 import {
     buildClaudeCodeEnv,
+    buildClaudeCodeTelemetryEnv,
     claudeCodeAllowedHosts,
     describeClaudeCodeEnv,
+    type ClaudeCodeOtelConfig,
 } from './claudeCodeEnv';
 
 describe('buildClaudeCodeEnv', () => {
@@ -161,13 +163,154 @@ describe('describeClaudeCodeEnv', () => {
     });
 });
 
+describe('buildClaudeCodeTelemetryEnv', () => {
+    const enabledOtel: ClaudeCodeOtelConfig = {
+        enabled: true,
+        endpoint: 'http://collector.internal:4318',
+        protocol: 'http/protobuf',
+        headers: null,
+    };
+
+    test('returns no env when disabled', () => {
+        expect(
+            buildClaudeCodeTelemetryEnv(
+                { ...enabledOtel, enabled: false },
+                { traceparent: '00-abc-def-01', resourceAttributes: {} },
+            ),
+        ).toEqual({});
+    });
+
+    test('returns no env when enabled but no endpoint is set', () => {
+        expect(
+            buildClaudeCodeTelemetryEnv(
+                { ...enabledOtel, endpoint: null },
+                { traceparent: '00-abc-def-01', resourceAttributes: {} },
+            ),
+        ).toEqual({});
+    });
+
+    test('returns no env when the endpoint is not a parseable URL', () => {
+        expect(
+            buildClaudeCodeTelemetryEnv(
+                { ...enabledOtel, endpoint: 'not a url' },
+                { traceparent: '00-abc-def-01', resourceAttributes: {} },
+            ),
+        ).toEqual({});
+    });
+
+    test('enables Claude Code tracing and points it at the collector', () => {
+        const env = buildClaudeCodeTelemetryEnv(enabledOtel, {
+            traceparent: null,
+            resourceAttributes: {},
+        });
+
+        expect(env).toEqual({
+            CLAUDE_CODE_ENABLE_TELEMETRY: '1',
+            CLAUDE_CODE_ENHANCED_TELEMETRY_BETA: '1',
+            OTEL_TRACES_EXPORTER: 'otlp',
+            OTEL_METRICS_EXPORTER: 'none',
+            OTEL_LOGS_EXPORTER: 'none',
+            OTEL_LOG_USER_PROMPTS: '1',
+            OTEL_LOG_TOOL_DETAILS: '1',
+            OTEL_EXPORTER_OTLP_PROTOCOL: 'http/protobuf',
+            OTEL_EXPORTER_OTLP_ENDPOINT: 'http://collector.internal:4318',
+            OTEL_TRACES_EXPORT_INTERVAL: '1000',
+            OTEL_EXPORTER_OTLP_TIMEOUT: '3000',
+        });
+    });
+
+    test('captures prompts + tool details but not raw API bodies', () => {
+        const env = buildClaudeCodeTelemetryEnv(enabledOtel, {
+            traceparent: null,
+            resourceAttributes: {},
+        });
+
+        expect(env.OTEL_LOG_USER_PROMPTS).toBe('1');
+        expect(env.OTEL_LOG_TOOL_DETAILS).toBe('1');
+        expect(env).not.toHaveProperty('OTEL_LOG_RAW_API_BODIES');
+    });
+
+    test('includes TRACEPARENT, headers and serialized resource attributes when provided', () => {
+        const env = buildClaudeCodeTelemetryEnv(
+            { ...enabledOtel, headers: 'authorization=Bearer token' },
+            {
+                traceparent:
+                    '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01',
+                resourceAttributes: {
+                    'service.name': 'lightdash-data-app',
+                    'data_app.app_uuid': 'app-1',
+                    'organization.uuid': 'org-1',
+                },
+            },
+        );
+
+        expect(env.TRACEPARENT).toBe(
+            '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01',
+        );
+        expect(env.OTEL_EXPORTER_OTLP_HEADERS).toBe(
+            'authorization=Bearer token',
+        );
+        expect(env.OTEL_RESOURCE_ATTRIBUTES).toBe(
+            'service.name=lightdash-data-app,data_app.app_uuid=app-1,organization.uuid=org-1',
+        );
+    });
+
+    test('skips resource-attribute values that would corrupt the list or are empty', () => {
+        const env = buildClaudeCodeTelemetryEnv(enabledOtel, {
+            traceparent: null,
+            resourceAttributes: {
+                good: 'value',
+                empty: '',
+                withComma: 'a,b',
+                withEquals: 'a=b',
+            },
+        });
+
+        expect(env.OTEL_RESOURCE_ATTRIBUTES).toBe('good=value');
+    });
+});
+
 describe('claudeCodeAllowedHosts', () => {
+    const enabledOtel: ClaudeCodeOtelConfig = {
+        enabled: true,
+        endpoint: 'http://collector.internal:4318',
+        protocol: 'http/protobuf',
+        headers: null,
+    };
+
     test('allows only api.anthropic.com when not using Bedrock', () => {
         expect(
             claudeCodeAllowedHosts({
                 defaultProvider: 'openai',
                 providers: {},
             }),
+        ).toEqual(['api.anthropic.com']);
+    });
+
+    test('appends the OTLP collector host when OTEL is enabled', () => {
+        expect(
+            claudeCodeAllowedHosts(
+                { defaultProvider: 'openai', providers: {} },
+                enabledOtel,
+            ),
+        ).toEqual(['api.anthropic.com', 'collector.internal']);
+    });
+
+    test('does NOT append a collector host when OTEL is disabled', () => {
+        expect(
+            claudeCodeAllowedHosts(
+                { defaultProvider: 'openai', providers: {} },
+                { ...enabledOtel, enabled: false },
+            ),
+        ).toEqual(['api.anthropic.com']);
+    });
+
+    test('ignores a malformed OTLP endpoint rather than opening an invalid host', () => {
+        expect(
+            claudeCodeAllowedHosts(
+                { defaultProvider: 'openai', providers: {} },
+                { ...enabledOtel, endpoint: 'not a url' },
+            ),
         ).toEqual(['api.anthropic.com']);
     });
 
