@@ -14,7 +14,11 @@ import {
 } from '../../clients/Slack/SlackReviewMessageBlocks';
 import { type AiAgentReviewClassifierModel } from '../../ee/models/AiAgentReviewClassifierModel';
 import { type AiAgentReviewNotificationModel } from '../../ee/models/AiAgentReviewNotificationModel';
-import { type AiAgentReviewNotificationService } from '../../ee/services/AiAgentReviewNotificationService';
+import {
+    buildReviewDrawerSearchParams,
+    REVIEWS_BOARD_PATH,
+    type AiAgentReviewNotificationService,
+} from '../../ee/services/AiAgentReviewNotificationService';
 import { type OpenIdIdentityModel } from '../../models/OpenIdIdentitiesModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 
@@ -47,11 +51,11 @@ const getReviewContext = async (
         title: reviewItem?.title ?? 'AI review finding',
         rootCause: reviewItem?.primaryRootCause ?? 'unknown',
         projectName: project.name,
-        reviewUrl: `${deps.siteUrl}/ai-agents/admin/reviews?${
-            payload.reviewRunUuid
-                ? `reviewRunUuid=${payload.reviewRunUuid}`
-                : `reviewItemUuid=${payload.fingerprints[0]}`
-        }`,
+        reviewUrl: `${deps.siteUrl}${REVIEWS_BOARD_PATH}?${buildReviewDrawerSearchParams(
+            payload.projectUuid,
+            payload.fingerprints[0],
+            reviewItem,
+        )}`,
     };
 };
 
