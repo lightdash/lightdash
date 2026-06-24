@@ -1,3 +1,10 @@
+## [0.3237.3](https://github.com/lightdash/lightdash/compare/0.3237.2...0.3237.3) (2026-06-24)
+
+
+### Bug Fixes
+
+* **sdk:** drop react-dom/server from map tooltips to fix util.TextEncoder crash ([#24695](https://github.com/lightdash/lightdash/issues/24695)) ([45cb0fa](https://github.com/lightdash/lightdash/commit/45cb0fa53948cf8ec8d8ce4c74855fe0f7124769))
+
 ## [0.3237.2](https://github.com/lightdash/lightdash/compare/0.3237.1...0.3237.2) (2026-06-24)
 
 
