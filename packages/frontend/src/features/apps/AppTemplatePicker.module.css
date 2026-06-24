@@ -92,10 +92,10 @@
             0 18px 40px -10px alpha(var(--mantine-color-black), 0.22);
     }
     @mixin dark {
-        border-color: var(--mantine-color-ldGray-0);
+        border-color: var(--mantine-color-ldGray-9);
         background-color: var(--mantine-color-dark-5);
         box-shadow:
-            0 0 0 1px var(--mantine-color-ldGray-0),
+            0 0 0 1px var(--mantine-color-ldGray-9),
             0 18px 40px -10px alpha(var(--mantine-color-black), 0.6);
     }
 }
@@ -106,7 +106,7 @@
         color: var(--mantine-color-white);
     }
     @mixin dark {
-        background-color: var(--mantine-color-ldGray-0);
+        background-color: var(--mantine-color-ldGray-9);
         color: var(--mantine-color-dark-9);
     }
 }
