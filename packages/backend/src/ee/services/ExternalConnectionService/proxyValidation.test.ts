@@ -70,6 +70,31 @@ describe('normalizeAndValidatePath', () => {
         ).toThrow(ParameterError);
     });
 
+    it('rejects double-encoded .. (%252e%252e) that escapes the prefix once the URL parser collapses it', () => {
+        // The single decode turns %252e%252e into the inert string %2e%2e (no
+        // literal ".."), but buildOutboundUrl's `new URL()` then collapses it to
+        // "..", so /v1/%252e%252e/admin would resolve to /admin — outside /v1/.
+        expect(() =>
+            normalizeAndValidatePath('/v1/%252e%252e/admin', prefixes),
+        ).toThrow(ParameterError);
+    });
+
+    it('rejects chained double-encoded traversal that escapes to another path', () => {
+        expect(() =>
+            normalizeAndValidatePath(
+                '/v1/%252e%252e/%252e%252e/secret',
+                prefixes,
+            ),
+        ).toThrow(ParameterError);
+    });
+
+    it('still accepts a legitimate path with a literal dot in a segment', () => {
+        // Regression guard: the collapse check must not over-reject normal dots.
+        expect(normalizeAndValidatePath('/v1/users.json', prefixes)).toBe(
+            '/v1/users.json',
+        );
+    });
+
     it('rejects encoded path separators used to smuggle a host (%2f%2f)', () => {
         expect(() =>
             normalizeAndValidatePath('/%2f%2fevil.com', prefixes),
