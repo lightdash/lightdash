@@ -1,3 +1,20 @@
+# [0.3235.0](https://github.com/lightdash/lightdash/compare/0.3234.0...0.3235.0) (2026-06-24)
+
+
+### Bug Fixes
+
+* add diagnostic info for app deliveries ([#24672](https://github.com/lightdash/lightdash/issues/24672)) ([d94ec39](https://github.com/lightdash/lightdash/commit/d94ec395dfe9412e9b5b02c51f5d4c4869f5c910))
+* **health:** restore echarts6 flag for older frontend compatibility ([#24682](https://github.com/lightdash/lightdash/issues/24682)) ([e5f94d5](https://github.com/lightdash/lightdash/commit/e5f94d5e06d769cb6306f29d204429db3c378af4)), closes [#24594](https://github.com/lightdash/lightdash/issues/24594)
+* more proxy validation for external connections ([#24662](https://github.com/lightdash/lightdash/issues/24662)) ([59c7d3c](https://github.com/lightdash/lightdash/commit/59c7d3c7f9173350776d9a7f6bb17584e52ef5b6))
+* move default AI model setting ([#24678](https://github.com/lightdash/lightdash/issues/24678)) ([6c17f87](https://github.com/lightdash/lightdash/commit/6c17f87a7d38db536c90eec5074782ce6f680923)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* stop Autopilot from acting on advisory chart-config warnings ([#24675](https://github.com/lightdash/lightdash/issues/24675)) ([733b413](https://github.com/lightdash/lightdash/commit/733b413122101aab5a68d5c2b4477ddc3a1365cc))
+
+
+### Features
+
+* **data-apps:** add delete option to app preview menu ([#24684](https://github.com/lightdash/lightdash/issues/24684)) ([dd3db8c](https://github.com/lightdash/lightdash/commit/dd3db8cbd4ff3ab414a95bf8c7fd3792fb814e15))
+* **data-apps:** favorite an app from the preview overflow menu ([#24574](https://github.com/lightdash/lightdash/issues/24574)) ([b19ab31](https://github.com/lightdash/lightdash/commit/b19ab31346be85712c639a8502d2a93d4f161a7c))
+
 # [0.3234.0](https://github.com/lightdash/lightdash/compare/0.3233.0...0.3234.0) (2026-06-24)
 
 
