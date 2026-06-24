@@ -2581,30 +2581,46 @@ export class AppGenerateService extends BaseService {
                     // sandbox and nest its spans under this backend parent via
                     // the active trace context's W3C TRACEPARENT, so the whole
                     // generation is one cross-service trace. No-op when OTEL
-                    // tracing is off.
-                    const installId = process.env.LIGHTDASH_INSTALL_ID;
-                    const claudeCodeEnvWithTelemetry = {
-                        ...claudeCodeEnv,
-                        ...buildClaudeCodeTelemetryEnv(
-                            this.lightdashConfig.appRuntime.otel,
-                            {
-                                traceparent:
-                                    getOtelTraceHeaders().traceparent ?? null,
-                                resourceAttributes: {
-                                    'service.name': 'lightdash-data-app',
-                                    'data_app.app_uuid': appUuid,
-                                    'data_app.version': String(version),
-                                    'organization.uuid':
-                                        payload.organizationUuid,
-                                    'project.uuid': projectUuid,
-                                    'user.uuid': payload.userUuid,
-                                    ...(installId
-                                        ? { 'lightdash.install_id': installId }
-                                        : {}),
+                    // tracing is off. Telemetry is a side channel: if anything
+                    // about its setup fails (misconfigured OTEL, propagator
+                    // error), fall back to the plain env and generate without
+                    // tracing rather than failing the generation.
+                    let claudeCodeEnvWithTelemetry = claudeCodeEnv;
+                    try {
+                        const installId = process.env.LIGHTDASH_INSTALL_ID;
+                        claudeCodeEnvWithTelemetry = {
+                            ...claudeCodeEnv,
+                            ...buildClaudeCodeTelemetryEnv(
+                                this.lightdashConfig.appRuntime.otel,
+                                {
+                                    traceparent:
+                                        getOtelTraceHeaders().traceparent ??
+                                        null,
+                                    resourceAttributes: {
+                                        'service.name': 'lightdash-data-app',
+                                        'data_app.app_uuid': appUuid,
+                                        'data_app.version': String(version),
+                                        'organization.uuid':
+                                            payload.organizationUuid,
+                                        'project.uuid': projectUuid,
+                                        'user.uuid': payload.userUuid,
+                                        ...(installId
+                                            ? {
+                                                  'lightdash.install_id':
+                                                      installId,
+                                              }
+                                            : {}),
+                                    },
                                 },
-                            },
-                        ),
-                    };
+                            ),
+                        };
+                    } catch (e) {
+                        this.logger.warn(
+                            `App ${appUuid}: OTEL telemetry setup failed; continuing without sandbox tracing: ${getErrorMessage(
+                                e,
+                            )}`,
+                        );
+                    }
                     await this.runPipelineStages(
                         sandbox,
                         payload,

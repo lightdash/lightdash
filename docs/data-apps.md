@@ -872,6 +872,8 @@ on, it sets:
   `TRACEPARENT`.
 - `OTEL_TRACES_EXPORT_INTERVAL=1000`. Generations are short-lived and the CLI flushes on clean exit;
   a low interval makes spans land before the sandbox is paused or torn down.
+- `OTEL_EXPORTER_OTLP_TIMEOUT=3000`. Caps each exporter HTTP call so an unreachable or slow collector
+  can't add flush latency to sandbox teardown.
 - `OTEL_RESOURCE_ATTRIBUTES` carrying `service.name=lightdash-data-app` plus the app / version / org
   / project / user uuids and the instance install id (`lightdash.install_id`, from
   `LIGHTDASH_INSTALL_ID`), so the sandbox spans are attributable on their own.
@@ -887,6 +889,21 @@ The E2B sandbox firewall denies all outbound traffic except an allowlist (see
 [LLM provider](#llm-provider-anthropic-vs-bedrock)). When OTEL export is on, `claudeCodeAllowedHosts`
 adds the OTLP collector's host to that allowlist, otherwise the exporter's POSTs are dropped
 silently. A malformed endpoint leaves the allowlist unchanged rather than opening an invalid host.
+
+### Failsafe behavior
+
+Tracing is a side channel and must never break a generation. The wiring degrades safely:
+
+- **OTEL disabled, or no endpoint configured.** `buildClaudeCodeTelemetryEnv` returns an empty
+  object and `getOtelTraceHeaders` returns nothing, so the sandbox runs with the plain env and the
+  firewall allowlist is unchanged. This is the default and a pure no-op.
+- **Malformed endpoint.** Treated as disabled by both the telemetry env and the firewall allowlist
+  (they share the same URL parse), so no unusable exporter config is injected into the sandbox.
+- **Unreachable / slow collector.** The exporter's failures are non-fatal to the CLI; the export
+  interval plus `OTEL_EXPORTER_OTLP_TIMEOUT` bound any added latency at teardown.
+- **Telemetry setup throws.** Building the telemetry env (including reading the trace header) is
+  wrapped in a try/catch in `AppGenerateService`; on any error it logs a warning and proceeds with
+  the plain env, so a misconfigured tracer can never abort the generation.
 
 ### Cost and payloads are not on the spans
 

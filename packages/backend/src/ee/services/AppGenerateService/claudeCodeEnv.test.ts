@@ -189,6 +189,15 @@ describe('buildClaudeCodeTelemetryEnv', () => {
         ).toEqual({});
     });
 
+    test('returns no env when the endpoint is not a parseable URL', () => {
+        expect(
+            buildClaudeCodeTelemetryEnv(
+                { ...enabledOtel, endpoint: 'not a url' },
+                { traceparent: '00-abc-def-01', resourceAttributes: {} },
+            ),
+        ).toEqual({});
+    });
+
     test('enables Claude Code tracing and points it at the collector', () => {
         const env = buildClaudeCodeTelemetryEnv(enabledOtel, {
             traceparent: null,
@@ -206,6 +215,7 @@ describe('buildClaudeCodeTelemetryEnv', () => {
             OTEL_EXPORTER_OTLP_PROTOCOL: 'http/protobuf',
             OTEL_EXPORTER_OTLP_ENDPOINT: 'http://collector.internal:4318',
             OTEL_TRACES_EXPORT_INTERVAL: '1000',
+            OTEL_EXPORTER_OTLP_TIMEOUT: '3000',
         });
     });
 

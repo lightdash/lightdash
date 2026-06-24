@@ -140,14 +140,30 @@ const serializeResourceAttributes = (
         .join(',');
 
 /**
+ * Returns the host of an OTLP endpoint, or null when it is not a parseable URL.
+ * Shared so the telemetry env and the firewall allowlist agree on what counts as
+ * a usable endpoint — a malformed one is treated as no endpoint by both.
+ */
+const otelEndpointHost = (endpoint: string): string | null => {
+    try {
+        return new URL(endpoint).hostname || null;
+    } catch {
+        return null;
+    }
+};
+
+/**
  * Builds the OpenTelemetry env that turns on Claude Code's native tracing inside
  * the sandbox and exports it to the configured OTLP collector. Returns an empty
- * object (no telemetry) when disabled or no endpoint is set. Data apps opt INTO
- * prompt + tool-detail capture (`OTEL_LOG_USER_PROMPTS` / `OTEL_LOG_TOOL_DETAILS`)
- * since the generation PII surface is bounded — metadata-only schema + prompt, no
- * warehouse rows except opt-in sample data. Raw API bodies stay off. Cost is not
- * exported here (it is a metric, not a span attribute) — it stays on the stdout
- * passthrough; the metrics exporter is off so the sandbox is traces-only.
+ * object (no telemetry) when disabled, no endpoint is set, or the endpoint is not
+ * a parseable URL — a broken endpoint can never be exported to (the firewall
+ * allowlist rejects it too), so we leave the sandbox env clean rather than
+ * injecting an unusable exporter config. Data apps opt INTO prompt + tool-detail
+ * capture (`OTEL_LOG_USER_PROMPTS` / `OTEL_LOG_TOOL_DETAILS`) since the generation
+ * PII surface is bounded — metadata-only schema + prompt, no warehouse rows
+ * except opt-in sample data. Raw API bodies stay off. Cost is not exported here
+ * (it is a metric, not a span attribute) — it stays on the stdout passthrough;
+ * the metrics exporter is off so the sandbox is traces-only.
  */
 export const buildClaudeCodeTelemetryEnv = (
     otel: ClaudeCodeOtelConfig,
@@ -156,7 +172,7 @@ export const buildClaudeCodeTelemetryEnv = (
         resourceAttributes: Record<string, string>;
     },
 ): Record<string, string> => {
-    if (!otel.enabled || !otel.endpoint) {
+    if (!otel.enabled || !otel.endpoint || !otelEndpointHost(otel.endpoint)) {
         return {};
     }
     const resourceAttributes = serializeResourceAttributes(
@@ -176,6 +192,9 @@ export const buildClaudeCodeTelemetryEnv = (
         OTEL_EXPORTER_OTLP_ENDPOINT: otel.endpoint,
         // Short-lived runs: flush fast so spans land before sandbox teardown.
         OTEL_TRACES_EXPORT_INTERVAL: '1000',
+        // Cap each exporter HTTP call so an unreachable or slow collector can't
+        // add flush latency to sandbox teardown.
+        OTEL_EXPORTER_OTLP_TIMEOUT: '3000',
         ...(otel.headers ? { OTEL_EXPORTER_OTLP_HEADERS: otel.headers } : {}),
         ...(options.traceparent ? { TRACEPARENT: options.traceparent } : {}),
         ...(resourceAttributes
@@ -205,15 +224,11 @@ export const claudeCodeAllowedHosts = (
           ];
 
     if (otel?.enabled && otel.endpoint) {
-        try {
-            const host = new URL(otel.endpoint).hostname;
-            if (host) {
-                return [...llmHosts, host];
-            }
-        } catch {
-            // Malformed endpoint — leave the allowlist unchanged rather than
-            // opening an invalid host. The exporter will simply fail to reach
-            // an unconfigured collector.
+        // Malformed endpoint → host is null, allowlist left unchanged rather
+        // than opening an invalid host.
+        const host = otelEndpointHost(otel.endpoint);
+        if (host) {
+            return [...llmHosts, host];
         }
     }
 
