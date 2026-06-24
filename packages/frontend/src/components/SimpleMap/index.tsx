@@ -21,7 +21,6 @@ import {
     type FC,
     type RefObject,
 } from 'react';
-import { renderToString } from 'react-dom/server';
 import {
     CircleMarker,
     GeoJSON,
@@ -140,8 +139,7 @@ type MapContentBaseProps = {
 
 type MapTooltipContentProps = MapContentBaseProps;
 
-// NOTE: Using inline styles because this is rendered via renderToString
-// and Mantine styles won't be applied
+// Inline styles: rendered into a Leaflet tooltip where Mantine styles don't apply
 const MapTooltipContent: FC<MapTooltipContentProps> = ({
     tooltipFields,
     rowData,
@@ -194,6 +192,50 @@ const MapTooltipContent: FC<MapTooltipContentProps> = ({
             )}
         </div>
     );
+};
+
+const escapeHtml = (value: string): string =>
+    value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+// HTML-string twin of MapTooltipContent, for Leaflet's imperative bindTooltip
+const getMapTooltipHtml = ({
+    tooltipFields,
+    rowData,
+    lat,
+    lon,
+    noData,
+}: MapContentBaseProps): string => {
+    if (noData) {
+        return `<div style="padding:4px 6px"><div style="font-size:14px"><strong>${escapeHtml(
+            noData.locationLabel,
+        )}:</strong> ${escapeHtml(
+            noData.locationValue,
+        )}</div><div style="font-size:14px;color:#868e96;font-style:italic">No data</div></div>`;
+    }
+
+    const rows = tooltipFields
+        .filter((f) => f.visible)
+        .map(
+            (field) =>
+                `<div style="font-size:14px"><strong>${escapeHtml(
+                    field.label,
+                )}:</strong> ${escapeHtml(
+                    getFormattedValue(rowData, field.fieldId),
+                )}</div>`,
+        )
+        .join('');
+    const coords =
+        lat !== undefined && lon !== undefined
+            ? `<div style="font-size:12px;color:#868e96;margin-top:8px">Lat: ${lat.toFixed(
+                  4,
+              )}, Lon: ${lon.toFixed(4)}</div>`
+            : '';
+    return `<div style="padding:4px 6px"><div style="display:flex;flex-direction:column;gap:2px">${rows}</div>${coords}</div>`;
 };
 
 // MapMarker component for scatter points with tooltip/context menu behavior
@@ -901,14 +943,11 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                           locationValue: rawPropertyValue.toString(),
                       };
 
-                // eslint-disable-next-line testing-library/render-result-naming-convention
-                const tooltipHtml = renderToString(
-                    <MapTooltipContent
-                        tooltipFields={mapConfig?.tooltipFields || []}
-                        rowData={rowData}
-                        noData={noData}
-                    />,
-                );
+                const tooltipHtml = getMapTooltipHtml({
+                    tooltipFields: mapConfig?.tooltipFields || [],
+                    rowData,
+                    noData,
+                });
 
                 if (layer instanceof L.Path) {
                     layer.bindTooltip(tooltipHtml, { sticky: true });
