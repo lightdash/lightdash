@@ -87,7 +87,7 @@ export const ContentLink: FC<ContentLinkProps> = ({
         case 'dashboard-link':
             return (
                 <ContentReferenceLink
-                    href={dashboardHref}
+                    to={dashboardHref || undefined}
                     kind="dashboard"
                     onClick={handleDashboardClick}
                     title={title}
@@ -112,9 +112,7 @@ export const ContentLink: FC<ContentLinkProps> = ({
             return (
                 <ContentReferenceLink
                     chartKind={chartTypeKind}
-                    href={
-                        typeof props.href === 'string' ? props.href : undefined
-                    }
+                    to={typeof props.href === 'string' ? props.href : undefined}
                     kind="chart"
                     rel="noreferrer"
                     target="_blank"
