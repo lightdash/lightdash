@@ -1,7 +1,9 @@
 .previewContainer {
-    position: relative;
+    display: flex;
+    flex-direction: column;
     height: calc(100vh - 50px);
     width: 100%;
+    overflow: hidden;
 }
 
 /* A fixed NavBar banner (preview / impersonation) reserves an extra 35px at
@@ -12,9 +14,9 @@
     height: calc(100vh - 50px - 35px);
 }
 
-.menuOverlay {
-    position: absolute;
-    top: var(--mantine-spacing-sm);
-    right: var(--mantine-spacing-xl);
-    z-index: 10;
+.previewBody {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+    overflow: hidden;
 }
