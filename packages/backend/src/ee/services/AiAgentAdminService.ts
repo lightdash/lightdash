@@ -4,6 +4,7 @@ import {
     AiAgentAdminFilters,
     AiAgentAdminPromptActivityPoint,
     AiAgentAdminSort,
+    AiAgentReviewActivityEvent,
     AiAgentReviewItemActivity,
     AiAgentReviewItemPrDiff,
     AiAgentReviewItemStatus,
@@ -1057,6 +1058,19 @@ export class AiAgentAdminService extends BaseService {
                     newStatus: update.status,
                 },
             });
+            await this.aiAgentReviewClassifierModel.createReviewItemEvent({
+                fingerprint,
+                organizationUuid,
+                event: {
+                    eventType: 'status_changed',
+                    payload: {
+                        from: previousReviewItem?.status ?? null,
+                        to: update.status,
+                        dismissedReason: update.dismissedReason,
+                    },
+                },
+                createdByUserUuid: user.userUuid,
+            });
         }
         if (
             update.status === 'resolved' &&
@@ -1145,11 +1159,32 @@ export class AiAgentAdminService extends BaseService {
         }
         this.checkReviewAccess(user, organizationUuid);
 
+        const previousItem =
+            await this.aiAgentReviewClassifierModel.getReviewItem(
+                organizationUuid,
+                fingerprint,
+            );
+
         await this.aiAgentReviewClassifierModel.updateReviewItemAssignee({
             fingerprint,
             organizationUuid,
             assignedToUserUuid,
         });
+
+        if (previousItem?.assignedToUserUuid !== assignedToUserUuid) {
+            await this.aiAgentReviewClassifierModel.createReviewItemEvent({
+                fingerprint,
+                organizationUuid,
+                event: {
+                    eventType: 'assignee_changed',
+                    payload: {
+                        fromUserUuid: previousItem?.assignedToUserUuid ?? null,
+                        toUserUuid: assignedToUserUuid,
+                    },
+                },
+                createdByUserUuid: user.userUuid,
+            });
+        }
 
         const item = await this.getReviewItem(user, fingerprint);
 
@@ -1755,33 +1790,48 @@ export class AiAgentAdminService extends BaseService {
                 reviewItem.projectUuid,
             );
         }
-        if (!reviewItem?.remediation) {
-            return {
-                events: [],
-                liveState: null,
-                liveMessage: null,
-                verdictStale: false,
-            };
-        }
 
-        const events =
-            await this.aiAgentReviewClassifierModel.listRemediationEvents({
-                remediationUuid: reviewItem.remediation.uuid,
+        const issueEvents =
+            await this.aiAgentReviewClassifierModel.listReviewItemEvents({
+                fingerprint,
                 organizationUuid,
             });
 
-        const liveState = AiAgentAdminService.deriveRemediationLiveState(
-            reviewItem.remediation.status,
-            events,
+        const remediationEvents = reviewItem?.remediation
+            ? await this.aiAgentReviewClassifierModel.listRemediationEvents({
+                  remediationUuid: reviewItem.remediation.uuid,
+                  organizationUuid,
+              })
+            : [];
+
+        const events: AiAgentReviewActivityEvent[] = [
+            ...issueEvents.map((e) => ({ kind: 'issue' as const, ...e })),
+            ...remediationEvents.map((e) => ({
+                kind: 'remediation' as const,
+                ...e,
+            })),
+        ].sort(
+            (a, b) =>
+                new Date(a.occurredAt).getTime() -
+                new Date(b.occurredAt).getTime(),
         );
+
+        const liveState = reviewItem?.remediation
+            ? AiAgentAdminService.deriveRemediationLiveState(
+                  reviewItem.remediation.status,
+                  remediationEvents,
+              )
+            : null;
+
         return {
             events,
             liveState,
             liveMessage:
                 liveState === 'writeback'
-                    ? reviewItem.prWritebackMessage
+                    ? (reviewItem?.prWritebackMessage ?? null)
                     : null,
-            verdictStale: AiAgentAdminService.deriveVerdictStale(events),
+            verdictStale:
+                AiAgentAdminService.deriveVerdictStale(remediationEvents),
         };
     }
 

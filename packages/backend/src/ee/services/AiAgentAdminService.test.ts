@@ -261,6 +261,9 @@ const makeService = ({
             setReviewItemWritebackStatus: vi.fn().mockResolvedValue(undefined),
             createRemediationEvent: vi.fn().mockResolvedValue(undefined),
             listRemediationEvents: vi.fn().mockResolvedValue([]),
+            createReviewItemEvent: vi.fn().mockResolvedValue(undefined),
+            listReviewItemEvents: vi.fn().mockResolvedValue([]),
+            upsertReviewItemState: vi.fn().mockResolvedValue(undefined),
             getThreadWritebackPullRequests: vi
                 .fn()
                 .mockResolvedValue(
@@ -474,6 +477,168 @@ describe('AiAgentAdminService.updateReviewItemAssignee', () => {
             assigneeUserUuid: 'user-2',
             actorUserUuid: USER_UUID,
         });
+    });
+});
+
+describe('AiAgentAdminService issue activity', () => {
+    it('records status_changed only when the status actually changes', async () => {
+        const createReviewItemEvent = jest.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            aiAgentReviewClassifierModel: {
+                createReviewItemEvent,
+                getReviewItem: jest
+                    .fn()
+                    .mockResolvedValue(makeReviewItem({ status: 'open' })),
+            },
+        });
+
+        await service.updateReviewItemStatus(makeAdminUser(), 'fingerprint-1', {
+            status: 'in_progress',
+            dismissedReason: null,
+        });
+
+        expect(createReviewItemEvent).toHaveBeenCalledWith(
+            expect.objectContaining({
+                fingerprint: 'fingerprint-1',
+                event: expect.objectContaining({
+                    eventType: 'status_changed',
+                }),
+                createdByUserUuid: USER_UUID,
+            }),
+        );
+    });
+
+    it('does not record status_changed when the status is unchanged', async () => {
+        const createReviewItemEvent = jest.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            aiAgentReviewClassifierModel: {
+                createReviewItemEvent,
+                getReviewItem: jest
+                    .fn()
+                    .mockResolvedValue(makeReviewItem({ status: 'open' })),
+            },
+        });
+
+        await service.updateReviewItemStatus(makeAdminUser(), 'fingerprint-1', {
+            status: 'open',
+            dismissedReason: null,
+        });
+
+        expect(createReviewItemEvent).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: expect.objectContaining({
+                    eventType: 'status_changed',
+                }),
+            }),
+        );
+    });
+
+    it('records assignee_changed when the assignee changes', async () => {
+        const createReviewItemEvent = jest.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            aiAgentReviewClassifierModel: {
+                createReviewItemEvent,
+                updateReviewItemAssignee: jest
+                    .fn()
+                    .mockResolvedValue(undefined),
+                getReviewItem: jest
+                    .fn()
+                    .mockResolvedValue(
+                        makeReviewItem({ assignedToUserUuid: null }),
+                    ),
+            },
+        });
+
+        await service.updateReviewItemAssignee(
+            makeAdminUser(),
+            'fingerprint-1',
+            'user-2',
+        );
+
+        expect(createReviewItemEvent).toHaveBeenCalledWith(
+            expect.objectContaining({
+                fingerprint: 'fingerprint-1',
+                event: expect.objectContaining({
+                    eventType: 'assignee_changed',
+                }),
+                createdByUserUuid: USER_UUID,
+            }),
+        );
+    });
+
+    it('merges issue + remediation events sorted by occurredAt', async () => {
+        const service = makeService({
+            aiAgentReviewClassifierModel: {
+                getReviewItem: jest
+                    .fn()
+                    .mockResolvedValue(
+                        makeReviewItem({ remediation: makeRemediation() }),
+                    ),
+                listReviewItemEvents: jest.fn().mockResolvedValue([
+                    {
+                        uuid: 'i1',
+                        fingerprint: 'fingerprint-1',
+                        occurredAt: new Date('2026-06-24T09:00:00Z'),
+                        createdByUserUuid: 'u1',
+                        eventType: 'created',
+                        payload: { rootCause: 'semantic_layer' },
+                    },
+                ]),
+                listRemediationEvents: jest.fn().mockResolvedValue([
+                    {
+                        uuid: 'r1',
+                        remediationUuid: REMEDIATION_UUID,
+                        occurredAt: new Date('2026-06-24T10:00:00Z'),
+                        createdByUserUuid: null,
+                        eventType: 'pr_opened',
+                        payload: { prUrl: 'x', prNumber: 1 },
+                    },
+                ]),
+            },
+        });
+
+        const activity = await service.getReviewItemActivity(
+            makeAdminUser(),
+            'fingerprint-1',
+        );
+
+        expect(activity.events.map((e) => [e.kind, e.eventType])).toEqual([
+            ['issue', 'created'],
+            ['remediation', 'pr_opened'],
+        ]);
+    });
+
+    it('returns issue events even with no remediation', async () => {
+        const service = makeService({
+            aiAgentReviewClassifierModel: {
+                getReviewItem: jest
+                    .fn()
+                    .mockResolvedValue(makeReviewItem({ remediation: null })),
+                listReviewItemEvents: jest.fn().mockResolvedValue([
+                    {
+                        uuid: 'i1',
+                        fingerprint: 'fingerprint-1',
+                        occurredAt: new Date('2026-06-24T09:00:00Z'),
+                        createdByUserUuid: 'u1',
+                        eventType: 'status_changed',
+                        payload: {
+                            from: 'open',
+                            to: 'resolved',
+                            dismissedReason: null,
+                        },
+                    },
+                ]),
+            },
+        });
+
+        const activity = await service.getReviewItemActivity(
+            makeAdminUser(),
+            'fingerprint-1',
+        );
+
+        expect(activity.events).toHaveLength(1);
+        expect(activity.events[0].kind).toBe('issue');
+        expect(activity.liveState).toBeNull();
     });
 });
 
