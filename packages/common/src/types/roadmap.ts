@@ -61,6 +61,12 @@ export const ROADMAP_ITEM_ALLOWED_FIELDS = [
  * already strips unknown fields, but if any of these are seen we reject the
  * payload outright rather than silently dropping it, because their presence
  * means upstream curation is broken.
+ *
+ * This list is intentionally NOT exhaustive and is not the security boundary —
+ * the allowlist reconstruction in {@link redactRoadmapItem} is what actually
+ * guarantees nothing but `title`/`description`/`status` is served. This denylist
+ * only exists to turn a known curation regression into a loud failure; adding a
+ * new sensitive field here is a defence-in-depth nicety, not a requirement.
  */
 export const ROADMAP_FORBIDDEN_FIELDS = [
     'comments',
@@ -244,11 +250,16 @@ export const redactRoadmapItem = (
 };
 
 /**
- * An item dropped by {@link redactRoadmapItems}. The `reason` is for internal
- * logging/alerting only — it can echo the offending field name and must never
- * be sent to a customer.
+ * An item dropped by {@link redactRoadmapItems}.
+ *
+ * Both fields are for internal logging/alerting only — `reason` can echo the
+ * offending field name and must never be sent to a customer. `title` is a
+ * best-effort identifier (the raw item's `title` if it's a string, otherwise
+ * `undefined`) so an operator can tell *which* item failed curation; `title`
+ * is already a public field, so surfacing it internally leaks nothing.
  */
 export type RoadmapRedactionRejection = {
+    title: string | undefined;
     reason: string;
 };
 
@@ -276,6 +287,7 @@ export const redactRoadmapItems = (
             items.push(redactRoadmapItem(item));
         } catch (error) {
             rejected.push({
+                title: typeof item.title === 'string' ? item.title : undefined,
                 reason: error instanceof Error ? error.message : String(error),
             });
         }
