@@ -4,6 +4,7 @@ import {
     getAiAgentConfigSnapshotHash,
     getAiAgentReviewItemFingerprint,
     getAiAgentReviewItemFingerprintScope,
+    shouldReopenReviewItem,
     type AiAgentConfigSnapshot,
     type AiAgentReviewItemFingerprintInput,
 } from './aiAgentReviewClassifierTypes';
@@ -272,6 +273,30 @@ describe('getAiAgentReviewItemFingerprint', () => {
         expect(getAiAgentReviewItemFingerprint(incident)).not.toEqual(
             getAiAgentReviewItemFingerprint(object),
         );
+    });
+});
+
+describe('shouldReopenReviewItem', () => {
+    it('reopens a resolved item when its finding recurs', () => {
+        expect(shouldReopenReviewItem('resolved', null)).toBe(true);
+    });
+
+    it('reopens a dismissed item unless it was dismissed as expected behavior', () => {
+        expect(shouldReopenReviewItem('dismissed', 'not_actionable')).toBe(
+            true,
+        );
+        expect(shouldReopenReviewItem('dismissed', 'low_confidence')).toBe(
+            true,
+        );
+        expect(shouldReopenReviewItem('dismissed', 'expected_behavior')).toBe(
+            false,
+        );
+    });
+
+    it('leaves non-terminal items untouched', () => {
+        expect(shouldReopenReviewItem('triage', null)).toBe(false);
+        expect(shouldReopenReviewItem('open', null)).toBe(false);
+        expect(shouldReopenReviewItem('in_progress', null)).toBe(false);
     });
 });
 

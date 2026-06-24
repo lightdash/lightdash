@@ -1034,6 +1034,8 @@ describe('AiAgentReviewClassifierModel', () => {
                     ai_agent_review_turn_signal_uuid: TURN_SIGNAL_UUID,
                 },
             ]);
+            // No existing item for this fingerprint → nothing to reopen.
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
             tracker.on.insert(AiAgentReviewItemTableName).responseOnce([]);
 
             const result = await model.createTurnSignal({
@@ -1162,6 +1164,10 @@ describe('AiAgentReviewClassifierModel', () => {
                 .responseOnce([
                     { ai_agent_review_turn_signal_uuid: TURN_SIGNAL_UUID },
                 ]);
+            // Existing item is already open → no reopen.
+            tracker.on
+                .select(AiAgentReviewItemTableName)
+                .responseOnce([{ status: 'open', dismissed_reason: null }]);
             tracker.on.insert(AiAgentReviewItemTableName).responseOnce([]);
 
             await model.createTurnSignal({
@@ -1189,6 +1195,95 @@ describe('AiAgentReviewClassifierModel', () => {
             // fingerprint is stable across the re-review.
             expect(
                 tracker.history.delete.filter((q) =>
+                    q.sql.includes(AiAgentReviewItemTableName),
+                ),
+            ).toHaveLength(0);
+        });
+
+        it('reopens a resolved review item when its finding recurs', async () => {
+            tracker.on.any(/pg_advisory_xact_lock/).response([]);
+            tracker.on.select(AiAgentTurnSignalTableName).responseOnce([]);
+            tracker.on.delete(AiAgentTurnSignalTableName).responseOnce(0);
+            tracker.on
+                .insert(AiAgentTurnSignalTableName)
+                .responseOnce([
+                    { ai_agent_review_turn_signal_uuid: TURN_SIGNAL_UUID },
+                ]);
+            tracker.on
+                .select(AiAgentReviewItemTableName)
+                .responseOnce([{ status: 'resolved', dismissed_reason: null }]);
+            tracker.on.insert(AiAgentReviewItemTableName).responseOnce([]);
+            tracker.on.update(AiAgentReviewItemTableName).responseOnce(1);
+
+            await model.createTurnSignal({
+                runUuid: RUN_UUID,
+                turnSignal,
+                finding: {
+                    primaryRootCause: 'semantic_layer',
+                    secondaryRootCauses: [],
+                    subcategories: [],
+                    fixTargets: [],
+                    targetRefs: [],
+                    evidenceExcerpts: [],
+                    recommendation: null,
+                    projectContextEntry: null,
+                    reviewItem: {
+                        fingerprint: FINGERPRINT,
+                        title: 'Review airports.country',
+                        description: 'Country needs semantic clarification.',
+                        ownerType: 'semantic_layer_owner',
+                    },
+                },
+            });
+
+            const itemUpdates = tracker.history.update.filter((q) =>
+                q.sql.includes(AiAgentReviewItemTableName),
+            );
+            expect(itemUpdates).toHaveLength(1);
+            expect(itemUpdates[0].bindings).toContain('open');
+            expect(itemUpdates[0].bindings).toContain(FINGERPRINT);
+        });
+
+        it('does not reopen an item dismissed as expected behavior', async () => {
+            tracker.on.any(/pg_advisory_xact_lock/).response([]);
+            tracker.on.select(AiAgentTurnSignalTableName).responseOnce([]);
+            tracker.on.delete(AiAgentTurnSignalTableName).responseOnce(0);
+            tracker.on
+                .insert(AiAgentTurnSignalTableName)
+                .responseOnce([
+                    { ai_agent_review_turn_signal_uuid: TURN_SIGNAL_UUID },
+                ]);
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([
+                {
+                    status: 'dismissed',
+                    dismissed_reason: 'expected_behavior',
+                },
+            ]);
+            tracker.on.insert(AiAgentReviewItemTableName).responseOnce([]);
+
+            await model.createTurnSignal({
+                runUuid: RUN_UUID,
+                turnSignal,
+                finding: {
+                    primaryRootCause: 'semantic_layer',
+                    secondaryRootCauses: [],
+                    subcategories: [],
+                    fixTargets: [],
+                    targetRefs: [],
+                    evidenceExcerpts: [],
+                    recommendation: null,
+                    projectContextEntry: null,
+                    reviewItem: {
+                        fingerprint: FINGERPRINT,
+                        title: 'Review airports.country',
+                        description: 'Country needs semantic clarification.',
+                        ownerType: 'semantic_layer_owner',
+                    },
+                },
+            });
+
+            expect(
+                tracker.history.update.filter((q) =>
                     q.sql.includes(AiAgentReviewItemTableName),
                 ),
             ).toHaveLength(0);
