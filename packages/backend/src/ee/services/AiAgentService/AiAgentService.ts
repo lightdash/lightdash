@@ -8416,13 +8416,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 );
                 const reconnectNotice =
                     '⚠️ Lightdash AI cannot reply here yet. A workspace admin needs to reconnect Slack in Lightdash (Integrations → Slack) so the app has the latest permissions.';
-                await this.slackClient.updateMessage({
-                    organizationUuid: slackPrompt.organizationUuid,
-                    text: reconnectNotice,
-                    blocks: getMarkdownBlocks(reconnectNotice),
-                    channelId: slackPrompt.slackChannelId,
-                    messageTs: slackPrompt.response_slack_ts,
-                });
+                await this.editPlaceholderOrPost(slackPrompt, reconnectNotice);
                 return;
             }
             Logger.error('Failed to start Slack modern AI stream', error);
@@ -9006,14 +9000,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         }
 
         if (slackPrompt.prompt.trim().length === 0) {
-            const welcomeText = AiAgentService.EMPTY_PROMPT_WELCOME;
-            await this.slackClient.updateMessage({
-                organizationUuid: slackPrompt.organizationUuid,
-                text: welcomeText,
-                blocks: getMarkdownBlocks(welcomeText),
-                channelId: slackPrompt.slackChannelId,
-                messageTs: slackPrompt.response_slack_ts,
-            });
+            await this.editPlaceholderOrPost(
+                slackPrompt,
+                AiAgentService.EMPTY_PROMPT_WELCOME,
+            );
             return;
         }
 
@@ -10333,6 +10323,39 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         return false;
     }
 
+    // Edit the placeholder when it exists; if the placeholder post failed
+    // (no `response_slack_ts`, e.g. Slack rate-limited `say()`) post a fresh
+    // threaded message instead, so the user still gets a reply.
+    private async editPlaceholderOrPost(
+        slackPrompt: Pick<
+            SlackPrompt,
+            | 'organizationUuid'
+            | 'slackChannelId'
+            | 'slackThreadTs'
+            | 'response_slack_ts'
+        >,
+        text: string,
+    ): Promise<void> {
+        const blocks = getMarkdownBlocks(text);
+        if (slackPrompt.response_slack_ts) {
+            await this.slackClient.updateMessage({
+                organizationUuid: slackPrompt.organizationUuid,
+                text,
+                blocks,
+                channelId: slackPrompt.slackChannelId,
+                messageTs: slackPrompt.response_slack_ts,
+            });
+            return;
+        }
+        await this.slackClient.postMessage({
+            organizationUuid: slackPrompt.organizationUuid,
+            channel: slackPrompt.slackChannelId,
+            thread_ts: slackPrompt.slackThreadTs,
+            text,
+            blocks,
+        });
+    }
+
     /**
      * Post initial response message and schedule the AI prompt
      */
@@ -10345,46 +10368,56 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         createdThread: boolean,
         say: Function,
     ): Promise<void> {
-        const postedMessage = await say({
-            username: agentConfig.name,
-            thread_ts: threadTs,
-            text: createdThread
-                ? `Hi <@${userId}>, working on your request now.`
-                : 'Let me check that for you. One moment.',
-            blocks: [
-                {
-                    type: 'section',
-                    text: {
-                        type: 'mrkdwn',
-                        text: createdThread
-                            ? `Hi <@${userId}>, working on your request now :rocket:`
-                            : `Let me check that for you. One moment! :books:`,
+        // Best-effort placeholder: if `say()` throws (e.g. Slack rate-limiting)
+        // we must still schedule the job, else the prompt is orphaned.
+        try {
+            const postedMessage = await say({
+                username: agentConfig.name,
+                thread_ts: threadTs,
+                text: createdThread
+                    ? `Hi <@${userId}>, working on your request now.`
+                    : 'Let me check that for you. One moment.',
+                blocks: [
+                    {
+                        type: 'section',
+                        text: {
+                            type: 'mrkdwn',
+                            text: createdThread
+                                ? `Hi <@${userId}>, working on your request now :rocket:`
+                                : `Let me check that for you. One moment! :books:`,
+                        },
                     },
-                },
-                {
-                    type: 'divider',
-                },
-                {
-                    type: 'context',
-                    elements: [
-                        {
-                            type: 'plain_text',
-                            text: `It can take up to 15s to get a response.`,
-                        },
-                        {
-                            type: 'plain_text',
-                            text: `Reference: ${slackPromptUuid}`,
-                        },
-                    ],
-                },
-            ],
-        });
-
-        if (postedMessage.ts) {
-            await this.aiAgentModel.updateSlackResponseTs({
-                promptUuid: slackPromptUuid,
-                responseSlackTs: postedMessage.ts,
+                    {
+                        type: 'divider',
+                    },
+                    {
+                        type: 'context',
+                        elements: [
+                            {
+                                type: 'plain_text',
+                                text: `It can take up to 15s to get a response.`,
+                            },
+                            {
+                                type: 'plain_text',
+                                text: `Reference: ${slackPromptUuid}`,
+                            },
+                        ],
+                    },
+                ],
             });
+
+            if (postedMessage.ts) {
+                await this.aiAgentModel.updateSlackResponseTs({
+                    promptUuid: slackPromptUuid,
+                    responseSlackTs: postedMessage.ts,
+                });
+            }
+        } catch (error) {
+            Logger.error(
+                `Failed to post Slack placeholder for prompt ${slackPromptUuid}; scheduling generation anyway`,
+                error,
+            );
+            Sentry.captureException(error);
         }
 
         await this.schedulerClient.slackAiPrompt({
