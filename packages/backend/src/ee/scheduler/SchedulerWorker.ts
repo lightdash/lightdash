@@ -15,7 +15,6 @@ import {
     SchedulerWorker,
     SchedulerWorkerArguments,
 } from '../../scheduler/SchedulerWorker';
-import { sendReviewNotification } from '../../scheduler/tasks/sendReviewNotification';
 import { TypedEETaskList } from '../../scheduler/types';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type AiAgentReviewNotificationModel } from '../models/AiAgentReviewNotificationModel';
@@ -27,6 +26,7 @@ import { AppGenerateService } from '../services/AppGenerateService/AppGenerateSe
 import type { EmbedService } from '../services/EmbedService/EmbedService';
 import { ManagedAgentService } from '../services/ManagedAgentService/ManagedAgentService';
 import { ProjectContextService } from '../services/ProjectContextService/ProjectContextService';
+import { sendReviewNotification } from './tasks/sendReviewNotification';
 
 const AI_AGENT_EVAL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 const AI_AGENT_REVIEW_REMEDIATION_RUN_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes

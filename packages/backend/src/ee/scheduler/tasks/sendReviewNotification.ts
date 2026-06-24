@@ -6,21 +6,21 @@ import {
     type SendReviewNotificationPayload,
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
-import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
-import { type SlackClient } from '../../clients/Slack/SlackClient';
+import { type LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
+import { type SlackClient } from '../../../clients/Slack/SlackClient';
 import {
     buildReviewAssignedBlocks,
     buildReviewNeedsReviewBlocks,
-} from '../../clients/Slack/SlackReviewMessageBlocks';
-import { type AiAgentReviewClassifierModel } from '../../ee/models/AiAgentReviewClassifierModel';
-import { type AiAgentReviewNotificationModel } from '../../ee/models/AiAgentReviewNotificationModel';
+} from '../../../clients/Slack/SlackReviewMessageBlocks';
+import { type OpenIdIdentityModel } from '../../../models/OpenIdIdentitiesModel';
+import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { type AiAgentReviewClassifierModel } from '../../models/AiAgentReviewClassifierModel';
+import { type AiAgentReviewNotificationModel } from '../../models/AiAgentReviewNotificationModel';
 import {
     buildReviewDrawerSearchParams,
     REVIEWS_BOARD_PATH,
     type AiAgentReviewNotificationService,
-} from '../../ee/services/AiAgentReviewNotificationService';
-import { type OpenIdIdentityModel } from '../../models/OpenIdIdentitiesModel';
-import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
+} from '../../services/AiAgentReviewNotificationService';
 
 type SendReviewNotificationDeps = {
     siteUrl: string;
