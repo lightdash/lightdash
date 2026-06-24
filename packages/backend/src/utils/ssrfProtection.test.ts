@@ -51,6 +51,18 @@ describe('validatePublicHttpUrl', () => {
         ).rejects.toThrow(privateUrlError);
     });
 
+    it('accepts private IP targets when explicitly allowed', async () => {
+        await expect(
+            validatePublicHttpUrl('http://127.0.0.1:3000/mcp', {
+                allowedProtocols: ['http:', 'https:'],
+                allowPrivateAddresses: true,
+            }),
+        ).resolves.toMatchObject({
+            hostname: '127.0.0.1',
+            protocol: 'http:',
+        });
+    });
+
     it('rejects IPv4-mapped IPv6 private targets', async () => {
         await expect(
             validatePublicHttpUrl('http://[::ffff:127.0.0.1]:3000/mcp', {

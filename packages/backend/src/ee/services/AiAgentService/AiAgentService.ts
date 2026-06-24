@@ -3014,7 +3014,9 @@ export class AiAgentService extends BaseService {
         const normalizedUrl = (
             await validatePublicHttpUrl(body.url, {
                 allowedProtocols: ['http:', 'https:'],
-                allowPrivateAddresses: process.env.NODE_ENV === 'test',
+                allowPrivateAddresses:
+                    this.lightdashConfig.ai.copilot.mcpAllowPrivateAddresses ||
+                    process.env.NODE_ENV === 'test',
             })
         ).toString();
 
