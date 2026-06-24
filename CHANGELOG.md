@@ -1,3 +1,10 @@
+# [0.3233.0](https://github.com/lightdash/lightdash/compare/0.3232.0...0.3233.0) (2026-06-24)
+
+
+### Features
+
+* add agent ai model defaults ([#24619](https://github.com/lightdash/lightdash/issues/24619)) ([976c9e4](https://github.com/lightdash/lightdash/commit/976c9e45cc458731e25cf12dae54e6cf671e3a4a))
+
 # [0.3232.0](https://github.com/lightdash/lightdash/compare/0.3231.0...0.3232.0) (2026-06-24)
 
 
