@@ -64,8 +64,8 @@
 .card:hover,
 .card:focus-visible {
     outline: none;
-    transform: translate(calc(var(--x) - 92px), calc(var(--y) - 28px))
-        rotate(calc(var(--rot) * 0.35)) scale(1.04);
+    transform: translate(calc(var(--x) - 92px), calc(var(--y) - 8px))
+        rotate(calc(var(--rot) * 0.85)) scale(1.02);
     z-index: 10;
 
     @mixin light {
@@ -80,8 +80,8 @@
 
 .cardSelected,
 .cardSelected:hover {
-    transform: translate(calc(var(--x) - 92px), calc(var(--y) - 24px))
-        rotate(calc(var(--rot) * 0.35)) scale(1.04);
+    transform: translate(calc(var(--x) - 92px), var(--y)) rotate(var(--rot))
+        scale(1.06);
     z-index: 9;
 
     @mixin light {
@@ -119,12 +119,6 @@
 }
 .cardTitle {
     line-height: 1.2;
-}
-
-.selectedIndicator {
-    position: absolute;
-    top: var(--mantine-spacing-sm);
-    right: var(--mantine-spacing-sm);
 }
 
 /* Narrow widths can't hold the arch — stack the cards vertically. */
