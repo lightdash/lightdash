@@ -1,4 +1,4 @@
-import { findExploresToolDefinition } from '@lightdash/common';
+import { findExploresToolDefinition, getItemId } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
     FindExploresFn,
@@ -39,7 +39,7 @@ const generateExploreResponse = ({
     const topFieldsNote =
         fieldCount === 0
             ? 'No field-level matches either.'
-            : "Per-field matches across all explores. Each field's `exploreName` shows where it lives — pick the explore whose fields can answer the user's question.";
+            : "Per-field matches across all explores. Each field's `exploreName` shows where it lives — pick the explore whose fields can answer the user's question. Field descriptions are previews and may be truncated.";
 
     return (
         <findExplores searchQuery={searchQuery}>
@@ -57,8 +57,8 @@ const generateExploreResponse = ({
             <searchResults count={exploreCount}>
                 <note>{searchResultsNote}</note>
                 {exploreSearchResults?.map((result) => (
-                    <alternative
-                        name={result.name}
+                    <explore
+                        explore={result.name}
                         label={result.label}
                         searchRank={result.searchRank?.toFixed(3) ?? 'N/A'}
                     >
@@ -86,25 +86,26 @@ const generateExploreResponse = ({
                                     ))}
                                 </joinedTables>
                             )}
-                    </alternative>
+                    </explore>
                 ))}
             </searchResults>
+
             <topMatchingFields count={fieldCount}>
                 <note>{topFieldsNote}</note>
                 {topMatchingFields?.map((field) => (
                     <field
                         name={field.name}
                         label={field.label}
+                        fieldId={getItemId({
+                            name: field.name,
+                            table: field.tableName,
+                        })}
                         exploreName={field.tableName}
                         fieldType={field.fieldType}
                         searchRank={field.searchRank?.toFixed(3) ?? 'N/A'}
                         usageInCharts={field.chartUsage ?? 0}
                         usageInVerifiedCharts={field.verifiedChartUsage ?? 0}
-                    >
-                        {field.description && (
-                            <description>{field.description}</description>
-                        )}
-                    </field>
+                    />
                 ))}
             </topMatchingFields>
         </findExplores>

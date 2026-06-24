@@ -22,12 +22,13 @@ exports[`MCP tool contracts matches the current MCP tool and prompt contract sna
    - Use matching verified answers as the starting point, then adapt only if the user asked for a clear modification
    - Review the \`topMatchingFields\` to understand which explores match
    - If multiple explores match with similar scores, ask the user which data source they mean
-2. **Get fields**: Use \`find_fields\` for the chosen explore to see all available dimensions and metrics
-   - Read field labels, descriptions, and hints carefully — hints are written specifically for AI guidance
-   - Never invent field IDs; only use exact values returned by \`find_fields\`
+2. **Search fields**: Use \`find_fields\` for the chosen explore to find relevant dimensions and metrics
+   - Read field labels, description previews, and hints carefully — hints are written specifically for AI guidance
+   - Never invent field IDs; only use exact values returned by \`find_explores\` or \`find_fields\`
    - Search for business terms, not technical field names
    - Use multiple search queries in one call to find related fields efficiently
    - Look for both dimensions (for grouping) and metrics (for aggregation)
+   - Field descriptions are previews and may end with \` ... (truncated)\`
 3. **Search field values**: Use \`search_field_values\` to discover valid filter values for a dimension
 4. **Run queries**: Use \`run_metric_query\` for semantic-layer metric queries, or \`run_sql\` for custom SQL
 5. **Poll long-running queries**: If a query returns \`status: "running"\`, call \`get_query_result\` with the \`queryUuid\` until it returns done/error/cancelled/expired
@@ -123,7 +124,7 @@ Usage Tips:
       "description": "Tool: findExplores
 
 Purpose:
-Returns explores matching the query with their joined tables, AI hints and descriptions, plus the top 50 matching fields across ALL explores. Search matches explore and field name, label, and description. A follow-up query runs against a single explore, so this tool is meant to identify the explore whose fields can answer the user's question.
+Returns explores matching the query with their joined tables, AI hints and descriptions, plus the top matching field subset across ALL explores. Search matches explore and field name, label, and description. A follow-up query runs against a single explore, so this tool is meant to identify the explore whose fields can answer the user's question.
 IMPORTANT: Each explore may include fields from multiple joined tables. Check the "joinedTables" elements to see which tables are included in the explore.
 
 Parameters:
@@ -131,7 +132,9 @@ Parameters:
 
 Output:
 - Matching explores with searchRank scores
-- Top matching fields with their explore names and searchRank scores
+- Top matching fields with their explore names, searchRank scores, and short description previews
+
+Field descriptions in top matching fields are previews and may end with " ... (truncated)".
 ",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -155,7 +158,7 @@ Output:
       "description": "Tool: "findFields"
 
 Purpose:
-Finds the most relevant Fields (Metrics & Dimensions) within Explores, returning detailed info about each.
+Searches for the most relevant Fields (Metrics & Dimensions) within an Explore, returning ranked field matches with short description previews.
 
 Usage tips:
 - Use "findExplores" first to discover available Explores and their field labels.
@@ -164,6 +167,7 @@ Usage tips:
 - Fields are sorted by relevance, with a maximum score of 1 and a minimum of 0, so the top results are the most relevant.
 - If results aren't relevant, retry with clearer or more specific terms.
 - Results are paginated — use the next page token to get more results if needed.
+- Field descriptions are previews and may end with " ... (truncated)".
 ",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",

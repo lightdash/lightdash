@@ -198,7 +198,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                                 "type": "string",
                               },
                               "description": {
-                                "description": "Full field description copied exactly from findFields when present; null only when the field has no description.",
+                                "description": "Field description copied from findFields only when it is not truncated and needed to distinguish similar fields; null otherwise.",
                                 "type": [
                                   "string",
                                   "null",
@@ -842,7 +842,7 @@ Usage tips:
     "description": "Tool: findExplores
 
 Purpose:
-Returns explores matching the query with their joined tables, AI hints and descriptions, plus the top 50 matching fields across ALL explores. Search matches explore and field name, label, and description. A follow-up query runs against a single explore, so this tool is meant to identify the explore whose fields can answer the user's question.
+Returns explores matching the query with their joined tables, AI hints and descriptions, plus the top matching field subset across ALL explores. Search matches explore and field name, label, and description. A follow-up query runs against a single explore, so this tool is meant to identify the explore whose fields can answer the user's question.
 IMPORTANT: Each explore may include fields from multiple joined tables. Check the "joinedTables" elements to see which tables are included in the explore.
 
 Parameters:
@@ -850,7 +850,9 @@ Parameters:
 
 Output:
 - Matching explores with searchRank scores
-- Top matching fields with their explore names and searchRank scores
+- Top matching fields with their explore names, searchRank scores, and short description previews
+
+Field descriptions in top matching fields are previews and may end with " ... (truncated)".
 ",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -997,7 +999,7 @@ Output:
     "description": "Tool: "findFields"
 
 Purpose:
-Finds the most relevant Fields (Metrics & Dimensions) within Explores, returning detailed info about each.
+Searches for the most relevant Fields (Metrics & Dimensions) within an Explore, returning ranked field matches with short description previews.
 
 Usage tips:
 - Use "findExplores" first to discover available Explores and their field labels.
@@ -1006,6 +1008,7 @@ Usage tips:
 - Fields are sorted by relevance, with a maximum score of 1 and a minimum of 0, so the top results are the most relevant.
 - If results aren't relevant, retry with clearer or more specific terms.
 - Results are paginated — use the next page token to get more results if needed.
+- Field descriptions are previews and may end with " ... (truncated)".
 ",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",

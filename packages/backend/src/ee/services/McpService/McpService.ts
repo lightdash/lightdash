@@ -1326,7 +1326,7 @@ export class McpService extends BaseService {
                 const findExploresTool = getFindExplores({
                     findExplores: toolsRuntime.findExplores,
                     updateProgress: async () => {}, // No-op for MCP context
-                    fieldSearchSize: 200,
+                    fieldSearchSize: 50,
                 });
                 const result = await findExploresTool.execute!(
                     {

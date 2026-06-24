@@ -7340,7 +7340,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             availableSkills,
             enableAgentRevamp: agentRevampEnabled,
 
-            findExploresFieldSearchSize: 200,
+            findExploresFieldSearchSize: 50,
             findFieldsPageSize: 30,
             getDashboardChartsPageSize: 20,
             maxQueryLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,

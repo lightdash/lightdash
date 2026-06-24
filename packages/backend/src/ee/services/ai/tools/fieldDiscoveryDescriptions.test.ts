@@ -43,9 +43,15 @@ const executeSearchSemanticLayer = (
 const longDescription = `Important grain and usage notes. ${'x'.repeat(
     650,
 )} Do not lose this final sentence.`;
+const longFieldDescription = `Detailed field usage notes. ${'y'.repeat(
+    650,
+)} Do not include this in findExplores.`;
+
+const preview = (description: string) =>
+    `${description.slice(0, 100)} ... (truncated)`;
 
 describe('field discovery descriptions', () => {
-    it('does not truncate explore or top matching field descriptions', async () => {
+    it('does not truncate explore descriptions and previews top matching field descriptions', async () => {
         const tool = getFindExplores({
             fieldSearchSize: 50,
             findExplores: jest.fn().mockResolvedValue({
@@ -63,7 +69,7 @@ describe('field discovery descriptions', () => {
                         label: 'Feature name',
                         tableName: 'tickets',
                         fieldType: FieldType.DIMENSION,
-                        description: longDescription,
+                        description: longFieldDescription,
                         searchRank: 1,
                         chartUsage: 0,
                     },
@@ -81,12 +87,13 @@ describe('field discovery descriptions', () => {
             '<field name="feature_name" label="Feature name"',
         );
         expect(output.result).toContain(
-            `<description>${longDescription}</description>`,
+            `<description>${preview(longFieldDescription)}</description>`,
         );
+        expect(output.result).not.toContain(longFieldDescription);
         expect(output.result).not.toContain('…');
     });
 
-    it('does not truncate findFields descriptions', async () => {
+    it('returns description previews from findFields', async () => {
         const explore = {
             name: 'tickets',
             baseTable: 'tickets',
@@ -126,8 +133,9 @@ describe('field discovery descriptions', () => {
         });
 
         expect(output.result).toContain(
-            `<description>${longDescription}</description>`,
+            `<description>${preview(longDescription)}</description>`,
         );
+        expect(output.result).not.toContain(longDescription);
         expect(output.result).not.toContain('…');
     });
 

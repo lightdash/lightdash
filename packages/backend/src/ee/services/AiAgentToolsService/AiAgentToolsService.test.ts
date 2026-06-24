@@ -242,7 +242,8 @@ describe('AiAgentToolsService', () => {
                               tableName: 'orders',
                               fieldType: 'metric',
                               searchRank: 1,
-                              description: null,
+                              description:
+                                  'Field detail that should not be returned by findExplores',
                               chartUsage: 3,
                           },
                       ],
@@ -281,6 +282,18 @@ describe('AiAgentToolsService', () => {
         });
         expect(mcpResults.topMatchingFields?.[0]).not.toHaveProperty(
             'verifiedChartUsage',
+        );
+        expect(mcpResults.topMatchingFields?.[0]).toHaveProperty(
+            'description',
+            'Field detail that should not be returned by findExplores',
+        );
+        expect(searchCatalog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                catalogSearch: expect.objectContaining({
+                    type: CatalogType.Field,
+                }),
+                paginateArgs: { page: 1, pageSize: 50 },
+            }),
         );
     });
 

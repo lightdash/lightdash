@@ -5,7 +5,7 @@ import { createToolSchema } from '../toolSchemaBuilder';
 export const TOOL_FIND_FIELDS_DESCRIPTION = `Tool: "findFields"
 
 Purpose:
-Finds the most relevant Fields (Metrics & Dimensions) within Explores, returning detailed info about each.
+Searches for the most relevant Fields (Metrics & Dimensions) within an Explore, returning ranked field matches with short description previews.
 
 Usage tips:
 - Use "findExplores" first to discover available Explores and their field labels.
@@ -14,6 +14,7 @@ Usage tips:
 - Fields are sorted by relevance, with a maximum score of 1 and a minimum of 0, so the top results are the most relevant.
 - If results aren't relevant, retry with clearer or more specific terms.
 - Results are paginated — use the next page token to get more results if needed.
+- Field descriptions are previews and may end with " ... (truncated)".
 `;
 
 export const toolFindFieldsArgsSchema = createToolSchema()

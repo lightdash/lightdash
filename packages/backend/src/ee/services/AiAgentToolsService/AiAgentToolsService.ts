@@ -536,7 +536,10 @@ export class AiAgentToolsService extends BaseService {
                             type: CatalogType.Field,
                         },
                         context: context.catalogSearchContext,
-                        paginateArgs: { page: 1, pageSize: 50 },
+                        paginateArgs: {
+                            page: 1,
+                            pageSize: args.fieldSearchSize,
+                        },
                         fullTextSearchOperator: 'OR',
                         filteredExplores,
                     });

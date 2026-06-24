@@ -1,15 +1,4 @@
-import {
-    CatalogField,
-    convertToAiHints,
-    DEFAULT_FILTER_CASE_SENSITIVE,
-    DimensionType,
-    Explore,
-    FieldType,
-    findFieldsToolDefinition,
-    getFilterTypeFromItemType,
-    getItemId,
-    isEmojiIcon,
-} from '@lightdash/common';
+import { findFieldsToolDefinition, type Explore } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
     FindFieldFn,
@@ -19,6 +8,7 @@ import type {
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { xmlBuilder } from '../xmlBuilder';
+import { renderField } from './fieldOutput';
 
 type Dependencies = {
     getExplore: GetExploreFn;
@@ -28,92 +18,6 @@ type Dependencies = {
 };
 
 const toolDefinition = findFieldsToolDefinition.for('agent');
-
-const getFieldCaseSensitive = (
-    catalogField: CatalogField,
-    explore?: Explore,
-): boolean | undefined => {
-    if (
-        catalogField.fieldType !== FieldType.DIMENSION ||
-        catalogField.fieldValueType !== DimensionType.STRING
-    ) {
-        return undefined;
-    }
-
-    const dimension =
-        explore?.tables[catalogField.tableName]?.dimensions[catalogField.name];
-
-    return (
-        dimension?.caseSensitive ??
-        explore?.caseSensitive ??
-        DEFAULT_FILTER_CASE_SENSITIVE
-    );
-};
-
-const renderField = (catalogField: CatalogField, explore?: Explore) => {
-    const isFromJoinedTable =
-        explore &&
-        catalogField.tableName !== explore.baseTable &&
-        explore.joinedTables.some(
-            (join) => join.table === catalogField.tableName,
-        );
-    const caseSensitiveFilters = getFieldCaseSensitive(catalogField, explore);
-
-    const aiHints = convertToAiHints(catalogField.aiHints ?? undefined);
-
-    return (
-        <field
-            type={catalogField.fieldType}
-            baseTable={catalogField.tableName}
-            name={catalogField.name}
-            fieldId={getItemId({
-                name: catalogField.name,
-                table: catalogField.tableName,
-            })}
-            fieldType={catalogField.fieldValueType}
-            fieldFilterType={getFilterTypeFromItemType(
-                catalogField.fieldValueType,
-            )}
-            searchRank={catalogField.searchRank}
-            chartUsage={catalogField.chartUsage}
-            usageInVerifiedCharts={catalogField.verifiedChartUsage ?? 0}
-            isFromJoinedTable={isFromJoinedTable}
-            {...(caseSensitiveFilters === undefined
-                ? {}
-                : { caseSensitiveFilters })}
-        >
-            {isFromJoinedTable && explore && (
-                <note>
-                    This field is from the "{catalogField.tableName}" table,
-                    which is joined to the "{explore.name}" explore. You can use
-                    this field in queries and filters just like fields from the
-                    base table.
-                </note>
-            )}
-            <label>{catalogField.label}</label>
-            {aiHints && aiHints.length > 0 ? (
-                <aihints>
-                    {aiHints.map((hint) => (
-                        <hint>{hint}</hint>
-                    ))}
-                </aihints>
-            ) : null}
-            {catalogField.description && (
-                <description>{catalogField.description}</description>
-            )}
-            {catalogField.categories && catalogField.categories.length > 0 ? (
-                <categories>
-                    {catalogField.categories.map((c) => (
-                        <category>{c.name}</category>
-                    ))}
-                </categories>
-            ) : null}
-            {isEmojiIcon(catalogField.icon) ? (
-                <emoji>{catalogField.icon.unicode}</emoji>
-            ) : null}
-        </field>
-    );
-};
 
 const getFieldsText = (
     args: Awaited<ReturnType<FindFieldFn>> & { searchQuery: string },
@@ -126,7 +30,16 @@ const getFieldsText = (
         totalPageCount={args.pagination?.totalPageCount}
         totalResults={args.pagination?.totalResults}
     >
-        {args.fields.map((field) => renderField(field, explore))}
+        <note>
+            Field descriptions are previews and may end with " ... (truncated)".
+        </note>
+        {args.fields.map((field) =>
+            renderField({
+                field,
+                explore,
+                descriptionMode: 'preview',
+            }),
+        )}
     </searchresult>
 );
 
