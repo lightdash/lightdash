@@ -1,3 +1,17 @@
+# [0.3240.0](https://github.com/lightdash/lightdash/compare/0.3239.0...0.3240.0) (2026-06-24)
+
+
+### Bug Fixes
+
+* **ai-agents:** backfill missing tool result in agent history ([#24706](https://github.com/lightdash/lightdash/issues/24706)) ([622c9d4](https://github.com/lightdash/lightdash/commit/622c9d474a91e0036a8b6587eb75d540f80b6e53))
+* **ai-agents:** schedule Slack prompt even if placeholder post fails ([#24705](https://github.com/lightdash/lightdash/issues/24705)) ([f7abefb](https://github.com/lightdash/lightdash/commit/f7abefb255d7f23cbfe7a5ef42b5ebf99bab9d45))
+* **ai-agents:** show latest chart image in Slack agent card ([#24707](https://github.com/lightdash/lightdash/issues/24707)) ([2d3283c](https://github.com/lightdash/lightdash/commit/2d3283c498d59a3eea0bccf6ae0cad620a048d6d))
+
+
+### Features
+
+* remove external connection feature flag ([#24701](https://github.com/lightdash/lightdash/issues/24701)) ([f76a159](https://github.com/lightdash/lightdash/commit/f76a15938ae6532e3758591565f026e4839e1518))
+
 # [0.3239.0](https://github.com/lightdash/lightdash/compare/0.3238.0...0.3239.0) (2026-06-24)
 
 
