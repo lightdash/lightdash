@@ -1,3 +1,10 @@
+## [0.3237.1](https://github.com/lightdash/lightdash/compare/0.3237.0...0.3237.1) (2026-06-24)
+
+
+### Bug Fixes
+
+* allow favoriting while viewing a data app ([#24683](https://github.com/lightdash/lightdash/issues/24683)) ([366b47e](https://github.com/lightdash/lightdash/commit/366b47e51ce93327a60ce0a47632ad805a711328))
+
 # [0.3237.0](https://github.com/lightdash/lightdash/compare/0.3236.0...0.3237.0) (2026-06-24)
 
 
