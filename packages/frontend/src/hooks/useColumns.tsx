@@ -216,10 +216,19 @@ const formatBarDisplayCell = (
     const numericConvertedValue =
         typeof convertedValue === 'number' ? convertedValue : value;
 
+    // Widest label in this column, used to reserve a constant label gutter.
+    // Prefer the specific column (pivot-aware), then the base field.
+    const barLabelMaxMap = info.table?.options.meta?.barLabelMaxMap;
+    const maxLabel =
+        barLabelMaxMap?.[columnId] ??
+        barLabelMaxMap?.[baseFieldId] ??
+        formatted;
+
     return (
         <TableCellBar
             value={numericConvertedValue}
             formatted={formatted}
+            maxLabel={maxLabel}
             min={minMax.min}
             max={minMax.max}
             color={color}

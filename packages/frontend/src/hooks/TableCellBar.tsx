@@ -3,6 +3,9 @@ import { Box, Text } from '@mantine-8/core';
 type TableCellBarProps = {
     value: number;
     formatted: string;
+    // Widest formatted label in the column; reserves a constant label gutter
+    // so the bar track is the same width on every row.
+    maxLabel: string;
     min: number;
     max: number;
     color?: string;
@@ -11,6 +14,7 @@ type TableCellBarProps = {
 export const TableCellBar = ({
     value,
     formatted,
+    maxLabel,
     min,
     max,
     color = '#5470c6',
@@ -29,12 +33,13 @@ export const TableCellBar = ({
         <Box
             style={{
                 display: 'grid',
+                // Bar track fills the space left after a constant label gutter
                 gridTemplateColumns: '1fr auto',
                 alignItems: 'center',
                 gap: '4px',
             }}
         >
-            {showBar && (
+            {showBar ? (
                 <Box
                     h="20px"
                     w={`${percentage}%`}
@@ -46,10 +51,39 @@ export const TableCellBar = ({
                         borderRadius: '2px',
                     }}
                 />
+            ) : (
+                <Box />
             )}
-            <Text span style={{ whiteSpace: 'nowrap' }} fz="xs">
-                {formatted}
-            </Text>
+            {/* Label gutter: when this row isn't the widest, an invisible
+                sizer holds the column's widest label so the gutter width stays
+                constant across every row. The visible label is right-aligned. */}
+            <Box style={{ display: 'grid' }}>
+                {maxLabel !== formatted && (
+                    <Text
+                        span
+                        aria-hidden
+                        fz="xs"
+                        style={{
+                            gridArea: '1 / 1',
+                            visibility: 'hidden',
+                            whiteSpace: 'nowrap',
+                        }}
+                    >
+                        {maxLabel}
+                    </Text>
+                )}
+                <Text
+                    span
+                    fz="xs"
+                    style={{
+                        gridArea: '1 / 1',
+                        justifySelf: 'end',
+                        whiteSpace: 'nowrap',
+                    }}
+                >
+                    {formatted}
+                </Text>
+            </Box>
         </Box>
     );
 };
