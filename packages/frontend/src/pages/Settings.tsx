@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { ProjectType } from '@lightdash/common';
 import {
     Anchor,
     ActionIcon,
@@ -232,7 +233,12 @@ const Settings: FC = () => {
                         <SettingsGridCard>
                             <Title order={4}>My apps</Title>
                         </SettingsGridCard>
-                        <MyAppsPanel />
+                        <MyAppsPanel
+                            key={String(project?.type === ProjectType.PREVIEW)}
+                            includePreviewAppsByDefault={
+                                project?.type === ProjectType.PREVIEW
+                            }
+                        />
                     </Stack>
                 ),
             });

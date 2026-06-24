@@ -11,6 +11,7 @@ import {
     Loader,
     Menu,
     Stack,
+    Switch,
     Text,
 } from '@mantine-8/core';
 import {
@@ -115,9 +116,20 @@ const statusColor = (status: string | null) => {
     }
 };
 
-const MyAppsPanel: FC = () => {
+type MyAppsPanelProps = {
+    includePreviewAppsByDefault?: boolean;
+};
+
+const MyAppsPanel: FC<MyAppsPanelProps> = ({
+    includePreviewAppsByDefault = false,
+}) => {
     const tableContainerRef = useRef<HTMLDivElement>(null);
-    const { data, fetchNextPage, isFetching, isLoading, isError } = useMyApps();
+    const [includePreviewApps, setIncludePreviewApps] = useState(
+        includePreviewAppsByDefault,
+    );
+    const { data, fetchNextPage, isFetching, isLoading, isError } = useMyApps({
+        excludePreviewProjects: !includePreviewApps,
+    });
     const [appToDelete, setAppToDelete] = useState<ApiAppSummary | null>(null);
     const [appToMove, setAppToMove] = useState<ApiAppSummary | null>(null);
     const [appToRename, setAppToRename] = useState<ApiAppSummary | null>(null);
@@ -425,17 +437,26 @@ const MyAppsPanel: FC = () => {
         );
     }
 
-    if (!isLoading && !isError && flatData.length === 0) {
-        return (
-            <Text c="dimmed" fz="sm" p="md">
-                You haven't created any apps yet.
-            </Text>
-        );
-    }
-
     return (
         <Stack gap="md">
-            <ContentTable table={table} />
+            <Group justify="flex-end">
+                <Switch
+                    label="Include apps in previews"
+                    checked={includePreviewApps}
+                    onChange={(event) =>
+                        setIncludePreviewApps(event.currentTarget.checked)
+                    }
+                />
+            </Group>
+            {!isLoading && !isError && flatData.length === 0 ? (
+                <Text c="dimmed" fz="sm" p="md">
+                    {includePreviewApps
+                        ? "You haven't created any apps yet."
+                        : 'No apps in production projects. Turn on Include apps in previews to show apps from preview projects.'}
+                </Text>
+            ) : (
+                <ContentTable table={table} />
+            )}
             {appToDelete && (
                 <AppDeleteModal
                     opened
