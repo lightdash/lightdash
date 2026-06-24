@@ -198,7 +198,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                                 "type": "string",
                               },
                               "description": {
-                                "description": "Short description, only include when needed to distinguish similar fields.",
+                                "description": "Full field description copied exactly from findFields when present; null only when the field has no description.",
                                 "type": [
                                   "string",
                                   "null",

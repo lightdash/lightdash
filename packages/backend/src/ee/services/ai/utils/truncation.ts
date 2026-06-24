@@ -1,10 +1,7 @@
 /**
- * Caps on tool-result fields to keep AI agent context windows under control.
- * Oversized tool outputs accumulate across the agent loop and can exceed the
- * model's context limit — see PROD-6017.
+ * Caps on content previews to keep AI agent context windows under control.
+ * Semantic-layer descriptions are intentionally not truncated in discovery tools.
  */
-export const EXPLORE_DESCRIPTION_MAX_CHARS = 600;
-export const FIELD_DESCRIPTION_MAX_CHARS = 600;
 export const CONTENT_DESCRIPTION_MAX_CHARS = 600;
 
 export const DASHBOARD_CHARTS_PREVIEW_COUNT = 5;

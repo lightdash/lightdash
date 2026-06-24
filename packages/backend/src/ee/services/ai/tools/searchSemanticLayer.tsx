@@ -6,7 +6,6 @@ import type {
 } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-import { FIELD_DESCRIPTION_MAX_CHARS, truncate } from '../utils/truncation';
 import { xmlBuilder } from '../xmlBuilder';
 
 type Dependencies = {
@@ -49,12 +48,7 @@ const generateResponse = ({
                 usageInCharts={field.chartUsage ?? 0}
             >
                 {field.description && (
-                    <description>
-                        {truncate(
-                            field.description,
-                            FIELD_DESCRIPTION_MAX_CHARS,
-                        )}
-                    </description>
+                    <description>{field.description}</description>
                 )}
             </field>
         ))}
