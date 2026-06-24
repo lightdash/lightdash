@@ -15523,19 +15523,6 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
                                                             "error",
                                                             "success"
                                                         ]
@@ -16159,8 +16146,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -23559,6 +23546,56 @@
             },
             "ApiAiAgentReviewSignalsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiAgentReviewSignalSummary-Array_"
+            },
+            "AiReviewNotificationSettings": {
+                "properties": {
+                    "slackChannelId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["slackChannelId", "enabled", "organizationUuid"],
+                "type": "object"
+            },
+            "ApiSuccess_AiReviewNotificationSettings_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiReviewNotificationSettings"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiReviewNotificationSettingsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiReviewNotificationSettings_"
+            },
+            "Pick_AiReviewNotificationSettings.enabled-or-slackChannelId_": {
+                "properties": {
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "slackChannelId": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["enabled", "slackChannelId"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "UpdateAiReviewNotificationSettings": {
+                "$ref": "#/components/schemas/Pick_AiReviewNotificationSettings.enabled-or-slackChannelId_"
             },
             "AiOrganizationSettings": {
                 "properties": {
@@ -48514,6 +48551,76 @@
                 },
                 "security": [],
                 "parameters": []
+            }
+        },
+        "/api/v1/aiAgents/admin/review-notification-settings": {
+            "get": {
+                "operationId": "getAiReviewNotificationSettings",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiReviewNotificationSettingsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get AI review notification settings",
+                "summary": "Get AI review notification settings",
+                "security": [],
+                "parameters": []
+            },
+            "put": {
+                "operationId": "updateAiReviewNotificationSettings",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiReviewNotificationSettingsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Update AI review notification settings",
+                "summary": "Update AI review notification settings",
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateAiReviewNotificationSettings"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/aiAgents/admin/settings": {
