@@ -2,7 +2,7 @@ import {
     type ExternalConnection,
     type UpdateExternalConnection,
 } from '@lightdash/common';
-import { Button } from '@mantine-8/core';
+import { Button, Tabs } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { IconPencil } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -10,6 +10,7 @@ import { useUpdateExternalConnection } from '../../../features/externalConnectio
 import MantineModal, {
     type MantineModalProps,
 } from '../../common/MantineModal';
+import { ConnectionExamplesPanel } from './ConnectionExamplesPanel';
 import {
     ExternalConnectionForm,
     type ExternalConnectionFormValues,
@@ -90,10 +91,11 @@ const EditConnectionModalContent: FC<Props> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Edit data app connection"
+            title={connection.name}
             icon={IconPencil}
-            size="lg"
+            size="xl"
             cancelDisabled={isSaving}
+            bodyScrollAreaMaxHeight="calc(90vh - 150px)"
             actions={
                 <Button
                     type="submit"
@@ -101,16 +103,32 @@ const EditConnectionModalContent: FC<Props> = ({
                     disabled={isSaving}
                     loading={isSaving}
                 >
-                    Save
+                    Save connection
                 </Button>
             }
         >
             <form id={FORM_ID} onSubmit={form.onSubmit(handleSubmit)}>
-                <ExternalConnectionForm
-                    form={form}
-                    disabled={isSaving}
-                    hasSecret={connection.hasSecret}
-                />
+                <Tabs defaultValue="details" keepMounted={false}>
+                    <Tabs.List mb="md">
+                        <Tabs.Tab value="details">Connection details</Tabs.Tab>
+                        <Tabs.Tab value="examples">Examples</Tabs.Tab>
+                    </Tabs.List>
+
+                    <Tabs.Panel value="details">
+                        <ExternalConnectionForm
+                            form={form}
+                            disabled={isSaving}
+                            hasSecret={connection.hasSecret}
+                        />
+                    </Tabs.Panel>
+
+                    <Tabs.Panel value="examples">
+                        <ConnectionExamplesPanel
+                            projectUuid={projectUuid}
+                            connection={connection}
+                        />
+                    </Tabs.Panel>
+                </Tabs>
             </form>
         </MantineModal>
     );
