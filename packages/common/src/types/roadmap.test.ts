@@ -219,6 +219,20 @@ describe('redactRoadmapItems', () => {
         expect(result.rejected).toHaveLength(1);
     });
 
+    it('captures the offending item title on a rejection for internal triage', () => {
+        const result = redactRoadmapItems([
+            {
+                title: 'Leaky',
+                description: null,
+                status: RoadmapItemStatus.BACKLOG,
+                arr: 50000,
+            },
+        ]);
+        expect(result.rejected).toEqual([
+            { title: 'Leaky', reason: expect.stringContaining('arr') },
+        ]);
+    });
+
     it('excludes malformed items and never throws', () => {
         const result = redactRoadmapItems([
             { description: null, status: RoadmapItemStatus.BACKLOG },
@@ -226,5 +240,14 @@ describe('redactRoadmapItems', () => {
         ]);
         expect(result.items).toEqual([]);
         expect(result.rejected).toHaveLength(2);
+    });
+
+    it('leaves the rejection title undefined when the raw title is unusable', () => {
+        const result = redactRoadmapItems([
+            { title: 42, description: null, status: RoadmapItemStatus.BACKLOG },
+        ]);
+        expect(result.rejected).toEqual([
+            { title: undefined, reason: expect.any(String) },
+        ]);
     });
 });
