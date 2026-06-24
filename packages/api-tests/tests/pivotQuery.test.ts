@@ -19,7 +19,7 @@ type PivotResults = {
     pivotDetails?: {
         valuesColumns?: Array<{ referenceField: string }>;
     } | null;
-    error?: { message: string } | null;
+    error?: { message: string } | string | null;
 };
 
 /**
@@ -48,7 +48,11 @@ async function runPivotQuery(
         );
         const { results } = resp.body;
         if (results.error) {
-            throw new Error(`Query failed: ${results.error.message}`);
+            const message =
+                typeof results.error === 'string'
+                    ? results.error
+                    : results.error.message;
+            throw new Error(`Query failed: ${message}`);
         }
         if (results.status === 'ready') {
             return results;
