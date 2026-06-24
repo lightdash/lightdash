@@ -10,10 +10,12 @@ import {
     IconSend,
     IconStar,
     IconStarFilled,
+    IconTrash,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import MantineIcon from '../components/common/MantineIcon';
+import AppDeleteModal from '../components/common/modal/AppDeleteModal';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import AppIframePreview from '../features/apps/AppIframePreview';
@@ -92,6 +94,7 @@ export default function AppPreviewTest() {
 
     const [menuOpened, setMenuOpened] = useState(false);
     const [schedulerModalOpen, setSchedulerModalOpen] = useState(false);
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [queriesPanelHidden, setQueriesPanelHidden] = useState(true);
 
     // Query tracking from the preview iframe. The panel is opt-in (hidden by
@@ -277,6 +280,23 @@ export default function AppPreviewTest() {
                         >
                             View queries
                         </Menu.Item>
+                        {canEditApp && (
+                            <>
+                                <Menu.Divider />
+                                <Menu.Item
+                                    color="red"
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconTrash}
+                                            size={14}
+                                        />
+                                    }
+                                    onClick={() => setDeleteModalOpen(true)}
+                                >
+                                    Delete app
+                                </Menu.Item>
+                            </>
+                        )}
                     </Menu.Dropdown>
                 </Menu>
             </Box>
@@ -307,6 +327,19 @@ export default function AppPreviewTest() {
                     name={appQuery.data?.pages[0]?.name ?? 'Data app'}
                     isOpen
                     onClose={() => setSchedulerModalOpen(false)}
+                />
+            )}
+            {deleteModalOpen && (
+                <AppDeleteModal
+                    opened
+                    projectUuid={projectUuid}
+                    uuid={appUuid}
+                    name={appQuery.data?.pages[0]?.name ?? 'Data app'}
+                    onClose={() => setDeleteModalOpen(false)}
+                    onConfirm={() => {
+                        setDeleteModalOpen(false);
+                        void navigate(`/projects/${projectUuid}/home`);
+                    }}
                 />
             )}
         </Box>
