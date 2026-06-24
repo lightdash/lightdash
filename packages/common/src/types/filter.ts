@@ -31,6 +31,23 @@ export enum FilterOperator {
     IN_PERIOD_TO_DATE = 'inPeriodToDate',
 }
 
+/**
+ * Date filter operators whose boundaries are relative to "now" and therefore
+ * must be evaluated at query time, not baked in at compile time.
+ */
+const RELATIVE_DATE_FILTER_OPERATORS: ReadonlySet<FilterOperator> = new Set([
+    FilterOperator.IN_THE_PAST,
+    FilterOperator.NOT_IN_THE_PAST,
+    FilterOperator.IN_THE_NEXT,
+    FilterOperator.IN_THE_CURRENT,
+    FilterOperator.NOT_IN_THE_CURRENT,
+    FilterOperator.IN_PERIOD_TO_DATE,
+]);
+
+export const isRelativeDateFilterOperator = (
+    operator: FilterOperator,
+): boolean => RELATIVE_DATE_FILTER_OPERATORS.has(operator);
+
 export type BaseFilterRule<O = FilterOperator, V = unknown> = {
     /** Unique identifier for the filter rule */
     id: string;
