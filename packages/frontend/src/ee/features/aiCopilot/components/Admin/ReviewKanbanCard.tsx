@@ -78,7 +78,6 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
 
     const title = getIssueTitle(item);
     const targetAnchor = getTargetAnchor(item);
-    const isRecurring = item.findingCount > 1;
 
     const startKind = getStartWritebackKind(item);
     const isRetry = isWritebackRetry(item);
@@ -145,22 +144,6 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                             )}
                         </Stack>
                         <Group gap={8} wrap="nowrap" align="center">
-                            {isRecurring && (
-                                <Tooltip
-                                    variant="xs"
-                                    label={`Seen ${item.findingCount} times`}
-                                    position="top"
-                                >
-                                    <Badge
-                                        size="sm"
-                                        radius="sm"
-                                        variant="default"
-                                        color="gray"
-                                    >
-                                        {item.findingCount}×
-                                    </Badge>
-                                </Tooltip>
-                            )}
                             <Tooltip
                                 variant="xs"
                                 position="top"

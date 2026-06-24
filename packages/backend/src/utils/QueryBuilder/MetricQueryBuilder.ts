@@ -711,6 +711,68 @@ export class MetricQueryBuilder {
     }
 
     /**
+     * Resolve the SQL for a metric at query time. Every place that emits a
+     * metric's aggregation into executed SQL must go through here so the same
+     * query-time rewrites are applied consistently:
+     *  1. relative date metric filters (inThePast/...) re-evaluated against now
+     *  2. timezone-aware date-trunc aggregation
+     */
+    private getQueryTimeMetricSql(
+        metricId: string,
+        metric: CompiledMetric,
+    ): string {
+        const adapterType = this.args.warehouseSqlBuilder.getAdapterType();
+        const startOfWeek = this.args.warehouseSqlBuilder.getStartOfWeek();
+        const baseSql = this.swapRelativeDateMetricFilters(
+            metric,
+            metric.compiledSql,
+        );
+        return this.applyTimezoneAwareMetricSql(
+            metricId,
+            metric,
+            baseSql,
+            adapterType,
+            startOfWeek,
+        );
+    }
+
+    /**
+     * Metric YAML filters that use relative date operators (inThePast/inTheNext/
+     * inTheCurrent/...) have their boundaries baked in at explore compile time,
+     * so the window is frozen to the last deploy. Re-render each such predicate
+     * against "now" in the query timezone — exactly like UI filters do — and swap
+     * it into the given metric SQL (compiledSql or compiledValueSql; the baked
+     * predicate is a substring of both).
+     */
+    private swapRelativeDateMetricFilters(
+        metric: CompiledMetric,
+        baseSql: string,
+    ): string {
+        const relativeDateFilters = metric.compiledRelativeDateFilters;
+        if (!relativeDateFilters || relativeDateFilters.length === 0) {
+            return baseSql;
+        }
+        return relativeDateFilters.reduce((sql, stored) => {
+            const rule = metric.filters?.find((f) => f.id === stored.id);
+            if (!rule) {
+                return sql;
+            }
+            const freshRule: FilterRule = {
+                ...rule,
+                target: { fieldId: stored.fieldId },
+            };
+            const freshPredicate = this.getFilterRuleSQL(
+                freshRule,
+                FieldType.DIMENSION,
+            );
+            if (!freshPredicate) {
+                return sql;
+            }
+            return sql.split(stored.compiledSql).join(freshPredicate);
+        }, baseSql);
+    }
+
+    /**
      * A MIN/MAX over a day-grain DATE dimension must aggregate the project-tz
      * wall-clock date, not the raw UTC trunc. Re-point the aggregate at the
      * dimension's timezone-aware compiledSql so the metric and its dimension
@@ -718,15 +780,16 @@ export class MetricQueryBuilder {
      * bases are untouched; the substring swap is a safe no-op if it ever misses.
      * Behind useTimezoneAwareDateTrunc.
      */
-    private getTimezoneAwareMetricSql(
+    private applyTimezoneAwareMetricSql(
         metricId: string,
         metric: CompiledMetric,
+        baseSql: string,
         adapterType: SupportedDbtAdapter,
         startOfWeek: WeekDay | null | undefined,
     ): string {
-        if (!this.args.useTimezoneAwareDateTrunc) return metric.compiledSql;
+        if (!this.args.useTimezoneAwareDateTrunc) return baseSql;
         if (metric.type !== MetricType.MIN && metric.type !== MetricType.MAX) {
-            return metric.compiledSql;
+            return baseSql;
         }
         // Only a calendar-DATE aggregation over a truncatable interval can drift:
         // a plain DATE column carries no interval, and a TIMESTAMP base is not
@@ -736,7 +799,7 @@ export class MetricQueryBuilder {
             !metric.baseDimensionTimeInterval ||
             !truncatableTimeFrames.has(metric.baseDimensionTimeInterval)
         ) {
-            return metric.compiledSql;
+            return baseSql;
         }
         // Resolve the base dimension via the custom metric's baseDimensionName —
         // only a custom metric aggregates a derived interval dimension.
@@ -744,7 +807,7 @@ export class MetricQueryBuilder {
             this.args.compiledMetricQuery.additionalMetrics?.find(
                 (am) => getItemId(am) === metricId,
             );
-        if (!additionalMetric?.baseDimensionName) return metric.compiledSql;
+        if (!additionalMetric?.baseDimensionName) return baseSql;
         const baseDimensionId = getItemId({
             table: metric.table,
             name: additionalMetric.baseDimensionName,
@@ -752,7 +815,7 @@ export class MetricQueryBuilder {
         const baseDimension =
             this.originalExploreDimensions[baseDimensionId] ??
             this.exploreDimensions[baseDimensionId];
-        if (!baseDimension?.compiledSql) return metric.compiledSql;
+        if (!baseDimension?.compiledSql) return baseSql;
         const tzAwareDimensionSql = this.getTimezoneAwareDimensionSql(
             baseDimension,
             adapterType,
@@ -760,9 +823,9 @@ export class MetricQueryBuilder {
         );
         // No wrap happened (base is DATE, skipTimezoneConversion, etc.).
         if (tzAwareDimensionSql === baseDimension.compiledSql) {
-            return metric.compiledSql;
+            return baseSql;
         }
-        return metric.compiledSql
+        return baseSql
             .split(baseDimension.compiledSql)
             .join(tzAwareDimensionSql);
     }
@@ -1342,12 +1405,7 @@ export class MetricQueryBuilder {
                     return;
                 }
                 // Add select
-                const metricSql = this.getTimezoneAwareMetricSql(
-                    field,
-                    metric,
-                    adapterType,
-                    startOfWeek,
-                );
+                const metricSql = this.getQueryTimeMetricSql(field, metric);
                 const sqlWithUserAttributes = replaceUserAttributesAsStrings(
                     metricSql,
                     this.args.intrinsicUserAttributes,
@@ -2424,9 +2482,10 @@ export class MetricQueryBuilder {
                         ),
                         ...metricsInCte.map(
                             (metric) =>
-                                `  ${
-                                    metric.compiledSql
-                                } AS ${fieldQuoteChar}${getItemId(
+                                `  ${this.getQueryTimeMetricSql(
+                                    getItemId(metric),
+                                    metric,
+                                )} AS ${fieldQuoteChar}${getItemId(
                                     metric,
                                 )}${fieldQuoteChar}`,
                         ),
@@ -2584,7 +2643,10 @@ export class MetricQueryBuilder {
                                         entry.baseMetricId,
                                     );
                                     if (!baseMetric) return undefined;
-                                    return `  ${baseMetric.compiledSql} AS ${fieldQuoteChar}${entry.popMetricId}${fieldQuoteChar}`;
+                                    return `  ${this.getQueryTimeMetricSql(
+                                        entry.baseMetricId,
+                                        baseMetric,
+                                    )} AS ${fieldQuoteChar}${entry.popMetricId}${fieldQuoteChar}`;
                                 }),
                             ]
                                 .filter((v) => v !== undefined)
@@ -2665,11 +2727,9 @@ export class MetricQueryBuilder {
                     ...Object.values(dimensionSelects),
                     ...unaffectedMetrics.map(
                         (metric) =>
-                            `  ${this.getTimezoneAwareMetricSql(
+                            `  ${this.getQueryTimeMetricSql(
                                 getItemId(metric),
                                 metric,
-                                adapterType,
-                                startOfWeek,
                             )} AS ${fieldQuoteChar}${getItemId(
                                 metric,
                             )}${fieldQuoteChar}`,
@@ -2759,7 +2819,10 @@ export class MetricQueryBuilder {
                                     entry.baseMetricId,
                                 );
                                 if (!baseMetric) return undefined;
-                                return `  ${baseMetric.compiledSql} AS ${fieldQuoteChar}${entry.popMetricId}${fieldQuoteChar}`;
+                                return `  ${this.getQueryTimeMetricSql(
+                                    entry.baseMetricId,
+                                    baseMetric,
+                                )} AS ${fieldQuoteChar}${entry.popMetricId}${fieldQuoteChar}`;
                             }),
                         ]
                             .filter((v) => v !== undefined)
@@ -3018,6 +3081,12 @@ export class MetricQueryBuilder {
                 metric.compiledDistinctKeys?.length
             ) {
                 const ddCteName = `dd_${snakeCaseName(metricId)}`;
+                // Re-evaluate any relative date metric filters at query time; the
+                // baked predicate lives inside compiledValueSql for distinct metrics.
+                const valueSql = this.swapRelativeDateMetricFilters(
+                    metric,
+                    metric.compiledValueSql,
+                );
 
                 // For each distinct_key, find the matching selected dimension (if any).
                 // Joinable keys = distinct_keys that the user is also grouping by, and so
@@ -3043,8 +3112,8 @@ export class MetricQueryBuilder {
                 );
                 const innerSelects = [
                     ...innerKeySelects,
-                    `  ${metric.compiledValueSql} AS __dd_val`,
-                    `  ROW_NUMBER() OVER (PARTITION BY ${metric.compiledDistinctKeys.join(', ')} ORDER BY ${metric.compiledValueSql}) AS __dd_rn`,
+                    `  ${valueSql} AS __dd_val`,
+                    `  ROW_NUMBER() OVER (PARTITION BY ${metric.compiledDistinctKeys.join(', ')} ORDER BY ${valueSql}) AS __dd_rn`,
                 ];
 
                 const innerSubquery = MetricQueryBuilder.assembleSqlParts([
@@ -3377,7 +3446,10 @@ export class MetricQueryBuilder {
         const naCteName = 'nested_agg';
         const innerMetricSelects = Array.from(aggregateInnerDeps.entries()).map(
             ([depId, depMetric]) =>
-                `  ${depMetric.compiledSql} AS ${fieldQuoteChar}${depId}${fieldQuoteChar}`,
+                `  ${this.getQueryTimeMetricSql(
+                    depId,
+                    depMetric,
+                )} AS ${fieldQuoteChar}${depId}${fieldQuoteChar}`,
         );
 
         const naGroupBy =
@@ -4018,7 +4090,10 @@ export class MetricQueryBuilder {
         if (opts.totalFields.length > 0) {
             const totalSelects = opts.totalFields.map((fieldId) => {
                 const metric = this.getMetricFromId(fieldId);
-                return `  ${metric.compiledSql} AS ${fieldQuoteChar}${fieldId}__total${fieldQuoteChar}`;
+                return `  ${this.getQueryTimeMetricSql(
+                    fieldId,
+                    metric,
+                )} AS ${fieldQuoteChar}${fieldId}__total${fieldQuoteChar}`;
             });
             ctes.push(
                 MetricQueryBuilder.wrapAsCte('column_totals', [
@@ -4350,7 +4425,10 @@ export class MetricQueryBuilder {
 
                 const popMetricSelectsInPopCte = popEntries.map((entry) => {
                     const metric = this.getMetricFromId(entry.baseMetricId);
-                    return `  ${metric.compiledSql} AS ${fieldQuoteChar}${entry.popMetricId}${fieldQuoteChar}`;
+                    return `  ${this.getQueryTimeMetricSql(
+                        entry.baseMetricId,
+                        metric,
+                    )} AS ${fieldQuoteChar}${entry.popMetricId}${fieldQuoteChar}`;
                 });
 
                 const popCteParts = [

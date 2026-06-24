@@ -68,26 +68,28 @@ const { sql, parameterReferences } = builder.getSqlAndReferences();
 
 2. **Dimension sort** (groupByColumns present, sorting by dimension/index columns): `original_query → group_by_query → pivot_query → filtered_rows → total_columns`. `pivot_query` computes `row_index` and `column_index` inline with DENSE_RANK. No anchor CTEs.
 
-3. **Metric sort** (sorting by a value column): Full anchor CTE pipeline:
+3. **Metric sort** (sorting by a value column): anchor windows folded into the ranking CTEs:
 
 ```mermaid
 graph TD
     A[original_query] --> B[group_by_query]
-    B --> C["{ref}_ca (column anchor) — FIRST_VALUE per groupBy value"]
-    C --> D["column_ranking — DENSE_RANK for col_idx"]
-    D --> E["anchor_column — picks col_idx = 1"]
-    E --> F["{ref}_ra (row anchor) — metric value at anchor column via CROSS JOIN"]
-    F --> G["row_ranking — DENSE_RANK for row_index"]
+    B --> D["column_ranking — DENSE_RANK for col_idx; FIRST_VALUE column anchor folded into a nested scan of group_by_query"]
+    D --> E["anchor_column — picks col_idx = 1 (reads column_ranking)"]
+    E --> G["row_ranking — DENSE_RANK for row_index; MAX(CASE) row anchor folded into a nested scan of group_by_query CROSS JOIN anchor_column"]
+    B --> G
     D --> H["pivot_query — JOINs row_ranking + column_ranking"]
     G --> H
+    B --> H
     H --> I[filtered_rows + total_columns]
 ```
 
 **Metric sorting anchor system**: When users sort by a metric, rows are ordered by that metric's value in the _first pivot column only_ (the anchor column), not by MIN/MAX across all columns. The anchor column is determined by `column_ranking` (`col_idx = 1`).
 
-**Precomputed rankings for Databricks/Spark**: Databricks inlines CTEs instead of materializing them. When `pivot_query` had inline DENSE_RANK with anchor column references, Spark couldn't resolve them across the inlined CTE boundary. Fix: `row_ranking` and `column_ranking` are self-contained CTEs with their own JOINs; `pivot_query` just JOINs the precomputed results. This activates automatically when metric sorting + index columns are present.
+**Anchors folded into rankings (PROD-8441)**: The column anchor (`FIRST_VALUE` per groupBy value, aliased `${ref}_ca_value`) and row anchor (`MAX(CASE …)` metric value at the anchor column, aliased `${ref}_ra_value`) are computed inside a nested subquery (aliased `g`) within `column_ranking` / `row_ranking` respectively — not as standalone `{ref}_ca` / `{ref}_ra` CTEs. This keeps `group_by_query` referenced ~3× on the metric-sort path (once per nested anchor scan + once by `pivot_query`) instead of ~6×, which matters on inlining engines like Trino (`query.max-stage-count`). It is also more robust for Databricks/Spark: the anchor value lives in the same scan as the ranking Window, so there is no cross-CTE column reference for an inliner to lose. `anchor_column` (and the per-metric `{ref}_anchor_column` pinned variant) stays its own CTE — it reads `column_ranking`, not `group_by_query`.
 
-**CTE name quoting**: Anchor CTE names are derived from field names (e.g., `revenue_ca` for column anchor, `revenue_ra` for row anchor). The `_ca`/`_ra` suffixes are kept short to stay within Postgres' 63-char identifier limit when field references are long. Since field names can contain spaces, all dynamic CTE names must be quoted with `${q}${cteName}${q}`. Hardcoded CTE names (`row_ranking`, `pivot_query`, etc.) don't need quoting.
+**Precomputed rankings for Databricks/Spark**: Databricks inlines CTEs instead of materializing them. When `pivot_query` had inline DENSE_RANK with anchor column references, Spark couldn't resolve them across the inlined CTE boundary. Fix: `row_ranking` and `column_ranking` are self-contained CTEs (each folding its own anchor scan); `pivot_query` just JOINs the precomputed results. This activates automatically when metric sorting + index columns are present.
+
+**Anchor value aliasing**: The folded anchor value columns keep the `${ref}_ca_value` / `${ref}_ra_value` aliases (resolved against the nested derived table `g`). The `_ca`/`_ra` suffixes are kept short to stay within Postgres' 63-char identifier limit when field references are long. Hardcoded CTE names (`row_ranking`, `pivot_query`, etc.) don't need quoting.
 
 **Two-phase pivot**: PivotQueryBuilder outputs rows tagged with `row_index` + `column_index`. The actual pivot (spreading values into `{field}_{aggregation}_{groupByValue}` columns) happens in `AsyncQueryService.runQueryAndTransformRows` which streams results and pivots on `row_index` changes.
 

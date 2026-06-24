@@ -161,6 +161,30 @@ export class ContentService extends BaseService {
         const isInsideSpace =
             !!filters.spaceUuids && filters.spaceUuids.length > 0;
 
+        // Personal (space-less) data apps are surfaced only in the top-level
+        // "All data apps" browse (opt-in, not space-scoped). The caller always
+        // sees their own; project admins also see everyone's in that project.
+        const includePersonalDataApps =
+            filters.includePersonalDataApps === true &&
+            !isInsideSpace &&
+            (!filters.contentTypes ||
+                filters.contentTypes.includes(ContentType.DATA_APP));
+        const dataApps = includePersonalDataApps
+            ? {
+                  personalForUserUuid: user.userUuid,
+                  personalAdminProjectUuids: allowedProjectUuids.filter(
+                      (projectUuid) =>
+                          auditedAbility.can(
+                              'manage',
+                              subject('DataApp', {
+                                  organizationUuid,
+                                  projectUuid,
+                              }),
+                          ),
+                  ),
+              }
+            : undefined;
+
         // When viewing contents of a space, fetch its child spaces
         // and filter by access control so inaccessible children
         // are excluded before pagination.
@@ -189,6 +213,7 @@ export class ContentService extends BaseService {
                     rootSpaces: !isInsideSpace,
                     accessibleChildSpaceUuids,
                 },
+                dataApps,
             },
             queryArgs,
             paginateArgs,

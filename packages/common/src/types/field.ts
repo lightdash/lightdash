@@ -725,6 +725,17 @@ type CompiledProperties = {
     compilationError?: FieldCompilationError;
     compiledValueSql?: string; // raw value expression before aggregation (for sum_distinct CTE)
     compiledDistinctKeys?: string[]; // compiled SQL for distinct keys (sum_distinct only)
+    // Metric-only: compile-time SQL for each metric filter that uses a relative
+    // date operator (inThePast/inTheNext/...). The query builder re-evaluates
+    // these boundaries at query time by swapping the stored predicate for a
+    // freshly rendered one, so the window is no longer frozen to compile time.
+    compiledRelativeDateFilters?: CompiledMetricRelativeDateFilter[];
+};
+
+export type CompiledMetricRelativeDateFilter = {
+    id: string; // metric filter rule id, maps back to Metric.filters
+    fieldId: string; // resolved dimension id the filter targets
+    compiledSql: string; // compile-time predicate, used as the query-time swap anchor
 };
 export type CompiledDimension = Dimension & CompiledProperties;
 export type CompiledMetric = Metric & CompiledProperties;

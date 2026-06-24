@@ -1,3 +1,101 @@
+# [0.3239.0](https://github.com/lightdash/lightdash/compare/0.3238.0...0.3239.0) (2026-06-24)
+
+
+### Bug Fixes
+
+* keep reference lines visible when hiding grouped series via legend (PROD-7119) ([#24630](https://github.com/lightdash/lightdash/issues/24630)) ([2669fbd](https://github.com/lightdash/lightdash/commit/2669fbd3d1107a8a6ae7ae6f8d6aaf4ee8bad2df))
+
+
+### Features
+
+* **date-zoom:** support date zoom variable in pie, funnel and gauge labels ([#24692](https://github.com/lightdash/lightdash/issues/24692)) ([409568b](https://github.com/lightdash/lightdash/commit/409568ba39b048bdeb28cbf2a7604653b35f63ab))
+
+
+### Performance Improvements
+
+* **pivot:** fold anchor CTEs into ranking CTEs for metric sort ([#24661](https://github.com/lightdash/lightdash/issues/24661)) ([ed54982](https://github.com/lightdash/lightdash/commit/ed549827f538f1463257a7ea04255600b911f213)), closes [#24669](https://github.com/lightdash/lightdash/issues/24669)
+
+# [0.3238.0](https://github.com/lightdash/lightdash/compare/0.3237.4...0.3238.0) (2026-06-24)
+
+
+### Bug Fixes
+
+* **ai:** make AI-response dashboard & chart content links clickable ([#24700](https://github.com/lightdash/lightdash/issues/24700)) ([24b8a52](https://github.com/lightdash/lightdash/commit/24b8a52aedcc2fef546b602efe13bfdc48b47f28)), closes [#24437](https://github.com/lightdash/lightdash/issues/24437)
+
+
+### Features
+
+* improve UI for data app connections ([#24694](https://github.com/lightdash/lightdash/issues/24694)) ([8fc78e5](https://github.com/lightdash/lightdash/commit/8fc78e5c2f3e826c2bc62ddff6bac0ed0b4aca84))
+
+## [0.3237.4](https://github.com/lightdash/lightdash/compare/0.3237.3...0.3237.4) (2026-06-24)
+
+
+### Bug Fixes
+
+* **filters:** evaluate relative-date metric filters at query time ([#24698](https://github.com/lightdash/lightdash/issues/24698)) ([a44234f](https://github.com/lightdash/lightdash/commit/a44234f46b293d0cd4289b8ca2f9f79e68f49465))
+* omit hardcoded pivot values from downloaded chart-as-code YAML (PROD-8299) ([#24629](https://github.com/lightdash/lightdash/issues/24629)) ([00c97ad](https://github.com/lightdash/lightdash/commit/00c97adb9a434090d57e82f1416d31b99a205837))
+
+## [0.3237.3](https://github.com/lightdash/lightdash/compare/0.3237.2...0.3237.3) (2026-06-24)
+
+
+### Bug Fixes
+
+* **sdk:** drop react-dom/server from map tooltips to fix util.TextEncoder crash ([#24695](https://github.com/lightdash/lightdash/issues/24695)) ([45cb0fa](https://github.com/lightdash/lightdash/commit/45cb0fa53948cf8ec8d8ce4c74855fe0f7124769))
+
+## [0.3237.2](https://github.com/lightdash/lightdash/compare/0.3237.1...0.3237.2) (2026-06-24)
+
+
+### Bug Fixes
+
+* allow geo json mime types in external connections ([#24691](https://github.com/lightdash/lightdash/issues/24691)) ([6e6dfeb](https://github.com/lightdash/lightdash/commit/6e6dfeb361e5018422fe46c5837ae7c8d3f57da4))
+
+## [0.3237.1](https://github.com/lightdash/lightdash/compare/0.3237.0...0.3237.1) (2026-06-24)
+
+
+### Bug Fixes
+
+* allow favoriting while viewing a data app ([#24683](https://github.com/lightdash/lightdash/issues/24683)) ([366b47e](https://github.com/lightdash/lightdash/commit/366b47e51ce93327a60ce0a47632ad805a711328))
+
+# [0.3237.0](https://github.com/lightdash/lightdash/compare/0.3236.0...0.3237.0) (2026-06-24)
+
+
+### Bug Fixes
+
+* **date-zoom:** complete x-axis targeting (downloads, custom intervals, query key) ([#24667](https://github.com/lightdash/lightdash/issues/24667)) ([ac3a13a](https://github.com/lightdash/lightdash/commit/ac3a13ad5cd1a182d6e1939f02dce23c8d68c5ac)), closes [#24634](https://github.com/lightdash/lightdash/issues/24634)
+
+
+### Features
+
+* **ai-reviews:** reopen a closed review item when its finding recurs (ZAP-538) ([#24674](https://github.com/lightdash/lightdash/issues/24674)) ([fe96594](https://github.com/lightdash/lightdash/commit/fe965945d626e81a18dbebe8053ac59829dc8832))
+* **ai-reviews:** two-mode finding fingerprint (ZAP-537) ([#24673](https://github.com/lightdash/lightdash/issues/24673)) ([5981aa8](https://github.com/lightdash/lightdash/commit/5981aa8aa0d148c941739a33fab0d4a83e4a107d))
+* **roles:** duplicate roles on a full editable page with level choice ([#24676](https://github.com/lightdash/lightdash/issues/24676)) ([b634783](https://github.com/lightdash/lightdash/commit/b634783485850682a1f6a939702122919e879c20))
+* support date zoom variables in cartesian labels ([#24634](https://github.com/lightdash/lightdash/issues/24634)) ([27964f8](https://github.com/lightdash/lightdash/commit/27964f8ec327fe95de111e6bdd4d88d44b1de45b))
+
+# [0.3236.0](https://github.com/lightdash/lightdash/compare/0.3235.0...0.3236.0) (2026-06-24)
+
+
+### Features
+
+* **data-apps:** add content section for browsing apps ([#24666](https://github.com/lightdash/lightdash/issues/24666)) ([f0e9aeb](https://github.com/lightdash/lightdash/commit/f0e9aeb954de82681c99e2902dd71e7419678cbf))
+* fitler preview apps out of my apps list ([#24679](https://github.com/lightdash/lightdash/issues/24679)) ([da0e33b](https://github.com/lightdash/lightdash/commit/da0e33bfaf8117537490ab101dc2a5d5e0dd9391))
+
+# [0.3235.0](https://github.com/lightdash/lightdash/compare/0.3234.0...0.3235.0) (2026-06-24)
+
+
+### Bug Fixes
+
+* add diagnostic info for app deliveries ([#24672](https://github.com/lightdash/lightdash/issues/24672)) ([d94ec39](https://github.com/lightdash/lightdash/commit/d94ec395dfe9412e9b5b02c51f5d4c4869f5c910))
+* **health:** restore echarts6 flag for older frontend compatibility ([#24682](https://github.com/lightdash/lightdash/issues/24682)) ([e5f94d5](https://github.com/lightdash/lightdash/commit/e5f94d5e06d769cb6306f29d204429db3c378af4)), closes [#24594](https://github.com/lightdash/lightdash/issues/24594)
+* more proxy validation for external connections ([#24662](https://github.com/lightdash/lightdash/issues/24662)) ([59c7d3c](https://github.com/lightdash/lightdash/commit/59c7d3c7f9173350776d9a7f6bb17584e52ef5b6))
+* move default AI model setting ([#24678](https://github.com/lightdash/lightdash/issues/24678)) ([6c17f87](https://github.com/lightdash/lightdash/commit/6c17f87a7d38db536c90eec5074782ce6f680923)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* stop Autopilot from acting on advisory chart-config warnings ([#24675](https://github.com/lightdash/lightdash/issues/24675)) ([733b413](https://github.com/lightdash/lightdash/commit/733b413122101aab5a68d5c2b4477ddc3a1365cc))
+
+
+### Features
+
+* **data-apps:** add delete option to app preview menu ([#24684](https://github.com/lightdash/lightdash/issues/24684)) ([dd3db8c](https://github.com/lightdash/lightdash/commit/dd3db8cbd4ff3ab414a95bf8c7fd3792fb814e15))
+* **data-apps:** favorite an app from the preview overflow menu ([#24574](https://github.com/lightdash/lightdash/issues/24574)) ([b19ab31](https://github.com/lightdash/lightdash/commit/b19ab31346be85712c639a8502d2a93d4f161a7c))
+
 # [0.3234.0](https://github.com/lightdash/lightdash/compare/0.3233.0...0.3234.0) (2026-06-24)
 
 

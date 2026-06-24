@@ -358,6 +358,28 @@ Orchestration lives in `AppGenerateService.duplicateAppsForPreview`, called once
 
 Tracked in [PROD-7819](https://linear.app/lightdash/issue/PROD-7819/make-it-possible-to-build-data-apps-in-previews-and-promote-them).
 
+### Browsing apps
+
+Data apps are a first-class content type in the **Browse** section, alongside charts, dashboards, and spaces. The
+`/projects/:projectUuid/apps` page (`SavedApps.tsx`) renders the shared `InfiniteResourceTable` filtered to
+`ContentType.DATA_APP`, so apps get the same search, sort, pin, rename, move, duplicate, promote, and delete actions.
+The "All data apps" entry in `BrowseMenu` and the page itself are gated on the `EnableDataApps` feature flag plus
+`view:DataApp`. The whole content type — `ContentType.DATA_APP`, `DataAppContent`, `dataAppContentConfiguration` in the
+`ContentModel` UNION — is served by the standard `GET /api/v2/content` endpoint; no app-specific browse API exists.
+
+**Personal apps in the browse list.** Space apps follow normal space-access filtering. Personal apps
+(`space_uuid IS NULL`) are private, so they are hidden from space-based listings by default and surfaced only when the
+caller opts in via `includePersonalDataApps` (set by `SavedApps`, never by the home page or global search). The
+service (`ContentService.find`) then resolves *whose* personal apps the caller may see and passes a `dataApps` filter
+to the model: the caller always sees their **own** personal apps, and in projects where they hold the unconditional
+project-wide `manage:DataApp` (project/org admin) they also see **everyone's**. Personal-app rows render a `-` in the
+space column (matching the "My apps" settings list), and the Pin action is hidden for them (the backend rejects pinning
+a space-less app).
+Because `DataAppContent.space` is therefore nullable (unlike other content types), it overrides the non-null `space` on
+the shared `Content` base via `Omit`, so only DATA_APP-handling code has to deal with the null.
+
+Tracked in [PROD-8427](https://linear.app/lightdash/issue/PROD-8427/add-a-content-section-for-browsing-apps).
+
 ---
 
 ## Data Model
@@ -804,6 +826,7 @@ During a generation, for every linked connection that has a saved sample, the pi
 
 | Route                                                            | Component            | Purpose                                   |
 | ---------------------------------------------------------------- | -------------------- | ----------------------------------------- |
+| `/projects/:projectUuid/apps`                                    | `SavedApps.tsx`      | Browse all data apps (content section)    |
 | `/projects/:projectUuid/apps/generate`                           | `AppGenerate.tsx`    | New app creation (split-panel chat UI)    |
 | `/projects/:projectUuid/apps/:appUuid`                           | `AppGenerate.tsx`    | Edit existing app (loads version history) |
 | `/projects/:projectUuid/apps/:appUuid/versions/:version/preview` | `AppPreviewTest.tsx` | Standalone preview                        |

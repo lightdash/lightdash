@@ -1,5 +1,6 @@
 import {
     NotFoundError,
+    ProjectType,
     type AppVersionResources,
     type KnexPaginateArgs,
     type KnexPaginatedData,
@@ -656,6 +657,7 @@ export class AppModel {
     async listMyApps(
         userUuid: string,
         paginateArgs?: KnexPaginateArgs,
+        options: { excludePreviewProjects?: boolean } = {},
     ): Promise<
         KnexPaginatedData<
             {
@@ -693,6 +695,14 @@ export class AppModel {
             })
             .where(`${AppsTableName}.created_by_user_uuid`, userUuid)
             .whereNull(`${AppsTableName}.deleted_at`)
+            .modify((queryBuilder) => {
+                if (options.excludePreviewProjects ?? true) {
+                    void queryBuilder.whereNot(
+                        `${ProjectTableName}.project_type`,
+                        ProjectType.PREVIEW,
+                    );
+                }
+            })
             .select(
                 `${AppsTableName}.*`,
                 `${ProjectTableName}.name as project_name`,

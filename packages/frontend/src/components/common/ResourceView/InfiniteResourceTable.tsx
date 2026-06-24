@@ -7,6 +7,7 @@ import {
     contentToResourceViewItem,
     ContentType,
     FeatureFlags,
+    isResourceViewDataAppItem,
     isResourceViewSpaceItem,
     type ApiContentBulkActionBody,
     type ResourceViewItem,
@@ -83,7 +84,10 @@ import {
 } from './types';
 
 type ResourceView2Props = Partial<ContentTableOptions<ResourceViewItem>> & {
-    filters: Pick<ContentArgs, 'spaceUuids' | 'contentTypes'> & {
+    filters: Pick<
+        ContentArgs,
+        'spaceUuids' | 'contentTypes' | 'includePersonalDataApps'
+    > & {
         projectUuid: string;
     };
     contentTypeFilter?: {
@@ -176,20 +180,33 @@ const InfiniteResourceTable = ({
                     (s) => s.uuid === item.data.spaceUuid,
                 );
 
-                return space ? (
-                    <Anchor
-                        color="ldGray.7"
-                        component={Link}
-                        to={`/projects/${space.projectUuid}/spaces/${space.uuid}`}
-                        onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
-                            e.stopPropagation()
-                        }
-                        fz={12}
-                        fw={500}
-                    >
-                        {space.name}
-                    </Anchor>
-                ) : null;
+                if (space) {
+                    return (
+                        <Anchor
+                            color="ldGray.7"
+                            component={Link}
+                            to={`/projects/${space.projectUuid}/spaces/${space.uuid}`}
+                            onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
+                                e.stopPropagation()
+                            }
+                            fz={12}
+                            fw={500}
+                        >
+                            {space.name}
+                        </Anchor>
+                    );
+                }
+
+                // Personal (space-less) data apps have no space to link to.
+                if (isResourceViewDataAppItem(item) && !item.data.spaceUuid) {
+                    return (
+                        <Text fz={12} fw={500} color="dimmed">
+                            -
+                        </Text>
+                    );
+                }
+
+                return null;
             },
         },
         {
@@ -329,6 +346,7 @@ const InfiniteResourceTable = ({
                 search: deferredSearch,
                 sortBy: sortBy?.sortBy,
                 sortDirection: sortBy?.sortDirection,
+                includePersonalDataApps: filters.includePersonalDataApps,
             },
             { keepPreviousData: true },
         );

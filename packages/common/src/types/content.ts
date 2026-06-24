@@ -80,8 +80,13 @@ export interface DashboardContent extends Content {
 
 // Data App types
 
-export interface DataAppContent extends Content {
+export interface DataAppContent extends Omit<Content, 'space' | 'pinnedList'> {
     contentType: ContentType.DATA_APP;
+    // Personal apps have no space until their creator moves them into one.
+    space: {
+        uuid: string;
+        name: string;
+    } | null;
     latestVersionNumber: number | null;
     latestVersionStatus: AppVersionStatus | null;
     pinnedList: {

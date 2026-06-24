@@ -405,26 +405,12 @@ export class AppGenerateService extends BaseService {
         return enabled;
     }
 
-    private async externalAccessEnabledFor(user: {
-        userUuid: string;
-        organizationUuid: string | undefined;
-    }): Promise<boolean> {
-        const { enabled } = await this.featureFlagModel.get({
-            user: {
-                userUuid: user.userUuid,
-                organizationUuid: user.organizationUuid,
-            },
-            featureFlagId: FeatureFlags.EnableDataAppExternalAccess,
-        });
-        return enabled;
-    }
-
     /**
      * Link the given external connections to the app before its catalog stage,
-     * so the generated app can call them via client.externalFetch. Gated on the
-     * external-access flag and validated: a connection from another project is
-     * never linked (that would expose its credentialed proxy to a foreign app).
-     * Linking is idempotent, so re-sending an already-linked connection is fine.
+     * so the generated app can call them via client.externalFetch. A connection
+     * from another project is never linked (that would expose its credentialed
+     * proxy to a foreign app). Linking is idempotent, so re-sending an
+     * already-linked connection is fine.
      */
     private async linkExternalConnections(
         user: SessionUser,
@@ -449,13 +435,6 @@ export class AppGenerateService extends BaseService {
         externalConnections: AppExternalConnectionReference[] | undefined,
     ): Promise<AppVersionExternalConnectionResource[]> {
         if (!externalConnections || externalConnections.length === 0) return [];
-        if (
-            !(await this.externalAccessEnabledFor({
-                userUuid: user.userUuid,
-                organizationUuid: user.organizationUuid,
-            }))
-        )
-            return [];
         // Authorize against the connection resource the same way the admin API
         // (ExternalConnectionService.linkToApp) does — generation must not be a
         // weaker door to attaching a credentialed connection to an app.
@@ -1335,7 +1314,6 @@ export class AppGenerateService extends BaseService {
         bucket: string,
         chartReferences: ChartReference[] | undefined,
         template: DataAppTemplate | undefined,
-        user: { userUuid: string; organizationUuid: string | undefined },
     ): Promise<{
         durationMs: number;
         tableCount: number;
@@ -1372,20 +1350,17 @@ export class AppGenerateService extends BaseService {
 
         // Linked external connections: write an API-doc file per connection into
         // the sandbox and prepend a listing to the prompt so Claude knows what
-        // APIs the app can call. Skipped when the external-access flag is off.
-        const externalAccessEnabled = await this.externalAccessEnabledFor(user);
-        if (externalAccessEnabled) {
-            const externalLinks =
-                await this.resolveExternalConnectionSamples(appUuid);
-            if (externalLinks.length > 0) {
-                const externalBlock = await this.writeExternalConnectionSamples(
-                    sandbox,
-                    appUuid,
-                    externalLinks,
-                );
-                if (externalBlock) {
-                    finalPrompt = externalBlock + finalPrompt;
-                }
+        // APIs the app can call.
+        const externalLinks =
+            await this.resolveExternalConnectionSamples(appUuid);
+        if (externalLinks.length > 0) {
+            const externalBlock = await this.writeExternalConnectionSamples(
+                sandbox,
+                appUuid,
+                externalLinks,
+            );
+            if (externalBlock) {
+                finalPrompt = externalBlock + finalPrompt;
             }
         }
 
@@ -2664,10 +2639,6 @@ export class AppGenerateService extends BaseService {
                     bucket,
                     chartReferences,
                     template,
-                    {
-                        userUuid: payload.userUuid,
-                        organizationUuid: payload.organizationUuid,
-                    },
                 );
                 durations.catalogMs = catalogResult.durationMs;
                 catalogStats = {
@@ -5192,6 +5163,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     async listMyApps(
         user: SessionUser,
         paginateArgs?: { page: number; pageSize: number },
+        options: { excludePreviewProjects?: boolean } = {},
     ): Promise<{
         data: {
             appUuid: string;
@@ -5221,6 +5193,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         const result = await this.appModel.listMyApps(
             user.userUuid,
             paginateArgs,
+            options,
         );
 
         return {

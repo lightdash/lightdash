@@ -36,6 +36,16 @@ export type ContentFilters = {
     deleted?: boolean;
     deletedByUserUuids?: string[];
     includeDescendantCounts?: boolean;
+    // Client opt-in (set by the "All data apps" browse) to surface personal
+    // (space-less) apps. The service resolves it into `dataApps` below.
+    includePersonalDataApps?: boolean;
+    // Resolved by the service: which personal apps the caller may see.
+    // `personalForUserUuid` is always the caller (their own apps);
+    // `personalAdminProjectUuids` are projects where they can see everyone's.
+    dataApps?: {
+        personalForUserUuid: string;
+        personalAdminProjectUuids: string[];
+    };
 };
 
 export type ContentArgs = {

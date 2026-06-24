@@ -6,7 +6,6 @@ import { useExternalConnections } from '../../../features/externalConnections/ho
 import { EmptyState } from '../../common/EmptyState';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
-import { ConnectionDrawer } from './ConnectionDrawer';
 import { ConnectionsTable } from './ConnectionsTable';
 import { CreateConnectionModal } from './CreateConnectionModal';
 import { DeleteConnectionModal } from './DeleteConnectionModal';
@@ -26,8 +25,6 @@ const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
     const [connectionToDelete, setConnectionToDelete] = useState<
         ExternalConnection | undefined
     >(undefined);
-    const [drawerConnection, setDrawerConnection] =
-        useState<ExternalConnection | null>(null);
 
     return (
         <>
@@ -65,7 +62,6 @@ const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
                                 connections={connections}
                                 setConnectionToEdit={setConnectionToEdit}
                                 setConnectionToDelete={setConnectionToDelete}
-                                onSelectConnection={setDrawerConnection}
                             />
                         ) : (
                             <EmptyState
@@ -86,12 +82,6 @@ const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
                     </Stack>
                 </SettingsCard>
             </Stack>
-
-            <ConnectionDrawer
-                projectUuid={projectUuid}
-                connection={drawerConnection}
-                onClose={() => setDrawerConnection(null)}
-            />
 
             {isCreating && (
                 <CreateConnectionModal

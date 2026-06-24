@@ -27,6 +27,7 @@ import {
     getDateGroupLabel,
     getFormattedValue,
     getFormatterTimezone,
+    getGranularityMapFromItems,
     getIndexFromEncode,
     getItemLabelWithoutTableName,
     getItemType,
@@ -49,6 +50,7 @@ import {
     isTableCalculation,
     LightdashParameters,
     MetricType,
+    resolveGranularityInLabel,
     StackType,
     TableCalculationType,
     TimeFrames,
@@ -60,6 +62,7 @@ import {
     type EChartsSeries,
     type EchartsLegend,
     type Field,
+    type GranularityMap,
     type Item,
     type ItemsMap,
     type MarkLine,
@@ -124,6 +127,36 @@ type TooltipOption = Omit<TooltipComponentOption, 'formatter'> & {
               TooltipFormatterParams | TooltipFormatterParams[]
           >;
 };
+
+const resolveName = (name: unknown, granularityMap: GranularityMap): unknown =>
+    typeof name === 'string'
+        ? resolveGranularityInLabel(name, granularityMap)
+        : name;
+
+export const resolveCartesianGranularityLabels = ({
+    xAxis,
+    yAxis,
+    series,
+    granularityMap,
+}: {
+    xAxis: Record<string, unknown>[];
+    yAxis: Record<string, unknown>[];
+    series: EChartsSeries[] | undefined;
+    granularityMap: GranularityMap;
+}) => ({
+    xAxis: xAxis.map((axis) => ({
+        ...axis,
+        name: resolveName(axis.name, granularityMap),
+    })),
+    yAxis: yAxis.map((axis) => ({
+        ...axis,
+        name: resolveName(axis.name, granularityMap),
+    })),
+    series: (series ?? []).map((serie) => ({
+        ...serie,
+        name: resolveName(serie.name, granularityMap) as EChartsSeries['name'],
+    })),
+});
 
 const getLabelFromField = (fields: ItemsMap, key: string | undefined) => {
     const item = key ? fields[key] : undefined;
@@ -2525,6 +2558,110 @@ export const getStackTotalSeries = (
     );
 };
 
+// Pivoted/grouped series have no top-level `name`; ECharts derives their legend
+// name (the key in the legend selection map) from `encode.seriesName` -> the
+// matching dimension's displayName. Resolve that so visibility matches the legend.
+const getSeriesLegendName = (serie: EChartsSeries): string | undefined => {
+    const seriesNameRef = serie.encode?.seriesName;
+    const dimension = seriesNameRef
+        ? serie.dimensions?.find((d) => d.name === seriesNameRef)
+        : undefined;
+    return dimension?.displayName ?? serie.name;
+};
+
+const isSeriesVisibleInLegend = (
+    serie: EChartsSeries,
+    selectedLegends: LegendValues,
+): boolean => {
+    if (!selectedLegends) return true;
+    const legendName = getSeriesLegendName(serie);
+    if (legendName === undefined || !(legendName in selectedLegends)) {
+        return true;
+    }
+    return selectedLegends[legendName] !== false;
+};
+
+const getMarkLineData = (
+    markLine: Record<string, unknown> | undefined,
+): MarkLineData[] => {
+    const data = (markLine as { data?: MarkLineData[] } | undefined)?.data;
+    return data ?? [];
+};
+
+// Series-relative reference lines (e.g. "use series average") belong to their
+// own series and should hide with it; only absolute-value lines get relocated.
+const SERIES_RELATIVE_MARKLINE_TYPES = ['average', 'min', 'max', 'median'];
+const isRelocatableMarkLineData = (entry: MarkLineData): boolean =>
+    !SERIES_RELATIVE_MARKLINE_TYPES.includes(
+        (entry as { type?: string }).type ?? '',
+    );
+
+// Reference lines (markLines) are attached to a single data series at config
+// time. Hiding that series via the interactive legend hides its markLine too,
+// so re-attach orphaned reference lines to a still-visible series.
+export const relocateMarkLinesToVisibleSeries = (
+    series: EChartsSeries[],
+    selectedLegends: LegendValues,
+): EChartsSeries[] => {
+    if (!selectedLegends) return series;
+
+    const hiddenWithMarkLine = series.filter(
+        (serie) =>
+            !isSeriesVisibleInLegend(serie, selectedLegends) &&
+            getMarkLineData(serie.markLine).length > 0,
+    );
+    const orphanedData = hiddenWithMarkLine
+        .flatMap((serie) => getMarkLineData(serie.markLine))
+        .filter(isRelocatableMarkLineData);
+    if (orphanedData.length === 0) return series;
+
+    const preferredHostIndex = series.findIndex(
+        (serie) =>
+            serie.encode !== undefined &&
+            isSeriesVisibleInLegend(serie, selectedLegends) &&
+            getMarkLineData(serie.markLine).length === 0,
+    );
+    const fallbackHostIndex = series.findIndex(
+        (serie) =>
+            serie.encode !== undefined &&
+            isSeriesVisibleInLegend(serie, selectedLegends),
+    );
+    const hostIndex =
+        preferredHostIndex !== -1 ? preferredHostIndex : fallbackHostIndex;
+    if (hostIndex === -1) return series;
+
+    const templateMarkLine =
+        (series[hostIndex].markLine as Record<string, unknown> | undefined) ??
+        (hiddenWithMarkLine[0].markLine as Record<string, unknown>);
+
+    return series.map((serie, index) => {
+        if (index === hostIndex) {
+            return {
+                ...serie,
+                markLine: {
+                    ...templateMarkLine,
+                    data: [...getMarkLineData(serie.markLine), ...orphanedData],
+                },
+            };
+        }
+        if (isSeriesVisibleInLegend(serie, selectedLegends)) return serie;
+        // hidden series: drop the lines we relocated, keep series-relative ones
+        const original = getMarkLineData(serie.markLine);
+        const kept = original.filter((e) => !isRelocatableMarkLineData(e));
+        if (kept.length === original.length) return serie;
+        return {
+            ...serie,
+            markLine:
+                kept.length > 0
+                    ? {
+                          ...(serie.markLine as Record<string, unknown>),
+                          data: kept,
+                      }
+                    : undefined,
+        };
+    });
+};
+
 const useEchartsCartesianConfig = (
     validCartesianConfigLegend?: LegendValues,
     isInDashboard?: boolean,
@@ -3635,6 +3772,12 @@ const useEchartsCartesianConfig = (
         const enableDataZoom =
             validCartesianConfig?.eChartsConfig?.xAxis?.[0]?.enableDataZoom;
         const flipAxes = validCartesianConfig?.layout?.flipAxes;
+        const resolvedLabels = resolveCartesianGranularityLabels({
+            xAxis: sortedAxes.xAxis,
+            yAxis: sortedAxes.yAxis,
+            series: sortedSeriesForChart,
+            granularityMap: getGranularityMapFromItems(itemsMap),
+        });
 
         const dataZoomAnchor =
             validCartesianConfig?.eChartsConfig?.xAxis?.[0]?.dataZoomAnchor ??
@@ -3654,10 +3797,13 @@ const useEchartsCartesianConfig = (
                 : Math.min(dataZoomLastIndex, dataZoomSpan);
 
         const baseOptions = {
-            xAxis: sortedAxes.xAxis,
-            yAxis: sortedAxes.yAxis,
+            xAxis: resolvedLabels.xAxis,
+            yAxis: resolvedLabels.yAxis,
             useUTC: true,
-            series: sortedSeriesForChart,
+            series: relocateMarkLinesToVisibleSeries(
+                resolvedLabels.series,
+                validCartesianConfigLegend,
+            ),
             animation: !(isInDashboard || minimal),
             legend: legendConfigWithInstructionsTooltip,
             dataset: {
@@ -3703,6 +3849,8 @@ const useEchartsCartesianConfig = (
     }, [
         sortedAxes,
         sortedSeriesForChart,
+        itemsMap,
+        validCartesianConfigLegend,
         isInDashboard,
         minimal,
         legendConfigWithInstructionsTooltip,

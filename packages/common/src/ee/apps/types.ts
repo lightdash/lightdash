@@ -79,7 +79,7 @@ export type AppDashboardReference = {
  * An external connection attached to a generation request. Linked to the app
  * (under `alias`) server-side at creation — before the catalog stage — so the
  * generated app can call it via `client.externalFetch(alias, …)`. Validated
- * (must belong to the app's project) and gated on the external-access flag.
+ * (must belong to the app's project) before linking.
  */
 export type AppExternalConnectionReference = {
     externalConnectionUuid: string;

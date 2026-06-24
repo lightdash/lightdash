@@ -6,6 +6,7 @@ import {
     formatItemValue,
     friendlyName,
     getConditionalFormattingConfig,
+    getGranularityMapFromItems,
     getCustomFormatFromLegacy,
     getItemId,
     getItemLabel,
@@ -13,13 +14,11 @@ import {
     hasFormatOptions,
     hasValidFormatExpression,
     isConditionalFormattingConfigWithSingleColor,
-    isDimension,
     isField,
     isMetric,
     isNumericItem,
     isTableCalculation,
     resolveGranularityInLabel,
-    timeFrameToDateGranularityMap,
     valueIsNaN,
     type BigNumber,
     type CompactOrAlias,
@@ -461,31 +460,10 @@ const useBigNumberConfig = (
         }
     }, [comparisonValue, comparisonDiff, comparisonField]);
 
-    const granularityMap = useMemo((): GranularityMap => {
-        if (!itemsMap) return {};
-
-        const map: GranularityMap = {};
-        for (const field of Object.values(itemsMap)) {
-            if (
-                isDimension(field) &&
-                field.timeIntervalBaseDimensionName &&
-                (field.timeInterval || field.customTimeInterval)
-            ) {
-                const baseId = `${field.table}_${field.timeIntervalBaseDimensionName}`;
-
-                if (field.customTimeInterval) {
-                    map[baseId] = field.label;
-                } else if (field.timeInterval) {
-                    const granularity =
-                        timeFrameToDateGranularityMap[field.timeInterval];
-                    if (granularity) {
-                        map[baseId] = granularity;
-                    }
-                }
-            }
-        }
-        return map;
-    }, [itemsMap]);
+    const granularityMap = useMemo(
+        (): GranularityMap => getGranularityMapFromItems(itemsMap),
+        [itemsMap],
+    );
 
     const resolvedBigNumberLabel = useMemo(
         () => resolveGranularityInLabel(bigNumberLabel, granularityMap),

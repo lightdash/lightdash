@@ -34,6 +34,19 @@ type Props = {
     }) => void;
     isWorking: boolean;
     mode: 'create' | 'edit';
+    /**
+     * Locks the level control even in create mode (e.g. when duplicating an
+     * existing custom role, whose level can't be changed).
+     */
+    levelLocked?: boolean;
+    levelLockedHint?: string;
+    /**
+     * When changing level, re-derive the selected scopes from `initialValues`
+     * (filtered to what's assignable at the new level) instead of pruning the
+     * running selection. Used when duplicating so switching level back and forth
+     * restores the source role's scopes rather than progressively losing them.
+     */
+    rederiveScopesOnLevelChange?: boolean;
 };
 
 /**
@@ -44,10 +57,18 @@ export const RoleBuilder: FC<Props> = ({
     onSubmit,
     isWorking,
     mode,
+    levelLocked = false,
+    levelLockedHint,
+    rederiveScopesOnLevelChange = false,
 }) => {
-    // Convert array of scopes to object format
+    // Convert array of scopes to object format, keeping only scopes assignable
+    // at the initial level — duplicated roles (e.g. system Admin) can carry
+    // scopes from both levels, and the hidden ones must not leak into submit.
     const initialScopesObject = initialValues.scopes.reduce(
-        (acc, scope) => ({ ...acc, [scope]: true }),
+        (acc, scope) => ({
+            ...acc,
+            [scope]: isScopeAssignableAtLevel(scope, initialValues.level),
+        }),
         {} as Record<string, boolean>,
     );
 
@@ -79,16 +100,25 @@ export const RoleBuilder: FC<Props> = ({
 
     const handleLevelChange = (value: string) => {
         const level = value as RoleLevel;
-        const scopes = Object.entries(form.values.scopes).reduce<
-            Record<string, boolean>
-        >(
-            (acc, [scopeName, isSelected]) => ({
-                ...acc,
-                [scopeName]:
-                    isSelected && isScopeAssignableAtLevel(scopeName, level),
-            }),
-            {},
-        );
+        const scopes = rederiveScopesOnLevelChange
+            ? initialValues.scopes.reduce<Record<string, boolean>>(
+                  (acc, scopeName) => ({
+                      ...acc,
+                      [scopeName]: isScopeAssignableAtLevel(scopeName, level),
+                  }),
+                  {},
+              )
+            : Object.entries(form.values.scopes).reduce<
+                  Record<string, boolean>
+              >(
+                  (acc, [scopeName, isSelected]) => ({
+                      ...acc,
+                      [scopeName]:
+                          isSelected &&
+                          isScopeAssignableAtLevel(scopeName, level),
+                  }),
+                  {},
+              );
 
         form.setValues({
             ...form.values,
@@ -96,6 +126,14 @@ export const RoleBuilder: FC<Props> = ({
             scopes,
         });
     };
+
+    const isLevelDisabled = isWorking || mode === 'edit' || levelLocked;
+    const levelHint =
+        mode === 'edit'
+            ? "Level can't be changed after creation."
+            : levelLocked
+              ? levelLockedHint
+              : undefined;
 
     return (
         <form onSubmit={handleSubmit} className={styles.container}>
@@ -130,13 +168,13 @@ export const RoleBuilder: FC<Props> = ({
                                             label: 'Organization',
                                         },
                                     ]}
-                                    disabled={isWorking || mode === 'edit'}
+                                    disabled={isLevelDisabled}
                                     value={form.values.level}
                                     onChange={handleLevelChange}
                                 />
-                                {mode === 'edit' && (
+                                {levelHint && (
                                     <Text fz="xs" c="dimmed">
-                                        Level can't be changed after creation.
+                                        {levelHint}
                                     </Text>
                                 )}
                             </Stack>

@@ -23,6 +23,8 @@ import {
     getStackTotalSeries,
     mergeLegendSettings,
     padDatasetForContinuousAxis,
+    relocateMarkLinesToVisibleSeries,
+    resolveCartesianGranularityLabels,
     selectContinuousDateRange,
 } from './useEchartsCartesianConfig';
 
@@ -30,6 +32,57 @@ dayjs.extend(utcPlugin);
 dayjs.extend(timezonePlugin);
 
 vi.mock('./../../providers/TrackingProvider');
+
+describe('resolveCartesianGranularityLabels', () => {
+    test('resolves x-axis and y-axis name placeholders', () => {
+        const result = resolveCartesianGranularityLabels({
+            xAxis: [{ name: 'Revenue by ${orders_order_date.granularity}' }],
+            yAxis: [{ name: '${orders_order_date.granularity} revenue' }],
+            series: [],
+            granularityMap: { orders_order_date: 'Week' },
+        });
+
+        expect(result.xAxis[0].name).toBe('Revenue by week');
+        expect(result.yAxis[0].name).toBe('week revenue');
+    });
+
+    test('resolves series name placeholders', () => {
+        const result = resolveCartesianGranularityLabels({
+            xAxis: [],
+            yAxis: [],
+            series: [
+                {
+                    name: '${orders_order_date.granularity} revenue',
+                    type: CartesianSeriesType.BAR,
+                } as EChartsSeries,
+            ],
+            granularityMap: { orders_order_date: 'Month' },
+        });
+
+        expect(result.series[0].name).toBe('month revenue');
+    });
+
+    test('preserves unresolved placeholders', () => {
+        const result = resolveCartesianGranularityLabels({
+            xAxis: [{ name: 'Revenue by ${orders_order_date.granularity}' }],
+            yAxis: [],
+            series: [
+                {
+                    name: '${orders_order_date.granularity} revenue',
+                    type: CartesianSeriesType.LINE,
+                } as EChartsSeries,
+            ],
+            granularityMap: {},
+        });
+
+        expect(result.xAxis[0].name).toBe(
+            'Revenue by ${orders_order_date.granularity}',
+        );
+        expect(result.series[0].name).toBe(
+            '${orders_order_date.granularity} revenue',
+        );
+    });
+});
 
 describe('getAxisDefaultMinValue', () => {
     test('should return undefined', () => {
@@ -1506,5 +1559,117 @@ describe('applyLegendPlacementToGrid', () => {
             { left: '15%' },
         );
         expect(outsideLeft).toEqual({ ...baseGrid, left: '15%' });
+    });
+});
+
+describe('relocateMarkLinesToVisibleSeries (PROD-7119)', () => {
+    const REFERENCE_LINE = { yAxis: 100, name: 'Target' };
+
+    // Pivoted/grouped series have NO top-level `name`; ECharts (and the legend
+    // selection map) identify them by encode.seriesName -> the matching
+    // dimension's displayName. Build them that way so the test mirrors runtime.
+    const makeSeries = (
+        legendName: string,
+        withMarkLine: boolean,
+    ): EChartsSeries => {
+        const yRef = `revenue.group.${legendName}`;
+        return {
+            type: CartesianSeriesType.LINE,
+            encode: { x: 'date', y: yRef, tooltip: [yRef], seriesName: yRef },
+            dimensions: [
+                { name: 'date', displayName: 'Date' },
+                { name: yRef, displayName: legendName },
+            ],
+            ...(withMarkLine ? { markLine: { data: [REFERENCE_LINE] } } : {}),
+        } as unknown as EChartsSeries;
+    };
+
+    const legendNameOf = (serie: EChartsSeries): string | undefined =>
+        serie.dimensions?.find((d) => d.name === serie.encode?.seriesName)
+            ?.displayName ?? serie.name;
+
+    const markLineData = (serie: EChartsSeries) =>
+        (serie.markLine as { data?: unknown[] } | undefined)?.data ?? [];
+
+    test('keeps the reference line on a visible series when its host is hidden via the legend', () => {
+        const series = [
+            makeSeries('standard', true),
+            makeSeries('express', false),
+            makeSeries('overnight', false),
+        ];
+
+        const result = relocateMarkLinesToVisibleSeries(series, {
+            standard: false,
+            express: true,
+            overnight: true,
+        });
+
+        // the hidden host loses its markLine...
+        expect(markLineData(result[0])).toHaveLength(0);
+        // ...and the reference line is re-attached to a still-visible series
+        const stillShown = result.filter(
+            (s) => legendNameOf(s) !== 'standard' && markLineData(s).length > 0,
+        );
+        expect(stillShown).toHaveLength(1);
+        expect(markLineData(stillShown[0])).toEqual([REFERENCE_LINE]);
+    });
+
+    test('keeps the reference line when a single series is isolated via double-click', () => {
+        const series = [
+            makeSeries('standard', true),
+            makeSeries('express', false),
+            makeSeries('overnight', false),
+        ];
+
+        // double-click isolates "overnight" (every other series hidden)
+        const result = relocateMarkLinesToVisibleSeries(series, {
+            standard: false,
+            express: false,
+            overnight: true,
+        });
+
+        const overnight = result.find((s) => legendNameOf(s) === 'overnight')!;
+        expect(markLineData(overnight)).toEqual([REFERENCE_LINE]);
+        expect(markLineData(result[0])).toHaveLength(0);
+    });
+
+    test('leaves series untouched when the reference-line host is visible', () => {
+        const series = [
+            makeSeries('standard', true),
+            makeSeries('express', false),
+        ];
+
+        const result = relocateMarkLinesToVisibleSeries(series, {
+            standard: true,
+            express: true,
+        });
+
+        expect(result).toBe(series);
+        expect(markLineData(result[0])).toEqual([REFERENCE_LINE]);
+    });
+
+    test('returns series unchanged when there is no legend selection', () => {
+        const series = [makeSeries('standard', true)];
+        expect(relocateMarkLinesToVisibleSeries(series, undefined)).toBe(
+            series,
+        );
+    });
+
+    test('does not relocate series-relative reference lines (use series average)', () => {
+        const averageSeries = {
+            ...makeSeries('standard', false),
+            markLine: { data: [{ type: 'average', name: 'Avg' }] },
+        } as unknown as EChartsSeries;
+        const series = [averageSeries, makeSeries('express', false)];
+
+        // hiding the series whose average line it is -> the line hides with it,
+        // it is NOT moved onto the still-visible "express" series
+        const result = relocateMarkLinesToVisibleSeries(series, {
+            standard: false,
+            express: true,
+        });
+
+        expect(result).toBe(series);
+        expect(markLineData(result[1])).toHaveLength(0);
     });
 });

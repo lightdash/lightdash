@@ -1,6 +1,8 @@
 import {
     formatItemValue,
+    getGranularityMapFromItems,
     getItemLabelWithoutTableName,
+    resolveGranularityInLabel,
     type GaugeSection,
 } from '@lightdash/common';
 import { useMantineTheme } from '@mantine/core';
@@ -116,6 +118,8 @@ const useEchartsGaugeConfig = ({
         const fieldItem = itemsMap?.[selectedField];
         if (!fieldItem) return;
 
+        const granularityMap = getGranularityMapFromItems(itemsMap);
+
         const rawValue = firstRow[selectedField];
         const numericValue = toNumber(rawValue?.value.raw);
 
@@ -131,8 +135,11 @@ const useEchartsGaugeConfig = ({
             }
         }
 
-        const fieldLabel =
+        const rawFieldLabel =
             customLabel || getItemLabelWithoutTableName(fieldItem);
+        const fieldLabel =
+            resolveGranularityInLabel(rawFieldLabel, granularityMap) ??
+            rawFieldLabel;
 
         const sectionColors: [number, string][] = [];
         const defaultGapColor = 'transparent';
@@ -317,9 +324,15 @@ const useEchartsGaugeConfig = ({
                             ((toNumber(value) - min) / (effectiveMax - min)) *
                             100
                         ).toFixed(0)}%`;
-                        const percentageLabel = chartConfig.validConfig
-                            .customPercentageLabel
-                            ? ` ${chartConfig.validConfig.customPercentageLabel}`
+                        const customPercentageLabel =
+                            chartConfig.validConfig.customPercentageLabel;
+                        const percentageLabel = customPercentageLabel
+                            ? ` ${
+                                  resolveGranularityInLabel(
+                                      customPercentageLabel,
+                                      granularityMap,
+                                  ) ?? customPercentageLabel
+                              }`
                             : '';
                         return `{value|${formattedValue}}\n{percentage|${percentageValue}}{percentageLabel|${percentageLabel}}`;
                     }

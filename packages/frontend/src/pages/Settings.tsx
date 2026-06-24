@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { ProjectType } from '@lightdash/common';
 import {
     Anchor,
     ActionIcon,
@@ -74,6 +75,7 @@ import { AiThreadsSettingsPage } from '../ee/features/aiCopilot/components/Admin
 import ScimAccessTokensPanel from '../ee/features/scim/components/ScimAccessTokensPanel';
 import { ServiceAccountsPage } from '../ee/features/serviceAccounts';
 import { CustomRoleCreate } from '../ee/pages/customRoles/CustomRoleCreate';
+import { CustomRoleDuplicate } from '../ee/pages/customRoles/CustomRoleDuplicate';
 import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
 import { CustomRoles } from '../ee/pages/customRoles/CustomRoles';
 import DesignListPage from '../features/organizationDesigns/components/DesignListPage';
@@ -232,7 +234,12 @@ const Settings: FC = () => {
                         <SettingsGridCard>
                             <Title order={4}>My apps</Title>
                         </SettingsGridCard>
-                        <MyAppsPanel />
+                        <MyAppsPanel
+                            key={String(project?.type === ProjectType.PREVIEW)}
+                            includePreviewAppsByDefault={
+                                project?.type === ProjectType.PREVIEW
+                            }
+                        />
                     </Stack>
                 ),
             });
@@ -601,6 +608,10 @@ const Settings: FC = () => {
             allowedRoutes.push({
                 path: '/customRoles/create',
                 element: <CustomRoleCreate />,
+            });
+            allowedRoutes.push({
+                path: '/customRoles/duplicate',
+                element: <CustomRoleDuplicate />,
             });
             allowedRoutes.push({
                 path: '/customRoles/:roleId',

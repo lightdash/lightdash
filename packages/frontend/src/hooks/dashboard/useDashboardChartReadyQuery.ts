@@ -1,6 +1,7 @@
 import {
     getAvailableParametersFromTables,
     getDateZoomCapabilities,
+    getDateZoomXAxisFieldId,
     hasReservedParameterReference,
     QueryExecutionContext,
     type ApiError,
@@ -59,6 +60,9 @@ export type DashboardChartReadyQuery = {
     executeQueryResponse: ApiExecuteAsyncDashboardChartQueryResults;
     chart: SavedChart;
     explore: ApiExploreResults;
+    // The date-zoom target field for this chart, so downstream re-executions
+    // (e.g. downloads) zoom the same x-axis field as the displayed query.
+    dateZoomXAxisFieldId: string | undefined;
 };
 
 export const useDashboardChartReadyQuery = (
@@ -131,6 +135,17 @@ export const useDashboardChartReadyQuery = (
         return getDateZoomCapabilities(explore, chartQuery.data.metricQuery);
     }, [chartQuery.data, explore]);
 
+    // Target the chart's own x-axis date field so the backend re-grains the
+    // field the chart actually plots, rather than auto-picking the first date
+    // dimension in the query (which can differ when there are several).
+    const dateZoomXAxisFieldId = useMemo(
+        () =>
+            chartQuery.data
+                ? getDateZoomXAxisFieldId(chartQuery.data.chartConfig, explore)
+                : undefined,
+        [chartQuery.data, explore],
+    );
+
     useEffect(() => {
         if (!dateZoomCapabilities) return;
 
@@ -193,6 +208,7 @@ export const useDashboardChartReadyQuery = (
             contextOverride || context,
             autoRefresh,
             isZoomLikelyApplied ? granularity : null,
+            isZoomLikelyApplied ? dateZoomXAxisFieldId : null,
             invalidateCache,
             chartParameterValues,
             sessionTimezone,
@@ -209,6 +225,7 @@ export const useDashboardChartReadyQuery = (
             autoRefresh,
             isZoomLikelyApplied,
             granularity,
+            dateZoomXAxisFieldId,
             invalidateCache,
             chartParameterValues,
             sessionTimezone,
@@ -231,6 +248,13 @@ export const useDashboardChartReadyQuery = (
             const isEmbedContext =
                 requestedContext === QueryExecutionContext.EMBED;
 
+            const dateZoom = {
+                granularity,
+                ...(dateZoomXAxisFieldId
+                    ? { xAxisFieldId: dateZoomXAxisFieldId }
+                    : {}),
+            };
+
             const executeQueryResponse = isEmbedContext
                 ? await postEmbedDashboardTileQuery(
                       chartQuery.data.projectUuid,
@@ -238,9 +262,7 @@ export const useDashboardChartReadyQuery = (
                           tileUuid,
                           dashboardFilters: timezoneFixFilters,
                           dashboardSorts,
-                          dateZoom: {
-                              granularity,
-                          },
+                          dateZoom,
                           invalidateCache,
                           parameters: parameterValues,
                           pivotResults: true,
@@ -256,9 +278,7 @@ export const useDashboardChartReadyQuery = (
                           dashboardUuid: dashboardUuid!,
                           dashboardFilters: timezoneFixFilters,
                           dashboardSorts,
-                          dateZoom: {
-                              granularity,
-                          },
+                          dateZoom,
                           invalidateCache,
                           parameters: parameterValues,
                           pivotResults: true,
@@ -269,6 +289,7 @@ export const useDashboardChartReadyQuery = (
                 chart: chartQuery.data,
                 explore,
                 executeQueryResponse,
+                dateZoomXAxisFieldId,
             };
         },
         enabled: Boolean(

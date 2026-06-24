@@ -4043,6 +4043,7 @@ export class AiAgentService extends BaseService {
                     retrieveRelevantArtifacts &&
                     this.getIsVerifiedArtifactsEnabled(),
                 compaction,
+                currentPromptUuid: prompt.promptUuid,
             },
         );
 
@@ -5947,6 +5948,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 typeof AiAgentModel.prototype.getToolCallsAndResultsForPrompt
             >
         >,
+        // True only for the prompt being generated/resumed, which legitimately
+        // replays an approved tool-call with no result yet (the resume input).
+        isCurrentPrompt: boolean,
     ): ModelMessage[] {
         return toolCallsAndResults.flatMap(
             ({ toolCall, toolResult, approvalDecision }) => {
@@ -6016,6 +6020,29 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             },
                         ],
                     } satisfies ToolModelMessage);
+                } else if (
+                    approvalDecision === 'approved' &&
+                    !isCurrentPrompt
+                ) {
+                    // A prior approved tool-call whose result was never
+                    // persisted would dangle (tool-call/approval with no
+                    // tool-result), which the model API rejects on the next
+                    // prompt ("No tool output found" → "Could not finish").
+                    // Backfill a synthetic result so the history stays valid.
+                    toolTurnMessages.push({
+                        role: 'tool',
+                        content: [
+                            {
+                                type: 'tool-result',
+                                toolCallId: toolCall.toolCallId,
+                                toolName: toolCall.toolName,
+                                output: {
+                                    type: 'json',
+                                    value: 'Tool result unavailable.',
+                                },
+                            },
+                        ],
+                    } satisfies ToolModelMessage);
                 }
 
                 return toolTurnMessages;
@@ -6035,6 +6062,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             agentUuid: string;
             retrieveRelevantArtifacts: boolean;
             compaction: ThreadCompaction | null;
+            currentPromptUuid: string;
         },
     ): Promise<ModelMessage[]> {
         const contextMap = await this.aiAgentModel.getContextForPromptUuids(
@@ -6092,16 +6120,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     await this.aiAgentModel.getToolCallsAndResultsForPrompt(
                         message.ai_prompt_uuid,
                     );
+                const isCurrentPrompt =
+                    message.ai_prompt_uuid === options.currentPromptUuid;
                 messages.push(
                     ...AiAgentService.buildToolCallTurnMessages(
                         toolCallsAndResults,
+                        isCurrentPrompt,
                     ),
                 );
 
-                // A turn suspended mid SQL-approval has a partial `response`
-                // (text emitted before the runSql call). Replaying it would
-                // leave the runSql tool_use without a following tool_result, so
-                // skip it — the resumed run regenerates from the approval.
+                // The current prompt resuming mid SQL-approval has only a
+                // partial `response`; skip it so the resumed run regenerates.
+                // Prior prompts keep their final response — their tool call is
+                // backfilled above, so the turn is already complete.
                 const hasUnresolvedApproval =
                     AiAgentService.hasUnresolvedSqlApproval(
                         toolCallsAndResults,
@@ -6110,7 +6141,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 if (
                     message.response &&
                     !message.error_message &&
-                    !hasUnresolvedApproval
+                    (!hasUnresolvedApproval || !isCurrentPrompt)
                 ) {
                     messages.push({
                         role: 'assistant',
@@ -8416,13 +8447,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 );
                 const reconnectNotice =
                     '⚠️ Lightdash AI cannot reply here yet. A workspace admin needs to reconnect Slack in Lightdash (Integrations → Slack) so the app has the latest permissions.';
-                await this.slackClient.updateMessage({
-                    organizationUuid: slackPrompt.organizationUuid,
-                    text: reconnectNotice,
-                    blocks: getMarkdownBlocks(reconnectNotice),
-                    channelId: slackPrompt.slackChannelId,
-                    messageTs: slackPrompt.response_slack_ts,
-                });
+                await this.editPlaceholderOrPost(slackPrompt, reconnectNotice);
                 return;
             }
             Logger.error('Failed to start Slack modern AI stream', error);
@@ -9006,14 +9031,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         }
 
         if (slackPrompt.prompt.trim().length === 0) {
-            const welcomeText = AiAgentService.EMPTY_PROMPT_WELCOME;
-            await this.slackClient.updateMessage({
-                organizationUuid: slackPrompt.organizationUuid,
-                text: welcomeText,
-                blocks: getMarkdownBlocks(welcomeText),
-                channelId: slackPrompt.slackChannelId,
-                messageTs: slackPrompt.response_slack_ts,
-            });
+            await this.editPlaceholderOrPost(
+                slackPrompt,
+                AiAgentService.EMPTY_PROMPT_WELCOME,
+            );
             return;
         }
 
@@ -9029,6 +9050,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     // TODO: add Slack compaction support once Slack has an
                     // equivalent persisted marker / summary UX.
                     compaction: null,
+                    currentPromptUuid: promptUuid,
                 });
 
             await this.replyToSlackPromptWithModernBlocks({
@@ -10333,6 +10355,39 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         return false;
     }
 
+    // Edit the placeholder when it exists; if the placeholder post failed
+    // (no `response_slack_ts`, e.g. Slack rate-limited `say()`) post a fresh
+    // threaded message instead, so the user still gets a reply.
+    private async editPlaceholderOrPost(
+        slackPrompt: Pick<
+            SlackPrompt,
+            | 'organizationUuid'
+            | 'slackChannelId'
+            | 'slackThreadTs'
+            | 'response_slack_ts'
+        >,
+        text: string,
+    ): Promise<void> {
+        const blocks = getMarkdownBlocks(text);
+        if (slackPrompt.response_slack_ts) {
+            await this.slackClient.updateMessage({
+                organizationUuid: slackPrompt.organizationUuid,
+                text,
+                blocks,
+                channelId: slackPrompt.slackChannelId,
+                messageTs: slackPrompt.response_slack_ts,
+            });
+            return;
+        }
+        await this.slackClient.postMessage({
+            organizationUuid: slackPrompt.organizationUuid,
+            channel: slackPrompt.slackChannelId,
+            thread_ts: slackPrompt.slackThreadTs,
+            text,
+            blocks,
+        });
+    }
+
     /**
      * Post initial response message and schedule the AI prompt
      */
@@ -10345,46 +10400,56 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         createdThread: boolean,
         say: Function,
     ): Promise<void> {
-        const postedMessage = await say({
-            username: agentConfig.name,
-            thread_ts: threadTs,
-            text: createdThread
-                ? `Hi <@${userId}>, working on your request now.`
-                : 'Let me check that for you. One moment.',
-            blocks: [
-                {
-                    type: 'section',
-                    text: {
-                        type: 'mrkdwn',
-                        text: createdThread
-                            ? `Hi <@${userId}>, working on your request now :rocket:`
-                            : `Let me check that for you. One moment! :books:`,
+        // Best-effort placeholder: if `say()` throws (e.g. Slack rate-limiting)
+        // we must still schedule the job, else the prompt is orphaned.
+        try {
+            const postedMessage = await say({
+                username: agentConfig.name,
+                thread_ts: threadTs,
+                text: createdThread
+                    ? `Hi <@${userId}>, working on your request now.`
+                    : 'Let me check that for you. One moment.',
+                blocks: [
+                    {
+                        type: 'section',
+                        text: {
+                            type: 'mrkdwn',
+                            text: createdThread
+                                ? `Hi <@${userId}>, working on your request now :rocket:`
+                                : `Let me check that for you. One moment! :books:`,
+                        },
                     },
-                },
-                {
-                    type: 'divider',
-                },
-                {
-                    type: 'context',
-                    elements: [
-                        {
-                            type: 'plain_text',
-                            text: `It can take up to 15s to get a response.`,
-                        },
-                        {
-                            type: 'plain_text',
-                            text: `Reference: ${slackPromptUuid}`,
-                        },
-                    ],
-                },
-            ],
-        });
-
-        if (postedMessage.ts) {
-            await this.aiAgentModel.updateSlackResponseTs({
-                promptUuid: slackPromptUuid,
-                responseSlackTs: postedMessage.ts,
+                    {
+                        type: 'divider',
+                    },
+                    {
+                        type: 'context',
+                        elements: [
+                            {
+                                type: 'plain_text',
+                                text: `It can take up to 15s to get a response.`,
+                            },
+                            {
+                                type: 'plain_text',
+                                text: `Reference: ${slackPromptUuid}`,
+                            },
+                        ],
+                    },
+                ],
             });
+
+            if (postedMessage.ts) {
+                await this.aiAgentModel.updateSlackResponseTs({
+                    promptUuid: slackPromptUuid,
+                    responseSlackTs: postedMessage.ts,
+                });
+            }
+        } catch (error) {
+            Logger.error(
+                `Failed to post Slack placeholder for prompt ${slackPromptUuid}; scheduling generation anyway`,
+                error,
+            );
+            Sentry.captureException(error);
         }
 
         await this.schedulerClient.slackAiPrompt({

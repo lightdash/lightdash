@@ -26,16 +26,6 @@ vi.mock('../../../providers/App/useApp', () => ({
     }),
 }));
 
-const mockUseServerFeatureFlag = vi.fn(
-    (_featureFlagId: string): { data: { enabled: boolean } | undefined } => ({
-        data: { enabled: true },
-    }),
-);
-vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: (featureFlagId: string) =>
-        mockUseServerFeatureFlag(featureFlagId),
-}));
-
 const PROJECT_UUID = 'project-uuid';
 const POST_PATH = `/api/v2/projects/${PROJECT_UUID}/query/metric-query`;
 const UNDERLYING_DATA_PATH = `/api/v2/projects/${PROJECT_UUID}/query/underlying-data`;
@@ -387,7 +377,6 @@ describe('useAppSdkBridge', () => {
 describe('external-fetch branch', () => {
     beforeEach(() => {
         vi.stubGlobal('fetch', vi.fn());
-        mockUseServerFeatureFlag.mockReturnValue({ data: { enabled: true } });
         mockUseEmbed.mockReturnValue({
             embedToken: undefined,
             projectUuid: undefined,
@@ -454,26 +443,6 @@ describe('external-fetch branch', () => {
         // No app-supplied headers leak through; external fetch never sends the
         // embed JWT (it is not supported in embed mode).
         expect(Object.keys(init.headers)).toEqual(['Content-Type']);
-    });
-
-    it('proceeds while the external-access flag query is still loading', async () => {
-        mockUseServerFeatureFlag.mockReturnValue({ data: undefined });
-        renderBridge(() => undefined);
-        mockFetchOk({
-            status: 'ok',
-            results: {
-                status: 200,
-                contentType: 'application/json',
-                body: { ok: true },
-                truncated: false,
-            },
-        });
-
-        postExternalFetch({ alias: 'weather', path: '/today' });
-
-        // Must defer to the backend (authoritative) rather than be falsely
-        // rejected while the flag query is still resolving.
-        await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
     });
 
     it('rejects external fetch in embed mode without calling the backend', async () => {

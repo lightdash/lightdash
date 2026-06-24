@@ -616,14 +616,20 @@ export async function getModernArtifactCardBlocks(
                     vizConfig.metricQuery.metrics.length +
                     additionalMetricsWithSql.length;
                 const dimensionCount = vizConfig.metricQuery.dimensions.length;
+                // A prompt upserts a single artifact, so its retried
+                // visualizations produce several images for that one artifact —
+                // the latest is its current render. Use it for the single-artifact
+                // case; for multiple artifacts fall back to positional matching.
                 const chartImageUrl =
-                    chartImageUrls[
-                        chartArtifacts.findIndex(
-                            (chartArtifact) =>
-                                chartArtifact.artifactUuid ===
-                                artifact.artifactUuid,
-                        )
-                    ];
+                    chartArtifacts.length === 1
+                        ? chartImageUrls[chartImageUrls.length - 1]
+                        : chartImageUrls[
+                              chartArtifacts.findIndex(
+                                  (chartArtifact) =>
+                                      chartArtifact.artifactUuid ===
+                                      artifact.artifactUuid,
+                              )
+                          ];
 
                 return buildSlackCardBlock({
                     blockId: `ai_agent_chart_card_${artifact.artifactUuid}`,

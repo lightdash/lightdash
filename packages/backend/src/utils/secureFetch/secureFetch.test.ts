@@ -433,6 +433,37 @@ describe('secureFetch size and content-type', () => {
         expect(result.bodyText).toBe('{"ok":true}');
     });
 
+    it('accepts structured-syntax JSON content-types when application/json is allowed', async () => {
+        mockedFetch.mockResolvedValue(
+            jsonResponse('{"type":"FeatureCollection","features":[]}', {
+                contentType: 'application/geo+json; charset=utf-8',
+            }),
+        );
+        const result = await secureFetch('https://example.com/map.geojson', {
+            ...BASE_OPTIONS,
+            allowedContentTypes: ['application/json'],
+        });
+        expect(result.contentType).toBe('application/geo+json');
+        expect(result.bodyText).toBe(
+            '{"type":"FeatureCollection","features":[]}',
+        );
+    });
+
+    it('does not treat application/json as a wildcard for non-JSON structured content-types', async () => {
+        mockedFetch.mockResolvedValue(
+            jsonResponse('<feed></feed>', {
+                contentType: 'application/atom+xml',
+            }),
+        );
+        await expectReason(
+            secureFetch('https://example.com/feed', {
+                ...BASE_OPTIONS,
+                allowedContentTypes: ['application/json'],
+            }),
+            'disallowed_content_type',
+        );
+    });
+
     it('skips content-type check when allowedContentTypes is empty', async () => {
         // Empty allowlist = explicit opt-out of the content-type check. Any
         // content-type (or none at all) must be accepted and the body returned.

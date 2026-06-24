@@ -46,10 +46,12 @@ export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow
                     }
                 })
                 // Apps without a space are personal drafts. They're hidden
-                // from space-based content listings but surface in the
+                // from space-based content listings unless the caller opts
+                // into personal apps (the "All data apps" browse, where
+                // `filters.dataApps` is set), and they surface in the
                 // recently-deleted view so admins can restore them.
                 .where((personalFilter) => {
-                    if (!filters.deleted) {
+                    if (!filters.deleted && !filters.dataApps) {
                         void personalFilter.whereNotNull(
                             `${AppsTableName}.space_uuid`,
                         );
@@ -156,7 +158,40 @@ export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow
                         );
                     }
 
-                    if (filters.spaceUuids) {
+                    const personal = filters.dataApps;
+                    if (personal) {
+                        // Surface space apps the caller can access OR personal
+                        // apps they may see (their own, plus everyone's in
+                        // projects where they're an admin).
+                        void builder.where((visibility) => {
+                            if (filters.spaceUuids) {
+                                void visibility.whereIn(
+                                    `${SpaceTableName}.space_uuid`,
+                                    filters.spaceUuids,
+                                );
+                            }
+                            void visibility.orWhere((personalApps) => {
+                                void personalApps.whereNull(
+                                    `${AppsTableName}.space_uuid`,
+                                );
+                                void personalApps.where((owner) => {
+                                    void owner.where(
+                                        `${AppsTableName}.created_by_user_uuid`,
+                                        personal.personalForUserUuid,
+                                    );
+                                    if (
+                                        personal.personalAdminProjectUuids
+                                            .length > 0
+                                    ) {
+                                        void owner.orWhereIn(
+                                            `${ProjectTableName}.project_uuid`,
+                                            personal.personalAdminProjectUuids,
+                                        );
+                                    }
+                                });
+                            });
+                        });
+                    } else if (filters.spaceUuids) {
                         void builder.whereIn(
                             `${SpaceTableName}.space_uuid`,
                             filters.spaceUuids,
@@ -224,10 +259,12 @@ export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow
                     uuid: value.organization_uuid,
                     name: value.organization_name,
                 },
-                space: {
-                    uuid: value.space_uuid,
-                    name: value.space_name,
-                },
+                space: value.space_uuid
+                    ? {
+                          uuid: value.space_uuid,
+                          name: value.space_name,
+                      }
+                    : null,
                 pinnedList: value.pinned_list_uuid
                     ? {
                           uuid: value.pinned_list_uuid,

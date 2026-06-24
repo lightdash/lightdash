@@ -5,7 +5,6 @@ import { Link } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 
 type Props = {
-    onClickDuplicate: () => void;
     size?: 'md' | 'xs';
 };
 
@@ -13,7 +12,7 @@ type Props = {
  * Reusable button for adding new custom roles that includes a menu to decide between creating
  * a new role or duplicating an existing one.
  */
-export const AddRoleButton: FC<Props> = ({ onClickDuplicate, size = 'md' }) => {
+export const AddRoleButton: FC<Props> = ({ size = 'md' }) => {
     return (
         <Menu position="bottom-end">
             <Menu.Target>
@@ -31,7 +30,10 @@ export const AddRoleButton: FC<Props> = ({ onClickDuplicate, size = 'md' }) => {
                 >
                     Create new role
                 </Menu.Item>
-                <Menu.Item onClick={onClickDuplicate}>
+                <Menu.Item
+                    component={Link}
+                    to="/generalSettings/customRoles/duplicate"
+                >
                     Duplicate existing role
                 </Menu.Item>
             </Menu.Dropdown>

@@ -1,7 +1,13 @@
 import { SupportedDbtAdapter } from '../types/dbt';
 import { CompileError } from '../types/errors';
-import { DimensionType, FieldType, friendlyName } from '../types/field';
-import { FilterOperator } from '../types/filter';
+import { type Table } from '../types/explore';
+import {
+    DimensionType,
+    FieldType,
+    friendlyName,
+    MetricType,
+} from '../types/field';
+import { FilterOperator, UnitOfTime } from '../types/filter';
 import { TimeFrames } from '../types/timeFrames';
 import {
     ExploreCompiler,
@@ -1629,5 +1635,96 @@ describe('sqlAggregationWrapsReferences', () => {
                 ['active_customers'],
             ),
         ).toBe(true);
+    });
+});
+
+describe('relative date metric filters are baked at compile time', () => {
+    const tableWithRelativeDateMetricFilter: Record<string, Table> = {
+        table1: {
+            name: 'table1',
+            label: 'table1',
+            database: 'database',
+            schema: 'schema',
+            sqlTable: '"db"."schema"."table1"',
+            sqlWhere: undefined,
+            dimensions: {
+                last_bet_date: {
+                    type: DimensionType.TIMESTAMP,
+                    name: 'last_bet_date',
+                    label: 'last_bet_date',
+                    table: 'table1',
+                    tableLabel: 'table1',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.last_bet_date',
+                    hidden: false,
+                },
+            },
+            metrics: {
+                bettor_in_last_30_days: {
+                    type: MetricType.COUNT,
+                    fieldType: FieldType.METRIC,
+                    table: 'table1',
+                    tableLabel: 'table1',
+                    name: 'bettor_in_last_30_days',
+                    label: 'User has bet in the last 30 days',
+                    sql: '${TABLE}.last_bet_date',
+                    hidden: false,
+                    filters: [
+                        {
+                            id: 'f1',
+                            target: { fieldRef: 'last_bet_date' },
+                            operator: FilterOperator.IN_THE_PAST,
+                            values: [30],
+                            settings: {
+                                unitOfTime: UnitOfTime.days,
+                                completed: false,
+                            },
+                        },
+                    ],
+                },
+            },
+            lineageGraph: {},
+            groupLabel: undefined,
+        },
+    };
+
+    const compileAt = (isoNow: string) => {
+        jest.setSystemTime(new Date(isoNow).getTime());
+        return compiler.compileMetric(
+            tableWithRelativeDateMetricFilter.table1.metrics
+                .bettor_in_last_30_days,
+            tableWithRelativeDateMetricFilter,
+            [],
+        );
+    };
+
+    beforeAll(() => jest.useFakeTimers());
+    afterAll(() => jest.useRealTimers());
+
+    test('the window is anchored to compile time and moves on recompile', () => {
+        const compiledInMay = compileAt('2026-05-04T04:12:11Z').compiledSql;
+        const compiledInJune = compileAt('2026-06-04T04:12:11Z').compiledSql;
+
+        // Boundaries are static string literals baked into the SQL...
+        expect(compiledInMay).toContain("'2026-04-04");
+        expect(compiledInJune).toContain("'2026-05-05");
+        // ...with no runtime expression to roll them forward...
+        expect(compiledInJune).not.toMatch(/current_timestamp|now\(\)/i);
+        // ...so the same metric compiles to a different window depending only on
+        // when compilation ran (the frozen string cached in cached_explore).
+        expect(compiledInMay).not.toEqual(compiledInJune);
+    });
+
+    test('the predicate is captured for query-time re-evaluation', () => {
+        const compiled = compileAt('2026-06-04T04:12:11Z');
+
+        // The compile-time predicate is stored verbatim, keyed by filter id, so
+        // the query builder can locate it inside compiledSql and swap in a
+        // freshly evaluated boundary.
+        expect(compiled.compiledRelativeDateFilters).toHaveLength(1);
+        const [stored] = compiled.compiledRelativeDateFilters!;
+        expect(stored.id).toBe('f1');
+        expect(compiled.compiledSql).toContain(stored.compiledSql);
+        expect(stored.compiledSql).toContain("'2026-05-05");
     });
 });

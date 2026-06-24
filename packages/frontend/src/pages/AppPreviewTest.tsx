@@ -1,35 +1,21 @@
-import { subject } from '@casl/ability';
-import { ContentType, FeatureFlags } from '@lightdash/common';
-import { ActionIcon, Box, Loader, Menu, Stack, Text } from '@mantine-8/core';
-import {
-    IconAppsOff,
-    IconDatabase,
-    IconDots,
-    IconPencil,
-    IconRefresh,
-    IconSend,
-    IconStar,
-    IconStarFilled,
-    IconTrash,
-} from '@tabler/icons-react';
-import { useCallback, useEffect, useState } from 'react';
+import { FeatureFlags } from '@lightdash/common';
+import { Box, Loader, Menu, Stack, Text } from '@mantine-8/core';
+import { IconAppsOff, IconPencil } from '@tabler/icons-react';
+import { useCallback, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import MantineIcon from '../components/common/MantineIcon';
-import AppDeleteModal from '../components/common/modal/AppDeleteModal';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import AppIframePreview from '../features/apps/AppIframePreview';
+import AppHeader from '../features/apps/components/AppHeader';
+import AppHeaderActions from '../features/apps/components/AppHeaderActions';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
+import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useTrackedAppQueries } from '../features/apps/hooks/useTrackedAppQueries';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
 import QueryInspector from '../features/apps/QueryInspector';
-import { AppSchedulersModal } from '../features/scheduler/components/SchedulerModals';
-import { useFavoriteMutation } from '../hooks/favorites/useFavoriteMutation';
-import { useFavorites } from '../hooks/favorites/useFavorites';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
-import { useSpaceSummaries } from '../hooks/useSpaces';
-import useApp from '../providers/App/useApp';
 import classes from './AppPreviewTest.module.css';
 
 export default function AppPreviewTest() {
@@ -47,10 +33,6 @@ export default function AppPreviewTest() {
     const explicitVersion = versionParam ? Number(versionParam) : undefined;
 
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
-    const scheduledDeliveriesFlag = useServerFeatureFlag(
-        FeatureFlags.DataAppsScheduledDeliveries,
-    );
-    const { user } = useApp();
 
     // Always fetch app to get creator info + latest ready version when needed.
     // The backend enforces space-aware view permissions and will 403 if the
@@ -61,28 +43,15 @@ export default function AppPreviewTest() {
         (v) => v.status === 'ready',
     )?.version;
 
+    const appName = appQuery.data?.pages[0]?.name ?? '';
+    const appDescription = appQuery.data?.pages[0]?.description ?? null;
     const appSpaceUuid = appQuery.data?.pages[0]?.spaceUuid ?? null;
     const appCreatedByUserUuid =
         appQuery.data?.pages[0]?.createdByUserUuid ?? null;
-    const { data: spaces = [] } = useSpaceSummaries(projectUuid, true, {});
-    const userSpaceAccess = appSpaceUuid
-        ? spaces.find((s) => s.uuid === appSpaceUuid)?.userAccess
-        : undefined;
-    const canEditApp =
-        user.data?.ability?.can(
-            'manage',
-            subject('DataApp', {
-                organizationUuid: user.data?.organizationUuid,
-                projectUuid,
-                access: userSpaceAccess ? [userSpaceAccess] : [],
-                createdByUserUuid: appCreatedByUserUuid,
-            }),
-        ) === true;
-
-    const { data: favorites } = useFavorites(projectUuid);
-    const isFavorited =
-        favorites?.some((favorite) => favorite.data.uuid === appUuid) ?? false;
-    const { mutate: toggleFavorite } = useFavoriteMutation(projectUuid);
+    const canEditApp = useCanEditDataApp(projectUuid, {
+        spaceUuid: appSpaceUuid,
+        createdByUserUuid: appCreatedByUserUuid,
+    });
 
     const version = explicitVersion ?? latestReadyVersion;
 
@@ -92,9 +61,6 @@ export default function AppPreviewTest() {
         error: tokenError,
     } = useAppPreviewToken(projectUuid, appUuid, version);
 
-    const [menuOpened, setMenuOpened] = useState(false);
-    const [schedulerModalOpen, setSchedulerModalOpen] = useState(false);
-    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [queriesPanelHidden, setQueriesPanelHidden] = useState(true);
 
     // Query tracking from the preview iframe. The panel is opt-in (hidden by
@@ -114,18 +80,6 @@ export default function AppPreviewTest() {
         setInvalidateCache(true);
         clearQueries();
     }, [clearQueries]);
-
-    // Close menu when the iframe receives focus (i.e. user clicked on it)
-    const handleBlur = useCallback(() => {
-        if (menuOpened) {
-            setMenuOpened(false);
-        }
-    }, [menuOpened]);
-
-    useEffect(() => {
-        window.addEventListener('blur', handleBlur);
-        return () => window.removeEventListener('blur', handleBlur);
-    }, [handleBlur]);
 
     const previewOrigin = usePreviewOrigin();
 
@@ -210,138 +164,71 @@ export default function AppPreviewTest() {
 
     return (
         <Box className={classes.previewContainer}>
-            <Box className={classes.menuOverlay}>
-                <Menu
-                    position="bottom-end"
-                    withinPortal
-                    opened={menuOpened}
-                    onChange={setMenuOpened}
-                >
-                    <Menu.Target>
-                        <ActionIcon
-                            variant="filled"
-                            color="gray"
-                            size="lg"
-                            radius="xl"
-                        >
-                            <MantineIcon icon={IconDots} size={18} />
-                        </ActionIcon>
-                    </Menu.Target>
-                    <Menu.Dropdown>
-                        <Menu.Item
-                            leftSection={
-                                isFavorited ? (
-                                    <IconStarFilled size={14} color="orange" />
-                                ) : (
-                                    <IconStar size={14} />
-                                )
-                            }
-                            onClick={() =>
-                                toggleFavorite({
-                                    contentType: ContentType.DATA_APP,
-                                    contentUuid: appUuid,
-                                })
-                            }
-                        >
-                            {isFavorited
-                                ? 'Remove from favorites'
-                                : 'Add to favorites'}
-                        </Menu.Item>
-                        {canEditApp && (
-                            <Menu.Item
-                                leftSection={<IconPencil size={14} />}
-                                onClick={() =>
-                                    navigate(
-                                        `/projects/${projectUuid}/apps/${appUuid}`,
-                                    )
-                                }
-                            >
-                                Continue building
-                            </Menu.Item>
-                        )}
-                        <Menu.Item
-                            leftSection={<MantineIcon icon={IconRefresh} />}
-                            onClick={handleRefresh}
-                        >
-                            Refresh
-                        </Menu.Item>
-                        {canEditApp &&
-                            scheduledDeliveriesFlag.data?.enabled && (
+            <AppHeader
+                name={appName}
+                description={appDescription}
+                rightSection={
+                    <AppHeaderActions
+                        projectUuid={projectUuid}
+                        appUuid={appUuid}
+                        appName={appName}
+                        appDescription={appDescription}
+                        appSpaceUuid={appSpaceUuid}
+                        appCreatedByUserUuid={appCreatedByUserUuid}
+                        latestVersionNumber={latestReadyVersion ?? null}
+                        latestVersionStatus={
+                            latestReadyVersion ? 'ready' : null
+                        }
+                        onRefresh={handleRefresh}
+                        refreshDisabled={false}
+                        onViewQueries={() => setQueriesPanelHidden(false)}
+                        onDeleted={() => {
+                            void navigate(`/projects/${projectUuid}/home`);
+                        }}
+                        navItem={
+                            canEditApp ? (
                                 <Menu.Item
-                                    leftSection={<IconSend size={14} />}
-                                    onClick={() => setSchedulerModalOpen(true)}
-                                >
-                                    Schedule delivery
-                                </Menu.Item>
-                            )}
-                        <Menu.Item
-                            leftSection={<IconDatabase size={14} />}
-                            onClick={() => setQueriesPanelHidden(false)}
-                        >
-                            View queries
-                        </Menu.Item>
-                        {canEditApp && (
-                            <>
-                                <Menu.Divider />
-                                <Menu.Item
-                                    color="red"
                                     leftSection={
                                         <MantineIcon
-                                            icon={IconTrash}
+                                            icon={IconPencil}
                                             size={14}
                                         />
                                     }
-                                    onClick={() => setDeleteModalOpen(true)}
+                                    onClick={() =>
+                                        navigate(
+                                            `/projects/${projectUuid}/apps/${appUuid}`,
+                                        )
+                                    }
                                 >
-                                    Delete app
+                                    Continue building
                                 </Menu.Item>
-                            </>
-                        )}
-                    </Menu.Dropdown>
-                </Menu>
-            </Box>
-            <AppIframePreview
-                src={previewUrl}
-                expectedPreviewOrigin={previewOrigin}
-                projectUuid={projectUuid}
-                appUuid={appUuid}
-                identityKey={`${appUuid}:${version}`}
-                invalidateCache={invalidateCache}
-                onQueryEvent={handleQueryEvent}
-                capabilities={{ gsheetExport: true }}
+                            ) : null
+                        }
+                    />
+                }
             />
-            {!queriesPanelHidden && (
-                <QueryInspector
-                    queries={queries}
-                    projectUuid={projectUuid}
-                    onClear={clearQueries}
-                    defaultCollapsed={false}
-                    hideWhenEmpty={false}
-                    onDismiss={() => setQueriesPanelHidden(true)}
-                />
-            )}
-            {schedulerModalOpen && (
-                <AppSchedulersModal
+            <Box className={classes.previewBody}>
+                <AppIframePreview
+                    src={previewUrl}
+                    expectedPreviewOrigin={previewOrigin}
                     projectUuid={projectUuid}
                     appUuid={appUuid}
-                    name={appQuery.data?.pages[0]?.name ?? 'Data app'}
-                    isOpen
-                    onClose={() => setSchedulerModalOpen(false)}
+                    identityKey={`${appUuid}:${version}`}
+                    invalidateCache={invalidateCache}
+                    onQueryEvent={handleQueryEvent}
+                    capabilities={{ gsheetExport: true }}
                 />
-            )}
-            {deleteModalOpen && (
-                <AppDeleteModal
-                    opened
-                    projectUuid={projectUuid}
-                    uuid={appUuid}
-                    name={appQuery.data?.pages[0]?.name ?? 'Data app'}
-                    onClose={() => setDeleteModalOpen(false)}
-                    onConfirm={() => {
-                        setDeleteModalOpen(false);
-                        void navigate(`/projects/${projectUuid}/home`);
-                    }}
-                />
-            )}
+                {!queriesPanelHidden && (
+                    <QueryInspector
+                        queries={queries}
+                        projectUuid={projectUuid}
+                        onClear={clearQueries}
+                        defaultCollapsed={false}
+                        hideWhenEmpty={false}
+                        onDismiss={() => setQueriesPanelHidden(true)}
+                    />
+                )}
+            </Box>
         </Box>
     );
 }

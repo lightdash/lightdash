@@ -134,6 +134,22 @@ describe('validateExternalConnectionConfig', () => {
             ).toThrow(ParameterError);
         });
 
+        it('accepts common structured and text response content types', () => {
+            expect(() =>
+                validateExternalConnectionConfig(
+                    {
+                        ...base,
+                        allowedContentTypes: [
+                            'application/geo+json',
+                            'application/x-ndjson',
+                            'text/tab-separated-values',
+                        ],
+                    },
+                    false,
+                ),
+            ).not.toThrow();
+        });
+
         it('rejects path traversal in a prefix', () => {
             expect(() =>
                 validateExternalConnectionConfig(
