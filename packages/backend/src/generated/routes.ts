@@ -46539,6 +46539,11 @@ export function RegisterRoutes(app: Router) {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
         page: { in: 'query', name: 'page', dataType: 'double' },
         pageSize: { in: 'query', name: 'pageSize', dataType: 'double' },
+        excludePreviewProjects: {
+            in: 'query',
+            name: 'excludePreviewProjects',
+            dataType: 'boolean',
+        },
     };
     app.get(
         '/api/v1/ee/user/apps',

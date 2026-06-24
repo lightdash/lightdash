@@ -5192,6 +5192,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     async listMyApps(
         user: SessionUser,
         paginateArgs?: { page: number; pageSize: number },
+        options: { excludePreviewProjects?: boolean } = {},
     ): Promise<{
         data: {
             appUuid: string;
@@ -5221,6 +5222,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         const result = await this.appModel.listMyApps(
             user.userUuid,
             paginateArgs,
+            options,
         );
 
         return {

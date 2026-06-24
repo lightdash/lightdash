@@ -11,10 +11,17 @@ type MyAppsResult = ApiMyAppsResponse['results'];
 const fetchMyApps = async (
     page: number,
     pageSize: number,
+    excludePreviewProjects: boolean,
 ): Promise<MyAppsResult> => {
+    const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(pageSize),
+        excludePreviewProjects: String(excludePreviewProjects),
+    });
+
     const data = await lightdashApi<MyAppsResult>({
         method: 'GET',
-        url: `/ee/user/apps?page=${page}&pageSize=${pageSize}`,
+        url: `/ee/user/apps?${params.toString()}`,
         body: undefined,
     });
     return data;
@@ -22,11 +29,19 @@ const fetchMyApps = async (
 
 const FETCH_SIZE = 25;
 
-export const useMyApps = () =>
+export const useMyApps = (options: { excludePreviewProjects?: boolean } = {}) =>
     useInfiniteQuery<MyAppsResult, ApiError>({
-        queryKey: ['myApps', FETCH_SIZE],
+        queryKey: [
+            'myApps',
+            FETCH_SIZE,
+            options.excludePreviewProjects ?? true,
+        ],
         queryFn: async ({ pageParam = 1 }) =>
-            fetchMyApps(pageParam as number, FETCH_SIZE),
+            fetchMyApps(
+                pageParam as number,
+                FETCH_SIZE,
+                options.excludePreviewProjects ?? true,
+            ),
         getNextPageParam: (_lastGroup, groups) => {
             const currentPage = groups.length;
             const totalPages = _lastGroup.pagination?.totalPageCount ?? 0;
