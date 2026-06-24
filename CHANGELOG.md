@@ -1,3 +1,11 @@
+# [0.3236.0](https://github.com/lightdash/lightdash/compare/0.3235.0...0.3236.0) (2026-06-24)
+
+
+### Features
+
+* **data-apps:** add content section for browsing apps ([#24666](https://github.com/lightdash/lightdash/issues/24666)) ([f0e9aeb](https://github.com/lightdash/lightdash/commit/f0e9aeb954de82681c99e2902dd71e7419678cbf))
+* fitler preview apps out of my apps list ([#24679](https://github.com/lightdash/lightdash/issues/24679)) ([da0e33b](https://github.com/lightdash/lightdash/commit/da0e33bfaf8117537490ab101dc2a5d5e0dd9391))
+
 # [0.3235.0](https://github.com/lightdash/lightdash/compare/0.3234.0...0.3235.0) (2026-06-24)
 
 
