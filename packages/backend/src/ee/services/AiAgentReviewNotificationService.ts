@@ -10,6 +10,30 @@ import { type OrganizationMemberProfileModel } from '../../models/OrganizationMe
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type CommercialSchedulerClient } from '../scheduler/SchedulerClient';
 
+// Legacy `/ai-agents/admin/reviews` is a query-stripping redirect; deep-link here.
+export const REVIEWS_BOARD_PATH = '/generalSettings/ai/reviews';
+
+// Drawer needs project+agent+thread+item; falls back to item-only without a finding.
+export const buildReviewDrawerSearchParams = (
+    projectUuid: string,
+    fingerprint: string,
+    reviewItem: Awaited<
+        ReturnType<AiAgentReviewClassifierModel['getReviewItem']>
+    >,
+): string => {
+    const finding = reviewItem?.latestFinding;
+    const agentUuid = finding?.agentUuid ?? reviewItem?.agentUuid ?? null;
+    if (finding?.threadUuid && agentUuid) {
+        return new URLSearchParams({
+            reviewProjectUuid: projectUuid,
+            reviewAgentUuid: agentUuid,
+            reviewThreadUuid: finding.threadUuid,
+            reviewItemUuid: fingerprint,
+        }).toString();
+    }
+    return new URLSearchParams({ reviewItemUuid: fingerprint }).toString();
+};
+
 type AiAgentReviewNotificationServiceArgs = {
     notificationsModel: NotificationsModel;
     schedulerClient: CommercialSchedulerClient;
@@ -79,14 +103,18 @@ export class AiAgentReviewNotificationService {
             rootCause: reviewItem?.primaryRootCause ?? 'unknown',
             projectUuid: args.projectUuid,
             count: 1,
-            searchParams: `reviewItemUuid=${args.fingerprint}`,
+            searchParams: buildReviewDrawerSearchParams(
+                args.projectUuid,
+                args.fingerprint,
+                reviewItem,
+            ),
         };
 
         await this.notificationsModel.createAiReviewNotifications({
             recipients: [{ userUuid: args.assigneeUserUuid }],
             metadata,
             message: `You were assigned: ${metadata.title}`,
-            url: `/ai-agents/admin/reviews?${metadata.searchParams}`,
+            url: `${REVIEWS_BOARD_PATH}?${metadata.searchParams}`,
         });
 
         await this.schedulerClient.scheduleTask(
@@ -127,14 +155,18 @@ export class AiAgentReviewNotificationService {
             rootCause: reviewItem?.primaryRootCause ?? 'unknown',
             projectUuid: args.projectUuid,
             count: args.fingerprints.length,
-            searchParams: `reviewRunUuid=${args.reviewRunUuid}`,
+            searchParams: buildReviewDrawerSearchParams(
+                args.projectUuid,
+                args.fingerprints[0],
+                reviewItem,
+            ),
         };
 
         await this.notificationsModel.createAiReviewNotifications({
             recipients,
             metadata,
             message: `${args.fingerprints.length} AI context findings need review`,
-            url: `/ai-agents/admin/reviews?${metadata.searchParams}`,
+            url: `${REVIEWS_BOARD_PATH}?${metadata.searchParams}`,
         });
 
         await this.schedulerClient.scheduleTask(

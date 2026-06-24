@@ -1,12 +1,11 @@
 import { type NotificationAiReview } from '@lightdash/common';
-import { Box, Menu } from '@mantine-8/core';
+import { Group, Menu } from '@mantine-8/core';
 import { Text, Tooltip, useMantineTheme } from '@mantine/core';
 import { IconCircleFilled } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useCallback, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { AiAgentIcon } from '../../../ee/features/aiCopilot/components/AiAgentIcon';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -68,7 +67,7 @@ export const AiReviewNotifications: FC<Props> = ({ notifications }) => {
                 },
             });
 
-            void navigate(notification.url ?? '/ai-agents/admin/reviews');
+            void navigate(notification.url ?? '/generalSettings/ai/reviews');
         },
         [navigate, track, updateNotification],
     );
@@ -79,35 +78,24 @@ export const AiReviewNotifications: FC<Props> = ({ notifications }) => {
                 <Menu.Item
                     p="xs"
                     key={notification.notificationId}
-                    leftSection={
-                        <Box
-                            display="flex"
-                            style={{
-                                alignItems: 'center',
-                                gap: 6,
-                            }}
-                        >
-                            <MantineIcon
-                                size={8}
-                                icon={IconCircleFilled}
-                                style={{
-                                    color: notification.viewed
-                                        ? 'transparent'
-                                        : theme.colors.teal[5],
-                                }}
-                            />
-                            <AiAgentIcon size={16} calm />
-                        </Box>
-                    }
                     onClick={() => handleOnNotificationClick(notification)}
                     fz="xs"
                 >
-                    <>
-                        <NotificationTime createdAt={notification.createdAt} />
+                    <NotificationTime createdAt={notification.createdAt} />
+                    <Group gap={6} wrap="nowrap" align="center">
+                        <MantineIcon
+                            size={8}
+                            icon={IconCircleFilled}
+                            style={{
+                                color: notification.viewed
+                                    ? 'transparent'
+                                    : theme.colors.teal[5],
+                            }}
+                        />
                         <Text className={classes.notificationMessage}>
                             {notification.message}
                         </Text>
-                    </>
+                    </Group>
                 </Menu.Item>
             ))}
         </>
