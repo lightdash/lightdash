@@ -76,9 +76,10 @@ const registerCompletionProvider = (
 };
 
 type LabelEditorProps = {
-    label: string;
+    label?: string;
     value: string;
     placeholder?: string;
+    description?: string;
     onChange: (value: string) => void;
     fields: string[];
     readOnly?: boolean;
@@ -88,6 +89,7 @@ export const LabelEditor: FC<LabelEditorProps> = ({
     label,
     value,
     placeholder,
+    description,
     onChange,
     fields,
     readOnly = false,
@@ -191,7 +193,7 @@ export const LabelEditor: FC<LabelEditorProps> = ({
     if (!monacoOptions) return null;
 
     return (
-        <Input.Wrapper label={label}>
+        <Input.Wrapper label={label} description={description}>
             <Paper
                 className={`${styles.editorWrapper} ${readOnly ? styles.editorWrapperReadOnly : ''}`}
                 radius="sm"

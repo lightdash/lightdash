@@ -2,6 +2,7 @@ import {
     CartesianSeriesType,
     getAxisName,
     getDateGroupLabel,
+    getGranularityMapFromItems,
     getItemLabelWithoutTableName,
     getXAxisSort,
     isNumericItem,
@@ -18,7 +19,6 @@ import {
     Stack,
     Switch,
     Text,
-    TextInput,
 } from '@mantine/core';
 import {
     IconChartBar,
@@ -34,6 +34,7 @@ import MantineIcon from '../../../common/MantineIcon';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
+import { LabelEditor } from '../../common/LabelEditor';
 import { AxisMinInterval } from './AxisMinInterval';
 import { AxisMinMax } from './AxisMinMax';
 
@@ -60,6 +61,8 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
     const { visualizationConfig } = useVisualizationContext();
 
     if (!isCartesianVisualizationConfig(visualizationConfig)) return null;
+
+    const granularityFields = Object.keys(getGranularityMapFromItems(itemsMap));
 
     const {
         dirtyLayout,
@@ -154,15 +157,18 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                     <Config.Heading>{`${
                         dirtyLayout?.flipAxes ? 'Y' : 'X'
                     }-axis label`}</Config.Heading>
-                    <TextInput
-                        placeholder="Enter axis label"
-                        defaultValue={
-                            dirtyEchartsConfig?.xAxis?.[0]?.name ||
+                    <LabelEditor
+                        value={dirtyEchartsConfig?.xAxis?.[0]?.name ?? ''}
+                        placeholder={
                             (xAxisField &&
                                 (getDateGroupLabel(xAxisField) ||
-                                    getItemLabelWithoutTableName(xAxisField)))
+                                    getItemLabelWithoutTableName(
+                                        xAxisField,
+                                    ))) ||
+                            'Enter axis label'
                         }
-                        onBlur={(e) => setXAxisName(e.currentTarget.value)}
+                        fields={granularityFields}
+                        onChange={(value) => setXAxisName(value)}
                     />
 
                     {isNumericItem(xAxisField) && (
@@ -358,10 +364,9 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                         dirtyLayout?.flipAxes ? 'bottom' : 'left'
                     })`}</Config.Heading>
 
-                    <TextInput
-                        placeholder="Enter axis label"
-                        defaultValue={
-                            dirtyEchartsConfig?.yAxis?.[0]?.name ||
+                    <LabelEditor
+                        value={dirtyEchartsConfig?.yAxis?.[0]?.name ?? ''}
+                        placeholder={
                             getAxisName({
                                 isAxisTheSameForAllSeries,
                                 selectedAxisIndex,
@@ -369,9 +374,10 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                                 axisIndex: 0,
                                 series: dirtyEchartsConfig?.series,
                                 itemsMap,
-                            })
+                            }) || 'Enter axis label'
                         }
-                        onBlur={(e) => setYAxisName(0, e.currentTarget.value)}
+                        fields={granularityFields}
+                        onChange={(value) => setYAxisName(0, value)}
                     />
                     {showFirstAxisRange && (
                         <AxisMinMax
@@ -404,10 +410,9 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                         dirtyLayout?.flipAxes ? 'top' : 'right'
                     })`}</Config.Heading>
 
-                    <TextInput
-                        placeholder="Enter axis label"
-                        defaultValue={
-                            dirtyEchartsConfig?.yAxis?.[1]?.name ||
+                    <LabelEditor
+                        value={dirtyEchartsConfig?.yAxis?.[1]?.name ?? ''}
+                        placeholder={
                             getAxisName({
                                 isAxisTheSameForAllSeries,
                                 selectedAxisIndex,
@@ -415,9 +420,10 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                                 axisIndex: 1,
                                 series: dirtyEchartsConfig?.series,
                                 itemsMap,
-                            })
+                            }) || 'Enter axis label'
                         }
-                        onBlur={(e) => setYAxisName(1, e.currentTarget.value)}
+                        fields={granularityFields}
+                        onChange={(value) => setYAxisName(1, value)}
                     />
 
                     {showSecondAxisRange && (
