@@ -105,8 +105,8 @@ export type DashboardContextType = {
     setDateZoomGranularity: Dispatch<
         SetStateAction<DateGranularity | string | undefined>
     >;
-    chartsWithDateZoomApplied: Set<string> | undefined;
-    setChartsWithDateZoomApplied: Dispatch<
+    tilesWithDateZoomApplied: Set<string> | undefined;
+    setTilesWithDateZoomApplied: Dispatch<
         SetStateAction<Set<string> | undefined>
     >;
     dateZoomConfig: DateZoomConfig;

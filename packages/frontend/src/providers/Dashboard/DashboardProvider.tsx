@@ -608,7 +608,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         );
     }, [dashboardParameterReferences, parameters, parameterDefinitions]);
 
-    const [chartsWithDateZoomApplied, setChartsWithDateZoomApplied] =
+    const [tilesWithDateZoomApplied, setTilesWithDateZoomApplied] =
         useState<Set<string>>();
 
     // Update dashboard url date zoom change
@@ -1657,8 +1657,8 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         setChartSort,
         dateZoomGranularity,
         setDateZoomGranularity,
-        chartsWithDateZoomApplied,
-        setChartsWithDateZoomApplied,
+        tilesWithDateZoomApplied,
+        setTilesWithDateZoomApplied,
         dateZoomConfig,
         setDateZoomConfig,
         hasDateZoomConfigChanged,

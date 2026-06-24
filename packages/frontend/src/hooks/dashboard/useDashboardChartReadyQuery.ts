@@ -104,8 +104,8 @@ export const useDashboardChartReadyQuery = (
     const autoRefresh = useDashboardTileStatusContext((c) => c.isAutoRefresh);
     const context =
         useSearchParams<QueryExecutionContext>('context') || undefined;
-    const setChartsWithDateZoomApplied = useDashboardContext(
-        (c) => c.setChartsWithDateZoomApplied,
+    const setTilesWithDateZoomApplied = useDashboardContext(
+        (c) => c.setTilesWithDateZoomApplied,
     );
 
     // Date zoom controls (gated): when the flag is off, resolve against the
@@ -348,22 +348,24 @@ export const useDashboardChartReadyQuery = (
         (referencesDateZoomReservedParam && !!granularity);
 
     useEffect(() => {
-        if (!chartUuid || !isAffectedByDateZoom) return;
+        if (!isAffectedByDateZoom) return;
 
-        setChartsWithDateZoomApplied((prev) => {
+        // Keyed by tileUuid: a duplicated saved chart shares its chartUuid across
+        // tiles, but each tile needs its own applied state.
+        setTilesWithDateZoomApplied((prev) => {
             const nextSet = new Set(prev ?? []);
             if (dateZoomApplied) {
-                nextSet.add(chartUuid);
+                nextSet.add(tileUuid);
             } else {
-                nextSet.delete(chartUuid);
+                nextSet.delete(tileUuid);
             }
             return nextSet;
         });
     }, [
         dateZoomApplied,
         isAffectedByDateZoom,
-        chartUuid,
-        setChartsWithDateZoomApplied,
+        tileUuid,
+        setTilesWithDateZoomApplied,
     ]);
 
     useEffect(() => {
