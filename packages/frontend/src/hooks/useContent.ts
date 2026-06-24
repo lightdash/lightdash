@@ -31,6 +31,8 @@ export type ContentArgs = {
     search?: string;
     sortBy?: ContentSortByColumns;
     sortDirection?: 'asc' | 'desc';
+    // Opt in to surfacing the caller's personal (space-less) data apps.
+    includePersonalDataApps?: boolean;
 };
 
 const contentTypeLabel = (contentType: ContentType): string =>

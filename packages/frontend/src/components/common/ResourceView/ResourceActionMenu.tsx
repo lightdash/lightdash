@@ -15,6 +15,7 @@ import {
     IconDatabaseExport,
     IconDots,
     IconEdit,
+    IconFolderPlus,
     IconFolderSymlink,
     IconLayoutGridAdd,
     IconPin,
@@ -147,6 +148,19 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     const isSqlChart =
         item.type === ResourceViewItemType.CHART &&
         item.data.source === ChartSourceType.SQL;
+
+    // Personal (space-less) data apps can't be pinned — the backend rejects it.
+    const isPersonalDataApp =
+        item.type === ResourceViewItemType.DATA_APP && !item.data.spaceUuid;
+
+    // Match the app builder's wording: apps not yet in a space are "added",
+    // apps already in one are "moved".
+    const moveActionLabel =
+        item.type === ResourceViewItemType.DATA_APP
+            ? isPersonalDataApp
+                ? 'Add to space'
+                : 'Move to space'
+            : 'Move';
 
     const favoritesContext = useFavoritesContext();
     const isFavorited = favoritesContext?.isFavorited(item.data.uuid) ?? false;
@@ -498,7 +512,9 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                         });
                                     }}
                                     style={
-                                        isSqlChart ? { display: 'none' } : {}
+                                        isSqlChart || isPersonalDataApp
+                                            ? { display: 'none' }
+                                            : {}
                                     }
                                 >
                                     {isPinned
@@ -566,7 +582,13 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                             <Menu.Item
                                 component="button"
                                 role="menuitem"
-                                leftSection={<IconFolderSymlink size={18} />}
+                                leftSection={
+                                    isPersonalDataApp ? (
+                                        <IconFolderPlus size={18} />
+                                    ) : (
+                                        <IconFolderSymlink size={18} />
+                                    )
+                                }
                                 onClick={() => {
                                     onAction({
                                         type: ResourceViewItemAction.TRANSFER_TO_SPACE,
@@ -574,7 +596,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                     });
                                 }}
                             >
-                                Move
+                                {moveActionLabel}
                             </Menu.Item>
 
                             {item.type === ResourceViewItemType.SPACE && (
