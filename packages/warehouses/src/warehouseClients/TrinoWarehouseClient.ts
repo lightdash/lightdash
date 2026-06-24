@@ -1,3 +1,4 @@
+import { DuckDBInstance } from '@duckdb/node-api';
 import {
     AnyType,
     CreateTrinoCredentials,
@@ -8,6 +9,8 @@ import {
     SupportedDbtAdapter,
     TimeIntervalUnit,
     WarehouseConnectionError,
+    WarehouseExecuteAsyncQuery,
+    WarehouseExecuteAsyncQueryArgs,
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
@@ -28,6 +31,153 @@ import {
 import { normalizeUnicode } from '../utils/sql';
 import WarehouseBaseClient from './WarehouseBaseClient';
 import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
+
+// PivotQueryBuilder always wraps the base query as the first CTE:
+//   WITH original_query AS (<base query>), group_by_query AS (...), ...
+// We detect that signature, run the inner <base query> on Trino, and run the
+// remaining pivot SQL in DuckDB over the Trino results.
+const PIVOT_QUERY_PREFIX = 'WITH original_query AS (';
+const DUCKDB_PIVOT_FLAT_TABLE = 'flat_results';
+
+/**
+ * Finds the index of the `)` that closes the `(` at `openIndex`, accounting for
+ * nested parens and skipping over single-quoted strings and double-quoted
+ * identifiers. Returns -1 if unbalanced.
+ */
+const findMatchingCloseParen = (sql: string, openIndex: number): number => {
+    let depth = 0;
+    let inSingleQuote = false;
+    let inDoubleQuote = false;
+    for (let i = openIndex; i < sql.length; i += 1) {
+        const char = sql[i];
+        if (inSingleQuote) {
+            if (char === "'") {
+                if (sql[i + 1] === "'") i += 1;
+                else inSingleQuote = false;
+            }
+        } else if (inDoubleQuote) {
+            if (char === '"') {
+                if (sql[i + 1] === '"') i += 1;
+                else inDoubleQuote = false;
+            }
+        } else if (char === "'") {
+            inSingleQuote = true;
+        } else if (char === '"') {
+            inDoubleQuote = true;
+        } else if (char === '(') {
+            depth += 1;
+        } else if (char === ')') {
+            depth -= 1;
+            if (depth === 0) return i;
+        }
+    }
+    return -1;
+};
+
+/**
+ * If `sql` is a PivotQueryBuilder output, splits it into the inner base query
+ * (to run on Trino) and a rewrite that swaps that base query for a flat table
+ * reference (to run the pivot in DuckDB). Returns null for non-pivot SQL.
+ */
+const splitPivotQuery = (
+    sql: string,
+): {
+    originalQuery: string;
+    rewriteWithFlatTable: (flatTableName: string) => string;
+} | null => {
+    const leadingWhitespace = sql.match(/^\s*/)?.[0].length ?? 0;
+    if (!sql.startsWith(PIVOT_QUERY_PREFIX, leadingWhitespace)) {
+        return null;
+    }
+
+    const openParenIndex = leadingWhitespace + PIVOT_QUERY_PREFIX.length - 1;
+    const closeParenIndex = findMatchingCloseParen(sql, openParenIndex);
+    if (closeParenIndex === -1) {
+        return null;
+    }
+
+    const innerStart = openParenIndex + 1;
+    return {
+        originalQuery: sql.slice(innerStart, closeParenIndex).trim(),
+        rewriteWithFlatTable: (flatTableName) =>
+            `${sql.slice(0, innerStart)}SELECT * FROM ${flatTableName}${sql.slice(
+                closeParenIndex,
+            )}`,
+    };
+};
+
+type DuckdbPivotConnection = {
+    run: (sql: string) => Promise<{
+        getRowObjects: () => Promise<Record<string, unknown>[]>;
+    }>;
+    closeSync?: () => void;
+    disconnectSync?: () => void;
+};
+
+const duckdbColumnTypeFromDimension = (type: DimensionType): string => {
+    if (type === DimensionType.NUMBER) return 'DOUBLE';
+    if (type === DimensionType.BOOLEAN) return 'BOOLEAN';
+    return 'VARCHAR';
+};
+
+const duckdbPivotLiteral = (value: unknown): string => {
+    if (value === null || value === undefined) return 'NULL';
+    if (typeof value === 'number' || typeof value === 'bigint') {
+        return String(value);
+    }
+    if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE';
+    return `'${String(value).replace(/'/g, "''")}'`;
+};
+
+const duckdbPivotDimensionType = (value: unknown): DimensionType => {
+    if (typeof value === 'number' || typeof value === 'bigint') {
+        return DimensionType.NUMBER;
+    }
+    if (typeof value === 'boolean') return DimensionType.BOOLEAN;
+    return DimensionType.STRING;
+};
+
+const createDuckdbFlatTable = async (
+    db: DuckdbPivotConnection,
+    tableName: string,
+    fields: WarehouseResults['fields'],
+): Promise<string[]> => {
+    const columns = Object.keys(fields);
+    if (columns.length === 0) {
+        await db.run(`CREATE TABLE ${tableName} (dummy INTEGER)`);
+        return columns;
+    }
+    const columnDefs = columns
+        .map(
+            (col) =>
+                `"${col}" ${duckdbColumnTypeFromDimension(fields[col].type)}`,
+        )
+        .join(', ');
+    await db.run(`CREATE TABLE ${tableName} (${columnDefs})`);
+    return columns;
+};
+
+const insertBatchIntoDuckdb = async (
+    db: DuckdbPivotConnection,
+    tableName: string,
+    columns: string[],
+    rows: WarehouseResults['rows'],
+): Promise<void> => {
+    if (rows.length === 0 || columns.length === 0) return;
+    const valuesSql = rows
+        .map(
+            (row) =>
+                `(${columns
+                    .map((col) => duckdbPivotLiteral(row[col]))
+                    .join(', ')})`,
+        )
+        .join(', ');
+    await db.run(
+        `INSERT INTO ${tableName} (${columns
+            .map((col) => `"${col}"`)
+            .join(', ')}) VALUES ${valuesSql}`,
+    );
+};
 
 export enum TrinoTypes {
     BOOLEAN = 'boolean',
@@ -352,6 +502,111 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
         } finally {
             await close();
         }
+    }
+
+    /**
+     * Transparently pivots in DuckDB instead of pushing the pivot down to Trino.
+     *
+     * When the incoming SQL is a PivotQueryBuilder output (it starts with
+     * `WITH original_query AS (...)`), we extract the inner base query, run only
+     * that on Trino, and run the remaining pivot SQL in DuckDB over the Trino
+     * results. Non-pivot queries are delegated to the base implementation
+     * unchanged. Because we override the standard entrypoint, the services need
+     * no changes — they keep passing the already-pivoted SQL.
+     */
+    async executeAsyncQuery(
+        args: WarehouseExecuteAsyncQueryArgs,
+        resultsStreamCallback?: (
+            rows: WarehouseResults['rows'],
+            fields: WarehouseResults['fields'],
+        ) => void | Promise<void>,
+    ): Promise<WarehouseExecuteAsyncQuery> {
+        const pivot = splitPivotQuery(args.sql);
+        if (!pivot) {
+            return super.executeAsyncQuery(args, resultsStreamCallback);
+        }
+
+        const startTime = performance.now();
+
+        // Create the in-memory DuckDB up front so we can stream Trino rows
+        // straight into it batch-by-batch — we never hold the full flat result
+        // set in a JS array. Uses @duckdb/node-api — the same DuckDB engine the
+        // DuckDB warehouse adapter uses — so it never conflicts with another
+        // DuckDB native addon in-process.
+        const instance = await DuckDBInstance.create(':memory:');
+        const db =
+            (await instance.connect()) as unknown as DuckdbPivotConnection;
+
+        let rows: WarehouseResults['rows'];
+        let fields: WarehouseResults['fields'];
+        try {
+            // 1. Run ONLY the original (flat) query on Trino, inserting each
+            //    streamed batch directly into the DuckDB flat table.
+            let flatColumns: string[] | undefined;
+            await this.streamQuery(
+                pivot.originalQuery,
+                async ({ rows: batch, fields: batchFields }) => {
+                    if (!flatColumns) {
+                        flatColumns = await createDuckdbFlatTable(
+                            db,
+                            DUCKDB_PIVOT_FLAT_TABLE,
+                            batchFields,
+                        );
+                    }
+                    await insertBatchIntoDuckdb(
+                        db,
+                        DUCKDB_PIVOT_FLAT_TABLE,
+                        flatColumns,
+                        batch,
+                    );
+                },
+                { tags: args.tags, timezone: args.timezone },
+            );
+
+            if (!flatColumns) {
+                // Trino streamed no batches, so there's nothing to pivot.
+                rows = [];
+                fields = {};
+            } else {
+                // 2. Run the pivot portion of the SQL in DuckDB (base query
+                //    swapped for the flat table).
+                const result = await db.run(
+                    pivot.rewriteWithFlatTable(DUCKDB_PIVOT_FLAT_TABLE),
+                );
+                const rawRows = await result.getRowObjects();
+
+                // Normalise DuckDB BIGINT (bigint) → number so downstream
+                // JSON/transform handling matches the warehouse path.
+                rows = rawRows.map((row) =>
+                    Object.fromEntries(
+                        Object.entries(row).map(([key, value]) => [
+                            key,
+                            typeof value === 'bigint' ? Number(value) : value,
+                        ]),
+                    ),
+                );
+
+                const firstRow = rows[0] ?? {};
+                fields = Object.fromEntries(
+                    Object.entries(firstRow).map(([name, value]) => [
+                        name,
+                        { type: duckdbPivotDimensionType(value) },
+                    ]),
+                );
+            }
+        } finally {
+            db.closeSync?.();
+            db.disconnectSync?.();
+        }
+
+        await resultsStreamCallback?.(rows, fields);
+
+        return {
+            queryId: null,
+            queryMetadata: null,
+            durationMs: performance.now() - startTime,
+            totalRows: rows.length,
+        };
     }
 
     async getCatalog(requests: TableInfo[]): Promise<WarehouseCatalog> {
