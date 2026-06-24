@@ -74,6 +74,58 @@ export const AiGeneralSettingsPage = () => {
             ) : (
                 <>
                     <SettingsCard>
+                        <Group
+                            justify="space-between"
+                            wrap="nowrap"
+                            align="flex-start"
+                            gap="md"
+                        >
+                            <Box maw={620}>
+                                <Group gap="xs" mb={4}>
+                                    <Title order={5}>
+                                        Enable AI features for users
+                                    </Title>
+                                    {settings.isTrial && (
+                                        <Badge
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconSparkles}
+                                                    size={12}
+                                                />
+                                            }
+                                            radius="sm"
+                                            variant="light"
+                                            color="gray"
+                                            size="sm"
+                                            tt="none"
+                                            fw={500}
+                                        >
+                                            Free trial
+                                        </Badge>
+                                    )}
+                                </Group>
+                                <Text c="dimmed" fz="xs">
+                                    Show AI features (homepage entry, navbar
+                                    action, and agent chat) to everyone in this
+                                    organization. Disable to hide them while
+                                    keeping existing data intact.
+                                </Text>
+                            </Box>
+                            <Switch
+                                size="md"
+                                checked={settings.aiAgentsVisible}
+                                disabled={isUpdatingSettings}
+                                onChange={(event) =>
+                                    updateSettings({
+                                        aiAgentsVisible:
+                                            event.currentTarget.checked,
+                                    })
+                                }
+                            />
+                        </Group>
+                    </SettingsCard>
+
+                    <SettingsCard>
                         <Stack gap="md">
                             <Group
                                 justify="space-between"
@@ -171,58 +223,6 @@ export const AiGeneralSettingsPage = () => {
                                 </>
                             )}
                         </Stack>
-                    </SettingsCard>
-
-                    <SettingsCard>
-                        <Group
-                            justify="space-between"
-                            wrap="nowrap"
-                            align="flex-start"
-                            gap="md"
-                        >
-                            <Box maw={620}>
-                                <Group gap="xs" mb={4}>
-                                    <Title order={5}>
-                                        Enable AI features for users
-                                    </Title>
-                                    {settings.isTrial && (
-                                        <Badge
-                                            leftSection={
-                                                <MantineIcon
-                                                    icon={IconSparkles}
-                                                    size={12}
-                                                />
-                                            }
-                                            radius="sm"
-                                            variant="light"
-                                            color="gray"
-                                            size="sm"
-                                            tt="none"
-                                            fw={500}
-                                        >
-                                            Free trial
-                                        </Badge>
-                                    )}
-                                </Group>
-                                <Text c="dimmed" fz="xs">
-                                    Show AI features (homepage entry, navbar
-                                    action, and agent chat) to everyone in this
-                                    organization. Disable to hide them while
-                                    keeping existing data intact.
-                                </Text>
-                            </Box>
-                            <Switch
-                                size="md"
-                                checked={settings.aiAgentsVisible}
-                                disabled={isUpdatingSettings}
-                                onChange={(event) =>
-                                    updateSettings({
-                                        aiAgentsVisible:
-                                            event.currentTarget.checked,
-                                    })
-                                }
-                            />
-                        </Group>
                     </SettingsCard>
 
                     <SettingsCard>
