@@ -1,3 +1,20 @@
+# [0.3239.0](https://github.com/lightdash/lightdash/compare/0.3238.0...0.3239.0) (2026-06-24)
+
+
+### Bug Fixes
+
+* keep reference lines visible when hiding grouped series via legend (PROD-7119) ([#24630](https://github.com/lightdash/lightdash/issues/24630)) ([2669fbd](https://github.com/lightdash/lightdash/commit/2669fbd3d1107a8a6ae7ae6f8d6aaf4ee8bad2df))
+
+
+### Features
+
+* **date-zoom:** support date zoom variable in pie, funnel and gauge labels ([#24692](https://github.com/lightdash/lightdash/issues/24692)) ([409568b](https://github.com/lightdash/lightdash/commit/409568ba39b048bdeb28cbf2a7604653b35f63ab))
+
+
+### Performance Improvements
+
+* **pivot:** fold anchor CTEs into ranking CTEs for metric sort ([#24661](https://github.com/lightdash/lightdash/issues/24661)) ([ed54982](https://github.com/lightdash/lightdash/commit/ed549827f538f1463257a7ea04255600b911f213)), closes [#24669](https://github.com/lightdash/lightdash/issues/24669)
+
 # [0.3238.0](https://github.com/lightdash/lightdash/compare/0.3237.4...0.3238.0) (2026-06-24)
 
 
