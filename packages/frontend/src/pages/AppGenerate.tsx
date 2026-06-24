@@ -53,7 +53,6 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import ReactMarkdownPreview from '@uiw/react-markdown-preview';
 import {
     forwardRef,
     useCallback,
@@ -73,6 +72,7 @@ import {
     useParams,
 } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
+import { AiMarkdown } from '../components/common/AiMarkdown';
 import Callout from '../components/common/Callout';
 import MantineIcon from '../components/common/MantineIcon';
 import MantineModal from '../components/common/MantineModal';
@@ -2141,14 +2141,9 @@ const AppGenerate: FC = () => {
                                                             }
                                                         />
                                                         {msg.appUuid ? (
-                                                            <ReactMarkdownPreview
-                                                                source={
-                                                                    msg.content
-                                                                }
-                                                                className={
-                                                                    classes.markdown
-                                                                }
-                                                            />
+                                                            <AiMarkdown>
+                                                                {msg.content}
+                                                            </AiMarkdown>
                                                         ) : (
                                                             <Text
                                                                 size="sm"
@@ -2268,11 +2263,10 @@ const AppGenerate: FC = () => {
                                                                 <LoadingDots />
                                                             </Text>
                                                         ) : latestBuildingVersion?.statusMessage ? (
-                                                            <ReactMarkdownPreview
-                                                                source={
-                                                                    latestBuildingVersion.statusMessage
+                                                            <AiMarkdown
+                                                                className={
+                                                                    classes.statusMarkdown
                                                                 }
-                                                                className={`${classes.markdown} ${classes.markdownDimmed} ${classes.markdownInline}`}
                                                                 components={{
                                                                     p: ({
                                                                         node: _node,
@@ -2289,7 +2283,11 @@ const AppGenerate: FC = () => {
                                                                         </p>
                                                                     ),
                                                                 }}
-                                                            />
+                                                            >
+                                                                {
+                                                                    latestBuildingVersion.statusMessage
+                                                                }
+                                                            </AiMarkdown>
                                                         ) : (
                                                             <Text
                                                                 size="sm"

@@ -28,7 +28,7 @@
     overflow: visible;
     display: flex;
     justify-content: center;
-    padding: var(--mantine-spacing-xl);
+    padding: var(--mantine-spacing-md);
 
     @mixin light {
         background-color: var(--mantine-color-ldGray-0);
@@ -95,16 +95,18 @@
 
 .chatPanelCompose {
     position: relative;
-    justify-content: center;
+    justify-content: flex-start;
     max-width: 760px;
     width: 100%;
     margin: 0 auto;
-    /* Shared height with the template picker so the View Transition between
-       them only morphs width/position — no jarring height jump. */
-    height: min(620px, calc(100vh - 96px));
+    /* Hug the content (no stray whitespace between the fanout and the prompt)
+       but cap on tall viewports and scroll — never clip — when the prompt +
+       fanout can't both fit. */
+    height: auto;
+    max-height: min(760px, calc(100vh - 84px));
     border-radius: var(--mantine-radius-lg);
     border: 1px solid;
-    overflow: hidden;
+    overflow: hidden auto;
     /* Reserve room for the window-chrome dots / back button row. */
     padding-top: 4px;
 
@@ -215,20 +217,11 @@
     line-height: 1.5;
 }
 
-.markdown {
-    background-color: transparent !important;
-    font-size: var(--mantine-font-size-sm) !important;
-    line-height: 1.5 !important;
-    font-family: inherit !important;
-}
-
-.markdownDimmed,
-.markdownDimmed * {
+/* Dimmed "building…" status line — the AiMarkdown wrapper already handles
+ * layout/typography; we only override the colour to read as muted progress. */
+.statusMarkdown,
+.statusMarkdown * {
     color: var(--mantine-color-dimmed) !important;
-}
-
-.markdownInline p {
-    margin: 0 !important;
 }
 
 .chatInputArea {
@@ -247,9 +240,19 @@
     }
 }
 
+/* Compose screen: heading + input both take their natural height and sit
+   snug together; the card hugs them and scrolls as a whole if they overflow.
+   The input keeps its toolbar fully visible (no internal max-height clip). */
+.chatPanelCompose .composeHeading {
+    flex: 0 0 auto;
+}
+
 .chatPanelCompose .chatInputArea {
+    flex: 0 0 auto;
+    max-height: none;
+    overflow: visible;
     border-top: 0;
-    padding-top: 48px;
+    padding-top: var(--mantine-spacing-sm);
 }
 
 .inputWrapper {

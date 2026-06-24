@@ -487,6 +487,8 @@
 
 .reasoningBody {
     padding: 6px 8px 4px;
+    font-style: italic;
+    color: var(--mantine-color-ldGray-7);
 }
 
 @keyframes cardSlideIn {
