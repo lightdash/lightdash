@@ -1,5 +1,6 @@
 import { type AiAgentReviewItemSummary } from '@lightdash/common';
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { IssueDetailModal } from './IssueDetailModal';
@@ -101,7 +102,7 @@ vi.mock('./ReviewAssigneeMenu', () => ({
 }));
 
 describe('IssueDetailModal', () => {
-    it('renders the issue title, assignee rail, evidence, and activity', () => {
+    it('renders the issue title, rail, and activity by default', () => {
         renderWithProviders(
             <IssueDetailModal
                 projectUuid="project-1"
@@ -116,8 +117,30 @@ describe('IssueDetailModal', () => {
         expect(screen.getByText('Wrong revenue')).toBeInTheDocument();
         expect(screen.getByText('Assignee')).toBeInTheDocument();
         expect(screen.getByText('status-actions')).toBeInTheDocument();
-        expect(screen.getByText('chat-evidence')).toBeInTheDocument();
-        expect(screen.getByText('Evidence')).toBeInTheDocument();
         expect(screen.getByText('Jaffle')).toBeInTheDocument();
+        // Activity is shown by default; evidence sits behind a toggle.
+        expect(screen.getByText('Activity')).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: /Show evidence/i }),
+        ).toBeInTheDocument();
+    });
+
+    it('reveals the evidence chat when the toggle is clicked', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(
+            <IssueDetailModal
+                projectUuid="project-1"
+                agentUuid="agent-1"
+                threadUuid="thread-1"
+                selectedReviewItemUuid="ri-1"
+                isOpen
+                onClose={() => {}}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: /Show evidence/i }),
+        );
+        expect(await screen.findByText('chat-evidence')).toBeInTheDocument();
     });
 });

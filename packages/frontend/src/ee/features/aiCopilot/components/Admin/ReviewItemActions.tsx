@@ -30,11 +30,14 @@ import {
 type ReviewItemActionsProps = {
     reviewItem: AiAgentReviewItemSummary;
     mode?: 'table' | 'drawer';
+    /** Suppress the "Open workspace" button (e.g. when it lives elsewhere). */
+    hideWorkspaceLink?: boolean;
 };
 
 export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
     reviewItem,
     mode = 'table',
+    hideWorkspaceLink = false,
 }) => {
     const createWriteback = useCreateAiAgentReviewItemWriteback();
     const updateStatus = useUpdateAiAgentReviewItemStatus();
@@ -143,42 +146,42 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                         {/* Once a remediation exists, the workspace is the one
                             place to view the PR and the verification — collapse
                             to a single entry point. */}
-                        {current.remediation ? (
-                            <Button
-                                component={Link}
-                                to={workspaceUrl}
-                                onClick={stopPropagation}
-                                size={buttonSize}
-                                fz="xs"
-                                variant="light"
-                                color="indigo"
-                                leftSection={
-                                    <MantineIcon
-                                        size="sm"
-                                        icon={IconLayoutColumns}
-                                    />
-                                }
-                            >
-                                Open workspace
-                            </Button>
-                        ) : (
-                            current.linkedPrUrl && (
-                                <Button
-                                    component="a"
-                                    href={current.linkedPrUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={stopPropagation}
-                                    size={buttonSize}
-                                    fz="xs"
-                                    loading={createWriteback.isLoading}
-                                    variant="subtle"
-                                    color="gray"
-                                >
-                                    View PR
-                                </Button>
-                            )
-                        )}
+                        {current.remediation
+                            ? !hideWorkspaceLink && (
+                                  <Button
+                                      component={Link}
+                                      to={workspaceUrl}
+                                      onClick={stopPropagation}
+                                      size={buttonSize}
+                                      fz="xs"
+                                      variant="light"
+                                      color="indigo"
+                                      leftSection={
+                                          <MantineIcon
+                                              size="sm"
+                                              icon={IconLayoutColumns}
+                                          />
+                                      }
+                                  >
+                                      Open workspace
+                                  </Button>
+                              )
+                            : current.linkedPrUrl && (
+                                  <Button
+                                      component="a"
+                                      href={current.linkedPrUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={stopPropagation}
+                                      size={buttonSize}
+                                      fz="xs"
+                                      loading={createWriteback.isLoading}
+                                      variant="subtle"
+                                      color="gray"
+                                  >
+                                      View PR
+                                  </Button>
+                              )}
 
                         {canCreatePr && !current.linkedPrUrl && (
                             <Tooltip

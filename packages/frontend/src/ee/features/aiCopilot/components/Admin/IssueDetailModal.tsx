@@ -1,14 +1,25 @@
+import { capitalize } from '@lightdash/common';
 import {
     Anchor,
     Box,
+    Button,
     Group,
     Loader,
+    Paper,
     Stack,
     Text,
-    Title,
+    UnstyledButton,
 } from '@mantine-8/core';
-import { IconGitPullRequest } from '@tabler/icons-react';
-import { type FC, useMemo } from 'react';
+import {
+    IconArrowLeft,
+    IconExternalLink,
+    IconFileHorizontal,
+    IconGitPullRequest,
+    IconLayoutColumns,
+    IconMessageCircle2,
+} from '@tabler/icons-react';
+import { type FC, useMemo, useState } from 'react';
+import { Link } from 'react-router';
 import { CategoryBadge } from '../../../../../components/common/CategoryBadge';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
@@ -22,7 +33,7 @@ import { ReviewAssigneeMenu } from './ReviewAssigneeMenu';
 import { ReviewItemActions } from './ReviewItemActions';
 import {
     formatReviewDate,
-    getCompactIssueTitle,
+    getIssueTitle,
     getReviewReasoningText,
 } from './reviewItemDetails';
 import {
@@ -30,6 +41,7 @@ import {
     THREAD_REVIEW_ITEM_STATUSES,
     threadReviewRootCauseColors,
     threadReviewRootCauseLabels,
+    threadReviewStatusColors,
 } from './threadReviewContext';
 
 type Props = {
@@ -41,16 +53,14 @@ type Props = {
     onClose: () => void;
 };
 
-const RailField: FC<{ label: string; children: React.ReactNode }> = ({
+const RailRow: FC<{ label: string; children: React.ReactNode }> = ({
     label,
     children,
 }) => (
-    <Stack gap={4}>
-        <Text fz={10} fw={700} c="dimmed" tt="uppercase" lts={0.4}>
-            {label}
-        </Text>
-        {children}
-    </Stack>
+    <Group className={styles.railRow} justify="space-between" wrap="nowrap">
+        <Text className={styles.railLabel}>{label}</Text>
+        <Box className={styles.railValue}>{children}</Box>
+    </Group>
 );
 
 export const IssueDetailModal: FC<Props> = ({
@@ -61,6 +71,7 @@ export const IssueDetailModal: FC<Props> = ({
     isOpen,
     onClose,
 }) => {
+    const [showEvidence, setShowEvidence] = useState(false);
     const { data: threadData, isLoading: isLoadingThread } = useAiAgentThread(
         projectUuid,
         agentUuid,
@@ -104,129 +115,204 @@ export const IssueDetailModal: FC<Props> = ({
     const reasoningText = item ? getReviewReasoningText(item) : null;
     const isLoading = isLoadingThread || isLoadingItems;
 
+    const workspaceUrl = item
+        ? `/generalSettings/ai/reviews/${encodeURIComponent(item.fingerprint)}`
+        : null;
+
     return (
         <MantineModal
             opened={isOpen}
             onClose={onClose}
-            size="80%"
+            size="60rem"
             title="Issue"
-            cancelLabel="Close"
-            bodyScrollAreaMaxHeight="calc(85vh - 140px)"
+            icon={IconFileHorizontal}
+            cancelLabel={false}
+            modalBodyProps={{ py: 'lg' }}
+            bodyScrollAreaMaxHeight="calc(85vh - 120px)"
+            headerActions={
+                item?.remediation && workspaceUrl ? (
+                    <Button
+                        component={Link}
+                        to={workspaceUrl}
+                        onClick={onClose}
+                        size="xs"
+                        variant="default"
+                        radius="md"
+                        leftSection={
+                            <MantineIcon icon={IconLayoutColumns} size={14} />
+                        }
+                    >
+                        Open workspace
+                    </Button>
+                ) : null
+            }
         >
             {isLoading || !item || !threadData ? (
-                <Group justify="center" p="xl">
-                    <Loader color="gray" />
+                <Group justify="center" p="5rem">
+                    <Loader color="gray" size="sm" />
                 </Group>
             ) : (
                 <Box className={styles.layout}>
-                    <Stack className={styles.main} gap="lg">
-                        <Stack gap="xs">
-                            <Group gap={8} wrap="wrap">
-                                <CategoryBadge
-                                    variant="dot"
-                                    label={
-                                        threadReviewRootCauseLabels[
-                                            item.primaryRootCause
-                                        ]
-                                    }
-                                    color={
-                                        threadReviewRootCauseColors[
-                                            item.primaryRootCause
-                                        ]
-                                    }
-                                />
-                            </Group>
-                            <Title order={4} fw={600}>
-                                {getCompactIssueTitle(item)}
-                            </Title>
-                            {reasoningText && (
-                                <Text fz="sm" c="ldGray.7" lh={1.55}>
-                                    {reasoningText}
+                    <Stack className={styles.main} gap={0}>
+                        <CategoryBadge
+                            variant="dot"
+                            label={
+                                threadReviewRootCauseLabels[
+                                    item.primaryRootCause
+                                ]
+                            }
+                            color={
+                                threadReviewRootCauseColors[
+                                    item.primaryRootCause
+                                ]
+                            }
+                            className={styles.causeBadge}
+                        />
+                        <Text className={styles.title}>
+                            {getIssueTitle(item)}
+                        </Text>
+
+                        {reasoningText && (
+                            <Text className={styles.description}>
+                                {reasoningText}
+                            </Text>
+                        )}
+
+                        <Stack gap="sm" mt="xl">
+                            <Group justify="space-between" align="center">
+                                <Text className={styles.sectionLabel}>
+                                    {showEvidence ? 'Evidence' : 'Activity'}
                                 </Text>
+                                <Group gap="md" wrap="nowrap">
+                                    {showEvidence && (
+                                        <Anchor
+                                            href={`/projects/${projectUuid}/ai-agents/${agentUuid}/threads/${threadUuid}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className={styles.toggle}
+                                        >
+                                            Open full thread
+                                            <MantineIcon
+                                                icon={IconExternalLink}
+                                                size={13}
+                                                stroke={1.5}
+                                            />
+                                        </Anchor>
+                                    )}
+                                    <UnstyledButton
+                                        className={styles.toggle}
+                                        onClick={() =>
+                                            setShowEvidence((open) => !open)
+                                        }
+                                    >
+                                        <MantineIcon
+                                            icon={
+                                                showEvidence
+                                                    ? IconArrowLeft
+                                                    : IconMessageCircle2
+                                            }
+                                            size={13}
+                                            stroke={1.5}
+                                        />
+                                        {showEvidence
+                                            ? 'Back to activity'
+                                            : 'Show evidence'}
+                                    </UnstyledButton>
+                                </Group>
+                            </Group>
+
+                            {showEvidence ? (
+                                <Box
+                                    className={`${styles.panel} ${styles.evidenceScroll}`}
+                                >
+                                    <AgentChatDisplay
+                                        thread={threadData}
+                                        projectUuid={projectUuid}
+                                        agentUuid={agentUuid}
+                                        renderArtifactsInline
+                                        showAddToEvalsButton
+                                    />
+                                </Box>
+                            ) : (
+                                <Box className={styles.panel}>
+                                    <RemediationActivityTimeline
+                                        reviewItem={item}
+                                    />
+                                </Box>
                             )}
-                        </Stack>
-
-                        <Stack gap="xs">
-                            <Text
-                                fz={10}
-                                fw={700}
-                                tt="uppercase"
-                                lts={0.4}
-                                c="ldGray.7"
-                            >
-                                Evidence
-                            </Text>
-                            <AgentChatDisplay
-                                thread={threadData}
-                                projectUuid={projectUuid}
-                                agentUuid={agentUuid}
-                                renderArtifactsInline
-                                showAddToEvalsButton
-                            />
-                        </Stack>
-
-                        <Stack gap="xs">
-                            <Text
-                                fz={10}
-                                fw={700}
-                                tt="uppercase"
-                                lts={0.4}
-                                c="ldGray.7"
-                            >
-                                Activity
-                            </Text>
-                            <RemediationActivityTimeline reviewItem={item} />
                         </Stack>
                     </Stack>
 
-                    <Stack className={styles.rail} gap="lg">
-                        <RailField label="Status">
-                            <ReviewItemActions
-                                reviewItem={item}
-                                mode="drawer"
-                            />
-                        </RailField>
-                        <RailField label="Assignee">
-                            <ReviewAssigneeMenu
-                                projectUuid={item.projectUuid}
-                                fingerprint={item.fingerprint}
-                                assignedToUserUuid={item.assignedToUserUuid}
-                            />
-                        </RailField>
-                        {projectName && (
-                            <RailField label="Project">
-                                <Text fz="sm" fw={500} c="ldGray.9">
-                                    {projectName}
-                                </Text>
-                            </RailField>
-                        )}
-                        {seenValue && (
-                            <RailField label="Seen">
-                                <Text fz="sm" fw={500} c="ldGray.9">
-                                    {seenValue}
-                                </Text>
-                            </RailField>
-                        )}
-                        {item.linkedPrUrl && (
-                            <RailField label="Pull request">
-                                <Anchor
-                                    href={item.linkedPrUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    fz="sm"
-                                    fw={500}
-                                >
-                                    <Group gap={4} wrap="nowrap">
+                    <Paper
+                        component="aside"
+                        withBorder
+                        radius="md"
+                        p="md"
+                        className={styles.rail}
+                        aria-label="Issue properties"
+                    >
+                        <Stack gap={2}>
+                            <RailRow label="Status">
+                                <Group gap={6} wrap="nowrap">
+                                    <Box
+                                        className={styles.statusDot}
+                                        bg={`${threadReviewStatusColors[item.status]}.6`}
+                                    />
+                                    <Text className={styles.railText}>
+                                        {capitalize(
+                                            item.status.replaceAll('_', ' '),
+                                        )}
+                                    </Text>
+                                </Group>
+                            </RailRow>
+                            <RailRow label="Assignee">
+                                <ReviewAssigneeMenu
+                                    projectUuid={item.projectUuid}
+                                    fingerprint={item.fingerprint}
+                                    assignedToUserUuid={item.assignedToUserUuid}
+                                />
+                            </RailRow>
+                            {projectName && (
+                                <RailRow label="Project">
+                                    <Text className={styles.railText}>
+                                        {projectName}
+                                    </Text>
+                                </RailRow>
+                            )}
+                            {seenValue && (
+                                <RailRow label="Seen">
+                                    <Text className={styles.railText}>
+                                        {seenValue}
+                                    </Text>
+                                </RailRow>
+                            )}
+                            {item.linkedPrUrl && (
+                                <RailRow label="Pull request">
+                                    <Anchor
+                                        href={item.linkedPrUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className={styles.railLink}
+                                    >
                                         <MantineIcon
                                             icon={IconGitPullRequest}
                                             size={14}
+                                            stroke={1.4}
                                         />
                                         View PR
-                                    </Group>
-                                </Anchor>
-                            </RailField>
-                        )}
-                    </Stack>
+                                    </Anchor>
+                                </RailRow>
+                            )}
+                        </Stack>
+
+                        <Box className={styles.railActions}>
+                            <ReviewItemActions
+                                reviewItem={item}
+                                mode="drawer"
+                                hideWorkspaceLink
+                            />
+                        </Box>
+                    </Paper>
                 </Box>
             )}
         </MantineModal>
