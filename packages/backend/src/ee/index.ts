@@ -29,6 +29,7 @@ import { CommercialSlackClient } from './clients/Slack/SlackClient';
 import { AiAgentDocumentModel } from './models/AiAgentDocumentModel';
 import { AiAgentModel } from './models/AiAgentModel';
 import { AiAgentReviewClassifierModel } from './models/AiAgentReviewClassifierModel';
+import { AiAgentReviewNotificationModel } from './models/AiAgentReviewNotificationModel';
 import { AiOrganizationSettingsModel } from './models/AiOrganizationSettingsModel';
 import { AiRouterModel } from './models/AiRouterModel';
 import { AiWritebackThreadModel } from './models/AiWritebackThreadModel';
@@ -50,6 +51,7 @@ import { AiAgentContentValidation } from './services/ai/utils/AiAgentContentVali
 import { AiAgentAdminService } from './services/AiAgentAdminService';
 import { AiAgentDocumentService } from './services/AiAgentDocumentService';
 import { AiAgentReviewClassifierService } from './services/AiAgentReviewClassifierService';
+import { AiAgentReviewNotificationService } from './services/AiAgentReviewNotificationService';
 import { AiAgentService } from './services/AiAgentService/AiAgentService';
 import { AiAgentToolsService } from './services/AiAgentToolsService/AiAgentToolsService';
 import { AiOrganizationSettingsService } from './services/AiOrganizationSettingsService';
@@ -326,6 +328,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     pullRequestsModel: models.getPullRequestsModel(),
                     aiAgentReviewClassifierModel:
                         models.getAiAgentReviewClassifierModel<AiAgentReviewClassifierModel>(),
+                    aiAgentReviewNotificationModel:
+                        models.getAiAgentReviewNotificationModel<AiAgentReviewNotificationModel>(),
                     prometheusMetrics,
                 }),
             aiAgentAdminService: ({ models, repository, context, clients }) =>
@@ -334,6 +338,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentModel: models.getAiAgentModel(),
                     aiAgentReviewClassifierModel:
                         models.getAiAgentReviewClassifierModel<AiAgentReviewClassifierModel>(),
+                    aiAgentReviewNotificationModel:
+                        models.getAiAgentReviewNotificationModel<AiAgentReviewNotificationModel>(),
+                    aiAgentReviewNotificationService:
+                        repository.getAiAgentReviewNotificationService<AiAgentReviewNotificationService>(),
                     aiAgentService:
                         repository.getAiAgentService<AiAgentService>(),
                     featureFlagService: repository.getFeatureFlagService(),
@@ -355,6 +363,16 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     writebackPreviewService:
                         repository.getWritebackPreviewService<WritebackPreviewService>(),
                     jobModel: models.getJobModel(),
+                }),
+            aiAgentReviewNotificationService: ({ models, clients }) =>
+                new AiAgentReviewNotificationService({
+                    notificationsModel: models.getNotificationsModel(),
+                    schedulerClient:
+                        clients.getSchedulerClient() as CommercialSchedulerClient,
+                    aiAgentReviewClassifierModel:
+                        models.getAiAgentReviewClassifierModel<AiAgentReviewClassifierModel>(),
+                    organizationMemberProfileModel:
+                        models.getOrganizationMemberProfileModel(),
                 }),
             aiRouterService: ({ models, repository, context }) =>
                 new AiRouterService({
@@ -386,6 +404,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectModel: models.getProjectModel(),
                     featureFlagService: repository.getFeatureFlagService(),
                     lightdashConfig: context.lightdashConfig,
+                    aiAgentReviewNotificationService:
+                        repository.getAiAgentReviewNotificationService<AiAgentReviewNotificationService>(),
                 }),
             aiOrganizationSettingsService: ({ models, context }) =>
                 new AiOrganizationSettingsService({
@@ -743,6 +763,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new ProjectCiStatusModel({ database }),
             aiAgentReviewClassifierModel: ({ database }) =>
                 new AiAgentReviewClassifierModel({ database }),
+            aiAgentReviewNotificationModel: ({ database }) =>
+                new AiAgentReviewNotificationModel({ database }),
             projectContextModel: ({ database }) =>
                 new ProjectContextModel({ database }),
             aiRouterModel: ({ database }) => new AiRouterModel({ database }),
@@ -824,10 +846,18 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 workerHealth: context.workerHealth,
                 aiAgentReviewClassifierService:
                     context.serviceRepository.getAiAgentReviewClassifierService(),
+                aiAgentReviewClassifierModel:
+                    context.models.getAiAgentReviewClassifierModel<AiAgentReviewClassifierModel>(),
+                aiAgentReviewNotificationModel:
+                    context.models.getAiAgentReviewNotificationModel<AiAgentReviewNotificationModel>(),
+                aiAgentReviewNotificationService:
+                    context.serviceRepository.getAiAgentReviewNotificationService<AiAgentReviewNotificationService>(),
                 aiAgentAdminService:
                     context.serviceRepository.getAiAgentAdminService<AiAgentAdminService>(),
                 projectContextService:
                     context.serviceRepository.getProjectContextService<ProjectContextService>(),
+                projectModel: context.models.getProjectModel(),
+                openIdIdentityModel: context.models.getOpenIdIdentityModel(),
             }),
         clientProviders: {
             schedulerClient: ({ context, models }) =>

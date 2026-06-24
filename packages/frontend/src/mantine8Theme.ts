@@ -270,6 +270,11 @@ export const getMantine8ThemeOverride = (
                 defaultProps: {
                     radius: 'md',
                 },
+                vars: (theme, props) => {
+                    if (props.variant === 'subtle')
+                        return subtleInputStyles(theme);
+                    return {};
+                },
             }),
 
             TextInput: TextInput.extend({

@@ -1187,6 +1187,8 @@ export const getAiConfig = () => ({
     mcpConnectionTimeoutMs:
         getIntegerFromEnvironmentVariable('AI_COPILOT_MCP_TIMEOUT_MS') ||
         20_000,
+    mcpAllowPrivateAddresses:
+        process.env.AI_AGENT_MCP_ALLOW_PRIVATE_ADDRESSES === 'true',
 });
 
 export type LoggingConfig = {

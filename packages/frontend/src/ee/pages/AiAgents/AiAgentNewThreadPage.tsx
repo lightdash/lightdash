@@ -123,6 +123,7 @@ const AiAgentNewThreadPage: FC = () => {
     } = useAiAgentModelSelection({
         projectUuid,
         agentUuid,
+        defaultModelConfig: agent.modelConfig,
         organizationSettingsEnabled: !isEmbed,
     });
 

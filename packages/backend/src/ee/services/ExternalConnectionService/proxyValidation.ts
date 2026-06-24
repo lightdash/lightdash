@@ -1,5 +1,25 @@
 import { ParameterError } from '@lightdash/common';
 
+// Throwaway base used only to resolve a relative path through the WHATWG URL
+// parser for segment-collapse normalization — its `.pathname` is read and the
+// rest discarded. It is never fetched or resolved. `.invalid` is a reserved TLD
+// that can never resolve in DNS (RFC 6761), so it can never become a real host.
+const PATH_NORMALIZATION_BASE = 'https://lightdash.invalid';
+
+// Segment-aware prefix allowlist match: a path matches a prefix only when it
+// equals the prefix or continues past it on a `/` boundary, so `/v1/users`
+// does not allow `/v1/users-admin`.
+function pathMatchesAllowedPrefixes(
+    path: string,
+    allowedPathPrefixes: string[],
+): boolean {
+    return allowedPathPrefixes.some((prefix) => {
+        if (path === prefix) return true;
+        const boundary = prefix.endsWith('/') ? prefix : `${prefix}/`;
+        return path.startsWith(boundary);
+    });
+}
+
 // Reject anything that could escape the configured origin or smuggle a host.
 // The decoded path must be a plain, host-free, relative path that prefix-matches
 // one of the connection's allowlisted prefixes.
@@ -71,13 +91,27 @@ export function normalizeAndValidatePath(
     }
 
     // Prefix allowlist match against the decoded, host-free path.
-    // Use segment-aware matching so /v1/users does not allow /v1/users-admin.
-    const matches = allowedPathPrefixes.some((prefix) => {
-        if (decoded === prefix) return true;
-        const boundary = prefix.endsWith('/') ? prefix : `${prefix}/`;
-        return decoded.startsWith(boundary);
-    });
-    if (!matches) {
+    if (!pathMatchesAllowedPrefixes(decoded, allowedPathPrefixes)) {
+        throw new ParameterError('path is not allowed by this connection');
+    }
+
+    // Backstop against encoded dot-segments. A double-encoded `%252e%252e`
+    // survives the single decode above as the inert string `%2e%2e` (no literal
+    // ".." for the check above to catch), but the WHATWG URL parser collapses
+    // `%2e%2e` to a ".." segment when buildOutboundUrl constructs the real URL —
+    // so `/v1/%252e%252e/admin` would be sent as `/admin`, outside the prefix.
+    // Re-validate the COLLAPSED path (the collapse is origin-independent) so
+    // the allowlist holds for what is actually requested. We still return the
+    // un-collapsed `decoded` so legitimate requests are forwarded unchanged.
+    let collapsedPath: string;
+    try {
+        collapsedPath = decodeURIComponent(
+            new URL(decoded, PATH_NORMALIZATION_BASE).pathname,
+        );
+    } catch {
+        throw new ParameterError('path could not be normalized');
+    }
+    if (!pathMatchesAllowedPrefixes(collapsedPath, allowedPathPrefixes)) {
         throw new ParameterError('path is not allowed by this connection');
     }
 

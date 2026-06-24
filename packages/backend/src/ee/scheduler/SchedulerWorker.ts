@@ -7,6 +7,8 @@ import {
     SchedulerJobStatus,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
+import { type OpenIdIdentityModel } from '../../models/OpenIdIdentitiesModel';
+import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { tryJobOrTimeout } from '../../scheduler/SchedulerJobTimeout';
 import {
@@ -14,13 +16,17 @@ import {
     SchedulerWorkerArguments,
 } from '../../scheduler/SchedulerWorker';
 import { TypedEETaskList } from '../../scheduler/types';
+import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
+import { type AiAgentReviewNotificationModel } from '../models/AiAgentReviewNotificationModel';
 import { AiAgentAdminService } from '../services/AiAgentAdminService';
 import { AiAgentReviewClassifierService } from '../services/AiAgentReviewClassifierService';
+import { type AiAgentReviewNotificationService } from '../services/AiAgentReviewNotificationService';
 import { AiAgentService } from '../services/AiAgentService/AiAgentService';
 import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
 import type { EmbedService } from '../services/EmbedService/EmbedService';
 import { ManagedAgentService } from '../services/ManagedAgentService/ManagedAgentService';
 import { ProjectContextService } from '../services/ProjectContextService/ProjectContextService';
+import { sendReviewNotification } from './tasks/sendReviewNotification';
 
 const AI_AGENT_EVAL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 const AI_AGENT_REVIEW_REMEDIATION_RUN_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
@@ -31,17 +37,28 @@ const APP_GENERATE_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
 type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     aiAgentService: AiAgentService;
     aiAgentReviewClassifierService: AiAgentReviewClassifierService;
+    aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
+    aiAgentReviewNotificationModel: AiAgentReviewNotificationModel;
+    aiAgentReviewNotificationService: AiAgentReviewNotificationService;
     aiAgentAdminService: AiAgentAdminService;
     embedService: EmbedService;
     managedAgentService: ManagedAgentService;
     appGenerateService: AppGenerateService;
     projectContextService: ProjectContextService;
+    projectModel: ProjectModel;
+    openIdIdentityModel: OpenIdIdentityModel;
 };
 
 export class CommercialSchedulerWorker extends SchedulerWorker {
     protected readonly aiAgentService: AiAgentService;
 
     protected readonly aiAgentReviewClassifierService: AiAgentReviewClassifierService;
+
+    protected readonly aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
+
+    protected readonly aiAgentReviewNotificationModel: AiAgentReviewNotificationModel;
+
+    protected readonly aiAgentReviewNotificationService: AiAgentReviewNotificationService;
 
     protected readonly aiAgentAdminService: AiAgentAdminService;
 
@@ -53,16 +70,27 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
     protected readonly projectContextService: ProjectContextService;
 
+    protected readonly projectModel: ProjectModel;
+
+    protected readonly openIdIdentityModel: OpenIdIdentityModel;
+
     constructor(args: CommercialSchedulerWorkerArguments) {
         super(args);
         this.aiAgentService = args.aiAgentService;
         this.aiAgentReviewClassifierService =
             args.aiAgentReviewClassifierService;
+        this.aiAgentReviewClassifierModel = args.aiAgentReviewClassifierModel;
+        this.aiAgentReviewNotificationModel =
+            args.aiAgentReviewNotificationModel;
+        this.aiAgentReviewNotificationService =
+            args.aiAgentReviewNotificationService;
         this.aiAgentAdminService = args.aiAgentAdminService;
         this.embedService = args.embedService;
         this.managedAgentService = args.managedAgentService;
         this.appGenerateService = args.appGenerateService;
         this.projectContextService = args.projectContextService;
+        this.projectModel = args.projectModel;
+        this.openIdIdentityModel = args.openIdIdentityModel;
     }
 
     protected getCronItems() {
@@ -386,6 +414,19 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
             },
             [EE_SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: async () => {
                 await this.appGenerateService.sweepStaleLocks();
+            },
+            [EE_SCHEDULER_TASKS.SEND_REVIEW_NOTIFICATION]: async (payload) => {
+                await sendReviewNotification({
+                    siteUrl: this.lightdashConfig.siteUrl,
+                    model: this.aiAgentReviewNotificationModel,
+                    service: this.aiAgentReviewNotificationService,
+                    aiAgentReviewClassifierModel:
+                        this.aiAgentReviewClassifierModel,
+                    projectModel: this.projectModel,
+                    openIdIdentityModel: this.openIdIdentityModel,
+                    slackClient: this.slackClient,
+                    analytics: this.analytics,
+                })(payload);
             },
             [SCHEDULER_TASKS.INGEST_PROJECT_CONTEXT]: async (
                 payload,

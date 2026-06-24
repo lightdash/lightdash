@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { FeatureFlags } from '@lightdash/common';
+import { ContentType, FeatureFlags } from '@lightdash/common';
 import { ActionIcon, Box, Loader, Menu, Stack, Text } from '@mantine-8/core';
 import {
     IconAppsOff,
@@ -8,10 +8,14 @@ import {
     IconPencil,
     IconRefresh,
     IconSend,
+    IconStar,
+    IconStarFilled,
+    IconTrash,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import MantineIcon from '../components/common/MantineIcon';
+import AppDeleteModal from '../components/common/modal/AppDeleteModal';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import AppIframePreview from '../features/apps/AppIframePreview';
@@ -21,6 +25,8 @@ import { useTrackedAppQueries } from '../features/apps/hooks/useTrackedAppQuerie
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
 import QueryInspector from '../features/apps/QueryInspector';
 import { AppSchedulersModal } from '../features/scheduler/components/SchedulerModals';
+import { useFavoriteMutation } from '../hooks/favorites/useFavoriteMutation';
+import { useFavorites } from '../hooks/favorites/useFavorites';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { useSpaceSummaries } from '../hooks/useSpaces';
 import useApp from '../providers/App/useApp';
@@ -73,6 +79,11 @@ export default function AppPreviewTest() {
             }),
         ) === true;
 
+    const { data: favorites } = useFavorites(projectUuid);
+    const isFavorited =
+        favorites?.some((favorite) => favorite.data.uuid === appUuid) ?? false;
+    const { mutate: toggleFavorite } = useFavoriteMutation(projectUuid);
+
     const version = explicitVersion ?? latestReadyVersion;
 
     const {
@@ -83,6 +94,7 @@ export default function AppPreviewTest() {
 
     const [menuOpened, setMenuOpened] = useState(false);
     const [schedulerModalOpen, setSchedulerModalOpen] = useState(false);
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [queriesPanelHidden, setQueriesPanelHidden] = useState(true);
 
     // Query tracking from the preview iframe. The panel is opt-in (hidden by
@@ -216,6 +228,25 @@ export default function AppPreviewTest() {
                         </ActionIcon>
                     </Menu.Target>
                     <Menu.Dropdown>
+                        <Menu.Item
+                            leftSection={
+                                isFavorited ? (
+                                    <IconStarFilled size={14} color="orange" />
+                                ) : (
+                                    <IconStar size={14} />
+                                )
+                            }
+                            onClick={() =>
+                                toggleFavorite({
+                                    contentType: ContentType.DATA_APP,
+                                    contentUuid: appUuid,
+                                })
+                            }
+                        >
+                            {isFavorited
+                                ? 'Remove from favorites'
+                                : 'Add to favorites'}
+                        </Menu.Item>
                         {canEditApp && (
                             <Menu.Item
                                 leftSection={<IconPencil size={14} />}
@@ -249,6 +280,23 @@ export default function AppPreviewTest() {
                         >
                             View queries
                         </Menu.Item>
+                        {canEditApp && (
+                            <>
+                                <Menu.Divider />
+                                <Menu.Item
+                                    color="red"
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconTrash}
+                                            size={14}
+                                        />
+                                    }
+                                    onClick={() => setDeleteModalOpen(true)}
+                                >
+                                    Delete app
+                                </Menu.Item>
+                            </>
+                        )}
                     </Menu.Dropdown>
                 </Menu>
             </Box>
@@ -279,6 +327,19 @@ export default function AppPreviewTest() {
                     name={appQuery.data?.pages[0]?.name ?? 'Data app'}
                     isOpen
                     onClose={() => setSchedulerModalOpen(false)}
+                />
+            )}
+            {deleteModalOpen && (
+                <AppDeleteModal
+                    opened
+                    projectUuid={projectUuid}
+                    uuid={appUuid}
+                    name={appQuery.data?.pages[0]?.name ?? 'Data app'}
+                    onClose={() => setDeleteModalOpen(false)}
+                    onConfirm={() => {
+                        setDeleteModalOpen(false);
+                        void navigate(`/projects/${projectUuid}/home`);
+                    }}
                 />
             )}
         </Box>

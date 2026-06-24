@@ -1,6 +1,5 @@
 import { type DataAppTemplate } from '@lightdash/common';
 import { Stack, Text, ThemeIcon } from '@mantine-8/core';
-import { IconCheck } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { PolymorphicPaperButton } from '../../components/common/PolymorphicPaperButton';
 import classes from './AppTemplatePicker.module.css';
@@ -53,16 +52,6 @@ const AppTemplatePicker: FC<Props> = ({ selected, onSelectedChange }) => (
                             </Text>
                         </Stack>
                     </Stack>
-                    {isSelected && (
-                        <ThemeIcon
-                            size={20}
-                            radius="xl"
-                            color="dark"
-                            className={classes.selectedIndicator}
-                        >
-                            <IconCheck size={12} stroke={3} />
-                        </ThemeIcon>
-                    )}
                 </PolymorphicPaperButton>
             );
         })}

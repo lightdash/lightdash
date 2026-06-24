@@ -12,6 +12,7 @@ import {
     ParameterError,
     ProjectType,
     ServiceAccountScope,
+    ValidationErrorType,
     type ChartConfig,
     type ManagedAgentAction,
     type ManagedAgentActionFilters,
@@ -1778,8 +1779,15 @@ export class ManagedAgentService extends BaseService {
         actor: SessionUser,
         projectUuid: string,
     ): Promise<string> {
-        const validations: ValidationResponse[] =
-            await this.validationModel.get(projectUuid);
+        const validations: ValidationResponse[] = (
+            await this.validationModel.get(projectUuid)
+        ).filter(
+            // Exclude advisory "unused field" warnings so Autopilot does not
+            // remove valid fields or table calculations that are merely flagged
+            // as unused. These are the only validations using ChartConfiguration.
+            (validation) =>
+                validation.errorType !== ValidationErrorType.ChartConfiguration,
+        );
         const { canViewChartUuid, canViewDashboardUuid } =
             this.createContentVisibilityChecker(actor);
 

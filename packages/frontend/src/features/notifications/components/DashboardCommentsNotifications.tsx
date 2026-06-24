@@ -1,4 +1,4 @@
-import { type Notification } from '@lightdash/common';
+import { type NotificationDashboardComment } from '@lightdash/common';
 import { Menu } from '@mantine-8/core';
 import { Text, Tooltip, useMantineTheme } from '@mantine/core';
 import { IconCircleFilled } from '@tabler/icons-react';
@@ -14,7 +14,7 @@ import classes from './DashboardCommentsNotifications.module.css';
 
 type Props = {
     projectUuid: string;
-    notifications: Notification[];
+    notifications: NotificationDashboardComment[];
 };
 
 const NotificationTime: FC<{ createdAt: Date }> = ({ createdAt }) => {
@@ -52,7 +52,7 @@ export const DashboardCommentsNotifications: FC<Props> = ({
     const { mutateAsync: updateNotification } = useUpdateNotification();
 
     const handleOnNotificationClick = useCallback(
-        async (notification: Notification) => {
+        async (notification: NotificationDashboardComment) => {
             await updateNotification({
                 notificationId: notification.notificationId,
                 resourceType: notification.resourceType,

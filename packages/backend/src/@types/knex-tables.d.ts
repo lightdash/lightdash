@@ -416,6 +416,12 @@ import {
     AiEvalTableName,
 } from '../ee/database/entities/aiEvals';
 import {
+    AiReviewNotificationLogTable,
+    AiReviewNotificationLogTableName,
+    AiReviewNotificationSettingsTable,
+    AiReviewNotificationSettingsTableName,
+} from '../ee/database/entities/aiReviewNotifications';
+import {
     AiRouterDecisionTable,
     AiRouterDecisionTableName,
     AiRouterTable,
@@ -591,6 +597,8 @@ declare module 'knex/types/tables' {
         [AiSqlApprovalTableName]: AiSqlApprovalTable;
         [DashboardTabsTableName]: DashboardTabsTable;
         [NotificationsTableName]: NotificationsTable;
+        [AiReviewNotificationLogTableName]: AiReviewNotificationLogTable;
+        [AiReviewNotificationSettingsTableName]: AiReviewNotificationSettingsTable;
         [DashboardSummariesTableName]: DashboardSummariesTable;
         [CatalogTableName]: CatalogTable;
         [SlackChannelProjectMappingsTableName]: SlackChannelProjectMappingsTable;

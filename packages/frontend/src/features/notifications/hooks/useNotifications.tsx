@@ -9,18 +9,28 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 
-const getNotifications = async (type: ApiNotificationResourceType) =>
-    lightdashApi<ApiGetNotifications['results']>({
+type NotificationForResource<T extends ApiNotificationResourceType> = Extract<
+    Notification,
+    { resourceType: T }
+>;
+
+const getNotifications = async <T extends ApiNotificationResourceType>(
+    type: T,
+): Promise<NotificationForResource<T>[]> => {
+    const results = await lightdashApi<ApiGetNotifications['results']>({
         url: `/notifications?type=${type}`,
         method: 'GET',
         body: undefined,
     });
 
-export const useGetNotifications = (
-    type: ApiNotificationResourceType,
+    return results as NotificationForResource<T>[];
+};
+
+export const useGetNotifications = <T extends ApiNotificationResourceType>(
+    type: T,
     enabled: boolean,
 ) =>
-    useQuery<ApiGetNotifications['results'], ApiError>(
+    useQuery<NotificationForResource<T>[], ApiError>(
         ['notifications', type],
         () => getNotifications(type),
         {

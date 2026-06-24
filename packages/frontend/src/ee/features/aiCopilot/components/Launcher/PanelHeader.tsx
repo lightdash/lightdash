@@ -41,6 +41,8 @@ type Props = {
     agents: AiAgentSummary[];
     title: string;
     threadId: string | null;
+    showAgentSwitcher?: boolean;
+    showAgentIdentity?: boolean;
 };
 
 export const PanelHeader: FC<Props> = ({
@@ -49,6 +51,8 @@ export const PanelHeader: FC<Props> = ({
     agents,
     title,
     threadId,
+    showAgentSwitcher = true,
+    showAgentIdentity = true,
 }) => {
     const dispatch = useAiAgentStoreDispatch();
     const navigate = useNavigate();
@@ -62,7 +66,9 @@ export const PanelHeader: FC<Props> = ({
     const selectedAgentUuid = getConcreteLauncherAgent(agent)?.uuid ?? null;
 
     const canSwitchAgent =
-        threadId === null && (agents.length > 1 || showAutoOption);
+        showAgentSwitcher &&
+        threadId === null &&
+        (agents.length > 1 || showAutoOption);
 
     const handleClose = () => dispatch(closePanel());
     const handleSwitchAgent = (nextAgentUuid: string) => {
@@ -199,7 +205,7 @@ export const PanelHeader: FC<Props> = ({
                             ))}
                         </Menu.Dropdown>
                     </Menu>
-                ) : (
+                ) : showAgentIdentity ? (
                     <Group gap="xs" wrap="nowrap" className={styles.minWidth0}>
                         {isAuto ? (
                             <Avatar size="sm" color="ldGray" radius="xl">
@@ -222,7 +228,7 @@ export const PanelHeader: FC<Props> = ({
                             {title}
                         </Text>
                     </Group>
-                )}
+                ) : null}
             </Group>
             <Group gap="xs" wrap="nowrap">
                 <ActionIcon

@@ -32,5 +32,8 @@ declare module '@tanstack/react-table' {
     interface TableMeta<_TData extends RowData> {
         columnStats?: ColumnStatsMap;
         columnsConfig?: VizColumnsConfig;
+        // Widest formatted label per column, used to reserve a constant
+        // label gutter so "bars in cells" scale against the same track width
+        barLabelMaxMap?: Record<string, string>;
     }
 }

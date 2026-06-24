@@ -1860,6 +1860,153 @@ export class UnfurlService extends BaseService {
                                     ),
                                 ),
                             );
+                            // DIAG-app-screenshot-viewport — remove after investigation.
+                            // Fully isolated: errors and timeouts cannot affect the screenshot,
+                            // and the entire block is unreachable for non-APP deliveries.
+                            if (lightdashPage === LightdashPage.APP) {
+                                if (lightdashPage !== LightdashPage.APP) {
+                                    this.logger.warn(
+                                        `[APP-DIAG] unreachable non-APP diagnostic path - unfurlId: ${imageId}`,
+                                    );
+                                } else {
+                                    const DIAG_BUDGET_MS = 2000;
+                                    const diagWork = (async () => {
+                                        const frames = page!.frames();
+                                        const diagFrame = frames.find(
+                                            (f) => f !== page!.mainFrame(),
+                                        );
+                                        const playwrightViewport =
+                                            page!.viewportSize();
+                                        const parentView = await page!.evaluate(
+                                            () => ({
+                                                innerW: window.innerWidth,
+                                                innerH: window.innerHeight,
+                                                dpr: window.devicePixelRatio,
+                                                docW: document.documentElement
+                                                    .clientWidth,
+                                                docH: document.documentElement
+                                                    .clientHeight,
+                                            }),
+                                        );
+                                        const iframeView = diagFrame
+                                            ? await diagFrame.evaluate(() => ({
+                                                  innerW: window.innerWidth,
+                                                  innerH: window.innerHeight,
+                                                  dpr: window.devicePixelRatio,
+                                                  bodyScrollW:
+                                                      document.body
+                                                          ?.scrollWidth ?? null,
+                                                  bodyScrollH:
+                                                      document.body
+                                                          ?.scrollHeight ??
+                                                      null,
+                                                  docScrollW:
+                                                      document.documentElement
+                                                          .scrollWidth,
+                                                  docScrollH:
+                                                      document.documentElement
+                                                          .scrollHeight,
+                                                  rootRect: (() => {
+                                                      const r = (
+                                                          document.querySelector(
+                                                              '#root',
+                                                          ) ?? document.body
+                                                      )?.getBoundingClientRect();
+                                                      return r
+                                                          ? {
+                                                                w: r.width,
+                                                                h: r.height,
+                                                                x: r.x,
+                                                                y: r.y,
+                                                            }
+                                                          : null;
+                                                  })(),
+                                                  maxLeafRight: (() => {
+                                                      let maxRight = 0;
+                                                      const root =
+                                                          document.querySelector(
+                                                              '#root',
+                                                          ) ?? document.body;
+                                                      if (!root) return 0;
+                                                      const walker =
+                                                          document.createTreeWalker(
+                                                              root,
+                                                              NodeFilter.SHOW_ELEMENT,
+                                                          );
+                                                      let node: Node | null =
+                                                          walker.currentNode;
+                                                      while (node) {
+                                                          const el =
+                                                              node as Element;
+                                                          if (
+                                                              el.children
+                                                                  .length === 0
+                                                          ) {
+                                                              const rect =
+                                                                  el.getBoundingClientRect();
+                                                              if (
+                                                                  rect.width >
+                                                                      0 &&
+                                                                  rect.height >
+                                                                      0
+                                                              ) {
+                                                                  maxRight =
+                                                                      Math.max(
+                                                                          maxRight,
+                                                                          rect.right,
+                                                                      );
+                                                              }
+                                                          }
+                                                          node =
+                                                              walker.nextNode();
+                                                      }
+                                                      return Math.ceil(
+                                                          maxRight,
+                                                      );
+                                                  })(),
+                                              }))
+                                            : null;
+                                        this.logger.info(
+                                            `[APP-DIAG] unfurlId=${imageId} playwrightViewport=${JSON.stringify(
+                                                playwrightViewport,
+                                            )} parent=${JSON.stringify(
+                                                parentView,
+                                            )} iframe=${JSON.stringify(
+                                                iframeView,
+                                            )} iframeBox=${JSON.stringify(
+                                                iframeBox,
+                                            )} clipW=${clipWidth} clipH=${clipHeight} appContentHeight=${
+                                                appContentHeight ?? null
+                                            }`,
+                                        );
+                                    })();
+
+                                    try {
+                                        await Promise.race([
+                                            diagWork,
+                                            new Promise<void>((_, reject) => {
+                                                setTimeout(
+                                                    () =>
+                                                        reject(
+                                                            new Error(
+                                                                'diag timeout',
+                                                            ),
+                                                        ),
+                                                    DIAG_BUDGET_MS,
+                                                );
+                                            }),
+                                        ]);
+                                    } catch (diagErr) {
+                                        this.logger.warn(
+                                            `[APP-DIAG] skipped: ${
+                                                diagErr instanceof Error
+                                                    ? diagErr.message
+                                                    : String(diagErr)
+                                            } - unfurlId: ${imageId}`,
+                                        );
+                                    }
+                                }
+                            }
                             imageBuffer = await page.screenshot({
                                 path,
                                 animations: 'disabled',

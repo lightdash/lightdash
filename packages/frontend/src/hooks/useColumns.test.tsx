@@ -30,12 +30,14 @@ const createMockCellContext = ({
     value,
     minMaxMap,
     columnProperties,
+    barLabelMaxMap,
     item,
 }: {
     columnId: string;
     value: ResultValue;
     minMaxMap?: Record<string, { min: number; max: number }>;
     columnProperties?: Record<string, { displayStyle?: 'text' | 'bar' }>;
+    barLabelMaxMap?: Record<string, string>;
     item?: any;
 }): CellContext<ResultRow, { value: ResultValue }> => {
     return {
@@ -51,6 +53,7 @@ const createMockCellContext = ({
                 meta: {
                     minMaxMap,
                     columnProperties,
+                    barLabelMaxMap,
                 },
             },
         },
@@ -364,6 +367,66 @@ describe('getFormattedValueCell - Bar Chart Display', () => {
         // Should have the default color (#5470c6)
         const style = barElement?.getAttribute('style') || '';
         expect(style).toContain('background');
+    });
+
+    test('reserves a constant label gutter using the widest label in the column (PROD-8457)', () => {
+        // This row is narrower than the column's widest label, so an invisible
+        // sizer holds the widest label to keep the bar track width constant.
+        const context = createMockCellContext({
+            columnId: 'revenue',
+            value: {
+                raw: 998,
+                formatted: '998',
+            },
+            minMaxMap: {
+                revenue: { min: 300, max: 1700 },
+            },
+            columnProperties: {
+                revenue: { displayStyle: 'bar' },
+            },
+            barLabelMaxMap: {
+                revenue: '1,700',
+            },
+        });
+
+        const result = getFormattedValueCell(context);
+        renderWithMantine(result as React.ReactElement);
+
+        // The visible label is this row's own value
+        expect(screen.getByText('998')).toBeInTheDocument();
+
+        // An invisible sizer reserves space for the column's widest label
+        const sizer = screen.getByText('1,700');
+        expect(sizer).toBeInTheDocument();
+        expect(sizer.getAttribute('style') || '').toContain(
+            'visibility: hidden',
+        );
+        expect(sizer).toHaveAttribute('aria-hidden', 'true');
+    });
+
+    test('does not duplicate the label when this row is the widest', () => {
+        const context = createMockCellContext({
+            columnId: 'revenue',
+            value: {
+                raw: 1700,
+                formatted: '1,700',
+            },
+            minMaxMap: {
+                revenue: { min: 300, max: 1700 },
+            },
+            columnProperties: {
+                revenue: { displayStyle: 'bar' },
+            },
+            barLabelMaxMap: {
+                revenue: '1,700',
+            },
+        });
+
+        const result = getFormattedValueCell(context);
+        renderWithMantine(result as React.ReactElement);
+
+        // No invisible sizer needed, so the label appears exactly once
+        expect(screen.getAllByText('1,700')).toHaveLength(1);
     });
 });
 

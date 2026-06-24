@@ -14,6 +14,7 @@ import {
     AiAgentReviewSignalSummary,
     AiAgentReviewWritebackJobPayload,
     AiAgentSummary,
+    AiReviewNotificationSettings,
     AlreadyExistsError,
     assertUnreachable,
     DbtProjectType,
@@ -32,6 +33,7 @@ import {
     PullRequestSource,
     RequestMethod,
     UpdateAiAgentReviewItemStatus,
+    UpdateAiReviewNotificationSettings,
     type AiAgentReviewItemWritebackBlockedReason,
     type AiAgentReviewItemWritebackEligibility,
     type AiAgentReviewItemWritebackPreview,
@@ -65,12 +67,14 @@ import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagS
 import { type ProjectService } from '../../services/ProjectService/ProjectService';
 import { AiAgentModel } from '../models/AiAgentModel';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
+import { type AiAgentReviewNotificationModel } from '../models/AiAgentReviewNotificationModel';
 import { type CommercialSchedulerClient } from '../scheduler/SchedulerClient';
 import {
     buildYmlPathByModel,
     planReviewWriteback,
     PROJECT_CONTEXT_WORK_THREAD_INSTRUCTION,
 } from './ai/reviewWriteback/buildReviewWritebackPrompt';
+import { type AiAgentReviewNotificationService } from './AiAgentReviewNotificationService';
 import { type AiAgentService } from './AiAgentService/AiAgentService';
 import { type AiOrganizationSettingsService } from './AiOrganizationSettingsService';
 import { type WritebackPreviewService } from './AiWritebackService/WritebackPreviewService';
@@ -80,6 +84,8 @@ type AiAgentAdminServiceDependencies = {
     analytics: LightdashAnalytics;
     aiAgentModel: AiAgentModel;
     aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
+    aiAgentReviewNotificationModel: AiAgentReviewNotificationModel;
+    aiAgentReviewNotificationService: AiAgentReviewNotificationService;
     aiAgentService: AiAgentService;
     featureFlagService: FeatureFlagService;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
@@ -290,6 +296,10 @@ export class AiAgentAdminService extends BaseService {
 
     private readonly aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
 
+    private readonly aiAgentReviewNotificationModel: AiAgentReviewNotificationModel;
+
+    private readonly aiAgentReviewNotificationService: AiAgentReviewNotificationService;
+
     private readonly aiAgentService: AiAgentService;
 
     private readonly featureFlagService: FeatureFlagService;
@@ -322,6 +332,10 @@ export class AiAgentAdminService extends BaseService {
         this.aiAgentModel = dependencies.aiAgentModel;
         this.aiAgentReviewClassifierModel =
             dependencies.aiAgentReviewClassifierModel;
+        this.aiAgentReviewNotificationModel =
+            dependencies.aiAgentReviewNotificationModel;
+        this.aiAgentReviewNotificationService =
+            dependencies.aiAgentReviewNotificationService;
         this.aiAgentService = dependencies.aiAgentService;
         this.featureFlagService = dependencies.featureFlagService;
         this.aiOrganizationSettingsService =
@@ -353,6 +367,25 @@ export class AiAgentAdminService extends BaseService {
         ) {
             throw new ForbiddenError(
                 'Insufficient permissions to access organization-wide AI agent data',
+            );
+        }
+    }
+
+    private checkReviewAccess(
+        user: SessionUser,
+        organizationUuid: string,
+    ): void {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('AiAgent', {
+                    organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Insufficient permissions to access AI agent reviews',
             );
         }
     }
@@ -418,6 +451,36 @@ export class AiAgentAdminService extends BaseService {
         });
     }
 
+    async getReviewNotificationSettings(
+        user: SessionUser,
+    ): Promise<AiReviewNotificationSettings> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkReviewAccess(user, organizationUuid);
+
+        return this.aiAgentReviewNotificationModel.getSettings(
+            organizationUuid,
+        );
+    }
+
+    async updateReviewNotificationSettings(
+        user: SessionUser,
+        settings: UpdateAiReviewNotificationSettings,
+    ): Promise<AiReviewNotificationSettings> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkOrganizationAdminAccess(user);
+
+        return this.aiAgentReviewNotificationModel.upsertSettings({
+            organizationUuid,
+            ...settings,
+        });
+    }
+
     async listReviewItems(
         user: SessionUser,
         statuses?: AiAgentReviewItemStatus[],
@@ -426,7 +489,7 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        this.checkOrganizationAdminAccess(user);
+        this.checkReviewAccess(user, organizationUuid);
 
         const items = await this.aiAgentReviewClassifierModel.listReviewItems({
             organizationUuid,
@@ -808,7 +871,7 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        this.checkOrganizationAdminAccess(user);
+        this.checkReviewAccess(user, organizationUuid);
 
         return this.aiAgentReviewClassifierModel.listReviewSignals({
             organizationUuid,
@@ -824,7 +887,7 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        this.checkOrganizationAdminAccess(user);
+        this.checkReviewAccess(user, organizationUuid);
 
         if (update.status === 'dismissed' && !update.dismissedReason) {
             throw new ParameterError(
@@ -930,7 +993,7 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        this.checkOrganizationAdminAccess(user);
+        this.checkReviewAccess(user, organizationUuid);
 
         // Resolve scope per fingerprint (reads — safe to parallelise), drop any
         // that are no longer promoted, then persist the whole lane order in one
@@ -968,7 +1031,7 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        this.checkOrganizationAdminAccess(user);
+        this.checkReviewAccess(user, organizationUuid);
 
         await this.aiAgentReviewClassifierModel.updateReviewItemAssignee({
             fingerprint,
@@ -976,7 +1039,19 @@ export class AiAgentAdminService extends BaseService {
             assignedToUserUuid,
         });
 
-        return this.getReviewItem(user, fingerprint);
+        const item = await this.getReviewItem(user, fingerprint);
+
+        if (assignedToUserUuid !== null && item.projectUuid !== null) {
+            await this.aiAgentReviewNotificationService.notifyAssigned({
+                organizationUuid,
+                projectUuid: item.projectUuid,
+                fingerprint,
+                assigneeUserUuid: assignedToUserUuid,
+                actorUserUuid: user.userUuid,
+            });
+        }
+
+        return item;
     }
 
     async createReviewItemWriteback(
@@ -987,7 +1062,7 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        this.checkOrganizationAdminAccess(user);
+        this.checkReviewAccess(user, organizationUuid);
 
         const reviewItem =
             await this.aiAgentReviewClassifierModel.getReviewItem(
@@ -1555,7 +1630,7 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        this.checkOrganizationAdminAccess(user);
+        this.checkReviewAccess(user, organizationUuid);
 
         const reviewItem =
             await this.aiAgentReviewClassifierModel.getReviewItem(
@@ -1636,7 +1711,7 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        this.checkOrganizationAdminAccess(user);
+        this.checkReviewAccess(user, organizationUuid);
 
         const reviewItem =
             await this.aiAgentReviewClassifierModel.getReviewItem(
@@ -2052,7 +2127,7 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        this.checkOrganizationAdminAccess(user);
+        this.checkReviewAccess(user, organizationUuid);
 
         const reviewItem =
             await this.aiAgentReviewClassifierModel.getReviewItem(
@@ -2099,7 +2174,7 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        this.checkOrganizationAdminAccess(user);
+        this.checkReviewAccess(user, organizationUuid);
 
         const remediation =
             await this.aiAgentReviewClassifierModel.findReviewRemediationByPreviewThread(
@@ -2123,7 +2198,7 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        this.checkOrganizationAdminAccess(user);
+        this.checkReviewAccess(user, organizationUuid);
 
         const reviewItem =
             await this.aiAgentReviewClassifierModel.getReviewItem(
@@ -2180,7 +2255,7 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        this.checkOrganizationAdminAccess(user);
+        this.checkReviewAccess(user, organizationUuid);
 
         const reviewItem =
             await this.aiAgentReviewClassifierModel.getReviewItem(

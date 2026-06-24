@@ -123,13 +123,31 @@ const makeAdminUser = (): SessionUser => ({
     timezone: null,
     ability: new Ability<PossibleAbilities>([
         { action: 'manage', subject: 'Organization' },
+        {
+            action: 'manage',
+            subject: 'AiAgent',
+            conditions: { organizationUuid: ORGANIZATION_UUID },
+        },
     ]),
     abilityRules: [],
+});
+
+const makeDeveloperUser = (): SessionUser => ({
+    ...makeAdminUser(),
+    role: OrganizationMemberRole.DEVELOPER,
+    ability: new Ability<PossibleAbilities>([
+        {
+            action: 'manage',
+            subject: 'AiAgent',
+            conditions: { organizationUuid: ORGANIZATION_UUID },
+        },
+    ]),
 });
 
 const makeService = ({
     aiAgentModel = {},
     aiAgentReviewClassifierModel = {},
+    aiAgentReviewNotificationModel = {},
     featureFlagService = {},
     aiOrganizationSettingsService = {},
     projectModel = {},
@@ -142,9 +160,11 @@ const makeService = ({
     writebackPreviewService = {},
     jobModel = {},
     userModel = {},
+    aiAgentReviewNotificationService = {},
 }: {
     aiAgentModel?: Record<string, unknown>;
     aiAgentReviewClassifierModel?: Record<string, unknown>;
+    aiAgentReviewNotificationModel?: Record<string, unknown>;
     featureFlagService?: Record<string, unknown>;
     aiOrganizationSettingsService?: Record<string, unknown>;
     projectModel?: Record<string, unknown>;
@@ -157,6 +177,7 @@ const makeService = ({
     writebackPreviewService?: Record<string, unknown>;
     jobModel?: Record<string, unknown>;
     userModel?: Record<string, unknown>;
+    aiAgentReviewNotificationService?: Record<string, unknown>;
 } = {}) =>
     new AiAgentAdminService({
         analytics: { track: jest.fn() },
@@ -208,6 +229,19 @@ const makeService = ({
                 .fn()
                 .mockResolvedValue(null),
             ...aiAgentReviewClassifierModel,
+        },
+        aiAgentReviewNotificationModel: {
+            getSettings: jest.fn().mockResolvedValue({
+                organizationUuid: ORGANIZATION_UUID,
+                enabled: false,
+                slackChannelId: null,
+            }),
+            upsertSettings: jest.fn().mockResolvedValue({
+                organizationUuid: ORGANIZATION_UUID,
+                enabled: true,
+                slackChannelId: 'C123',
+            }),
+            ...aiAgentReviewNotificationModel,
         },
         featureFlagService: {
             get: jest.fn().mockResolvedValue({ enabled: true }),
@@ -281,6 +315,10 @@ const makeService = ({
             findSessionUserByUUID: jest.fn().mockResolvedValue(makeAdminUser()),
             ...userModel,
         },
+        aiAgentReviewNotificationService: {
+            notifyAssigned: jest.fn().mockResolvedValue(undefined),
+            ...aiAgentReviewNotificationService,
+        },
         lightdashConfig: {
             siteUrl: SITE_URL,
             appRuntime: { e2bApiKey: 'e2b-api-key' },
@@ -328,6 +366,111 @@ describe('AiAgentAdminService.getPromptActivity', () => {
             'Insufficient permissions to access organization-wide AI agent data',
         );
         expect(findAdminPromptActivity).not.toHaveBeenCalled();
+    });
+});
+
+describe('AiAgentAdminService review access', () => {
+    it('allows developers with manage:AiAgent to access reviews', async () => {
+        const listReviewSignals = jest.fn().mockResolvedValue([]);
+        const service = makeService({
+            aiAgentReviewClassifierModel: { listReviewSignals },
+        });
+
+        await expect(
+            service.listReviewSignals(makeDeveloperUser()),
+        ).resolves.toEqual([]);
+        expect(listReviewSignals).toHaveBeenCalledWith({
+            organizationUuid: ORGANIZATION_UUID,
+        });
+    });
+
+    it('forbids users without manage:AiAgent from reviews', async () => {
+        const listReviewSignals = jest.fn();
+        const service = makeService({
+            aiAgentReviewClassifierModel: { listReviewSignals },
+        });
+        const user = {
+            ...makeAdminUser(),
+            role: OrganizationMemberRole.DEVELOPER,
+            ability: new Ability<PossibleAbilities>([]),
+        };
+
+        await expect(service.listReviewSignals(user)).rejects.toThrow(
+            'Insufficient permissions to access AI agent reviews',
+        );
+        expect(listReviewSignals).not.toHaveBeenCalled();
+    });
+});
+
+describe('AiAgentAdminService.updateReviewItemAssignee', () => {
+    it('notifies the assignee after the model write succeeds', async () => {
+        const notifyAssigned = jest.fn().mockResolvedValue(undefined);
+        const updateReviewItemAssignee = jest.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            aiAgentReviewClassifierModel: {
+                updateReviewItemAssignee,
+                getReviewItem: jest.fn().mockResolvedValue(
+                    makeReviewItem({
+                        organizationUuid: ORGANIZATION_UUID,
+                        projectUuid: PROJECT_UUID,
+                    }),
+                ),
+            },
+            aiAgentReviewNotificationService: { notifyAssigned },
+        });
+
+        await service.updateReviewItemAssignee(
+            makeDeveloperUser(),
+            'fingerprint-1',
+            'user-2',
+        );
+
+        expect(notifyAssigned).toHaveBeenCalledWith({
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PROJECT_UUID,
+            fingerprint: 'fingerprint-1',
+            assigneeUserUuid: 'user-2',
+            actorUserUuid: USER_UUID,
+        });
+    });
+});
+
+describe('AiAgentAdminService review notification settings', () => {
+    it('allows developers to read settings', async () => {
+        const getSettings = jest.fn().mockResolvedValue({
+            organizationUuid: ORGANIZATION_UUID,
+            enabled: true,
+            slackChannelId: 'C123',
+        });
+        const service = makeService({
+            aiAgentReviewNotificationModel: { getSettings },
+        });
+
+        await expect(
+            service.getReviewNotificationSettings(makeDeveloperUser()),
+        ).resolves.toEqual({
+            organizationUuid: ORGANIZATION_UUID,
+            enabled: true,
+            slackChannelId: 'C123',
+        });
+        expect(getSettings).toHaveBeenCalledWith(ORGANIZATION_UUID);
+    });
+
+    it('forbids developers from updating settings', async () => {
+        const upsertSettings = jest.fn();
+        const service = makeService({
+            aiAgentReviewNotificationModel: { upsertSettings },
+        });
+
+        await expect(
+            service.updateReviewNotificationSettings(makeDeveloperUser(), {
+                enabled: true,
+                slackChannelId: 'C123',
+            }),
+        ).rejects.toThrow(
+            'Insufficient permissions to access organization-wide AI agent data',
+        );
+        expect(upsertSettings).not.toHaveBeenCalled();
     });
 });
 

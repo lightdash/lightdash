@@ -33,6 +33,7 @@ import type {
     ApiAiGenerateTableCalculationResponse,
     ApiAiGetDashboardSummaryResponse,
     ApiAiOrganizationSettingsResponse,
+    ApiAiReviewNotificationSettingsResponse,
     ApiAiRouterDecisionCommitResponse,
     ApiAiRouterDecisionListResponse,
     ApiAiRouterInstructionResponse,
@@ -551,6 +552,9 @@ export type HealthState = {
         analyticsProjectUuid?: string;
         analyticsDashboardUuid?: string;
         isAmbientAiEnabled: boolean;
+    };
+    echarts6: {
+        enabled: boolean;
     };
     funnelBuilder: {
         enabled: boolean;
@@ -1126,6 +1130,7 @@ type ApiResults =
     | ApiGetChangeResponse['results']
     | ApiAiOrganizationSettingsResponse['results']
     | ApiUpdateAiOrganizationSettingsResponse['results']
+    | ApiAiReviewNotificationSettingsResponse['results']
     | ApiAiRouterResponse['results']
     | ApiAiRouterRouteResponse['results']
     | ApiAiRouterInstructionResponse['results']

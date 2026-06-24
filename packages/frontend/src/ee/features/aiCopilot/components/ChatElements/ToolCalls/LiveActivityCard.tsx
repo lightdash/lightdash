@@ -16,13 +16,9 @@ import {
 } from '@mantine-8/core';
 import { IconChevronRight, IconNotes } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
-import remarkEmoji from 'remark-emoji';
-import remarkGfm from 'remark-gfm';
-import { Streamdown } from 'streamdown';
+import { AiMarkdown } from '../../../../../../components/common/AiMarkdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { type StepProgressMessage } from '../../../store/aiAgentThreadStreamSlice';
-import bubbleStyles from '../AgentChatAssistantBubble.module.css';
-import { AiMarkdownErrorBoundary } from '../AiMarkdownErrorBoundary';
 import { AgentStepGroups } from './AgentStepGroups';
 import { ToolCallDescription } from './descriptions/ToolCallDescription';
 import { DiscoverFieldsTrace, type TraceEntry } from './DiscoverFieldsTrace';
@@ -249,24 +245,9 @@ export const ReasoningHistoryRow: FC<{
                 transitionDuration={240}
                 transitionTimingFunction="cubic-bezier(0.16, 1, 0.3, 1)"
             >
-                <Box
-                    className={`${styles.reasoningBody} ${bubbleStyles.aiMarkdown}`}
-                    style={{
-                        fontStyle: 'italic',
-                        color: 'var(--mantine-color-ldGray-7)',
-                    }}
-                >
-                    <AiMarkdownErrorBoundary>
-                        <Streamdown
-                            parseIncompleteMarkdown
-                            controls={false}
-                            mode="static"
-                            remarkPlugins={[remarkGfm, remarkEmoji]}
-                        >
-                            {combined}
-                        </Streamdown>
-                    </AiMarkdownErrorBoundary>
-                </Box>
+                <AiMarkdown className={styles.reasoningBody}>
+                    {combined}
+                </AiMarkdown>
             </Collapse>
         </Box>
     );
