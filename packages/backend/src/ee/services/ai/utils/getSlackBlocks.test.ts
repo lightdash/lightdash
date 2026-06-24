@@ -288,4 +288,90 @@ describe('Slack AI agent blocks', () => {
             },
         ]);
     });
+
+    it('uses the latest visualization attempt image when a single artifact was retried', async () => {
+        const artifact = {
+            artifactUuid: 'artifact-1',
+            threadUuid: 'thread-1',
+            promptUuid: 'prompt-1',
+            artifactType: 'chart' as const,
+            savedQueryUuid: null,
+            savedDashboardUuid: null,
+            createdAt: new Date(),
+            versionNumber: 3,
+            versionUuid: 'version-3',
+            title: 'Orders Over Time',
+            description: null,
+            dashboardConfig: null,
+            versionCreatedAt: new Date(),
+            verifiedByUserUuid: null,
+            verifiedAt: null,
+            chartConfig: {
+                title: 'Orders Over Time',
+                description: 'Orders by month',
+                queryConfig: {
+                    exploreName: 'orders',
+                    dimensions: ['orders_order_date_month'],
+                    metrics: ['orders_unique_order_count'],
+                    sorts: [],
+                    limit: 500,
+                    customMetrics: [],
+                    tableCalculations: [],
+                    filters: null,
+                },
+                chartConfig: null,
+            },
+        };
+
+        const attempt = (callId: string, url: string) => ({
+            uuid: `result-${callId}`,
+            promptUuid: 'prompt-1',
+            toolCallId: callId,
+            toolType: 'built-in' as const,
+            toolName: 'generateVisualization' as const,
+            result: 'ok',
+            createdAt: new Date(),
+            metadata: {
+                status: 'success',
+                chartImageUrl: url,
+            } as never,
+        });
+
+        const blocks = await getModernArtifactCardBlocks(
+            {
+                promptUuid: 'prompt-1',
+                projectUuid: 'project-1',
+                threadUuid: 'thread-1',
+            } as never,
+            'https://lightdash.example.com',
+            500,
+            async () => 'https://lightdash.example.com/share/chart',
+            async () => ({}) as never,
+            'agent-1',
+            [artifact],
+            [
+                attempt(
+                    'call-1',
+                    'https://files.slack.com/chart-attempt-1.png',
+                ),
+                attempt(
+                    'call-2',
+                    'https://files.slack.com/chart-attempt-2.png',
+                ),
+                attempt(
+                    'call-3',
+                    'https://files.slack.com/chart-attempt-3.png',
+                ),
+            ],
+        );
+
+        expect(blocks).toMatchObject([
+            {
+                type: 'card',
+                hero_image: {
+                    image_url: 'https://files.slack.com/chart-attempt-3.png',
+                },
+            },
+        ]);
+    });
 });
