@@ -4,56 +4,44 @@ const OrgMemberTable = 'organization_member_user_attributes';
 const GroupTable = 'group_user_attributes';
 const UserAttributesTable = 'user_attributes';
 
+// Additive (expand) migration: add array columns alongside the existing scalar
+// columns and backfill them, so old code that still reads/writes `value` /
+// `attribute_default` keeps working during a rolling deploy. The scalar columns
+// are dropped in a later migration once all code uses the array columns.
 export async function up(knex: Knex): Promise<void> {
-    // Widen the single-value columns to arrays, then rename to plurals so the
-    // column names reflect that they now hold multiple values.
+    await knex.schema.alterTable(OrgMemberTable, (table) => {
+        table.specificType('values', 'text[]').nullable();
+    });
     await knex.raw(
-        'ALTER TABLE ?? ALTER COLUMN value TYPE text[] USING ARRAY[value]',
+        'UPDATE ?? SET "values" = ARRAY[value] WHERE value IS NOT NULL',
         [OrgMemberTable],
     );
+
+    await knex.schema.alterTable(GroupTable, (table) => {
+        table.specificType('values', 'text[]').nullable();
+    });
     await knex.raw(
-        'ALTER TABLE ?? ALTER COLUMN value TYPE text[] USING ARRAY[value]',
+        'UPDATE ?? SET "values" = ARRAY[value] WHERE value IS NOT NULL',
         [GroupTable],
     );
+
+    await knex.schema.alterTable(UserAttributesTable, (table) => {
+        table.specificType('attribute_defaults', 'text[]').nullable();
+    });
     await knex.raw(
-        `ALTER TABLE ?? ALTER COLUMN attribute_default TYPE text[]
-         USING (CASE WHEN attribute_default IS NULL THEN NULL ELSE ARRAY[attribute_default] END)`,
+        'UPDATE ?? SET attribute_defaults = ARRAY[attribute_default] WHERE attribute_default IS NOT NULL',
         [UserAttributesTable],
     );
-
-    await knex.schema.alterTable(OrgMemberTable, (table) => {
-        table.renameColumn('value', 'values');
-    });
-    await knex.schema.alterTable(GroupTable, (table) => {
-        table.renameColumn('value', 'values');
-    });
-    await knex.schema.alterTable(UserAttributesTable, (table) => {
-        table.renameColumn('attribute_default', 'attribute_defaults');
-    });
 }
 
 export async function down(knex: Knex): Promise<void> {
     await knex.schema.alterTable(OrgMemberTable, (table) => {
-        table.renameColumn('values', 'value');
+        table.dropColumn('values');
     });
     await knex.schema.alterTable(GroupTable, (table) => {
-        table.renameColumn('values', 'value');
+        table.dropColumn('values');
     });
     await knex.schema.alterTable(UserAttributesTable, (table) => {
-        table.renameColumn('attribute_defaults', 'attribute_default');
+        table.dropColumn('attribute_defaults');
     });
-
-    await knex.raw(
-        'ALTER TABLE ?? ALTER COLUMN value TYPE text USING value[1]',
-        [OrgMemberTable],
-    );
-    await knex.raw(
-        'ALTER TABLE ?? ALTER COLUMN value TYPE text USING value[1]',
-        [GroupTable],
-    );
-    await knex.raw(
-        `ALTER TABLE ?? ALTER COLUMN attribute_default TYPE text
-         USING (CASE WHEN attribute_default IS NULL THEN NULL ELSE attribute_default[1] END)`,
-        [UserAttributesTable],
-    );
 }

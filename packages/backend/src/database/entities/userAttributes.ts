@@ -6,6 +6,8 @@ export type DbUserAttribute = {
     name: string;
     description?: string;
     organization_id: number;
+    /** @deprecated Legacy scalar column, kept in sync for backwards compatibility. */
+    attribute_default: string | null;
     attribute_defaults: string[] | null;
 };
 
@@ -13,7 +15,11 @@ export type UserAttributeTable = Knex.CompositeTableType<
     DbUserAttribute,
     Pick<
         DbUserAttribute,
-        'name' | 'description' | 'organization_id' | 'attribute_defaults'
+        | 'name'
+        | 'description'
+        | 'organization_id'
+        | 'attribute_default'
+        | 'attribute_defaults'
     >
 >;
 
@@ -21,7 +27,9 @@ export type DbOrganizationMemberUserAttribute = {
     user_id: number;
     organization_id: number;
     user_attribute_uuid: string;
-    values: string[];
+    /** @deprecated Legacy scalar column, kept in sync for backwards compatibility. */
+    value: string;
+    values: string[] | null;
 };
 
 export type OrganizationMemberUserAttributeTable =
@@ -30,7 +38,9 @@ export type OrganizationMemberUserAttributeTable =
 export type DbGroupUserAttribute = {
     group_uuid: string;
     user_attribute_uuid: string;
-    values: string[];
+    /** @deprecated Legacy scalar column, kept in sync for backwards compatibility. */
+    value: string;
+    values: string[] | null;
 };
 
 export type GroupUserAttributeTable =
