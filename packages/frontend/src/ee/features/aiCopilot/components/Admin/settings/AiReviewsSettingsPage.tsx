@@ -1,29 +1,20 @@
-import {
-    Button,
-    Drawer,
-    Group,
-    SegmentedControl,
-    Stack,
-    Text,
-} from '@mantine-8/core';
+import { Button, Group, SegmentedControl, Stack, Text } from '@mantine-8/core';
 import { useLocalStorage } from '@mantine-8/hooks';
 import { IconLayoutKanban, IconRoute, IconTable } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 import { GuidedTour } from '../../../../../../components/common/GuidedTour';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
-import { NAVBAR_HEIGHT } from '../../../../../../components/common/Page/constants';
 import PageBreadcrumbs from '../../../../../../components/common/PageBreadcrumbs';
 import { useGuidedTour } from '../../../../../../hooks/useGuidedTour';
 import { useAiOrganizationSettings } from '../../../hooks/useAiOrganizationSettings';
 import AiAgentAdminReviewItemsTable, {
     type AiAgentAdminReviewItemPreviewTarget,
 } from '../AiAgentAdminReviewItemsTable';
+import { IssueDetailModal } from '../IssueDetailModal';
 import { REVIEWS_TOUR_STEPS } from '../onboarding';
 import { ReviewKanbanBoard } from '../ReviewKanbanBoard';
-import { ThreadPreviewSidebar } from '../ThreadPreviewSidebar';
 import { AiFeaturesDisabledAlert } from './AiFeaturesDisabledAlert';
-import drawerClasses from './ThreadPreviewDrawer.module.css';
 
 export const AiReviewsSettingsPage = () => {
     const { data: settings } = useAiOrganizationSettings();
@@ -210,35 +201,16 @@ export const AiReviewsSettingsPage = () => {
                 onClose={closeTour}
             />
 
-            <Drawer
-                opened={isSidebarOpen}
-                onClose={handleCloseSidebar}
-                position="right"
-                size="lg"
-                withCloseButton={false}
-                padding={0}
-                classNames={{
-                    inner: drawerClasses.inner,
-                    overlay: drawerClasses.overlay,
-                }}
-                __vars={{
-                    '--drawer-top-offset': `${NAVBAR_HEIGHT}px`,
-                }}
-            >
-                {!!selectedReviewItem && (
-                    <ThreadPreviewSidebar
-                        projectUuid={selectedReviewItem.projectUuid}
-                        agentUuid={selectedReviewItem.agentUuid}
-                        threadUuid={selectedReviewItem.threadUuid}
-                        selectedReviewItemUuid={
-                            selectedReviewItem.reviewItemUuid ?? undefined
-                        }
-                        isOpen={isSidebarOpen}
-                        onClose={handleCloseSidebar}
-                        showAddToEvalsButton
-                    />
-                )}
-            </Drawer>
+            {!!selectedReviewItem && (
+                <IssueDetailModal
+                    projectUuid={selectedReviewItem.projectUuid}
+                    agentUuid={selectedReviewItem.agentUuid}
+                    threadUuid={selectedReviewItem.threadUuid}
+                    selectedReviewItemUuid={selectedReviewItem.reviewItemUuid}
+                    isOpen={isSidebarOpen}
+                    onClose={handleCloseSidebar}
+                />
+            )}
         </Stack>
     );
 };

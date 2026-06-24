@@ -57,15 +57,17 @@ vi.mock('../ReviewKanbanBoard', () => ({
     ReviewKanbanBoard: () => <div>Board view</div>,
 }));
 
-vi.mock('../ThreadPreviewSidebar', () => ({
-    ThreadPreviewSidebar: (props: {
+vi.mock('../IssueDetailModal', () => ({
+    IssueDetailModal: (props: {
         threadUuid: string;
-        selectedReviewItemUuid?: string;
-    }) => (
-        <div>
-            Sidebar thread {props.threadUuid} / {props.selectedReviewItemUuid}
-        </div>
-    ),
+        selectedReviewItemUuid: string;
+        isOpen: boolean;
+    }) =>
+        props.isOpen ? (
+            <div>
+                Modal thread {props.threadUuid} / {props.selectedReviewItemUuid}
+            </div>
+        ) : null,
 }));
 
 describe('AiReviewsSettingsPage', () => {
@@ -93,7 +95,7 @@ describe('AiReviewsSettingsPage', () => {
         await user.click(screen.getByRole('button', { name: 'Open review' }));
 
         expect(
-            await screen.findByText('Sidebar thread thread-1 / demo-review:1'),
+            await screen.findByText('Modal thread thread-1 / demo-review:1'),
         ).toBeInTheDocument();
     });
 
@@ -114,7 +116,7 @@ describe('AiReviewsSettingsPage', () => {
         );
 
         expect(
-            screen.getByText('Sidebar thread thread-1 / demo-review:1'),
+            screen.getByText('Modal thread thread-1 / demo-review:1'),
         ).toBeInTheDocument();
     });
 });
