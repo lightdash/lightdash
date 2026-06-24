@@ -57,7 +57,7 @@ export type CreateWebAppThread = {
     organizationUuid: string;
     projectUuid: string;
     userUuid: string;
-    createdFrom: 'web_app' | 'evals';
+    createdFrom: 'web_app' | 'evals' | 'scheduler';
     agentUuid: string | null;
     embedSpaceUuid?: string | null;
 };

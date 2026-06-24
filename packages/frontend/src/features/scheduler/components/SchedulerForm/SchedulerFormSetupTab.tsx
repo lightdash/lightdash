@@ -6,7 +6,6 @@ import {
     NotificationFrequency,
     SchedulerFormat,
     ThresholdOperator,
-    validateEmail,
     type CustomDimension,
     type Dashboard,
     type Field,
@@ -19,39 +18,34 @@ import {
     Box,
     Checkbox,
     Group,
-    HoverCard,
     Input,
     MultiSelect,
     SegmentedControl,
     Select,
     Space,
     Stack,
-    TagsInput,
     Text,
     TextInput,
     Tooltip,
 } from '@mantine-8/core';
-import { IconHelpCircle, IconMail, IconPercentage } from '@tabler/icons-react';
+import { IconHelpCircle, IconPercentage } from '@tabler/icons-react';
 import isEqual from 'lodash/isEqual';
-import { useMemo, useState, type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import FieldSelect from '../../../../components/common/FieldSelect';
 import FilterNumberInput from '../../../../components/common/Filters/FilterInputs/FilterNumberInput';
 import MantineIcon from '../../../../components/common/MantineIcon';
-import { SlackChannelSelect } from '../../../../components/common/SlackChannelSelect';
 import TimeZonePicker from '../../../../components/common/TimeZonePicker';
 import { CronInternalInputs } from '../../../../components/CronInput';
 import useHealth from '../../../../hooks/health/useHealth';
-import { useGetSlack } from '../../../../hooks/slack/useSlack';
 import { useActiveProjectUuid } from '../../../../hooks/useActiveProject';
 import { useProject } from '../../../../hooks/useProject';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
-import SlackSvg from '../../../../svgs/slack.svg?react';
 import { CsvFormattingOptions } from '../CsvFormattingOptions';
-import { SlackStates } from '../types';
 import { useSchedulerFormContext } from './schedulerFormContext';
+import { SchedulerFormEmailInput } from './SchedulerFormEmailInput';
 import { SchedulerFormGoogleChatInput } from './SchedulerFormGoogleChatInput';
 import { SchedulerFormMicrosoftTeamsInput } from './SchedulerFormMicrosoftTeamsInput';
-import { SchedulerFormSlackError } from './SchedulerFormSlackError';
+import { SchedulerFormSlackInput } from './SchedulerFormSlackInput';
 
 const thresholdOperatorOptions = [
     { label: 'is greater than', value: ThresholdOperator.GREATER_THAN },
@@ -88,16 +82,6 @@ export const SchedulerFormSetupTab: FC<Props> = ({
         FeatureFlags.GoogleChatEnabled,
     );
     const isGoogleChatEnabled = googleChatFlag?.enabled === true;
-    const { data: slackInstallation, isInitialLoading } = useGetSlack();
-    const organizationHasSlack = !!slackInstallation?.organizationUuid;
-
-    const slackState = useMemo(() => {
-        if (isInitialLoading) return SlackStates.LOADING;
-        if (!organizationHasSlack) return SlackStates.NO_SLACK;
-        if (!slackInstallation.hasRequiredScopes)
-            return SlackStates.MISSING_SCOPES;
-        return SlackStates.SUCCESS;
-    }, [isInitialLoading, organizationHasSlack, slackInstallation]);
 
     const allTabsSelected = useMemo(
         () =>
@@ -109,11 +93,6 @@ export const SchedulerFormSetupTab: FC<Props> = ({
         [form.values.selectedTabs, dashboard?.tabs],
     );
 
-    const [emailValidationError, setEmailValidationError] = useState<
-        string | undefined
-    >();
-    const isAddSlackDisabled = slackState !== SlackStates.SUCCESS;
-    const isAddEmailDisabled = !health.data?.hasEmailClient;
     const isImageDisabled = !health.data?.hasHeadlessBrowser;
 
     const projectDefaultOffsetString = useMemo(() => {
@@ -491,90 +470,13 @@ export const SchedulerFormSetupTab: FC<Props> = ({
 
             <Input.Wrapper label="Destinations">
                 <Stack>
-                    <Group wrap="nowrap">
-                        <MantineIcon
-                            icon={IconMail}
-                            size="xl"
-                            color="ldGray.7"
-                        />
-                        <HoverCard
-                            disabled={!isAddEmailDisabled}
-                            width={300}
-                            position="bottom-start"
-                            shadow="md"
-                        >
-                            <HoverCard.Target>
-                                <Box w="100%">
-                                    <TagsInput
-                                        radius="md"
-                                        clearable
-                                        error={emailValidationError || null}
-                                        placeholder="Enter email addresses"
-                                        disabled={isAddEmailDisabled}
-                                        value={form.values.emailTargets || []}
-                                        allowDuplicates={false}
-                                        splitChars={[',', ' ']}
-                                        onBlur={() =>
-                                            setEmailValidationError(undefined)
-                                        }
-                                        onChange={(val: string[]) => {
-                                            const added = val.filter(
-                                                (v) =>
-                                                    !(
-                                                        form.values
-                                                            .emailTargets || []
-                                                    ).includes(v),
-                                            );
-                                            const invalid = added.find(
-                                                (v) => !validateEmail(v),
-                                            );
-
-                                            if (invalid) {
-                                                setEmailValidationError(
-                                                    `'${invalid}' doesn't appear to be an email address`,
-                                                );
-                                                // Only add the valid ones from the new set
-                                                form.setFieldValue(
-                                                    'emailTargets',
-                                                    val.filter(validateEmail),
-                                                );
-                                                return;
-                                            }
-
-                                            setEmailValidationError(undefined);
-                                            form.setFieldValue(
-                                                'emailTargets',
-                                                val,
-                                            );
-                                        }}
-                                    />
-                                </Box>
-                            </HoverCard.Target>
-                            <HoverCard.Dropdown>
-                                <>
-                                    <Text fz="xs" fw={500}>
-                                        No Email integration found.
-                                    </Text>
-                                    <Text fz="xs">
-                                        To create an email scheduled delivery,
-                                        you need to add
-                                        <Anchor
-                                            fz="xs"
-                                            fw={500}
-                                            target="_blank"
-                                            href="https://docs.lightdash.com/self-host/customize-deployment/configure-smtp-for-lightdash-email-notifications"
-                                        >
-                                            {' '}
-                                            SMTP environment variables{' '}
-                                        </Anchor>
-                                        to your Lightdash instance
-                                    </Text>
-                                </>
-                            </HoverCard.Dropdown>
-                        </HoverCard>
-                    </Group>
-                    <Stack
-                        gap="xs"
+                    <SchedulerFormEmailInput
+                        value={form.values.emailTargets || []}
+                        onChange={(val) =>
+                            form.setFieldValue('emailTargets', val)
+                        }
+                    />
+                    <Box
                         mb={
                             health.data?.hasMicrosoftTeams ||
                             isGoogleChatEnabled
@@ -582,49 +484,13 @@ export const SchedulerFormSetupTab: FC<Props> = ({
                                 : 'sm'
                         }
                     >
-                        <Group wrap="nowrap" align="flex-start">
-                            <Box pt="xxs">
-                                <SlackSvg
-                                    style={{
-                                        margin: '5px 2px',
-                                        width: '20px',
-                                        height: '20px',
-                                    }}
-                                />
-                            </Box>
-                            <HoverCard
-                                disabled={!isAddSlackDisabled}
-                                width={300}
-                                position="bottom-start"
-                                shadow="md"
-                            >
-                                <HoverCard.Target>
-                                    <Box w="100%">
-                                        <SlackChannelSelect
-                                            multiple
-                                            size="sm"
-                                            placeholder="Search slack channels"
-                                            value={form.values.slackTargets}
-                                            disabled={isAddSlackDisabled}
-                                            includeDms
-                                            includeGroups
-                                            onChange={(val) => {
-                                                form.setFieldValue(
-                                                    'slackTargets',
-                                                    val,
-                                                );
-                                            }}
-                                        />
-                                    </Box>
-                                </HoverCard.Target>
-                                <HoverCard.Dropdown>
-                                    <SchedulerFormSlackError
-                                        slackState={slackState}
-                                    />
-                                </HoverCard.Dropdown>
-                            </HoverCard>
-                        </Group>
-                    </Stack>
+                        <SchedulerFormSlackInput
+                            value={form.values.slackTargets}
+                            onChange={(val) =>
+                                form.setFieldValue('slackTargets', val)
+                            }
+                        />
+                    </Box>
                     {health.data?.hasMicrosoftTeams && (
                         <SchedulerFormMicrosoftTeamsInput
                             msTeamTargets={form.values.msTeamsTargets}

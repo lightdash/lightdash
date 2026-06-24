@@ -232,7 +232,14 @@ const SchedulerForm: FC<Props> = ({
                 ) : null}
 
                 <Tabs.Panel value="customization">
-                    <SchedulerFormCustomizationTab />
+                    <SchedulerFormCustomizationTab
+                        projectUuid={projectUuid}
+                        canUseAiSummary={
+                            (resource?.type === 'chart' ||
+                                resource?.type === 'dashboard') &&
+                            !isThresholdAlert
+                        }
+                    />
                 </Tabs.Panel>
                 {isDashboard ? (
                     <Tabs.Panel value="preview">

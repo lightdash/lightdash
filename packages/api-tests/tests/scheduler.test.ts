@@ -36,6 +36,9 @@ const createSchedulerBody: Omit<
     timezone: 'UTC', // Explicitly set the timezone to be UTC since the project default might have been changed which will make the tests fail
     appUuid: null,
     appName: null,
+    agentUuid: null,
+    prompt: null,
+    sourceThreadUuid: null,
 };
 
 const getUpdateSchedulerBody = (

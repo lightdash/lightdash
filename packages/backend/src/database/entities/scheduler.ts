@@ -41,6 +41,9 @@ export type SchedulerDb = {
     dashboard_uuid: string | null;
     saved_sql_uuid: string | null;
     app_uuid: string | null;
+    agent_uuid: string | null;
+    prompt: string | null;
+    source_thread_uuid: string | null;
     options: Record<string, AnyType>;
     filters: DashboardFilterRule[] | Filters | null;
     parameters: ParametersValuesMap | null;
@@ -174,6 +177,8 @@ export type SchedulerTable = Knex.CompositeTableType<
     | Pick<SchedulerDb, 'updated_at' | 'enabled'>
     | Pick<SchedulerDb, 'created_by' | 'updated_at'>
     | Pick<SchedulerDb, 'cron'>
+    | Pick<SchedulerDb, 'agent_uuid' | 'prompt' | 'source_thread_uuid'>
+    | Pick<SchedulerDb, 'source_thread_uuid'>
     | Pick<SchedulerDb, 'deleted_at' | 'deleted_by_user_uuid'>
 >;
 

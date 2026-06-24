@@ -822,6 +822,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 fileStorageClient: context.clients.getFileStorageClient(),
                 schedulerClient: context.clients.getSchedulerClient(),
                 aiAgentService: context.serviceRepository.getAiAgentService(),
+                // Lets the OSS delivery path compute an augmented delivery's AI
+                // report inline (the agent run) before composing the message.
+                schedulerAiAugmentation:
+                    context.serviceRepository.getAiAgentService(),
                 catalogService: context.serviceRepository.getCatalogService(),
                 encryptionUtil: context.utils.getEncryptionUtil(),
                 msTeamsClient: context.clients.getMsTeamsClient(),

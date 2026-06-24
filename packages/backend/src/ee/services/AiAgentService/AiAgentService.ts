@@ -65,7 +65,6 @@ import {
     getWebAiChartConfig,
     GITHUB_MCP_SERVER_NAME,
     GITHUB_MCP_SERVER_URL,
-    isGitProjectType,
     isSlackMessageTooLongError,
     isSlackPrompt,
     isToolProposeChangeSuccessResult,
@@ -82,12 +81,12 @@ import {
     PullRequestProvider,
     QueryExecutionContext,
     ReadinessScore,
-    ShareUrl,
     SlackPrompt,
     ToolDashboardArgs,
     toolDashboardArgsSchema,
     ToolDashboardV2Args,
     toolDashboardV2ArgsSchema,
+    UnexpectedServerError,
     UpdateSlackResponse,
     UpdateWebAppResponse,
     UserAttributeValueMap,
@@ -95,6 +94,8 @@ import {
     type AgentSuggestionTool,
     type AiAgentModelConfig,
     type AiPromptContextInput,
+    type CreateSchedulerAndTargets,
+    type SchedulerAndTargets,
     type SessionUser,
     type SuggestionValidationCatalog,
 } from '@lightdash/common';
@@ -2457,7 +2458,7 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         agentUuid: string,
         body: ApiAiAgentThreadCreateRequest,
-        createdFrom: 'web_app' | 'evals' = 'web_app',
+        createdFrom: 'web_app' | 'evals' | 'scheduler' = 'web_app',
         runtimeOptions?: EmbedAiAgentRuntimeOptions,
     ) {
         const { organizationUuid } = user;
@@ -4549,6 +4550,62 @@ export class AiAgentService extends BaseService {
             Logger.error('Failed to generate agent thread response:', e);
             throw new ParameterError(getUserFacingErrorMessage(e));
         }
+    }
+
+    // Runs the agent as the scheduler's creator (so their permissions apply) and
+    // returns the answer. Each fire creates a fresh `scheduler`-origin thread.
+    async generateScheduledReport(
+        scheduler: SchedulerAndTargets | CreateSchedulerAndTargets,
+        organizationUuid: string,
+    ): Promise<string> {
+        const { agentUuid, prompt, createdBy } = scheduler;
+        if (!agentUuid || !prompt) {
+            throw new UnexpectedServerError(
+                `Scheduler "${scheduler.name}" has no AI augmentation`,
+            );
+        }
+
+        const user = await this.userModel.findSessionUserAndOrgByUuid(
+            createdBy,
+            organizationUuid,
+        );
+
+        const context: AiPromptContextInput = [];
+        if (scheduler.savedChartUuid) {
+            context.push({
+                type: 'chart',
+                chartUuid: scheduler.savedChartUuid,
+            });
+        }
+        if (scheduler.dashboardUuid) {
+            context.push({
+                type: 'dashboard',
+                dashboardUuid: scheduler.dashboardUuid,
+            });
+        }
+        if (scheduler.sourceThreadUuid) {
+            context.push({
+                type: 'thread',
+                threadUuid: scheduler.sourceThreadUuid,
+            });
+        }
+
+        const thread = await this.createAgentThread(
+            user,
+            agentUuid,
+            { prompt, context: context.length > 0 ? context : undefined },
+            'scheduler',
+        );
+        if (!thread) {
+            throw new UnexpectedServerError(
+                'Failed to create scheduled agent thread',
+            );
+        }
+
+        return this.generateAgentThreadResponse(user, {
+            agentUuid,
+            threadUuid: thread.uuid,
+        });
     }
 
     async generateThreadTitle(

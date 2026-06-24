@@ -173,6 +173,12 @@ const useSchedulerFormModal = ({
             name: (value) => {
                 return value.length > 0 ? null : 'Name is required';
             },
+            prompt: (value, values) => {
+                if (values.agentUuid && value.trim().length === 0) {
+                    return 'Instructions are required when an AI agent writes the message';
+                }
+                return null;
+            },
             options: {
                 customLimit: (value, values) => {
                     return values.options.limit === Limit.CUSTOM &&

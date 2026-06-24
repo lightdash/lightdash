@@ -90,6 +90,7 @@ import {
     SavedChartsTableName,
     SavedChartVersionsTableName,
 } from '../../database/entities/savedCharts';
+import { SchedulerTableName } from '../../database/entities/scheduler';
 import { DbUser, UserTableName } from '../../database/entities/users';
 import { isUniqueConstraintViolation } from '../../database/errors';
 import KnexPaginate from '../../database/pagination';
@@ -2512,10 +2513,33 @@ export class AiAgentModel {
         organizationUuid: string;
         agentUuid: string;
     }): Promise<void> {
-        await this.database(AiAgentTableName)
-            .where('ai_agent_uuid', agentUuid)
-            .where('organization_uuid', organizationUuid)
-            .delete();
+        // scheduler.agent_uuid / source_thread_uuid have no DB foreign key
+        // (those EE tables are invisible to the OSS scheduler), so detach here.
+        // The thread detach must run before the delete cascades the threads away.
+        await this.database.transaction(async (trx) => {
+            const threadUuids = await trx(AiThreadTableName)
+                .where('agent_uuid', agentUuid)
+                .pluck('ai_thread_uuid');
+
+            await trx(SchedulerTableName)
+                .where('agent_uuid', agentUuid)
+                .update({
+                    agent_uuid: null,
+                    prompt: null,
+                    source_thread_uuid: null,
+                });
+
+            if (threadUuids.length > 0) {
+                await trx(SchedulerTableName)
+                    .whereIn('source_thread_uuid', threadUuids)
+                    .update({ source_thread_uuid: null });
+            }
+
+            await trx(AiAgentTableName)
+                .where('ai_agent_uuid', agentUuid)
+                .where('organization_uuid', organizationUuid)
+                .delete();
+        });
     }
 
     private buildThreadSummaryQuery(organizationUuid: string) {

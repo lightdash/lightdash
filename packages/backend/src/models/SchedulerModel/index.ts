@@ -138,6 +138,9 @@ export class SchedulerModel {
             savedSqlName: scheduler.saved_sql_name,
             appUuid: scheduler.app_uuid,
             appName: scheduler.app_name,
+            agentUuid: scheduler.agent_uuid,
+            prompt: scheduler.prompt,
+            sourceThreadUuid: scheduler.source_thread_uuid,
             format: scheduler.format,
             options: scheduler.options,
             thresholds: scheduler.thresholds ?? undefined,
@@ -205,6 +208,40 @@ export class SchedulerModel {
         return value ? JSON.stringify(value) : null;
     }
 
+    // Disabling an agent (null) clears all three; a field absent from the update
+    // (undefined) is left untouched, never forced to null — that would trip the
+    // scheduler_check (agent implies prompt) and roll back the whole update.
+    private static toAugmentationUpdate(
+        scheduler: UpdateSchedulerAndTargets,
+    ): Partial<
+        Pick<SchedulerDb, 'agent_uuid' | 'prompt' | 'source_thread_uuid'>
+    > {
+        if (scheduler.agentUuid) {
+            return {
+                agent_uuid: scheduler.agentUuid,
+                ...(scheduler.prompt !== undefined
+                    ? { prompt: scheduler.prompt }
+                    : {}),
+                source_thread_uuid: scheduler.sourceThreadUuid ?? null,
+            };
+        }
+        if (scheduler.agentUuid === null) {
+            return {
+                agent_uuid: null,
+                prompt: null,
+                source_thread_uuid: null,
+            };
+        }
+        return {
+            ...(scheduler.prompt !== undefined
+                ? { prompt: scheduler.prompt }
+                : {}),
+            ...(scheduler.sourceThreadUuid !== undefined
+                ? { source_thread_uuid: scheduler.sourceThreadUuid }
+                : {}),
+        };
+    }
+
     // Build the row to insert, choosing the resource FK and overrides by
     // scheduler type. Only dashboard/chart schedulers carry filter & parameter
     // overrides; only dashboards carry viewport width & selected tabs.
@@ -224,6 +261,9 @@ export class SchedulerModel {
             enabled: true,
             notification_frequency: newScheduler.notificationFrequency || null,
             include_links: newScheduler.includeLinks !== false,
+            agent_uuid: newScheduler.agentUuid ?? null,
+            prompt: newScheduler.prompt ?? null,
+            source_thread_uuid: newScheduler.sourceThreadUuid ?? null,
         };
 
         if (isDashboardCreateScheduler(newScheduler)) {
@@ -1075,6 +1115,7 @@ export class SchedulerModel {
                             ? (scheduler.selectedTabs as string[])
                             : null,
                     include_links: scheduler.includeLinks !== false,
+                    ...SchedulerModel.toAugmentationUpdate(scheduler),
                 })
                 .where('scheduler_uuid', scheduler.schedulerUuid);
 

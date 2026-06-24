@@ -41,6 +41,7 @@ import {
     GoogleSheetsQuotaError,
     GoogleSheetsTransientError,
     GsheetsNotificationPayload,
+    isAugmentedScheduler,
     isChartScheduler,
     isChartValidationError,
     isCreateScheduler,
@@ -187,7 +188,15 @@ import { sanitizeGenericFileName } from '../utils/FileDownloadUtils/FileDownload
 import { SchedulerClient } from './SchedulerClient';
 import { SchedulerDeliveryError } from './SchedulerDeliveryError';
 
+export interface SchedulerAiAugmentation {
+    generateScheduledReport(
+        scheduler: SchedulerAndTargets | CreateSchedulerAndTargets,
+        organizationUuid: string,
+    ): Promise<string>;
+}
+
 export type SchedulerTaskArguments = {
+    schedulerAiAugmentation?: SchedulerAiAugmentation;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     csvService: CsvService;
@@ -371,6 +380,8 @@ export default class SchedulerTask {
 
     protected readonly schedulerClient: SchedulerClient;
 
+    protected readonly schedulerAiAugmentation?: SchedulerAiAugmentation;
+
     protected readonly slackClient: SlackClient;
 
     private readonly catalogService: CatalogService;
@@ -410,6 +421,7 @@ export default class SchedulerTask {
         this.googleDriveClient = args.googleDriveClient;
         this.fileStorageClient = args.fileStorageClient;
         this.schedulerClient = args.schedulerClient;
+        this.schedulerAiAugmentation = args.schedulerAiAugmentation;
         this.slackClient = args.slackClient;
         this.catalogService = args.catalogService;
         this.encryptionUtil = args.encryptionUtil;
@@ -3955,6 +3967,20 @@ export default class SchedulerTask {
             return;
         }
 
+        // Run the agent and use its report as the message, then fall through to
+        // the normal render + send. Kept in a separate const so the type guard
+        // doesn't leak into `scheduler` and break later `in scheduler` narrowing.
+        const augmentedScheduler = isAugmentedScheduler(scheduler)
+            ? scheduler
+            : null;
+        if (augmentedScheduler && this.schedulerAiAugmentation) {
+            scheduler.message =
+                await this.schedulerAiAugmentation.generateScheduledReport(
+                    augmentedScheduler,
+                    schedulerPayload.organizationUuid,
+                );
+        }
+
         this.analytics.track({
             event: 'scheduler_job.started',
             anonymousId: LightdashAnalytics.anonymousId,
@@ -4816,6 +4842,9 @@ export default class SchedulerTask {
                     savedSqlUuid: null,
                     appUuid: null,
                     appName: null,
+                    agentUuid: null,
+                    prompt: null,
+                    sourceThreadUuid: null,
                     enabled: true,
                     includeLinks: false,
                     projectUuid: payload.projectUuid,
