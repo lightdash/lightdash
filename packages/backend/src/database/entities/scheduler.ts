@@ -9,6 +9,7 @@ import {
     SchedulerGoogleChatTarget,
     SchedulerMsTeamsTarget,
     SchedulerSlackTarget,
+    type AiSchedulerOptions,
     type DashboardFilterRule,
     type Filters,
     type NotificationFrequency,
@@ -44,6 +45,7 @@ export type SchedulerDb = {
     agent_uuid: string | null;
     prompt: string | null;
     source_thread_uuid: string | null;
+    ai_scheduler_options: AiSchedulerOptions | null;
     options: Record<string, AnyType>;
     filters: DashboardFilterRule[] | Filters | null;
     parameters: ParametersValuesMap | null;
@@ -177,7 +179,13 @@ export type SchedulerTable = Knex.CompositeTableType<
     | Pick<SchedulerDb, 'updated_at' | 'enabled'>
     | Pick<SchedulerDb, 'created_by' | 'updated_at'>
     | Pick<SchedulerDb, 'cron'>
-    | Pick<SchedulerDb, 'agent_uuid' | 'prompt' | 'source_thread_uuid'>
+    | Pick<
+          SchedulerDb,
+          | 'agent_uuid'
+          | 'prompt'
+          | 'source_thread_uuid'
+          | 'ai_scheduler_options'
+      >
     | Pick<SchedulerDb, 'source_thread_uuid'>
     | Pick<SchedulerDb, 'deleted_at' | 'deleted_by_user_uuid'>
 >;

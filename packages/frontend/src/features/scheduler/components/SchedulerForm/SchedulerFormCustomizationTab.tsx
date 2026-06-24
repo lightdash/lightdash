@@ -9,11 +9,13 @@ import { useSchedulerFormContext } from './schedulerFormContext';
 type Props = {
     projectUuid: string | undefined;
     canUseAiSummary: boolean;
+    sourceThreadUuid?: string | null;
 };
 
 export const SchedulerFormCustomizationTab: FC<Props> = ({
     projectUuid,
     canUseAiSummary,
+    sourceThreadUuid,
 }) => {
     const form = useSchedulerFormContext();
     // When the agent writes the message, its report replaces the manual body.
@@ -43,7 +45,10 @@ export const SchedulerFormCustomizationTab: FC<Props> = ({
             </Group>
 
             {canUseAiSummary && (
-                <SchedulerFormAiInput projectUuid={projectUuid} />
+                <SchedulerFormAiInput
+                    projectUuid={projectUuid}
+                    sourceThreadUuid={sourceThreadUuid}
+                />
             )}
 
             {!isAiMessage && (

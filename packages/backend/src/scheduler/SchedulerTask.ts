@@ -4845,6 +4845,7 @@ export default class SchedulerTask {
                     agentUuid: null,
                     prompt: null,
                     sourceThreadUuid: null,
+                    aiSchedulerOptions: null,
                     enabled: true,
                     includeLinks: false,
                     projectUuid: payload.projectUuid,

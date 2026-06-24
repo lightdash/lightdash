@@ -462,6 +462,10 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
         initialFormValues,
     });
 
+    const sourceThreadUuid = schedulerUuid
+        ? savedSchedulerData?.sourceThreadUuid
+        : initialFormValues?.sourceThreadUuid;
+
     return (
         <SchedulerFormProvider form={form}>
             <MantineModal
@@ -583,6 +587,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
                             <SchedulerForm
                                 resource={formResource}
                                 savedSchedulerData={savedSchedulerData}
+                                sourceThreadUuid={sourceThreadUuid}
                                 isThresholdAlert={isThresholdAlert}
                                 projectUuid={projectUuid}
                                 onSubmit={handleSubmit}

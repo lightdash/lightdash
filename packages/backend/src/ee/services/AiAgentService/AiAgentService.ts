@@ -4583,7 +4583,10 @@ export class AiAgentService extends BaseService {
                 dashboardUuid: scheduler.dashboardUuid,
             });
         }
-        if (scheduler.sourceThreadUuid) {
+        if (
+            scheduler.aiSchedulerOptions?.includeSourceThread &&
+            scheduler.sourceThreadUuid
+        ) {
             context.push({
                 type: 'thread',
                 threadUuid: scheduler.sourceThreadUuid,

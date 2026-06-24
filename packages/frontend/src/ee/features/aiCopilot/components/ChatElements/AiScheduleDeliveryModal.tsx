@@ -51,6 +51,7 @@ export const AiScheduleDeliveryModal: FC<Props> = ({
             initialFormValues={{
                 agentUuid,
                 sourceThreadUuid,
+                includeSourceThread: true,
                 format: SchedulerFormat.IMAGE,
             }}
             onClose={onClose}
