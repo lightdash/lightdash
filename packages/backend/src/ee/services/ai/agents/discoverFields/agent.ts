@@ -12,6 +12,7 @@ import {
 import Logger from '../../../../../logging/logger';
 import { getFindExplores } from '../../tools/findExplores';
 import { getFindFields } from '../../tools/findFields';
+import { getGetFields } from '../../tools/getFields';
 import type { AiAgentArgs, AiAgentDependencies } from '../../types/aiAgent';
 import { AgentContext } from '../../utils/AgentContext';
 import { getAgentTelemetryConfig } from '../telemetry';
@@ -20,7 +21,11 @@ import { getDiscoverFieldsSystemPrompt } from './systemPrompt';
 
 const SUBAGENT_STEP_CAP = 15;
 
-const SUBAGENT_PERSISTED_TOOL_NAMES = ['findExplores', 'findFields'] as const;
+const SUBAGENT_PERSISTED_TOOL_NAMES = [
+    'findExplores',
+    'findFields',
+    'getFields',
+] as const;
 type SubagentPersistedToolName = (typeof SUBAGENT_PERSISTED_TOOL_NAMES)[number];
 const isSubagentPersistedToolName = (
     name: string,
@@ -76,6 +81,7 @@ const submitResult = tool({
 export type DiscoverFieldsSubagentTools = {
     findExplores: ReturnType<typeof getFindExplores>;
     findFields: ReturnType<typeof getFindFields>;
+    getFields: ReturnType<typeof getGetFields>;
     submitResult: typeof submitResult;
 };
 
@@ -107,6 +113,10 @@ export const runDiscoverFieldsAgent = (
         pageSize: args.findFieldsPageSize,
     });
 
+    const getFields = getGetFields({
+        getExplore: dependencies.getExplore,
+    });
+
     const messages: ModelMessage[] = [
         getDiscoverFieldsSystemPrompt({
             availableExplores: args.availableExplores,
@@ -124,7 +134,7 @@ export const runDiscoverFieldsAgent = (
         model: args.model,
         ...args.callOptions,
         providerOptions: args.providerOptions,
-        tools: { findExplores, findFields, submitResult },
+        tools: { findExplores, findFields, getFields, submitResult },
         toolChoice: 'auto',
         stopWhen: stepCountIs(SUBAGENT_STEP_CAP),
         messages,

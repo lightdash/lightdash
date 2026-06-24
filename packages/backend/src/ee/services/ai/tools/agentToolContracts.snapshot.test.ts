@@ -16,6 +16,7 @@ import { getGenerateHashes } from './generateHashes';
 import { getGenerateUuids } from './generateUuids';
 import { getGenerateVisualization } from './generateVisualization';
 import { getGetDashboardCharts } from './getDashboardCharts';
+import { getGetFields } from './getFields';
 import { getGetKnowledgeDocumentContent } from './getKnowledgeDocumentContent';
 import { getGetProjectInfo } from './getProjectInfo';
 import { getImproveContext } from './improveContext';
@@ -113,6 +114,7 @@ const makeAgentTools = () => {
             pageSize: 25,
             updateProgress: noopAsync,
         }),
+        getFields: getGetFields({ getExplore: noop }),
         generateDashboard: getGenerateDashboardV2({
             createOrUpdateArtifact: noop,
             getPrompt: noop,

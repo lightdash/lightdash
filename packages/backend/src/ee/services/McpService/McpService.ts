@@ -23,6 +23,7 @@ import {
     ForbiddenError,
     getCurrentAgentToolDefinition,
     getCurrentProjectToolDefinition,
+    getFieldsToolDefinition,
     getItemLabelWithoutTableName,
     getItemMap,
     getLightdashVersionToolDefinition,
@@ -116,6 +117,7 @@ import { getEditContent } from '../ai/tools/editContent';
 import { getFindContent } from '../ai/tools/findContent';
 import { getFindExplores } from '../ai/tools/findExplores';
 import { getFindFields } from '../ai/tools/findFields';
+import { getGetFields } from '../ai/tools/getFields';
 import { getListContent } from '../ai/tools/listContent';
 import { getMcpListExplores } from '../ai/tools/mcpListExplores';
 import { getReadContent } from '../ai/tools/readContent';
@@ -146,6 +148,7 @@ export enum McpToolName {
     LIST_EXPLORES = 'list_explores',
     FIND_EXPLORES = 'find_explores',
     FIND_FIELDS = 'find_fields',
+    GET_FIELDS = 'get_fields',
     FIND_CONTENT = 'find_content',
     LIST_CONTENT = 'list_content',
     READ_CONTENT = 'read_content',
@@ -179,6 +182,7 @@ const mcpGetLightdashVersionTool = getLightdashVersionToolDefinition.for('mcp');
 const mcpListExploresTool = listExploresToolDefinition.for('mcp');
 const mcpFindExploresTool = findExploresToolDefinition.for('mcp');
 const mcpFindFieldsTool = findFieldsToolDefinition.for('mcp');
+const mcpGetFieldsTool = getFieldsToolDefinition.for('mcp');
 const mcpFindContentTool = findContentToolDefinition.for('mcp');
 const mcpListContentTool = listContentToolDefinition.for('mcp');
 const mcpReadContentTool = readContentToolDefinition.for('mcp');
@@ -1399,6 +1403,44 @@ export class McpService extends BaseService {
                     pageSize: 15,
                 });
                 const result = await findFieldsTool.execute!(argsWithProject, {
+                    toolCallId: '',
+                    messages: [],
+                });
+
+                return this.buildScopedResponse(
+                    ctx,
+                    await McpService.streamToolResult(result),
+                    undefined,
+                    projectUuid,
+                );
+            },
+        );
+
+        this.mcpServer.registerTool(
+            mcpGetFieldsTool.name,
+            {
+                title: mcpGetFieldsTool.title,
+                description: mcpGetFieldsTool.description,
+                inputSchema: mcpGetFieldsTool.inputSchema.shape,
+                annotations: mcpGetFieldsTool.annotations,
+            },
+            async (args, extra) => {
+                const ctx = getMcpContext(extra);
+
+                const projectUuid = await this.resolveProjectUuid(ctx);
+                const argsWithProject = { ...args, projectUuid };
+
+                this.trackToolCall(ctx, McpToolName.GET_FIELDS, projectUuid);
+
+                const toolsRuntime = await this.getToolsRuntime(
+                    ctx,
+                    projectUuid,
+                );
+
+                const getFieldsTool = getGetFields({
+                    getExplore: toolsRuntime.getExplore,
+                });
+                const result = await getFieldsTool.execute!(argsWithProject, {
                     toolCallId: '',
                     messages: [],
                 });

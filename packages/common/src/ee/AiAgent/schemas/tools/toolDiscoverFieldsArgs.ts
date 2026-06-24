@@ -62,7 +62,7 @@ const discoverFieldsFieldSummarySchema = z.object({
         .string()
         .nullable()
         .describe(
-            'Field description copied from findFields only when it is not truncated and needed to distinguish similar fields; null otherwise.',
+            'Full field description copied exactly from getFields when fetched, otherwise a non-truncated findFields description; null when the field has no description or only a truncated preview.',
         ),
 });
 

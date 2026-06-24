@@ -3,14 +3,17 @@ import {
     FieldType,
     type ToolFindExploresOutput,
     type ToolFindFieldsOutput,
+    type ToolGetFieldsOutput,
     type ToolSearchSemanticLayerOutput,
 } from '@lightdash/common';
 import { getFindExplores } from './findExplores';
 import { getFindFields } from './findFields';
+import { getGetFields } from './getFields';
 import { getSearchSemanticLayer } from './searchSemanticLayer';
 
 type FindExploresTool = ReturnType<typeof getFindExplores>;
 type FindFieldsTool = ReturnType<typeof getFindFields>;
+type GetFieldsTool = ReturnType<typeof getGetFields>;
 type SearchSemanticLayerTool = ReturnType<typeof getSearchSemanticLayer>;
 
 const executeFindExplores = (
@@ -30,6 +33,15 @@ const executeFindFields = (
         messages: [],
         toolCallId: 'test',
     }) as Promise<ToolFindFieldsOutput>;
+
+const executeGetFields = (
+    tool: GetFieldsTool,
+    args: Parameters<NonNullable<GetFieldsTool['execute']>>[0],
+): Promise<ToolGetFieldsOutput> =>
+    tool.execute!(args, {
+        messages: [],
+        toolCallId: 'test',
+    }) as Promise<ToolGetFieldsOutput>;
 
 const executeSearchSemanticLayer = (
     tool: SearchSemanticLayerTool,
@@ -137,6 +149,64 @@ describe('field discovery descriptions', () => {
         );
         expect(output.result).not.toContain(longDescription);
         expect(output.result).not.toContain('…');
+    });
+
+    it('returns full descriptions and per-field errors from getFields', async () => {
+        const featureName = {
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.STRING,
+            name: 'feature_name',
+            label: 'Feature name',
+            table: 'tickets',
+            tableLabel: 'Tickets',
+            sql: '${TABLE}.feature_name',
+            description: longDescription,
+            hidden: false,
+        };
+        const explore = {
+            name: 'tickets',
+            baseTable: 'tickets',
+            joinedTables: [],
+            tables: {
+                tickets: {
+                    dimensions: {
+                        feature_name: featureName,
+                    },
+                    metrics: {},
+                },
+            },
+        };
+
+        const tool = getGetFields({
+            getExplore: jest.fn().mockResolvedValue(explore),
+        });
+
+        const output = await executeGetFields(tool, {
+            fields: [
+                { explore: 'tickets', fieldId: 'tickets_feature_name' },
+                { explore: 'tickets', fieldId: 'tickets_missing' },
+            ],
+        });
+
+        expect(output.result).toContain(
+            `<description>${longDescription}</description>`,
+        );
+        expect(output.result).not.toContain(preview(longDescription));
+        expect(output.result).toContain(
+            'Field "tickets_missing" was not found in explore "tickets".',
+        );
+        expect(output.metadata.lookup?.fields).toEqual([
+            {
+                explore: 'tickets',
+                fieldId: 'tickets_feature_name',
+                status: 'success',
+            },
+            {
+                explore: 'tickets',
+                fieldId: 'tickets_missing',
+                status: 'error',
+            },
+        ]);
     });
 
     it('does not truncate searchSemanticLayer descriptions', async () => {

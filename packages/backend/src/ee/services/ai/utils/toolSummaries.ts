@@ -47,6 +47,8 @@ export const summarizeToolCall = (toolName: string, input: AnyType) => {
                     ]),
                 ) ?? 'Checking fields'
             );
+        case 'getFields':
+            return 'Reading field details';
         case 'findContent':
             return (
                 quoted(readString(input, ['query', 'searchQuery'])) ??
@@ -105,6 +107,9 @@ export const summarizeToolResult = (toolName: string, output: AnyType) => {
     }
     if (toolName === 'findFields') {
         return 'Fields checked';
+    }
+    if (toolName === 'getFields') {
+        return 'Field details loaded';
     }
     if (toolName === 'discoverFields') {
         return 'Fields selected';

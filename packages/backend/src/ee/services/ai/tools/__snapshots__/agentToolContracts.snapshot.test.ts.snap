@@ -198,7 +198,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                                 "type": "string",
                               },
                               "description": {
-                                "description": "Field description copied from findFields only when it is not truncated and needed to distinguish similar fields; null otherwise.",
+                                "description": "Full field description copied exactly from getFields when fetched, otherwise a non-truncated findFields description; null when the field has no description or only a truncated preview.",
                                 "type": [
                                   "string",
                                   "null",
@@ -852,7 +852,7 @@ Output:
 - Matching explores with searchRank scores
 - Top matching fields with their explore names, searchRank scores, and short description previews
 
-Field descriptions in top matching fields are previews and may end with " ... (truncated)".
+If a field description preview ends with " ... (truncated)" and the full context matters, call getFields/get_fields with the exact explore and field id.
 ",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -1008,7 +1008,7 @@ Usage tips:
 - Fields are sorted by relevance, with a maximum score of 1 and a minimum of 0, so the top results are the most relevant.
 - If results aren't relevant, retry with clearer or more specific terms.
 - Results are paginated — use the next page token to get more results if needed.
-- Field descriptions are previews and may end with " ... (truncated)".
+- Field descriptions are previews. If a description ends with " ... (truncated)" and the full context matters, call getFields/get_fields with the exact field id.
 ",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -1153,6 +1153,124 @@ Usage tips:
               },
               "required": [
                 "searchQueries",
+              ],
+              "type": "object",
+            },
+            "status": {
+              "enum": [
+                "success",
+                "error",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "status",
+          ],
+          "type": "object",
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
+  },
+  {
+    "description": "Tool: getFields
+
+Purpose:
+Fetch exact fields from exact explores by field id. Use this when you already know the field id and need the full field context, especially when findExplores or findFields returned a description ending with " ... (truncated)".
+
+Usage tips:
+- This is not a search tool. Use findExplores/findFields to discover candidate fields first.
+- Pass exact field ids returned by findExplores, findFields, query errors, or other semantic-layer tools.
+- Pass multiple fields in one request only when each field's full context matters for the answer.
+- Do not use this to fetch broad field inventories; use findExplores/findFields for search and only fetch exact fields that matter.
+- Results are returned per field. If one field cannot be resolved, other valid fields are still returned.
+
+Output:
+- Full untruncated field details for each resolved field.
+- Per-field errors for missing explores or field ids.
+",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "fields": {
+          "description": "Fields to fetch by exact explore name and field id.",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "explore": {
+                "description": "Exact explore name that contains the field.",
+                "type": "string",
+              },
+              "fieldId": {
+                "description": "Exact field id to fetch, e.g. "orders_total_revenue".",
+                "type": "string",
+              },
+            },
+            "required": [
+              "explore",
+              "fieldId",
+            ],
+            "type": "object",
+          },
+          "minItems": 1,
+          "type": "array",
+        },
+      },
+      "required": [
+        "fields",
+      ],
+      "type": "object",
+    },
+    "name": "getFields",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "additionalProperties": false,
+          "properties": {
+            "lookup": {
+              "additionalProperties": false,
+              "properties": {
+                "fields": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "explore": {
+                        "type": "string",
+                      },
+                      "fieldId": {
+                        "type": "string",
+                      },
+                      "status": {
+                        "enum": [
+                          "success",
+                          "error",
+                        ],
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "explore",
+                      "fieldId",
+                      "status",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+              },
+              "required": [
+                "fields",
               ],
               "type": "object",
             },
@@ -6889,6 +7007,7 @@ exports[`AI agent tool contracts matches the shared agent tool definition names 
 [
   "findExplores",
   "findFields",
+  "getFields",
   "searchSemanticLayer",
   "analyzeFieldImpact",
   "findContent",

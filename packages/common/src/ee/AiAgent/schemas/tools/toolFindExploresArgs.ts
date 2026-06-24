@@ -15,7 +15,7 @@ Output:
 - Matching explores with searchRank scores
 - Top matching fields with their explore names, searchRank scores, and short description previews
 
-Field descriptions in top matching fields are previews and may end with " ... (truncated)".
+If a field description preview ends with " ... (truncated)" and the full context matters, call getFields/get_fields with the exact explore and field id.
 `;
 
 export const toolFindExploresArgsSchemaV1 = createToolSchema()

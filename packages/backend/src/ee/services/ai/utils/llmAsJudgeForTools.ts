@@ -14,6 +14,7 @@ import { getOpenaiGptmodel } from '../models/openai-gpt';
 const TOOL_NAME_TO_DB_TOOL_NAME = {
     findExplores: 'find_explores',
     findFields: 'find_fields',
+    getFields: 'get_fields',
     searchSemanticLayer: 'search_semantic_layer',
     analyzeFieldImpact: 'analyze_field_impact',
     discoverFields: 'discover_fields',

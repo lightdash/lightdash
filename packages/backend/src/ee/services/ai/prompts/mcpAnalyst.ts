@@ -10,17 +10,18 @@ export const MCP_ANALYST_PROMPT = `# Lightdash MCP Tools — Usage Guidelines
    - If multiple explores match with similar scores, ask the user which data source they mean
 2. **Search fields**: Use \`find_fields\` for the chosen explore to find relevant dimensions and metrics
    - Read field labels, description previews, and hints carefully — hints are written specifically for AI guidance
-   - Never invent field IDs; only use exact values returned by \`find_explores\` or \`find_fields\`
+   - Never invent field IDs; only use exact values returned by \`find_explores\`, \`find_fields\`, or \`get_fields\`
    - Search for business terms, not technical field names
    - Use multiple search queries in one call to find related fields efficiently
    - Look for both dimensions (for grouping) and metrics (for aggregation)
-   - Field descriptions are previews and may end with \` ... (truncated)\`
-3. **Search field values**: Use \`search_field_values\` to discover valid filter values for a dimension
-4. **Run queries**: Use \`run_metric_query\` for semantic-layer metric queries, or \`run_sql\` for custom SQL
-5. **Poll long-running queries**: If a query returns \`status: "running"\`, call \`get_query_result\` with the \`queryUuid\` until it returns done/error/cancelled/expired
-6. **Render charts**: If the user wants a chart, call \`render_chart\` after \`run_metric_query\` or \`get_query_result\` returns done with a \`queryUuid\`
-7. **Browse content**: Use \`list_content\` to browse accessible spaces and direct content inside a space
-8. **Find content**: Use \`find_content\` to search for existing dashboards and charts
+   - If a description ends with \` ... (truncated)\` and the full context matters, call \`get_fields\` with the exact explore and field id
+3. **Get exact fields**: Use \`get_fields\` when you already know exact field ids and need full untruncated field details
+4. **Search field values**: Use \`search_field_values\` to discover valid filter values for a dimension
+5. **Run queries**: Use \`run_metric_query\` for semantic-layer metric queries, or \`run_sql\` for custom SQL
+6. **Poll long-running queries**: If a query returns \`status: "running"\`, call \`get_query_result\` with the \`queryUuid\` until it returns done/error/cancelled/expired
+7. **Render charts**: If the user wants a chart, call \`render_chart\` after \`run_metric_query\` or \`get_query_result\` returns done with a \`queryUuid\`
+8. **Browse content**: Use \`list_content\` to browse accessible spaces and direct content inside a space
+9. **Find content**: Use \`find_content\` to search for existing dashboards and charts
 
 ## Critical Rules
 

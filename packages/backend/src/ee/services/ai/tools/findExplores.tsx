@@ -6,6 +6,10 @@ import type {
 } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
+import {
+    FIELD_DESCRIPTION_PREVIEW_CHARS,
+    truncatePreview,
+} from '../utils/truncation';
 import { xmlBuilder } from '../xmlBuilder';
 
 type Dependencies = {
@@ -39,7 +43,7 @@ const generateExploreResponse = ({
     const topFieldsNote =
         fieldCount === 0
             ? 'No field-level matches either.'
-            : "Per-field matches across all explores. Each field's `exploreName` shows where it lives — pick the explore whose fields can answer the user's question. Field descriptions are previews and may be truncated.";
+            : "Per-field matches across all explores. Each field's `exploreName` shows where it lives — pick the explore whose fields can answer the user's question. Field descriptions are previews; call getFields/get_fields when a truncated preview matters.";
 
     return (
         <findExplores searchQuery={searchQuery}>
@@ -54,11 +58,11 @@ const generateExploreResponse = ({
                 identify or disambiguate the explore to dig into when no explore
                 matched directly, or when several matched.
             </description>
-            <searchResults count={exploreCount}>
+            <topMatchingExplores count={exploreCount}>
                 <note>{searchResultsNote}</note>
                 {exploreSearchResults?.map((result) => (
                     <explore
-                        explore={result.name}
+                        exploreName={result.name}
                         label={result.label}
                         searchRank={result.searchRank?.toFixed(3) ?? 'N/A'}
                     >
@@ -88,7 +92,7 @@ const generateExploreResponse = ({
                             )}
                     </explore>
                 ))}
-            </searchResults>
+            </topMatchingExplores>
 
             <topMatchingFields count={fieldCount}>
                 <note>{topFieldsNote}</note>
@@ -105,7 +109,16 @@ const generateExploreResponse = ({
                         searchRank={field.searchRank?.toFixed(3) ?? 'N/A'}
                         usageInCharts={field.chartUsage ?? 0}
                         usageInVerifiedCharts={field.verifiedChartUsage ?? 0}
-                    />
+                    >
+                        {field.description && (
+                            <description>
+                                {truncatePreview(
+                                    field.description,
+                                    FIELD_DESCRIPTION_PREVIEW_CHARS,
+                                )}
+                            </description>
+                        )}
+                    </field>
                 ))}
             </topMatchingFields>
         </findExplores>

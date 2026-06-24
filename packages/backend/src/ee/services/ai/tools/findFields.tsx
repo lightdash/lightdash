@@ -31,7 +31,9 @@ const getFieldsText = (
         totalResults={args.pagination?.totalResults}
     >
         <note>
-            Field descriptions are previews and may end with " ... (truncated)".
+            Field descriptions are previews. If a description ends with " ...
+            (truncated)" and the full context matters, call getFields/get_fields
+            with the exact field id.
         </note>
         {args.fields.map((field) =>
             renderField({

@@ -14,7 +14,7 @@ Usage tips:
 - Fields are sorted by relevance, with a maximum score of 1 and a minimum of 0, so the top results are the most relevant.
 - If results aren't relevant, retry with clearer or more specific terms.
 - Results are paginated — use the next page token to get more results if needed.
-- Field descriptions are previews and may end with " ... (truncated)".
+- Field descriptions are previews. If a description ends with " ... (truncated)" and the full context matters, call getFields/get_fields with the exact field id.
 `;
 
 export const toolFindFieldsArgsSchema = createToolSchema()
