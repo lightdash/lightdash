@@ -1,3 +1,11 @@
+## [0.3237.4](https://github.com/lightdash/lightdash/compare/0.3237.3...0.3237.4) (2026-06-24)
+
+
+### Bug Fixes
+
+* **filters:** evaluate relative-date metric filters at query time ([#24698](https://github.com/lightdash/lightdash/issues/24698)) ([a44234f](https://github.com/lightdash/lightdash/commit/a44234f46b293d0cd4289b8ca2f9f79e68f49465))
+* omit hardcoded pivot values from downloaded chart-as-code YAML (PROD-8299) ([#24629](https://github.com/lightdash/lightdash/issues/24629)) ([00c97ad](https://github.com/lightdash/lightdash/commit/00c97adb9a434090d57e82f1416d31b99a205837))
+
 ## [0.3237.3](https://github.com/lightdash/lightdash/compare/0.3237.2...0.3237.3) (2026-06-24)
 
 
