@@ -237,12 +237,10 @@ export const DateZoomControlModal: FC<DateZoomControlModalProps> = ({
                             label="Control name"
                             placeholder="e.g. Revenue zoom"
                             value={draft.name}
-                            onChange={(e) =>
-                                setDraft((prev) => ({
-                                    ...prev,
-                                    name: e.currentTarget.value,
-                                }))
-                            }
+                            onChange={(e) => {
+                                const name = e.currentTarget.value;
+                                setDraft((prev) => ({ ...prev, name }));
+                            }}
                         />
 
                         <Stack gap="xxs">
