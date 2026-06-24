@@ -264,6 +264,9 @@ export class HealthService extends BaseService {
                     !!this.lightdashConfig.ai.copilot.providers.anthropic
                         ?.apiKey,
             },
+            echarts6: {
+                enabled: false,
+            },
             funnelBuilder: {
                 enabled: this.lightdashConfig.funnelBuilder.enabled,
             },

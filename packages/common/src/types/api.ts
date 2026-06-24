@@ -553,6 +553,9 @@ export type HealthState = {
         analyticsDashboardUuid?: string;
         isAmbientAiEnabled: boolean;
     };
+    echarts6: {
+        enabled: boolean;
+    };
     funnelBuilder: {
         enabled: boolean;
     };

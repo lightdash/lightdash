@@ -118,6 +118,9 @@ export default function mockHealthResponse(
             analyticsDashboardUuid: undefined,
             isAmbientAiEnabled: false,
         },
+        echarts6: {
+            enabled: false,
+        },
         funnelBuilder: {
             enabled: false,
         },
