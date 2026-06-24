@@ -22,7 +22,10 @@ import { LightdashConfig } from '../../config/parseConfig';
 import { BaseService } from '../../services/BaseService';
 import { AiAgentDocumentModel } from '../models/AiAgentDocumentModel';
 import { CommercialFeatureFlagModel } from '../models/CommercialFeatureFlagModel';
-import { generateDocumentSummary } from './ai/agents/documentSummaryGenerator';
+import {
+    createFallbackDocumentSummary,
+    generateDocumentSummary,
+} from './ai/agents/documentSummaryGenerator';
 import { getModel } from './ai/models';
 import type { AiAgentService } from './AiAgentService/AiAgentService';
 
@@ -262,11 +265,19 @@ export class AiAgentDocumentService extends BaseService {
             enableReasoning: false,
             useFastModel: true,
         });
-        const summary = await generateDocumentSummary(modelOptions, {
-            name: body.name,
-            content: body.content,
-            projectExplores,
-        });
+        let summary: AiAgentDocument['summary'];
+        try {
+            summary = await generateDocumentSummary(modelOptions, {
+                name: body.name,
+                content: body.content,
+                projectExplores,
+            });
+        } catch (error) {
+            this.logger.error(
+                `Failed to generate summary for document "${body.name}", storing a fallback summary: ${error}`,
+            );
+            summary = createFallbackDocumentSummary(body.name);
+        }
 
         const storageKey = `org/${organizationUuid}/doc/${uuidv4()}.${
             mimeType === 'text/markdown' ? 'md' : 'txt'
