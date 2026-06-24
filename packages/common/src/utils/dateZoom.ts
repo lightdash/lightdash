@@ -1,7 +1,14 @@
+import { type DateZoom } from '../types/api/paginatedQuery';
+import {
+    type DashboardConfig,
+    type DateZoomConfig,
+    type DateZoomControl,
+} from '../types/dashboard';
 import type { Explore } from '../types/explore';
 import { DimensionType, type CompiledDimension } from '../types/field';
 import type { MetricQuery } from '../types/metricQuery';
 import { isCartesianChartConfig, type ChartConfig } from '../types/savedCharts';
+import { DateGranularity } from '../types/timeFrames';
 import { getItemId } from './item';
 import { getDateDimension } from './timeFrames';
 
@@ -183,3 +190,78 @@ export const getDateZoomXAxisFieldId = (
     );
     return baseTimeDimension ? xFieldId : undefined;
 };
+
+export const EMPTY_DATE_ZOOM_CONFIG: DateZoomConfig = {
+    controls: [],
+    tileTargets: {},
+};
+
+export const normalizeDateZoomConfig = (
+    config: DashboardConfig | undefined,
+): DateZoomConfig => config?.dateZoomConfig ?? EMPTY_DATE_ZOOM_CONFIG;
+
+export const isEmptyDateZoomConfig = (config: DateZoomConfig): boolean =>
+    config.controls.length === 0;
+
+export const getTileControl = (
+    config: DateZoomConfig,
+    tileUuid: string,
+): DateZoomControl | undefined => {
+    const target = config.tileTargets[tileUuid];
+    return target
+        ? config.controls.find((control) => control.uuid === target.controlUuid)
+        : undefined;
+};
+
+export const getControlActiveGranularity = (
+    control: DateZoomControl,
+    runtimeGranularities: Record<string, DateGranularity | string>,
+): DateGranularity | string =>
+    runtimeGranularities[control.uuid] ?? control.granularity;
+
+export type ResolveTileDateZoomArgs = {
+    config: DateZoomConfig;
+    tileUuid: string;
+    runtimeGranularities: Record<string, DateGranularity | string>;
+    globalGranularity: DateGranularity | string | undefined;
+    defaultXAxisFieldId: string | undefined;
+};
+
+export const resolveTileDateZoom = ({
+    config,
+    tileUuid,
+    runtimeGranularities,
+    globalGranularity,
+    defaultXAxisFieldId,
+}: ResolveTileDateZoomArgs): DateZoom | undefined => {
+    const target = config.tileTargets[tileUuid];
+    const control = target
+        ? config.controls.find((c) => c.uuid === target.controlUuid)
+        : undefined;
+
+    if (target && control) {
+        const granularity = getControlActiveGranularity(
+            control,
+            runtimeGranularities,
+        );
+        return { granularity, xAxisFieldId: target.fieldId };
+    }
+
+    // Unassigned (or dangling target) -> Default = today's behavior.
+    if (globalGranularity === undefined) {
+        return undefined;
+    }
+    return {
+        granularity: globalGranularity,
+        ...(defaultXAxisFieldId ? { xAxisFieldId: defaultXAxisFieldId } : {}),
+    };
+};
+
+// Match the existing global `?dateZoom` read: a standard grain round-trips to
+// its canonical `DateGranularity` case; a custom-interval value is kept as-is.
+export const normalizeGranularityParam = (
+    param: string,
+): DateGranularity | string =>
+    Object.values(DateGranularity).find(
+        (grain) => grain.toLowerCase() === param.toLowerCase(),
+    ) ?? param;
