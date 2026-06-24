@@ -6,6 +6,7 @@ import {
     ForbiddenError,
     LightdashUser,
     UpdateAiOrganizationSettings,
+    type AiModelOption,
     type SessionUser,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -13,6 +14,8 @@ import { OrganizationModel } from '../../models/OrganizationModel';
 import { BaseService } from '../../services/BaseService';
 import { AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
 import { CommercialFeatureFlagModel } from '../models/CommercialFeatureFlagModel';
+import { getAvailableModels, getDefaultModel } from './ai/models';
+import { matchesPreset } from './ai/models/presets';
 
 type AiOrganizationSettingsServiceDependencies = {
     aiOrganizationSettingsModel: AiOrganizationSettingsModel;
@@ -67,6 +70,23 @@ export class AiOrganizationSettingsService extends BaseService {
             featureFlagId: CommercialFeatureFlags.AiCopilot,
         });
         return isCopilotEnabled.enabled;
+    }
+
+    private getDefaultModelOptions(): AiModelOption[] {
+        const defaultModel = getDefaultModel(this.lightdashConfig.ai.copilot);
+
+        return getAvailableModels(this.lightdashConfig.ai.copilot).map(
+            (preset) => ({
+                name: preset.name,
+                displayName: preset.displayName,
+                description: preset.description,
+                provider: preset.provider,
+                default:
+                    preset.provider === defaultModel.provider &&
+                    matchesPreset(preset, defaultModel.name),
+                supportsReasoning: preset.supportsReasoning,
+            }),
+        );
     }
 
     /**
@@ -128,6 +148,8 @@ export class AiOrganizationSettingsService extends BaseService {
                 aiAgentsVisible: true,
                 aiAgentReviewsEnabled: false,
                 mcpContentWritesEnabled: true,
+                defaultAiAgentModelConfig: null,
+                defaultAiAgentModelOptions: this.getDefaultModelOptions(),
                 isTrial: isTrialEligible,
             };
         }
@@ -136,6 +158,7 @@ export class AiOrganizationSettingsService extends BaseService {
             ...settings,
             isTrial: isTrialEligible,
             isCopilotEnabled,
+            defaultAiAgentModelOptions: this.getDefaultModelOptions(),
         };
     }
 

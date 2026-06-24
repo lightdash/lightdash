@@ -13,6 +13,12 @@ import {
     type AiAgentRootCause,
 } from './aiAgentReviewClassifierTypes';
 
+export type AiAgentModelConfig = {
+    modelName: string;
+    modelProvider: string;
+    reasoning?: boolean;
+};
+
 /**
  * Runtime state captured at pin time for a chart context. When a user pins a
  * chart from a dashboard view, these are the dashboard-level overrides that
@@ -68,11 +74,7 @@ export type AiPrompt = {
     response: string | null;
     errorMessage: string | null;
     humanScore: number | null;
-    modelConfig: {
-        modelName: string;
-        modelProvider: string;
-        reasoning?: boolean;
-    } | null;
+    modelConfig: AiAgentModelConfig | null;
 };
 
 export type SlackPrompt = AiPrompt & {
@@ -94,6 +96,7 @@ export type CreateSlackPrompt = {
     threadUuid: string;
     createdByUserUuid: string;
     prompt: string;
+    modelConfig?: AiAgentModelConfig;
     slackUserId: string;
     slackChannelId: string;
     promptSlackTs: string;
@@ -229,11 +232,7 @@ export type CreateWebAppPrompt = {
     createdByUserUuid: string;
     prompt: string;
     context?: AiPromptContextInput;
-    modelConfig?: {
-        modelName: string;
-        modelProvider: string;
-        reasoning?: boolean;
-    };
+    modelConfig?: AiAgentModelConfig;
     /** Inject as a hidden turn (agent responds, UI hides the user bubble). */
     hidden?: boolean;
 };

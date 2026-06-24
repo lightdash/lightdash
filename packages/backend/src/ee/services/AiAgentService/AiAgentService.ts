@@ -93,6 +93,7 @@ import {
     UserAttributeValueMap,
     validateAgentSuggestion,
     type AgentSuggestionTool,
+    type AiAgentModelConfig,
     type AiPromptContextInput,
     type SessionUser,
     type SuggestionValidationCatalog,
@@ -7718,6 +7719,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         prompt: string;
         promptSlackTs: string;
         agentUuid: string | null;
+        modelConfig?: AiAgentModelConfig | null;
         threadMessages?: Array<
             Required<Pick<MessageElement, 'text' | 'user' | 'ts'>>
         >;
@@ -7744,13 +7746,22 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 );
         }
 
+        const user = await this.userModel.getUserDetailsByUuid(data.userUuid);
+        if (user.organizationUuid === undefined) {
+            throw new Error('Organization not found');
+        }
+
+        const aiOrganizationSettings = data.modelConfig
+            ? undefined
+            : await this.aiOrganizationSettingsService.getSettings(
+                  user as SessionUser,
+              );
+        const modelConfig =
+            data.modelConfig ??
+            aiOrganizationSettings?.defaultAiAgentModelConfig ??
+            undefined;
+
         if (!threadUuid) {
-            const user = await this.userModel.getUserDetailsByUuid(
-                data.userUuid,
-            );
-            if (user.organizationUuid === undefined) {
-                throw new Error('Organization not found');
-            }
             createdThread = true;
             threadUuid = await this.aiAgentModel.createSlackThread({
                 organizationUuid: user.organizationUuid,
@@ -7781,12 +7792,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             threadUuid,
             createdByUserUuid: data.userUuid,
             prompt: AiAgentService.stripSlackMentions(data.prompt),
+            modelConfig,
             slackUserId: data.slackUserId,
             slackChannelId: data.slackChannelId,
             promptSlackTs: data.promptSlackTs,
         });
 
-        const user = await this.userModel.getUserDetailsByUuid(data.userUuid);
         if (user.organizationUuid) {
             this.analytics.track<AiAgentPromptCreatedEvent>({
                 event: 'ai_agent_prompt.created',

@@ -325,6 +325,7 @@ describe('AiAgentReviewClassifierService', () => {
             aiAgentsVisible: true,
             aiAgentReviewsEnabled: true,
             mcpContentWritesEnabled: true,
+            defaultAiAgentModelConfig: null,
         });
         model.createRun.mockResolvedValue(makeRun());
         model.updateRun.mockResolvedValue(makeRun({ status: 'completed' }));
@@ -379,6 +380,7 @@ describe('AiAgentReviewClassifierService', () => {
                 aiAgentsVisible: true,
                 aiAgentReviewsEnabled: false,
                 mcpContentWritesEnabled: true,
+                defaultAiAgentModelConfig: null,
             },
         );
 

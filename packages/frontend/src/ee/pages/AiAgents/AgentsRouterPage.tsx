@@ -30,7 +30,6 @@ import {
 } from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { getModelKey } from '../../../components/common/ModelSelector/utils';
 import { useProject } from '../../../hooks/useProject';
 import { AutoModeSidebar } from '../../features/aiCopilot/components/AiAgentPageLayout/AgentSidebar';
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout/AiAgentPageLayout';
@@ -43,10 +42,10 @@ import { getPromptContextItemKey } from '../../features/aiCopilot/components/Cha
 import { ChatElementsUtils } from '../../features/aiCopilot/components/ChatElements/utils';
 import { usePendingPrompt } from '../../features/aiCopilot/components/PendingPromptContext/PendingPromptContext';
 import { PinnedContextCard } from '../../features/aiCopilot/components/PinnedContextCard/PinnedContextCard';
+import { useAiAgentModelSelection } from '../../features/aiCopilot/hooks/useAiAgentModelSelection';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentRouterFlow } from '../../features/aiCopilot/hooks/useAiAgentRouterFlow';
 import { useAiAgentSqlModeAvailable } from '../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable';
-import { useModelOptions } from '../../features/aiCopilot/hooks/useModelOptions';
 import { usePinnedContext } from '../../features/aiCopilot/hooks/usePinnedContext';
 import {
     useCreateAgentThreadMutation,
@@ -77,15 +76,7 @@ const AgentsRouterPage = () => {
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
     const placeholderAgentUuid = agents?.[0]?.uuid;
-    const { data: modelOptions } = useModelOptions({
-        projectUuid,
-        agentUuid: placeholderAgentUuid,
-    });
 
-    const [selectedModelKey, setSelectedModelKey] = useState<string | null>(
-        null,
-    );
-    const [extendedThinking, setExtendedThinking] = useState(false);
     const [sqlMode, setSqlMode] = useState(false);
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
     const chartUuid = searchParams.get('chartUuid');
@@ -102,32 +93,18 @@ const AgentsRouterPage = () => {
         dashboardUuidOrSlug: dashboardUuid,
     });
 
-    const handleSelectedModelKeyChange = useCallback(
-        (modelKey: string) => {
-            setSelectedModelKey(modelKey);
-            const model = modelOptions?.find(
-                (m) => getModelKey(m) === modelKey,
-            );
-            if (model && !model.supportsReasoning) {
-                setExtendedThinking(false);
-            }
-        },
-        [modelOptions],
-    );
-
-    useEffect(() => {
-        if (modelOptions && !selectedModelKey) {
-            const defaultModel = modelOptions.find((m) => m.default);
-            if (defaultModel) {
-                handleSelectedModelKeyChange(getModelKey(defaultModel));
-            }
-        }
-    }, [modelOptions, selectedModelKey, handleSelectedModelKeyChange]);
-
-    const selectedModel = modelOptions?.find(
-        (m) => getModelKey(m) === selectedModelKey,
-    );
-    const showExtendedThinking = selectedModel?.supportsReasoning ?? false;
+    const {
+        extendedThinking,
+        handleExtendedThinkingChange,
+        handleSelectedModelKeyChange,
+        modelConfig,
+        modelOptions,
+        selectedModelKey,
+        showExtendedThinking,
+    } = useAiAgentModelSelection({
+        projectUuid,
+        agentUuid: placeholderAgentUuid,
+    });
 
     const { pendingPrompt, setPendingPrompt } = usePendingPrompt();
 
@@ -152,15 +129,7 @@ const AgentsRouterPage = () => {
                 optimisticContext: args.optimisticContext,
                 prompt: args.message,
                 toolHints: args.toolHints,
-                modelConfig: selectedModel
-                    ? {
-                          modelName: selectedModel.name,
-                          modelProvider: selectedModel.provider,
-                          reasoning: showExtendedThinking
-                              ? extendedThinking
-                              : undefined,
-                      }
-                    : undefined,
+                modelConfig,
             });
             dispatch(
                 setThreadSqlMode({
@@ -170,15 +139,7 @@ const AgentsRouterPage = () => {
             );
             return thread;
         },
-        [
-            createThread,
-            dispatch,
-            extendedThinking,
-            selectedModel,
-            showExtendedThinking,
-            sqlMode,
-            sqlModeAvailable,
-        ],
+        [createThread, dispatch, modelConfig, sqlMode, sqlModeAvailable],
     );
 
     const handleRouteError = useCallback(
@@ -382,7 +343,7 @@ const AgentsRouterPage = () => {
                             }
                             onExtendedThinkingChange={
                                 showExtendedThinking
-                                    ? setExtendedThinking
+                                    ? handleExtendedThinkingChange
                                     : undefined
                             }
                             sqlMode={sqlModeAvailable ? sqlMode : undefined}

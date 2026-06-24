@@ -3,7 +3,9 @@ import type {
     AiAgentSummary,
     AiAgentThreadSummary,
     AiAgentUser,
+    AiModelOption,
 } from './index';
+import type { AiAgentModelConfig } from './requestTypes';
 
 export type AiAgentAdminFilters = {
     projectUuids?: string[];
@@ -72,6 +74,7 @@ export type ApiAiAgentAdminPromptActivityResponse = ApiSuccess<
 export type ComputedAiOrganizationSettings = {
     isCopilotEnabled: boolean;
     isTrial: boolean;
+    defaultAiAgentModelOptions: AiModelOption[];
 };
 
 // AI Organization Settings Types
@@ -80,6 +83,7 @@ export type AiOrganizationSettings = {
     aiAgentsVisible: boolean;
     aiAgentReviewsEnabled: boolean;
     mcpContentWritesEnabled: boolean;
+    defaultAiAgentModelConfig: AiAgentModelConfig | null;
 };
 
 export type CreateAiOrganizationSettings = AiOrganizationSettings;

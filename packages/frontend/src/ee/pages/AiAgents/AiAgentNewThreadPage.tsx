@@ -11,18 +11,10 @@ import {
     Title,
 } from '@mantine-8/core';
 import { IconInfoCircle } from '@tabler/icons-react';
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type FC,
-} from 'react';
+import { useCallback, useRef, useState, type FC } from 'react';
 import { useOutletContext, useParams, useSearchParams } from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { getModelKey } from '../../../components/common/ModelSelector/utils';
 import { AiAgentNewThreadMcpConnections } from '../../features/aiCopilot/components/AiAgentNewThreadMcpConnections';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import {
@@ -36,8 +28,8 @@ import { usePendingPrompt } from '../../features/aiCopilot/components/PendingPro
 import { PinnedContextCard } from '../../features/aiCopilot/components/PinnedContextCard/PinnedContextCard';
 import { SuggestedQuestions } from '../../features/aiCopilot/components/SuggestedQuestions/SuggestedQuestions';
 import { isEmbedAiAgentRoute } from '../../features/aiCopilot/hooks/aiAgentRouting';
+import { useAiAgentModelSelection } from '../../features/aiCopilot/hooks/useAiAgentModelSelection';
 import { useAiAgentSqlModeAvailable } from '../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable';
-import { useModelOptions } from '../../features/aiCopilot/hooks/useModelOptions';
 import { usePinnedContext } from '../../features/aiCopilot/hooks/usePinnedContext';
 import {
     useCreateAgentThreadMutation,
@@ -119,42 +111,20 @@ const AiAgentNewThreadPage: FC = () => {
         projectUuid,
         agentUuid,
     );
-    const { data: modelOptions } = useModelOptions({ projectUuid, agentUuid });
 
-    const [selectedModelKey, setSelectedModelKey] = useState<string | null>(
-        null,
-    );
-    const [extendedThinking, setExtendedThinking] = useState(false);
-
-    const handleSelectedModelKeyChange = useCallback(
-        (modelKey: string) => {
-            setSelectedModelKey(modelKey);
-            const model = modelOptions?.find(
-                (m) => getModelKey(m) === modelKey,
-            );
-            if (model && !model.supportsReasoning) {
-                setExtendedThinking(false);
-            }
-        },
-        [modelOptions, setExtendedThinking],
-    );
-
-    // Initialize to default model when data loads
-    useEffect(() => {
-        if (modelOptions && !selectedModelKey) {
-            const defaultModel = modelOptions.find((m) => m.default);
-            if (defaultModel) {
-                handleSelectedModelKeyChange(getModelKey(defaultModel));
-            }
-        }
-    }, [modelOptions, selectedModelKey, handleSelectedModelKeyChange]);
-
-    // Only enable extended thinking toggle when selected model supports reasoning
-    const selectedModel = useMemo(
-        () => modelOptions?.find((m) => getModelKey(m) === selectedModelKey),
-        [modelOptions, selectedModelKey],
-    );
-    const showExtendedThinking = selectedModel?.supportsReasoning ?? false;
+    const {
+        extendedThinking,
+        handleExtendedThinkingChange,
+        handleSelectedModelKeyChange,
+        modelConfig,
+        modelOptions,
+        selectedModelKey,
+        showExtendedThinking,
+    } = useAiAgentModelSelection({
+        projectUuid,
+        agentUuid,
+        organizationSettingsEnabled: !isEmbed,
+    });
 
     const { pendingPrompt, setPendingPrompt } = usePendingPrompt();
     const [composerSeedKey, setComposerSeedKey] = useState(0);
@@ -196,15 +166,7 @@ const AiAgentNewThreadPage: FC = () => {
                 optimisticContext: mergedOptimisticContext,
                 enableSqlMode: sqlModeAvailable && sqlMode,
                 toolHints,
-                modelConfig: selectedModel
-                    ? {
-                          modelName: selectedModel.name,
-                          modelProvider: selectedModel.provider,
-                          reasoning: showExtendedThinking
-                              ? extendedThinking
-                              : undefined,
-                      }
-                    : undefined,
+                modelConfig,
             });
         },
         [
@@ -215,9 +177,7 @@ const AiAgentNewThreadPage: FC = () => {
             previewItems,
             sqlModeAvailable,
             sqlMode,
-            selectedModel,
-            showExtendedThinking,
-            extendedThinking,
+            modelConfig,
             isPinnedContextReady,
         ],
     );
@@ -357,7 +317,7 @@ const AiAgentNewThreadPage: FC = () => {
                         }
                         onExtendedThinkingChange={
                             showExtendedThinking
-                                ? setExtendedThinking
+                                ? handleExtendedThinkingChange
                                 : undefined
                         }
                         sqlMode={sqlModeAvailable ? sqlMode : undefined}

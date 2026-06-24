@@ -31,6 +31,7 @@ export class AiOrganizationSettingsModel {
             aiAgentsVisible: db.ai_agents_visible,
             aiAgentReviewsEnabled: db.ai_agent_reviews_enabled,
             mcpContentWritesEnabled: db.mcp_content_writes_enabled,
+            defaultAiAgentModelConfig: db.default_ai_agent_model_config,
         };
     }
 
@@ -69,6 +70,7 @@ export class AiOrganizationSettingsModel {
                 ai_agents_visible: data.aiAgentsVisible,
                 ai_agent_reviews_enabled: data.aiAgentReviewsEnabled,
                 mcp_content_writes_enabled: data.mcpContentWritesEnabled,
+                default_ai_agent_model_config: data.defaultAiAgentModelConfig,
             })
             .returning('*');
 
@@ -85,6 +87,7 @@ export class AiOrganizationSettingsModel {
                 | 'ai_agents_visible'
                 | 'ai_agent_reviews_enabled'
                 | 'mcp_content_writes_enabled'
+                | 'default_ai_agent_model_config'
             >
         > = {};
         if (data.aiAgentsVisible !== undefined) {
@@ -96,6 +99,10 @@ export class AiOrganizationSettingsModel {
         if (data.mcpContentWritesEnabled !== undefined) {
             updateData.mcp_content_writes_enabled =
                 data.mcpContentWritesEnabled;
+        }
+        if (data.defaultAiAgentModelConfig !== undefined) {
+            updateData.default_ai_agent_model_config =
+                data.defaultAiAgentModelConfig;
         }
         if (Object.keys(updateData).length === 0) {
             return this.getByOrganizationUuid(organizationUuid);
@@ -131,6 +138,7 @@ export class AiOrganizationSettingsModel {
             aiAgentsVisible: data.aiAgentsVisible ?? true,
             aiAgentReviewsEnabled: data.aiAgentReviewsEnabled ?? false,
             mcpContentWritesEnabled: data.mcpContentWritesEnabled ?? true,
+            defaultAiAgentModelConfig: data.defaultAiAgentModelConfig ?? null,
         });
     }
 

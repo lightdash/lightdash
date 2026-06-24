@@ -5,17 +5,26 @@ import {
     Divider,
     Group,
     Loader,
+    Select,
     Stack,
     Switch,
     Text,
     Title,
 } from '@mantine-8/core';
 import { IconSparkles } from '@tabler/icons-react';
+import { useMemo } from 'react';
 import { Link } from 'react-router';
 import { BetaBadge } from '../../../../../../components/common/BetaBadge';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { getModelKey } from '../../../../../../components/common/ModelSelector/utils';
 import PageBreadcrumbs from '../../../../../../components/common/PageBreadcrumbs';
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
+import {
+    getAiAgentModelConfig,
+    getConfiguredModelOption,
+    getModelOptionByKey,
+    getSystemDefaultModelOption,
+} from '../../../hooks/useAiAgentModelSelection';
 import {
     useAiOrganizationSettings,
     useUpdateAiOrganizationSettings,
@@ -37,6 +46,24 @@ export const AiGeneralSettingsPage = () => {
     const isRouterLoading = aiRouterQuery.isInitialLoading;
     const { mutate: upsertRouter, isLoading: isUpdatingRouter } =
         useUpsertAiRouterConfig();
+    const defaultModelConfig = settings?.defaultAiAgentModelConfig ?? null;
+    const defaultModelOptions = settings?.defaultAiAgentModelOptions;
+    const selectedDefaultModel = useMemo(
+        () => getConfiguredModelOption(defaultModelOptions, defaultModelConfig),
+        [defaultModelConfig, defaultModelOptions],
+    );
+    const selectedDefaultModelKey = selectedDefaultModel
+        ? getModelKey(selectedDefaultModel)
+        : null;
+    const systemDefaultModel = useMemo(
+        () => getSystemDefaultModelOption(defaultModelOptions),
+        [defaultModelOptions],
+    );
+    const systemDefaultModelLabel = systemDefaultModel
+        ? `System default: ${systemDefaultModel.displayName}`
+        : 'System default';
+    const showReasoningDefault =
+        selectedDefaultModel?.supportsReasoning === true;
 
     return (
         <Stack mb="lg" gap="md">
@@ -53,6 +80,106 @@ export const AiGeneralSettingsPage = () => {
                 </Group>
             ) : (
                 <>
+                    <SettingsCard>
+                        <Stack gap="md">
+                            <Group
+                                justify="space-between"
+                                wrap="nowrap"
+                                align="flex-start"
+                                gap="md"
+                            >
+                                <Box maw={620}>
+                                    <Title order={5} mb={4}>
+                                        Default AI model
+                                    </Title>
+                                    <Text c="dimmed" fz="xs">
+                                        Choose the model and reasoning default
+                                        for new AI agent chats. Users can still
+                                        change it in each chat.
+                                    </Text>
+                                </Box>
+                                <Select
+                                    w={260}
+                                    size="xs"
+                                    value={selectedDefaultModelKey}
+                                    disabled={
+                                        isUpdatingSettings ||
+                                        !defaultModelOptions?.length
+                                    }
+                                    placeholder={systemDefaultModelLabel}
+                                    clearable
+                                    data={(defaultModelOptions ?? []).map(
+                                        (model) => ({
+                                            value: getModelKey(model),
+                                            label: model.displayName,
+                                        }),
+                                    )}
+                                    onChange={(modelKey) => {
+                                        const model = getModelOptionByKey(
+                                            defaultModelOptions,
+                                            modelKey,
+                                        );
+                                        updateSettings({
+                                            defaultAiAgentModelConfig:
+                                                getAiAgentModelConfig(
+                                                    model,
+                                                    defaultModelConfig?.reasoning ??
+                                                        false,
+                                                ) ?? null,
+                                        });
+                                    }}
+                                />
+                            </Group>
+
+                            {showReasoningDefault && (
+                                <>
+                                    <Divider />
+                                    <Group
+                                        justify="space-between"
+                                        wrap="nowrap"
+                                        align="flex-start"
+                                        gap="md"
+                                    >
+                                        <Box maw={620}>
+                                            <Title order={6} mb={4}>
+                                                High reasoning by default
+                                            </Title>
+                                            <Text c="dimmed" fz="xs">
+                                                Start new chats with high
+                                                reasoning enabled for the
+                                                selected model.
+                                            </Text>
+                                        </Box>
+                                        <Switch
+                                            size="md"
+                                            checked={
+                                                defaultModelConfig?.reasoning ===
+                                                true
+                                            }
+                                            disabled={isUpdatingSettings}
+                                            onChange={(event) => {
+                                                if (!selectedDefaultModel)
+                                                    return;
+                                                updateSettings({
+                                                    defaultAiAgentModelConfig: {
+                                                        ...defaultModelConfig,
+                                                        modelName:
+                                                            selectedDefaultModel.name,
+                                                        modelProvider:
+                                                            selectedDefaultModel.provider,
+                                                        reasoning:
+                                                            event.currentTarget
+                                                                .checked,
+                                                    },
+                                                });
+                                            }}
+                                        />
+                                    </Group>
+                                </>
+                            )}
+                        </Stack>
+                    </SettingsCard>
+
                     <SettingsCard>
                         <Group
                             justify="space-between"
