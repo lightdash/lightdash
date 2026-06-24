@@ -5,6 +5,7 @@ import {
     formatTooltipLabel,
     formatTooltipRow,
     formatTooltipValue,
+    getGranularityMapFromItems,
     getLegendStyle,
     getPieExternalLabelStyle,
     getPieInternalLabelStyle,
@@ -13,6 +14,7 @@ import {
     getTooltipStyle,
     PieChartLegendLabelMaxLengthDefault,
     PieChartTooltipLabelMaxLength,
+    resolveGranularityInLabel,
     type ResultRow,
     type ResultValue,
 } from '@lightdash/common';
@@ -74,6 +76,8 @@ const useEchartsPieConfig = (
 
         if (!selectedMetric) return;
 
+        const granularityMap = getGranularityMapFromItems(itemsMap);
+
         // Calculate total for percentage calculation
         const total = data.reduce((sum, { value }) => sum + value, 0);
 
@@ -106,10 +110,15 @@ const useEchartsPieConfig = (
                 const borderRadius = isDonut
                     ? calculateBorderRadiusForSlice(percent)
                     : 0;
+                const labelOverride = groupLabelOverrides?.[name] ?? name;
                 const config: PieSeriesDataPoint = {
                     id: name,
                     groupId: name,
-                    name: groupLabelOverrides?.[name] ?? name,
+                    name:
+                        resolveGranularityInLabel(
+                            labelOverride,
+                            granularityMap,
+                        ) ?? labelOverride,
                     value: value,
                     itemStyle: {
                         color: itemColor,
@@ -157,7 +166,7 @@ const useEchartsPieConfig = (
 
                 return config;
             });
-    }, [chartConfig, getGroupColor]);
+    }, [chartConfig, getGroupColor, itemsMap]);
 
     const pieSeriesOption: PieSeriesOption | undefined = useMemo(() => {
         if (!chartConfig) return;
