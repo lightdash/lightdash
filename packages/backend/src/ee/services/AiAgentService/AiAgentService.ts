@@ -189,7 +189,6 @@ import { SavedChartService } from '../../../services/SavedChartsService/SavedCha
 import { SearchService } from '../../../services/SearchService/SearchService';
 import { ShareService } from '../../../services/ShareService/ShareService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
-import { doesExploreMatchRequiredAttributes } from '../../../services/UserAttributesService/UserAttributeUtils';
 import { wrapSentryTransaction } from '../../../utils';
 import { validatePublicHttpUrl } from '../../../utils/ssrfProtection';
 import { AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
@@ -203,6 +202,7 @@ import {
     type AiMcpServerWithSensitiveData,
 } from '../../models/AiAgentModel';
 import { AiAgentReviewClassifierModel } from '../../models/AiAgentReviewClassifierModel';
+import { AiAgentReviewNotificationModel } from '../../models/AiAgentReviewNotificationModel';
 import { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
 import { ProjectContextModel } from '../../models/ProjectContextModel';
 import { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
@@ -394,6 +394,10 @@ type AiAgentServiceDependencies = {
         | 'findReviewRemediationByPreviewThread'
         | 'findReviewRemediationByWorkThread'
         | 'createRemediationEvent'
+    >;
+    aiAgentReviewNotificationModel: Pick<
+        AiAgentReviewNotificationModel,
+        'recordClicked'
     >;
     prometheusMetrics?: PrometheusMetrics;
 };
@@ -651,6 +655,11 @@ export class AiAgentService extends BaseService {
         | 'findReviewRemediationByPreviewThread'
         | 'findReviewRemediationByWorkThread'
         | 'createRemediationEvent'
+    >;
+
+    private readonly aiAgentReviewNotificationModel: Pick<
+        AiAgentReviewNotificationModel,
+        'recordClicked'
     >;
 
     private readonly aiAgentMcpRuntimeClient: AiAgentMcpRuntimeClient;
@@ -932,6 +941,8 @@ export class AiAgentService extends BaseService {
         this.pullRequestsModel = dependencies.pullRequestsModel;
         this.aiAgentReviewClassifierModel =
             dependencies.aiAgentReviewClassifierModel;
+        this.aiAgentReviewNotificationModel =
+            dependencies.aiAgentReviewNotificationModel;
         this.aiAgentMcpRuntimeClient = new AiAgentMcpRuntimeClient({
             aiAgentModel: this.aiAgentModel,
             lightdashConfig: this.lightdashConfig,
@@ -5332,35 +5343,14 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         agent: AiAgentSummary,
     ): Promise<AgentSummaryContext> {
-        const { organizationUuid } = user;
-        if (!organizationUuid) {
-            throw new ForbiddenError('Organization not found');
-        }
-
-        const [exploreSummaries, userAttributes] = await Promise.all([
-            this.projectModel.getAllExploreSummaries(agent.projectUuid),
-            this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid,
-                userUuid: user.userUuid,
-            }),
-        ]);
-        const exploreNames = exploreSummaries
-            .filter((summary) => !('errors' in summary))
-            .filter((summary) =>
-                doesExploreMatchRequiredAttributes(
-                    summary.baseTableRequiredAttributes,
-                    summary.baseTableAnyAttributes,
-                    userAttributes,
-                ),
-            )
-            // Summary context only has explore-level tags, not field-level tags.
-            .filter(
-                (summary) =>
-                    !agent.tags ||
-                    agent.tags.length === 0 ||
-                    summary.tags?.some((tag) => agent.tags?.includes(tag)),
-            )
-            .map((summary) => summary.label || summary.name);
+        const availableExplores = await this.getAvailableExplores(
+            user,
+            agent.projectUuid,
+            agent.tags,
+        );
+        const exploreNames = availableExplores.map(
+            (explore) => explore.label || explore.name,
+        );
 
         const verifiedQuestionsData =
             await this.aiAgentModel.getVerifiedQuestions(agent.uuid);
@@ -9163,6 +9153,47 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     public handleClickExploreButton(app: App) {
         app.action('actions.explore_button_click', async ({ ack, respond }) => {
             await ack();
+        });
+    }
+
+    public handleAiReviewOpenButton(app: App) {
+        app.action('ai_review_open', async ({ ack, body, action, context }) => {
+            await ack();
+
+            try {
+                if (body.type !== 'block_actions' || action.type !== 'button') {
+                    return;
+                }
+                const notificationLogUuid = action.value;
+                if (!notificationLogUuid) {
+                    return;
+                }
+
+                await this.aiAgentReviewNotificationModel.recordClicked(
+                    notificationLogUuid,
+                );
+
+                if (!context.teamId) {
+                    return;
+                }
+                const organizationUuid =
+                    await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
+                        context.teamId,
+                    );
+                this.analytics.track({
+                    event: 'ai_review_notification.clicked',
+                    anonymousId: organizationUuid,
+                    properties: {
+                        organizationId: organizationUuid,
+                    },
+                });
+            } catch (error) {
+                Logger.warn(
+                    `Failed to track AI review notification click: ${getErrorMessage(
+                        error,
+                    )}`,
+                );
+            }
         });
     }
 
