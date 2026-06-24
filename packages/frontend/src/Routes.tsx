@@ -509,6 +509,13 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
         element: <Navigate to="../autopilot" replace />,
     },
     {
+        path: 'apps',
+        lazy: async () => {
+            const { default: SavedApps } = await import('./pages/SavedApps');
+            return { Component: SavedApps };
+        },
+    },
+    {
         path: 'apps/generate',
         handle: { hideAILauncher: true },
         lazy: async () => {

@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    FeatureFlags,
     ResourceViewItemType,
     type ResourceViewItem,
 } from '@lightdash/common';
@@ -28,7 +29,9 @@ import { useState, type FC } from 'react';
 import { Link } from 'react-router';
 import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
 import { useFavorites } from '../../hooks/favorites/useFavorites';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useSpaceSummaries } from '../../hooks/useSpaces';
+import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import { PolymorphicGroupButton } from '../common/PolymorphicGroupButton';
 import TruncatedText from '../common/TruncatedText';
@@ -85,6 +88,9 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
         projectUuid,
     });
     const { data: favorites } = useFavorites(projectUuid);
+    const { user } = useApp();
+    const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const canViewDataApps = user.data?.ability?.can('view', 'DataApp') ?? false;
 
     const hasFavorites = favorites && favorites.length > 0;
     const hasSpaces = isInitialLoading || (spaces && spaces.length > 0);
@@ -141,6 +147,16 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                 >
                     All saved charts
                 </Menu.Item>
+
+                {dataAppsFlag.data?.enabled && canViewDataApps && (
+                    <Menu.Item
+                        component={Link}
+                        to={`/projects/${projectUuid}/apps`}
+                        leftSection={<MantineIcon icon={IconAppWindow} />}
+                    >
+                        All data apps
+                    </Menu.Item>
+                )}
 
                 {!hasMetrics && (
                     <MetricsLink projectUuid={projectUuid} asMenu />

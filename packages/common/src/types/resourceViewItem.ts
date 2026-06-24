@@ -259,7 +259,7 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
                 uuid: content.uuid,
                 name: content.name,
                 description: content.description || undefined,
-                spaceUuid: content.space.uuid,
+                spaceUuid: content.space?.uuid ?? null,
                 createdByUserUuid: content.createdBy?.uuid ?? null,
                 updatedAt: content.lastUpdatedAt || content.createdAt,
                 updatedByUser: updatedByUser
