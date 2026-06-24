@@ -911,7 +911,7 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                 );
 
                 if (layer instanceof L.Path) {
-                    layer.bindTooltip(tooltipHtml);
+                    layer.bindTooltip(tooltipHtml, { sticky: true });
 
                     // Determine the correct base and hover opacity for this region
                     const baseOpacity = regionEntry
