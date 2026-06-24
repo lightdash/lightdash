@@ -123,8 +123,25 @@ const makeAdminUser = (): SessionUser => ({
     timezone: null,
     ability: new Ability<PossibleAbilities>([
         { action: 'manage', subject: 'Organization' },
+        {
+            action: 'manage',
+            subject: 'AiAgent',
+            conditions: { organizationUuid: ORGANIZATION_UUID },
+        },
     ]),
     abilityRules: [],
+});
+
+const makeDeveloperUser = (): SessionUser => ({
+    ...makeAdminUser(),
+    role: OrganizationMemberRole.DEVELOPER,
+    ability: new Ability<PossibleAbilities>([
+        {
+            action: 'manage',
+            subject: 'AiAgent',
+            conditions: { organizationUuid: ORGANIZATION_UUID },
+        },
+    ]),
 });
 
 const makeService = ({
@@ -142,6 +159,7 @@ const makeService = ({
     writebackPreviewService = {},
     jobModel = {},
     userModel = {},
+    aiAgentReviewNotificationService = {},
 }: {
     aiAgentModel?: Record<string, unknown>;
     aiAgentReviewClassifierModel?: Record<string, unknown>;
@@ -157,6 +175,7 @@ const makeService = ({
     writebackPreviewService?: Record<string, unknown>;
     jobModel?: Record<string, unknown>;
     userModel?: Record<string, unknown>;
+    aiAgentReviewNotificationService?: Record<string, unknown>;
 } = {}) =>
     new AiAgentAdminService({
         analytics: { track: jest.fn() },
@@ -281,6 +300,10 @@ const makeService = ({
             findSessionUserByUUID: jest.fn().mockResolvedValue(makeAdminUser()),
             ...userModel,
         },
+        aiAgentReviewNotificationService: {
+            notifyAssigned: jest.fn().mockResolvedValue(undefined),
+            ...aiAgentReviewNotificationService,
+        },
         lightdashConfig: {
             siteUrl: SITE_URL,
             appRuntime: { e2bApiKey: 'e2b-api-key' },
@@ -328,6 +351,72 @@ describe('AiAgentAdminService.getPromptActivity', () => {
             'Insufficient permissions to access organization-wide AI agent data',
         );
         expect(findAdminPromptActivity).not.toHaveBeenCalled();
+    });
+});
+
+describe('AiAgentAdminService review access', () => {
+    it('allows developers with manage:AiAgent to access reviews', async () => {
+        const listReviewSignals = jest.fn().mockResolvedValue([]);
+        const service = makeService({
+            aiAgentReviewClassifierModel: { listReviewSignals },
+        });
+
+        await expect(
+            service.listReviewSignals(makeDeveloperUser()),
+        ).resolves.toEqual([]);
+        expect(listReviewSignals).toHaveBeenCalledWith({
+            organizationUuid: ORGANIZATION_UUID,
+        });
+    });
+
+    it('forbids users without manage:AiAgent from reviews', async () => {
+        const listReviewSignals = jest.fn();
+        const service = makeService({
+            aiAgentReviewClassifierModel: { listReviewSignals },
+        });
+        const user = {
+            ...makeAdminUser(),
+            role: OrganizationMemberRole.DEVELOPER,
+            ability: new Ability<PossibleAbilities>([]),
+        };
+
+        await expect(service.listReviewSignals(user)).rejects.toThrow(
+            'Insufficient permissions to access AI agent reviews',
+        );
+        expect(listReviewSignals).not.toHaveBeenCalled();
+    });
+});
+
+describe('AiAgentAdminService.updateReviewItemAssignee', () => {
+    it('notifies the assignee after the model write succeeds', async () => {
+        const notifyAssigned = jest.fn().mockResolvedValue(undefined);
+        const updateReviewItemAssignee = jest.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            aiAgentReviewClassifierModel: {
+                updateReviewItemAssignee,
+                getReviewItem: jest.fn().mockResolvedValue(
+                    makeReviewItem({
+                        organizationUuid: ORGANIZATION_UUID,
+                        projectUuid: PROJECT_UUID,
+                    }),
+                ),
+            },
+            aiAgentReviewNotificationService: { notifyAssigned },
+        });
+
+        await service.updateReviewItemAssignee(
+            makeDeveloperUser(),
+            'fingerprint-1',
+            'user-2',
+        );
+
+        expect(notifyAssigned).toHaveBeenCalledWith({
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PROJECT_UUID,
+            fingerprint: 'fingerprint-1',
+            assigneeUserUuid: 'user-2',
+            actorUserUuid: USER_UUID,
+        });
     });
 });
 

@@ -50,6 +50,7 @@ import { AiAgentContentValidation } from './services/ai/utils/AiAgentContentVali
 import { AiAgentAdminService } from './services/AiAgentAdminService';
 import { AiAgentDocumentService } from './services/AiAgentDocumentService';
 import { AiAgentReviewClassifierService } from './services/AiAgentReviewClassifierService';
+import { AiAgentReviewNotificationService } from './services/AiAgentReviewNotificationService';
 import { AiAgentService } from './services/AiAgentService/AiAgentService';
 import { AiAgentToolsService } from './services/AiAgentToolsService/AiAgentToolsService';
 import { AiOrganizationSettingsService } from './services/AiOrganizationSettingsService';
@@ -334,6 +335,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentModel: models.getAiAgentModel(),
                     aiAgentReviewClassifierModel:
                         models.getAiAgentReviewClassifierModel<AiAgentReviewClassifierModel>(),
+                    aiAgentReviewNotificationService:
+                        repository.getAiAgentReviewNotificationService<AiAgentReviewNotificationService>(),
                     aiAgentService:
                         repository.getAiAgentService<AiAgentService>(),
                     featureFlagService: repository.getFeatureFlagService(),
@@ -385,7 +388,17 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     catalogModel: models.getCatalogModel(),
                     projectModel: models.getProjectModel(),
                     featureFlagService: repository.getFeatureFlagService(),
+                    aiAgentReviewNotificationService:
+                        repository.getAiAgentReviewNotificationService<AiAgentReviewNotificationService>(),
                     lightdashConfig: context.lightdashConfig,
+                }),
+            aiAgentReviewNotificationService: ({ models }) =>
+                new AiAgentReviewNotificationService({
+                    notificationsModel: models.getNotificationsModel(),
+                    aiAgentReviewClassifierModel:
+                        models.getAiAgentReviewClassifierModel<AiAgentReviewClassifierModel>(),
+                    organizationMemberProfileModel:
+                        models.getOrganizationMemberProfileModel(),
                 }),
             aiOrganizationSettingsService: ({ models, context }) =>
                 new AiOrganizationSettingsService({

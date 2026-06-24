@@ -1,11 +1,12 @@
-import { type NotificationDashboardComment } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
+import { type NotificationAiReview } from '@lightdash/common';
+import { Box, Menu } from '@mantine-8/core';
 import { Text, Tooltip, useMantineTheme } from '@mantine/core';
 import { IconCircleFilled } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useCallback, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { AiAgentIcon } from '../../../ee/features/aiCopilot/components/AiAgentIcon';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -13,8 +14,7 @@ import { useUpdateNotification } from '../hooks/useNotifications';
 import classes from './DashboardCommentsNotifications.module.css';
 
 type Props = {
-    projectUuid: string;
-    notifications: NotificationDashboardComment[];
+    notifications: NotificationAiReview[];
 };
 
 const NotificationTime: FC<{ createdAt: Date }> = ({ createdAt }) => {
@@ -22,7 +22,6 @@ const NotificationTime: FC<{ createdAt: Date }> = ({ createdAt }) => {
     return (
         <Tooltip
             position="top-end"
-            // Add offset so toolip pointer is closer to the text
             offset={-2}
             label={
                 <Text fz="xs">
@@ -42,17 +41,14 @@ const NotificationTime: FC<{ createdAt: Date }> = ({ createdAt }) => {
     );
 };
 
-export const DashboardCommentsNotifications: FC<Props> = ({
-    projectUuid,
-    notifications,
-}) => {
+export const AiReviewNotifications: FC<Props> = ({ notifications }) => {
     const { track } = useTracking();
     const theme = useMantineTheme();
     const navigate = useNavigate();
     const { mutateAsync: updateNotification } = useUpdateNotification();
 
     const handleOnNotificationClick = useCallback(
-        async (notification: NotificationDashboardComment) => {
+        async (notification: NotificationAiReview) => {
             await updateNotification({
                 notificationId: notification.notificationId,
                 resourceType: notification.resourceType,
@@ -62,23 +58,19 @@ export const DashboardCommentsNotifications: FC<Props> = ({
             });
 
             track({
-                name: EventName.NOTIFICATIONS_COMMENTS_ITEM_CLICKED,
+                name: EventName.NOTIFICATIONS_ITEM_CLICKED,
                 properties: {
-                    hasMention: true, // TODO: At the moment, comments' notifications are always mentions
-                    dashboardUuid: notification.metadata?.dashboardUuid,
-                    dashboardTileUuid: notification.metadata?.dashboardTileUuid,
+                    resourceType: notification.resourceType,
+                    event: notification.metadata.event,
+                    projectUuid: notification.metadata.projectUuid,
+                    fingerprint: notification.metadata.fingerprint,
+                    count: notification.metadata.count,
                 },
             });
 
-            void navigate(
-                `/projects/${projectUuid}${notification.url}${
-                    notification.metadata?.dashboardTileUuid
-                        ? `?tileUuid=${notification.metadata?.dashboardTileUuid}`
-                        : ''
-                }`,
-            );
+            void navigate(notification.url ?? '/ai-agents/admin/reviews');
         },
-        [navigate, projectUuid, track, updateNotification],
+        [navigate, track, updateNotification],
     );
 
     return (
@@ -88,15 +80,24 @@ export const DashboardCommentsNotifications: FC<Props> = ({
                     p="xs"
                     key={notification.notificationId}
                     leftSection={
-                        <MantineIcon
-                            size={10}
-                            icon={IconCircleFilled}
+                        <Box
+                            display="flex"
                             style={{
-                                color: notification.viewed
-                                    ? 'transparent'
-                                    : theme.colors.blue[4],
+                                alignItems: 'center',
+                                gap: 6,
                             }}
-                        />
+                        >
+                            <MantineIcon
+                                size={8}
+                                icon={IconCircleFilled}
+                                style={{
+                                    color: notification.viewed
+                                        ? 'transparent'
+                                        : theme.colors.teal[5],
+                                }}
+                            />
+                            <AiAgentIcon size={16} calm />
+                        </Box>
                     }
                     onClick={() => handleOnNotificationClick(notification)}
                     fz="xs"
