@@ -9,7 +9,7 @@ export const getModelOptionByKey = (
     modelKey: string | null,
 ) => modelOptions?.find((model) => getModelKey(model) === modelKey);
 
-export const getConfiguredModelOption = (
+const getConfiguredModelOption = (
     modelOptions: AiModelOption[] | undefined,
     modelConfig: AiAgentModelConfig | null | undefined,
 ) =>
@@ -19,7 +19,7 @@ export const getConfiguredModelOption = (
             model.provider === modelConfig?.modelProvider,
     );
 
-export const getSystemDefaultModelOption = (
+const getSystemDefaultModelOption = (
     modelOptions: AiModelOption[] | undefined,
 ) => modelOptions?.find((model) => model.default);
 
@@ -52,8 +52,47 @@ export const getAiAgentModelConfig = (
           }
         : undefined;
 
+type UseDefaultAiAgentModelProps = {
+    modelOptions: AiModelOption[] | undefined;
+    modelConfig: AiAgentModelConfig | null | undefined;
+    fallbackModelConfig?: AiAgentModelConfig | null;
+    fallbackLabel: string;
+};
+
+export const useDefaultAiAgentModel = ({
+    modelOptions,
+    modelConfig,
+    fallbackModelConfig,
+    fallbackLabel,
+}: UseDefaultAiAgentModelProps) => {
+    const selectedModel = useMemo(
+        () => getConfiguredModelOption(modelOptions, modelConfig),
+        [modelConfig, modelOptions],
+    );
+    const selectedModelKey = selectedModel ? getModelKey(selectedModel) : null;
+    const fallbackModel = useMemo(
+        () =>
+            getConfiguredModelOption(modelOptions, fallbackModelConfig) ??
+            getSystemDefaultModelOption(modelOptions),
+        [fallbackModelConfig, modelOptions],
+    );
+    const fallbackModelLabel = fallbackModel
+        ? `${fallbackLabel}: ${fallbackModel.displayName}`
+        : fallbackLabel;
+    const showReasoningDefault = selectedModel?.supportsReasoning === true;
+
+    return {
+        fallbackModel,
+        fallbackModelLabel,
+        selectedModel,
+        selectedModelKey,
+        showReasoningDefault,
+    };
+};
+
 type UseAiAgentModelSelectionProps = {
     agentUuid: string | undefined;
+    defaultModelConfig?: AiAgentModelConfig | null | undefined;
     projectUuid: string | undefined;
     organizationSettingsEnabled?: boolean;
 };
@@ -94,10 +133,14 @@ const modelSelectionReducer = (
 
 export const useAiAgentModelSelection = ({
     agentUuid,
+    defaultModelConfig,
     projectUuid,
     organizationSettingsEnabled = true,
 }: UseAiAgentModelSelectionProps) => {
-    const { data: modelOptions } = useModelOptions({ projectUuid, agentUuid });
+    const { data: agentModelOptions } = useModelOptions({
+        projectUuid,
+        agentUuid,
+    });
     const {
         data: aiOrganizationSettings,
         isFetched: isAiOrganizationSettingsFetched,
@@ -111,16 +154,23 @@ export const useAiAgentModelSelection = ({
             selectedModelKey: null,
         },
     );
-    const defaultModelConfig =
+    const organizationDefaultModelConfig =
         aiOrganizationSettings?.defaultAiAgentModelConfig;
+    const resolvedDefaultModelConfig =
+        defaultModelConfig ?? organizationDefaultModelConfig;
+    const modelOptions =
+        agentModelOptions ?? aiOrganizationSettings?.defaultAiAgentModelOptions;
     const isDefaultModelConfigReady =
         !organizationSettingsEnabled || isAiOrganizationSettingsFetched;
     const defaultModelSelection = useMemo(
         () =>
             modelOptions && isDefaultModelConfigReady
-                ? getDefaultModelSelection(modelOptions, defaultModelConfig)
+                ? getDefaultModelSelection(
+                      modelOptions,
+                      resolvedDefaultModelConfig,
+                  )
                 : undefined,
-        [defaultModelConfig, isDefaultModelConfigReady, modelOptions],
+        [isDefaultModelConfigReady, modelOptions, resolvedDefaultModelConfig],
     );
     const effectiveSelectedModelKey =
         selectedModelKey ??
@@ -169,6 +219,8 @@ export const useAiAgentModelSelection = ({
         extendedThinking: effectiveExtendedThinking,
         handleExtendedThinkingChange,
         handleSelectedModelKeyChange,
+        isModelSelectionExplicit:
+            selectedModelKey !== null || extendedThinking !== null,
         modelConfig,
         modelOptions,
         selectedModel,

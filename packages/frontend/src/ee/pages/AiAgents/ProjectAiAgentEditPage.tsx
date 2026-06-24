@@ -1,4 +1,4 @@
-import { ProjectType } from '@lightdash/common';
+import { ProjectType, type AiAgentModelConfig } from '@lightdash/common';
 import {
     AppShell,
     Box,
@@ -97,6 +97,7 @@ const formSchema = z.object({
     enableSelfImprovement: z.boolean(),
     enableContentTools: z.boolean(),
     adminOnly: z.boolean(),
+    modelConfig: z.custom<AiAgentModelConfig>().nullable(),
     version: z.number(),
 });
 
@@ -151,6 +152,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             enableSelfImprovement: false,
             enableContentTools: true,
             adminOnly: false,
+            modelConfig: null,
             version: 2, // INFO: Default to v2 for now
         },
         validate: zodResolver(formSchema),
@@ -183,6 +185,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                     (agent.enableDataAccess ?? false) &&
                     (agent.enableContentTools ?? false),
                 adminOnly: agent.adminOnly ?? false,
+                modelConfig: agent.modelConfig ?? null,
                 version: agent.version ?? 2, // INFO: Default to v2 for now
             };
             form.setValues(values);

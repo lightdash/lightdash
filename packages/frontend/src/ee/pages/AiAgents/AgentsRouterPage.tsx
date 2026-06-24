@@ -75,8 +75,6 @@ const AgentsRouterPage = () => {
 
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-    const placeholderAgentUuid = agents?.[0]?.uuid;
-
     const [sqlMode, setSqlMode] = useState(false);
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
     const chartUuid = searchParams.get('chartUuid');
@@ -97,13 +95,14 @@ const AgentsRouterPage = () => {
         extendedThinking,
         handleExtendedThinkingChange,
         handleSelectedModelKeyChange,
+        isModelSelectionExplicit,
         modelConfig,
         modelOptions,
         selectedModelKey,
         showExtendedThinking,
     } = useAiAgentModelSelection({
         projectUuid,
-        agentUuid: placeholderAgentUuid,
+        agentUuid: undefined,
     });
 
     const { pendingPrompt, setPendingPrompt } = usePendingPrompt();
@@ -129,7 +128,7 @@ const AgentsRouterPage = () => {
                 optimisticContext: args.optimisticContext,
                 prompt: args.message,
                 toolHints: args.toolHints,
-                modelConfig,
+                modelConfig: isModelSelectionExplicit ? modelConfig : undefined,
             });
             dispatch(
                 setThreadSqlMode({
@@ -139,7 +138,14 @@ const AgentsRouterPage = () => {
             );
             return thread;
         },
-        [createThread, dispatch, modelConfig, sqlMode, sqlModeAvailable],
+        [
+            createThread,
+            dispatch,
+            isModelSelectionExplicit,
+            modelConfig,
+            sqlMode,
+            sqlModeAvailable,
+        ],
     );
 
     const handleRouteError = useCallback(

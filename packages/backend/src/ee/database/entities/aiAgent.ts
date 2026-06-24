@@ -1,3 +1,4 @@
+import { type AiAgentModelConfig } from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const AiAgentTableName = 'ai_agent';
@@ -16,6 +17,7 @@ export type DbAiAgent = {
     enable_self_improvement: boolean;
     enable_content_tools: boolean;
     admin_only: boolean;
+    model_config: AiAgentModelConfig | null;
     /**
      * @deprecated Per-agent reasoning toggle was removed. The gating feature flag
      * `agent-reasoning` was never enabled so this column was effectively

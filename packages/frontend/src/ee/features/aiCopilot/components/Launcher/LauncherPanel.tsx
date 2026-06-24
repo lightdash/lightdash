@@ -24,7 +24,6 @@ import {
 import { createPath, useLocation, useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import useApp from '../../../../../providers/App/useApp';
-import { useAiAgentModelSelection } from '../../hooks/useAiAgentModelSelection';
 import { useAiAgentSqlModeAvailable } from '../../hooks/useAiAgentSqlModeAvailable';
 import { usePendingThreadRefetch } from '../../hooks/usePendingThreadRefetch';
 import { usePinnedContext } from '../../hooks/usePinnedContext';
@@ -148,18 +147,6 @@ const NewThreadPanel: FC<{
     // the per-thread slice entry once the thread is created.
     const [sqlMode, setSqlMode] = useState(false);
     const [composerSeed, setComposerSeed] = useState<string | null>(null);
-    const {
-        extendedThinking,
-        handleExtendedThinkingChange,
-        handleSelectedModelKeyChange,
-        modelConfig,
-        modelOptions,
-        selectedModelKey,
-        showExtendedThinking,
-    } = useAiAgentModelSelection({
-        projectUuid,
-        agentUuid: concreteAgent?.uuid,
-    });
     const dispatchToStore = useAiAgentStoreDispatch();
     const handleToolResult = useCallback(
         (toolResult: AiAgentToolResult) => {
@@ -223,11 +210,10 @@ const NewThreadPanel: FC<{
                 context,
                 optimisticContext,
                 enableSqlMode: sqlModeAvailable && sqlMode,
-                modelConfig,
                 toolHints,
             });
         },
-        [createAgentThread, modelConfig, sqlMode, sqlModeAvailable],
+        [createAgentThread, sqlMode, sqlModeAvailable],
     );
 
     const {
@@ -334,17 +320,6 @@ const NewThreadPanel: FC<{
                     sqlMode={sqlModeAvailable ? sqlMode : undefined}
                     onSqlModeChange={sqlModeAvailable ? setSqlMode : undefined}
                     contentMentionPriorityItems={contentMentionItems}
-                    models={modelOptions}
-                    selectedModelId={selectedModelKey}
-                    onModelChange={handleSelectedModelKeyChange}
-                    extendedThinking={
-                        showExtendedThinking ? extendedThinking : undefined
-                    }
-                    onExtendedThinkingChange={
-                        showExtendedThinking
-                            ? handleExtendedThinkingChange
-                            : undefined
-                    }
                 />
             </div>
         </div>
