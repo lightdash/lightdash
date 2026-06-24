@@ -1139,6 +1139,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             dashboardUuid,
             dashboardChartReadyQuery.executeQueryResponse.queryUuid,
             !!downloadPivotConfig,
+            dashboardChartReadyQuery.dateZoomXAxisFieldId,
         );
 
         const closeDataExportModal = useCallback(
@@ -2020,6 +2021,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         projectUuid,
         dashboardChartReadyQuery.executeQueryResponse.queryUuid,
         !!downloadPivotConfig,
+        dashboardChartReadyQuery.dateZoomXAxisFieldId,
     );
 
     const chartKind = useMemo(

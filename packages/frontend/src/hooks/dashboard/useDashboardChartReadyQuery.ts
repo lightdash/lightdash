@@ -60,6 +60,9 @@ export type DashboardChartReadyQuery = {
     executeQueryResponse: ApiExecuteAsyncDashboardChartQueryResults;
     chart: SavedChart;
     explore: ApiExploreResults;
+    // The date-zoom target field for this chart, so downstream re-executions
+    // (e.g. downloads) zoom the same x-axis field as the displayed query.
+    dateZoomXAxisFieldId: string | undefined;
 };
 
 export const useDashboardChartReadyQuery = (
@@ -286,6 +289,7 @@ export const useDashboardChartReadyQuery = (
                 chart: chartQuery.data,
                 explore,
                 executeQueryResponse,
+                dateZoomXAxisFieldId,
             };
         },
         enabled: Boolean(

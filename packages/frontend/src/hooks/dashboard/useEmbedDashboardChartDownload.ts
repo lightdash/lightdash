@@ -14,6 +14,7 @@ export const useEmbedDashboardChartDownload = (
     projectUuid: string | undefined,
     originalQueryUuid: string,
     canExportPivotedData: boolean,
+    dateZoomXAxisFieldId?: string,
 ) => {
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const chartSort = useDashboardContext((c) => c.chartSort);
@@ -58,7 +59,12 @@ export const useEmbedDashboardChartDownload = (
                         dashboardFilters: dashboardFilters || {},
                         dashboardSorts: dashboardSorts || [],
                         dateZoom: dateZoomGranularity
-                            ? { granularity: dateZoomGranularity }
+                            ? {
+                                  granularity: dateZoomGranularity,
+                                  ...(dateZoomXAxisFieldId
+                                      ? { xAxisFieldId: dateZoomXAxisFieldId }
+                                      : {}),
+                              }
                             : undefined,
                         limit,
                         invalidateCache: false,
@@ -91,6 +97,7 @@ export const useEmbedDashboardChartDownload = (
             dashboardFilters,
             dashboardSorts,
             dateZoomGranularity,
+            dateZoomXAxisFieldId,
             parameters,
             canExportPivotedData,
             originalQueryUuid,
