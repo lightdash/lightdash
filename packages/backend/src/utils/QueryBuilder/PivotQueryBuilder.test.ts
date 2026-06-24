@@ -185,7 +185,7 @@ describe('PivotQueryBuilder', () => {
             // total_columns is computed in a single pass over filtered_rows via
             // the stacked-window count-distinct idiom.
             expect(replaceWhitespace(result)).toContain(
-                'ROW_NUMBER() OVER (PARTITION BY "event_type") AS "__grp_rn" FROM filtered_rows f',
+                'ROW_NUMBER() OVER (PARTITION BY "event_type" ORDER BY "event_type") AS "__grp_rn" FROM filtered_rows f',
             );
             expect(replaceWhitespace(result)).toContain(
                 'SUM(CASE WHEN p."__grp_rn" = 1 THEN 1 ELSE 0 END) OVER () AS total_columns',
@@ -1842,7 +1842,7 @@ SELECT * FROM group_by_query LIMIT 50`);
             );
             // Should calculate total_columns in a single pass over filtered_rows
             expect(replaceWhitespace(result)).toContain(
-                'ROW_NUMBER() OVER (PARTITION BY "category") AS "__grp_rn" FROM filtered_rows f',
+                'ROW_NUMBER() OVER (PARTITION BY "category" ORDER BY "category") AS "__grp_rn" FROM filtered_rows f',
             );
             expect(replaceWhitespace(result)).toContain(
                 'SUM(CASE WHEN p."__grp_rn" = 1 THEN 1 ELSE 0 END) OVER () AS total_columns',
@@ -4952,7 +4952,7 @@ SELECT * FROM group_by_query LIMIT 50`);
             // Single-pass shape: both groupBy refs are the raw PARTITION BY keys
             // and total_columns sums the per-group first-row markers.
             expect(replaceWhitespace(result)).toContain(
-                'ROW_NUMBER() OVER (PARTITION BY "order_date_year", "payment_method") AS "__grp_rn" FROM filtered_rows f',
+                'ROW_NUMBER() OVER (PARTITION BY "order_date_year", "payment_method" ORDER BY "order_date_year", "payment_method") AS "__grp_rn" FROM filtered_rows f',
             );
             expect(replaceWhitespace(result)).toContain(
                 'SUM(CASE WHEN p."__grp_rn" = 1 THEN 1 ELSE 0 END) OVER () AS total_columns',
@@ -5002,7 +5002,7 @@ SELECT * FROM group_by_query LIMIT 50`);
             // so each distinct (order_date_year, payment_method) combination is
             // counted once.
             expect(replaceWhitespace(result)).toContain(
-                'ROW_NUMBER() OVER (PARTITION BY "order_date_year", "payment_method") AS "__grp_rn" FROM filtered_rows f',
+                'ROW_NUMBER() OVER (PARTITION BY "order_date_year", "payment_method" ORDER BY "order_date_year", "payment_method") AS "__grp_rn" FROM filtered_rows f',
             );
             expect(replaceWhitespace(result)).toContain(
                 'SUM(CASE WHEN p."__grp_rn" = 1 THEN 1 ELSE 0 END) OVER () AS total_columns',
@@ -5067,7 +5067,7 @@ SELECT * FROM group_by_query LIMIT 50`);
             // The downstream single-pass count references the bare name the
             // aliases expose (PARTITION BY "status").
             expect(result).toContain(
-                'ROW_NUMBER() OVER (PARTITION BY "status") AS "__grp_rn" FROM filtered_rows f',
+                'ROW_NUMBER() OVER (PARTITION BY "status" ORDER BY "status") AS "__grp_rn" FROM filtered_rows f',
             );
         });
 

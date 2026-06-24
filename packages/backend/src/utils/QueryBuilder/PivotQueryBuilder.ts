@@ -1710,7 +1710,10 @@ export class PivotQueryBuilder {
             passthroughDimensions,
         ).join(', ');
 
-        const finalSelect = `SELECT ${outputColumns}, total_columns FROM (SELECT p.*, SUM(CASE WHEN p.${q}__grp_rn${q} = 1 THEN 1 ELSE 0 END) OVER ()${totalColumnsMultiplier} AS total_columns FROM (SELECT f.*, ROW_NUMBER() OVER (PARTITION BY ${groupByPartition}) AS ${q}__grp_rn${q} FROM filtered_rows f) p) pivoted${columnIndexFilterSql} order by ${q}row_index${q}, ${q}column_index${q}`;
+        // __grp_rn flags one row per groupBy combination; its value isn't
+        // order-dependent, but Snowflake requires ROW_NUMBER() windows to have a
+        // deterministic ORDER BY. Reuse the partition columns to satisfy this.
+        const finalSelect = `SELECT ${outputColumns}, total_columns FROM (SELECT p.*, SUM(CASE WHEN p.${q}__grp_rn${q} = 1 THEN 1 ELSE 0 END) OVER ()${totalColumnsMultiplier} AS total_columns FROM (SELECT f.*, ROW_NUMBER() OVER (PARTITION BY ${groupByPartition} ORDER BY ${groupByPartition}) AS ${q}__grp_rn${q} FROM filtered_rows f) p) pivoted${columnIndexFilterSql} order by ${q}row_index${q}, ${q}column_index${q}`;
 
         return PivotQueryBuilder.assembleSqlParts([
             PivotQueryBuilder.buildCtesSQL(ctes),
