@@ -11,6 +11,8 @@ import type {
     AiAgentReviewClassifierRunScope,
     AiAgentReviewClassifierRunStatus,
     AiAgentReviewItemDismissedReason,
+    AiAgentReviewItemEventDetail,
+    AiAgentReviewItemEventType,
     AiAgentReviewItemOwnerType,
     AiAgentReviewItemPrState,
     AiAgentReviewItemStatus,
@@ -201,6 +203,31 @@ export type AiAgentReviewRemediationEventsTable = Knex.CompositeTableType<
                 DbAiAgentReviewRemediationEvent,
                 'payload' | 'created_by_user_uuid'
             >
+        >,
+    never
+>;
+
+export const AiAgentReviewItemEventsTableName = 'ai_agent_review_item_events';
+
+export type DbAiAgentReviewItemEvent = {
+    ai_agent_review_item_event_uuid: string;
+    fingerprint: string;
+    organization_uuid: string;
+    event_type: AiAgentReviewItemEventType;
+    occurred_at: Date;
+    payload: AiAgentReviewItemEventDetail['payload'];
+    created_by_user_uuid: string | null;
+    created_at: Date;
+};
+
+export type AiAgentReviewItemEventsTable = Knex.CompositeTableType<
+    DbAiAgentReviewItemEvent,
+    Pick<
+        DbAiAgentReviewItemEvent,
+        'fingerprint' | 'organization_uuid' | 'event_type' | 'occurred_at'
+    > &
+        Partial<
+            Pick<DbAiAgentReviewItemEvent, 'payload' | 'created_by_user_uuid'>
         >,
     never
 >;
