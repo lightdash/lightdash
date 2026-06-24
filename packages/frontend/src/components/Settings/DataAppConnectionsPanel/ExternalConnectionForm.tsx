@@ -34,7 +34,14 @@ export type ExternalConnectionFormValues = {
     rateLimitPerMinute: number | null;
 };
 
-const CONTENT_TYPE_OPTIONS = ['application/json', 'text/csv', 'text/plain'];
+const CONTENT_TYPE_OPTIONS = [
+    'application/json',
+    'application/geo+json',
+    'application/x-ndjson',
+    'text/csv',
+    'text/plain',
+    'text/tab-separated-values',
+];
 
 type Props = {
     form: UseFormReturnType<ExternalConnectionFormValues>;
@@ -180,6 +187,7 @@ export const ExternalConnectionForm: FC<Props> = ({
                 label="Allowed response content types"
                 disabled={disabled}
                 data={CONTENT_TYPE_OPTIONS}
+                searchable
                 {...form.getInputProps('allowedContentTypes')}
             />
 
