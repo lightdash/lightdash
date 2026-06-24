@@ -2,6 +2,7 @@ import {
     QueryExecutionContext,
     QueryHistoryStatus,
     type ApiExecuteAsyncDashboardChartQueryResults,
+    type DateZoom,
 } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 import { lightdashApi } from '../../api';
@@ -17,7 +18,7 @@ export const useDashboardChartDownload = (
     dashboardUuid: string | undefined,
     originalQueryUuid: string,
     canExportPivotedData: boolean,
-    dateZoomXAxisFieldId?: string,
+    dateZoom?: DateZoom,
 ) => {
     // Get dashboard filters and sorts for this tile
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
@@ -26,9 +27,6 @@ export const useDashboardChartDownload = (
     const dashboardSorts = useMemo(
         () => chartSort[tileUuid] || [],
         [chartSort, tileUuid],
-    );
-    const dateZoomGranularity = useDashboardContext(
-        (c) => c.dateZoomGranularity,
     );
 
     const getDownloadQueryUuid = useCallback(
@@ -66,14 +64,7 @@ export const useDashboardChartDownload = (
                         dashboardUuid,
                         dashboardFilters: dashboardFilters || {},
                         dashboardSorts: dashboardSorts || [],
-                        dateZoom: dateZoomGranularity
-                            ? {
-                                  granularity: dateZoomGranularity,
-                                  ...(dateZoomXAxisFieldId
-                                      ? { xAxisFieldId: dateZoomXAxisFieldId }
-                                      : {}),
-                              }
-                            : undefined,
+                        dateZoom,
                         limit,
                         invalidateCache: false,
                         parameters,
@@ -107,8 +98,7 @@ export const useDashboardChartDownload = (
             chartUuid,
             dashboardFilters,
             dashboardSorts,
-            dateZoomGranularity,
-            dateZoomXAxisFieldId,
+            dateZoom,
             parameters,
             canExportPivotedData,
             originalQueryUuid,

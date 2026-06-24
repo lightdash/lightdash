@@ -1,6 +1,7 @@
 import {
     QueryHistoryStatus,
     type ApiExecuteAsyncDashboardChartQueryResults,
+    type DateZoom,
 } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 import { lightdashApi } from '../../api';
@@ -14,7 +15,7 @@ export const useEmbedDashboardChartDownload = (
     projectUuid: string | undefined,
     originalQueryUuid: string,
     canExportPivotedData: boolean,
-    dateZoomXAxisFieldId?: string,
+    dateZoom?: DateZoom,
 ) => {
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const chartSort = useDashboardContext((c) => c.chartSort);
@@ -22,9 +23,6 @@ export const useEmbedDashboardChartDownload = (
     const dashboardSorts = useMemo(
         () => chartSort[tileUuid] || [],
         [chartSort, tileUuid],
-    );
-    const dateZoomGranularity = useDashboardContext(
-        (c) => c.dateZoomGranularity,
     );
 
     const getDownloadQueryUuid = useCallback(
@@ -58,14 +56,7 @@ export const useEmbedDashboardChartDownload = (
                         tileUuid,
                         dashboardFilters: dashboardFilters || {},
                         dashboardSorts: dashboardSorts || [],
-                        dateZoom: dateZoomGranularity
-                            ? {
-                                  granularity: dateZoomGranularity,
-                                  ...(dateZoomXAxisFieldId
-                                      ? { xAxisFieldId: dateZoomXAxisFieldId }
-                                      : {}),
-                              }
-                            : undefined,
+                        dateZoom,
                         limit,
                         invalidateCache: false,
                         parameters,
@@ -96,8 +87,7 @@ export const useEmbedDashboardChartDownload = (
             tileUuid,
             dashboardFilters,
             dashboardSorts,
-            dateZoomGranularity,
-            dateZoomXAxisFieldId,
+            dateZoom,
             parameters,
             canExportPivotedData,
             originalQueryUuid,
