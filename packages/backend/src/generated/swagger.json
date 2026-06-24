@@ -15523,19 +15523,6 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
                                                             "error",
                                                             "success"
                                                         ]
@@ -16159,8 +16146,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -16369,6 +16356,21 @@
             "AiAgentMessageAssistantArtifact": {
                 "$ref": "#/components/schemas/Pick_AiArtifact.artifactUuid-or-versionNumber-or-versionUuid-or-title-or-description-or-artifactType_"
             },
+            "AiAgentModelConfig": {
+                "properties": {
+                    "reasoning": {
+                        "type": "boolean"
+                    },
+                    "modelProvider": {
+                        "type": "string"
+                    },
+                    "modelName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["modelProvider", "modelName"],
+                "type": "object"
+            },
             "AiPromptTokenUsage": {
                 "properties": {
                     "totalTokens": {
@@ -16390,19 +16392,11 @@
                         "nullable": true
                     },
                     "modelConfig": {
-                        "properties": {
-                            "reasoning": {
-                                "type": "boolean"
-                            },
-                            "modelProvider": {
-                                "type": "string"
-                            },
-                            "modelName": {
-                                "type": "string"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiAgentModelConfig"
                             }
-                        },
-                        "required": ["modelProvider", "modelName"],
-                        "type": "object",
+                        ],
                         "nullable": true
                     },
                     "referencedArtifacts": {
@@ -16832,19 +16826,7 @@
             "ApiAiAgentThreadCreateRequest": {
                 "properties": {
                     "modelConfig": {
-                        "properties": {
-                            "reasoning": {
-                                "type": "boolean"
-                            },
-                            "modelProvider": {
-                                "type": "string"
-                            },
-                            "modelName": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["modelProvider", "modelName"],
-                        "type": "object"
+                        "$ref": "#/components/schemas/AiAgentModelConfig"
                     },
                     "context": {
                         "$ref": "#/components/schemas/AiPromptContextInput"
@@ -16879,19 +16861,7 @@
                         "description": "Inject the prompt as a hidden turn — the agent responds to it, but the UI\ndoes not render the user bubble. Used by the post-merge content-migration\nprompt sent from the writeback PR card."
                     },
                     "modelConfig": {
-                        "properties": {
-                            "reasoning": {
-                                "type": "boolean"
-                            },
-                            "modelProvider": {
-                                "type": "string"
-                            },
-                            "modelName": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["modelProvider", "modelName"],
-                        "type": "object"
+                        "$ref": "#/components/schemas/AiAgentModelConfig"
                     },
                     "context": {
                         "$ref": "#/components/schemas/AiPromptContextInput"
@@ -23562,6 +23532,14 @@
             },
             "AiOrganizationSettings": {
                 "properties": {
+                    "defaultAiAgentModelConfig": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiAgentModelConfig"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "mcpContentWritesEnabled": {
                         "type": "boolean"
                     },
@@ -23576,6 +23554,7 @@
                     }
                 },
                 "required": [
+                    "defaultAiAgentModelConfig",
                     "mcpContentWritesEnabled",
                     "aiAgentReviewsEnabled",
                     "aiAgentsVisible",
@@ -23585,6 +23564,12 @@
             },
             "ComputedAiOrganizationSettings": {
                 "properties": {
+                    "defaultAiAgentModelOptions": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiModelOption"
+                        },
+                        "type": "array"
+                    },
                     "isTrial": {
                         "type": "boolean"
                     },
@@ -23592,7 +23577,11 @@
                         "type": "boolean"
                     }
                 },
-                "required": ["isTrial", "isCopilotEnabled"],
+                "required": [
+                    "defaultAiAgentModelOptions",
+                    "isTrial",
+                    "isCopilotEnabled"
+                ],
                 "type": "object"
             },
             "ApiSuccess_AiOrganizationSettings-and-ComputedAiOrganizationSettings_": {
@@ -23646,6 +23635,14 @@
                     },
                     "mcpContentWritesEnabled": {
                         "type": "boolean"
+                    },
+                    "defaultAiAgentModelConfig": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiAgentModelConfig"
+                            }
+                        ],
+                        "nullable": true
                     }
                 },
                 "type": "object",
@@ -25098,7 +25095,14 @@
             "UserAttributeValue": {
                 "properties": {
                     "value": {
-                        "type": "string"
+                        "type": "string",
+                        "deprecated": true
+                    },
+                    "values": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
                     },
                     "email": {
                         "type": "string"
@@ -25107,25 +25111,40 @@
                         "type": "string"
                     }
                 },
-                "required": ["value", "email", "userUuid"],
+                "required": ["value", "values", "email", "userUuid"],
                 "type": "object"
             },
             "GroupAttributeValue": {
                 "properties": {
                     "value": {
-                        "type": "string"
+                        "type": "string",
+                        "deprecated": true
+                    },
+                    "values": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
                     },
                     "groupUuid": {
                         "type": "string"
                     }
                 },
-                "required": ["value", "groupUuid"],
+                "required": ["value", "values", "groupUuid"],
                 "type": "object"
             },
             "UserAttribute": {
                 "properties": {
                     "attributeDefault": {
                         "type": "string",
+                        "nullable": true,
+                        "deprecated": true
+                    },
+                    "attributeDefaults": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
                         "nullable": true
                     },
                     "groups": {
@@ -25159,6 +25178,7 @@
                 },
                 "required": [
                     "attributeDefault",
+                    "attributeDefaults",
                     "groups",
                     "users",
                     "organizationUuid",
@@ -25199,70 +25219,90 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_UserAttribute.name-or-description-or-attributeDefault_": {
+            "CreateUserAttributeValue": {
                 "properties": {
+                    "value": {
+                        "type": "string",
+                        "deprecated": true
+                    },
+                    "values": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "userUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["userUuid"],
+                "type": "object"
+            },
+            "CreateGroupAttributeValue": {
+                "properties": {
+                    "value": {
+                        "type": "string",
+                        "deprecated": true
+                    },
+                    "values": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "groupUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["groupUuid"],
+                "type": "object"
+            },
+            "CreateUserAttribute": {
+                "properties": {
+                    "groups": {
+                        "items": {
+                            "$ref": "#/components/schemas/CreateGroupAttributeValue"
+                        },
+                        "type": "array"
+                    },
+                    "users": {
+                        "items": {
+                            "$ref": "#/components/schemas/CreateUserAttributeValue"
+                        },
+                        "type": "array"
+                    },
+                    "attributeDefault": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "nullable": true,
+                        "deprecated": true
+                    },
+                    "attributeDefaults": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true,
+                        "description": "Canonical default value(s). null/empty means no default."
+                    },
                     "description": {
                         "type": "string"
                     },
                     "name": {
                         "type": "string"
-                    },
-                    "attributeDefault": {
-                        "type": "string",
-                        "nullable": true
                     }
                 },
-                "required": ["name", "attributeDefault"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Pick_UserAttributeValue.Exclude_keyofUserAttributeValue.email__": {
-                "properties": {
-                    "userUuid": {
-                        "type": "string"
-                    },
-                    "value": {
-                        "type": "string"
-                    }
-                },
-                "required": ["userUuid", "value"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_UserAttributeValue.email_": {
-                "$ref": "#/components/schemas/Pick_UserAttributeValue.Exclude_keyofUserAttributeValue.email__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "CreateUserAttributeValue": {
-                "$ref": "#/components/schemas/Omit_UserAttributeValue.email_"
-            },
-            "CreateGroupAttributeValue": {
-                "$ref": "#/components/schemas/GroupAttributeValue"
-            },
-            "CreateUserAttribute": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Pick_UserAttribute.name-or-description-or-attributeDefault_"
-                    },
-                    {
-                        "properties": {
-                            "groups": {
-                                "items": {
-                                    "$ref": "#/components/schemas/CreateGroupAttributeValue"
-                                },
-                                "type": "array"
-                            },
-                            "users": {
-                                "items": {
-                                    "$ref": "#/components/schemas/CreateUserAttributeValue"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["groups", "users"],
-                        "type": "object"
-                    }
-                ]
+                "required": ["groups", "users", "name"],
+                "type": "object"
             },
             "UserWithCount": {
                 "properties": {
@@ -40952,7 +40992,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3225.0",
+        "version": "0.3231.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -1,6 +1,8 @@
 import {
     FeatureFlags,
+    type CreateGroupAttributeValue,
     type CreateUserAttribute,
+    type CreateUserAttributeValue,
     type UserAttribute,
 } from '@lightdash/common';
 import {
@@ -10,6 +12,7 @@ import {
     Select,
     Stack,
     Switch,
+    TagsInput,
     Text,
     Textarea,
     TextInput,
@@ -34,6 +37,14 @@ import {
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 
+type UserAttributeFormValues = {
+    name: string;
+    description?: string;
+    attributeDefaults: string[] | null;
+    users: CreateUserAttributeValue[];
+    groups: CreateGroupAttributeValue[];
+};
+
 const UserAttributeModal: FC<{
     opened: boolean;
     userAttribute?: UserAttribute;
@@ -44,13 +55,13 @@ const UserAttributeModal: FC<{
         FeatureFlags.UserGroupsEnabled,
     );
 
-    const form = useForm<CreateUserAttribute>({
+    const form = useForm<UserAttributeFormValues>({
         initialValues: {
             name: userAttribute?.name || '',
             description: userAttribute?.description,
             users: userAttribute?.users || [],
             groups: userAttribute?.groups || [],
-            attributeDefault: userAttribute?.attributeDefault || null,
+            attributeDefaults: userAttribute?.attributeDefaults || null,
         },
         validate: {
             name: (value: string) => {
@@ -68,7 +79,7 @@ const UserAttributeModal: FC<{
                 }
                 return null;
             },
-            users: (value: { userUuid: string; value: string }[]) => {
+            users: (value: { userUuid: string; values?: string[] }[]) => {
                 if (
                     value.reduceRight(
                         (acc, user, index) =>
@@ -83,9 +94,12 @@ const UserAttributeModal: FC<{
                 ) {
                     return `Duplicated users`;
                 }
+                if (value.some((user) => (user.values?.length ?? 0) === 0)) {
+                    return `Each user must have at least one value`;
+                }
                 return null;
             },
-            groups: (value: { groupUuid: string; value: string }[]) => {
+            groups: (value: { groupUuid: string; values?: string[] }[]) => {
                 if (
                     value.reduceRight(
                         (acc, group, index) =>
@@ -99,6 +113,9 @@ const UserAttributeModal: FC<{
                     )
                 ) {
                     return `Duplicated groups`;
+                }
+                if (value.some((group) => (group.values?.length ?? 0) === 0)) {
+                    return `Each group must have at least one value`;
                 }
                 return null;
             },
@@ -114,10 +131,10 @@ const UserAttributeModal: FC<{
     useEffect(() => {
         //Reset checked on edit
         setChecked(
-            userAttribute?.attributeDefault !== undefined &&
-                userAttribute?.attributeDefault !== null,
+            userAttribute?.attributeDefaults !== undefined &&
+                userAttribute?.attributeDefaults !== null,
         );
-    }, [userAttribute?.attributeDefault]);
+    }, [userAttribute?.attributeDefaults]);
 
     const handleClose = () => {
         form.reset();
@@ -125,11 +142,12 @@ const UserAttributeModal: FC<{
         setChecked(false);
         if (onClose) onClose();
     };
-    const handleSubmit = (data: CreateUserAttribute) => {
+    const handleSubmit = (data: UserAttributeFormValues) => {
+        const payload: CreateUserAttribute = data;
         if (userAttribute?.uuid) {
-            updateUserAttribute(data);
+            updateUserAttribute(payload);
         } else {
-            createUserAttribute(data);
+            createUserAttribute(payload);
         }
         handleClose();
     };
@@ -159,7 +177,7 @@ const UserAttributeModal: FC<{
             <form
                 id="add_user_attribute"
                 name="add_user_attribute"
-                onSubmit={form.onSubmit((values: CreateUserAttribute) =>
+                onSubmit={form.onSubmit((values: UserAttributeFormValues) =>
                     handleSubmit(values),
                 )}
             >
@@ -207,18 +225,19 @@ const UserAttributeModal: FC<{
                                     setChecked(isChecked);
                                     if (!isChecked)
                                         form.setFieldValue(
-                                            'attributeDefault',
+                                            'attributeDefaults',
                                             null,
                                         );
                                 }}
                             />
                             {checked && (
-                                <TextInput
+                                <TagsInput
                                     size="xs"
-                                    name={`attributeDefault`}
-                                    placeholder="E.g. US"
-                                    required
-                                    {...form.getInputProps('attributeDefault')}
+                                    flex={1}
+                                    name={`attributeDefaults`}
+                                    placeholder="E.g. US (press Enter to add)"
+                                    {...form.getInputProps('attributeDefaults')}
+                                    value={form.values.attributeDefaults ?? []}
                                 />
                             )}
                         </Group>
@@ -258,20 +277,20 @@ const UserAttributeModal: FC<{
                                             }
                                         />
 
-                                        <TextInput
+                                        <TagsInput
                                             size="xs"
                                             flex={1}
                                             label={
                                                 index === 0
-                                                    ? 'Value'
+                                                    ? 'Values'
                                                     : undefined
                                             }
-                                            name={`users.${index}.value`}
-                                            placeholder="E.g. US"
-                                            required
+                                            name={`users.${index}.values`}
+                                            placeholder="E.g. US (press Enter to add)"
                                             {...form.getInputProps(
-                                                `users.${index}.value`,
+                                                `users.${index}.values`,
                                             )}
+                                            value={user.values ?? []}
                                         />
                                         <ActionIcon
                                             mt={index === 0 ? 20 : undefined}
@@ -301,7 +320,7 @@ const UserAttributeModal: FC<{
                                 onClick={() => {
                                     form.setFieldValue('users', [
                                         ...(form.values.users || []),
-                                        { userUuid: '', value: '' },
+                                        { userUuid: '', values: [] },
                                     ]);
                                 }}
                             >
@@ -345,20 +364,20 @@ const UserAttributeModal: FC<{
                                                 }
                                             />
 
-                                            <TextInput
+                                            <TagsInput
                                                 size="xs"
                                                 flex={1}
                                                 label={
                                                     index === 0
-                                                        ? 'Value'
+                                                        ? 'Values'
                                                         : undefined
                                                 }
-                                                name={`groups.${index}.value`}
-                                                placeholder="E.g. US"
-                                                required
+                                                name={`groups.${index}.values`}
+                                                placeholder="E.g. US (press Enter to add)"
                                                 {...form.getInputProps(
-                                                    `groups.${index}.value`,
+                                                    `groups.${index}.values`,
                                                 )}
+                                                value={group.values ?? []}
                                             />
                                             <ActionIcon
                                                 mt={
@@ -391,7 +410,7 @@ const UserAttributeModal: FC<{
                                     onClick={() => {
                                         form.insertListItem('groups', {
                                             groupUuid: '',
-                                            value: '',
+                                            values: [],
                                         });
                                     }}
                                 >

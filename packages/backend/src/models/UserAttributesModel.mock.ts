@@ -6,34 +6,37 @@ export const MOCK_USER_ATTRIBUTES_NAME_DEFAULT_VALUE = [
     {
         user_attribute_uuid: 'fruit',
         name: 'fruit',
-        attribute_default: 'default_fruit',
+        attribute_defaults: ['default_fruit'],
     },
     {
         user_attribute_uuid: 'vegetable',
         name: 'vegetable',
-        attribute_default: 'default_vegetable',
+        attribute_defaults: ['default_vegetable'],
     },
     {
         user_attribute_uuid: 'section',
         name: 'section',
-        attribute_default: null,
+        attribute_defaults: null,
     },
     {
         user_attribute_uuid: 'category',
         name: 'category',
-        attribute_default: null,
+        attribute_defaults: null,
     },
     { user_attribute_uuid: 'area', name: 'area', attribute_default: null },
+    { user_attribute_uuid: 'region', name: 'region', attribute_default: null },
 ];
 
 export const MOCK_ORG_MEMBER_ATTRIBUTES_VALUE = [
-    { name: 'fruit', value: 'user_fruit' },
-    { name: 'section', value: 'user_section' },
+    { name: 'fruit', values: ['user_fruit'] },
+    { name: 'section', values: ['user_section'] },
+    { name: 'region', values: ['US', 'CA'] },
 ];
 
 export const MOCK_GROUP_USER_ATTRIBUTES_VALUE = [
-    { name: 'fruit', value: 'group_fruit' },
-    { name: 'area', value: 'group_area' },
+    { name: 'fruit', values: ['group_fruit'] },
+    { name: 'area', values: ['group_area'] },
+    { name: 'region', values: ['US', 'UK'] },
 ];
 
 export const EXPECTED_ORG_MEMBER_ATTRIBUTE_VALUES = {
@@ -42,4 +45,5 @@ export const EXPECTED_ORG_MEMBER_ATTRIBUTE_VALUES = {
     section: ['user_section'], // expect user value
     category: [], // expect no value
     area: ['group_area'], // expect group value
+    region: ['US', 'CA', 'UK'], // multi-value user + group, deduped
 };

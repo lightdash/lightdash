@@ -61,6 +61,65 @@ describe('Attributes API', () => {
         }
     });
 
+    it('creates an attribute with multiple values per user and group', async () => {
+        const name = `example_attribute${Math.random()}`;
+
+        const response = await admin.post<Body<{ uuid: string }>>(
+            '/api/v1/org/attributes',
+            {
+                name,
+                users: [
+                    {
+                        userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                        values: ['US', 'CA'],
+                    },
+                ],
+                groups: [
+                    {
+                        groupUuid: SEED_GROUP.groupUuid,
+                        values: ['UK', 'DE'],
+                    },
+                ],
+                attributeDefaults: ['default_a', 'default_b'],
+            },
+        );
+        expect(response.status).toBe(201);
+        const { uuid } = response.body.results;
+
+        try {
+            const getResponse = await admin.get<
+                Body<
+                    Array<{
+                        uuid: string;
+                        attributeDefaults: string[] | null;
+                        attributeDefault: string | null;
+                        users: Array<{
+                            userUuid: string;
+                            values: string[];
+                            value: string;
+                        }>;
+                        groups: Array<{ groupUuid: string; values: string[] }>;
+                    }>
+                >
+            >('/api/v1/org/attributes');
+            const attribute = getResponse.body.results.find(
+                (a) => a.uuid === uuid,
+            );
+
+            expect(attribute!.attributeDefaults).toEqual([
+                'default_a',
+                'default_b',
+            ]);
+            // deprecated scalar still mirrors the first value
+            expect(attribute!.attributeDefault).toBe('default_a');
+            expect(attribute!.users[0].values).toEqual(['US', 'CA']);
+            expect(attribute!.users[0].value).toBe('US');
+            expect(attribute!.groups[0].values).toEqual(['UK', 'DE']);
+        } finally {
+            await admin.delete(`/api/v1/org/attributes/${uuid}`);
+        }
+    });
+
     it('creates an empty attribute and updates with users and groups', async () => {
         const name = `example_attribute${Math.random()}`;
         const newName = `example_attribute${Math.random()}`;

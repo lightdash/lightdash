@@ -734,7 +734,39 @@ describe('getUserAttributesSetupConfig', () => {
                 name: 'is_privileged',
                 description: 'PII access',
                 attributeDefault: null,
-                groups: [{ group: 'Privileged Data Analyst', value: 'true' }],
+                groups: [
+                    { group: 'Privileged Data Analyst', values: ['true'] },
+                ],
+            },
+        ]);
+    });
+
+    test('accepts array values and array attributeDefault', () => {
+        process.env.LD_SETUP_USER_ATTRIBUTES = JSON.stringify([
+            {
+                name: 'region',
+                attributeDefault: ['US', 'CA'],
+                groups: [{ group: 'Analysts', values: ['US', 'UK'] }],
+            },
+        ]);
+        expect(getUserAttributesSetupConfig()).toEqual([
+            {
+                name: 'region',
+                attributeDefault: ['US', 'CA'],
+                groups: [{ group: 'Analysts', values: ['US', 'UK'] }],
+            },
+        ]);
+    });
+
+    test('normalizes a scalar attributeDefault to an array', () => {
+        process.env.LD_SETUP_USER_ATTRIBUTES = JSON.stringify([
+            { name: 'region', attributeDefault: 'US' },
+        ]);
+        expect(getUserAttributesSetupConfig()).toEqual([
+            {
+                name: 'region',
+                attributeDefault: ['US'],
+                groups: [],
             },
         ]);
     });
@@ -788,7 +820,7 @@ describe('getUpdateSetupConfig userAttributes', () => {
             {
                 name: 'is_privileged',
                 attributeDefault: null,
-                groups: [{ group: 'G', value: 'true' }],
+                groups: [{ group: 'G', values: ['true'] }],
             },
         ]);
     });

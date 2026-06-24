@@ -853,9 +853,7 @@ export class EmbedService extends BaseService {
         });
         const defaultUserAttributes =
             orgUserAttributes.reduce<UserAttributeValueMap>((acc, curr) => {
-                acc[curr.name] = curr.attributeDefault
-                    ? [curr.attributeDefault]
-                    : [];
+                acc[curr.name] = curr.attributeDefaults ?? [];
                 return acc;
             }, {});
         const embedTokenUserAttributes = embedJwt.userAttributes

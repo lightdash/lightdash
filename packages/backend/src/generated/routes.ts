@@ -13900,11 +13900,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                     ],
                                                     required: true,
@@ -15252,11 +15252,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                     ],
                                                     required: true,
@@ -15317,11 +15317,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                     ],
                                                     required: true,
@@ -15517,11 +15517,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                     ],
                                                     required: true,
@@ -15536,11 +15536,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                     ],
                                                     required: true,
@@ -15555,11 +15555,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                     ],
                                                     required: true,
@@ -15670,6 +15670,19 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiAgentModelConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                reasoning: { dataType: 'boolean' },
+                modelProvider: { dataType: 'string', required: true },
+                modelName: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiPromptTokenUsage: {
         dataType: 'refAlias',
         type: {
@@ -15697,20 +15710,7 @@ const models: TsoaRoute.Models = {
                 modelConfig: {
                     dataType: 'union',
                     subSchemas: [
-                        {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                reasoning: { dataType: 'boolean' },
-                                modelProvider: {
-                                    dataType: 'string',
-                                    required: true,
-                                },
-                                modelName: {
-                                    dataType: 'string',
-                                    required: true,
-                                },
-                            },
-                        },
+                        { ref: 'AiAgentModelConfig' },
                         { dataType: 'enum', enums: [null] },
                     ],
                     required: true,
@@ -16171,14 +16171,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                modelConfig: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        reasoning: { dataType: 'boolean' },
-                        modelProvider: { dataType: 'string', required: true },
-                        modelName: { dataType: 'string', required: true },
-                    },
-                },
+                modelConfig: { ref: 'AiAgentModelConfig' },
                 context: { ref: 'AiPromptContextInput' },
                 prompt: { dataType: 'string' },
             },
@@ -16215,14 +16208,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 hidden: { dataType: 'boolean' },
-                modelConfig: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        reasoning: { dataType: 'boolean' },
-                        modelProvider: { dataType: 'string', required: true },
-                        modelName: { dataType: 'string', required: true },
-                    },
-                },
+                modelConfig: { ref: 'AiAgentModelConfig' },
                 context: { ref: 'AiPromptContextInput' },
                 prompt: { dataType: 'string', required: true },
             },
@@ -23120,6 +23106,14 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                defaultAiAgentModelConfig: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiAgentModelConfig' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 mcpContentWritesEnabled: {
                     dataType: 'boolean',
                     required: true,
@@ -23137,6 +23131,11 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                defaultAiAgentModelOptions: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'AiModelOption' },
+                    required: true,
+                },
                 isTrial: { dataType: 'boolean', required: true },
                 isCopilotEnabled: { dataType: 'boolean', required: true },
             },
@@ -23211,6 +23210,14 @@ const models: TsoaRoute.Models = {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'boolean' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                defaultAiAgentModelConfig: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiAgentModelConfig' },
+                        { dataType: 'enum', enums: [null] },
                         { dataType: 'undefined' },
                     ],
                 },
@@ -24687,6 +24694,11 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 value: { dataType: 'string', required: true },
+                values: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
                 email: { dataType: 'string', required: true },
                 userUuid: { dataType: 'string', required: true },
             },
@@ -24700,6 +24712,11 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 value: { dataType: 'string', required: true },
+                values: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
                 groupUuid: { dataType: 'string', required: true },
             },
             validators: {},
@@ -24715,6 +24732,14 @@ const models: TsoaRoute.Models = {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                attributeDefaults: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'array', array: { dataType: 'string' } },
                         { dataType: 'enum', enums: [null] },
                     ],
                     required: true,
@@ -24767,92 +24792,71 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_UserAttribute.name-or-description-or-attributeDefault_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                description: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                name: { dataType: 'string', required: true },
-                attributeDefault: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_UserAttributeValue.Exclude_keyofUserAttributeValue.email__': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                userUuid: { dataType: 'string', required: true },
-                value: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_UserAttributeValue.email_': {
-        dataType: 'refAlias',
-        type: {
-            ref: 'Pick_UserAttributeValue.Exclude_keyofUserAttributeValue.email__',
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CreateUserAttributeValue: {
         dataType: 'refAlias',
-        type: { ref: 'Omit_UserAttributeValue.email_', validators: {} },
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                value: { dataType: 'string' },
+                values: { dataType: 'array', array: { dataType: 'string' } },
+                userUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CreateGroupAttributeValue: {
         dataType: 'refAlias',
-        type: { ref: 'GroupAttributeValue', validators: {} },
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                value: { dataType: 'string' },
+                values: { dataType: 'array', array: { dataType: 'string' } },
+                groupUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CreateUserAttribute: {
         dataType: 'refAlias',
         type: {
-            dataType: 'intersection',
-            subSchemas: [
-                {
-                    ref: 'Pick_UserAttribute.name-or-description-or-attributeDefault_',
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        groups: {
-                            dataType: 'array',
-                            array: {
-                                dataType: 'refAlias',
-                                ref: 'CreateGroupAttributeValue',
-                            },
-                            required: true,
-                        },
-                        users: {
-                            dataType: 'array',
-                            array: {
-                                dataType: 'refAlias',
-                                ref: 'CreateUserAttributeValue',
-                            },
-                            required: true,
-                        },
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                groups: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'CreateGroupAttributeValue',
                     },
+                    required: true,
                 },
-            ],
+                users: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'CreateUserAttributeValue',
+                    },
+                    required: true,
+                },
+                attributeDefault: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'array', array: { dataType: 'string' } },
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                attributeDefaults: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'array', array: { dataType: 'string' } },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                description: { dataType: 'string' },
+                name: { dataType: 'string', required: true },
+            },
             validators: {},
         },
     },

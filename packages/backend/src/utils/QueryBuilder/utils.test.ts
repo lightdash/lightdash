@@ -138,6 +138,36 @@ describe('replaceUserAttributes', () => {
         ).toEqual("('1' IN ('1', '2'))");
     });
 
+    it('escapes each value individually for a multi-value attribute (IN list)', () => {
+        // Multiple values render as a comma-separated quoted list, each value
+        // escaped on its own — the supported way to build an IN clause.
+        expect(
+            replaceUserAttributesAsStrings(
+                'col IN (${lightdash.attribute.test})',
+                INTRINSIC_USER_ATTRIBUTES,
+                {
+                    test: ['US', 'CA', "O'Brien"],
+                },
+                warehouseClientMock,
+            ),
+        ).toEqual("(col IN ('US', 'CA', 'O''Brien'))");
+    });
+
+    it('escapes (does not inject) a single pre-quoted comma-separated value', () => {
+        // Regression: a single value that smuggles quotes/commas to fake an IN
+        // list is escaped to one string literal, not interpolated as raw SQL.
+        expect(
+            replaceUserAttributesAsStrings(
+                'col IN (${lightdash.attribute.test})',
+                INTRINSIC_USER_ATTRIBUTES,
+                {
+                    test: ["US', 'CA', 'UK"],
+                },
+                warehouseClientMock,
+            ),
+        ).toEqual("(col IN ('US'', ''CA'', ''UK'))");
+    });
+
     it('method should replace sqlFilter with multiple user attributes', () => {
         const userAttributes = { test: ['1'], another: ['2'] };
         const sqlFilter =
