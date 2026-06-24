@@ -19,13 +19,17 @@ import {
     type CompiledCustomSqlDimension,
     type CompiledDimension,
     type CompiledMetric,
+    type CompiledMetricRelativeDateFilter,
     type CustomDimension,
     type CustomSqlDimension,
     type Dimension,
     type FieldCompilationError,
     type Metric,
 } from '../types/field';
-import { type ModelRequiredFilterRule } from '../types/filter';
+import {
+    isRelativeDateFilterOperator,
+    type ModelRequiredFilterRule,
+} from '../types/filter';
 import { type LightdashProjectConfig } from '../types/lightdashProjectConfig';
 import {
     isMetricsExplorerCompatibleDimension,
@@ -37,6 +41,7 @@ import {
     type DateGranularity,
 } from '../types/timeFrames';
 import { type WarehouseSqlBuilder } from '../types/warehouse';
+import { getItemId } from '../utils/item';
 import { timeFrameConfigs } from '../utils/timeFrames';
 import { expandFieldsWithSets } from './fieldSetExpander';
 import { renderFilterRuleSqlFromField } from './filtersCompiler';
@@ -1027,6 +1032,12 @@ export class ExploreCompiler {
             ...(compiledMetric.compiledDistinctKeys
                 ? { compiledDistinctKeys: compiledMetric.compiledDistinctKeys }
                 : {}),
+            ...(compiledMetric.compiledRelativeDateFilters
+                ? {
+                      compiledRelativeDateFilters:
+                          compiledMetric.compiledRelativeDateFilters,
+                  }
+                : {}),
         };
     }
 
@@ -1039,6 +1050,7 @@ export class ExploreCompiler {
         tablesReferences: Set<string>;
         valueSql?: string;
         compiledDistinctKeys?: string[];
+        compiledRelativeDateFilters?: CompiledMetricRelativeDateFilter[];
     } {
         // Metric might have references to other dimensions
         if (!tables[metric.table]) {
@@ -1050,6 +1062,7 @@ export class ExploreCompiler {
         const currentRef = `${metric.table}.${metric.name}`;
         const currentShortRef = metric.name;
         let tablesReferences = new Set([metric.table]);
+        let relativeDateFilters: CompiledMetricRelativeDateFilter[] | undefined;
         if (metric.sql === undefined || metric.sql === null) {
             throw new CompileError(
                 `Metric "${metric.name}" in table "${metric.table}" is missing a sql definition`,
@@ -1175,6 +1188,8 @@ export class ExploreCompiler {
                 );
             }
 
+            const compiledRelativeDateFilters: CompiledMetricRelativeDateFilter[] =
+                [];
             const conditions = metric.filters.map((filter) => {
                 const fieldRef =
                     // @ts-expect-error This fallback is to support old metric filters in yml. We can delete this after a few months since we can assume all projects have been redeployed
@@ -1214,7 +1229,7 @@ export class ExploreCompiler {
                         ...compiledDimension.tablesReferences,
                     ]);
                 }
-                return renderFilterRuleSqlFromField(
+                const conditionSql = renderFilterRuleSqlFromField(
                     filter,
                     compiledDimension,
                     this.warehouseClient.getFieldQuoteChar(),
@@ -1225,10 +1240,26 @@ export class ExploreCompiler {
                     this.warehouseClient.getStartOfWeek(),
                     this.warehouseClient.getAdapterType(),
                 );
+                // Relative date boundaries are baked at compile time here. Record
+                // the predicate (and the dimension it targets) so the query
+                // builder can re-evaluate it against "now" at query time and swap
+                // it into the compiled SQL.
+                if (isRelativeDateFilterOperator(filter.operator)) {
+                    compiledRelativeDateFilters.push({
+                        id: filter.id,
+                        fieldId: getItemId(compiledDimension),
+                        compiledSql: conditionSql,
+                    });
+                }
+                return conditionSql;
             });
             renderedSql = `CASE WHEN (${conditions.join(
                 ' AND ',
             )}) THEN (${renderedSql}) ELSE NULL END`;
+
+            if (compiledRelativeDateFilters.length > 0) {
+                relativeDateFilters = compiledRelativeDateFilters;
+            }
         }
         if (
             metric.type === MetricType.SUM_DISTINCT ||
@@ -1261,6 +1292,7 @@ export class ExploreCompiler {
                 tablesReferences,
                 valueSql: renderedSql,
                 compiledDistinctKeys: compiledKeys,
+                compiledRelativeDateFilters: relativeDateFilters,
             };
         }
 
@@ -1269,7 +1301,12 @@ export class ExploreCompiler {
             metric,
         );
 
-        return { sql: compiledSql, tablesReferences, valueSql: renderedSql };
+        return {
+            sql: compiledSql,
+            tablesReferences,
+            valueSql: renderedSql,
+            compiledRelativeDateFilters: relativeDateFilters,
+        };
     }
 
     compileDimension(
