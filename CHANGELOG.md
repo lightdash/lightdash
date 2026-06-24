@@ -1,3 +1,18 @@
+# [0.3232.0](https://github.com/lightdash/lightdash/compare/0.3231.0...0.3232.0) (2026-06-24)
+
+
+### Bug Fixes
+
+* **table:** keep bars-in-cells proportional regardless of label width ([#24651](https://github.com/lightdash/lightdash/issues/24651)) ([d77f79e](https://github.com/lightdash/lightdash/commit/d77f79e3bfe387f4e5089efcbf5c90c06aaaf2af)), closes [#24647](https://github.com/lightdash/lightdash/issues/24647)
+
+
+### Features
+
+* **ai-reviews:** admin review-notification settings [3/3] ([#24643](https://github.com/lightdash/lightdash/issues/24643)) ([8e5136d](https://github.com/lightdash/lightdash/commit/8e5136df194f3750b6b56f2a5a9172ec50579d26)), closes [#24632](https://github.com/lightdash/lightdash/issues/24632)
+* **ai-reviews:** in-app bell notifications [1/3] ([#24641](https://github.com/lightdash/lightdash/issues/24641)) ([2ac8355](https://github.com/lightdash/lightdash/commit/2ac8355f1a989b0bcb842bb3db36c5f5f99775b5)), closes [#24632](https://github.com/lightdash/lightdash/issues/24632)
+* **ai-reviews:** notification settings UI + deep-link polish [4/4] ([#24650](https://github.com/lightdash/lightdash/issues/24650)) ([061ede5](https://github.com/lightdash/lightdash/commit/061ede58b5b2da959afec75f2cc0d77536525d8a)), closes [#24641](https://github.com/lightdash/lightdash/issues/24641) [#24642](https://github.com/lightdash/lightdash/issues/24642) [#24643](https://github.com/lightdash/lightdash/issues/24643)
+* **ai-reviews:** Slack delivery + click tracking [2/3] ([#24642](https://github.com/lightdash/lightdash/issues/24642)) ([e3d4c0d](https://github.com/lightdash/lightdash/commit/e3d4c0d509a007ed7857736073f3921dffdf6710)), closes [#24632](https://github.com/lightdash/lightdash/issues/24632)
+
 # [0.3231.0](https://github.com/lightdash/lightdash/compare/0.3230.2...0.3231.0) (2026-06-24)
 
 
