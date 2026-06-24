@@ -119,8 +119,8 @@ export function trinoWarehouseConfig(): Record<string, unknown> {
         port: Number(process.env.TRINO_PORT),
         user: process.env.TRINO_USER,
         password: process.env.TRINO_PASSWORD,
-        dbname: 'e2e_jaffle_shop',
-        schema: 'e2e_jaffle_shop',
+        dbname: 'staging_postgres_trino',
+        schema: 'jaffle',
         http_scheme: 'https',
     };
 }
