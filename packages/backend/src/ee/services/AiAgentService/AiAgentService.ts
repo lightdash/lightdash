@@ -4043,6 +4043,7 @@ export class AiAgentService extends BaseService {
                     retrieveRelevantArtifacts &&
                     this.getIsVerifiedArtifactsEnabled(),
                 compaction,
+                currentPromptUuid: prompt.promptUuid,
             },
         );
 
@@ -5947,6 +5948,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 typeof AiAgentModel.prototype.getToolCallsAndResultsForPrompt
             >
         >,
+        // True only for the prompt being generated/resumed, which legitimately
+        // replays an approved tool-call with no result yet (the resume input).
+        isCurrentPrompt: boolean,
     ): ModelMessage[] {
         return toolCallsAndResults.flatMap(
             ({ toolCall, toolResult, approvalDecision }) => {
@@ -6016,6 +6020,29 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             },
                         ],
                     } satisfies ToolModelMessage);
+                } else if (
+                    approvalDecision === 'approved' &&
+                    !isCurrentPrompt
+                ) {
+                    // A prior approved tool-call whose result was never
+                    // persisted would dangle (tool-call/approval with no
+                    // tool-result), which the model API rejects on the next
+                    // prompt ("No tool output found" → "Could not finish").
+                    // Backfill a synthetic result so the history stays valid.
+                    toolTurnMessages.push({
+                        role: 'tool',
+                        content: [
+                            {
+                                type: 'tool-result',
+                                toolCallId: toolCall.toolCallId,
+                                toolName: toolCall.toolName,
+                                output: {
+                                    type: 'json',
+                                    value: 'Tool result unavailable.',
+                                },
+                            },
+                        ],
+                    } satisfies ToolModelMessage);
                 }
 
                 return toolTurnMessages;
@@ -6035,6 +6062,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             agentUuid: string;
             retrieveRelevantArtifacts: boolean;
             compaction: ThreadCompaction | null;
+            currentPromptUuid: string;
         },
     ): Promise<ModelMessage[]> {
         const contextMap = await this.aiAgentModel.getContextForPromptUuids(
@@ -6092,16 +6120,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     await this.aiAgentModel.getToolCallsAndResultsForPrompt(
                         message.ai_prompt_uuid,
                     );
+                const isCurrentPrompt =
+                    message.ai_prompt_uuid === options.currentPromptUuid;
                 messages.push(
                     ...AiAgentService.buildToolCallTurnMessages(
                         toolCallsAndResults,
+                        isCurrentPrompt,
                     ),
                 );
 
-                // A turn suspended mid SQL-approval has a partial `response`
-                // (text emitted before the runSql call). Replaying it would
-                // leave the runSql tool_use without a following tool_result, so
-                // skip it — the resumed run regenerates from the approval.
+                // The current prompt resuming mid SQL-approval has only a
+                // partial `response`; skip it so the resumed run regenerates.
+                // Prior prompts keep their final response — their tool call is
+                // backfilled above, so the turn is already complete.
                 const hasUnresolvedApproval =
                     AiAgentService.hasUnresolvedSqlApproval(
                         toolCallsAndResults,
@@ -6110,7 +6141,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 if (
                     message.response &&
                     !message.error_message &&
-                    !hasUnresolvedApproval
+                    (!hasUnresolvedApproval || !isCurrentPrompt)
                 ) {
                     messages.push({
                         role: 'assistant',
@@ -9019,6 +9050,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     // TODO: add Slack compaction support once Slack has an
                     // equivalent persisted marker / summary UX.
                     compaction: null,
+                    currentPromptUuid: promptUuid,
                 });
 
             await this.replyToSlackPromptWithModernBlocks({
