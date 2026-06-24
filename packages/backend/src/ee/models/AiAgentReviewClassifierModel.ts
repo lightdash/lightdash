@@ -2016,7 +2016,7 @@ export class AiAgentReviewClassifierModel {
 
             // Write the review item in the same transaction so a signal and the
             // item it promotes are always created together.
-            if (newFingerprint) {
+            if (newFingerprint && finding) {
                 const existingItem = await trx<AiAgentReviewItemTable>(
                     AiAgentReviewItemTableName,
                 )
@@ -2051,6 +2051,27 @@ export class AiAgentReviewClassifierModel {
                             status_updated_at: trx.fn.now() as never,
                         });
                 }
+
+                // System-authored issue activity: first promotion opens the
+                // issue; a later promotion of the same fingerprint recurs it.
+                await this.createReviewItemEvent({
+                    fingerprint: newFingerprint,
+                    organizationUuid: turnSignal.subject.organizationUuid,
+                    event: existingItem
+                        ? {
+                              eventType: 'recurred',
+                              payload: {
+                                  threadUuid: turnSignal.subject.threadUuid,
+                                  promptUuid,
+                              },
+                          }
+                        : {
+                              eventType: 'created',
+                              payload: { rootCause: finding.primaryRootCause },
+                          },
+                    createdByUserUuid: null,
+                    trx,
+                });
             }
 
             // Reconcile: a superseded finding can leave its review item with no

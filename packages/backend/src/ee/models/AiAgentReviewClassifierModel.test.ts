@@ -1098,6 +1098,83 @@ describe('AiAgentReviewClassifierModel', () => {
     });
 
     describe('createTurnSignal', () => {
+        const promotedFinding = {
+            primaryRootCause: 'semantic_layer' as const,
+            secondaryRootCauses: [],
+            subcategories: [],
+            fixTargets: [],
+            targetRefs: [],
+            evidenceExcerpts: [],
+            recommendation: null,
+            projectContextEntry: null,
+            reviewItem: {
+                fingerprint: FINGERPRINT,
+                title: 'Review airports.country',
+                description: 'Country needs semantic clarification.',
+                ownerType: 'semantic_layer_owner' as const,
+            },
+        };
+
+        it('records a created issue event on first promotion of a fingerprint', async () => {
+            tracker.on.any(/pg_advisory_xact_lock/).response([]);
+            tracker.on.select(AiAgentTurnSignalTableName).responseOnce([]);
+            tracker.on.delete(AiAgentTurnSignalTableName).responseOnce(0);
+            tracker.on
+                .insert(AiAgentTurnSignalTableName)
+                .responseOnce([
+                    { ai_agent_review_turn_signal_uuid: TURN_SIGNAL_UUID },
+                ]);
+            // No existing item for this fingerprint → first promotion.
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
+            tracker.on.insert(AiAgentReviewItemTableName).responseOnce([]);
+            tracker.on
+                .insert(AiAgentReviewItemEventsTableName)
+                .responseOnce([]);
+
+            await model.createTurnSignal({
+                runUuid: RUN_UUID,
+                turnSignal,
+                finding: promotedFinding,
+            });
+
+            const eventInserts = tracker.history.insert.filter((q) =>
+                q.sql.includes(AiAgentReviewItemEventsTableName),
+            );
+            expect(eventInserts).toHaveLength(1);
+            expect(eventInserts[0].bindings).toContain('created');
+        });
+
+        it('records a recurred issue event when the fingerprint already exists', async () => {
+            tracker.on.any(/pg_advisory_xact_lock/).response([]);
+            tracker.on.select(AiAgentTurnSignalTableName).responseOnce([]);
+            tracker.on.delete(AiAgentTurnSignalTableName).responseOnce(0);
+            tracker.on
+                .insert(AiAgentTurnSignalTableName)
+                .responseOnce([
+                    { ai_agent_review_turn_signal_uuid: TURN_SIGNAL_UUID },
+                ]);
+            // Existing open item for this fingerprint → recurrence.
+            tracker.on
+                .select(AiAgentReviewItemTableName)
+                .responseOnce([{ status: 'open', dismissed_reason: null }]);
+            tracker.on.insert(AiAgentReviewItemTableName).responseOnce([]);
+            tracker.on
+                .insert(AiAgentReviewItemEventsTableName)
+                .responseOnce([]);
+
+            await model.createTurnSignal({
+                runUuid: RUN_UUID,
+                turnSignal,
+                finding: promotedFinding,
+            });
+
+            const eventInserts = tracker.history.insert.filter((q) =>
+                q.sql.includes(AiAgentReviewItemEventsTableName),
+            );
+            expect(eventInserts).toHaveLength(1);
+            expect(eventInserts[0].bindings).toContain('recurred');
+        });
+
         it('persists a classified signal with inline finding fields', async () => {
             tracker.on.any(/pg_advisory_xact_lock/).response([]);
             tracker.on.select(AiAgentTurnSignalTableName).responseOnce([]);
@@ -1110,6 +1187,9 @@ describe('AiAgentReviewClassifierModel', () => {
             // No existing item for this fingerprint → nothing to reopen.
             tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
             tracker.on.insert(AiAgentReviewItemTableName).responseOnce([]);
+            tracker.on
+                .insert(AiAgentReviewItemEventsTableName)
+                .responseOnce([]);
 
             const result = await model.createTurnSignal({
                 runUuid: RUN_UUID,
@@ -1151,9 +1231,12 @@ describe('AiAgentReviewClassifierModel', () => {
             expect(tracker.history.delete[0].sql).toContain(
                 AiAgentTurnSignalTableName,
             );
-            expect(tracker.history.insert).toHaveLength(2);
+            expect(tracker.history.insert).toHaveLength(3);
             expect(tracker.history.insert[1].sql).toContain(
                 AiAgentReviewItemTableName,
+            );
+            expect(tracker.history.insert[2].sql).toContain(
+                AiAgentReviewItemEventsTableName,
             );
             // The supersede + item write are serialized behind a per-turn
             // advisory lock so concurrent re-reviews cannot clobber each other.
@@ -1242,6 +1325,9 @@ describe('AiAgentReviewClassifierModel', () => {
                 .select(AiAgentReviewItemTableName)
                 .responseOnce([{ status: 'open', dismissed_reason: null }]);
             tracker.on.insert(AiAgentReviewItemTableName).responseOnce([]);
+            tracker.on
+                .insert(AiAgentReviewItemEventsTableName)
+                .responseOnce([]);
 
             await model.createTurnSignal({
                 runUuid: RUN_UUID,
@@ -1286,6 +1372,9 @@ describe('AiAgentReviewClassifierModel', () => {
                 .select(AiAgentReviewItemTableName)
                 .responseOnce([{ status: 'resolved', dismissed_reason: null }]);
             tracker.on.insert(AiAgentReviewItemTableName).responseOnce([]);
+            tracker.on
+                .insert(AiAgentReviewItemEventsTableName)
+                .responseOnce([]);
             tracker.on.update(AiAgentReviewItemTableName).responseOnce(1);
 
             await model.createTurnSignal({
@@ -1333,6 +1422,9 @@ describe('AiAgentReviewClassifierModel', () => {
                 },
             ]);
             tracker.on.insert(AiAgentReviewItemTableName).responseOnce([]);
+            tracker.on
+                .insert(AiAgentReviewItemEventsTableName)
+                .responseOnce([]);
 
             await model.createTurnSignal({
                 runUuid: RUN_UUID,
