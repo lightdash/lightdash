@@ -18,7 +18,7 @@ import type {
 } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-import { FIELD_DESCRIPTION_MAX_CHARS, truncate } from '../utils/truncation';
+import { truncate } from '../utils/truncation';
 import { xmlBuilder } from '../xmlBuilder';
 
 type Dependencies = {
@@ -26,6 +26,7 @@ type Dependencies = {
     findFields: FindFieldFn;
     updateProgress: UpdateProgressFn;
     pageSize: number;
+    fieldDescriptionMaxChars: number;
 };
 
 const toolDefinition = findFieldsToolDefinition.for('agent');
@@ -51,7 +52,11 @@ const getFieldCaseSensitive = (
     );
 };
 
-const renderField = (catalogField: CatalogField, explore?: Explore) => {
+const renderField = (
+    catalogField: CatalogField,
+    fieldDescriptionMaxChars: number,
+    explore?: Explore,
+) => {
     const isFromJoinedTable =
         explore &&
         catalogField.tableName !== explore.baseTable &&
@@ -103,7 +108,7 @@ const renderField = (catalogField: CatalogField, explore?: Explore) => {
                 <description>
                     {truncate(
                         catalogField.description,
-                        FIELD_DESCRIPTION_MAX_CHARS,
+                        fieldDescriptionMaxChars,
                     )}
                 </description>
             )}
@@ -123,6 +128,7 @@ const renderField = (catalogField: CatalogField, explore?: Explore) => {
 
 const getFieldsText = (
     args: Awaited<ReturnType<FindFieldFn>> & { searchQuery: string },
+    fieldDescriptionMaxChars: number,
     explore?: Explore,
 ) => (
     <searchresult
@@ -132,7 +138,9 @@ const getFieldsText = (
         totalPageCount={args.pagination?.totalPageCount}
         totalResults={args.pagination?.totalResults}
     >
-        {args.fields.map((field) => renderField(field, explore))}
+        {args.fields.map((field) =>
+            renderField(field, fieldDescriptionMaxChars, explore),
+        )}
     </searchresult>
 );
 
@@ -141,6 +149,7 @@ export const getFindFields = ({
     findFields,
     updateProgress,
     pageSize,
+    fieldDescriptionMaxChars,
 }: Dependencies) =>
     tool({
         ...toolDefinition,
@@ -175,7 +184,11 @@ export const getFindFields = ({
 
                 const fieldsText = fieldSearchQueryResults
                     .map((fieldSearchQueryResult) =>
-                        getFieldsText(fieldSearchQueryResult, explore),
+                        getFieldsText(
+                            fieldSearchQueryResult,
+                            fieldDescriptionMaxChars,
+                            explore,
+                        ),
                     )
                     .join('\n\n');
 

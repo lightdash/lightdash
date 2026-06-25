@@ -1397,6 +1397,9 @@ export class McpService extends BaseService {
                     findFields: toolsRuntime.findFields,
                     updateProgress: async () => {}, // No-op for MCP context
                     pageSize: 15,
+                    fieldDescriptionMaxChars:
+                        this.lightdashConfig.ai.copilot
+                            .toolFieldDescriptionMaxChars,
                 });
                 const result = await findFieldsTool.execute!(argsWithProject, {
                     toolCallId: '',

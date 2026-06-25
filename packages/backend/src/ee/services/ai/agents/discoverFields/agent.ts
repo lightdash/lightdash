@@ -45,6 +45,7 @@ export type DiscoverFieldsAgentArgs = {
     providerOptions: AiAgentArgs['providerOptions'];
     findExploresFieldSearchSize: number;
     findFieldsPageSize: number;
+    fieldDescriptionMaxChars: number;
     abortSignal?: AbortSignal;
     promptUuid: string;
     parentToolCallId: string;
@@ -105,6 +106,7 @@ export const runDiscoverFieldsAgent = (
         findFields: dependencies.findFields,
         updateProgress: dependencies.updateProgress,
         pageSize: args.findFieldsPageSize,
+        fieldDescriptionMaxChars: args.fieldDescriptionMaxChars,
     });
 
     const messages: ModelMessage[] = [

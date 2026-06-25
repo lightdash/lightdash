@@ -225,6 +225,7 @@ const getAgentTools = (
             availableExplores,
             findExploresFieldSearchSize: args.findExploresFieldSearchSize,
             findFieldsPageSize: args.findFieldsPageSize,
+            fieldDescriptionMaxChars: args.toolFieldDescriptionMaxChars,
             promptUuid: args.promptUuid,
             telemetry: {
                 agentSettings: args.agentSettings,
@@ -406,6 +407,7 @@ const getAgentTools = (
         // unbounded payload while still letting an audit grab the inventory in
         // one or two round-trips.
         maxPageSize: 500,
+        fieldDescriptionMaxChars: args.toolFieldDescriptionMaxChars,
     });
 
     const listKnowledgeDocuments = getListKnowledgeDocuments({
