@@ -1340,6 +1340,8 @@ export class McpService extends BaseService {
                     findExplores: toolsRuntime.findExplores,
                     updateProgress: async () => {}, // No-op for MCP context
                     fieldSearchSize: 200,
+                    toolDescriptionMaxChars:
+                        this.lightdashConfig.ai.copilot.toolDescriptionMaxChars,
                 });
                 const result = await findExploresTool.execute!(
                     {
@@ -1410,9 +1412,8 @@ export class McpService extends BaseService {
                     findFields: toolsRuntime.findFields,
                     updateProgress: async () => {}, // No-op for MCP context
                     pageSize: 15,
-                    fieldDescriptionMaxChars:
-                        this.lightdashConfig.ai.copilot
-                            .toolFieldDescriptionMaxChars,
+                    toolDescriptionMaxChars:
+                        this.lightdashConfig.ai.copilot.toolDescriptionMaxChars,
                 });
                 const result = await findFieldsTool.execute!(argsWithProject, {
                     toolCallId: '',
@@ -1452,6 +1453,8 @@ export class McpService extends BaseService {
                 const findContentTool = getFindContent({
                     findContent: toolsRuntime.findContent,
                     siteUrl: this.lightdashConfig.siteUrl,
+                    toolDescriptionMaxChars:
+                        this.lightdashConfig.ai.copilot.toolDescriptionMaxChars,
                     trackCoverage: () => {},
                 });
                 const result = await findContentTool.execute!(argsWithProject, {

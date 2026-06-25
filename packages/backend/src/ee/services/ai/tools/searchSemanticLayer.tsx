@@ -14,7 +14,7 @@ type Dependencies = {
     updateProgress: UpdateProgressFn;
     /** Upper bound for the agent-supplied pageSize; also the fallback default. */
     maxPageSize: number;
-    fieldDescriptionMaxChars: number;
+    toolDescriptionMaxChars: number;
 };
 
 /** Used when the agent does not specify a pageSize. */
@@ -25,9 +25,9 @@ const toolDefinition = searchSemanticLayerToolDefinition.for('agent');
 const generateResponse = ({
     fields,
     pagination,
-    fieldDescriptionMaxChars,
+    toolDescriptionMaxChars,
 }: Awaited<ReturnType<SearchSemanticLayerFn>> & {
-    fieldDescriptionMaxChars: number;
+    toolDescriptionMaxChars: number;
 }) => (
     <semanticLayerFields
         page={pagination?.page}
@@ -54,7 +54,7 @@ const generateResponse = ({
             >
                 {field.description && (
                     <description>
-                        {truncate(field.description, fieldDescriptionMaxChars)}
+                        {truncate(field.description, toolDescriptionMaxChars)}
                     </description>
                 )}
             </field>
@@ -66,7 +66,7 @@ export const getSearchSemanticLayer = ({
     searchSemanticLayer,
     updateProgress,
     maxPageSize,
-    fieldDescriptionMaxChars,
+    toolDescriptionMaxChars,
 }: Dependencies) =>
     tool({
         ...toolDefinition,
@@ -96,7 +96,7 @@ export const getSearchSemanticLayer = ({
                     result: generateResponse({
                         fields,
                         pagination,
-                        fieldDescriptionMaxChars,
+                        toolDescriptionMaxChars,
                     }).toString(),
                     metadata: {
                         status: 'success',

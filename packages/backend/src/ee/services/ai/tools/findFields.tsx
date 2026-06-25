@@ -26,7 +26,7 @@ type Dependencies = {
     findFields: FindFieldFn;
     updateProgress: UpdateProgressFn;
     pageSize: number;
-    fieldDescriptionMaxChars: number;
+    toolDescriptionMaxChars: number;
 };
 
 const toolDefinition = findFieldsToolDefinition.for('agent');
@@ -54,7 +54,7 @@ const getFieldCaseSensitive = (
 
 const renderField = (
     catalogField: CatalogField,
-    fieldDescriptionMaxChars: number,
+    toolDescriptionMaxChars: number,
     explore?: Explore,
 ) => {
     const isFromJoinedTable =
@@ -108,7 +108,7 @@ const renderField = (
                 <description>
                     {truncate(
                         catalogField.description,
-                        fieldDescriptionMaxChars,
+                        toolDescriptionMaxChars,
                     )}
                 </description>
             )}
@@ -128,7 +128,7 @@ const renderField = (
 
 const getFieldsText = (
     args: Awaited<ReturnType<FindFieldFn>> & { searchQuery: string },
-    fieldDescriptionMaxChars: number,
+    toolDescriptionMaxChars: number,
     explore?: Explore,
 ) => (
     <searchresult
@@ -139,7 +139,7 @@ const getFieldsText = (
         totalResults={args.pagination?.totalResults}
     >
         {args.fields.map((field) =>
-            renderField(field, fieldDescriptionMaxChars, explore),
+            renderField(field, toolDescriptionMaxChars, explore),
         )}
     </searchresult>
 );
@@ -149,7 +149,7 @@ export const getFindFields = ({
     findFields,
     updateProgress,
     pageSize,
-    fieldDescriptionMaxChars,
+    toolDescriptionMaxChars,
 }: Dependencies) =>
     tool({
         ...toolDefinition,
@@ -186,7 +186,7 @@ export const getFindFields = ({
                     .map((fieldSearchQueryResult) =>
                         getFieldsText(
                             fieldSearchQueryResult,
-                            fieldDescriptionMaxChars,
+                            toolDescriptionMaxChars,
                             explore,
                         ),
                     )
