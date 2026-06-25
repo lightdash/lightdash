@@ -46,7 +46,6 @@ import {
     type TogglePinnedItemInfo,
 } from '@lightdash/common';
 import { generateObject } from 'ai';
-import { ALL_TRAFFIC, CommandExitError, Sandbox } from 'e2b';
 import { Knex } from 'knex';
 import { performance } from 'node:perf_hooks';
 import { PassThrough, Readable } from 'node:stream';
@@ -82,6 +81,13 @@ import type { SpacePermissionService } from '../../../services/SpaceService/Spac
 import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { getModel } from '../ai/models';
+import {
+    createSandboxProvider,
+    SandboxCommandError,
+    type SandboxHandle,
+    type SandboxProvider,
+    type SandboxSpec,
+} from '../SandboxRuntime';
 import { assertCanViewApp as assertUserCanViewApp } from './appAuthz';
 import {
     classifyClaudeCliFailure,
@@ -181,6 +187,9 @@ export class AppGenerateService extends BaseService {
     private readonly promoteService: PromoteService;
 
     private readonly externalConnectionModel: ExternalConnectionModel;
+
+    // Lazily built from config on first use; memoized for the service lifetime.
+    private sandboxProvider: SandboxProvider | undefined;
 
     constructor({
         lightdashConfig,
@@ -355,14 +364,48 @@ export class AppGenerateService extends BaseService {
         );
     }
 
-    private getE2bApiKey(): string {
-        const key = this.lightdashConfig.appRuntime.e2bApiKey;
-        if (!key) {
-            throw new MissingConfigError(
-                'E2B API key is not configured (E2B_API_KEY)',
-            );
+    /**
+     * The sandbox provider selected by `SANDBOX_PROVIDER` (e2b | docker).
+     * Memoized — feature code talks only to this provider, never to a concrete
+     * sandbox SDK. See SandboxRuntime/DESIGN.md.
+     */
+    private getSandboxProvider(): SandboxProvider {
+        if (!this.sandboxProvider) {
+            this.sandboxProvider = createSandboxProvider({
+                provider: this.lightdashConfig.appRuntime.sandboxProvider,
+                e2bApiKey: this.lightdashConfig.appRuntime.e2bApiKey,
+                dockerImage: this.lightdashConfig.appRuntime.sandboxDockerImage,
+                logger: this.logger,
+            });
         }
-        return key;
+        return this.sandboxProvider;
+    }
+
+    /**
+     * Resolve the template/image ref the active provider launches from. E2B
+     * composes `name:tag`; Docker uses the local image name.
+     */
+    private getSandboxTemplateRef(): string {
+        const { sandboxProvider, e2bTemplateName, e2bTemplateTag } =
+            this.lightdashConfig.appRuntime;
+        if (sandboxProvider === 'docker') {
+            return this.lightdashConfig.appRuntime.sandboxDockerImage;
+        }
+        // E2B treats `name` and `name:default` interchangeably, so an empty
+        // tag is fine — it just resolves to the implicit `default` build.
+        return e2bTemplateTag
+            ? `${e2bTemplateName}:${e2bTemplateTag}`
+            : e2bTemplateName;
+    }
+
+    private buildSandboxSpec(): SandboxSpec {
+        return {
+            templateRef: this.getSandboxTemplateRef(),
+            timeoutMs: 60 * 60 * 1000,
+            egress: {
+                allow: claudeCodeAllowedHosts(this.lightdashConfig.ai.copilot),
+            },
+        };
     }
 
     private getS3Client(): { client: S3Client; bucket: string } {
@@ -956,39 +999,22 @@ export class AppGenerateService extends BaseService {
 
     private async createSandbox(
         appUuid: string,
-        e2bApiKey: string,
-    ): Promise<{ sandbox: Sandbox; durationMs: number }> {
+    ): Promise<{ sandbox: SandboxHandle; durationMs: number }> {
         const start = performance.now();
-        const { e2bTemplateName, e2bTemplateTag } =
-            this.lightdashConfig.appRuntime;
-        // E2B treats `name` and `name:default` interchangeably, so an empty
-        // tag is fine — it just resolves to the implicit `default` build.
-        const templateRef = e2bTemplateTag
-            ? `${e2bTemplateName}:${e2bTemplateTag}`
-            : e2bTemplateName;
-        const sandbox = await Sandbox.create(templateRef, {
-            timeoutMs: 60 * 60 * 1000,
-            apiKey: e2bApiKey,
-            lifecycle: { onTimeout: 'pause' },
-            network: {
-                allowOut: claudeCodeAllowedHosts(
-                    this.lightdashConfig.ai.copilot,
-                ),
-                denyOut: [ALL_TRAFFIC],
-            },
-        });
+        const spec = this.buildSandboxSpec();
         this.logger.info(
-            `App ${appUuid}: launching sandbox from template ${templateRef}`,
+            `App ${appUuid}: launching sandbox from template ${spec.templateRef} (provider=${this.lightdashConfig.appRuntime.sandboxProvider})`,
         );
+        const sandbox = await this.getSandboxProvider().create(spec);
         const durationMs = AppGenerateService.elapsed(start);
         this.logger.info(
-            `App ${appUuid}: E2B sandbox created (sandboxId=${sandbox.sandboxId}, ${durationMs}ms)`,
+            `App ${appUuid}: sandbox created (sandboxId=${sandbox.sandboxId}, ${durationMs}ms)`,
         );
         return { sandbox, durationMs };
     }
 
     private async pauseSandbox(
-        sandbox: Sandbox,
+        sandbox: SandboxHandle,
         appUuid: string,
     ): Promise<void> {
         try {
@@ -1008,22 +1034,18 @@ export class AppGenerateService extends BaseService {
     private async resumeSandbox(
         sandboxId: string,
         appUuid: string,
-        e2bApiKey: string,
-    ): Promise<{ sandbox: Sandbox; durationMs: number }> {
+    ): Promise<{ sandbox: SandboxHandle; durationMs: number }> {
         const start = performance.now();
-        const sandbox = await Sandbox.connect(sandboxId, {
-            apiKey: e2bApiKey,
-            timeoutMs: 60 * 60 * 1000,
-        });
+        const sandbox = await this.getSandboxProvider().connect(sandboxId);
         const durationMs = AppGenerateService.elapsed(start);
         this.logger.info(
-            `App ${appUuid}: E2B sandbox resumed (sandboxId=${sandbox.sandboxId}, ${durationMs}ms)`,
+            `App ${appUuid}: sandbox resumed (sandboxId=${sandbox.sandboxId}, ${durationMs}ms)`,
         );
         return { sandbox, durationMs };
     }
 
     private async restoreSourceFromS3(
-        sandbox: Sandbox,
+        sandbox: SandboxHandle,
         s3Client: S3Client,
         bucket: string,
         appUuid: string,
@@ -1042,13 +1064,7 @@ export class AppGenerateService extends BaseService {
         }
         const tarBuffer = Buffer.concat(chunks);
 
-        await sandbox.files.write(
-            '/tmp/source.tar',
-            tarBuffer.buffer.slice(
-                tarBuffer.byteOffset,
-                tarBuffer.byteOffset + tarBuffer.byteLength,
-            ) as ArrayBuffer,
-        );
+        await sandbox.files.write('/tmp/source.tar', tarBuffer);
         const result = await sandbox.commands.run(
             'tar -xf /tmp/source.tar -C /app',
             { timeoutMs: 60_000 },
@@ -1068,17 +1084,16 @@ export class AppGenerateService extends BaseService {
 
     /**
      * Resume an existing sandbox or create a new one with source restored from S3.
-     * Always returns a running Sandbox instance or throws.
+     * Always returns a running sandbox handle or throws.
      */
     private async acquireSandbox(
         app: DbApp,
         appUuid: string,
         newVersion: number,
-        e2bApiKey: string,
         s3Client: S3Client,
         bucket: string,
     ): Promise<{
-        sandbox: Sandbox;
+        sandbox: SandboxHandle;
         wasResumed: boolean;
         durations: Record<string, number>;
     }> {
@@ -1090,7 +1105,6 @@ export class AppGenerateService extends BaseService {
                 const result = await this.resumeSandbox(
                     app.sandbox_id,
                     appUuid,
-                    e2bApiKey,
                 );
                 durations.resumeMs = result.durationMs;
                 return {
@@ -1106,7 +1120,7 @@ export class AppGenerateService extends BaseService {
         }
 
         // Fallback: create new sandbox and restore source from latest ready version
-        const createResult = await this.createSandbox(appUuid, e2bApiKey);
+        const createResult = await this.createSandbox(appUuid);
         durations.sandboxMs = createResult.durationMs;
         await this.appModel.updateSandboxId(
             appUuid,
@@ -1133,7 +1147,7 @@ export class AppGenerateService extends BaseService {
      * no references were provided.
      */
     private async writeChartReferences(
-        sandbox: Sandbox,
+        sandbox: SandboxHandle,
         appUuid: string,
         chartReferences: ChartReference[],
     ): Promise<string> {
@@ -1209,7 +1223,7 @@ export class AppGenerateService extends BaseService {
      * connections.
      */
     private async writeExternalConnectionSamples(
-        sandbox: Sandbox,
+        sandbox: SandboxHandle,
         appUuid: string,
         docs: AppExternalConnectionDoc[],
     ): Promise<string> {
@@ -1305,7 +1319,7 @@ export class AppGenerateService extends BaseService {
     }
 
     private async writeCatalogAndPrompt(
-        sandbox: Sandbox,
+        sandbox: SandboxHandle,
         appUuid: string,
         projectUuid: string,
         prompt: string,
@@ -1453,7 +1467,7 @@ export class AppGenerateService extends BaseService {
      * never end up in the bundle — they describe current state, not target.
      */
     private async writeImageToSandbox(
-        sandbox: Sandbox,
+        sandbox: SandboxHandle,
         appUuid: string,
         imageId: string,
         s3Client: S3Client,
@@ -1494,10 +1508,6 @@ export class AppGenerateService extends BaseService {
             throw new Error('Unexpected S3 response body type');
         }
         const buffer = Buffer.concat(chunks);
-        const arrayBuffer = buffer.buffer.slice(
-            buffer.byteOffset,
-            buffer.byteOffset + buffer.byteLength,
-        ) as ArrayBuffer;
 
         // Write to sandbox
         this.logger.info(
@@ -1506,7 +1516,7 @@ export class AppGenerateService extends BaseService {
         await sandbox.commands.run('mkdir -p /tmp/images', {
             timeoutMs: 10_000,
         });
-        await sandbox.files.write(sandboxPath, arrayBuffer);
+        await sandbox.files.write(sandboxPath, buffer);
 
         // Design references go into the Vite-bundled source tree so the agent
         // can `import logo from './uploads/<file>'` and have the URL hashed,
@@ -1516,10 +1526,7 @@ export class AppGenerateService extends BaseService {
             await sandbox.commands.run('mkdir -p /app/src/uploads', {
                 timeoutMs: 10_000,
             });
-            await sandbox.files.write(
-                `/app/src/uploads/${filename}`,
-                arrayBuffer,
-            );
+            await sandbox.files.write(`/app/src/uploads/${filename}`, buffer);
         }
 
         return sandboxPath;
@@ -1608,7 +1615,7 @@ export class AppGenerateService extends BaseService {
      * dilute the customer instructions.
      */
     private async assembleEffectiveSkill(
-        sandbox: Sandbox,
+        sandbox: SandboxHandle,
         designCopy: DesignSandboxCopyResult,
     ): Promise<void> {
         this.logger.debug(
@@ -1652,7 +1659,7 @@ export class AppGenerateService extends BaseService {
     }
 
     private async runClaudeGeneration(
-        sandbox: Sandbox,
+        sandbox: SandboxHandle,
         appUuid: string,
         version: number,
         continueSession: boolean,
@@ -1765,12 +1772,12 @@ export class AppGenerateService extends BaseService {
                     },
                 )
                 .catch((err: unknown) => {
-                    // E2B's `commands.run` throws `CommandExitError` on a non-zero
-                    // exit (no opt-out), so convert it to a result here — mirroring
-                    // the build path. Otherwise a failed claude run propagates as an
+                    // The sandbox `commands.run` throws `SandboxCommandError` on a
+                    // non-zero exit, so convert it to a result here — mirroring the
+                    // build path. Otherwise a failed claude run propagates as an
                     // opaque "exit status 1" with the real error swallowed, and the
                     // stderr-logging + retry below never run.
-                    if (!(err instanceof CommandExitError)) {
+                    if (!(err instanceof SandboxCommandError)) {
                         throw err;
                     }
                     return {
@@ -1891,7 +1898,7 @@ export class AppGenerateService extends BaseService {
      * Returns null if parsing fails — callers should treat this as non-fatal.
      */
     private async generateAppMetadata(
-        sandbox: Sandbox,
+        sandbox: SandboxHandle,
         appUuid: string,
         version: number,
         claudeCodeEnv: Record<string, string>,
@@ -1976,7 +1983,7 @@ export class AppGenerateService extends BaseService {
     }
 
     private async runBuild(
-        sandbox: Sandbox,
+        sandbox: SandboxHandle,
         appUuid: string,
     ): Promise<{
         durationMs: number;
@@ -1985,10 +1992,10 @@ export class AppGenerateService extends BaseService {
         stderr: string;
     }> {
         const start = performance.now();
-        // E2B's `commands.run` throws `CommandExitError` on a non-zero exit
-        // code (no opt-out), so we have to catch it ourselves and surface the
-        // result — otherwise `runBuildWithAutoFix` would never see a failed
-        // build and could not retry.
+        // The sandbox `commands.run` throws `SandboxCommandError` on a non-zero
+        // exit code, so we have to catch it ourselves and surface the result —
+        // otherwise `runBuildWithAutoFix` would never see a failed build and
+        // could not retry.
         let result: {
             exitCode: number;
             stdout: string;
@@ -2010,7 +2017,7 @@ export class AppGenerateService extends BaseService {
                 },
             });
         } catch (err) {
-            if (!(err instanceof CommandExitError)) {
+            if (!(err instanceof SandboxCommandError)) {
                 throw err;
             }
             result = {
@@ -2042,7 +2049,7 @@ export class AppGenerateService extends BaseService {
      * Retries up to MAX_BUILD_FIX_ATTEMPTS times before giving up and throwing.
      */
     private async runBuildWithAutoFix(
-        sandbox: Sandbox,
+        sandbox: SandboxHandle,
         appUuid: string,
         version: number,
         claudeCodeEnv: Record<string, string>,
@@ -2209,7 +2216,7 @@ export class AppGenerateService extends BaseService {
      * build, so any error resolves to null (treat as authored).
      */
     private async detectBlankApp(
-        sandbox: Sandbox,
+        sandbox: SandboxHandle,
         appUuid: string,
     ): Promise<string | null> {
         try {
@@ -2237,7 +2244,7 @@ export class AppGenerateService extends BaseService {
     }
 
     private async packageArtifacts(
-        sandbox: Sandbox,
+        sandbox: SandboxHandle,
         appUuid: string,
     ): Promise<{ distTar: Buffer; sourceTar: Buffer; durationMs: number }> {
         const start = performance.now();
@@ -2252,8 +2259,8 @@ export class AppGenerateService extends BaseService {
         ]);
 
         const [distBytes, sourceBytes] = await Promise.all([
-            sandbox.files.read('/tmp/dist.tar', { format: 'bytes' }),
-            sandbox.files.read('/tmp/source.tar', { format: 'bytes' }),
+            sandbox.files.readBytes('/tmp/dist.tar'),
+            sandbox.files.readBytes('/tmp/source.tar'),
         ]);
         const distTar = Buffer.from(distBytes);
         const sourceTar = Buffer.from(sourceBytes);
@@ -2372,12 +2379,10 @@ export class AppGenerateService extends BaseService {
         }
 
         let claudeCodeEnv: Record<string, string>;
-        let e2bApiKey: string;
         let s3Client: S3Client;
         let bucket: string;
         try {
             claudeCodeEnv = this.getClaudeCodeEnv();
-            e2bApiKey = this.getE2bApiKey();
             ({ client: s3Client, bucket } = this.getS3Client());
         } catch (error) {
             // Config errors (missing/incomplete provider, E2B, or S3 setup) carry
@@ -2410,7 +2415,7 @@ export class AppGenerateService extends BaseService {
         );
 
         // --- Stage: sandbox ---
-        let sandbox: Sandbox;
+        let sandbox: SandboxHandle;
         let wasResumed = false;
         if (AppGenerateService.shouldRunStage(currentStatus, 'sandbox')) {
             const advanced = await this.advanceStage(
@@ -2432,7 +2437,6 @@ export class AppGenerateService extends BaseService {
                         app,
                         appUuid,
                         version,
-                        e2bApiKey,
                         s3Client,
                         bucket,
                     );
@@ -2440,7 +2444,7 @@ export class AppGenerateService extends BaseService {
                     wasResumed = acquired.wasResumed;
                     Object.assign(durations, acquired.durations);
                 } else {
-                    const result = await this.createSandbox(appUuid, e2bApiKey);
+                    const result = await this.createSandbox(appUuid);
                     sandbox = result.sandbox;
                     durations.sandboxMs = result.durationMs;
                     await this.appModel.updateSandboxId(
@@ -2496,7 +2500,6 @@ export class AppGenerateService extends BaseService {
                 const result = await this.resumeSandbox(
                     app.sandbox_id,
                     appUuid,
-                    e2bApiKey,
                 );
                 sandbox = result.sandbox;
                 wasResumed = true;
@@ -2557,7 +2560,7 @@ export class AppGenerateService extends BaseService {
     }
 
     private async runPipelineStages(
-        sandbox: Sandbox,
+        sandbox: SandboxHandle,
         payload: AppGeneratePipelineJobPayload,
         s3Client: S3Client,
         bucket: string,
@@ -3940,12 +3943,11 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         // standard cold-start path will extract source.tar from S3 on its
         // own.
         if (app.sandbox_id) {
-            let sandbox: Sandbox | null = null;
+            let sandbox: SandboxHandle | null = null;
             try {
                 const resumed = await this.resumeSandbox(
                     app.sandbox_id,
                     appUuid,
-                    this.getE2bApiKey(),
                 );
                 sandbox = resumed.sandbox;
                 await this.resyncSandboxFromS3(
@@ -4081,7 +4083,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
      * iteration starts.
      */
     private async resyncSandboxFromS3(
-        sandbox: Sandbox,
+        sandbox: SandboxHandle,
         s3Client: S3Client,
         bucket: string,
         appUuid: string,
@@ -4123,13 +4125,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 `Failed to clear staged tarball path ${stagedPath} (exit ${cleanup.exitCode}): ${cleanup.stderr}`,
             );
         }
-        await sandbox.files.write(
-            stagedPath,
-            tarBuffer.buffer.slice(
-                tarBuffer.byteOffset,
-                tarBuffer.byteOffset + tarBuffer.byteLength,
-            ) as ArrayBuffer,
-        );
+        await sandbox.files.write(stagedPath, tarBuffer);
         const extractResult = await sandbox.commands.run(
             `tar -xf ${stagedPath} -C /app && rm -f ${stagedPath}`,
             { timeoutMs: 60_000 },
@@ -4156,7 +4152,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
      * the user's next prompt will simply not benefit from the heads-up.
      */
     private async notifyClaudeOfRestore(
-        sandbox: Sandbox,
+        sandbox: SandboxHandle,
         appUuid: string,
         sourceVersion: number,
     ): Promise<void> {
@@ -5028,9 +5024,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         // so no spurious failed analytics event fires on top of the cancel.
         if (app.sandbox_id) {
             try {
-                await Sandbox.pause(app.sandbox_id, {
-                    apiKey: this.getE2bApiKey(),
-                });
+                await this.getSandboxProvider().pause(app.sandbox_id);
                 this.logger.info(
                     `App ${appUuid}: sandbox paused after cancel (sandboxId=${app.sandbox_id})`,
                 );
@@ -5503,9 +5497,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     ): Promise<void> {
         if (!sandboxId) return;
         try {
-            await Sandbox.pause(sandboxId, {
-                apiKey: this.getE2bApiKey(),
-            });
+            await this.getSandboxProvider().pause(sandboxId);
             this.logger.info(
                 `App ${appUuid}: sandbox paused during delete (sandboxId=${sandboxId})`,
             );
@@ -5522,9 +5514,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     ): Promise<void> {
         if (!sandboxId) return;
         try {
-            await Sandbox.kill(sandboxId, {
-                apiKey: this.getE2bApiKey(),
-            });
+            await this.getSandboxProvider().destroy(sandboxId);
             this.logger.info(
                 `App ${appUuid}: sandbox killed during hard delete (sandboxId=${sandboxId})`,
             );
