@@ -19,20 +19,29 @@ import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const bundlePath = resolve(__dirname, '../sdk/dist/sdk.es.js');
 
-let code;
-try {
-    code = readFileSync(bundlePath, 'utf-8');
-} catch {
-    console.error(
-        `SDK bundle not found at ${bundlePath}.\n` +
-            'Build it first: pnpm -F frontend build-sdk',
-    );
-    process.exit(1);
-}
+// Both published entry points must be checked — consumers using `import` get
+// sdk.es.js and consumers using `require` get sdk.cjs.js.
+const BUNDLES = ['sdk.es.js', 'sdk.cjs.js'];
 
-const count = (needle) => code.split(needle).length - 1;
+const code = Object.fromEntries(
+    BUNDLES.map((name) => {
+        const path = resolve(__dirname, '../sdk/dist', name);
+        try {
+            return [name, readFileSync(path, 'utf-8')];
+        } catch {
+            console.error(
+                `SDK bundle not found at ${path}.\n` +
+                    'Build it first: pnpm -F frontend build-sdk',
+            );
+            return process.exit(1);
+        }
+    }),
+);
+
+// Highest count across both bundles, so a regression in either one is caught.
+const count = (needle) =>
+    Math.max(...BUNDLES.map((name) => code[name].split(needle).length - 1));
 
 // Runtime code-generators removed in #21276 — these must never reappear.
 const FORBIDDEN_SIGNATURES = [
