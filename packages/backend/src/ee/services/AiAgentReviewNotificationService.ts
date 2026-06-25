@@ -71,7 +71,7 @@ export class AiAgentReviewNotificationService {
             .filter((member) =>
                 defineUserAbility(member, []).can(
                     'manage',
-                    subject('AiAgent', { organizationUuid }),
+                    subject('OrganizationAiAgent', { organizationUuid }),
                 ),
             )
             .map((member) => ({

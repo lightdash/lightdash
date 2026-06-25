@@ -51,7 +51,7 @@ export class AiOrganizationSettingsService extends BaseService {
         if (
             auditedAbility.cannot(
                 'manage',
-                subject('AiAgent', {
+                subject('OrganizationAiAgent', {
                     organizationUuid: user.organizationUuid!,
                 }),
             )

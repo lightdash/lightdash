@@ -82,7 +82,10 @@ export class AiRouterService extends BaseService {
     ): void {
         const ability = this.createAuditedAbility(account);
         if (
-            ability.cannot('manage', subject('AiAgent', { organizationUuid }))
+            ability.cannot(
+                'manage',
+                subject('OrganizationAiAgent', { organizationUuid }),
+            )
         ) {
             throw new ForbiddenError();
         }
@@ -93,7 +96,12 @@ export class AiRouterService extends BaseService {
         organizationUuid: string,
     ): void {
         const ability = this.createAuditedAbility(account);
-        if (ability.cannot('view', subject('AiAgent', { organizationUuid }))) {
+        if (
+            ability.cannot(
+                'view',
+                subject('OrganizationAiAgent', { organizationUuid }),
+            )
+        ) {
             throw new ForbiddenError();
         }
     }

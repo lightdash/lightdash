@@ -234,6 +234,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('view', 'AiAgent', {
             organizationUuid: member.organizationUuid,
         });
+        can('view', 'OrganizationAiAgent', {
+            organizationUuid: member.organizationUuid,
+        });
         can('view', 'AiAgentDocument', {
             organizationUuid: member.organizationUuid,
         });
@@ -379,6 +382,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'AiAgent', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'OrganizationAiAgent', {
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'AiAgentDocument', {

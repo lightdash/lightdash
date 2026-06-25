@@ -175,6 +175,9 @@ const applyServiceAccountStaticAbilities: Record<
         can('view', 'AiAgent', {
             organizationUuid,
         });
+        can('view', 'OrganizationAiAgent', {
+            organizationUuid,
+        });
         can('view', 'AiAgentDocument', {
             organizationUuid,
         });
@@ -309,6 +312,9 @@ const applyServiceAccountStaticAbilities: Record<
             organizationUuid,
         });
         can('manage', 'AiAgent', {
+            organizationUuid,
+        });
+        can('manage', 'OrganizationAiAgent', {
             organizationUuid,
         });
         can('manage', 'AiAgentDocument', {

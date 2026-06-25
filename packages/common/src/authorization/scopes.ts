@@ -757,15 +757,31 @@ const scopes: Scope[] = [
     // AI Agent
     {
         name: 'view:AiAgent',
-        description: 'View AI agent features',
+        description: 'View AI agents in a project',
         isEnterprise: true,
         group: ScopeGroup.AI,
         getConditions: addDefaultUuidCondition,
     },
     {
         name: 'manage:AiAgent',
-        description: 'Configure AI agent settings',
+        description: 'Create and manage AI agents in a project',
         isEnterprise: true,
+        group: ScopeGroup.AI,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:OrganizationAiAgent',
+        description: 'View organization AI settings',
+        isEnterprise: true,
+        level: 'organization',
+        group: ScopeGroup.AI,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:OrganizationAiAgent',
+        description: 'Configure organization AI settings',
+        isEnterprise: true,
+        level: 'organization',
         group: ScopeGroup.AI,
         getConditions: addDefaultUuidCondition,
     },
