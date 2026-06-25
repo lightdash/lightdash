@@ -9,6 +9,7 @@ import ForbiddenPanel from '../components/ForbiddenPanel';
 import AppIframePreview from '../features/apps/AppIframePreview';
 import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
+import AppSpaceChip from '../features/apps/components/AppSpaceChip';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
@@ -46,6 +47,7 @@ export default function AppPreviewTest() {
     const appName = appQuery.data?.pages[0]?.name ?? '';
     const appDescription = appQuery.data?.pages[0]?.description ?? null;
     const appSpaceUuid = appQuery.data?.pages[0]?.spaceUuid ?? null;
+    const appSpaceName = appQuery.data?.pages[0]?.spaceName ?? null;
     const appCreatedByUserUuid =
         appQuery.data?.pages[0]?.createdByUserUuid ?? null;
     const canEditApp = useCanEditDataApp(projectUuid, {
@@ -167,6 +169,23 @@ export default function AppPreviewTest() {
             <AppHeader
                 name={appName}
                 description={appDescription}
+                spaceChip={
+                    <AppSpaceChip
+                        projectUuid={projectUuid}
+                        spaceName={appSpaceName}
+                        app={{
+                            uuid: appUuid,
+                            name: appName,
+                            description: appDescription ?? undefined,
+                            spaceUuid: appSpaceUuid,
+                            createdByUserUuid: appCreatedByUserUuid,
+                            latestVersionNumber: latestReadyVersion ?? null,
+                            latestVersionStatus: latestReadyVersion
+                                ? 'ready'
+                                : null,
+                        }}
+                    />
+                }
                 rightSection={
                     <AppHeaderActions
                         projectUuid={projectUuid}

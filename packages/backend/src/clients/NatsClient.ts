@@ -24,6 +24,7 @@ import {
     type AsyncQueryNatsEnvelope,
     type StreamConfig,
 } from '../nats/natsConfig';
+import { getTraceHeaders, traceSpan } from '../tracing/tracing';
 
 const ACK_WAIT_MS = 30_000;
 
@@ -318,7 +319,7 @@ export class NatsClient implements INatsClient {
     ): Promise<{ jobId: string }> {
         const jobId = uuidv4();
 
-        return Sentry.startSpan(
+        return traceSpan(
             {
                 name: 'queue_producer',
                 op: 'queue.publish',
@@ -330,20 +331,17 @@ export class NatsClient implements INatsClient {
                     ),
                 },
             },
-            async (span) => {
-                const traceHeader = span
-                    ? Sentry.spanToTraceHeader(span)
-                    : undefined;
-                const baggageHeader = span
-                    ? Sentry.spanToBaggageHeader(span)
-                    : undefined;
+            async () => {
+                const traceHeaders = getTraceHeaders();
                 const sentryMessageId = jobId;
 
                 const message: AsyncQueryNatsEnvelope<AsyncQueryJobPayload> = {
                     jobId,
                     payload,
-                    traceHeader,
-                    baggageHeader,
+                    traceHeader: traceHeaders.sentryTrace,
+                    baggageHeader: traceHeaders.baggage,
+                    otelTraceparent: traceHeaders.traceparent,
+                    otelBaggage: traceHeaders.baggage,
                     sentryMessageId,
                 };
 

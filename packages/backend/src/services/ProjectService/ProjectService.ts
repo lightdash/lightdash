@@ -266,6 +266,7 @@ import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapt
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { compileMetricQuery } from '../../queryCompiler';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { traceSpan } from '../../tracing/tracing';
 import { ProjectAdapter } from '../../types';
 import {
     runWorkerThread,
@@ -6602,7 +6603,7 @@ export class ProjectService extends BaseService {
         organizationUuid?: string,
         includeUnfilteredTables: boolean = true,
     ): Promise<{ explore: Explore; userAccessControls: UserAccessControls }> {
-        return Sentry.startSpan(
+        return traceSpan(
             {
                 op: 'ProjectService.getExplore',
                 name: 'ProjectService.getExplore',
@@ -6671,7 +6672,7 @@ export class ProjectService extends BaseService {
         explores: Record<string, Explore | ExploreError>;
         userAccessControls: UserAccessControls;
     }> {
-        return Sentry.startSpan(
+        return traceSpan(
             {
                 op: 'ProjectService.findExplores',
                 name: 'ProjectService.findExplores',
@@ -7159,7 +7160,7 @@ export class ProjectService extends BaseService {
         account: Account,
         savedChartUuid: string,
     ): Promise<FilterableDimension[]> {
-        return Sentry.startSpan(
+        return traceSpan(
             {
                 op: 'projectService.getAvailableFiltersForSavedQuery',
                 name: 'ProjectService.getAvailableFiltersForSavedQuery',
@@ -7221,7 +7222,7 @@ export class ProjectService extends BaseService {
 
         let allFilters: ChartFilters[] = [];
 
-        allFilters = await Sentry.startSpan(
+        allFilters = await traceSpan(
             {
                 op: 'projectService.getAvailableFiltersForSavedQueries',
                 name: 'ProjectService.getAvailableFiltersForSavedQueries',

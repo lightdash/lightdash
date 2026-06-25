@@ -66,6 +66,7 @@ import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
 import { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import { SchedulerModel } from '../models/SchedulerModel';
+import { continueTrace, getTraceHeaders, traceSpan } from '../tracing/tracing';
 
 type SchedulerClientArguments = {
     lightdashConfig: LightdashConfig;
@@ -157,21 +158,30 @@ export class SchedulerClient {
         payload: TaskPayloadMap[T],
         funct: () => Promise<void>,
     ) {
-        const { traceHeader, baggageHeader, sentryMessageId } =
-            payload as unknown as QueueTraceProperties;
+        const {
+            traceHeader,
+            baggageHeader,
+            otelTraceparent,
+            otelBaggage,
+            sentryMessageId,
+        } = payload as unknown as QueueTraceProperties;
 
         const latency = Date.now() - runAt.getTime();
         return new Promise<void>((resolve, reject) => {
-            Sentry.continueTrace(
-                { sentryTrace: traceHeader, baggage: baggageHeader },
-                async () => {
-                    await Sentry.startSpan(
+            continueTrace(
+                {
+                    sentryTrace: traceHeader,
+                    traceparent: otelTraceparent,
+                    baggage: otelBaggage ?? baggageHeader,
+                },
+                async () =>
+                    traceSpan(
                         {
                             name: 'queue_consumer_transaction',
                             op: task,
                         },
                         async (parent) => {
-                            await Sentry.startSpan(
+                            await traceSpan(
                                 {
                                     name: 'queue_consumer',
                                     op: 'queue.process',
@@ -188,13 +198,15 @@ export class SchedulerClient {
                                         'messaging.message.job.id': `${jobId}`,
                                     },
                                 },
-                                async (span) => {
+                                async () => {
                                     const OK = 1;
                                     const ERROR = 2;
                                     try {
                                         await funct();
 
-                                        parent.setStatus({ code: OK });
+                                        parent.setStatus({
+                                            code: OK,
+                                        });
 
                                         resolve();
                                     } catch (e) {
@@ -208,8 +220,7 @@ export class SchedulerClient {
                                 },
                             );
                         },
-                    );
-                },
+                    ),
             ).catch((e) => {
                 reject(e);
             });
@@ -227,7 +238,7 @@ export class SchedulerClient {
         queueName?: string,
     ) {
         const messageId = nanoid();
-        const jobId = await Sentry.startSpan(
+        const jobId = await traceSpan(
             {
                 name: 'queue_producer',
                 op: 'queue.publish',
@@ -240,13 +251,14 @@ export class SchedulerClient {
                 },
             },
             async (span) => {
-                const traceHeader = Sentry.spanToTraceHeader(span);
-                const baggageHeader = Sentry.spanToBaggageHeader(span);
+                const traceHeaders = getTraceHeaders();
                 const payloadWithSentryHeaders: TaskPayloadMap[T] &
                     QueueTraceProperties = {
                     ...payload,
-                    traceHeader,
-                    baggageHeader,
+                    traceHeader: traceHeaders.sentryTrace,
+                    baggageHeader: traceHeaders.baggage,
+                    otelTraceparent: traceHeaders.traceparent,
+                    otelBaggage: traceHeaders.baggage,
                     sentryMessageId: messageId,
                 };
 

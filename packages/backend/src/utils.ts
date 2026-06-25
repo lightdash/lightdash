@@ -12,6 +12,7 @@ import {
     DBPinnedSpace,
 } from './database/entities/pinnedList';
 import Logger from './logging/logger';
+import { traceSpan } from './tracing/tracing';
 
 export const isDbPinnedChart = (data: DbPinnedItem): data is DbPinnedChart =>
     'saved_chart_uuid' in data && !!data.saved_chart_uuid;
@@ -33,13 +34,13 @@ export const wrapSentryTransaction = <T>(
     funct: (span: Sentry.Span) => Promise<T>,
 ): Promise<T> => {
     const startTime = Date.now();
-    return Sentry.startSpanManual<Promise<T>>(
+    return traceSpan(
         {
             op: name,
             name,
             attributes: context,
         },
-        async (span, end) => {
+        async (span) => {
             if (Sentry.isEnabled()) {
                 Logger.debug(
                     `Starting sentry transaction ${
@@ -68,7 +69,6 @@ export const wrapSentryTransaction = <T>(
                         } "${name}", took: ${Date.now() - startTime}ms`,
                     );
                 }
-                end();
             }
         },
     );
@@ -81,7 +81,7 @@ export function wrapSentryTransactionSync<T>(
 ): T {
     const startTime = Date.now();
 
-    return Sentry.startSpan(
+    return traceSpan(
         {
             op: name,
             name,

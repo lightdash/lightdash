@@ -28,6 +28,7 @@ import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
 import { type PreAggregationRoute } from '../../../services/AsyncQueryService/types';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
+import { traceSpan } from '../../../tracing/tracing';
 import { wrapSentryTransaction } from '../../../utils';
 import { PivotQueryBuilder } from '../../../utils/QueryBuilder/PivotQueryBuilder';
 import { type PreAggregateModel } from '../../models/PreAggregateModel';
@@ -254,7 +255,7 @@ export class PreAggregationDuckDbClient {
             args.preAggregationRoute.preAggregateName,
         );
 
-        const activeMaterialization = await Sentry.startSpan(
+        const activeMaterialization = await traceSpan(
             {
                 op: 'db.query',
                 name: 'preagg.getActiveMaterialization',
@@ -305,7 +306,7 @@ export class PreAggregationDuckDbClient {
             activeMaterialization.columns,
         );
 
-        const preAggExplore = await Sentry.startSpan(
+        const preAggExplore = await traceSpan(
             {
                 op: 'cache.read',
                 name: 'preagg.getExploreFromCache',
@@ -347,7 +348,7 @@ export class PreAggregationDuckDbClient {
             args.startOfWeek,
         );
 
-        const fullQuery = await Sentry.startSpan(
+        const fullQuery = await traceSpan(
             {
                 op: 'function',
                 name: 'preagg.compileQuery',

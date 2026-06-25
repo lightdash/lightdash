@@ -2,6 +2,7 @@ import * as Sentry from '@sentry/node';
 import { nodeProfilingIntegration } from '@sentry/profiling-node';
 import { lightdashConfig } from './config/lightdashConfig';
 import { initOtelHttpMetrics } from './prometheus/otelHttpMetrics';
+import { otelTracingEnabled } from './tracing/tracing';
 import { VERSION } from './version';
 
 // Register the global OTel MeterProvider before Sentry.init() so Sentry's http
@@ -45,6 +46,8 @@ Sentry.init({
         process.env.NODE_ENV === 'development'
             ? 'development'
             : lightdashConfig.mode,
+    skipOpenTelemetrySetup: otelTracingEnabled(),
+    registerEsmLoaderHooks: !otelTracingEnabled(),
     spotlight: spotlightEnabled,
     integrations: [
         /**

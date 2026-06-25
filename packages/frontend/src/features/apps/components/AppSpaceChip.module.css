@@ -1,0 +1,11 @@
+.clickable {
+    cursor: pointer;
+}
+
+/* Let the chip shrink within the header's title row so a long space name
+   truncates (via the Badge's max-width + ellipsis) instead of pushing the
+   app title out. */
+.chip {
+    min-width: 0;
+    flex-shrink: 1;
+}

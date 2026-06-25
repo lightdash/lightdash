@@ -65,6 +65,7 @@ import { ShareModel } from '../../models/ShareModel';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { SlackUnfurlImageModel } from '../../models/SlackUnfurlImageModel';
 import { getAuthenticationToken } from '../../routers/headlessBrowser';
+import { traceSpan } from '../../tracing/tracing';
 import { BaseService } from '../BaseService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 
@@ -1002,7 +1003,7 @@ export class UnfurlService extends BaseService {
         // eslint-disable-next-line no-param-reassign
         retries -= 1;
 
-        return Sentry.startSpan(
+        return traceSpan(
             {
                 name: 'UnfurlService.saveScreenshot',
                 op: 'saveScreenshot',

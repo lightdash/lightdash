@@ -5,6 +5,9 @@ import classes from './AppHeader.module.css';
 type Props = {
     name: string;
     description: string | null;
+    /** Space indicator shown next to the title (folder chip / "Add to space").
+     *  Pass null to omit it (e.g. a brand-new app that isn't persisted yet). */
+    spaceChip: ReactNode;
     /** Per-page actions (refresh button, overflow menu, …) rendered on the
      *  right. The builder and viewer have different actions, so each owns its
      *  own slot while sharing this header chrome. */
@@ -16,12 +19,27 @@ type Props = {
  * and the standalone viewer (`AppPreviewTest`) so the two surfaces share one
  * chrome instead of diverging.
  */
-const AppHeader: FC<Props> = ({ name, description, rightSection }) => (
+const AppHeader: FC<Props> = ({
+    name,
+    description,
+    spaceChip,
+    rightSection,
+}) => (
     <Box className={classes.header}>
         <Box className={classes.info}>
-            <Title order={6} fw={600} lineClamp={1}>
-                {name || 'Untitled app'}
-            </Title>
+            <Box className={classes.titleRow}>
+                {spaceChip && (
+                    <Box className={classes.chipSlot}>{spaceChip}</Box>
+                )}
+                <Title
+                    order={6}
+                    fw={600}
+                    lineClamp={1}
+                    className={classes.title}
+                >
+                    {name || 'Untitled app'}
+                </Title>
+            </Box>
             {description && (
                 <Text size="xs" c="dimmed" lineClamp={1}>
                     {description}

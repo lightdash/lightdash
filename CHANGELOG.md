@@ -1,3 +1,52 @@
+# [0.3242.0](https://github.com/lightdash/lightdash/compare/0.3241.3...0.3242.0) (2026-06-25)
+
+
+### Features
+
+* **data-apps:** show the app's space in the header ([#24725](https://github.com/lightdash/lightdash/issues/24725)) ([52a2ac7](https://github.com/lightdash/lightdash/commit/52a2ac70d9cf997f869fb0fc72b6ed257b73f0a2))
+
+## [0.3241.3](https://github.com/lightdash/lightdash/compare/0.3241.2...0.3241.3) (2026-06-25)
+
+
+### Bug Fixes
+
+* stale app state in the app builder ([#24704](https://github.com/lightdash/lightdash/issues/24704)) ([5cf8f05](https://github.com/lightdash/lightdash/commit/5cf8f05730bbef4b4863c8d443957e8b89601144))
+
+## [0.3241.2](https://github.com/lightdash/lightdash/compare/0.3241.1...0.3241.2) (2026-06-25)
+
+
+### Bug Fixes
+
+* **ai:** don't 500 document upload when summary generation fails ([#24711](https://github.com/lightdash/lightdash/issues/24711)) ([5e2ca06](https://github.com/lightdash/lightdash/commit/5e2ca06097e452b9bdb4f07b5a9e11ee4acb9ec3))
+
+## [0.3241.1](https://github.com/lightdash/lightdash/compare/0.3241.0...0.3241.1) (2026-06-25)
+
+
+### Bug Fixes
+
+* keep otel tracing sdk metrics-free ([#24722](https://github.com/lightdash/lightdash/issues/24722)) ([1be0ea0](https://github.com/lightdash/lightdash/commit/1be0ea0a4602097b90c9cc3b914e9fc0f49ce026))
+
+# [0.3241.0](https://github.com/lightdash/lightdash/compare/0.3240.0...0.3241.0) (2026-06-25)
+
+
+### Features
+
+* add otel trace export ([#24579](https://github.com/lightdash/lightdash/issues/24579)) ([23f1af1](https://github.com/lightdash/lightdash/commit/23f1af1a31eae933899eb7e7d6aa6005981db34e)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+# [0.3240.0](https://github.com/lightdash/lightdash/compare/0.3239.0...0.3240.0) (2026-06-24)
+
+
+### Bug Fixes
+
+* **ai-agents:** backfill missing tool result in agent history ([#24706](https://github.com/lightdash/lightdash/issues/24706)) ([622c9d4](https://github.com/lightdash/lightdash/commit/622c9d474a91e0036a8b6587eb75d540f80b6e53))
+* **ai-agents:** schedule Slack prompt even if placeholder post fails ([#24705](https://github.com/lightdash/lightdash/issues/24705)) ([f7abefb](https://github.com/lightdash/lightdash/commit/f7abefb255d7f23cbfe7a5ef42b5ebf99bab9d45))
+* **ai-agents:** show latest chart image in Slack agent card ([#24707](https://github.com/lightdash/lightdash/issues/24707)) ([2d3283c](https://github.com/lightdash/lightdash/commit/2d3283c498d59a3eea0bccf6ae0cad620a048d6d))
+
+
+### Features
+
+* remove external connection feature flag ([#24701](https://github.com/lightdash/lightdash/issues/24701)) ([f76a159](https://github.com/lightdash/lightdash/commit/f76a15938ae6532e3758591565f026e4839e1518))
+
 # [0.3239.0](https://github.com/lightdash/lightdash/compare/0.3238.0...0.3239.0) (2026-06-24)
 
 

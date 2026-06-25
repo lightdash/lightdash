@@ -7,6 +7,9 @@ import { z } from 'zod';
 import { GeneratorModelOptions } from '../models/types';
 import { renderAvailableExplores } from '../prompts/availableExplores';
 
+const DEFINED_TERMS_LIMIT = 30;
+const RELATED_EXPLORE_NAMES_LIMIT = 20;
+
 const DocumentSummarySchema = z.object({
     description: z
         .string()
@@ -17,16 +20,16 @@ const DocumentSummarySchema = z.object({
         ),
     definedTerms: z
         .array(z.string().min(1).max(60))
-        .max(20)
         .describe(
-            'Up to 20 short, lowercased terms or concepts that this document defines or constrains (e.g. "revenue", "active user", "refund"). Empty array if the document defines no specific terms.',
-        ),
+            `Up to ${DEFINED_TERMS_LIMIT} short, lowercased terms or concepts that this document defines or constrains (e.g. "revenue", "active user", "refund"). Keep only the most important terms if the document defines more. Empty array if the document defines no specific terms.`,
+        )
+        .transform((terms) => terms.slice(0, DEFINED_TERMS_LIMIT)),
     relatedExploreNames: z
         .array(z.string().min(1))
-        .max(20)
         .describe(
-            'Names of explores (from the provided project context) that this document is most relevant to. Use exact names from the project context. Empty array if no explore is clearly relevant or if no project context was provided.',
-        ),
+            `Up to ${RELATED_EXPLORE_NAMES_LIMIT} names of explores (from the provided project context) that this document is most relevant to. Use exact names from the project context. Empty array if no explore is clearly relevant or if no project context was provided.`,
+        )
+        .transform((names) => names.slice(0, RELATED_EXPLORE_NAMES_LIMIT)),
     useWhen: z
         .string()
         .min(1)
@@ -45,6 +48,17 @@ const DocumentSummarySchema = z.object({
         .describe(
             'If relevance is "low" or "none", a brief human-readable warning the agent should heed (e.g. "This document does not appear to relate to the project\'s data — do not use it to answer data questions."). Null when relevance is "high" or "medium".',
         ),
+});
+
+export const createFallbackDocumentSummary = (
+    name: string,
+): AiAgentDocumentStructuredSummary => ({
+    description: `Reference document "${name}". An automatic summary could not be generated.`,
+    definedTerms: [],
+    relatedExploreNames: [],
+    useWhen: `Use when the user asks about topics covered in "${name}".`,
+    relevance: 'medium',
+    warning: null,
 });
 
 const PROJECT_CONTEXT_EXPLORE_LIMIT = 30;

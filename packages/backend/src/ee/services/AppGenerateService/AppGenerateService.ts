@@ -5054,6 +5054,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         description: string;
         createdByUserUuid: string;
         spaceUuid: string | null;
+        spaceName: string | null;
         template: Exclude<DataAppTemplate, 'custom'> | null;
         pinnedListUuid: string | null;
         pinnedListOrder: number | null;
@@ -5081,6 +5082,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             createdByUserUuid,
             organizationUuid,
             spaceUuid,
+            spaceName,
             template,
             pinnedListUuid,
             pinnedListOrder,
@@ -5101,6 +5103,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             description,
             createdByUserUuid,
             spaceUuid,
+            spaceName,
             template,
             pinnedListUuid,
             pinnedListOrder,
