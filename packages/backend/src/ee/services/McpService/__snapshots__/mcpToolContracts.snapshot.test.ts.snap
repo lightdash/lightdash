@@ -4105,7 +4105,7 @@ Empty array or null: single partition (calculations across all rows)., ",
       "agentName": null,
       "description": "Render a chart for a completed query result in MCP App-capable clients.
 
-Use this after a query tool or get_query_result returns done and the user wants a visual chart. This tool does not start, poll, or rerun the query. If the query is still running, call get_query_result first. Pass the queryUuid and chart configuration; Lightdash loads the completed metric query from query history.
+Use this after a query tool or get_query_result returns done and the user wants a visual chart. This tool does not start, poll, or rerun the query. If the query is still running, call get_query_result first. Pass the exact queryUuid that run_metric_query (or get_query_result) returned for this query in the current conversation — it is included in that tool's response as a \`queryUuid: <id>\` text block. Never invent, guess, or reuse a queryUuid from a different query or session; an unknown id fails with "not found". Lightdash loads the completed metric query from query history.
 
 Current support: completed run_metric_query results. SQL Runner/run_sql results are not supported by render_chart. Other query result types are rejected until their chart rendering path is implemented.
 
@@ -4217,7 +4217,7 @@ Response shape (MCP CallToolResult):
             "type": "string",
           },
           "queryUuid": {
-            "description": "Completed query UUID returned by a query tool or get_query_result. Currently, render_chart supports UUIDs from run_metric_query and does not support SQL Runner/run_sql UUIDs.",
+            "description": "Completed query UUID returned by run_metric_query (or get_query_result) in this conversation, copied from the \`queryUuid: <id>\` text block of that response. Do not fabricate, guess, or reuse a UUID from another query. Currently render_chart supports UUIDs from run_metric_query and does not support SQL Runner/run_sql UUIDs.",
             "format": "uuid",
             "type": "string",
           },
@@ -6215,7 +6215,7 @@ Parameters:
 Response shape (MCP CallToolResult):
 - Running: content contains polling status text and structuredContent.result contains { status: "running", queryUuid, nextPollAfterMs, heartbeatAt }. heartbeatAt is an ISO timestamp for the latest Lightdash check that confirmed the query is still running.
 - Completed SQL: content contains CSV text and structuredContent.result contains { status: "done", queryUuid, rows, columns, rowCount, sqlRunnerUrl }.
-- Completed metric query: content contains bare CSV text and structuredContent.result contains { status: "done", queryUuid, rows, fields, exploreUrl }.
+- Completed metric query: content has the CSV text plus a separate \`queryUuid: <id>\` text block (copy this exact id for render_chart), and structuredContent.result contains { status: "done", queryUuid, rows, fields, exploreUrl }.
 - Failed/cancelled/expired: content contains status/error text and structuredContent.result contains { status, queryUuid, error }.
 
 Notes:

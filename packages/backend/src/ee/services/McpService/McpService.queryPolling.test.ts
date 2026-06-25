@@ -1487,6 +1487,10 @@ describe('MCP async query polling', () => {
                     type: 'text',
                     text: 'orders_count\n1\n',
                 },
+                {
+                    type: 'text',
+                    text: `queryUuid: ${queryUuid}`,
+                },
             ],
             structuredContent: {
                 result: {
