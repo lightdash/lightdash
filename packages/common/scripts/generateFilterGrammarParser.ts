@@ -22,33 +22,112 @@ const OUTPUT_PATH = path.resolve(
     '../src/types/filterGrammar.parser.ts',
 );
 
-// Representative inputs covering every grammar branch. The committed parser must
-// produce identical output to a freshly-compiled reference parser for each.
+// Inputs covering every grammar branch plus the awkward edges (escapes,
+// unicode, malformed strings, numeric formats, very long inputs). The committed
+// parser must produce identical output — value or thrown error — to a freshly
+// compiled reference parser for each, so any grammar/parser drift is caught.
 const PARITY_CORPUS = [
+    // empty / whitespace
     '',
+    ' ',
+    '  ',
+    // plain terms
     'pedram',
+    'ABC',
     'with space',
+    'with  double  space',
     'with_multiple_underscores',
-    '!pedram',
+    'with-dash',
+    // numbers (numeric coercion + scientific notation)
+    '123',
+    '0',
+    '-5',
+    '1.5',
+    '-1.5e-2',
+    '3.',
+    '.5',
+    '1e3',
+    '1E3',
+    // operators
     '>= 5',
     '<= 10',
     '> 3',
     '< 7.5',
+    '>=5',
+    '<=10',
+    '>3.5',
+    '< -2',
+    // between (numeric + date, both cases)
     'between 1 and 10',
+    'BETWEEN 1 AND 10',
+    'between -5 and 5',
     'between "2020-01-01" and "2020-12-31"',
+    'between 2020-01-01 and 2020-12-31',
+    // dates (valid + boundary-invalid)
+    '2020-01-01',
+    '"2020-12-31"',
+    '2020-01-01T12:30:00Z',
+    '2020-13-01',
+    '2020-00-01',
+    // relative dates
     'inThePast 7 days',
     'inTheNext 3 months',
+    'inThePast 1 year',
+    'inTheNext 12 weeks',
+    // lists
+    'a,b,c',
+    'a, b, c',
+    '!a,!b,!c',
+    'a,b,',
+    // wildcards
     '%contains%',
     'starts%',
     '%ends',
+    '%x%y%',
+    '%%',
+    'pre%post',
+    '%a_b%',
+    // keywords + negation
     'EMPTY',
     'empty',
     'NULL',
     'null',
-    'a,b,c',
+    '!EMPTY',
+    '!NULL',
+    '!pedram',
+    '!%x%',
+    '!123',
+    '! abc',
+    // caret escapes
+    'a^_b',
+    'a^,b',
+    'a^%b',
+    'caret^^end',
+    'trailing ^ ',
+    // quoted strings
+    '"quoted value"',
     '"quoted, value"',
-    '-excluded',
-    '2020-01-01',
+    '""',
+    '"a\\\\"b"',
+    // unicode
+    'café',
+    '日本語',
+    '🎉emoji',
+    'mixedCafé123',
+    // stress / malformed (both parsers should error consistently)
+    'a'.repeat(500),
+    '%'.repeat(50),
+    '"unbalanced',
+    'unbalanced"',
+    '><',
+    '>=<=',
+    '!!',
+    ',,,',
+    'between 1 and',
+    'between and 10',
+    '>= ',
+    'inThePast days',
+    'inThePast 7',
 ];
 
 const HEADER = `/* eslint-disable */
@@ -90,11 +169,18 @@ async function check(): Promise<void> {
         );
         process.exit(1);
     }
-    const drifted = PARITY_CORPUS.filter((input) => {
-        const a = JSON.stringify(reference.parse(input));
-        const b = JSON.stringify(committed.parse(input));
-        return a !== b;
-    });
+    // Capture either the parsed value or the fact that parsing threw, so that
+    // malformed inputs (which should error in BOTH parsers) are compared too.
+    const outcome = (parser: { parse: (input: string) => unknown }, input: string) => {
+        try {
+            return `ok:${JSON.stringify(parser.parse(input))}`;
+        } catch {
+            return 'error';
+        }
+    };
+    const drifted = PARITY_CORPUS.filter(
+        (input) => outcome(reference, input) !== outcome(committed, input),
+    );
     if (drifted.length > 0) {
         // eslint-disable-next-line no-console
         console.error(
