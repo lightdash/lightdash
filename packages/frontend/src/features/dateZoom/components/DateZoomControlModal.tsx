@@ -51,6 +51,7 @@ export const DateZoomControlModal: FC<DateZoomControlModalProps> = ({
     onClose,
 }) => {
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const chartZoomableFieldsByTileUuid = useDashboardContext(
         (c) => c.chartZoomableFieldsByTileUuid,
     );
@@ -138,10 +139,42 @@ export const DateZoomControlModal: FC<DateZoomControlModalProps> = ({
                     (tile.properties.title?.length
                         ? tile.properties.title
                         : tile.properties.chartName) || 'Untitled chart';
-                return { tile, zoomableFields, conflictControl, label };
+                return {
+                    tile,
+                    tabUuid: tile.tabUuid ?? undefined,
+                    zoomableFields,
+                    conflictControl,
+                    label,
+                };
             })
             .filter(({ zoomableFields }) => zoomableFields.length > 0);
     }, [dashboardTiles, chartZoomableFieldsByTileUuid, config, draft.uuid]);
+
+    // Group eligible tiles by tab so editors can tell apart charts that live on
+    // different tabs. Tab headers only appear when the dashboard has tabs and
+    // more than one group ends up with charts.
+    const tileGroups = useMemo(() => {
+        const byTab = new Map<string | undefined, typeof eligibleTiles>();
+        eligibleTiles.forEach((entry) => {
+            const group = byTab.get(entry.tabUuid) ?? [];
+            group.push(entry);
+            byTab.set(entry.tabUuid, group);
+        });
+        const groups = dashboardTabs
+            .map((tab) => ({
+                tabUuid: tab.uuid as string | undefined,
+                name: tab.name,
+                tiles: byTab.get(tab.uuid) ?? [],
+            }))
+            .filter((group) => group.tiles.length > 0);
+        const untabbed = byTab.get(undefined) ?? [];
+        if (untabbed.length > 0) {
+            groups.unshift({ tabUuid: undefined, name: '', tiles: untabbed });
+        }
+        return groups;
+    }, [eligibleTiles, dashboardTabs]);
+
+    const showTabHeaders = tileGroups.length > 1;
 
     const toggleTile = (
         tileUuid: string,
@@ -218,6 +251,53 @@ export const DateZoomControlModal: FC<DateZoomControlModalProps> = ({
         );
 
         onSave({ controls, tileTargets });
+    };
+
+    const renderTileRow = ({
+        tile,
+        zoomableFields,
+        conflictControl,
+        label,
+    }: (typeof eligibleTiles)[number]) => {
+        const target = draftTargets[tile.uuid];
+        const isChecked = !!target;
+        return (
+            <Group key={tile.uuid} justify="space-between" wrap="nowrap">
+                <Checkbox
+                    label={label}
+                    checked={isChecked}
+                    disabled={!!conflictControl}
+                    onChange={(e) =>
+                        toggleTile(
+                            tile.uuid,
+                            zoomableFields,
+                            e.currentTarget.checked,
+                        )
+                    }
+                />
+                {conflictControl ? (
+                    <Badge color="gray" variant="light">
+                        in: {conflictControl.name}
+                    </Badge>
+                ) : (
+                    <Select
+                        size="xs"
+                        w={200}
+                        disabled={!isChecked}
+                        placeholder="Date field"
+                        data={zoomableFields.map((field) => ({
+                            value: field.fieldId,
+                            label: field.label,
+                        }))}
+                        value={target?.fieldId ?? null}
+                        onChange={(value) =>
+                            value &&
+                            setTileField(tile.uuid, zoomableFields, value)
+                        }
+                    />
+                )}
+            </Group>
+        );
     };
 
     return (
@@ -325,72 +405,24 @@ export const DateZoomControlModal: FC<DateZoomControlModalProps> = ({
                                         Select all
                                     </Button>
                                 </Group>
-                                {eligibleTiles.map(
-                                    ({
-                                        tile,
-                                        zoomableFields,
-                                        conflictControl,
-                                        label,
-                                    }) => {
-                                        const target = draftTargets[tile.uuid];
-                                        const isChecked = !!target;
-                                        return (
-                                            <Group
-                                                key={tile.uuid}
-                                                justify="space-between"
-                                                wrap="nowrap"
+                                {tileGroups.map((group) => (
+                                    <Stack
+                                        key={group.tabUuid ?? 'untabbed'}
+                                        gap="xs"
+                                    >
+                                        {showTabHeaders && group.name && (
+                                            <Text
+                                                fz="xs"
+                                                fw={600}
+                                                c="dimmed"
+                                                tt="uppercase"
                                             >
-                                                <Checkbox
-                                                    label={label}
-                                                    checked={isChecked}
-                                                    disabled={!!conflictControl}
-                                                    onChange={(e) =>
-                                                        toggleTile(
-                                                            tile.uuid,
-                                                            zoomableFields,
-                                                            e.currentTarget
-                                                                .checked,
-                                                        )
-                                                    }
-                                                />
-                                                {conflictControl ? (
-                                                    <Badge
-                                                        color="gray"
-                                                        variant="light"
-                                                    >
-                                                        in:{' '}
-                                                        {conflictControl.name}
-                                                    </Badge>
-                                                ) : (
-                                                    <Select
-                                                        size="xs"
-                                                        w={200}
-                                                        disabled={!isChecked}
-                                                        placeholder="Date field"
-                                                        data={zoomableFields.map(
-                                                            (field) => ({
-                                                                value: field.fieldId,
-                                                                label: field.label,
-                                                            }),
-                                                        )}
-                                                        value={
-                                                            target?.fieldId ??
-                                                            null
-                                                        }
-                                                        onChange={(value) =>
-                                                            value &&
-                                                            setTileField(
-                                                                tile.uuid,
-                                                                zoomableFields,
-                                                                value,
-                                                            )
-                                                        }
-                                                    />
-                                                )}
-                                            </Group>
-                                        );
-                                    },
-                                )}
+                                                {group.name}
+                                            </Text>
+                                        )}
+                                        {group.tiles.map(renderTileRow)}
+                                    </Stack>
+                                ))}
                             </>
                         )}
                     </Stack>
