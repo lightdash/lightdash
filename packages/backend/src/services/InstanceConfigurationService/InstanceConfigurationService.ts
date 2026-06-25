@@ -830,7 +830,7 @@ export class InstanceConfigurationService extends BaseService {
                 if (group) {
                     groups.push({
                         groupUuid: group.uuid,
-                        value: mapping.value,
+                        values: mapping.values,
                     });
                 } else {
                     this.logger.warn(

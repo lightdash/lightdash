@@ -48,7 +48,9 @@ describe('User attributes sql_filter', () => {
         cy.findByText('Add user').click();
         cy.findByPlaceholderText('E.g. test@lightdash.com').type('demo');
         cy.findByText('demo@lightdash.com').click();
-        cy.get('input[name="users.0.value"]').type('20');
+        cy.findByPlaceholderText('E.g. US (press Enter to add)').type(
+            '20{enter}',
+        );
         cy.findByText('Add').click();
         cy.contains('Success', { timeout: 10000 });
     });
@@ -70,7 +72,11 @@ describe('User attributes sql_filter', () => {
 
         cy.contains('customer_id').parents('tr').find('button').first().click();
         cy.findByText('Edit').click();
-        cy.get('input[name="users.0.value"]').clear().type('30');
+        // Remove the existing value pill, then add the new value
+        cy.get('.mantine-8-Pill-remove').first().click();
+        cy.findByPlaceholderText('E.g. US (press Enter to add)').type(
+            '30{enter}',
+        );
         cy.findByText('Update').click();
         cy.contains('Success', { timeout: 10000 });
     });
@@ -104,7 +110,7 @@ describe('User attributes dimension required_attribute', () => {
                 users: [
                     {
                         userUuid: 'b264d83a-9000-426a-85ec-3f9c20f368ce',
-                        value: '30',
+                        values: ['30'],
                     },
                 ],
                 attributeDefault: undefined,
@@ -143,7 +149,9 @@ describe('User attributes dimension required_attribute', () => {
         cy.findByText('Add user').click();
         cy.findByPlaceholderText('E.g. test@lightdash.com').type('demo');
         cy.findByText('demo@lightdash.com').click();
-        cy.get('input[name="users.0.value"]').type('true');
+        cy.findByPlaceholderText('E.g. US (press Enter to add)').type(
+            'true{enter}',
+        );
         cy.findByText('Add').click();
         cy.contains('Success', { timeout: 10000 });
     });
@@ -165,7 +173,11 @@ describe('User attributes dimension required_attribute', () => {
 
         cy.contains('is_admin').parents('tr').find('button').first().click();
         cy.findByText('Edit').click();
-        cy.get('input[name="users.0.value"]').clear().type('false');
+        // Remove the existing value pill, then add the new value
+        cy.get('.mantine-8-Pill-remove').first().click();
+        cy.findByPlaceholderText('E.g. US (press Enter to add)').type(
+            'false{enter}',
+        );
         cy.findByText('Update').click();
         cy.contains('Success', { timeout: 10000 });
     });

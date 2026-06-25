@@ -39,11 +39,11 @@ export class UserAttributesService extends BaseService {
             description: attribute.description,
             values: {
                 userIds: attribute.users.map((u) => u.userUuid),
-                values: attribute.users.map((u) => u.value),
+                values: attribute.users.flatMap((u) => u.values),
                 groupIds: attribute.groups.map((g) => g.groupUuid),
-                groupValues: attribute.groups.map((g) => g.value),
+                groupValues: attribute.groups.flatMap((g) => g.values),
             },
-            defaultValue: attribute.attributeDefault,
+            defaultValue: attribute.attributeDefaults,
         };
     }
 

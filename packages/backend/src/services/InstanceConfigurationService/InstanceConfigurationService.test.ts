@@ -919,7 +919,7 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
             name: 'is_privileged',
             description: 'PII access',
             attributeDefault: null,
-            groups: [{ group: 'Privileged Data Analyst', value: 'true' }],
+            groups: [{ group: 'Privileged Data Analyst', values: ['true'] }],
         };
 
         const updateSetupWithAttribute = {
@@ -959,7 +959,7 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
                 description: 'PII access',
                 attributeDefault: null,
                 users: [],
-                groups: [{ groupUuid: 'grp-1', value: 'true' }],
+                groups: [{ groupUuid: 'grp-1', values: ['true'] }],
             });
             expect(update).not.toHaveBeenCalled();
         });
@@ -995,7 +995,7 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
                 'attr-1',
                 expect.objectContaining({
                     name: 'is_privileged',
-                    groups: [{ groupUuid: 'grp-1', value: 'true' }],
+                    groups: [{ groupUuid: 'grp-1', values: ['true'] }],
                 }),
             );
             expect(create).not.toHaveBeenCalled();

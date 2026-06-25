@@ -328,7 +328,7 @@ describe('EmbedService', () => {
         const getServiceWithUserAttributes = (
             orgUserAttributes: Array<{
                 name: string;
-                attributeDefault: string | null;
+                attributeDefaults: string[] | null;
             }> = [],
         ) =>
             new EmbedService({
@@ -340,8 +340,8 @@ describe('EmbedService', () => {
 
         test('returns safe JWT user attributes and intrinsic email', async () => {
             const scopedService = getServiceWithUserAttributes([
-                { name: 'region', attributeDefault: 'default-region' },
-                { name: 'tier', attributeDefault: 'enterprise' },
+                { name: 'region', attributeDefaults: ['default-region'] },
+                { name: 'tier', attributeDefaults: ['enterprise'] },
             ]);
 
             await expect(

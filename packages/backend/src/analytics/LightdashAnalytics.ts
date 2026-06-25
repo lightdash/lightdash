@@ -1734,7 +1734,7 @@ export type UserAttributeCreateAndUpdateEvent = BaseTrack & {
             groupIds: string[];
             groupValues: string[];
         };
-        defaultValue: string | null;
+        defaultValue: string[] | null;
     };
 };
 

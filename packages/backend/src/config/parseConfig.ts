@@ -466,13 +466,31 @@ export const getMultiProjectSetupConfig = ():
 const userAttributeSetupEntrySchema = z.object({
     name: z.string().min(1),
     description: z.string().optional(),
-    attributeDefault: z.string().nullable().default(null),
+    attributeDefault: z
+        .union([z.string(), z.array(z.string()), z.null()])
+        .default(null)
+        .transform((v) => {
+            if (v === null) return null;
+            return Array.isArray(v) ? v : [v];
+        }),
     groups: z
         .array(
-            z.object({
-                group: z.string().min(1),
-                value: z.string(),
-            }),
+            z
+                .object({
+                    group: z.string().min(1),
+                    // `value` (single string) is deprecated in favour of `values`
+                    value: z.string().optional(),
+                    values: z.array(z.string()).optional(),
+                })
+                .transform((g) => ({
+                    group: g.group,
+                    values:
+                        g.values ?? (g.value === undefined ? [] : [g.value]),
+                }))
+                .refine((g) => g.values.length > 0, {
+                    message:
+                        'Each group mapping must define a `value` or non-empty `values`',
+                }),
         )
         .default([]),
 });
