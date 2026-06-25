@@ -73,9 +73,10 @@ describe('User attributes sql_filter', () => {
         cy.contains('customer_id').parents('tr').find('button').first().click();
         cy.findByText('Edit').click();
         // Remove the existing value pill, then add the new value
-        cy.get('.mantine-PillsInput-field')
-            .first()
-            .type('{backspace}30{enter}');
+        cy.get('.mantine-8-Pill-remove').first().click();
+        cy.findByPlaceholderText('E.g. US (press Enter to add)').type(
+            '30{enter}',
+        );
         cy.findByText('Update').click();
         cy.contains('Success', { timeout: 10000 });
     });
@@ -173,9 +174,10 @@ describe('User attributes dimension required_attribute', () => {
         cy.contains('is_admin').parents('tr').find('button').first().click();
         cy.findByText('Edit').click();
         // Remove the existing value pill, then add the new value
-        cy.get('.mantine-PillsInput-field')
-            .first()
-            .type('{backspace}false{enter}');
+        cy.get('.mantine-8-Pill-remove').first().click();
+        cy.findByPlaceholderText('E.g. US (press Enter to add)').type(
+            'false{enter}',
+        );
         cy.findByText('Update').click();
         cy.contains('Success', { timeout: 10000 });
     });
