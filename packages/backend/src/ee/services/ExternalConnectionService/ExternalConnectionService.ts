@@ -918,6 +918,15 @@ export class ExternalConnectionService extends BaseService {
         );
         this.assertCanManage(account, conn.projectUuid, conn.organizationUuid);
 
+        // Method allowlist — mirror the runtime proxy so a test rejects a
+        // disallowed method instead of silently sending it.
+        const method: ExternalConnectionMethod = req.method ?? 'GET';
+        if (!conn.allowedMethods.includes(method)) {
+            throw new ParameterError(
+                `Method ${method} is not allowed by this connection`,
+            );
+        }
+
         const secret =
             conn.type === 'none'
                 ? null
@@ -926,7 +935,7 @@ export class ExternalConnectionService extends BaseService {
                   );
 
         const result = await this.executeExternalFetch(conn, secret, {
-            method: req.method ?? 'GET',
+            method,
             path: req.path,
             query: req.query,
             body: req.body,
