@@ -584,14 +584,14 @@ const scopes: Scope[] = [
         name: 'view:ContentAsCode',
         description: 'Download content as code',
         isEnterprise: true,
-        group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        group: ScopeGroup.CONTENT,
         getConditions: addDefaultUuidCondition,
     },
     {
         name: 'manage:ContentAsCode',
         description: 'Download and upload content as code',
         isEnterprise: true,
-        group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        group: ScopeGroup.CONTENT,
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -599,7 +599,7 @@ const scopes: Scope[] = [
         description:
             'Upload content as code to preview projects created by the user',
         isEnterprise: true,
-        group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        group: ScopeGroup.CONTENT,
         getConditions: ownPreviewProjectConditions,
     },
     {
