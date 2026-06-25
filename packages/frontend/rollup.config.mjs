@@ -76,35 +76,6 @@ const cleanDist = () => ({
     },
 });
 
-// ECharts' GeoJSONResource has a `new Function('return (' + source + ')')()`
-// fallback for ancient engines without `JSON.parse`. It's dead code in every
-// modern browser (the ternary always takes the `JSON.parse` branch), but its
-// presence trips strict-CSP scanners that flag `new Function` textually. Rewrite
-// the dead branch to `JSON.parse(source)` in the SDK build only so the shipped
-// bundle is free of it. See issue #21276.
-const ECHARTS_CSP_DEAD_CODE = "new Function('return (' + source + ');')()";
-const patchEchartsCsp = () => ({
-    name: 'patch-echarts-csp-geojson',
-    transform(code, id) {
-        if (!id.includes('GeoJSONResource')) return null;
-        const patched = code
-            .split(ECHARTS_CSP_DEAD_CODE)
-            .join('JSON.parse(source)');
-        // Fail loudly rather than silently no-op: if ECharts changes the
-        // fallback, a `new Function` would survive here and re-break CSP. (If
-        // ECharts removes the fallback entirely, no `new Function` remains and
-        // this passes — update ECHARTS_CSP_DEAD_CODE then.)
-        if (patched.includes('new Function')) {
-            this.error(
-                `patch-echarts-csp-geojson: ${id} still contains \`new Function\` after patching. ` +
-                    'ECharts likely changed GeoJSONResource — update ECHARTS_CSP_DEAD_CODE so the ' +
-                    'SDK bundle stays free of runtime code-generation under a strict CSP (#21276).',
-            );
-        }
-        return { code: patched, map: null };
-    },
-});
-
 // Main JS build (CJS + ESM). rollup-plugin-dts runs in the follow-up
 // config entry below to emit sdk.d.ts.
 const mainBuild = {
@@ -128,7 +99,6 @@ const mainBuild = {
     ],
     plugins: [
         cleanDist(),
-        patchEchartsCsp(),
         replace({
             preventAssignment: true,
             values: {

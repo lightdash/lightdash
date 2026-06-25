@@ -55,16 +55,17 @@ const FORBIDDEN_SIGNATURES = [
         needle: 'eval(ast.consts',
         fix: 'Regenerate the precompiled parser: pnpm -F common generate:filter-grammar-parser',
     },
-    {
-        label: "ECharts GeoJSON dead-code fallback (new Function('return ('...))",
-        needle: "new Function('return (' + source",
-        fix: 'The rollup patch-echarts-csp-geojson transform should rewrite this — check rollup.config.mjs.',
-    },
 ];
 
 // Coarse backstop. Update consciously (and explain why) if a dependency
 // legitimately changes the count — never to paper over a real new eval source.
-const BASELINE = 10;
+//
+// The current dormant occurrences (none reached on a dashboard render):
+//   new Function: ajv validator codegen, ECharts GeoJSON fallback (unreachable
+//     dead branch — guarded by `typeof JSON.parse`), html2canvas calc() colour
+//     parser, source-map, d3-dsv, and a webpack global polyfill (try/catch).
+//   eval(: highlight.js keyword regex text, vega-dataflow `.eval()` method.
+const BASELINE = 11;
 
 const regressions = FORBIDDEN_SIGNATURES.map((s) => ({
     ...s,
