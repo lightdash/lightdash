@@ -12,14 +12,16 @@
  *
  * Run this after editing `filterGrammar.grammar.ts`.
  */
-import { writeFileSync } from 'fs';
+import { execFileSync } from 'child_process';
+import { readFileSync, rmSync, writeFileSync } from 'fs';
 import path from 'path';
 import * as peg from 'pegjs';
 import filterGrammar from '../src/types/filterGrammar.grammar';
 
+const PACKAGE_DIR = path.resolve(__dirname, '..');
 const OUTPUT_PATH = path.resolve(
-    __dirname,
-    '../src/types/filterGrammar.parser.ts',
+    PACKAGE_DIR,
+    'src/types/filterGrammar.parser.ts',
 );
 
 // Inputs covering every grammar branch plus the awkward edges (escapes,
@@ -151,27 +153,66 @@ const content = `${HEADER}export const filterGrammarParser: {
 } = ${bareParser};
 `;
 
-async function check(): Promise<void> {
-    // Behavioural parity: compare the committed precompiled parser against a
-    // reference parser compiled from the current grammar. This is immune to
-    // formatting (oxfmt/prettier) and directly verifies what we care about —
-    // that the committed parser still matches the grammar.
-    const reference = peg.generate(filterGrammar);
-    let committed: { parse: (input: string) => unknown };
+const fail = (message: string): never => {
+    // eslint-disable-next-line no-console
+    console.error(
+        `${message}\nRun: pnpm -F common generate:filter-grammar-parser`,
+    );
+    return process.exit(1);
+};
+
+// Format an arbitrary source string exactly as the committed file is formatted,
+// by running it through oxfmt in a throwaway file next to the real one (so the
+// same formatter config resolves). Returns the formatted text.
+const formatLikeCommitted = (source: string): string => {
+    const tmp = path.resolve(
+        PACKAGE_DIR,
+        'src/types/filterGrammar.parser.regen.tmp.ts',
+    );
     try {
-        ({ filterGrammarParser: committed } = await import(
-            '../src/types/filterGrammar.parser'
-        ));
-    } catch {
-        // eslint-disable-next-line no-console
-        console.error(
-            'filterGrammar.parser.ts is missing — run: pnpm -F common generate:filter-grammar-parser',
-        );
-        process.exit(1);
+        writeFileSync(tmp, source);
+        execFileSync('pnpm', ['exec', 'oxfmt', '--write', tmp], {
+            cwd: PACKAGE_DIR,
+            stdio: 'ignore',
+        });
+        return readFileSync(tmp, 'utf-8');
+    } finally {
+        try {
+            rmSync(tmp);
+        } catch {
+            // best-effort cleanup
+        }
     }
-    // Capture either the parsed value or the fact that parsing threw, so that
-    // malformed inputs (which should error in BOTH parsers) are compared too.
-    const outcome = (parser: { parse: (input: string) => unknown }, input: string) => {
+};
+
+async function check(): Promise<void> {
+    // 1. SOURCE drift (primary): regenerate the parser from the current grammar,
+    //    format it identically, and compare byte-for-byte to the committed file.
+    //    This catches ANY grammar change — including new operators/intervals that
+    //    no behavioural corpus input happens to exercise.
+    let committedSource: string;
+    try {
+        committedSource = readFileSync(OUTPUT_PATH, 'utf-8');
+    } catch {
+        return fail('filterGrammar.parser.ts is missing.');
+    }
+    if (formatLikeCommitted(content) !== committedSource) {
+        return fail(
+            'filterGrammar.parser.ts is out of sync with filterGrammar.grammar.ts (regenerated parser source differs).',
+        );
+    }
+
+    // 2. BEHAVIOURAL parity (secondary): also confirm the committed parser
+    //    actually behaves like a fresh reference parser over the corpus — a
+    //    cheap guard against a pathological generation/build issue.
+    const reference = peg.generate(filterGrammar);
+    const { filterGrammarParser: committed } = (await import(
+        '../src/types/filterGrammar.parser'
+    )) as { filterGrammarParser: { parse: (input: string) => unknown } };
+    const outcome = (
+        parser: { parse: (input: string) => unknown },
+        input: string,
+    ) => {
         try {
             return `ok:${JSON.stringify(parser.parse(input))}`;
         } catch {
@@ -182,16 +223,15 @@ async function check(): Promise<void> {
         (input) => outcome(reference, input) !== outcome(committed, input),
     );
     if (drifted.length > 0) {
-        // eslint-disable-next-line no-console
-        console.error(
-            'filterGrammar.parser.ts is out of sync with filterGrammar.grammar.ts.\n' +
-                `Diverging inputs: ${JSON.stringify(drifted)}\n` +
-                'Run: pnpm -F common generate:filter-grammar-parser',
+        return fail(
+            `filterGrammar.parser.ts behaviour differs from the grammar.\nDiverging inputs: ${JSON.stringify(
+                drifted,
+            )}`,
         );
-        process.exit(1);
     }
+
     // eslint-disable-next-line no-console
-    console.log('filterGrammar.parser.ts is in sync with the grammar.');
+    console.log('filterGrammar.parser.ts is in sync with the grammar (source + behaviour).');
 }
 
 if (process.argv.includes('--check')) {
