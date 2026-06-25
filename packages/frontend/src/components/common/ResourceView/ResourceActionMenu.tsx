@@ -128,12 +128,21 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     // an upstream exists but the user has no promote access there.
     const promoteSubjectName =
         item.type === ResourceViewItemType.CHART ? 'SavedChart' : 'Dashboard';
+    const promoteItemAccess = isChartOrDashboard
+        ? (() => {
+              const userAccess = spaces.find(
+                  (space) => space.uuid === item.data.spaceUuid,
+              )?.userAccess;
+              return userAccess ? [userAccess] : [];
+          })()
+        : [];
     const userCanPromoteChart =
         user.data?.ability?.can(
             'promote',
             subject(promoteSubjectName, {
                 organizationUuid,
                 projectUuid,
+                access: promoteItemAccess,
             }),
         ) &&
         (project?.upstreamProjectUuid === undefined ||
@@ -142,6 +151,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                 subject(promoteSubjectName, {
                     organizationUuid,
                     projectUuid: project.upstreamProjectUuid,
+                    access: promoteItemAccess,
                 }),
             ));
 
