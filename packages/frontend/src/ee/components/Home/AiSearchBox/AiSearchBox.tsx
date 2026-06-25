@@ -30,7 +30,10 @@ import {
 import { AiAgentIcon } from '../../../features/aiCopilot/components/AiAgentIcon';
 import { usePendingPrompt } from '../../../features/aiCopilot/components/PendingPromptContext/PendingPromptContext';
 import { useAiAgentAdminReviewItems } from '../../../features/aiCopilot/hooks/useAiAgentAdmin';
-import { useAiAgentPermission } from '../../../features/aiCopilot/hooks/useAiAgentPermission';
+import {
+    useAiAgentOrgPermission,
+    useAiAgentPermission,
+} from '../../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiOrganizationSettings } from '../../../features/aiCopilot/hooks/useAiOrganizationSettings';
 import { useAiRouterConfig } from '../../../features/aiCopilot/hooks/useAiRouter';
 import {
@@ -75,7 +78,7 @@ const AiSearchBoxInner: FC<Props> = ({
         action: 'manage',
         projectUuid,
     });
-    const canViewReviews = useAiAgentPermission({
+    const canViewReviews = useAiAgentOrgPermission({
         action: 'manage',
     });
     const showReviewsPromo =
