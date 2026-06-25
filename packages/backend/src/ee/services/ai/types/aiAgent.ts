@@ -123,7 +123,6 @@ export type AiAgentArgs = AnyAiModel & {
     availableSkills: AiAgentSkillReference[];
     enableAgentRevamp: boolean;
 
-    findExploresFieldSearchSize: number;
     findFieldsPageSize: number;
     toolDescriptionMaxChars: number;
     getDashboardChartsPageSize: number;

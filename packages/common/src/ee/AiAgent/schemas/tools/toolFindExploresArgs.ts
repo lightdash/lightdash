@@ -2,19 +2,31 @@ import { z } from 'zod';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
+const requiredFilterSchema = z.object({
+    fieldId: z.string(),
+    fieldRef: z.string(),
+    tableName: z.string(),
+    operator: z.string(),
+    values: z.array(z.unknown()).optional(),
+    settings: z.unknown().optional(),
+    required: z.boolean(),
+});
+
 export const TOOL_FIND_EXPLORES_DESCRIPTION = `Tool: findExplores
 
 Purpose:
-Returns explores matching the query with their joined tables, required filters, AI hints and descriptions, plus the top 50 matching fields across ALL explores. Search matches explore and field name, label, and description. A follow-up query runs against a single explore, so this tool is meant to identify the explore whose fields can answer the user's question.
+Returns explores matching the query with joined tables, required filters, AI hints, full descriptions, and compact lists of all dimension/metric field ids available in each matched explore. Search matches explore name, label, description, and AI hints. A follow-up query runs against a single explore, so this tool is meant to identify the explore to inspect next with findFields or listFields.
+
 IMPORTANT: Each explore may include fields from multiple joined tables. Check the "joinedTables" elements to see which tables are included in the explore.
 
 Parameters:
 - searchQuery: Keyword terms for finding relevant explores
 
 Output:
-- Matching explores with searchRank scores
-- Top matching fields with their explore names and searchRank scores
-- Required filters set on matching explores, including default values
+- Matching explores with searchRank scores, joined tables, required filters, AI hints, and full descriptions
+- Compact all-field inventories split into dimension and metric field ids
+
+Field descriptions are not included in the compact field inventories. Use findFields to search/compare fields by label/description, or listFields when you need exact full metadata for known field ids.
 `;
 
 export const toolFindExploresArgsSchemaV1 = createToolSchema()
@@ -37,11 +49,10 @@ export const toolFindExploresArgsSchemaV2 = createToolSchema()
 
 export const toolFindExploresArgsSchemaV3 = createToolSchema()
     .extend({
-        // TODO: check if we need to add exploreName back in for backward compatibility
         searchQuery: z
             .string()
             .describe(
-                "set of high-signal keyword terms for query. Search uses PostgreSQL websearch_to_tsquery after joining whitespace-separated terms with OR. It searches explore and field name, label, and description. Prefer metric/entity/dimension nouns that capture the user's analytical intent.",
+                "set of high-signal keyword terms for query. Search uses PostgreSQL websearch_to_tsquery after joining whitespace-separated terms with OR. It searches explore name, label, description, and AI hints. Prefer entity/domain nouns that capture the user's analytical intent.",
             ),
     })
     .build();
@@ -49,44 +60,21 @@ export const toolFindExploresArgsSchemaV3 = createToolSchema()
 export const toolFindExploresArgsSchemaTransformed =
     toolFindExploresArgsSchemaV3;
 
+const findExploresExploreResultSchema = z.object({
+    exploreName: z.string(),
+    label: z.string(),
+    searchRank: z.number().nullable().optional(),
+    description: z.string().nullable().optional(),
+    aiHints: z.array(z.string()),
+    joinedTables: z.array(z.string()),
+    requiredFilters: z.array(requiredFilterSchema),
+    dimensions: z.array(z.string()),
+    metrics: z.array(z.string()),
+});
+
 export const findExploresRankingMetadataSchema = z.object({
     searchQuery: z.string(),
-    exploreSearchResults: z
-        .array(
-            z.object({
-                name: z.string(),
-                label: z.string(),
-                searchRank: z.number().nullable().optional(),
-                joinedTables: z.array(z.string()).nullable().optional(),
-                requiredFilters: z
-                    .array(
-                        z.object({
-                            fieldId: z.string(),
-                            fieldRef: z.string(),
-                            tableName: z.string(),
-                            operator: z.string(),
-                            values: z.array(z.unknown()).optional(),
-                            settings: z.unknown().optional(),
-                            required: z.boolean(),
-                        }),
-                    )
-                    .optional(),
-            }),
-        )
-        .optional(),
-    topMatchingFields: z
-        .array(
-            z.object({
-                name: z.string(),
-                label: z.string(),
-                tableName: z.string(),
-                fieldType: z.string(),
-                searchRank: z.number().nullable().optional(),
-                chartUsage: z.number().nullable().optional(),
-                verifiedChartUsage: z.number().nullable().optional(),
-            }),
-        )
-        .optional(),
+    explores: z.array(findExploresExploreResultSchema),
 });
 
 export const toolFindExploresOutputSchema = z.object({

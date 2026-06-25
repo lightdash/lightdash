@@ -3,12 +3,12 @@ import { z } from 'zod';
 export const DISCOVER_FIELDS_DESCRIPTION = `Tool: discoverFields
 
 Purpose:
-Run the data-discovery subagent. Given the latest user query, returns a structured handoff describing which explore and which fields to use to answer it.
+Run the data-discovery subagent. Given the latest user query, returns a structured handoff describing which explore, dimensions, and metrics to use to answer it.
 
 Use this tool as the FIRST step whenever the user asks a data question (counts, totals, breakdowns, trends, "what is", "show me", "how many"). Do NOT call this when the user is only asking about existing dashboards/charts (use findContent) or follow-up clarifications about a chart you already produced.
 
 You will receive one of three statuses:
-- "resolved" — proceed with generateVisualization (or generateDashboard) using the returned explore + fields.
+- "resolved" — proceed with generateVisualization (or generateDashboard) using the returned explore + dimensions/metrics.
 - "ambiguous" — surface the suggestedQuestion to the user; do NOT call generateVisualization.
 - "no_match" — explain back to the user that no data source covers the request.
 
@@ -54,14 +54,13 @@ const discoverFieldsExploreSummarySchema = z.object({
         ),
 });
 
-const discoverFieldsFieldSummarySchema = z.object({
+const discoverFieldsFieldSummaryBaseSchema = z.object({
     fieldId: z
         .string()
         .describe('The fieldId to use in generateVisualization payloads.'),
     name: z.string(),
     label: z.string(),
     table: z.string(),
-    fieldType: z.enum(['dimension', 'metric']),
     fieldValueType: z
         .string()
         .describe(
@@ -78,9 +77,24 @@ const discoverFieldsFieldSummarySchema = z.object({
         .string()
         .nullable()
         .describe(
-            'Short description, only include when needed to distinguish similar fields.',
+            'Full field description copied exactly from listFields when fetched, otherwise a non-truncated findFields description; null when the field has no description.',
         ),
 });
+
+const discoverFieldsDimensionSummarySchema =
+    discoverFieldsFieldSummaryBaseSchema.extend({
+        fieldType: z.literal('dimension'),
+    });
+
+const discoverFieldsMetricSummarySchema =
+    discoverFieldsFieldSummaryBaseSchema.extend({
+        fieldType: z.literal('metric'),
+    });
+
+const discoverFieldsFieldSummarySchema = z.union([
+    discoverFieldsDimensionSummarySchema,
+    discoverFieldsMetricSummarySchema,
+]);
 
 const discoverFieldsCandidateSchema = z.object({
     exploreName: z.string(),
@@ -90,19 +104,37 @@ const discoverFieldsCandidateSchema = z.object({
         .describe('Why this explore is a plausible candidate for the query.'),
 });
 
+const discoverFieldsUncertaintiesSchema = z
+    .string()
+    .nullable()
+    .describe(
+        'Free-form uncertainties or caveats encountered during discovery. Null when selection was straightforward.',
+    );
+
 export const discoverFieldsResultUnionSchema = z.discriminatedUnion('status', [
     z.object({
         status: z.literal('resolved'),
         explore: discoverFieldsExploreSummarySchema,
+        dimensions: z
+            .array(discoverFieldsDimensionSummarySchema)
+            .describe(
+                'Filtered list of dimension fields relevant to the user query: groupings, dates, filters, and breakdowns. Not the full explore.',
+            ),
+        metrics: z
+            .array(discoverFieldsMetricSummarySchema)
+            .describe(
+                'Filtered list of metric fields relevant to the user query. Not the full explore.',
+            ),
         fields: z
             .array(discoverFieldsFieldSummarySchema)
             .describe(
-                'Filtered list of fields relevant to the user query — typically 5–20 entries. Not the full explore.',
+                'Legacy combined list of selected dimensions and metrics. Prefer dimensions and metrics for new consumers.',
             ),
         rationale: z
             .string()
             .nullable()
             .describe('Brief justification for the explore + field selection.'),
+        uncertainties: discoverFieldsUncertaintiesSchema,
     }),
     z.object({
         status: z.literal('ambiguous'),
@@ -117,6 +149,7 @@ export const discoverFieldsResultUnionSchema = z.discriminatedUnion('status', [
             .describe(
                 "A clarification question the parent can echo to the user (e.g. 'Did you mean revenue from the orders explore or the payments explore?').",
             ),
+        uncertainties: discoverFieldsUncertaintiesSchema,
     }),
     z.object({
         status: z.literal('no_match'),
@@ -125,6 +158,7 @@ export const discoverFieldsResultUnionSchema = z.discriminatedUnion('status', [
             .describe(
                 'Why no explore covers the user query — used by the parent to explain back to the user.',
             ),
+        uncertainties: discoverFieldsUncertaintiesSchema,
     }),
 ]);
 
@@ -134,18 +168,10 @@ export const discoverFieldsResultSchema = z.object({
 
 export const toolDiscoverFieldsOutputSchema = z.union([
     z.object({
-        result: z.literal(''),
-        metadata: z.object({
-            status: z.literal('streaming'),
-            streamingMessage: z.unknown(),
-        }),
-    }),
-    z.object({
         result: z.string(),
         metadata: z.object({
             status: z.literal('success'),
             discovery: discoverFieldsResultUnionSchema,
-            streamingMessage: z.unknown().optional(),
         }),
     }),
     z.object({

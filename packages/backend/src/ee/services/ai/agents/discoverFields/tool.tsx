@@ -1,4 +1,18 @@
-import { discoverFieldsToolDefinition, Explore } from '@lightdash/common';
+import {
+    assertUnreachable,
+    DEFAULT_FILTER_CASE_SENSITIVE,
+    DimensionType,
+    discoverFieldsToolDefinition,
+    Explore,
+    Field,
+    FieldType,
+    getFilterTypeFromItemType,
+    getItemMap,
+    isDimension,
+    isMetric,
+    type Dimension,
+    type Metric,
+} from '@lightdash/common';
 import {
     readUIMessageStream,
     tool,
@@ -6,139 +20,269 @@ import {
     type LanguageModel,
     type UIMessage,
 } from 'ai';
+import { stringifyToolJson } from '../../tools/toolOutputFormat';
 import type { AiAgentArgs } from '../../types/aiAgent';
 import { toModelOutput } from '../../utils/toModelOutput';
 import { toolErrorHandler } from '../../utils/toolErrorHandler';
-import { xmlBuilder } from '../../xmlBuilder';
 import {
     runDiscoverFieldsAgent,
     type DiscoverFieldsAgentDependencies,
 } from './agent';
 import {
-    discoverFieldsResultSchema,
+    discoverFieldsSelectionSchemaV2,
     type DiscoverFieldsResult,
+    type DiscoverFieldsSelectionV2,
 } from './schema';
 
 const discoverFieldsTool = discoverFieldsToolDefinition.for('agent');
 
-const renderResolved = (
-    result: Extract<DiscoverFieldsResult, { status: 'resolved' }>,
-) => (
-    <discovery status="resolved">
-        <explore
-            name={result.explore.name}
-            label={result.explore.label}
-            baseTable={result.explore.baseTable}
-        >
-            {result.explore.joinedTables.length > 0 && (
-                <joinedTables>
-                    {result.explore.joinedTables.map((t) => (
-                        <table>{t}</table>
-                    ))}
-                </joinedTables>
-            )}
-            {result.explore.requiredFilters &&
-                result.explore.requiredFilters.length > 0 && (
-                    <requiredFilters
-                        count={result.explore.requiredFilters.length}
-                    >
-                        {result.explore.requiredFilters.map((filter) => (
-                            <filter
-                                fieldId={filter.fieldId}
-                                fieldRef={filter.fieldRef}
-                                tableName={filter.tableName}
-                                operator={filter.operator}
-                                values={JSON.stringify(filter.values ?? [])}
-                                settings={
-                                    filter.settings
-                                        ? JSON.stringify(filter.settings)
-                                        : undefined
-                                }
-                                required={filter.required}
-                            />
-                        ))}
-                    </requiredFilters>
-                )}
-        </explore>
-        <fields count={result.fields.length}>
-            {result.fields.map((f) => (
-                <field
-                    fieldId={f.fieldId}
-                    name={f.name}
-                    label={f.label}
-                    table={f.table}
-                    type={f.fieldType}
-                    fieldValueType={f.fieldValueType}
-                    fieldFilterType={f.fieldFilterType}
-                    isFromJoinedTable={f.isFromJoinedTable}
-                    {...(f.caseSensitiveFilters === 'not_applicable'
-                        ? {}
-                        : {
-                              caseSensitiveFilters:
-                                  f.caseSensitiveFilters === 'true',
-                          })}
-                >
-                    {f.description ? (
-                        <description>{f.description}</description>
-                    ) : null}
-                </field>
-            ))}
-        </fields>
-        {result.rationale && <rationale>{result.rationale}</rationale>}
-    </discovery>
-);
+const ambiguousNote =
+    'Multiple explores plausibly answer this. Ask the user the suggestedQuestion. Do NOT call generateVisualization.';
 
-const renderAmbiguous = (
-    result: Extract<DiscoverFieldsResult, { status: 'ambiguous' }>,
-) => (
-    <discovery status="ambiguous">
-        <note>
-            Multiple explores plausibly answer this. Ask the user the
-            suggestedQuestion. Do NOT call generateVisualization.
-        </note>
-        <candidates>
-            {result.candidates.map((c) => (
-                <candidate name={c.exploreName} label={c.exploreLabel}>
-                    {c.reason}
-                </candidate>
-            ))}
-        </candidates>
-        <suggestedQuestion>{result.suggestedQuestion}</suggestedQuestion>
-    </discovery>
-);
+const getCaseSensitiveFilters = (
+    field: Field,
+    explore: Explore,
+): 'true' | 'false' | 'not_applicable' => {
+    if (
+        field.fieldType !== FieldType.DIMENSION ||
+        field.type !== DimensionType.STRING
+    ) {
+        return 'not_applicable';
+    }
 
-const renderNoMatch = (
-    result: Extract<DiscoverFieldsResult, { status: 'no_match' }>,
-) => (
-    <discovery status="no_match">
-        <reason>{result.reason}</reason>
-    </discovery>
-);
+    const dimension = explore.tables[field.table]?.dimensions[field.name];
+    return (dimension?.caseSensitive ??
+        explore.caseSensitive ??
+        DEFAULT_FILTER_CASE_SENSITIVE)
+        ? 'true'
+        : 'false';
+};
 
-const renderResult = (result: DiscoverFieldsResult): string => {
-    switch (result.status) {
+const isFromJoinedTable = (field: Field, explore: Explore) =>
+    field.table !== explore.baseTable &&
+    explore.joinedTables.some((join) => join.table === field.table);
+
+const hydrateField = ({
+    fieldId,
+    field,
+    explore,
+}: {
+    fieldId: string;
+    field: Dimension | Metric;
+    explore: Explore;
+}) => ({
+    fieldId,
+    name: field.name,
+    label: field.label,
+    table: field.table,
+    fieldType: field.fieldType,
+    fieldValueType: String(field.type),
+    fieldFilterType: getFilterTypeFromItemType(field.type),
+    caseSensitiveFilters: getCaseSensitiveFilters(field, explore),
+    isFromJoinedTable: isFromJoinedTable(field, explore),
+    description: field.description ?? null,
+});
+
+const hydrateDimensionField = (args: {
+    fieldId: string;
+    field: Dimension;
+    explore: Explore;
+}) => ({
+    ...hydrateField(args),
+    fieldType: 'dimension' as const,
+});
+
+const hydrateMetricField = (args: {
+    fieldId: string;
+    field: Metric;
+    explore: Explore;
+}) => ({
+    ...hydrateField(args),
+    fieldType: 'metric' as const,
+});
+
+const hydrateResolvedSelection = async ({
+    selection,
+    getExplore,
+}: {
+    selection: Extract<DiscoverFieldsSelectionV2, { status: 'resolved' }>;
+    getExplore: DiscoverFieldsAgentDependencies['getExplore'];
+}): Promise<Extract<DiscoverFieldsResult, { status: 'resolved' }>> => {
+    if (
+        selection.dimensionIds.length === 0 &&
+        selection.metricIds.length === 0
+    ) {
+        throw new Error('Resolved discovery must select at least one field.');
+    }
+
+    const explore = await getExplore({ table: selection.exploreName });
+    const itemMap = getItemMap(explore);
+
+    const dimensions = selection.dimensionIds.map((fieldId) => {
+        const item = itemMap[fieldId];
+        if (!isDimension(item)) {
+            throw new Error(
+                `Dimension "${fieldId}" was not found in explore "${selection.exploreName}".`,
+            );
+        }
+
+        return hydrateDimensionField({ fieldId, field: item, explore });
+    });
+
+    const metrics = selection.metricIds.map((fieldId) => {
+        const item = itemMap[fieldId];
+        if (!isMetric(item)) {
+            throw new Error(
+                `Metric "${fieldId}" was not found in explore "${selection.exploreName}".`,
+            );
+        }
+
+        return hydrateMetricField({ fieldId, field: item, explore });
+    });
+
+    return {
+        status: 'resolved',
+        explore: {
+            name: explore.name,
+            label: explore.label,
+            baseTable: explore.baseTable,
+            joinedTables: explore.joinedTables.map((join) => join.table),
+        },
+        dimensions,
+        metrics,
+        fields: [...dimensions, ...metrics],
+        rationale: selection.rationale,
+        uncertainties: selection.uncertainties,
+    };
+};
+
+const hydrateSelection = async ({
+    selection,
+    availableExplores,
+    getExplore,
+}: {
+    selection: DiscoverFieldsSelectionV2;
+    availableExplores: Explore[];
+    getExplore: DiscoverFieldsAgentDependencies['getExplore'];
+}): Promise<DiscoverFieldsResult> => {
+    switch (selection.status) {
         case 'resolved':
-            return renderResolved(result).toString();
+            return hydrateResolvedSelection({ selection, getExplore });
         case 'ambiguous':
-            return renderAmbiguous(result).toString();
+            return {
+                status: 'ambiguous',
+                candidates: selection.candidates.map((candidate) => {
+                    const explore = availableExplores.find(
+                        (availableExplore) =>
+                            availableExplore.name === candidate.exploreName,
+                    );
+                    return {
+                        exploreName: candidate.exploreName,
+                        exploreLabel: explore?.label ?? candidate.exploreName,
+                        reason: candidate.reason,
+                    };
+                }),
+                suggestedQuestion: selection.suggestedQuestion,
+                uncertainties: selection.uncertainties,
+            };
         case 'no_match':
-            return renderNoMatch(result).toString();
+            return selection;
         default:
-            return '';
+            return assertUnreachable(selection, 'Unknown discovery status');
     }
 };
 
-/**
- * Locate the subagent's final `submitResult` tool call in the accumulated
- * UIMessage and parse its input through the result schema. AI SDK has
- * already validated the input against the same schema before invoking
- * the tool, so this `safeParse` is defence-in-depth — but we keep it
- * because the input is `unknown` at this point in the type system and
- * we'd rather surface a schema error than cast.
- */
-const extractHandoffFromSubmitResult = (
+const getStructuredField = (
+    field: Extract<
+        DiscoverFieldsResult,
+        { status: 'resolved' }
+    >['fields'][number],
+) => ({
+    fieldId: field.fieldId,
+    name: field.name,
+    label: field.label,
+    table: field.table,
+    type: field.fieldType,
+    fieldType: field.fieldType,
+    fieldValueType: field.fieldValueType,
+    fieldFilterType: field.fieldFilterType,
+    isFromJoinedTable: field.isFromJoinedTable,
+    ...(field.caseSensitiveFilters === 'not_applicable'
+        ? {}
+        : {
+              caseSensitiveFilters: field.caseSensitiveFilters === 'true',
+          }),
+    description: field.description,
+});
+
+const getResolvedStructuredResult = (
+    result: Extract<DiscoverFieldsResult, { status: 'resolved' }>,
+) => ({
+    status: 'resolved' as const,
+    explore: {
+        name: result.explore.name,
+        label: result.explore.label,
+        baseTable: result.explore.baseTable,
+        joinedTables: {
+            count: result.explore.joinedTables.length,
+            tables: result.explore.joinedTables,
+        },
+    },
+    dimensions: {
+        count: result.dimensions.length,
+        items: result.dimensions.map(getStructuredField),
+    },
+    metrics: {
+        count: result.metrics.length,
+        items: result.metrics.map(getStructuredField),
+    },
+    rationale: result.rationale,
+    uncertainties: result.uncertainties,
+});
+
+const getAmbiguousStructuredResult = (
+    result: Extract<DiscoverFieldsResult, { status: 'ambiguous' }>,
+) => ({
+    status: 'ambiguous' as const,
+    note: ambiguousNote,
+    candidates: {
+        count: result.candidates.length,
+        items: result.candidates.map((candidate) => ({
+            name: candidate.exploreName,
+            label: candidate.exploreLabel,
+            exploreName: candidate.exploreName,
+            exploreLabel: candidate.exploreLabel,
+            reason: candidate.reason,
+        })),
+    },
+    suggestedQuestion: result.suggestedQuestion,
+    uncertainties: result.uncertainties,
+});
+
+const getNoMatchStructuredResult = (
+    result: Extract<DiscoverFieldsResult, { status: 'no_match' }>,
+) => ({
+    status: 'no_match' as const,
+    reason: result.reason,
+    uncertainties: result.uncertainties,
+});
+
+const getStructuredResult = (result: DiscoverFieldsResult) => {
+    switch (result.status) {
+        case 'resolved':
+            return getResolvedStructuredResult(result);
+        case 'ambiguous':
+            return getAmbiguousStructuredResult(result);
+        case 'no_match':
+            return getNoMatchStructuredResult(result);
+        default:
+            return assertUnreachable(result, 'Unknown discovery status');
+    }
+};
+
+const extractSelectionFromSubmitResult = (
     message: UIMessage | undefined,
-): DiscoverFieldsResult | { error: string } => {
+): DiscoverFieldsSelectionV2 | { error: string } => {
     if (!message) {
         return { error: 'Subagent produced no output.' };
     }
@@ -151,7 +295,7 @@ const extractHandoffFromSubmitResult = (
             error: 'Subagent did not call submitResult before the stream ended.',
         };
     }
-    const parsed = discoverFieldsResultSchema.safeParse(submitPart.input);
+    const parsed = discoverFieldsSelectionSchemaV2.safeParse(submitPart.input);
     if (!parsed.success) {
         return {
             error: `submitResult payload failed schema validation: ${parsed.error.message}`,
@@ -167,9 +311,7 @@ type ToolArgs = {
     callOptions: CallSettings;
     providerOptions: AiAgentArgs['providerOptions'];
     availableExplores: Explore[];
-    findExploresFieldSearchSize: number;
     findFieldsPageSize: number;
-    toolDescriptionMaxChars: number;
     promptUuid: string;
     telemetry: Pick<
         AiAgentArgs,
@@ -181,18 +323,6 @@ type ToolArgs = {
     >;
 };
 
-/**
- * Schema enforcement is structural, not prompt-based: the subagent's final
- * step is a `submitResult` tool call whose `inputSchema` is the result
- * union. AI SDK validates the args at the tool-call boundary, so the
- * handoff arrives already-typed — no JSON.parse, no fence stripping,
- * no post-stream coercion.
- *
- * The final yield extracts the handoff from the submitResult tool call
- * and renders the XML the parent model sees via `toModelOutput`.
- * Subagent's `storeToolCall` writes are awaited before the final yield
- * so the parent's tool-result row never commits before the children rows.
- */
 export const getDiscoverFields = (args: ToolArgs, dependencies: Dependencies) =>
     tool({
         ...discoverFieldsTool,
@@ -205,10 +335,7 @@ export const getDiscoverFields = (args: ToolArgs, dependencies: Dependencies) =>
                         model: args.model,
                         callOptions: args.callOptions,
                         providerOptions: args.providerOptions,
-                        findExploresFieldSearchSize:
-                            args.findExploresFieldSearchSize,
                         findFieldsPageSize: args.findFieldsPageSize,
-                        toolDescriptionMaxChars: args.toolDescriptionMaxChars,
                         promptUuid: args.promptUuid,
                         parentToolCallId: toolCallId,
                         telemetry: args.telemetry,
@@ -218,50 +345,20 @@ export const getDiscoverFields = (args: ToolArgs, dependencies: Dependencies) =>
                 );
 
                 let currentMessage: UIMessage | undefined;
-                // Yield only on tool-call structural changes; per-chunk
-                // yields re-emit the accumulated UIMessage and grow the
-                // parent stream quadratically.
-                let lastTraceSignature: string | null = null;
                 for await (const message of readUIMessageStream({
                     stream: stream.toUIMessageStream(),
                 })) {
                     currentMessage = message;
-                    const traceSignature = message.parts
-                        .filter((p) => p.type.startsWith('tool-'))
-                        .map((p) => {
-                            const toolPart = p as {
-                                type: string;
-                                toolCallId?: string;
-                                input?: unknown;
-                            };
-                            return `${toolPart.type}:${
-                                toolPart.toolCallId ?? ''
-                            }:${toolPart.input != null ? '1' : '0'}`;
-                        })
-                        .join('|');
-                    if (
-                        traceSignature &&
-                        traceSignature !== lastTraceSignature
-                    ) {
-                        lastTraceSignature = traceSignature;
-                        yield {
-                            result: '',
-                            metadata: {
-                                status: 'streaming' as const,
-                                streamingMessage: message,
-                            },
-                        };
-                    }
                 }
 
                 await flushPersistence();
 
-                const handoff = extractHandoffFromSubmitResult(currentMessage);
-                if ('error' in handoff) {
-                    // Soft, parent-recoverable model-output anomaly; parent retries on tool-error.
+                const selection =
+                    extractSelectionFromSubmitResult(currentMessage);
+                if ('error' in selection) {
                     yield {
                         result: toolErrorHandler(
-                            new Error(handoff.error),
+                            new Error(selection.error),
                             'Error discovering fields.',
                             { captureToSentry: false },
                         ),
@@ -270,12 +367,20 @@ export const getDiscoverFields = (args: ToolArgs, dependencies: Dependencies) =>
                     return;
                 }
 
+                const handoff = await hydrateSelection({
+                    selection,
+                    availableExplores: args.availableExplores,
+                    getExplore: dependencies.getExplore,
+                });
+
+                const structuredResult = getStructuredResult(handoff);
+
                 yield {
-                    result: renderResult(handoff),
+                    result: stringifyToolJson(structuredResult),
+                    structuredResult,
                     metadata: {
                         status: 'success' as const,
                         discovery: handoff,
-                        streamingMessage: currentMessage,
                     },
                 };
             } catch (error) {

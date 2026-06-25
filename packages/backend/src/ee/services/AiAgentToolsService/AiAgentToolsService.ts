@@ -11,6 +11,7 @@ import {
     filterExploreByTags,
     ForbiddenError,
     getContentAsCodePathFromLtreePath,
+    getItemId,
     getItemMap,
     getLtreePathFromContentAsCodePath,
     getValidAiQueryLimit,
@@ -317,6 +318,32 @@ export class AiAgentToolsService extends BaseService {
         return this.builtInSkills.getMcpResourceBody(uri);
     }
 
+    private static getExploreFieldIds(explore: Explore): {
+        dimensions: string[];
+        metrics: string[];
+    } {
+        const dimensions = Object.entries(explore.tables).flatMap(
+            ([tableName, table]) =>
+                Object.values(table.dimensions).map((dimension) =>
+                    getItemId({
+                        table: dimension.table ?? tableName,
+                        name: dimension.name,
+                    }),
+                ),
+        );
+        const metrics = Object.entries(explore.tables).flatMap(
+            ([tableName, table]) =>
+                Object.values(table.metrics).map((metric) =>
+                    getItemId({
+                        table: metric.table ?? tableName,
+                        name: metric.name,
+                    }),
+                ),
+        );
+
+        return { dimensions, metrics };
+    }
+
     constructor({
         builtInSkills,
         projectModel,
@@ -562,9 +589,16 @@ export class AiAgentToolsService extends BaseService {
                 const exploreSearchResults = tableSearchResults.data
                     .filter((item) => item.type === CatalogType.Table)
                     .map((table) => {
+                        const explore = filteredExploresByName.get(table.name);
+                        if (!explore) {
+                            throw new Error(
+                                `Catalog search returned explore "${table.name}" outside the filtered explore set.`,
+                            );
+                        }
+
                         const requiredFilters =
                             AiAgentToolsService.getExploreRequiredFilters(
-                                filteredExploresByName.get(table.name),
+                                explore,
                             );
 
                         return {
@@ -577,51 +611,15 @@ export class AiAgentToolsService extends BaseService {
                             ...(requiredFilters.length > 0
                                 ? { requiredFilters }
                                 : {}),
+                            fields: AiAgentToolsService.getExploreFieldIds(
+                                explore,
+                            ),
                         };
                     });
 
-                const fieldSearchResults =
-                    await this.catalogService.searchCatalog({
-                        projectUuid: context.projectUuid,
-                        userAttributes,
-                        catalogSearch: {
-                            searchQuery: args.searchQuery,
-                            type: CatalogType.Field,
-                        },
-                        context: context.catalogSearchContext,
-                        paginateArgs: { page: 1, pageSize: 50 },
-                        fullTextSearchOperator: 'OR',
-                        filteredExplores,
-                    });
-
-                const verifiedFieldUsage =
-                    context.source === 'ai_agent'
-                        ? await this.getVerifiedFieldUsage(context)
-                        : null;
-                const topMatchingFields = fieldSearchResults.data
-                    .filter((item) => item.type === CatalogType.Field)
-                    .map((field) => ({
-                        name: field.name,
-                        label: field.label,
-                        tableName: field.tableName,
-                        fieldType: field.fieldType,
-                        searchRank: field.searchRank,
-                        description: field.description,
-                        chartUsage: field.chartUsage ?? 0,
-                        ...(verifiedFieldUsage
-                            ? {
-                                  verifiedChartUsage:
-                                      AiAgentToolsService.lookupVerifiedChartUsage(
-                                          verifiedFieldUsage,
-                                          field.tableName,
-                                          field.name,
-                                          field.fieldType,
-                                      ),
-                              }
-                            : {}),
-                    }));
-
-                return { exploreSearchResults, topMatchingFields };
+                return {
+                    exploreSearchResults,
+                };
             },
         );
     }

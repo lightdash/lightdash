@@ -73,9 +73,7 @@ const makeAgentTools = () => {
                 callOptions: {},
                 providerOptions: undefined,
                 availableExplores: [],
-                findExploresFieldSearchSize: 25,
                 findFieldsPageSize: 25,
-                toolDescriptionMaxChars: 600,
                 promptUuid: 'prompt-uuid',
                 telemetry: {
                     agentSettings: {
@@ -92,6 +90,7 @@ const makeAgentTools = () => {
                 findExplores: noop,
                 findFields: noop,
                 getExplore: noop,
+                listExplores: noop,
                 storeToolCall: noopAsync,
                 storeToolResults: noopAsync,
                 updateProgress: noopAsync,
@@ -106,17 +105,14 @@ const makeAgentTools = () => {
             trackCoverage: noop,
         }),
         findExplores: getFindExplores({
-            fieldSearchSize: 25,
             findExplores: noop,
             updateProgress: noopAsync,
-            toolDescriptionMaxChars: 600,
         }),
         findFields: getFindFields({
             findFields: noop,
             getExplore: noop,
             pageSize: 25,
             updateProgress: noopAsync,
-            toolDescriptionMaxChars: 600,
         }),
         listFields: getListFields({ getExplore: noop }),
         generateDashboard: getGenerateDashboardV2({

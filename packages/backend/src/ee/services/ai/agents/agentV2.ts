@@ -223,9 +223,7 @@ const getAgentTools = (
             callOptions: args.callOptions,
             providerOptions: args.providerOptions,
             availableExplores,
-            findExploresFieldSearchSize: args.findExploresFieldSearchSize,
             findFieldsPageSize: args.findFieldsPageSize,
-            toolDescriptionMaxChars: args.toolDescriptionMaxChars,
             promptUuid: args.promptUuid,
             telemetry: {
                 agentSettings: args.agentSettings,
@@ -239,6 +237,7 @@ const getAgentTools = (
             findExplores: dependencies.findExplores,
             findFields: dependencies.findFields,
             getExplore: dependencies.getExplore,
+            listExplores: dependencies.listExplores,
             updateProgress: dependencies.updateProgress,
             storeToolCall: dependencies.storeToolCall,
             storeToolResults: dependencies.storeToolResults,
