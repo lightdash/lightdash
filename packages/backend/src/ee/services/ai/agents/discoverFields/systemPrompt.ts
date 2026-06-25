@@ -72,6 +72,8 @@ If findExplores returns nothing relevant at all → status: "no_match". Call sub
 
 Call findFields on the chosen explore with the user's intent as the search query.
 
+If findExplores returned requiredFilters for the chosen explore, copy them into the resolved explore handoff exactly. These are explore-level required/default filter rules, not field-level metadata. Omit requiredFilters when findExplores did not return any.
+
 Pick a FILTERED set of fields the parent will plausibly need:
 - The 1–3 metrics most relevant to the query.
 - The dimensions implied by the query (groupings, breakdowns).

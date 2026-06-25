@@ -2,12 +2,14 @@ import {
     Account,
     CatalogType,
     Explore,
+    FilterOperator,
     ForbiddenError,
     JobStatusType,
     NotFoundError,
     QueryExecutionContext,
     RequestMethod,
     SessionUser,
+    UnitOfTime,
 } from '@lightdash/common';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
@@ -40,12 +42,14 @@ const makeExplore = ({
     requiredAttributes = {},
     dimensions = {},
     metrics = {},
+    requiredFilters = [],
 }: {
     name: string;
     tags?: string[];
     requiredAttributes?: Record<string, string>;
     dimensions?: Record<string, unknown>;
     metrics?: Record<string, unknown>;
+    requiredFilters?: NonNullable<Explore['tables'][string]['requiredFilters']>;
 }): Explore =>
     ({
         name,
@@ -59,6 +63,7 @@ const makeExplore = ({
                 label: name,
                 requiredAttributes,
                 anyAttributes: {},
+                requiredFilters,
                 dimensions,
                 metrics,
             },
@@ -281,6 +286,83 @@ describe('AiAgentToolsService', () => {
         });
         expect(mcpResults.topMatchingFields?.[0]).not.toHaveProperty(
             'verifiedChartUsage',
+        );
+    });
+
+    it('adds required filters to AI runtime explore search metadata only', async () => {
+        const requiredFilters = [
+            {
+                id: 'required-created-date',
+                target: { fieldRef: 'created_date' },
+                operator: FilterOperator.IN_THE_PAST,
+                values: [30],
+                settings: { unitOfTime: UnitOfTime.days },
+                required: true,
+            },
+        ];
+        const searchCatalog = jest.fn(async ({ catalogSearch }) => ({
+            data:
+                catalogSearch.type === CatalogType.Table
+                    ? [
+                          {
+                              type: CatalogType.Table,
+                              name: 'orders',
+                              label: 'Orders',
+                              description: null,
+                              aiHints: null,
+                              searchRank: 1,
+                              joinedTables: [],
+                          },
+                      ]
+                    : [
+                          {
+                              type: CatalogType.Field,
+                              name: 'created_date',
+                              label: 'Created Date',
+                              tableName: 'orders',
+                              fieldType: 'dimension',
+                              searchRank: 1,
+                              description: null,
+                              chartUsage: 3,
+                          },
+                      ],
+            pagination: undefined,
+        }));
+        const service = makeService({
+            explores: {
+                orders: makeExplore({
+                    name: 'orders',
+                    requiredFilters,
+                }),
+            },
+            searchCatalog,
+        });
+        const runtime = service.createRuntime(makeRuntimeContext());
+
+        const results = await runtime.findExplores({
+            fieldSearchSize: 50,
+            searchQuery: 'orders',
+        });
+
+        expect(results).toMatchObject({
+            exploreSearchResults: [
+                expect.objectContaining({
+                    requiredFilters: [
+                        {
+                            fieldId: 'orders_created_date',
+                            fieldRef: 'created_date',
+                            tableName: 'orders',
+                            operator: FilterOperator.IN_THE_PAST,
+                            values: [30],
+                            settings: { unitOfTime: UnitOfTime.days },
+                            required: true,
+                        },
+                    ],
+                }),
+            ],
+        });
+        expect(results.topMatchingFields?.[0]).not.toHaveProperty(
+            'requiredFilter',
         );
     });
 

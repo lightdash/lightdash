@@ -48,6 +48,16 @@ type Pagination = KnexPaginateArgs & {
     totalResults: number;
 };
 
+export type AiAgentRequiredFilterMetadata = {
+    fieldId: string;
+    fieldRef: string;
+    tableName: string;
+    operator: string;
+    values?: unknown[];
+    settings?: unknown;
+    required: boolean;
+};
+
 export type ListExploresFn = () => Promise<Explore[]>;
 
 export type FindExploresFn = (args: {
@@ -61,6 +71,7 @@ export type FindExploresFn = (args: {
         aiHints?: string[];
         searchRank?: number;
         joinedTables?: string[] | null;
+        requiredFilters?: AiAgentRequiredFilterMetadata[];
     }>;
     topMatchingFields?: Array<{
         name: string;

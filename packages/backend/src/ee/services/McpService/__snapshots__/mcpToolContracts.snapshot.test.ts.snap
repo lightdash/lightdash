@@ -123,7 +123,7 @@ Usage Tips:
       "description": "Tool: findExplores
 
 Purpose:
-Returns explores matching the query with their joined tables, AI hints and descriptions, plus the top 50 matching fields across ALL explores. Search matches explore and field name, label, and description. A follow-up query runs against a single explore, so this tool is meant to identify the explore whose fields can answer the user's question.
+Returns explores matching the query with their joined tables, required filters, AI hints and descriptions, plus the top 50 matching fields across ALL explores. Search matches explore and field name, label, and description. A follow-up query runs against a single explore, so this tool is meant to identify the explore whose fields can answer the user's question.
 IMPORTANT: Each explore may include fields from multiple joined tables. Check the "joinedTables" elements to see which tables are included in the explore.
 
 Parameters:
@@ -132,6 +132,7 @@ Parameters:
 Output:
 - Matching explores with searchRank scores
 - Top matching fields with their explore names and searchRank scores
+- Required filters set on matching explores, including default values
 ",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",

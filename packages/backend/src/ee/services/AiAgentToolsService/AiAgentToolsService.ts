@@ -6,6 +6,7 @@ import {
     CatalogFilter,
     CatalogType,
     ContentType,
+    convertFieldRefToFieldId,
     Explore,
     filterExploreByTags,
     ForbiddenError,
@@ -16,6 +17,7 @@ import {
     isDashboardChartTileType,
     isExploreError,
     isGitProjectType,
+    isJoinModelRequiredFilter,
     JobStatusType,
     NotFoundError,
     ParameterError,
@@ -28,6 +30,7 @@ import {
     WarehouseQueryError,
     type ChartAsCode,
     type DashboardAsCode,
+    type ModelRequiredFilterRule,
 } from '@lightdash/common';
 import * as JsonPatch from 'fast-json-patch';
 import Logger from '../../../logging/logger';
@@ -62,6 +65,7 @@ import { AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
 import { ProjectContextModel } from '../../models/ProjectContextModel';
 import type { BuiltInSkills } from '../ai/skills/builtInSkills';
 import {
+    AiAgentRequiredFilterMetadata,
     AnalyzeFieldImpactFn,
     CreateContentFn,
     DescribeWarehouseTableFn,
@@ -252,6 +256,42 @@ export class AiAgentToolsService extends BaseService {
 
     loadAgentSkill(name: string) {
         return this.builtInSkills.getAiAgentSkill(name);
+    }
+
+    private static getRequiredFilterMetadata(
+        filter: ModelRequiredFilterRule,
+        fallbackTableName: string,
+    ): AiAgentRequiredFilterMetadata {
+        const tableName = isJoinModelRequiredFilter(filter)
+            ? filter.target.tableName
+            : fallbackTableName;
+
+        return {
+            fieldId: convertFieldRefToFieldId(
+                filter.target.fieldRef,
+                tableName,
+            ),
+            fieldRef: filter.target.fieldRef,
+            tableName,
+            operator: filter.operator,
+            values: filter.values,
+            settings: filter.settings,
+            required: filter.required ?? true,
+        };
+    }
+
+    private static getExploreRequiredFilters(
+        explore: Explore | undefined,
+    ): AiAgentRequiredFilterMetadata[] {
+        if (!explore) return [];
+
+        return (explore.tables[explore.baseTable].requiredFilters ?? []).map(
+            (filter) =>
+                AiAgentToolsService.getRequiredFilterMetadata(
+                    filter,
+                    explore.baseTable,
+                ),
+        );
     }
 
     listMcpSkills() {
@@ -498,6 +538,9 @@ export class AiAgentToolsService extends BaseService {
                 const userAttributes =
                     await this.getRuntimeUserAttributes(context);
                 const filteredExplores = await this.listExplores(context);
+                const filteredExploresByName = new Map(
+                    filteredExplores.map((explore) => [explore.name, explore]),
+                );
 
                 const tableSearchResults =
                     await this.catalogService.searchCatalog({
@@ -518,14 +561,24 @@ export class AiAgentToolsService extends BaseService {
 
                 const exploreSearchResults = tableSearchResults.data
                     .filter((item) => item.type === CatalogType.Table)
-                    .map((table) => ({
-                        name: table.name,
-                        label: table.label,
-                        description: table.description,
-                        aiHints: table.aiHints ?? undefined,
-                        searchRank: table.searchRank,
-                        joinedTables: table.joinedTables ?? undefined,
-                    }));
+                    .map((table) => {
+                        const requiredFilters =
+                            AiAgentToolsService.getExploreRequiredFilters(
+                                filteredExploresByName.get(table.name),
+                            );
+
+                        return {
+                            name: table.name,
+                            label: table.label,
+                            description: table.description,
+                            aiHints: table.aiHints ?? undefined,
+                            searchRank: table.searchRank,
+                            joinedTables: table.joinedTables ?? undefined,
+                            ...(requiredFilters.length > 0
+                                ? { requiredFilters }
+                                : {}),
+                        };
+                    });
 
                 const fieldSearchResults =
                     await this.catalogService.searchCatalog({

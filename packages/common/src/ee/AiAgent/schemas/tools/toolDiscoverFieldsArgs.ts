@@ -36,6 +36,22 @@ const discoverFieldsExploreSummarySchema = z.object({
     label: z.string(),
     baseTable: z.string(),
     joinedTables: z.array(z.string()),
+    requiredFilters: z
+        .array(
+            z.object({
+                fieldId: z.string(),
+                fieldRef: z.string(),
+                tableName: z.string(),
+                operator: z.string(),
+                values: z.array(z.unknown()).optional(),
+                settings: z.unknown().optional(),
+                required: z.boolean(),
+            }),
+        )
+        .optional()
+        .describe(
+            'Explore-level required/default filters from findExplores. Only include when findExplores returned requiredFilters for the selected explore.',
+        ),
 });
 
 const discoverFieldsFieldSummarySchema = z.object({
