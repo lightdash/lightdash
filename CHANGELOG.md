@@ -1,3 +1,24 @@
+# [0.3247.0](https://github.com/lightdash/lightdash/compare/0.3246.0...0.3247.0) (2026-06-25)
+
+
+### Bug Fixes
+
+* **ai:** rename `toolFieldDescriptionMaxChars` to `toolDescriptionMaxChars` ([#24766](https://github.com/lightdash/lightdash/issues/24766)) ([6ef86c4](https://github.com/lightdash/lightdash/commit/6ef86c4e88980c5b355d82b43d8fca01434bec81))
+* **authorization:** move ContentAsCode scopes to Content group ([#24753](https://github.com/lightdash/lightdash/issues/24753)) ([b90f9e1](https://github.com/lightdash/lightdash/commit/b90f9e1e20f6a87e316d8abf1827f7b9b1ada783))
+* **custom-roles:** use "Type" instead of "Level" in role UI ([#24754](https://github.com/lightdash/lightdash/issues/24754)) ([01c0615](https://github.com/lightdash/lightdash/commit/01c061575477cc37f5312283c01ce2be3f521217))
+* data app schedule delivery stale toggle ([#24736](https://github.com/lightdash/lightdash/issues/24736)) ([46381de](https://github.com/lightdash/lightdash/commit/46381de47e8bf051037f15c9f5238eea94c1c6e5))
+* **data-apps:** validate method allowlist in external connection test ([#24770](https://github.com/lightdash/lightdash/issues/24770)) ([6760bc9](https://github.com/lightdash/lightdash/commit/6760bc957b6b2686ffbc2b9d3874d187fe8c975c))
+* invisible bars when stacked chart has date dimension on x-axis ([#24751](https://github.com/lightdash/lightdash/issues/24751)) ([0091885](https://github.com/lightdash/lightdash/commit/009188554dbe069c4b6c49ae93a91db9731dce02)), closes [#24597](https://github.com/lightdash/lightdash/issues/24597)
+* **promote:** allow space admins to promote charts and dashboards ([#24763](https://github.com/lightdash/lightdash/issues/24763)) ([2083738](https://github.com/lightdash/lightdash/commit/208373889b271ca943a1907d21d7ea6023974a5a))
+* **sdk:** make embedded dashboards render under a strict CSP ([#24741](https://github.com/lightdash/lightdash/issues/24741)) ([d67363f](https://github.com/lightdash/lightdash/commit/d67363f48d0fcfc9f01af182cf77c6d744928b66)), closes [#21276](https://github.com/lightdash/lightdash/issues/21276) [#21276](https://github.com/lightdash/lightdash/issues/21276) [#21276](https://github.com/lightdash/lightdash/issues/21276)
+
+
+### Features
+
+* **date-zoom:** attach charts across tabs in control authoring ([#24756](https://github.com/lightdash/lightdash/issues/24756)) ([114266e](https://github.com/lightdash/lightdash/commit/114266e862bea91ef0f87b65ebffd0039a4e2298))
+* expose required filter metadata ([#24759](https://github.com/lightdash/lightdash/issues/24759)) ([49a49a2](https://github.com/lightdash/lightdash/commit/49a49a20158509b7840f3afe63c61e26b06e3670))
+* **sandbox:** add local Docker provider for self-hosted/dev sandboxes ([#24743](https://github.com/lightdash/lightdash/issues/24743)) ([6e683e5](https://github.com/lightdash/lightdash/commit/6e683e52a227545504998629753befe2aa47dcfb))
+
 # [0.3246.0](https://github.com/lightdash/lightdash/compare/0.3245.1...0.3246.0) (2026-06-25)
 
 
