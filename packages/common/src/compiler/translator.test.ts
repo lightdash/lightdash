@@ -71,6 +71,7 @@ import {
     MODEL_WITH_METRIC_LEVEL_CATEGORIES,
     MODEL_WITH_MODEL_LEVEL_CATEGORIES,
     MODEL_WITH_MODEL_METRIC_AI_HINT,
+    MODEL_WITH_MODEL_METRIC_ON_PROTECTED_DIMENSION,
     MODEL_WITH_NO_CATEGORIES,
     MODEL_WITH_NO_METRICS,
     MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS,
@@ -380,6 +381,21 @@ describe('convert tables from dbt models', () => {
                 DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_METRICS);
+    });
+    it('should inherit required_attributes for a model-level metric that references a protected dimension', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            MODEL_WITH_MODEL_METRIC_ON_PROTECTED_DIMENSION,
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(result.dimensions.sensitive_field.requiredAttributes).toEqual({
+            access_groups: 'data',
+        });
+        expect(result.metrics.sensitive_metric.requiredAttributes).toEqual({
+            access_groups: 'data',
+        });
     });
     it('should convert dbt model with metrics that have drivers', () => {
         const result = convertTable(
