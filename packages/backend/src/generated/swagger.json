@@ -11196,11 +11196,14 @@
             },
             "AiSchedulerOptions": {
                 "properties": {
+                    "includeRunHistory": {
+                        "type": "boolean"
+                    },
                     "includeSourceThread": {
                         "type": "boolean"
                     }
                 },
-                "required": ["includeSourceThread"],
+                "required": ["includeRunHistory", "includeSourceThread"],
                 "type": "object"
             },
             "SchedulerCsvOptions": {

@@ -9881,6 +9881,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                includeRunHistory: { dataType: 'boolean', required: true },
                 includeSourceThread: { dataType: 'boolean', required: true },
             },
             validators: {},

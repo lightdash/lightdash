@@ -113,6 +113,7 @@ export type ThresholdOptions = {
 // in one jsonb column so new ones don't each need a migration.
 export type AiSchedulerOptions = {
     includeSourceThread: boolean;
+    includeRunHistory: boolean;
 };
 
 export type SchedulerBase = {

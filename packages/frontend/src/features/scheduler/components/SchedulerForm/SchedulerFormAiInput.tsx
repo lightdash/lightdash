@@ -68,6 +68,17 @@ export const SchedulerFormAiInput: FC<Props> = ({
                         minRows={2}
                         {...form.getInputProps('prompt')}
                     />
+                    <Switch
+                        label="Build on previous deliveries"
+                        description="The agent sees this delivery's recent runs, so it can report on what changed since last time."
+                        checked={form.values.includeRunHistory}
+                        onChange={(event) =>
+                            form.setFieldValue(
+                                'includeRunHistory',
+                                event.currentTarget.checked,
+                            )
+                        }
+                    />
                     {sourceThreadUuid && (
                         <Switch
                             label="Include the source conversation as context"

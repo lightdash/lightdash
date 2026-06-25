@@ -1798,6 +1798,22 @@ export class SchedulerModel {
         }
     }
 
+    // The agent threads from this scheduler's most recent augmented runs, newest first
+    async getRecentAiThreadUuids(
+        schedulerUuid: string,
+        limit: number,
+    ): Promise<string[]> {
+        const rows = await this.database(SchedulerLogTableName)
+            .where('scheduler_uuid', schedulerUuid)
+            .whereRaw("details->>'aiThreadUuid' IS NOT NULL")
+            .orderBy('created_at', 'desc')
+            .limit(limit)
+            .select<{ thread_uuid: string }[]>(
+                this.database.raw("details->>'aiThreadUuid' AS thread_uuid"),
+            );
+        return rows.map((row) => row.thread_uuid);
+    }
+
     async deleteScheduledLogs(schedulerUuid: string): Promise<void> {
         await this.database.transaction(async (trx) => {
             await trx(SchedulerLogTableName)
