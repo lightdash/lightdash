@@ -60,7 +60,11 @@ import {
     validateTimeFrames,
     type WeekDay,
 } from '../utils/timeFrames';
-import { ExploreCompiler } from './exploreCompiler';
+import {
+    ExploreCompiler,
+    getParsedReference,
+    lightdashVariablePattern,
+} from './exploreCompiler';
 import {
     getCategoriesFromResource,
     getSpotlightConfigurationForResource,
@@ -635,6 +639,50 @@ function validateSets(
     return warnings;
 }
 
+/**
+ * Model-level metrics aren't nested under a dimension, so they don't automatically
+ * inherit a dimension's `required_attributes`/`any_attributes` the way column-level
+ * metrics do. We approximate that protection by scanning the metric's `sql` for
+ * `${dimension_name}` references within the same table and merging in the
+ * required/any attributes of any protected dimensions it touches.
+ */
+const getReferencedDimensionsAttributes = (
+    sql: string | undefined,
+    tableName: string,
+    dimensions: Record<string, Dimension>,
+): {
+    requiredAttributes?: Record<string, string | string[]>;
+    anyAttributes?: Record<string, string | string[]>;
+} => {
+    if (!sql) return {};
+
+    let requiredAttributes: Record<string, string | string[]> | undefined;
+    let anyAttributes: Record<string, string | string[]> | undefined;
+
+    Array.from(sql.matchAll(lightdashVariablePattern)).forEach((match) => {
+        const { refTable, refName } = getParsedReference(match[1], tableName);
+        if (refTable !== tableName) return;
+
+        const referencedDimension = dimensions[refName];
+        if (!referencedDimension) return;
+
+        if (referencedDimension.requiredAttributes) {
+            requiredAttributes = {
+                ...requiredAttributes,
+                ...referencedDimension.requiredAttributes,
+            };
+        }
+        if (referencedDimension.anyAttributes) {
+            anyAttributes = {
+                ...anyAttributes,
+                ...referencedDimension.anyAttributes,
+            };
+        }
+    });
+
+    return { requiredAttributes, anyAttributes };
+};
+
 export const convertTable = (
     adapterType: SupportedDbtAdapter,
     model: DbtModelNode,
@@ -903,25 +951,35 @@ export const convertTable = (
     );
 
     const modelMetrics = Object.fromEntries(
-        Object.entries(meta.metrics || {}).map(([name, metric]) => [
-            name,
-            convertModelMetric({
-                modelName: model.name,
+        Object.entries(meta.metrics || {}).map(([name, metric]) => {
+            const { requiredAttributes, anyAttributes } =
+                getReferencedDimensionsAttributes(
+                    metric.sql,
+                    model.name,
+                    dimensions,
+                );
+            return [
                 name,
-                metric,
-                tableLabel,
-                spotlightConfig: {
-                    ...spotlightConfig,
-                    default_visibility:
-                        meta.spotlight?.visibility ??
-                        spotlightConfig.default_visibility,
-                },
-                modelCategories: meta.spotlight?.categories,
-                modelOwner: meta.spotlight?.owner ?? meta.owner,
-                defaultShowUnderlyingValues:
-                    meta.default_show_underlying_values,
-            }),
-        ]),
+                convertModelMetric({
+                    modelName: model.name,
+                    name,
+                    metric,
+                    tableLabel,
+                    requiredAttributes,
+                    anyAttributes,
+                    spotlightConfig: {
+                        ...spotlightConfig,
+                        default_visibility:
+                            meta.spotlight?.visibility ??
+                            spotlightConfig.default_visibility,
+                    },
+                    modelCategories: meta.spotlight?.categories,
+                    modelOwner: meta.spotlight?.owner ?? meta.owner,
+                    defaultShowUnderlyingValues:
+                        meta.default_show_underlying_values,
+                }),
+            ];
+        }),
     );
 
     const convertedDbtMetrics = Object.fromEntries(
