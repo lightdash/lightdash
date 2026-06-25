@@ -33,6 +33,7 @@ export * from './toolGetQueryResultArgs';
 export * from './toolGetProjectInfoArgs';
 export * from './toolFindExploresArgs';
 export * from './toolFindFieldsArgs';
+export * from './toolGetFieldsArgs';
 export * from './toolImproveContextArgs';
 export * from './toolListProjectsArgs';
 export * from './toolListWarehouseTablesArgs';

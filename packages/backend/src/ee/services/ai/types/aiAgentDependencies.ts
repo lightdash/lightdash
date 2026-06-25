@@ -50,6 +50,17 @@ type Pagination = KnexPaginateArgs & {
 
 export type ListExploresFn = () => Promise<Explore[]>;
 
+type TopMatchingExploreField = {
+    name: string;
+    label: string;
+    tableName: string;
+    fieldType: string;
+    searchRank?: number;
+    description?: string;
+    chartUsage?: number;
+    verifiedChartUsage?: number;
+};
+
 export type FindExploresFn = (args: {
     fieldSearchSize: number;
     searchQuery?: string;
@@ -62,16 +73,9 @@ export type FindExploresFn = (args: {
         searchRank?: number;
         joinedTables?: string[] | null;
     }>;
-    topMatchingFields?: Array<{
-        name: string;
-        label: string;
-        tableName: string;
-        fieldType: string;
-        searchRank?: number;
-        description?: string;
-        chartUsage?: number;
-        verifiedChartUsage?: number;
-    }>;
+    topMatchingFields?: TopMatchingExploreField[];
+    topMatchingDimensions?: TopMatchingExploreField[];
+    topMatchingMetrics?: TopMatchingExploreField[];
 }>;
 
 export type FindFieldFn = (

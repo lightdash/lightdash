@@ -7,6 +7,7 @@ import {
     CatalogType,
     ContentType,
     Explore,
+    FieldType,
     filterExploreByTags,
     ForbiddenError,
     getContentAsCodePathFromLtreePath,
@@ -571,7 +572,16 @@ export class AiAgentToolsService extends BaseService {
                             : {}),
                     }));
 
-                return { exploreSearchResults, topMatchingFields };
+                return {
+                    exploreSearchResults,
+                    topMatchingFields,
+                    topMatchingDimensions: topMatchingFields.filter(
+                        (field) => field.fieldType === FieldType.DIMENSION,
+                    ),
+                    topMatchingMetrics: topMatchingFields.filter(
+                        (field) => field.fieldType === FieldType.METRIC,
+                    ),
+                };
             },
         );
     }

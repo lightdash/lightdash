@@ -157,6 +157,7 @@ const TOOL_TASK_TITLES: Record<string, string> = {
     loadProjectContext: 'Reading project context',
     findExplores: 'Finding data model',
     findFields: 'Choosing fields',
+    getFields: 'Reading field details',
     searchSemanticLayer: 'Searching metrics',
     listWarehouseTables: 'Checking warehouse tables',
     describeWarehouseTable: 'Inspecting table',

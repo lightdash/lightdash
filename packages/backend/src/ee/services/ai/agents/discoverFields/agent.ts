@@ -12,20 +12,15 @@ import {
 import Logger from '../../../../../logging/logger';
 import { getFindExplores } from '../../tools/findExplores';
 import { getFindFields } from '../../tools/findFields';
+import { getGetFields } from '../../tools/getFields';
+import type { ToolOutputFormat } from '../../tools/toolOutputFormat';
 import type { AiAgentArgs, AiAgentDependencies } from '../../types/aiAgent';
 import { AgentContext } from '../../utils/AgentContext';
 import { getAgentTelemetryConfig } from '../telemetry';
-import { DiscoverFieldsInput, discoverFieldsResultSchema } from './schema';
+import { DiscoverFieldsInput, discoverFieldsSelectionSchemaV2 } from './schema';
 import { getDiscoverFieldsSystemPrompt } from './systemPrompt';
 
 const SUBAGENT_STEP_CAP = 15;
-
-const SUBAGENT_PERSISTED_TOOL_NAMES = ['findExplores', 'findFields'] as const;
-type SubagentPersistedToolName = (typeof SUBAGENT_PERSISTED_TOOL_NAMES)[number];
-const isSubagentPersistedToolName = (
-    name: string,
-): name is SubagentPersistedToolName =>
-    (SUBAGENT_PERSISTED_TOOL_NAMES as readonly string[]).includes(name);
 
 export type DiscoverFieldsAgentDependencies = Pick<
     AiAgentDependencies,
@@ -45,6 +40,7 @@ export type DiscoverFieldsAgentArgs = {
     providerOptions: AiAgentArgs['providerOptions'];
     findExploresFieldSearchSize: number;
     findFieldsPageSize: number;
+    outputFormat: ToolOutputFormat;
     abortSignal?: AbortSignal;
     promptUuid: string;
     parentToolCallId: string;
@@ -59,24 +55,40 @@ export type DiscoverFieldsAgentArgs = {
 };
 
 /**
- * Internal tool the subagent must call as its FINAL step. Its inputSchema
- * IS `discoverFieldsResultSchema`, so AI SDK validates the handoff payload
- * at the tool-call boundary — there's no free-form JSON to parse and no
- * fence stripping. If validation fails, the model gets a tool-call error
- * and retries (or hits the step cap). The handoff is then extracted from
- * the tool call's `input` field after the stream completes.
+ * Internal tool the subagent must call as its FINAL step. Its V2 inputSchema
+ * accepts selectors only (exploreName + fieldIds), so final field/explore
+ * objects are rehydrated by the parent from tool/runtime metadata.
  */
 const submitResult = tool({
     description:
-        'Submit the final discovery handoff. Call this as your LAST step after deciding the explore + fields (or that the query is ambiguous / has no match). The arguments are returned to the parent agent verbatim.',
-    inputSchema: discoverFieldsResultSchema,
+        'Submit final discovery selectors. Call this as your LAST step. For resolved, pass only exploreName, ordered fieldIds, and rationale; the parent rehydrates exact field/explore details.',
+    inputSchema: discoverFieldsSelectionSchemaV2,
     execute: async (input) => input,
 });
 
 export type DiscoverFieldsSubagentTools = {
     findExplores: ReturnType<typeof getFindExplores>;
     findFields: ReturnType<typeof getFindFields>;
+    getFields: ReturnType<typeof getGetFields>;
     submitResult: typeof submitResult;
+};
+
+const normalizePersistedToolResult = (
+    toolName: string,
+    output: unknown,
+): { result: string; metadata?: Record<string, unknown> | null } => {
+    if (toolName === 'submitResult') {
+        return {
+            result: JSON.stringify(output),
+            metadata: { status: 'success' },
+        };
+    }
+
+    const agentOutput = output as AgentToolOutput;
+    return {
+        result: agentOutput.result,
+        metadata: agentOutput.metadata,
+    };
 };
 
 export type DiscoverFieldsAgentHandle = {
@@ -98,6 +110,7 @@ export const runDiscoverFieldsAgent = (
         fieldSearchSize: args.findExploresFieldSearchSize,
         findExplores: dependencies.findExplores,
         updateProgress: dependencies.updateProgress,
+        outputFormat: args.outputFormat,
     });
 
     const findFields = getFindFields({
@@ -105,6 +118,12 @@ export const runDiscoverFieldsAgent = (
         findFields: dependencies.findFields,
         updateProgress: dependencies.updateProgress,
         pageSize: args.findFieldsPageSize,
+        outputFormat: args.outputFormat,
+    });
+
+    const getFields = getGetFields({
+        getExplore: dependencies.getExplore,
+        outputFormat: args.outputFormat,
     });
 
     const messages: ModelMessage[] = [
@@ -124,7 +143,7 @@ export const runDiscoverFieldsAgent = (
         model: args.model,
         ...args.callOptions,
         providerOptions: args.providerOptions,
-        tools: { findExplores, findFields, submitResult },
+        tools: { findExplores, findFields, getFields, submitResult },
         toolChoice: 'auto',
         stopWhen: stepCountIs(SUBAGENT_STEP_CAP),
         messages,
@@ -140,7 +159,6 @@ export const runDiscoverFieldsAgent = (
         ),
         onChunk: ({ chunk }) => {
             if (chunk.type === 'tool-call') {
-                if (!isSubagentPersistedToolName(chunk.toolName)) return;
                 inflightWrites.push(
                     dependencies
                         .storeToolCall({
@@ -160,8 +178,10 @@ export const runDiscoverFieldsAgent = (
                 return;
             }
             if (chunk.type === 'tool-result') {
-                if (!isSubagentPersistedToolName(chunk.toolName)) return;
-                const output = chunk.output as AgentToolOutput;
+                const output = normalizePersistedToolResult(
+                    chunk.toolName,
+                    chunk.output,
+                );
                 inflightWrites.push(
                     dependencies
                         .storeToolResults([

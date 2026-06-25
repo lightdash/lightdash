@@ -7,12 +7,14 @@ import type {
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { xmlBuilder } from '../xmlBuilder';
+import { stringifyToolJson, type ToolOutputFormat } from './toolOutputFormat';
 
 type Dependencies = {
     searchSemanticLayer: SearchSemanticLayerFn;
     updateProgress: UpdateProgressFn;
     /** Upper bound for the agent-supplied pageSize; also the fallback default. */
     maxPageSize: number;
+    outputFormat?: ToolOutputFormat;
 };
 
 /** Used when the agent does not specify a pageSize. */
@@ -20,7 +22,30 @@ const DEFAULT_PAGE_SIZE = 200;
 
 const toolDefinition = searchSemanticLayerToolDefinition.for('agent');
 
-const generateResponse = ({
+const semanticLayerNote =
+    'These fields are drawn from across ALL explores in the project. Use this inventory to compare definitions and spot duplicate or confusingly similar metrics. For a high-level overview, this first page plus the totals above is usually enough — only page through the rest when you genuinely need every field (e.g. a project-wide duplicate/inconsistency audit). To inspect a single explore in depth, use findFields.';
+
+const generateJsonResponse = ({
+    fields,
+    pagination,
+}: Awaited<ReturnType<SearchSemanticLayerFn>>) =>
+    stringifyToolJson({
+        page: pagination?.page,
+        pageSize: pagination?.pageSize,
+        totalPageCount: pagination?.totalPageCount,
+        totalResults: pagination?.totalResults,
+        note: semanticLayerNote,
+        fields: fields.map((field) => ({
+            name: field.name,
+            label: field.label,
+            exploreName: field.tableName,
+            fieldType: field.fieldType,
+            usageInCharts: field.chartUsage ?? 0,
+            description: field.description,
+        })),
+    });
+
+const generateXmlResponse = ({
     fields,
     pagination,
 }: Awaited<ReturnType<SearchSemanticLayerFn>>) => (
@@ -30,15 +55,7 @@ const generateResponse = ({
         totalPageCount={pagination?.totalPageCount}
         totalResults={pagination?.totalResults}
     >
-        <note>
-            These fields are drawn from across ALL explores in the project. Use
-            this inventory to compare definitions and spot duplicate or
-            confusingly similar metrics. For a high-level overview, this first
-            page plus the totals above is usually enough — only page through the
-            rest when you genuinely need every field (e.g. a project-wide
-            duplicate/inconsistency audit). To inspect a single explore in
-            depth, use findFields.
-        </note>
+        <note>{semanticLayerNote}</note>
         {fields.map((field) => (
             <field
                 name={field.name}
@@ -59,6 +76,7 @@ export const getSearchSemanticLayer = ({
     searchSemanticLayer,
     updateProgress,
     maxPageSize,
+    outputFormat = 'xml',
 }: Dependencies) =>
     tool({
         ...toolDefinition,
@@ -85,7 +103,13 @@ export const getSearchSemanticLayer = ({
                 });
 
                 return {
-                    result: generateResponse({ fields, pagination }).toString(),
+                    result:
+                        outputFormat === 'json'
+                            ? generateJsonResponse({ fields, pagination })
+                            : generateXmlResponse({
+                                  fields,
+                                  pagination,
+                              }).toString(),
                     metadata: {
                         status: 'success',
                         ranking: {

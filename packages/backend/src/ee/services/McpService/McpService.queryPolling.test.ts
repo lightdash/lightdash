@@ -200,6 +200,7 @@ const makeMcpService = ({
     dashboardSearchResults = [],
     chartSearchResults = [],
     verifiedContent = [],
+    jsonRendererEnabled = false,
 }: {
     context?: {
         projectUuid: string;
@@ -220,6 +221,7 @@ const makeMcpService = ({
     })[];
     chartSearchResults?: ReturnType<typeof makeChartSearchResult>[];
     verifiedContent?: Record<string, unknown>[];
+    jsonRendererEnabled?: boolean;
 } = {}) => {
     const asyncQueryService = {
         executeAsyncSqlQuery: jest.fn(),
@@ -363,7 +365,8 @@ const makeMcpService = ({
                         searchRank: 1,
                         joinedTables: [],
                     })),
-                    topMatchingFields: [
+                    topMatchingDimensions: [],
+                    topMatchingMetrics: [
                         {
                             name: 'orders_count',
                             label: 'Orders Count',
@@ -417,6 +420,10 @@ const makeMcpService = ({
         ),
     };
 
+    const featureFlagService = {
+        get: jest.fn().mockResolvedValue({ enabled: jsonRendererEnabled }),
+    };
+
     const service = new McpService({
         aiAgentService,
         aiAgentToolsService,
@@ -430,7 +437,7 @@ const makeMcpService = ({
         catalogService,
         contentService: {},
         contentVerificationService,
-        featureFlagService: {},
+        featureFlagService,
         lightdashConfig: {
             ai: {
                 copilot: {
@@ -458,6 +465,7 @@ const makeMcpService = ({
         asyncQueryService,
         catalogService,
         contentVerificationService,
+        featureFlagService,
         mcpContextModel,
         projectModel,
         projectService,
@@ -681,6 +689,63 @@ describe('MCP async query polling', () => {
         });
     });
 
+    it('returns structured content for JSON-rendered discovery tools', async () => {
+        makeMcpService({ jsonRendererEnabled: true });
+
+        const findExploresResult = await getToolCallback(
+            McpToolName.FIND_EXPLORES,
+        )({ searchQuery: 'orders' }, extra);
+        expect(findExploresResult).toMatchObject({
+            structuredContent: {
+                topMatchingExplores: {
+                    items: expect.any(Array),
+                },
+                topMatchingDimensions: {
+                    items: expect.any(Array),
+                },
+                topMatchingMetrics: {
+                    items: expect.any(Array),
+                },
+            },
+        });
+
+        const findFieldsResult = await getToolCallback(McpToolName.FIND_FIELDS)(
+            {
+                table: 'orders',
+                fieldSearchQueries: [{ label: 'Orders count' }],
+            },
+            extra,
+        );
+        expect(findFieldsResult).toMatchObject({
+            structuredContent: {
+                searchResults: expect.any(Array),
+            },
+        });
+
+        const getFieldsResult = await getToolCallback(McpToolName.GET_FIELDS)(
+            {
+                fields: [
+                    {
+                        explore: 'orders',
+                        fieldId: 'orders_missing_field',
+                    },
+                ],
+            },
+            extra,
+        );
+        expect(getFieldsResult).toMatchObject({
+            structuredContent: {
+                count: 1,
+                results: [
+                    expect.objectContaining({
+                        status: 'error',
+                        fieldId: 'orders_missing_field',
+                    }),
+                ],
+            },
+        });
+    });
+
     it('filters content by active agent space access', async () => {
         const allowedChart = makeChartSearchResult({
             name: 'Allowed Chart',
@@ -816,7 +881,7 @@ describe('MCP async query polling', () => {
         expect(result).toMatchObject({
             content: [
                 expect.objectContaining({
-                    text: expect.stringContaining('name="orders"'),
+                    text: expect.stringContaining('exploreName="orders"'),
                 }),
                 expect.objectContaining({
                     text: expect.stringContaining('Active agent: Agent'),

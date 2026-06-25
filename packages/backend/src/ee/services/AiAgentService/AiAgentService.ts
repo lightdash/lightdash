@@ -7145,6 +7145,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 user,
                 featureFlagId: FeatureFlags.SearchSemanticLayer,
             });
+        const { enabled: jsonRendererEnabled } =
+            await this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.AiAgentJsonRenderer,
+            });
         let { enabled: aiWritebackEnabled } = await this.featureFlagService.get(
             {
                 user,
@@ -7322,6 +7327,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableSelfImprovement: agentSettings.enableSelfImprovement,
             enableContentTools: canUseContentTools,
             enableSearchSemanticLayer: searchSemanticLayerEnabled,
+            enableJsonRenderer: jsonRendererEnabled,
             enableAiWriteback: aiWritebackEnabled,
             enableEditProjectContext: isReviewRemediationWorkThread,
             writebackAttribution,

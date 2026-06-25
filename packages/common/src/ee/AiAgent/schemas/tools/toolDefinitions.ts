@@ -121,6 +121,11 @@ import {
     toolGetDashboardChartsOutputSchema,
 } from './toolGetDashboardChartsArgs';
 import {
+    TOOL_GET_FIELDS_DESCRIPTION,
+    toolGetFieldsArgsSchema,
+    toolGetFieldsOutputSchema,
+} from './toolGetFieldsArgs';
+import {
     TOOL_GET_KNOWLEDGE_DOCUMENT_CONTENT_DESCRIPTION,
     toolGetKnowledgeDocumentContentArgsSchema,
     toolGetKnowledgeDocumentContentOutputSchema,
@@ -317,6 +322,16 @@ export const findFieldsToolDefinition = defineTool({
     availability: ['agent', 'mcp'],
     inputSchema: toolFindFieldsArgsSchema,
     agent: { outputSchema: toolFindFieldsOutputSchema },
+    mcp: { annotations: readOnlyAnnotations },
+});
+
+export const getFieldsToolDefinition = defineTool({
+    name: 'getFields',
+    title: 'Get fields',
+    description: TOOL_GET_FIELDS_DESCRIPTION,
+    availability: ['agent', 'mcp'],
+    inputSchema: toolGetFieldsArgsSchema,
+    agent: { outputSchema: toolGetFieldsOutputSchema },
     mcp: { annotations: readOnlyAnnotations },
 });
 
@@ -941,6 +956,7 @@ export const runAiWritebackToolDefinition = defineTool({
 type AgentToolDefinitionsByName = {
     findExplores: typeof findExploresToolDefinition;
     findFields: typeof findFieldsToolDefinition;
+    getFields: typeof getFieldsToolDefinition;
     searchSemanticLayer: typeof searchSemanticLayerToolDefinition;
     analyzeFieldImpact: typeof analyzeFieldImpactToolDefinition;
     findContent: typeof findContentToolDefinition;
@@ -986,6 +1002,7 @@ type AgentToolDefinitionsByName = {
 export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     findExplores: findExploresToolDefinition,
     findFields: findFieldsToolDefinition,
+    getFields: getFieldsToolDefinition,
     searchSemanticLayer: searchSemanticLayerToolDefinition,
     analyzeFieldImpact: analyzeFieldImpactToolDefinition,
     findContent: findContentToolDefinition,
@@ -1031,6 +1048,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
 export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     findExploresToolDefinition,
     findFieldsToolDefinition,
+    getFieldsToolDefinition,
     searchSemanticLayerToolDefinition,
     analyzeFieldImpactToolDefinition,
     findContentToolDefinition,

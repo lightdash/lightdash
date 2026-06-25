@@ -23,6 +23,7 @@ import {
     ForbiddenError,
     getCurrentAgentToolDefinition,
     getCurrentProjectToolDefinition,
+    getFieldsToolDefinition,
     getItemLabelWithoutTableName,
     getItemMap,
     getLightdashVersionToolDefinition,
@@ -116,11 +117,13 @@ import { getEditContent } from '../ai/tools/editContent';
 import { getFindContent } from '../ai/tools/findContent';
 import { getFindExplores } from '../ai/tools/findExplores';
 import { getFindFields } from '../ai/tools/findFields';
+import { getGetFields } from '../ai/tools/getFields';
 import { getListContent } from '../ai/tools/listContent';
 import { getMcpListExplores } from '../ai/tools/mcpListExplores';
 import { getReadContent } from '../ai/tools/readContent';
 import { validateRunQueryTool } from '../ai/tools/runQuery';
 import { getSearchFieldValues } from '../ai/tools/searchFieldValues';
+import type { ToolOutputFormat } from '../ai/tools/toolOutputFormat';
 import { getPivotedResults } from '../ai/utils/getPivotedResults';
 import {
     expandMetricsWithPopAdditionalMetrics,
@@ -146,6 +149,7 @@ export enum McpToolName {
     LIST_EXPLORES = 'list_explores',
     FIND_EXPLORES = 'find_explores',
     FIND_FIELDS = 'find_fields',
+    GET_FIELDS = 'get_fields',
     FIND_CONTENT = 'find_content',
     LIST_CONTENT = 'list_content',
     READ_CONTENT = 'read_content',
@@ -179,6 +183,7 @@ const mcpGetLightdashVersionTool = getLightdashVersionToolDefinition.for('mcp');
 const mcpListExploresTool = listExploresToolDefinition.for('mcp');
 const mcpFindExploresTool = findExploresToolDefinition.for('mcp');
 const mcpFindFieldsTool = findFieldsToolDefinition.for('mcp');
+const mcpGetFieldsTool = getFieldsToolDefinition.for('mcp');
 const mcpFindContentTool = findContentToolDefinition.for('mcp');
 const mcpListContentTool = listContentToolDefinition.for('mcp');
 const mcpReadContentTool = readContentToolDefinition.for('mcp');
@@ -592,6 +597,37 @@ export class McpService extends BaseService {
             userAttributeOverrides:
                 await this.getUserAttributeOverridesFromContext(ctx),
         };
+    }
+
+    private async getToolOutputFormat(
+        user: SessionUser,
+    ): Promise<ToolOutputFormat> {
+        if (typeof this.featureFlagService.get !== 'function') {
+            return 'xml';
+        }
+        const { enabled } = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.AiAgentJsonRenderer,
+        });
+        return enabled ? 'json' : 'xml';
+    }
+
+    private static parseToolStructuredContent(
+        toolResult: string,
+        outputFormat: ToolOutputFormat,
+    ): Record<string, unknown> | undefined {
+        if (outputFormat !== 'json') {
+            return undefined;
+        }
+
+        try {
+            const parsed = JSON.parse(toolResult) as unknown;
+            return typeof parsed === 'object' && parsed !== null
+                ? (parsed as Record<string, unknown>)
+                : undefined;
+        } catch {
+            return undefined;
+        }
     }
 
     private async getToolsRuntime(
@@ -1323,10 +1359,12 @@ export class McpService extends BaseService {
                 );
                 const availableExplores = await toolsRuntime.listExplores();
 
+                const outputFormat = await this.getToolOutputFormat(user);
                 const findExploresTool = getFindExplores({
                     findExplores: toolsRuntime.findExplores,
                     updateProgress: async () => {}, // No-op for MCP context
                     fieldSearchSize: 50,
+                    outputFormat,
                 });
                 const result = await findExploresTool.execute!(
                     {
@@ -1353,19 +1391,40 @@ export class McpService extends BaseService {
                       )
                     : { relevantVerifiedAnswers: [] };
 
-                const verifiedAnswersText =
-                    verifiedAnswerContext.relevantVerifiedAnswers.length > 0
-                        ? `\n\n<verifiedAnswers count="${verifiedAnswerContext.relevantVerifiedAnswers.length}">\n${JSON.stringify(
-                              verifiedAnswerContext.relevantVerifiedAnswers,
-                              null,
-                              2,
-                          )}\n</verifiedAnswers>`
-                        : '';
+                let responseText = resultText;
+                if (verifiedAnswerContext.relevantVerifiedAnswers.length > 0) {
+                    if (outputFormat === 'json') {
+                        try {
+                            responseText = JSON.stringify({
+                                ...(JSON.parse(resultText) as Record<
+                                    string,
+                                    unknown
+                                >),
+                                verifiedAnswers: {
+                                    count: verifiedAnswerContext
+                                        .relevantVerifiedAnswers.length,
+                                    items: verifiedAnswerContext.relevantVerifiedAnswers,
+                                },
+                            });
+                        } catch {
+                            responseText = resultText;
+                        }
+                    } else {
+                        responseText = `${resultText}\n\n<verifiedAnswers count="${verifiedAnswerContext.relevantVerifiedAnswers.length}">\n${JSON.stringify(
+                            verifiedAnswerContext.relevantVerifiedAnswers,
+                            null,
+                            2,
+                        )}\n</verifiedAnswers>`;
+                    }
+                }
 
                 return this.buildScopedResponse(
                     ctx,
-                    `${resultText}${verifiedAnswersText}`,
-                    verifiedAnswerContext,
+                    responseText,
+                    McpService.parseToolStructuredContent(
+                        responseText,
+                        outputFormat,
+                    ) ?? verifiedAnswerContext,
                     projectUuid,
                 );
             },
@@ -1381,6 +1440,7 @@ export class McpService extends BaseService {
             },
             async (args, extra) => {
                 const ctx = getMcpContext(extra);
+                const { user } = McpService.getAccount(ctx);
 
                 const projectUuid = await this.resolveProjectUuid(ctx);
                 const argsWithProject = { ...args, projectUuid };
@@ -1392,21 +1452,72 @@ export class McpService extends BaseService {
                     projectUuid,
                 );
 
+                const outputFormat = await this.getToolOutputFormat(user);
                 const findFieldsTool = getFindFields({
                     getExplore: toolsRuntime.getExplore,
                     findFields: toolsRuntime.findFields,
                     updateProgress: async () => {}, // No-op for MCP context
                     pageSize: 15,
+                    outputFormat,
                 });
                 const result = await findFieldsTool.execute!(argsWithProject, {
                     toolCallId: '',
                     messages: [],
                 });
+                const resultText = await McpService.streamToolResult(result);
 
                 return this.buildScopedResponse(
                     ctx,
-                    await McpService.streamToolResult(result),
-                    undefined,
+                    resultText,
+                    McpService.parseToolStructuredContent(
+                        resultText,
+                        outputFormat,
+                    ),
+                    projectUuid,
+                );
+            },
+        );
+
+        this.mcpServer.registerTool(
+            mcpGetFieldsTool.name,
+            {
+                title: mcpGetFieldsTool.title,
+                description: mcpGetFieldsTool.description,
+                inputSchema: mcpGetFieldsTool.inputSchema.shape,
+                annotations: mcpGetFieldsTool.annotations,
+            },
+            async (args, extra) => {
+                const ctx = getMcpContext(extra);
+                const { user } = McpService.getAccount(ctx);
+
+                const projectUuid = await this.resolveProjectUuid(ctx);
+                const argsWithProject = { ...args, projectUuid };
+
+                this.trackToolCall(ctx, McpToolName.GET_FIELDS, projectUuid);
+
+                const toolsRuntime = await this.getToolsRuntime(
+                    ctx,
+                    projectUuid,
+                );
+
+                const outputFormat = await this.getToolOutputFormat(user);
+                const getFieldsTool = getGetFields({
+                    getExplore: toolsRuntime.getExplore,
+                    outputFormat,
+                });
+                const result = await getFieldsTool.execute!(argsWithProject, {
+                    toolCallId: '',
+                    messages: [],
+                });
+                const resultText = await McpService.streamToolResult(result);
+
+                return this.buildScopedResponse(
+                    ctx,
+                    resultText,
+                    McpService.parseToolStructuredContent(
+                        resultText,
+                        outputFormat,
+                    ),
                     projectUuid,
                 );
             },

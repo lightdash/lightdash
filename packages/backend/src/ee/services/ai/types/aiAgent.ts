@@ -97,6 +97,7 @@ export type AiAgentArgs = AnyAiModel & {
     enableSelfImprovement: boolean;
     enableContentTools: boolean;
     enableSearchSemanticLayer: boolean;
+    enableJsonRenderer: boolean;
     enableAiWriteback: boolean;
     // Only on inside review-remediation work threads: lets the agent open/update
     // the project_context.yml PR via the deterministic editProjectContext tool.

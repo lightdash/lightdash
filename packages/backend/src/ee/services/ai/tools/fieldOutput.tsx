@@ -16,7 +16,7 @@ import {
 } from '../utils/truncation';
 import { xmlBuilder } from '../xmlBuilder';
 
-type FieldDescriptionMode = 'full' | 'preview';
+export type FieldDescriptionMode = 'full' | 'preview';
 
 export type RenderableField = Pick<
     CatalogField,
@@ -81,6 +81,58 @@ export const toRenderableField = (
     aiHints: convertToAiHints(field.aiHint) ?? null,
 });
 
+const getFieldDescription = (
+    field: Pick<RenderableField, 'description'>,
+    descriptionMode: FieldDescriptionMode,
+) =>
+    descriptionMode === 'preview' && field.description
+        ? truncatePreview(field.description, FIELD_DESCRIPTION_PREVIEW_CHARS)
+        : field.description;
+
+export const fieldToJson = ({
+    field,
+    explore,
+    descriptionMode,
+}: {
+    field: RenderableField;
+    explore?: Explore;
+    descriptionMode: FieldDescriptionMode;
+}) => {
+    const isFromJoinedTable = getIsFromJoinedTable(field, explore);
+    const caseSensitiveFilters = getFieldCaseSensitive(field, explore);
+    const aiHints = convertToAiHints(field.aiHints ?? undefined);
+    const description = getFieldDescription(field, descriptionMode);
+
+    return {
+        type: field.fieldType,
+        baseTable: field.tableName,
+        name: field.name,
+        fieldId: getItemId({
+            name: field.name,
+            table: field.tableName,
+        }),
+        fieldType: field.fieldValueType,
+        fieldFilterType: getFilterTypeFromItemType(field.fieldValueType),
+        searchRank: field.searchRank,
+        chartUsage: field.chartUsage,
+        usageInVerifiedCharts: field.verifiedChartUsage ?? 0,
+        isFromJoinedTable,
+        caseSensitiveFilters,
+        joinedTableNote:
+            isFromJoinedTable && explore
+                ? `This field is from the "${field.tableName}" table, which is joined to the "${explore.name}" explore. You can use this field in queries and filters just like fields from the base table.`
+                : undefined,
+        label: field.label,
+        aiHints,
+        description,
+        categories: field.categories?.map((c) => c.name),
+        emoji:
+            field.icon && isEmojiIcon(field.icon)
+                ? field.icon.unicode
+                : undefined,
+    };
+};
+
 export const renderField = ({
     field,
     explore,
@@ -94,13 +146,7 @@ export const renderField = ({
     const caseSensitiveFilters = getFieldCaseSensitive(field, explore);
 
     const aiHints = convertToAiHints(field.aiHints ?? undefined);
-    const description =
-        descriptionMode === 'preview' && field.description
-            ? truncatePreview(
-                  field.description,
-                  FIELD_DESCRIPTION_PREVIEW_CHARS,
-              )
-            : field.description;
+    const description = getFieldDescription(field, descriptionMode);
 
     return (
         <field

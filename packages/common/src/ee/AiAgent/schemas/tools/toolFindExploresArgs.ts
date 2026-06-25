@@ -5,7 +5,7 @@ import { createToolSchema } from '../toolSchemaBuilder';
 export const TOOL_FIND_EXPLORES_DESCRIPTION = `Tool: findExplores
 
 Purpose:
-Returns explores matching the query with their joined tables, AI hints and descriptions, plus the top matching field subset across ALL explores. Search matches explore and field name, label, and description. A follow-up query runs against a single explore, so this tool is meant to identify the explore whose fields can answer the user's question.
+Returns explores matching the query with their joined tables, AI hints and descriptions, plus matching fields across ALL explores. Search matches explore and field name, label, and description. A follow-up query runs against a single explore, so this tool is meant to identify the explore whose fields can answer the user's question.
 IMPORTANT: Each explore may include fields from multiple joined tables. Check the "joinedTables" elements to see which tables are included in the explore.
 
 Parameters:
@@ -13,9 +13,10 @@ Parameters:
 
 Output:
 - Matching explores with searchRank scores
-- Top matching fields with their explore names, searchRank scores, and short description previews
+- Top matching fields with their explore names and searchRank scores
+- Additive split views: topMatchingDimensions and topMatchingMetrics
 
-Field descriptions in top matching fields are previews and may end with " ... (truncated)".
+Field descriptions are omitted from these top matches; call getFields with exact field ids only when full field context matters.
 `;
 
 export const toolFindExploresArgsSchemaV1 = createToolSchema()
@@ -50,6 +51,16 @@ export const toolFindExploresArgsSchemaV3 = createToolSchema()
 export const toolFindExploresArgsSchemaTransformed =
     toolFindExploresArgsSchemaV3;
 
+const findExploresFieldRankingMetadataSchema = z.object({
+    name: z.string(),
+    label: z.string(),
+    tableName: z.string(),
+    fieldType: z.string(),
+    searchRank: z.number().nullable().optional(),
+    chartUsage: z.number().nullable().optional(),
+    verifiedChartUsage: z.number().nullable().optional(),
+});
+
 export const findExploresRankingMetadataSchema = z.object({
     searchQuery: z.string(),
     exploreSearchResults: z
@@ -63,17 +74,13 @@ export const findExploresRankingMetadataSchema = z.object({
         )
         .optional(),
     topMatchingFields: z
-        .array(
-            z.object({
-                name: z.string(),
-                label: z.string(),
-                tableName: z.string(),
-                fieldType: z.string(),
-                searchRank: z.number().nullable().optional(),
-                chartUsage: z.number().nullable().optional(),
-                verifiedChartUsage: z.number().nullable().optional(),
-            }),
-        )
+        .array(findExploresFieldRankingMetadataSchema)
+        .optional(),
+    topMatchingDimensions: z
+        .array(findExploresFieldRankingMetadataSchema)
+        .optional(),
+    topMatchingMetrics: z
+        .array(findExploresFieldRankingMetadataSchema)
         .optional(),
 });
 

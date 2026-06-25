@@ -12,6 +12,7 @@ import {
     type ToolFindFieldsOutput,
     type ToolGenerateHashesOutput,
     type ToolGenerateUuidsOutput,
+    type ToolGetFieldsOutput,
     type ToolGetKnowledgeDocumentContentOutput,
     type ToolImproveContextOutput,
     type ToolListKnowledgeDocumentsOutput,
@@ -47,6 +48,7 @@ export type AgentToolOutput =
     | ToolFindDashboardsOutput
     | ToolFindExploresOutput
     | ToolFindFieldsOutput
+    | ToolGetFieldsOutput
     | ToolGenerateHashesOutput
     | ToolGenerateUuidsOutput
     | ToolGetKnowledgeDocumentContentOutput

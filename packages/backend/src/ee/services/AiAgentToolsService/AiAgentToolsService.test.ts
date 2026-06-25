@@ -271,7 +271,7 @@ describe('AiAgentToolsService', () => {
                 searchQuery: 'orders',
             }),
         ).resolves.toMatchObject({
-            topMatchingFields: [
+            topMatchingMetrics: [
                 expect.objectContaining({ verifiedChartUsage: 7 }),
             ],
         });
@@ -280,10 +280,10 @@ describe('AiAgentToolsService', () => {
             fieldSearchSize: 50,
             searchQuery: 'orders',
         });
-        expect(mcpResults.topMatchingFields?.[0]).not.toHaveProperty(
+        expect(mcpResults.topMatchingMetrics?.[0]).not.toHaveProperty(
             'verifiedChartUsage',
         );
-        expect(mcpResults.topMatchingFields?.[0]).toHaveProperty(
+        expect(mcpResults.topMatchingMetrics?.[0]).toHaveProperty(
             'description',
             'Field detail that should not be returned by findExplores',
         );

@@ -199,6 +199,11 @@ export enum FeatureFlags {
     SearchSemanticLayer = 'search-semantic-layer',
 
     /**
+     * Render AI agent semantic-layer discovery tool results as JSON instead of XML.
+     */
+    AiAgentJsonRenderer = 'ai-agent-json-renderer',
+
+    /**
      * Enable the AI writeback sandbox agent's preview-deploy secondary task:
      * detecting whether a repo deploys Lightdash preview projects via GitHub
      * Actions, offering to set it up during a writeback, and the

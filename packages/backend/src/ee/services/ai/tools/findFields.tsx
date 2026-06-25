@@ -7,17 +7,43 @@ import type {
 } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { hasMinimumPreviewRank } from '../utils/truncation';
 import { xmlBuilder } from '../xmlBuilder';
-import { renderField } from './fieldOutput';
+import { fieldToJson, renderField } from './fieldOutput';
+import { stringifyToolJson, type ToolOutputFormat } from './toolOutputFormat';
 
 type Dependencies = {
     getExplore: GetExploreFn;
     findFields: FindFieldFn;
     updateProgress: UpdateProgressFn;
     pageSize: number;
+    outputFormat?: ToolOutputFormat;
 };
 
 const toolDefinition = findFieldsToolDefinition.for('agent');
+
+const findFieldsNote =
+    'Field descriptions are previews. Use findFields to compare candidates; once you know exact field ids that are likely to be used, call getFields for full details instead of re-searching known fields.';
+
+const getFieldsJson = (
+    args: Awaited<ReturnType<FindFieldFn>> & { searchQuery: string },
+    explore?: Explore,
+) => {
+    const fields = args.fields.filter(hasMinimumPreviewRank);
+
+    return {
+        searchQuery: args.searchQuery,
+        page: args.pagination?.page,
+        pageSize: args.pagination?.pageSize,
+        totalPageCount: args.pagination?.totalPageCount,
+        totalResults: args.pagination?.totalResults,
+        fieldCount: fields.length,
+        note: findFieldsNote,
+        fields: fields.map((field) =>
+            fieldToJson({ field, explore, descriptionMode: 'preview' }),
+        ),
+    };
+};
 
 const getFieldsText = (
     args: Awaited<ReturnType<FindFieldFn>> & { searchQuery: string },
@@ -30,10 +56,8 @@ const getFieldsText = (
         totalPageCount={args.pagination?.totalPageCount}
         totalResults={args.pagination?.totalResults}
     >
-        <note>
-            Field descriptions are previews and may end with " ... (truncated)".
-        </note>
-        {args.fields.map((field) =>
+        <note>{findFieldsNote}</note>
+        {args.fields.filter(hasMinimumPreviewRank).map((field) =>
             renderField({
                 field,
                 explore,
@@ -48,6 +72,7 @@ export const getFindFields = ({
     findFields,
     updateProgress,
     pageSize,
+    outputFormat = 'xml',
 }: Dependencies) =>
     tool({
         ...toolDefinition,
@@ -80,16 +105,33 @@ export const getFindFields = ({
                     }),
                 );
 
-                const fieldsText = fieldSearchQueryResults
-                    .map((fieldSearchQueryResult) =>
-                        getFieldsText(fieldSearchQueryResult, explore),
-                    )
-                    .join('\n\n');
+                const result =
+                    outputFormat === 'json'
+                        ? stringifyToolJson({
+                              count: fieldSearchQueryResults.length,
+                              searchResults: fieldSearchQueryResults.map(
+                                  (fieldSearchQueryResult) =>
+                                      getFieldsJson(
+                                          fieldSearchQueryResult,
+                                          explore,
+                                      ),
+                              ),
+                          })
+                        : (
+                              <searchresults>
+                                  {fieldSearchQueryResults
+                                      .map((fieldSearchQueryResult) =>
+                                          getFieldsText(
+                                              fieldSearchQueryResult,
+                                              explore,
+                                          ),
+                                      )
+                                      .join('\n\n')}
+                              </searchresults>
+                          ).toString();
 
                 return {
-                    result: (
-                        <searchresults>{fieldsText}</searchresults>
-                    ).toString(),
+                    result,
                     metadata: {
                         status: 'success',
                         ranking: {
