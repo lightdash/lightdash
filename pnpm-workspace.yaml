@@ -54,6 +54,44 @@ minimumReleaseAgeExclude:
   # Renovate security update: undici@6.27.0
   - undici@6.27.0
 
+# Dependency lifecycle scripts (preinstall/install/postinstall) are a supply-chain
+# attack/breakage vector — they also run on `npm install` for downstream consumers
+# of our published packages (e.g. @lightdash/cli). pnpm blocks them by default;
+# strictDepBuilds makes `pnpm install` FAIL (instead of warn) when a dependency has
+# a build script that isn't reviewed in one of the two lists below. This blocks
+# un-vetted install scripts from landing in CI.
+# Note: in pnpm 11 these three settings are replaced by a single `allowBuilds` map.
+strictDepBuilds: true
+
+# Packages allowed to run their build scripts (native addons we depend on).
+onlyBuiltDependencies:
+  - '@sentry-internal/node-cpu-profiler'
+  - '@sentry/cli'
+  - '@swc/core'
+  - bcrypt
+  - canvas
+  - core-js
+  - core-js-pure
+  - cpu-features
+  - cypress
+  - duckdb
+  - esbuild
+  - lz4
+  - msgpackr-extract
+  - protobufjs
+  - sharp
+  - ssh2
+
+# Packages that ship build scripts we intentionally do NOT run. Each entry must
+# explain why skipping the script is safe.
+ignoredBuiltDependencies:
+  # Optional native Zstandard addon, pulled in transitively via just-bash → backend.
+  # Not compiled; the backend runs without the native build.
+  - '@mongodb-js/zstd'
+  # Optional native liblzma/XZ addon, pulled in transitively via just-bash → backend.
+  # Not compiled; the backend runs without the native build.
+  - node-liblzma
+
 packageExtensions:
   '@mastra/schema-compat@0.11.2':
     peerDependenciesMeta:
