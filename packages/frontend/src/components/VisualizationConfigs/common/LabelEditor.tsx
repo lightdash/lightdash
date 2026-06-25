@@ -11,6 +11,7 @@ import { type IDisposable, type languages } from 'monaco-editor';
 import {
     useCallback,
     useEffect,
+    useId,
     useMemo,
     useRef,
     useState,
@@ -42,7 +43,6 @@ const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {
 // language id. Monaco language providers are global, so mounting several editors
 // against a shared language (e.g. 'plaintext') stacks duplicate providers and
 // repeats every suggestion once per editor.
-let labelEditorInstanceCount = 0;
 
 const registerCompletionProvider = (
     monaco: Monaco,
@@ -116,9 +116,10 @@ export const LabelEditor: FC<LabelEditorProps> = ({
         return lines * MONACO_LINE_HEIGHT + MONACO_PADDING;
     };
 
+    const reactId = useId();
     const languageId = useMemo(
-        () => `label-editor-${(labelEditorInstanceCount += 1)}`,
-        [],
+        () => `label-editor-${reactId.replace(/:/g, '')}`,
+        [reactId],
     );
 
     const { colorScheme } = useMantineColorScheme();
