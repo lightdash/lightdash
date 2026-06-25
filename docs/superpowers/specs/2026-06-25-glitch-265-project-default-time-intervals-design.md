@@ -79,13 +79,14 @@ the meaning of an existing field.
 
 ### 2. Merge semantics — additive (decided)
 
-`getDefaultTimeFrames(type)` in `packages/common/src/utils/timeFrames.ts` gains an optional second
-argument carrying the project additions and returns the built-in list with the additions appended,
-de-duplicated, order preserved (built-ins first):
+A new helper `getTimeFramesWithProjectDefaults(type, additions?)` in
+`packages/common/src/utils/timeFrames.ts` returns the built-in list with the resolved project
+additions appended, de-duplicated, order preserved (built-ins first). `getDefaultTimeFrames` stays
+pure (built-ins only):
 
 ```
-getDefaultTimeFrames(type, projectDefaults?) =>
-    dedupe([ ...builtIn(type), ...(additionsFor(type, projectDefaults)) ])
+getTimeFramesWithProjectDefaults(type, additions?) =>
+    dedupe([ ...getDefaultTimeFrames(type), ...(additions?.[date|timestamp] ?? []) ])
 ```
 
 When no config is present the output is byte-for-byte the current behavior.
@@ -93,8 +94,8 @@ When no config is present the output is byte-for-byte the current behavior.
 ### 3. Precedence — fallback only (Decision A, approved)
 
 The project default replaces only the *fallback* used when a column has no explicit
-`time_intervals`. It changes the `else` branch in both call sites; it does not touch columns that
-declare their own list.
+`time_intervals`. It changes the `else` branch of the model-column path; it does not touch columns
+that declare their own list.
 
 | Column state | Resulting intervals |
 |---|---|
@@ -104,18 +105,23 @@ declare their own list.
 This delivers "every new/uncurated date dimension inherits the extra grain" while leaving
 explicitly-curated columns unsurprised.
 
-### 4. Call sites
+### 4. Call site (model-column path only)
 
-Both currently call `getDefaultTimeFrames(type)` in their no-explicit-list branch:
+The change targets the **model-column** path: `processIntervalDimension` — `translator.ts:693`. It
+already produces a mixed `(TimeFrames | string)[]` array and splits standard vs custom via
+`validateTimeFrames` + `customIntervalNames`, so project-default custom granularities flow through
+here for free.
 
-1. `processIntervalDimension` — `translator.ts:693` (main column path). Already produces a mixed
-   `(TimeFrames | string)[]` array and splits standard vs custom via `validateTimeFrames` +
-   `customIntervalNames`, so project-default custom granularities flow through here for free.
-2. Synthetic / additional-dimension path — `translator.ts:309`. Standard `TimeFrames` only.
+The **explore-scoped additional-dimension path** (`translator.ts:309`) is intentionally left on the
+built-in defaults: explore-scoped additional dimensions are hand-authored SQL, i.e. already curated,
+so applying a project-wide default to them would contradict the fallback-only precedence principle
+in §3. (They can still declare their own `time_intervals` explicitly.)
 
-`convertExplores` already threads `lightdashProjectConfig.defaults` (line 1361) and
-`custom_granularities` (line 1148) into the compile path, so the new field rides existing plumbing;
-`convertTable` gains a `timeIntervalDefaults` parameter alongside the `customGranularities` one.
+`convertExplores` already threads `lightdashProjectConfig.custom_granularities` (line 1148) into the
+compile path, so the new field rides existing plumbing; `convertTable` gains an
+`additionalTimeIntervals` parameter alongside the `customGranularities` one. The project config is
+resolved/validated once in `convertExplores` (which holds the whole `LightdashProjectConfig`) before
+the model loop.
 
 ### 5. Validation — centralized, once at resolution (Decision B, approved)
 
@@ -136,11 +142,11 @@ per column — that would emit one warning per date dimension):
   dropdown, explorer sidebar, and queries consume them automatically. **No frontend changes.**
 - Changing the config triggers explore recompilation (existing behavior) — no new cache mechanism.
 
-### Known limitation (out of scope)
+### Scope note
 
-The synthetic-dimension path (`translator.ts:309`) does not support custom granularities today, so a
-project-default *custom* granularity applies via the main column path (real model date columns) but
-not to synthetic/additional dimensions. This is a pre-existing gap; not fixed here.
+Project additions apply to **model columns** (the path real date/timestamp dbt columns flow
+through). Explore-scoped *additional dimensions* are hand-authored and keep the standard built-in
+defaults (see §4). Out of scope: GLITCH-264 (granularity labels), removal/replace semantics.
 
 ## Testing
 
@@ -159,10 +165,12 @@ Compiler (`translator` tests):
 
 ## Files touched (anticipated)
 
-- `packages/common/src/types/lightdashProjectConfig.ts` — `ProjectDefaults.time_intervals`.
-- `packages/common/src/utils/timeFrames.ts` — `getDefaultTimeFrames` gains optional defaults arg;
-  validation helper for project additions.
-- `packages/common/src/compiler/translator.ts` — thread defaults through `convertTable`; use the new
-  fallback at both call sites.
+- `packages/common/src/types/lightdashProjectConfig.ts` — `ProjectDefaults.additional_time_intervals`.
+- `packages/common/src/utils/timeFrames.ts` — `getTimeFramesWithProjectDefaults` merge helper;
+  `ResolvedAdditionalTimeIntervals` type; `DATE_INVALID_TIME_FRAMES` set.
+- `packages/common/src/compiler/lightdashProjectConfig.ts` — `resolveAdditionalTimeIntervals`
+  validation helper (one-shot, console.warn on invalid).
+- `packages/common/src/compiler/translator.ts` — resolve once in `convertExplores`; thread through
+  `convertTable`; use the new fallback in the model-column `else` branch.
 - `packages/common/src/schemas/json/lightdash-project-config-1.0.json` — schema for the new field.
 - Tests alongside the above.
