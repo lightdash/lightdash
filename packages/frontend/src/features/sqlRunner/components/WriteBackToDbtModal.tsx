@@ -1,6 +1,5 @@
 import {
     DbtProjectType,
-    FeatureFlags,
     type ApiGithubDbtWritePreview,
 } from '@lightdash/common';
 import {
@@ -30,7 +29,6 @@ import MantineModal, {
 } from '../../../components/common/MantineModal';
 import useHealth from '../../../hooks/health/useHealth';
 import { useProject } from '../../../hooks/useProject';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useGithubDbtWriteBack } from '../hooks/useGithubDbtWriteBack';
 import { useGithubDbtWritePreview } from '../hooks/useGithubDbtWritePreview';
 import { useAppSelector } from '../store/hooks';
@@ -66,9 +64,6 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
 
     const { data: project } = useProject(projectUuid);
     const { data: health } = useHealth();
-    const { data: githubUserCredentialsFlag } = useServerFeatureFlag(
-        FeatureFlags.GithubUserCredentials,
-    );
     const { data: githubUserCredential } = useGithubUserCredential();
 
     const canWriteToDbtProject = !!(
@@ -201,7 +196,6 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
                     </Stack>
 
                     {isGithubProject &&
-                        githubUserCredentialsFlag?.enabled &&
                         (githubUserCredential ? (
                             <Text fz="xs" c="dimmed">
                                 The pull request will be authored as{' '}

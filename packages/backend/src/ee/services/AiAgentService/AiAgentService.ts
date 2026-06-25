@@ -3152,14 +3152,6 @@ export class AiAgentService extends BaseService {
             return { available: false, alreadyConnected: false };
         }
 
-        const { enabled: oneClickEnabled } = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.GithubMcpOneClick,
-        });
-        if (!oneClickEnabled) {
-            return { available: false, alreadyConnected: false };
-        }
-
         const isCopilotEnabled = await this.getIsCopilotEnabled(user);
         if (!isCopilotEnabled) {
             return { available: false, alreadyConnected: false };
@@ -3202,16 +3194,6 @@ export class AiAgentService extends BaseService {
         const { organizationUuid } = user;
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
-        }
-
-        const { enabled: oneClickEnabled } = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.GithubMcpOneClick,
-        });
-        if (!oneClickEnabled) {
-            throw new ForbiddenError(
-                'One-click GitHub MCP setup is not enabled',
-            );
         }
 
         const bearerToken = personalAccessToken.trim();
@@ -7171,18 +7153,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 user,
                 featureFlagId: FeatureFlags.AiAgentRevamp,
             });
-        const { enabled: searchSemanticLayerEnabled } =
-            await this.featureFlagService.get({
-                user,
-                featureFlagId: FeatureFlags.SearchSemanticLayer,
-            });
-        let { enabled: aiWritebackEnabled } = await this.featureFlagService.get(
-            {
-                user,
-                featureFlagId: FeatureFlags.AiWriteback,
-            },
-        );
-        if (aiWritebackEnabled && !hasTrustedPromptUserIdentity) {
+        let aiWritebackEnabled = true;
+        if (!hasTrustedPromptUserIdentity) {
             this.logger.info(
                 `Disabling editDbtProject for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
             );
@@ -7253,16 +7225,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const aiPreviewDeploySetupEnabled =
             aiWritebackEnabled && aiPreviewDeploySetupFlag;
 
-        let { enabled: repoDiscoveryEnabled } =
-            await this.featureFlagService.get({
-                user,
-                featureFlagId: FeatureFlags.RepoDiscovery,
-            });
+        let repoDiscoveryEnabled = true;
         // exploreRepo/discoverRepos read repo source and the view:SourceCode
         // check evaluates against the resolved user. On Slack without
         // aiRequireOAuth that user is the app installer, not the requester — so
         // disable it, exactly as runSql and writeback do above.
-        if (repoDiscoveryEnabled && !hasTrustedPromptUserIdentity) {
+        if (!hasTrustedPromptUserIdentity) {
             this.logger.info(
                 `Disabling repo discovery for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
             );
@@ -7352,7 +7320,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableDataAccess: agentSettings.enableDataAccess,
             enableSelfImprovement: agentSettings.enableSelfImprovement,
             enableContentTools: canUseContentTools,
-            enableSearchSemanticLayer: searchSemanticLayerEnabled,
+            enableSearchSemanticLayer: true,
             enableAiWriteback: aiWritebackEnabled,
             enableEditProjectContext: isReviewRemediationWorkThread,
             writebackAttribution,

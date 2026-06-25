@@ -3,7 +3,6 @@ import {
     AnyType,
     DbtProjectType,
     DbtVersionOptionLatest,
-    FeatureFlags,
     ForbiddenError,
     getLatestSupportDbtVersion,
     PullRequestProvider,
@@ -329,22 +328,8 @@ describe('AiWritebackService.prepareTurn', () => {
             aiThreadUuid: undefined,
         });
 
-    it('rejects when the AI writeback feature flag is disabled', async () => {
-        const service = buildService({
-            featureFlagModel: {
-                get: jest.fn().mockResolvedValue({ enabled: false }),
-            } as AnyType,
-        });
-        await expect(prepareTurn(service, userWithOrg(true))).rejects.toThrow(
-            ForbiddenError,
-        );
-    });
-
     it('rejects when the user cannot manage source code', async () => {
         const service = buildService({
-            featureFlagModel: {
-                get: jest.fn().mockResolvedValue({ enabled: true }),
-            } as AnyType,
             projectModel: {
                 get: jest.fn().mockResolvedValue(githubProject()),
             } as AnyType,
@@ -530,11 +515,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                 aiWriteback: { anthropicApiKey: 'anthropic-key' },
             } as AnyType,
             featureFlagModel: {
-                get: jest.fn(({ featureFlagId }: AnyType) =>
-                    Promise.resolve({
-                        enabled: featureFlagId === FeatureFlags.AiWriteback,
-                    }),
-                ),
+                get: jest.fn().mockResolvedValue({ enabled: true }),
             } as AnyType,
             projectModel: {
                 get: jest.fn().mockResolvedValue({

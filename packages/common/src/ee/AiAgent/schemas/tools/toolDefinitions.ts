@@ -324,8 +324,8 @@ export const searchSemanticLayerToolDefinition = defineTool({
     name: 'searchSemanticLayer',
     title: 'Search semantic layer',
     description: TOOL_SEARCH_SEMANTIC_LAYER_DESCRIPTION,
-    // Agent-only for now: the tool is gated by FeatureFlags.SearchSemanticLayer
-    // on the agent ToolSet, so we don't expose it on the (un-gated) MCP surface.
+    // Agent-only for now: exposed on the agent ToolSet but not on the MCP
+    // surface.
     availability: ['agent'],
     inputSchema: toolSearchSemanticLayerArgsSchema,
     agent: { outputSchema: toolSearchSemanticLayerOutputSchema },

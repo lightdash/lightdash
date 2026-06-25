@@ -499,7 +499,6 @@ export class ServiceRepository
                     userModel: this.models.getUserModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
-                    featureFlagService: this.getFeatureFlagService(),
                 }),
         );
     }

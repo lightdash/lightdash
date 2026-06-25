@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     DbtProjectType,
-    FeatureFlags,
     ForbiddenError,
     getErrorMessage,
     isGitProjectType,
@@ -877,22 +876,6 @@ export class AiWritebackService extends BaseService {
         }));
     }
 
-    private async assertEnabled(
-        user: SessionUser,
-        source: AiWritebackSource,
-    ): Promise<void> {
-        if (source === 'admin_review') {
-            return;
-        }
-        const { enabled } = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.AiWriteback,
-        });
-        if (!enabled) {
-            throw new ForbiddenError('AI writeback is not enabled');
-        }
-    }
-
     private getE2bApiKey(): string {
         const key = this.lightdashConfig.appRuntime.e2bApiKey;
         if (!key) {
@@ -1108,7 +1091,6 @@ export class AiWritebackService extends BaseService {
             user,
             projectUuid,
             aiThreadUuid,
-            source,
         });
 
         this.logger.info('AI writeback run started', {
@@ -1373,23 +1355,18 @@ export class AiWritebackService extends BaseService {
     }
 
     /**
-     * Pre-flight: enforce source-specific rollout gates, the
-     * `manage:SourceCode` permission, and resolve everything from the request
-     * that doesn't require a sandbox.
+     * Pre-flight: enforce the `manage:SourceCode` permission, and resolve
+     * everything from the request that doesn't require a sandbox.
      */
     private async prepareTurn({
         user,
         projectUuid,
         aiThreadUuid,
-        source,
     }: {
         user: SessionUser;
         projectUuid: string;
         aiThreadUuid: string | undefined;
-        source: AiWritebackSource;
     }): Promise<TurnContext> {
-        await this.assertEnabled(user, source);
-
         const project = await this.projectModel.get(projectUuid);
         // Writeback opens a PR from a freshly created feature branch
         // (`lightdash-ai-writeback/<uuid>`), so `isProtectedBranch: false`
