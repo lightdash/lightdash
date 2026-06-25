@@ -130,7 +130,7 @@ export const RoleBuilder: FC<Props> = ({
     const isLevelDisabled = isWorking || mode === 'edit' || levelLocked;
     const levelHint =
         mode === 'edit'
-            ? "Level can't be changed after creation."
+            ? "Type can't be changed after creation."
             : levelLocked
               ? levelLockedHint
               : undefined;
@@ -156,7 +156,7 @@ export const RoleBuilder: FC<Props> = ({
                                 {...form.getInputProps('description')}
                             />
                             <Stack gap="two">
-                                <Input.Label>Level</Input.Label>
+                                <Input.Label>Type</Input.Label>
                                 <SegmentedControl
                                     data={[
                                         {

@@ -64,8 +64,8 @@ export const CustomRoles = () => {
         ) : (
             <Text c="dimmed" fz="sm">
                 {level === 'organization'
-                    ? 'No organization-level roles yet.'
-                    : 'No project-level roles yet.'}
+                    ? 'No organization roles yet.'
+                    : 'No project roles yet.'}
             </Text>
         );
 

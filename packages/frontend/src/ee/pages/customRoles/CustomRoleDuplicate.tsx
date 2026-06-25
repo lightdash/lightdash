@@ -107,7 +107,7 @@ export const CustomRoleDuplicate = () => {
                     isWorking={createRole.isLoading}
                     mode="create"
                     levelLocked={isCustomSource}
-                    levelLockedHint="Level matches the role being duplicated and cannot be changed."
+                    levelLockedHint="Type matches the role being duplicated and cannot be changed."
                     rederiveScopesOnLevelChange
                 />
             )}
