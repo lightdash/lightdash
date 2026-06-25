@@ -1,3 +1,16 @@
+# [0.3245.0](https://github.com/lightdash/lightdash/compare/0.3244.1...0.3245.0) (2026-06-25)
+
+
+### Bug Fixes
+
+* **ai:** configure field description limit ([#24747](https://github.com/lightdash/lightdash/issues/24747)) ([0e241f1](https://github.com/lightdash/lightdash/commit/0e241f1e91208321381988b28e1296f330955b1b))
+* **data-apps:** source synthetic schema.yml from explore cache ([#24745](https://github.com/lightdash/lightdash/issues/24745)) ([345b0ba](https://github.com/lightdash/lightdash/commit/345b0ba648fec105ea18293f10881128dda2123c))
+
+
+### Features
+
+* **date-zoom:** expose control config edit state ([#24731](https://github.com/lightdash/lightdash/issues/24731)) ([f6c4cdc](https://github.com/lightdash/lightdash/commit/f6c4cdc7bf93087ccb45b10febc0cf723edf293c))
+
 ## [0.3244.1](https://github.com/lightdash/lightdash/compare/0.3244.0...0.3244.1) (2026-06-25)
 
 
