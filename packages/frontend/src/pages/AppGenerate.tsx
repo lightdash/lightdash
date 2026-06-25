@@ -2281,6 +2281,9 @@ const AppGenerate: FC = () => {
                                                             latestBuildingVersion?.status ===
                                                                 'generating' && (
                                                                 <Text
+                                                                    className={
+                                                                        classes.buildingHint
+                                                                    }
                                                                     fz={11}
                                                                     c="dimmed"
                                                                     mt={6}
