@@ -182,6 +182,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getOrganizationDesignModel(),
                     pinnedListModel: models.getPinnedListModel(),
                     projectModel: models.getProjectModel(),
+                    projectParametersModel: models.getProjectParametersModel(),
                     spaceModel: models.getSpaceModel(),
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,

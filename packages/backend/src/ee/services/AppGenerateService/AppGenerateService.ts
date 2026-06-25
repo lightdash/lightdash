@@ -75,6 +75,7 @@ import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagMo
 import { OrganizationDesignModel } from '../../../models/OrganizationDesignModel';
 import { PinnedListModel } from '../../../models/PinnedListModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { ProjectParametersModel } from '../../../models/ProjectParametersModel';
 import { SpaceModel } from '../../../models/SpaceModel';
 import { mintPreviewToken } from '../../../routers/appPreviewToken';
 import { BaseService } from '../../../services/BaseService';
@@ -126,6 +127,7 @@ type AppGenerateServiceDeps = {
     organizationDesignModel: OrganizationDesignModel;
     pinnedListModel: PinnedListModel;
     projectModel: ProjectModel;
+    projectParametersModel: ProjectParametersModel;
     spaceModel: SpaceModel;
     schedulerClient: CommercialSchedulerClient;
     savedChartService: SavedChartService;
@@ -170,6 +172,8 @@ export class AppGenerateService extends BaseService {
 
     private readonly projectModel: ProjectModel;
 
+    private readonly projectParametersModel: ProjectParametersModel;
+
     private readonly spaceModel: SpaceModel;
 
     private readonly schedulerClient: CommercialSchedulerClient;
@@ -196,6 +200,7 @@ export class AppGenerateService extends BaseService {
         organizationDesignModel,
         pinnedListModel,
         projectModel,
+        projectParametersModel,
         spaceModel,
         schedulerClient,
         savedChartService,
@@ -215,6 +220,7 @@ export class AppGenerateService extends BaseService {
         this.organizationDesignModel = organizationDesignModel;
         this.pinnedListModel = pinnedListModel;
         this.projectModel = projectModel;
+        this.projectParametersModel = projectParametersModel;
         this.spaceModel = spaceModel;
         this.schedulerClient = schedulerClient;
         this.savedChartService = savedChartService;
@@ -1342,15 +1348,29 @@ export class AppGenerateService extends BaseService {
             metricCount,
         } = AppGenerateService.exploresToYaml(explores);
 
+        // Project-level parameters are global (not attached to any one explore)
+        // and live in lightdash.config.yml — the location skill.md already tells
+        // the agent to look. Write them there so `.parameters()` is usable.
+        const globalParameters =
+            await this.projectParametersModel.find(projectUuid);
+        const configYaml =
+            AppGenerateService.projectParametersToConfigYaml(globalParameters);
+
         // Remove files that may have been created by a previous run with
         // different ownership (e.g. root-owned after Claude CLI execution),
         // which would cause a permission error on write.
         await sandbox.commands.run(
-            'rm -f /tmp/dbt-repo/models/schema.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/metric-queries /tmp/external-data 2>/dev/null; true',
+            'rm -f /tmp/dbt-repo/models/schema.yml /tmp/dbt-repo/lightdash.config.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/metric-queries /tmp/external-data 2>/dev/null; true',
             { timeoutMs: 10_000 },
         );
 
         await sandbox.files.write('/tmp/dbt-repo/models/schema.yml', modelYaml);
+        if (configYaml) {
+            await sandbox.files.write(
+                '/tmp/dbt-repo/lightdash.config.yml',
+                configYaml,
+            );
+        }
 
         // Write chart reference files and prepend summary to prompt
         let finalPrompt = prompt;
@@ -6109,6 +6129,26 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             dimensionCount,
             metricCount,
         };
+    }
+
+    /**
+     * Render project-level (global) parameters as a `lightdash.config.yml`
+     * fragment — the location skill.md tells the agent project-wide parameters
+     * live in. Returns null when the project defines none.
+     */
+    private static projectParametersToConfigYaml(
+        parameters: { name: string; config: LightdashProjectParameter }[],
+    ): string | null {
+        if (parameters.length === 0) {
+            return null;
+        }
+        const lines: string[] = ['parameters:'];
+        for (const { name, config } of parameters) {
+            lines.push(
+                ...AppGenerateService.renderParameterYaml(name, config, '  '),
+            );
+        }
+        return `${lines.join('\n')}\n`;
     }
 
     private static getContentType(filePath: string): string {
