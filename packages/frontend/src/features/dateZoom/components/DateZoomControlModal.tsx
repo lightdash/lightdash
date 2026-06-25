@@ -1,21 +1,17 @@
 import {
-    DimensionType,
-    DateGranularity,
-    getItemId,
     getTileControl,
     isDashboardChartTileType,
-    isDimension,
+    isStandardDateGranularity,
+    type ChartZoomableField,
     type DateZoomConfig,
     type DateZoomControl,
     type DateZoomTileTarget,
-    type FilterableDimension,
 } from '@lightdash/common';
 import {
     Badge,
     Button,
     Checkbox,
     Group,
-    SegmentedControl,
     Select,
     Stack,
     Tabs,
@@ -25,6 +21,8 @@ import {
 import { useMemo, useState, type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
+import { getGranularityLabel } from '../utils';
 
 // The control modal owns a draft of one control plus that control's slice of
 // `tileTargets`, and returns the full updated config so the caller just stores it.
@@ -37,24 +35,12 @@ export type DateZoomControlModalProps = {
     onClose: () => void;
 };
 
-// v1 offers the five day+ granularities; sub-day grains are intentionally omitted.
-const CONTROL_GRANULARITIES: DateGranularity[] = [
-    DateGranularity.DAY,
-    DateGranularity.WEEK,
-    DateGranularity.MONTH,
-    DateGranularity.QUARTER,
-    DateGranularity.YEAR,
-];
-
 enum ControlModalTab {
     SETTINGS = 'settings',
     TILES = 'tiles',
 }
 
 type DraftTarget = { fieldId: string; tableName: string };
-
-const isDateField = (field: FilterableDimension): boolean =>
-    field.type === DimensionType.DATE || field.type === DimensionType.TIMESTAMP;
 
 export const DateZoomControlModal: FC<DateZoomControlModalProps> = ({
     control,
@@ -65,8 +51,18 @@ export const DateZoomControlModal: FC<DateZoomControlModalProps> = ({
     onClose,
 }) => {
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
-    const filterableFieldsByTileUuid = useDashboardContext(
-        (c) => c.filterableFieldsByTileUuid,
+    const chartZoomableFieldsByTileUuid = useDashboardContext(
+        (c) => c.chartZoomableFieldsByTileUuid,
+    );
+    // Custom granularities discovered across the dashboard's tiles (same source
+    // as the global picker). A control can zoom to these when available.
+    const availableCustomGranularities = useDashboardTileStatusContext(
+        (c) => c.availableCustomGranularities,
+    );
+    // The dashboard's enabled granularities (set in the default picker); every
+    // control offers only these.
+    const dateZoomGranularities = useDashboardContext(
+        (c) => c.dateZoomGranularities,
     );
 
     const [selectedTab, setSelectedTab] = useState<ControlModalTab>(
@@ -94,18 +90,45 @@ export const DateZoomControlModal: FC<DateZoomControlModalProps> = ({
         [draftTargets],
     );
 
-    // Saved-chart tiles that expose at least one DATE/TIMESTAMP field, with the
-    // control they are currently attached to (for conflict display).
+    // Only the dashboard's enabled granularities, grouped standard vs custom.
+    const granularityData = useMemo(() => {
+        const standardItems = dateZoomGranularities
+            .filter(isStandardDateGranularity)
+            .map((granularity) => ({
+                value: String(granularity),
+                label: String(granularity),
+            }));
+        const customItems = dateZoomGranularities
+            .filter((g) => !isStandardDateGranularity(g))
+            .sort((a, b) =>
+                getGranularityLabel(
+                    a,
+                    availableCustomGranularities,
+                ).localeCompare(
+                    getGranularityLabel(b, availableCustomGranularities),
+                ),
+            )
+            .map((key) => ({
+                value: key,
+                label: getGranularityLabel(key, availableCustomGranularities),
+            }));
+        if (customItems.length === 0) return standardItems;
+        if (standardItems.length === 0) return customItems;
+        return [
+            { group: 'Standard', items: standardItems },
+            { group: 'Custom', items: customItems },
+        ];
+    }, [dateZoomGranularities, availableCustomGranularities]);
+
+    // Chart tiles that expose at least one zoomable date field (a date/timestamp
+    // dimension the chart actually queries), with the control they are currently
+    // attached to (for conflict display).
     const eligibleTiles = useMemo(() => {
         return (dashboardTiles ?? [])
             .filter(isDashboardChartTileType)
             .map((tile) => {
-                const dateFields = (
-                    filterableFieldsByTileUuid?.[tile.uuid] ?? []
-                ).filter(
-                    (field): field is FilterableDimension =>
-                        isDimension(field) && isDateField(field),
-                );
+                const zoomableFields =
+                    chartZoomableFieldsByTileUuid[tile.uuid] ?? [];
                 const otherControl = getTileControl(config, tile.uuid);
                 const conflictControl =
                     otherControl && otherControl.uuid !== draft.uuid
@@ -115,14 +138,14 @@ export const DateZoomControlModal: FC<DateZoomControlModalProps> = ({
                     (tile.properties.title?.length
                         ? tile.properties.title
                         : tile.properties.chartName) || 'Untitled chart';
-                return { tile, dateFields, conflictControl, label };
+                return { tile, zoomableFields, conflictControl, label };
             })
-            .filter(({ dateFields }) => dateFields.length > 0);
-    }, [dashboardTiles, filterableFieldsByTileUuid, config, draft.uuid]);
+            .filter(({ zoomableFields }) => zoomableFields.length > 0);
+    }, [dashboardTiles, chartZoomableFieldsByTileUuid, config, draft.uuid]);
 
     const toggleTile = (
         tileUuid: string,
-        dateFields: FilterableDimension[],
+        zoomableFields: ChartZoomableField[],
         checked: boolean,
     ) => {
         setDraftTargets((prev) => {
@@ -130,12 +153,12 @@ export const DateZoomControlModal: FC<DateZoomControlModalProps> = ({
                 const { [tileUuid]: _removed, ...rest } = prev;
                 return rest;
             }
-            const firstField = dateFields[0];
+            const firstField = zoomableFields[0];
             return {
                 ...prev,
                 [tileUuid]: {
-                    fieldId: getItemId(firstField),
-                    tableName: firstField.table,
+                    fieldId: firstField.fieldId,
+                    tableName: firstField.tableName,
                 },
             };
         });
@@ -143,28 +166,30 @@ export const DateZoomControlModal: FC<DateZoomControlModalProps> = ({
 
     const setTileField = (
         tileUuid: string,
-        dateFields: FilterableDimension[],
+        zoomableFields: ChartZoomableField[],
         fieldId: string,
     ) => {
-        const field = dateFields.find((f) => getItemId(f) === fieldId);
+        const field = zoomableFields.find((f) => f.fieldId === fieldId);
         if (!field) return;
         setDraftTargets((prev) => ({
             ...prev,
-            [tileUuid]: { fieldId, tableName: field.table },
+            [tileUuid]: { fieldId, tableName: field.tableName },
         }));
     };
 
     const handleSelectAll = () => {
         setDraftTargets((prev) => {
             const next = { ...prev };
-            eligibleTiles.forEach(({ tile, dateFields, conflictControl }) => {
-                if (conflictControl || next[tile.uuid]) return;
-                const firstField = dateFields[0];
-                next[tile.uuid] = {
-                    fieldId: getItemId(firstField),
-                    tableName: firstField.table,
-                };
-            });
+            eligibleTiles.forEach(
+                ({ tile, zoomableFields, conflictControl }) => {
+                    if (conflictControl || next[tile.uuid]) return;
+                    const firstField = zoomableFields[0];
+                    next[tile.uuid] = {
+                        fieldId: firstField.fieldId,
+                        tableName: firstField.tableName,
+                    };
+                },
+            );
             return next;
         });
     };
@@ -203,7 +228,9 @@ export const DateZoomControlModal: FC<DateZoomControlModalProps> = ({
             size="lg"
             onConfirm={handleSave}
             confirmLabel="Save changes"
-            confirmDisabled={draft.name.trim().length === 0}
+            confirmDisabled={
+                draft.name.trim().length === 0 || targetCount === 0
+            }
             leftActions={
                 <Button
                     variant="subtle"
@@ -243,31 +270,30 @@ export const DateZoomControlModal: FC<DateZoomControlModalProps> = ({
                             }}
                         />
 
-                        <Stack gap="xxs">
-                            <Text fz="sm" fw={500}>
-                                Default granularity
-                            </Text>
-                            <SegmentedControl
-                                data={CONTROL_GRANULARITIES.map(
-                                    (granularity) => ({
-                                        label: granularity,
-                                        value: granularity,
-                                    }),
-                                )}
-                                value={String(draft.granularity)}
-                                onChange={(value) =>
-                                    setDraft((prev) => ({
-                                        ...prev,
-                                        granularity: value,
-                                    }))
-                                }
-                            />
-                        </Stack>
+                        <Select
+                            label="Default granularity"
+                            data={granularityData}
+                            value={String(draft.granularity)}
+                            allowDeselect={false}
+                            onChange={(value) =>
+                                value &&
+                                setDraft((prev) => ({
+                                    ...prev,
+                                    granularity: value,
+                                }))
+                            }
+                        />
 
                         <Group justify="space-between">
-                            <Text fz="sm" c="dimmed">
-                                Targeting {targetCount}{' '}
-                                {targetCount === 1 ? 'tile' : 'tiles'}
+                            <Text
+                                fz="sm"
+                                c={targetCount === 0 ? 'red' : 'dimmed'}
+                            >
+                                {targetCount === 0
+                                    ? 'Select at least one chart'
+                                    : `Targeting ${targetCount} ${
+                                          targetCount === 1 ? 'chart' : 'charts'
+                                      }`}
                             </Text>
                             <Button
                                 variant="subtle"
@@ -276,7 +302,7 @@ export const DateZoomControlModal: FC<DateZoomControlModalProps> = ({
                                     setSelectedTab(ControlModalTab.TILES)
                                 }
                             >
-                                Edit tiles
+                                Edit charts
                             </Button>
                         </Group>
                     </Stack>
@@ -302,7 +328,7 @@ export const DateZoomControlModal: FC<DateZoomControlModalProps> = ({
                                 {eligibleTiles.map(
                                     ({
                                         tile,
-                                        dateFields,
+                                        zoomableFields,
                                         conflictControl,
                                         label,
                                     }) => {
@@ -321,7 +347,7 @@ export const DateZoomControlModal: FC<DateZoomControlModalProps> = ({
                                                     onChange={(e) =>
                                                         toggleTile(
                                                             tile.uuid,
-                                                            dateFields,
+                                                            zoomableFields,
                                                             e.currentTarget
                                                                 .checked,
                                                         )
@@ -341,11 +367,9 @@ export const DateZoomControlModal: FC<DateZoomControlModalProps> = ({
                                                         w={200}
                                                         disabled={!isChecked}
                                                         placeholder="Date field"
-                                                        data={dateFields.map(
+                                                        data={zoomableFields.map(
                                                             (field) => ({
-                                                                value: getItemId(
-                                                                    field,
-                                                                ),
+                                                                value: field.fieldId,
                                                                 label: field.label,
                                                             }),
                                                         )}
@@ -357,7 +381,7 @@ export const DateZoomControlModal: FC<DateZoomControlModalProps> = ({
                                                             value &&
                                                             setTileField(
                                                                 tile.uuid,
-                                                                dateFields,
+                                                                zoomableFields,
                                                                 value,
                                                             )
                                                         }

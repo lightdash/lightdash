@@ -16,6 +16,7 @@ import {
     normalizeDateZoomConfig,
     normalizeGranularityParam,
     stripOverridesForLockedFiltersOnTab,
+    type ChartZoomableField,
     type Dashboard,
     type DashboardFilterableField,
     type DashboardFilterRule,
@@ -557,6 +558,39 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         if (dashboardTiles) {
             setTileParameterReferences((old) => {
                 if (!dashboardTiles) return {};
+                const tileIds = new Set(
+                    dashboardTiles.map((tile) => tile.uuid),
+                );
+                return Object.fromEntries(
+                    Object.entries(old).filter(([tileId]) =>
+                        tileIds.has(tileId),
+                    ),
+                );
+            });
+        }
+    }, [dashboardTiles]);
+
+    // The date fields each chart tile can actually be zoomed on, reported up
+    // from each tile (it has the explore + metricQuery). The date-zoom control
+    // modal offers exactly these per tile, instead of every filterable date
+    // dimension in the explore.
+    const [chartZoomableFieldsByTileUuid, setChartZoomableFieldsByTileUuid] =
+        useState<Record<string, ChartZoomableField[]>>({});
+
+    const setChartZoomableFields = useCallback(
+        (tileUuid: string, fields: ChartZoomableField[]) => {
+            setChartZoomableFieldsByTileUuid((prev) => {
+                if (isEqual(prev[tileUuid], fields)) return prev;
+                return { ...prev, [tileUuid]: fields };
+            });
+        },
+        [],
+    );
+
+    // Drop zoomable fields for tiles no longer on the dashboard
+    useEffect(() => {
+        if (dashboardTiles) {
+            setChartZoomableFieldsByTileUuid((old) => {
                 const tileIds = new Set(
                     dashboardTiles.map((tile) => tile.uuid),
                 );
@@ -1681,6 +1715,8 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         isLoadingDashboardFilters,
         isFetchingDashboardFilters,
         filterableFieldsByTileUuid,
+        chartZoomableFieldsByTileUuid,
+        setChartZoomableFields,
         allFilters,
         hasTilesThatSupportFilters,
         chartSort,

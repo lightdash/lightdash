@@ -9,6 +9,7 @@ import { DateGranularity } from '../types/timeFrames';
 import {
     copyDateZoomTileTargets,
     EMPTY_DATE_ZOOM_CONFIG,
+    getChartZoomableFields,
     getControlActiveGranularity,
     getDateZoomCapabilities,
     getDateZoomXAxisFieldId,
@@ -1084,5 +1085,96 @@ describe('getDateZoomXAxisFieldId', () => {
                 undefined,
             ),
         ).toBeUndefined();
+    });
+});
+
+describe('getChartZoomableFields', () => {
+    it('returns only the chart-queried date/timestamp dimensions', () => {
+        const dateDim = makeDimension({
+            name: 'order_date',
+            table: 'orders',
+            type: DimensionType.DATE,
+            label: 'Order date',
+        });
+        const createdAt = makeDimension({
+            name: 'created_at',
+            table: 'orders',
+            type: DimensionType.TIMESTAMP,
+            label: 'Created at',
+        });
+        const unusedDate = makeDimension({
+            name: 'shipped_date',
+            table: 'orders',
+            type: DimensionType.DATE,
+            label: 'Shipped date',
+        });
+        const stringDim = makeDimension({
+            name: 'status',
+            table: 'orders',
+            type: DimensionType.STRING,
+        });
+        const explore = makeExplore([
+            dateDim,
+            createdAt,
+            unusedDate,
+            stringDim,
+        ]);
+        const metricQuery = makeMetricQuery([
+            'orders_order_date',
+            'orders_created_at',
+            'orders_status',
+        ]);
+
+        expect(getChartZoomableFields(explore, metricQuery)).toEqual([
+            {
+                fieldId: 'orders_order_date',
+                label: 'Order date',
+                tableName: 'orders',
+            },
+            {
+                fieldId: 'orders_created_at',
+                label: 'Created at',
+                tableName: 'orders',
+            },
+        ]);
+    });
+
+    it('includes a queried time-interval dimension (resolves to a base time dim)', () => {
+        const baseDim = makeDimension({
+            name: 'order_date',
+            table: 'orders',
+            type: DimensionType.DATE,
+            isIntervalBase: true,
+        });
+        const monthDim = makeDimension({
+            name: 'order_date_month',
+            table: 'orders',
+            type: DimensionType.DATE,
+            timeInterval: 'MONTH' as CompiledDimension['timeInterval'],
+            timeIntervalBaseDimensionName: 'order_date',
+            label: 'Order date month',
+        });
+        const explore = makeExplore([baseDim, monthDim]);
+        const metricQuery = makeMetricQuery(['orders_order_date_month']);
+
+        expect(getChartZoomableFields(explore, metricQuery)).toEqual([
+            {
+                fieldId: 'orders_order_date_month',
+                label: 'Order date month',
+                tableName: 'orders',
+            },
+        ]);
+    });
+
+    it('returns an empty list when the chart queries no date dimensions', () => {
+        const stringDim = makeDimension({
+            name: 'status',
+            table: 'orders',
+            type: DimensionType.STRING,
+        });
+        const explore = makeExplore([stringDim]);
+        const metricQuery = makeMetricQuery(['orders_status']);
+
+        expect(getChartZoomableFields(explore, metricQuery)).toEqual([]);
     });
 });

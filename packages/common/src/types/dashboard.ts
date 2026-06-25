@@ -216,6 +216,8 @@ export type DateZoomControl = {
     uuid: string;
     name: string;
     granularity: DateGranularity | string;
+    // Hidden from viewers; grain still applies to its tiles.
+    hidden?: boolean;
 };
 
 export type DateZoomConfig = {

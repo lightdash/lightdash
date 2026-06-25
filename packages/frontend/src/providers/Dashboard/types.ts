@@ -1,5 +1,6 @@
 import {
     type ApiError,
+    type ChartZoomableField,
     type Dashboard,
     type DashboardFilterableField,
     type DashboardFilterRule,
@@ -98,6 +99,11 @@ export type DashboardContextType = {
     filterableFieldsByTileUuid:
         | Record<string, DashboardFilterableField[]>
         | undefined;
+    chartZoomableFieldsByTileUuid: Record<string, ChartZoomableField[]>;
+    setChartZoomableFields: (
+        tileUuid: string,
+        fields: ChartZoomableField[],
+    ) => void;
     hasTilesThatSupportFilters: boolean;
     chartSort: Record<string, SortField[]>;
     setChartSort: (sort: Record<string, SortField[]>) => void;

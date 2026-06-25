@@ -3359,6 +3359,9 @@
             },
             "DateZoomControl": {
                 "properties": {
+                    "hidden": {
+                        "type": "boolean"
+                    },
                     "granularity": {
                         "anyOf": [
                             {

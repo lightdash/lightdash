@@ -3269,6 +3269,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                hidden: { dataType: 'boolean' },
                 granularity: {
                     dataType: 'union',
                     subSchemas: [

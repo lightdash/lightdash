@@ -664,6 +664,9 @@
                         }
                     ]
                 },
+                "hidden": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 },
