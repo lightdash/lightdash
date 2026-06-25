@@ -1,3 +1,10 @@
+## [0.3249.1](https://github.com/lightdash/lightdash/compare/0.3249.0...0.3249.1) (2026-06-25)
+
+
+### Bug Fixes
+
+* **date-zoom:** seed embed date zoom config from embed dashboard ([#24776](https://github.com/lightdash/lightdash/issues/24776)) ([602da47](https://github.com/lightdash/lightdash/commit/602da47c5c0078158b8bb0c40419532fc4bb2814))
+
 # [0.3249.0](https://github.com/lightdash/lightdash/compare/0.3248.0...0.3249.0) (2026-06-25)
 
 
