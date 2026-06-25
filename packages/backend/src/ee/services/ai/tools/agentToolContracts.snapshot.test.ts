@@ -20,6 +20,7 @@ import { getGetKnowledgeDocumentContent } from './getKnowledgeDocumentContent';
 import { getGetProjectInfo } from './getProjectInfo';
 import { getImproveContext } from './improveContext';
 import { getListContent } from './listContent';
+import { getListFields } from './listFields';
 import { getListKnowledgeDocuments } from './listKnowledgeDocuments';
 import { getListProjects } from './listProjects';
 import { getListWarehouseTables } from './listWarehouseTables';
@@ -117,6 +118,7 @@ const makeAgentTools = () => {
             updateProgress: noopAsync,
             toolDescriptionMaxChars: 600,
         }),
+        listFields: getListFields({ getExplore: noop }),
         generateDashboard: getGenerateDashboardV2({
             createOrUpdateArtifact: noop,
             getPrompt: noop,

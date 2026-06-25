@@ -1071,15 +1071,17 @@ Output:
     "description": "Tool: "findFields"
 
 Purpose:
-Finds the most relevant Fields (Metrics & Dimensions) within Explores, returning detailed info about each.
+Searches for candidate Fields (Metrics & Dimensions) within an Explore when you are not yet sure which exact field id to use. Returns ranked field matches with full, untruncated descriptions.
 
 Usage tips:
-- Use "findExplores" first to discover available Explores and their field labels.
+- Use "findExplores" first to discover the relevant Explore, then use this tool to search fields inside it.
 - Use full field labels in search terms (e.g. "Total Revenue", "Order Date").
-- Pass all needed fields in one request.
+- Pass all needed candidate searches in one request.
 - Fields are sorted by relevance, with a maximum score of 1 and a minimum of 0, so the top results are the most relevant.
 - If results aren't relevant, retry with clearer or more specific terms.
 - Results are paginated — use the next page token to get more results if needed.
+- Once you know the exact field id(s) you likely want to use, switch to listFields for exact full details. Do not keep using findFields to re-fetch known field ids.
+- Field descriptions are full, untruncated catalog descriptions. Use listFields for exact lookup/validation once you know likely-final field ids.
 ",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -1224,6 +1226,126 @@ Usage tips:
               },
               "required": [
                 "searchQueries",
+              ],
+              "type": "object",
+            },
+            "status": {
+              "enum": [
+                "success",
+                "error",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "status",
+          ],
+          "type": "object",
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
+  },
+  {
+    "description": "Tool: listFields
+
+Purpose:
+Fetch exact fields from exact explores by field id. Use this when you already know the field id(s) you likely want to use and need exact full field context before final selection or query construction.
+
+Usage tips:
+- This is not a search tool. Use findExplores/findFields when you are still discovering or comparing candidates.
+- Use listFields when you are fairly sure a metric or dimension should be used and want exact details for that known field id.
+- Pass exact field ids returned by findExplores, findFields, query errors, or other semantic-layer tools.
+- Never infer field ids from labels or desired concepts (for example, do not guess "orders_country" or "airports_city"). If the exact field id was not returned by a tool, call findFields first.
+- Pass multiple fields in one request only when each field is likely relevant to the final answer.
+- Do not use this to fetch broad field inventories; use findExplores/findFields for search and only fetch exact fields that matter.
+- Results are returned per field. If one field cannot be resolved, other valid fields are still returned.
+
+Output:
+- Full untruncated field details for each resolved field.
+- Per-field errors for missing explores or field ids.
+",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "fields": {
+          "description": "Fields to fetch by exact explore name and field id.",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "explore": {
+                "description": "Exact explore name that contains the field.",
+                "type": "string",
+              },
+              "fieldId": {
+                "description": "Exact field id to fetch, e.g. "orders_total_revenue".",
+                "type": "string",
+              },
+            },
+            "required": [
+              "explore",
+              "fieldId",
+            ],
+            "type": "object",
+          },
+          "minItems": 1,
+          "type": "array",
+        },
+      },
+      "required": [
+        "fields",
+      ],
+      "type": "object",
+    },
+    "name": "listFields",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "additionalProperties": false,
+          "properties": {
+            "lookup": {
+              "additionalProperties": false,
+              "properties": {
+                "fields": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "explore": {
+                        "type": "string",
+                      },
+                      "fieldId": {
+                        "type": "string",
+                      },
+                      "status": {
+                        "enum": [
+                          "success",
+                          "error",
+                        ],
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "explore",
+                      "fieldId",
+                      "status",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+              },
+              "required": [
+                "fields",
               ],
               "type": "object",
             },
@@ -6960,6 +7082,7 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
 [
   "findExplores",
   "findFields",
+  "listFields",
   "searchSemanticLayer",
   "analyzeFieldImpact",
   "findContent",

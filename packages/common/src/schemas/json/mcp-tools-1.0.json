@@ -293,7 +293,7 @@
                 "idempotentHint": true,
                 "readOnlyHint": true
             },
-            "description": "Tool: \"findFields\"\n\nPurpose:\nFinds the most relevant Fields (Metrics & Dimensions) within Explores, returning detailed info about each.\n\nUsage tips:\n- Use \"findExplores\" first to discover available Explores and their field labels.\n- Use full field labels in search terms (e.g. \"Total Revenue\", \"Order Date\").\n- Pass all needed fields in one request.\n- Fields are sorted by relevance, with a maximum score of 1 and a minimum of 0, so the top results are the most relevant.\n- If results aren't relevant, retry with clearer or more specific terms.\n- Results are paginated — use the next page token to get more results if needed.\n",
+            "description": "Tool: \"findFields\"\n\nPurpose:\nSearches for candidate Fields (Metrics & Dimensions) within an Explore when you are not yet sure which exact field id to use. Returns ranked field matches with full, untruncated descriptions.\n\nUsage tips:\n- Use \"findExplores\" first to discover the relevant Explore, then use this tool to search fields inside it.\n- Use full field labels in search terms (e.g. \"Total Revenue\", \"Order Date\").\n- Pass all needed candidate searches in one request.\n- Fields are sorted by relevance, with a maximum score of 1 and a minimum of 0, so the top results are the most relevant.\n- If results aren't relevant, retry with clearer or more specific terms.\n- Results are paginated — use the next page token to get more results if needed.\n- Once you know the exact field id(s) you likely want to use, switch to listFields for exact full details. Do not keep using findFields to re-fetch known field ids.\n- Field descriptions are full, untruncated catalog descriptions. Use listFields for exact lookup/validation once you know likely-final field ids.\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
@@ -612,6 +612,45 @@
             "name": "list_explores",
             "outputSchema": null,
             "title": "List explores"
+        },
+        {
+            "annotations": {
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "readOnlyHint": true
+            },
+            "description": "Tool: listFields\n\nPurpose:\nFetch exact fields from exact explores by field id. Use this when you already know the field id(s) you likely want to use and need exact full field context before final selection or query construction.\n\nUsage tips:\n- This is not a search tool. Use findExplores/findFields when you are still discovering or comparing candidates.\n- Use listFields when you are fairly sure a metric or dimension should be used and want exact details for that known field id.\n- Pass exact field ids returned by findExplores, findFields, query errors, or other semantic-layer tools.\n- Never infer field ids from labels or desired concepts (for example, do not guess \"orders_country\" or \"airports_city\"). If the exact field id was not returned by a tool, call findFields first.\n- Pass multiple fields in one request only when each field is likely relevant to the final answer.\n- Do not use this to fetch broad field inventories; use findExplores/findFields for search and only fetch exact fields that matter.\n- Results are returned per field. If one field cannot be resolved, other valid fields are still returned.\n\nOutput:\n- Full untruncated field details for each resolved field.\n- Per-field errors for missing explores or field ids.\n",
+            "inputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                    "fields": {
+                        "description": "Fields to fetch by exact explore name and field id.",
+                        "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                                "explore": {
+                                    "description": "Exact explore name that contains the field.",
+                                    "type": "string"
+                                },
+                                "fieldId": {
+                                    "description": "Exact field id to fetch, e.g. \"orders_total_revenue\".",
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["explore", "fieldId"],
+                            "type": "object"
+                        },
+                        "minItems": 1,
+                        "type": "array"
+                    }
+                },
+                "required": ["fields"],
+                "type": "object"
+            },
+            "name": "list_fields",
+            "outputSchema": null,
+            "title": "List fields"
         },
         {
             "annotations": {

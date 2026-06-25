@@ -145,6 +145,11 @@ import {
     toolListContentOutputSchema,
 } from './toolListContentArgs';
 import {
+    TOOL_LIST_FIELDS_DESCRIPTION,
+    toolListFieldsArgsSchema,
+    toolListFieldsOutputSchema,
+} from './toolListFieldsArgs';
+import {
     TOOL_LIST_KNOWLEDGE_DOCUMENTS_DESCRIPTION,
     toolListKnowledgeDocumentsArgsSchema,
     toolListKnowledgeDocumentsOutputSchema,
@@ -318,6 +323,16 @@ export const findFieldsToolDefinition = defineTool({
     inputSchema: toolFindFieldsArgsSchema,
     agent: { outputSchema: toolFindFieldsOutputSchema },
     mcp: { annotations: readOnlyAnnotations },
+});
+
+export const listFieldsToolDefinition = defineTool({
+    name: 'listFields',
+    title: 'List fields',
+    description: TOOL_LIST_FIELDS_DESCRIPTION,
+    availability: ['agent', 'mcp'],
+    inputSchema: toolListFieldsArgsSchema,
+    agent: { outputSchema: toolListFieldsOutputSchema },
+    mcp: { name: 'list_fields', annotations: readOnlyAnnotations },
 });
 
 export const searchSemanticLayerToolDefinition = defineTool({
@@ -941,6 +956,7 @@ export const runAiWritebackToolDefinition = defineTool({
 type AgentToolDefinitionsByName = {
     findExplores: typeof findExploresToolDefinition;
     findFields: typeof findFieldsToolDefinition;
+    listFields: typeof listFieldsToolDefinition;
     searchSemanticLayer: typeof searchSemanticLayerToolDefinition;
     analyzeFieldImpact: typeof analyzeFieldImpactToolDefinition;
     findContent: typeof findContentToolDefinition;
@@ -986,6 +1002,7 @@ type AgentToolDefinitionsByName = {
 export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     findExplores: findExploresToolDefinition,
     findFields: findFieldsToolDefinition,
+    listFields: listFieldsToolDefinition,
     searchSemanticLayer: searchSemanticLayerToolDefinition,
     analyzeFieldImpact: analyzeFieldImpactToolDefinition,
     findContent: findContentToolDefinition,
@@ -1031,6 +1048,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
 export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     findExploresToolDefinition,
     findFieldsToolDefinition,
+    listFieldsToolDefinition,
     searchSemanticLayerToolDefinition,
     analyzeFieldImpactToolDefinition,
     findContentToolDefinition,
