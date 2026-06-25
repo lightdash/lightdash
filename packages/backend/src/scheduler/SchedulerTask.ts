@@ -1377,6 +1377,7 @@ export default class SchedulerTask {
                             organizationUuid,
                             imageUrl,
                             name,
+                            channel,
                         );
                     const thresholdFooter = includeLinks
                         ? `<${url}?${setUuidParam(
@@ -1411,6 +1412,7 @@ export default class SchedulerTask {
                         organizationUuid,
                         imageUrl,
                         name,
+                        channel,
                     );
 
                 const expiration = slackImageUrl.expiring

@@ -50,7 +50,6 @@ lightdash_dev.yml
 
 # misc
 .DS_Store
-.env.local
 .env.development.local
 .env.test.local
 .env.production.local
@@ -108,7 +107,6 @@ prometheus.yml
 data/
 
 # environment
-.env*
 
 .local/*
 
@@ -140,3 +138,4 @@ AGENTS.md
 
 # octarine
 .octarine/properties.json
+config.bat
