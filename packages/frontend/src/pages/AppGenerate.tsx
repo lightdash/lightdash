@@ -572,6 +572,19 @@ const AppGenerate: FC = () => {
     const availableConnectionAliases = availableConnectionLinks.map(
         (l) => l.alias,
     );
+    const invalidateAppData = useCallback(
+        (appUuid: string | undefined) => {
+            if (!projectUuid || !appUuid) return;
+
+            void queryClient.invalidateQueries({
+                queryKey: ['app', projectUuid, appUuid],
+            });
+            void queryClient.invalidateQueries({
+                queryKey: ['app-external-connections', projectUuid, appUuid],
+            });
+        },
+        [projectUuid, queryClient],
+    );
     // Track the previous app UUID so we can detect intentional navigation
     // vs. the post-submit URL update (undefined → newUuid).
     const prevUrlAppUuid = useRef(urlAppUuid);
@@ -1001,9 +1014,7 @@ const AppGenerate: FC = () => {
                 {
                     onSuccess: (data: { appUuid: string; version: number }) => {
                         setActiveAppUuid(data.appUuid);
-                        void queryClient.invalidateQueries({
-                            queryKey: ['app', projectUuid, data.appUuid],
-                        });
+                        invalidateAppData(data.appUuid);
                     },
                     onError: (err: unknown) => {
                         setThemeChipOverride(null);
@@ -1040,7 +1051,7 @@ const AppGenerate: FC = () => {
             maxHistoryVersion,
             orgThemes,
             projectUuid,
-            queryClient,
+            invalidateAppData,
             resetIterate,
             selectedModel,
             user.data?.firstName,
@@ -1373,9 +1384,7 @@ const AppGenerate: FC = () => {
     const buildSubmitCallbacks = () => ({
         onSuccess: (data: { appUuid: string; version: number }) => {
             setActiveAppUuid(data.appUuid);
-            void queryClient.invalidateQueries({
-                queryKey: ['app', projectUuid, data.appUuid],
-            });
+            invalidateAppData(data.appUuid);
             if (!urlAppUuid) {
                 void navigate(`/projects/${projectUuid}/apps/${data.appUuid}`, {
                     replace: true,
@@ -1730,9 +1739,7 @@ const AppGenerate: FC = () => {
             },
             {
                 onSuccess: () => {
-                    void queryClient.invalidateQueries({
-                        queryKey: ['app', projectUuid, activeAppUuid],
-                    });
+                    invalidateAppData(activeAppUuid);
                 },
             },
         );
