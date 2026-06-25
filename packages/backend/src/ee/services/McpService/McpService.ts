@@ -1116,6 +1116,9 @@ export class McpService extends BaseService {
                 } catch (e) {
                     const errorMessage =
                         e instanceof Error ? e.message : String(e);
+                    this.logger.error(
+                        `[McpService] Error in run_ai_writeback tool: ${errorMessage}`,
+                    );
                     return {
                         content: [
                             {
@@ -2150,6 +2153,9 @@ export class McpService extends BaseService {
                 } catch (e) {
                     const errorMessage =
                         e instanceof Error ? e.message : String(e);
+                    this.logger.error(
+                        `[McpService] Error in run_metric_query tool: ${errorMessage}`,
+                    );
                     return {
                         content: [
                             {
@@ -2243,6 +2249,9 @@ export class McpService extends BaseService {
                 } catch (e) {
                     const errorMessage =
                         e instanceof Error ? e.message : String(e);
+                    this.logger.error(
+                        `[McpService] Error in render_chart tool: ${errorMessage}`,
+                    );
                     return {
                         content: [
                             {
@@ -2380,6 +2389,9 @@ export class McpService extends BaseService {
                 } catch (e) {
                     const errorMessage =
                         e instanceof Error ? e.message : String(e);
+                    this.logger.error(
+                        `[McpService] Error in run_sql tool: ${errorMessage}`,
+                    );
                     return {
                         content: [
                             {
@@ -2541,6 +2553,9 @@ export class McpService extends BaseService {
                 } catch (e) {
                     const errorMessage =
                         e instanceof Error ? e.message : String(e);
+                    this.logger.error(
+                        `[McpService] Error in get_query_result tool: ${errorMessage}`,
+                    );
                     return {
                         content: [
                             {
