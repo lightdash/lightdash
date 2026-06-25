@@ -22,7 +22,6 @@ import {
     type ApiChartAndResults,
     type ApiError,
     type Dashboard,
-    type DateZoom,
     type QueryExecutionContext,
     type DashboardFilterRule,
     type EChartsSeries,
@@ -73,6 +72,10 @@ import { useParams } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { useProjectColorPalette } from '../../hooks/appearance/useProjectColorPalette';
 import { type EChartsReact } from '../EChartsReactWrapper';
+import {
+    getAppliedTileDateZoom,
+    type AppliedTileDateZoomArgs,
+} from './getAppliedTileDateZoom';
 import { getDashboardChartColorPalette } from './getDashboardChartColorPalette';
 
 type ClientSideError = {
@@ -84,50 +87,21 @@ type ClientSideError = {
 
 type DashboardTileError = ApiError | ClientSideError | Error;
 
-type ChartDateZoomArgs = {
-    chartUuid: string | null | undefined;
-    chartsWithDateZoomApplied: Set<string> | undefined;
-    dateDimension: { table: string; name: string } | undefined;
-    dateZoomGranularity: DateZoom['granularity'];
-};
-
-const getChartDateZoom = ({
-    chartUuid,
-    chartsWithDateZoomApplied,
+const useAppliedTileDateZoom = ({
+    tileUuid,
+    tilesWithDateZoomApplied,
+    dateZoom,
     dateDimension,
-    dateZoomGranularity,
-}: ChartDateZoomArgs): DateZoom => ({
-    granularity: dateZoomGranularity,
-    ...(dateZoomGranularity &&
-    dateDimension &&
-    chartUuid &&
-    chartsWithDateZoomApplied?.has(chartUuid)
-        ? {
-              xAxisFieldId: `${dateDimension.table}_${dateDimension.name}`,
-          }
-        : {}),
-});
-
-const useChartDateZoom = ({
-    chartUuid,
-    chartsWithDateZoomApplied,
-    dateDimension,
-    dateZoomGranularity,
-}: ChartDateZoomArgs) =>
+}: AppliedTileDateZoomArgs) =>
     useMemo(
         () =>
-            getChartDateZoom({
-                chartUuid,
-                chartsWithDateZoomApplied,
+            getAppliedTileDateZoom({
+                tileUuid,
+                tilesWithDateZoomApplied,
+                dateZoom,
                 dateDimension,
-                dateZoomGranularity,
             }),
-        [
-            chartUuid,
-            chartsWithDateZoomApplied,
-            dateDimension,
-            dateZoomGranularity,
-        ],
+        [tileUuid, tilesWithDateZoomApplied, dateZoom, dateDimension],
     );
 
 const getDashboardTileErrorMessage = (
@@ -327,11 +301,8 @@ const ValidDashboardChartTile: FC<{
         const invalidateCache = useDashboardTileStatusContext(
             (c) => c.invalidateCache,
         );
-        const dateZoomGranularity = useDashboardContext(
-            (c) => c.dateZoomGranularity,
-        );
-        const chartsWithDateZoomApplied = useDashboardContext(
-            (c) => c.chartsWithDateZoomApplied,
+        const tilesWithDateZoomApplied = useDashboardContext(
+            (c) => c.tilesWithDateZoomApplied,
         );
 
         const { health } = useApp();
@@ -348,11 +319,11 @@ const ValidDashboardChartTile: FC<{
             executeQueryResponse: { cacheMetadata, metricQuery, fields },
             chart,
         } = dashboardChartReadyQuery;
-        const chartDateZoom = useChartDateZoom({
-            chartUuid: chart.uuid,
-            chartsWithDateZoomApplied,
+        const chartDateZoom = useAppliedTileDateZoom({
+            tileUuid,
+            tilesWithDateZoomApplied,
+            dateZoom: dashboardChartReadyQuery.dateZoom,
             dateDimension: metricQuery.metadata?.hasADateDimension,
-            dateZoomGranularity,
         });
 
         useEffect(() => {
@@ -482,11 +453,8 @@ const ValidDashboardChartTileMinimal: FC<{
     const { colorScheme } = useMantineColorScheme();
 
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
-    const dateZoomGranularity = useDashboardContext(
-        (c) => c.dateZoomGranularity,
-    );
-    const chartsWithDateZoomApplied = useDashboardContext(
-        (c) => c.chartsWithDateZoomApplied,
+    const tilesWithDateZoomApplied = useDashboardContext(
+        (c) => c.tilesWithDateZoomApplied,
     );
     const markTileScreenshotReady = useDashboardTileStatusContext(
         (c) => c.markTileScreenshotReady,
@@ -502,13 +470,13 @@ const ValidDashboardChartTileMinimal: FC<{
         chart.pivotConfig?.columns,
         dashboardChartReadyQuery.executeQueryResponse.metricQuery,
     );
-    const chartDateZoom = useChartDateZoom({
-        chartUuid: chart.uuid,
-        chartsWithDateZoomApplied,
+    const chartDateZoom = useAppliedTileDateZoom({
+        tileUuid,
+        tilesWithDateZoomApplied,
+        dateZoom: dashboardChartReadyQuery.dateZoom,
         dateDimension:
             dashboardChartReadyQuery.executeQueryResponse.metricQuery.metadata
                 ?.hasADateDimension,
-        dateZoomGranularity,
     });
 
     const computedSeries: Series[] = useMemo(() => {
@@ -773,11 +741,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             }),
         );
 
-        const dateZoomGranularity = useDashboardContext(
-            (c) => c.dateZoomGranularity,
-        );
-        const chartsWithDateZoomApplied = useDashboardContext(
-            (c) => c.chartsWithDateZoomApplied,
+        const tilesWithDateZoomApplied = useDashboardContext(
+            (c) => c.tilesWithDateZoomApplied,
         );
 
         const parameterDefinitions = useDashboardContext(
@@ -811,24 +776,24 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
         const handleViewUnderlyingData = useCallback(() => {
             if (!viewUnderlyingDataOptions) return;
 
-            const dateZoom = getChartDateZoom({
-                chartUuid: savedChartUuid,
-                chartsWithDateZoomApplied,
+            const dateZoom = getAppliedTileDateZoom({
+                tileUuid,
+                tilesWithDateZoomApplied,
+                dateZoom: dashboardChartReadyQuery.dateZoom,
                 dateDimension: metricQuery?.metadata?.hasADateDimension,
-                dateZoomGranularity,
             });
 
             openUnderlyingDataModal({
                 ...viewUnderlyingDataOptions,
-                ...(dateZoom.xAxisFieldId && { dateZoom }),
+                ...(dateZoom?.xAxisFieldId && { dateZoom }),
             });
         }, [
             viewUnderlyingDataOptions,
-            dateZoomGranularity,
             openUnderlyingDataModal,
+            tileUuid,
+            tilesWithDateZoomApplied,
+            dashboardChartReadyQuery.dateZoom,
             metricQuery?.metadata?.hasADateDimension,
-            savedChartUuid,
-            chartsWithDateZoomApplied,
         ]);
 
         const handleCopyToClipboard = useCallback(() => {
@@ -1139,7 +1104,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             dashboardUuid,
             dashboardChartReadyQuery.executeQueryResponse.queryUuid,
             !!downloadPivotConfig,
-            dashboardChartReadyQuery.dateZoomXAxisFieldId,
+            dashboardChartReadyQuery.dateZoom,
         );
 
         const closeDataExportModal = useCallback(
@@ -1531,14 +1496,16 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                 clickedFrom="dashboard_chart_tile"
                             />
                             {metricQuery?.metadata?.hasADateDimension &&
-                            savedChartUuid &&
-                            dateZoomGranularity &&
-                            chartsWithDateZoomApplied?.has(savedChartUuid) ? (
+                            dashboardChartReadyQuery.dateZoom?.granularity &&
+                            tilesWithDateZoomApplied?.has(tileUuid) ? (
                                 <DateZoomInfoOnTile
                                     dateDimension={
                                         metricQuery.metadata.hasADateDimension
                                     }
-                                    dateZoomGranularity={dateZoomGranularity}
+                                    dateZoomGranularity={
+                                        dashboardChartReadyQuery.dateZoom
+                                            .granularity
+                                    }
                                 />
                             ) : null}
                         </>
@@ -1930,11 +1897,8 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
 
     const canExplore = canViewExploreOverride ?? canViewExplore;
 
-    const dateZoomGranularity = useDashboardContext(
-        (c) => c.dateZoomGranularity,
-    );
-    const chartsWithDateZoomApplied = useDashboardContext(
-        (c) => c.chartsWithDateZoomApplied,
+    const tilesWithDateZoomApplied = useDashboardContext(
+        (c) => c.tilesWithDateZoomApplied,
     );
 
     const { openUnderlyingDataModal } = useMetricQueryDataContext();
@@ -1950,24 +1914,24 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
     const handleViewUnderlyingData = useCallback(() => {
         if (!viewUnderlyingDataOptions) return;
 
-        const dateZoom = getChartDateZoom({
-            chartUuid: savedChartUuid,
-            chartsWithDateZoomApplied,
+        const dateZoom = getAppliedTileDateZoom({
+            tileUuid,
+            tilesWithDateZoomApplied,
+            dateZoom: dashboardChartReadyQuery.dateZoom,
             dateDimension: metricQuery?.metadata?.hasADateDimension,
-            dateZoomGranularity,
         });
 
         openUnderlyingDataModal({
             ...viewUnderlyingDataOptions,
-            ...(dateZoom.xAxisFieldId && { dateZoom }),
+            ...(dateZoom?.xAxisFieldId && { dateZoom }),
         });
     }, [
         viewUnderlyingDataOptions,
-        dateZoomGranularity,
         openUnderlyingDataModal,
+        tileUuid,
+        tilesWithDateZoomApplied,
+        dashboardChartReadyQuery.dateZoom,
         metricQuery?.metadata?.hasADateDimension,
-        savedChartUuid,
-        chartsWithDateZoomApplied,
     ]);
 
     const handleCancelContextMenu = useCallback(
@@ -2021,7 +1985,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         projectUuid,
         dashboardChartReadyQuery.executeQueryResponse.queryUuid,
         !!downloadPivotConfig,
-        dashboardChartReadyQuery.dateZoomXAxisFieldId,
+        dashboardChartReadyQuery.dateZoom,
     );
 
     const chartKind = useMemo(

@@ -152,12 +152,37 @@ export class DashboardModel {
         dashboardId: number,
         version: DashboardVersionedFields,
     ): Promise<void> {
+        // Narrow date-zoom control tileTargets to tiles present in this version,
+        // mirroring the filter tileTargets narrowing below. This drops targets
+        // for tiles removed on any deletion path (tile/tab/batch delete) without
+        // any frontend wiring. Control-level pruning stays a frontend concern.
+        const savedTileUuids = new Set(
+            version.tiles
+                .map((tile) => tile.uuid)
+                .filter((uuid): uuid is string => !!uuid),
+        );
+        const config = version.config?.dateZoomConfig
+            ? {
+                  ...version.config,
+                  dateZoomConfig: {
+                      ...version.config.dateZoomConfig,
+                      tileTargets: Object.fromEntries(
+                          Object.entries(
+                              version.config.dateZoomConfig.tileTargets,
+                          ).filter(([tileUuid]) =>
+                              savedTileUuids.has(tileUuid),
+                          ),
+                      ),
+                  },
+              }
+            : version.config;
+
         const [versionId] = await trx(DashboardVersionsTableName).insert(
             {
                 dashboard_id: dashboardId,
                 dashboard_version_uuid: uuidv4(),
                 updated_by_user_uuid: version.updatedByUser?.userUuid,
-                config: version.config,
+                config,
             },
             ['dashboard_version_id', 'updated_by_user_uuid'],
         );
