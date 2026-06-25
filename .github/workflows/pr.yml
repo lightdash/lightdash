@@ -109,14 +109,46 @@ jobs:
           pnpm format & pid_format=$!
           pnpm -F frontend unused-exports & pid_unused=$!
           pnpm typecheck & pid_typecheck=$!
+          pnpm -F common check:filter-grammar-parser & pid_grammar=$!
           fail=0
           wait $pid_lint || fail=1
           wait $pid_format || fail=1
           wait $pid_unused || fail=1
           wait $pid_typecheck || fail=1
+          wait $pid_grammar || fail=1
           exit $fail
       - name: Run unit tests
         run: pnpm test
+
+  # Guards the published SDK bundle against re-introducing eval()/new Function()
+  # that breaks consumers on a strict CSP (no 'unsafe-eval'). See issue #21276.
+  # Runs in parallel so it doesn't extend the critical Build & Test path.
+  sdk-csp-check:
+    name: SDK CSP Guard
+    runs-on: depot-ubuntu-24.04-8
+    env:
+      NODE_OPTIONS: "--max-old-space-size=8192"
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Setup Socket Firewall
+        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+          cache-dependency-path: "pnpm-lock.yaml"
+      - name: Install packages
+        run: sfw pnpm install --frozen-lockfile --prefer-offline
+      - name: Build SDK bundle
+        run: pnpm sdk-build
+      - name: Check SDK bundle is CSP-safe
+        run: pnpm -F frontend check:sdk-csp
 
   # ============================================================================
   # Stage 2: Deploy preview environment (only if stage 1 passes)

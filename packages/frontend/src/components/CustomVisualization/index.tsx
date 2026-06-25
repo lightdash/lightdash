@@ -174,6 +174,11 @@ const CustomVisualization: FC<Props> = ({
                     }}
                     options={{
                         actions: false,
+                        // Use Vega's AST expression interpreter instead of
+                        // compiling expressions with `Function()`, so custom
+                        // visualizations render under a strict CSP (no
+                        // 'unsafe-eval'). See issue #21276.
+                        ast: true,
                     }}
                     onEmbed={handleVegaEmbed}
                     onError={handleVegaError}

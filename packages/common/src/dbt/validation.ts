@@ -27,26 +27,39 @@ import dbtManifestSchemaV11 from './schemas/manifestV11.json';
 import dbtManifestSchemaV12 from './schemas/manifestV12.json';
 import dbtManifestSchemaV20 from './schemas/manifestV20.json';
 
-const ajv = new Ajv2020();
-ajv.addMetaSchema(draft7MetaSchema); // add backward compatibility with draft-07
-ajv.addSchema([
-    dbtManifestSchemaV7,
-    dbtManifestSchemaV8,
-    dbtManifestSchemaV9,
-    dbtManifestSchemaV10,
-    dbtManifestSchemaV11,
-    dbtManifestSchemaV12,
-    dbtManifestSchemaV20,
-    lightdashMetadataSchema,
-    lightdashSchemaV7,
-    lightdashSchemaV8,
-    lightdashSchemaV9,
-    lightdashSchemaV10,
-    lightdashSchemaV11,
-    lightdashSchemaV12,
-    lightdashSchemaV20,
-]);
-addFormats(ajv);
+// Lazily constructed so that merely importing this module does NOT trigger Ajv
+// schema compilation. Ajv validates each added schema against the meta-schema
+// using `new Function`, which violates a strict CSP (no `unsafe-eval`). dbt
+// manifest validation only runs on the backend/CLI, never in the browser SDK —
+// so deferring construction keeps the SDK bundle from compiling validators at
+// load time. See issue #21276.
+let ajvInstance: Ajv2020 | undefined;
+const getAjv = (): Ajv2020 => {
+    if (ajvInstance === undefined) {
+        const ajv = new Ajv2020();
+        ajv.addMetaSchema(draft7MetaSchema); // add backward compatibility with draft-07
+        ajv.addSchema([
+            dbtManifestSchemaV7,
+            dbtManifestSchemaV8,
+            dbtManifestSchemaV9,
+            dbtManifestSchemaV10,
+            dbtManifestSchemaV11,
+            dbtManifestSchemaV12,
+            dbtManifestSchemaV20,
+            lightdashMetadataSchema,
+            lightdashSchemaV7,
+            lightdashSchemaV8,
+            lightdashSchemaV9,
+            lightdashSchemaV10,
+            lightdashSchemaV11,
+            lightdashSchemaV12,
+            lightdashSchemaV20,
+        ]);
+        addFormats(ajv);
+        ajvInstance = ajv;
+    }
+    return ajvInstance;
+};
 
 export class ManifestValidator {
     private readonly lightdashSchemaId: string;
@@ -75,7 +88,7 @@ export class ManifestValidator {
             .join('\n');
 
     static getValidator = <T>(schemaRef: string) => {
-        const validator = ajv.getSchema<T>(schemaRef);
+        const validator = getAjv().getSchema<T>(schemaRef);
         if (validator === undefined) {
             throw new ParseError(
                 `Could not find schema with reference: ${schemaRef}`,
