@@ -23,3 +23,25 @@
     min-width: 0;
     flex: 1;
 }
+
+.titleRow {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    min-width: 0;
+}
+
+/* The title is the primary element: it takes the free space and truncates. */
+.title {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+/* The space chip is secondary context, so it yields width before the title
+   collapses: it can shrink (and its label truncates) on a narrow header. */
+.chipSlot {
+    min-width: 0;
+    flex: 0 1 auto;
+    display: flex;
+    align-items: center;
+}

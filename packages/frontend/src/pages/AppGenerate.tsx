@@ -90,6 +90,7 @@ import ChatBubbleMeta from '../features/apps/ChatBubbleMeta';
 import ChatMessageContent from '../features/apps/ChatMessageContent';
 import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
+import AppSpaceChip from '../features/apps/components/AppSpaceChip';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppImageUpload } from '../features/apps/hooks/useAppImageUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
@@ -671,6 +672,7 @@ const AppGenerate: FC = () => {
     const appName = appData?.pages?.[0]?.name ?? '';
     const appDescription = appData?.pages?.[0]?.description ?? '';
     const appSpaceUuid = appData?.pages?.[0]?.spaceUuid ?? null;
+    const appSpaceName = appData?.pages?.[0]?.spaceName ?? null;
     const appCreatedByUserUuid = appData?.pages?.[0]?.createdByUserUuid ?? null;
     const appPersistedTemplate = appData?.pages?.[0]?.template ?? null;
 
@@ -2731,6 +2733,27 @@ const AppGenerate: FC = () => {
                                 <AppHeader
                                     name={appName}
                                     description={appDescription || null}
+                                    spaceChip={
+                                        <AppSpaceChip
+                                            projectUuid={projectUuid}
+                                            spaceName={appSpaceName}
+                                            app={{
+                                                uuid: activeAppUuid,
+                                                name: appName,
+                                                description:
+                                                    appDescription || undefined,
+                                                spaceUuid: appSpaceUuid,
+                                                createdByUserUuid:
+                                                    appCreatedByUserUuid,
+                                                latestVersionNumber:
+                                                    latestReadyVersion?.version ??
+                                                    null,
+                                                latestVersionStatus:
+                                                    latestReadyVersion?.status ??
+                                                    null,
+                                            }}
+                                        />
+                                    }
                                     rightSection={
                                         <AppHeaderActions
                                             projectUuid={projectUuid}
