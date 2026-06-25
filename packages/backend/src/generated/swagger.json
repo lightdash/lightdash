@@ -3357,8 +3357,71 @@
                 ],
                 "type": "string"
             },
+            "DateZoomControl": {
+                "properties": {
+                    "granularity": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/DateGranularity"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ]
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["granularity", "name", "uuid"],
+                "type": "object"
+            },
+            "DateZoomTileTarget": {
+                "properties": {
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "fieldId": {
+                        "type": "string"
+                    },
+                    "controlUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["tableName", "fieldId", "controlUuid"],
+                "type": "object"
+            },
+            "Record_string.DateZoomTileTarget_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/DateZoomTileTarget"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "DateZoomConfig": {
+                "properties": {
+                    "tileTargets": {
+                        "$ref": "#/components/schemas/Record_string.DateZoomTileTarget_"
+                    },
+                    "controls": {
+                        "items": {
+                            "$ref": "#/components/schemas/DateZoomControl"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["tileTargets", "controls"],
+                "type": "object"
+            },
             "DashboardConfig": {
                 "properties": {
+                    "dateZoomConfig": {
+                        "$ref": "#/components/schemas/DateZoomConfig"
+                    },
                     "defaultDateZoomGranularity": {
                         "anyOf": [
                             {

@@ -95,6 +95,9 @@
         },
         "DashboardConfig": {
             "properties": {
+                "dateZoomConfig": {
+                    "$ref": "#/$defs/DateZoomConfig"
+                },
                 "dateZoomGranularities": {
                     "items": {
                         "anyOf": [
@@ -634,6 +637,58 @@
             ],
             "type": "string"
         },
+        "DateZoomConfig": {
+            "properties": {
+                "controls": {
+                    "items": {
+                        "$ref": "#/$defs/DateZoomControl"
+                    },
+                    "type": "array"
+                },
+                "tileTargets": {
+                    "$ref": "#/$defs/Record_string.DateZoomTileTarget_"
+                }
+            },
+            "required": ["tileTargets", "controls"],
+            "type": "object"
+        },
+        "DateZoomControl": {
+            "properties": {
+                "granularity": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/DateGranularity"
+                        },
+                        {
+                            "type": "string"
+                        }
+                    ]
+                },
+                "name": {
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            },
+            "required": ["granularity", "name", "uuid"],
+            "type": "object"
+        },
+        "DateZoomTileTarget": {
+            "properties": {
+                "controlUuid": {
+                    "type": "string"
+                },
+                "fieldId": {
+                    "type": "string"
+                },
+                "tableName": {
+                    "type": "string"
+                }
+            },
+            "required": ["tableName", "fieldId", "controlUuid"],
+            "type": "object"
+        },
         "DimensionType": {
             "enum": ["string", "number", "timestamp", "date", "boolean"],
             "type": "string"
@@ -826,6 +881,14 @@
         "Record_string.DashboardTileTarget_": {
             "additionalProperties": {
                 "$ref": "#/$defs/DashboardTileTarget"
+            },
+            "description": "Construct a type with a set of properties K of type T",
+            "properties": {},
+            "type": "object"
+        },
+        "Record_string.DateZoomTileTarget_": {
+            "additionalProperties": {
+                "$ref": "#/$defs/DateZoomTileTarget"
             },
             "description": "Construct a type with a set of properties K of type T",
             "properties": {},
