@@ -224,6 +224,12 @@
     color: var(--mantine-color-dimmed) !important;
 }
 
+/* Align the "continue building" hint with the status text above it, which is
+ * rendered via AiMarkdown and carries the shared 7px markdown padding-left. */
+.buildingHint {
+    padding-left: 7px;
+}
+
 .chatInputArea {
     flex: 0 1 auto;
     min-height: 0;
