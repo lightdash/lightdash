@@ -1,3 +1,11 @@
+## [0.3243.2](https://github.com/lightdash/lightdash/compare/0.3243.1...0.3243.2) (2026-06-25)
+
+
+### Bug Fixes
+
+* **data-apps:** align agent status bubble helper line ([#24744](https://github.com/lightdash/lightdash/issues/24744)) ([9e8865e](https://github.com/lightdash/lightdash/commit/9e8865eca79593012f39a6028c616e1c4b12cf54))
+* **mcp:** log errors thrown by MCP query tools ([#24748](https://github.com/lightdash/lightdash/issues/24748)) ([9ff3567](https://github.com/lightdash/lightdash/commit/9ff356700c2293a254aa4a174fe8cd97b8833722))
+
 ## [0.3243.1](https://github.com/lightdash/lightdash/compare/0.3243.0...0.3243.1) (2026-06-25)
 
 
