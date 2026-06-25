@@ -1,3 +1,10 @@
+## [0.3245.1](https://github.com/lightdash/lightdash/compare/0.3245.0...0.3245.1) (2026-06-25)
+
+
+### Bug Fixes
+
+* **formatting:** apply field separator to ECMA-376 expressions on cartesian charts ([#24758](https://github.com/lightdash/lightdash/issues/24758)) ([#24752](https://github.com/lightdash/lightdash/issues/24752)) ([43a8b8f](https://github.com/lightdash/lightdash/commit/43a8b8fbc06d88ad64d0c963f7ac96a4f5aa0a39)), closes [#0](https://github.com/lightdash/lightdash/issues/0)
+
 # [0.3245.0](https://github.com/lightdash/lightdash/compare/0.3244.1...0.3245.0) (2026-06-25)
 
 
