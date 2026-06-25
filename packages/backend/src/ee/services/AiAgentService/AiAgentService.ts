@@ -7320,7 +7320,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableDataAccess: agentSettings.enableDataAccess,
             enableSelfImprovement: agentSettings.enableSelfImprovement,
             enableContentTools: canUseContentTools,
-            enableSearchSemanticLayer: true,
             enableAiWriteback: aiWritebackEnabled,
             enableEditProjectContext: isReviewRemediationWorkThread,
             writebackAttribution,

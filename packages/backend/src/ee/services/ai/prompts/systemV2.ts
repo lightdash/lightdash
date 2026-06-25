@@ -33,7 +33,6 @@ export const getSystemPromptV2 = (args: {
     agentName?: string;
     date?: string;
     enableDataAccess?: boolean;
-    enableSearchSemanticLayer?: boolean;
     enableAiWriteback?: boolean;
     writebackAttribution?: AiWritebackAttribution | null;
     siteUrl?: string;
@@ -53,7 +52,6 @@ export const getSystemPromptV2 = (args: {
         agentName = 'Lightdash AI Analyst',
         date = moment().utc().format('YYYY-MM-DD'),
         enableDataAccess = false,
-        enableSearchSemanticLayer = false,
         enableAiWriteback = false,
         writebackAttribution = null,
         siteUrl = '',
@@ -160,7 +158,7 @@ export const getSystemPromptV2 = (args: {
         )
         .replace(
             '{{search_semantic_layer_section}}',
-            enableSearchSemanticLayer ? SEARCH_SEMANTIC_LAYER_SECTION : '',
+            SEARCH_SEMANTIC_LAYER_SECTION,
         )
         .replace(
             '{{data_access_section}}',
