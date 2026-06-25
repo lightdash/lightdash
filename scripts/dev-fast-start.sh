@@ -232,6 +232,41 @@ if [ "$EE_MODE" = true ] && ! grep -q "^LIGHTDASH_LICENSE_KEY=eyJ" .env.developm
 fi
 
 # ---------------------------------------------------------------------------
+# The backend reads and writes S3 objects at localhost:9000 (S3_ENDPOINT). The
+# only thing that should be answering there is the MinIO container that
+# docker-compose starts below. If another program on this machine is already
+# listening on port 9000 when the backend connects, the backend talks to that
+# program instead of the container. Docker does not report an error in this
+# case (it maps the container's port on a different network address), so the
+# container looks healthy and the /api/v1/health check passes — but every S3
+# operation goes to the wrong MinIO. Files the backend writes (e.g. generated
+# data-app bundles) are stored there, while a tool pointed at the container
+# sees an empty bucket, and app previews that read back through the container
+# return 404. Detect the conflicting listener now, before docker-compose runs
+# and hides which MinIO is actually being used.
+step "Check nothing else is using S3 port 9000"
+if command -v lsof >/dev/null 2>&1; then
+    CONFLICT_PID=""; CONFLICT_CMD=""
+    for _pid in $(lsof -nP -iTCP:9000 -sTCP:LISTEN -t 2>/dev/null | sort -u); do
+        _cmd="$(ps -o comm= -p "$_pid" 2>/dev/null)"
+        case "$_cmd" in
+            # These are Docker / OrbStack / Colima forwarding the container's
+            # port 9000 to the host — i.e. the expected MinIO container. Any
+            # other program listening on 9000 is the problem.
+            *docker*|*Docker*|*OrbStack*|*orbstack*|*vpnkit*|*qemu*|*colima*) ;;
+            "") ;;  # process exited between lsof and ps — ignore
+            *) CONFLICT_PID="$_pid"; CONFLICT_CMD="$_cmd" ;;
+        esac
+    done
+    if [ -n "$CONFLICT_PID" ]; then
+        fail "minio-port" "the program '$(basename "$CONFLICT_CMD")' (pid $CONFLICT_PID) is already listening on port 9000, so the backend would send all S3 reads/writes to it instead of the MinIO container started by docker-compose. The container would still start and report healthy, but data-app files and other S3 objects would be written to and read from different places, and app previews would return 404. This program is not part of /docker-dev. Stop it, then re-run this script:  kill $CONFLICT_PID  (it is safe to use 'kill -9 $CONFLICT_PID' if it does not stop)"
+    fi
+    echo "OK: port 9000 is free for the MinIO container"
+else
+    echo "SKIP: lsof not installed — cannot check what is using port 9000"
+fi
+
+# ---------------------------------------------------------------------------
 step "Start Docker services"
 docker compose -p ld-shared -f "$SHARED_COMPOSE" --env-file .env.development up -d \
     || fail "docker-shared" "could not start shared services (minio/headless-browser/mailpit/nats)"
