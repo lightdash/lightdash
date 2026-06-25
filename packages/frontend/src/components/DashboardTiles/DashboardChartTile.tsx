@@ -22,7 +22,6 @@ import {
     type ApiChartAndResults,
     type ApiError,
     type Dashboard,
-    type DateZoom,
     type QueryExecutionContext,
     type DashboardFilterRule,
     type EChartsSeries,
@@ -73,6 +72,10 @@ import { useParams } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { useProjectColorPalette } from '../../hooks/appearance/useProjectColorPalette';
 import { type EChartsReact } from '../EChartsReactWrapper';
+import {
+    getAppliedTileDateZoom,
+    type AppliedTileDateZoomArgs,
+} from './getAppliedTileDateZoom';
 import { getDashboardChartColorPalette } from './getDashboardChartColorPalette';
 
 type ClientSideError = {
@@ -84,40 +87,21 @@ type ClientSideError = {
 
 type DashboardTileError = ApiError | ClientSideError | Error;
 
-type TileDateZoomArgs = {
-    tileUuid: string;
-    tilesWithDateZoomApplied: Set<string> | undefined;
-    dateZoom: DateZoom | undefined;
-};
-
-// Narrows the resolved tile zoom to what was actually applied: the backend only
-// re-grains the targeted x-axis field when zoom took effect for this tile, so
-// drop xAxisFieldId until the applied-state set confirms it.
-const getAppliedTileDateZoom = ({
-    tileUuid,
-    tilesWithDateZoomApplied,
-    dateZoom,
-}: TileDateZoomArgs): DateZoom | undefined => {
-    if (!dateZoom) return undefined;
-    if (!dateZoom.xAxisFieldId) return dateZoom;
-    return tilesWithDateZoomApplied?.has(tileUuid)
-        ? dateZoom
-        : { granularity: dateZoom.granularity };
-};
-
 const useAppliedTileDateZoom = ({
     tileUuid,
     tilesWithDateZoomApplied,
     dateZoom,
-}: TileDateZoomArgs) =>
+    dateDimension,
+}: AppliedTileDateZoomArgs) =>
     useMemo(
         () =>
             getAppliedTileDateZoom({
                 tileUuid,
                 tilesWithDateZoomApplied,
                 dateZoom,
+                dateDimension,
             }),
-        [tileUuid, tilesWithDateZoomApplied, dateZoom],
+        [tileUuid, tilesWithDateZoomApplied, dateZoom, dateDimension],
     );
 
 const getDashboardTileErrorMessage = (
@@ -339,6 +323,7 @@ const ValidDashboardChartTile: FC<{
             tileUuid,
             tilesWithDateZoomApplied,
             dateZoom: dashboardChartReadyQuery.dateZoom,
+            dateDimension: metricQuery.metadata?.hasADateDimension,
         });
 
         useEffect(() => {
@@ -489,6 +474,9 @@ const ValidDashboardChartTileMinimal: FC<{
         tileUuid,
         tilesWithDateZoomApplied,
         dateZoom: dashboardChartReadyQuery.dateZoom,
+        dateDimension:
+            dashboardChartReadyQuery.executeQueryResponse.metricQuery.metadata
+                ?.hasADateDimension,
     });
 
     const computedSeries: Series[] = useMemo(() => {
@@ -792,6 +780,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                 tileUuid,
                 tilesWithDateZoomApplied,
                 dateZoom: dashboardChartReadyQuery.dateZoom,
+                dateDimension: metricQuery?.metadata?.hasADateDimension,
             });
 
             openUnderlyingDataModal({
@@ -804,6 +793,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             tileUuid,
             tilesWithDateZoomApplied,
             dashboardChartReadyQuery.dateZoom,
+            metricQuery?.metadata?.hasADateDimension,
         ]);
 
         const handleCopyToClipboard = useCallback(() => {
@@ -1928,6 +1918,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
             tileUuid,
             tilesWithDateZoomApplied,
             dateZoom: dashboardChartReadyQuery.dateZoom,
+            dateDimension: metricQuery?.metadata?.hasADateDimension,
         });
 
         openUnderlyingDataModal({
@@ -1940,6 +1931,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         tileUuid,
         tilesWithDateZoomApplied,
         dashboardChartReadyQuery.dateZoom,
+        metricQuery?.metadata?.hasADateDimension,
     ]);
 
     const handleCancelContextMenu = useCallback(
