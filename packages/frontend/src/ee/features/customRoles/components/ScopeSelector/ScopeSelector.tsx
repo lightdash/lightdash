@@ -159,9 +159,12 @@ const ScopePanel: FC<{
 export const ScopeSelector: FC<ScopeSelectorProps> = ({ form, level }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearchTerm] = useDebouncedValue(searchTerm, 300);
-    const [selectedGroup, setSelectedGroup] = useState<GroupedScopes | null>(
-        null,
-    );
+    // Store the selected group's key, not the object. The group objects are
+    // rebuilt (with fresh scope lists) whenever `level` or the search term
+    // changes, so holding the object would render a stale group's scopes.
+    const [selectedGroupKey, setSelectedGroupKey] = useState<
+        GroupedScopes['group'] | null
+    >(null);
 
     const allGroupedScopes = useMemo(
         () => getScopesByGroup(true, level),
@@ -174,16 +177,15 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({ form, level }) => {
     );
 
     const effectiveSelectedGroup = useMemo(() => {
-        // If user has selected a group and it's still in filtered results, use it
-        if (
-            selectedGroup &&
-            filteredScopes.find((g) => g.group === selectedGroup.group)
-        ) {
-            return selectedGroup;
-        }
-        // Otherwise, use the first available group (or null if none)
-        return filteredScopes[0] || null;
-    }, [selectedGroup, filteredScopes]);
+        // Always resolve from the freshly-built groups so a level/search change
+        // can't leave us rendering a stale group object. Fall back to the first
+        // available group (or null if none).
+        return (
+            filteredScopes.find((g) => g.group === selectedGroupKey) ??
+            filteredScopes[0] ??
+            null
+        );
+    }, [selectedGroupKey, filteredScopes]);
 
     const totalScopes = allGroupedScopes.reduce(
         (acc, group) => acc + group.scopes.length,
@@ -321,7 +323,9 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({ form, level }) => {
                                                     group.group
                                                 }
                                                 onClick={() =>
-                                                    setSelectedGroup(group)
+                                                    setSelectedGroupKey(
+                                                        group.group,
+                                                    )
                                                 }
                                                 selectedCount={
                                                     groupSelectedCount
