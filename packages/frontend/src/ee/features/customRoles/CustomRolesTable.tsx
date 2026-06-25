@@ -143,7 +143,7 @@ export const CustomRolesTable: FC<TableProps> = ({
                         <Table.Tr>
                             <Table.Th>Name</Table.Th>
                             <Table.Th>Description</Table.Th>
-                            <Table.Th>Level</Table.Th>
+                            <Table.Th>Type</Table.Th>
                             <Table.Th>Created</Table.Th>
                             <Table.Th></Table.Th>
                         </Table.Tr>
