@@ -74,6 +74,7 @@ const makeAgentTools = () => {
                 availableExplores: [],
                 findExploresFieldSearchSize: 25,
                 findFieldsPageSize: 25,
+                fieldDescriptionMaxChars: 600,
                 promptUuid: 'prompt-uuid',
                 telemetry: {
                     agentSettings: {
@@ -112,6 +113,7 @@ const makeAgentTools = () => {
             getExplore: noop,
             pageSize: 25,
             updateProgress: noopAsync,
+            fieldDescriptionMaxChars: 600,
         }),
         generateDashboard: getGenerateDashboardV2({
             createOrUpdateArtifact: noop,

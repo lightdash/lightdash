@@ -4,10 +4,14 @@
  * model's context limit — see PROD-6017.
  */
 export const EXPLORE_DESCRIPTION_MAX_CHARS = 600;
-export const FIELD_DESCRIPTION_MAX_CHARS = 600;
 export const CONTENT_DESCRIPTION_MAX_CHARS = 600;
 
 export const DASHBOARD_CHARTS_PREVIEW_COUNT = 5;
 
-export const truncate = (value: string, max: number) =>
-    value.length > max ? `${value.slice(0, max)}…` : value;
+const TRUNCATED_SUFFIX = '...(truncated)';
+
+export const truncate = (value: string, max: number) => {
+    if (value.length <= max) return value;
+    if (max <= TRUNCATED_SUFFIX.length) return TRUNCATED_SUFFIX.slice(0, max);
+    return `${value.slice(0, max - TRUNCATED_SUFFIX.length)}${TRUNCATED_SUFFIX}`;
+};

@@ -248,6 +248,7 @@ export const lightdashConfigMock: LightdashConfig = {
             verifiedAnswerSimilarityThreshold: 0.6,
             mcpConnectionTimeoutMs: 20_000,
             mcpAllowPrivateAddresses: false,
+            toolFieldDescriptionMaxChars: 600,
             defaultEmbeddingModelProvider: 'openai',
         },
     },

@@ -5,6 +5,7 @@ export const DEFAULT_ANTHROPIC_MODEL_NAME = 'claude-sonnet-4-6';
 export const DEFAULT_DEFAULT_AI_PROVIDER = 'openai';
 export const DEFAULT_OPENROUTER_MODEL_NAME = 'openai/gpt-5.2-2025-12-11';
 export const DEFAULT_BEDROCK_MODEL_NAME = 'claude-sonnet-4-5';
+export const DEFAULT_AI_TOOL_FIELD_DESCRIPTION_MAX_CHARS = 600;
 
 export const DEFAULT_OPENAI_EMBEDDING_MODEL = 'text-embedding-3-small';
 export const DEFAULT_AZURE_EMBEDDING_MODEL = 'text-embedding-3-small';
@@ -145,6 +146,11 @@ export const aiCopilotConfigSchema = z
             .default(0.6),
         mcpConnectionTimeoutMs: z.number().positive().default(20_000),
         mcpAllowPrivateAddresses: z.boolean().default(false),
+        toolFieldDescriptionMaxChars: z
+            .number()
+            .int()
+            .positive()
+            .default(DEFAULT_AI_TOOL_FIELD_DESCRIPTION_MAX_CHARS),
     })
     .refine(
         ({ providers, defaultProvider, enabled }) =>

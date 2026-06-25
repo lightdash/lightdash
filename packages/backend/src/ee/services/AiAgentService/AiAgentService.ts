@@ -7373,6 +7373,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
             findExploresFieldSearchSize: 200,
             findFieldsPageSize: 30,
+            toolFieldDescriptionMaxChars:
+                this.lightdashConfig.ai.copilot.toolFieldDescriptionMaxChars,
             getDashboardChartsPageSize: 20,
             maxQueryLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
             runSqlMaxLimit: this.lightdashConfig.ai.copilot.runSqlMaxLimit,
