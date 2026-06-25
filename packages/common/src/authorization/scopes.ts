@@ -313,11 +313,12 @@ const scopes: Scope[] = [
     {
         name: 'promote:SavedChart@space',
         description:
-            'Promote saved charts to spaces where the member has editor access',
+            'Promote saved charts to spaces where the member has editor or admin access',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
         getConditions: (context) => [
             addAccessCondition(context, SpaceMemberRole.EDITOR),
+            addAccessCondition(context, SpaceMemberRole.ADMIN),
         ],
     },
     {
@@ -330,11 +331,12 @@ const scopes: Scope[] = [
     {
         name: 'promote:Dashboard@space',
         description:
-            'Promote dashboards to spaces where the member has editor access',
+            'Promote dashboards to spaces where the member has editor or admin access',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
         getConditions: (context) => [
             addAccessCondition(context, SpaceMemberRole.EDITOR),
+            addAccessCondition(context, SpaceMemberRole.ADMIN),
         ],
     },
 

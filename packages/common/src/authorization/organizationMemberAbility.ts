@@ -315,12 +315,30 @@ export const applyOrganizationMemberStaticAbilities: Record<
                 },
             },
         });
+        can('promote', 'SavedChart', {
+            organizationUuid: member.organizationUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.ADMIN,
+                },
+            },
+        });
         can('promote', 'Dashboard', {
             organizationUuid: member.organizationUuid,
             access: {
                 $elemMatch: {
                     userUuid: member.userUuid,
                     role: SpaceMemberRole.EDITOR,
+                },
+            },
+        });
+        can('promote', 'Dashboard', {
+            organizationUuid: member.organizationUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.ADMIN,
                 },
             },
         });
