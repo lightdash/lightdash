@@ -477,6 +477,63 @@ describe('getCategoryDateAxisConfig', () => {
         });
     });
 
+    // Regression: xAxis.data used ISO format ("2024-04-01T00:00:00Z") while
+    // series data read raw values from the backend ("2024-04-01"). ECharts
+    // uses strict string equality for category matching, so bars were invisible.
+    describe('date format matches raw input format', () => {
+        test('uses date-only format (YYYY-MM-DD) when raw values are date-only', () => {
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.MONTH),
+                createRows(['2024-01-01', '2024-03-01']),
+                'category',
+            );
+            expect(result.data?.[0]).toBe('2024-01-01');
+            expect(result.data?.[1]).toBe('2024-02-01');
+            expect(result.data?.[2]).toBe('2024-03-01');
+        });
+
+        test('uses ISO format when raw values are ISO timestamps', () => {
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.MONTH),
+                createRows([
+                    '2024-01-01T00:00:00.000Z',
+                    '2024-03-01T00:00:00.000Z',
+                ]),
+                'category',
+            );
+            expect(result.data?.[0]).toContain('T');
+            expect(result.data?.[0]).toContain('2024-01');
+        });
+
+        test('WEEK: uses date-only format when raw values are date-only', () => {
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.WEEK),
+                createRows(['2024-01-01', '2024-01-22']),
+                'category',
+            );
+            expect(result.data?.[0]).toBe('2024-01-01');
+            expect(result.data?.[1]).toBe('2024-01-08');
+            for (const d of result.data ?? []) {
+                expect(d).not.toContain('T');
+            }
+        });
+
+        test('YEAR: uses date-only format when raw values are date-only', () => {
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.YEAR),
+                createRows(['2024-01-01', '2026-01-01']),
+                'category',
+            );
+            expect(result.data?.[0]).toBe('2024-01-01');
+            expect(result.data?.[1]).toBe('2025-01-01');
+            expect(result.data?.[2]).toBe('2026-01-01');
+        });
+    });
+
     // Regression: iteration landing exactly on maxX produced a duplicate
     // trailing category due to dayjs.tz .isBefore drift.
     describe('no duplicate entries when range lands exactly on maxX', () => {
