@@ -314,6 +314,22 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         setHasDateZoomConfigChanged(true);
     }, []);
 
+    // Persisted config, used to seed editable state on load and after save.
+    const persistedDateZoomConfig = useMemo(
+        () => normalizeDateZoomConfig(dashboard?.config),
+        [dashboard?.config],
+    );
+    const [syncedDateZoomConfig, setSyncedDateZoomConfig] =
+        useState<DateZoomConfig | null>(null);
+
+    // Re-seed editable state when persisted content changes (load + post-save),
+    // adjusting during render so a no-op refetch can't clobber in-progress edits.
+    if (!isEqual(persistedDateZoomConfig, syncedDateZoomConfig)) {
+        setSyncedDateZoomConfig(persistedDateZoomConfig);
+        setDateZoomConfigState(persistedDateZoomConfig);
+        setHasDateZoomConfigChanged(false);
+    }
+
     // Per-control runtime grain overrides only; an absent entry means "use the
     // control's persisted default" (the resolver applies `?? control.granularity`).
     const [controlGranularities, setControlGranularities] = useState<
@@ -383,13 +399,6 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
             dashboard?.config?.defaultDateZoomGranularity,
         );
     }, [dashboard?.config?.defaultDateZoomGranularity]);
-
-    // Sync date zoom control config from dashboard config (normalizing an
-    // absent config to the empty controls/tileTargets shape).
-    useEffect(() => {
-        setDateZoomConfigState(normalizeDateZoomConfig(dashboard?.config));
-        setHasDateZoomConfigChanged(false);
-    }, [dashboard?.uuid, dashboard?.config]);
 
     // Reset per-control runtime overrides when the dashboard identity changes;
     // each control's default comes from its persisted granularity.
