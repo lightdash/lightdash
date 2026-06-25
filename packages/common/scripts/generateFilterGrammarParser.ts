@@ -14,6 +14,7 @@
  */
 import { execFileSync } from 'child_process';
 import { readFileSync, rmSync, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
 import path from 'path';
 import * as peg from 'pegjs';
 import filterGrammar from '../src/types/filterGrammar.grammar';
@@ -162,12 +163,14 @@ const fail = (message: string): never => {
 };
 
 // Format an arbitrary source string exactly as the committed file is formatted,
-// by running it through oxfmt in a throwaway file next to the real one (so the
-// same formatter config resolves). Returns the formatted text.
+// by running it through oxfmt. The throwaway file lives in the OS temp dir —
+// NOT under src/ — so it never collides with the lint/format/typecheck quality
+// checks that scan src/ in parallel in CI. oxfmt resolves the repo config the
+// same way, so the output matches the committed file byte-for-byte.
 const formatLikeCommitted = (source: string): string => {
-    const tmp = path.resolve(
-        PACKAGE_DIR,
-        'src/types/filterGrammar.parser.regen.tmp.ts',
+    const tmp = path.join(
+        tmpdir(),
+        `filterGrammar.parser.regen.${process.pid}.tmp.ts`,
     );
     try {
         writeFileSync(tmp, source);
