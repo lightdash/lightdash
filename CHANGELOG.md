@@ -1,3 +1,10 @@
+## [0.3241.2](https://github.com/lightdash/lightdash/compare/0.3241.1...0.3241.2) (2026-06-25)
+
+
+### Bug Fixes
+
+* **ai:** don't 500 document upload when summary generation fails ([#24711](https://github.com/lightdash/lightdash/issues/24711)) ([5e2ca06](https://github.com/lightdash/lightdash/commit/5e2ca06097e452b9bdb4f07b5a9e11ee4acb9ec3))
+
 ## [0.3241.1](https://github.com/lightdash/lightdash/compare/0.3241.0...0.3241.1) (2026-06-25)
 
 
