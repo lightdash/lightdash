@@ -64,6 +64,7 @@ const BASE_ROLE_SCOPES = {
 
         // Enterprise scopes
         'view:AiAgent',
+        'view:OrganizationAiAgent',
         'view:AiAgentDocument',
         'create:AiAgentThread',
         'view:DataApp', // Project-wide + space-access view (parity with manage:Explore)
@@ -144,6 +145,7 @@ const BASE_ROLE_SCOPES = {
         // `manage:ContentAsCode` and keep self-preview write.
         'manage:ContentAsCode@self',
         'manage:AiAgent',
+        'manage:OrganizationAiAgent',
         'manage:AiAgentDocument',
         'manage:AiAgentThread@self', // User's own threads
     ],
@@ -251,10 +253,12 @@ export const getNonEnterpriseScopesForRole = (
         'view:SpotlightTableConfig',
         'manage:SpotlightTableConfig',
         'view:AiAgent',
+        'view:OrganizationAiAgent',
         'view:AiAgentDocument',
         'view:AiAgentThread',
         'create:AiAgentThread',
         'manage:AiAgent',
+        'manage:OrganizationAiAgent',
         'manage:AiAgentDocument',
         'manage:AiAgentThread',
         'view:ContentAsCode',

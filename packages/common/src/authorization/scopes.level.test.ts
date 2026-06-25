@@ -21,6 +21,8 @@ const ORG_ASSIGNABLE_SCOPE_NAMES = [
     'impersonate:User',
     'view:OrganizationDesign',
     'manage:OrganizationDesign',
+    'view:OrganizationAiAgent',
+    'manage:OrganizationAiAgent',
 ];
 
 describe('scope levels', () => {
@@ -41,6 +43,10 @@ describe('scope levels', () => {
         expect(isOrgAssignableScope('manage:SpotlightTableConfig')).toBe(false);
         expect(isOrgAssignableScope('manage:ContentAsCode')).toBe(false);
         expect(isOrgAssignableScope('manage:ExternalConnection')).toBe(false);
+        // The project-level AI agent scopes stay project-assignable; only the
+        // dedicated OrganizationAiAgent scopes are org-assignable.
+        expect(isOrgAssignableScope('view:AiAgent')).toBe(false);
+        expect(isOrgAssignableScope('manage:AiAgent')).toBe(false);
     });
 
     it('keeps every org-assignable scope name backed by a real scope definition', () => {

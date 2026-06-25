@@ -48,6 +48,7 @@ export type CaslSubjectNames =
     | 'JobStatus'
     | 'MetricsTree'
     | 'Organization'
+    | 'OrganizationAiAgent'
     | 'OrganizationDesign'
     | 'OrganizationMemberProfile'
     | 'OrganizationWarehouseCredentials'

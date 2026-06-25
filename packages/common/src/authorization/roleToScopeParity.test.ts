@@ -75,6 +75,7 @@ const ENTERPRISE_SUBJECTS = new Set([
     'MetricsTree',
     'SpotlightTableConfig',
     'AiAgent',
+    'OrganizationAiAgent',
     'AiAgentDocument',
     'AiAgentThread',
     'ContentAsCode',
