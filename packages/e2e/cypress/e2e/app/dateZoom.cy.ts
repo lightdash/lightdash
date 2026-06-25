@@ -176,8 +176,12 @@ describe('Date zoom', () => {
                     });
 
                     // None resets back to the chart's native day granularity.
+                    // Read dayCount inside the callback so it is evaluated at
+                    // run time (after it was captured), not at queue-build time.
                     selectDefaultGrain('None');
-                    cy.get(barSelector).should('have.length', dayCount);
+                    expectBarCount((count) => {
+                        expect(count).to.equal(dayCount);
+                    });
                 });
             });
         });
@@ -254,9 +258,13 @@ describe('Date zoom', () => {
                     });
 
                     // Reset returns the control to its persisted default (Month).
+                    // Read monthCount inside the callback so it is evaluated at
+                    // run time (after it was captured), not at queue-build time.
                     cy.contains(controlName).click();
                     cy.contains('Reset to default').click();
-                    cy.get(barSelector).should('have.length', monthCount);
+                    expectBarCount((count) => {
+                        expect(count).to.equal(monthCount);
+                    });
                 });
             });
         });
