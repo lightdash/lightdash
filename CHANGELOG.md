@@ -1,3 +1,16 @@
+# [0.3243.0](https://github.com/lightdash/lightdash/compare/0.3242.0...0.3243.0) (2026-06-25)
+
+
+### Bug Fixes
+
+* bypass playwright for app viewport height ([#24733](https://github.com/lightdash/lightdash/issues/24733)) ([69d93da](https://github.com/lightdash/lightdash/commit/69d93da809a8f4607b8cba3dd9980b6e69fa07e1))
+
+
+### Features
+
+* **date-zoom:** add control config types ([#24730](https://github.com/lightdash/lightdash/issues/24730)) ([cbed5f8](https://github.com/lightdash/lightdash/commit/cbed5f866af925d2ff0eba68253bd5a11f3b9962))
+* support multiple values per user attribute ([#24681](https://github.com/lightdash/lightdash/issues/24681)) ([78372c4](https://github.com/lightdash/lightdash/commit/78372c410b072eea2af43d16930b6d5687cf2031))
+
 # [0.3242.0](https://github.com/lightdash/lightdash/compare/0.3241.3...0.3242.0) (2026-06-25)
 
 
