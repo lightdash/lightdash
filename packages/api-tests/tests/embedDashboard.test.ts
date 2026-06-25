@@ -1,6 +1,15 @@
-import { CreateEmbedJwt, SEED_PROJECT, UpdateEmbed } from '@lightdash/common';
+import {
+    CreateEmbedJwt,
+    DashboardTileTypes,
+    DateGranularity,
+    DateZoomConfig,
+    SEED_PROJECT,
+    UpdateEmbed,
+} from '@lightdash/common';
+import { randomUUID } from 'crypto';
 import { ApiClient, Body } from '../helpers/api-client';
 import { login } from '../helpers/auth';
+import { uniqueName } from '../helpers/test-isolation';
 
 const EMBED_API_PREFIX = `/api/v1/embed/${SEED_PROJECT.project_uuid}`;
 
@@ -367,6 +376,180 @@ describe('Embed Dashboard JWT API', () => {
                 // Should fail - no JWT token provided
                 expect(resp.status).toBe(403);
             });
+        });
+    });
+
+    // The embed dashboard payload must surface the persisted dateZoomConfig:
+    // embedded dashboards seed their date-zoom controls from this, so if the
+    // backend stopped returning it the embed picker would silently lose its
+    // configured controls.
+    describe('Date zoom config in embed payload', () => {
+        const apiV1 = '/api/v1';
+        let embedDashboardUuid: string;
+        let dateZoomConfig: DateZoomConfig;
+        let snapshot: {
+            dashboardUuids?: string[];
+            allowAllDashboards?: boolean;
+            chartUuids?: string[];
+            allowAllCharts?: boolean;
+        };
+
+        beforeAll(async () => {
+            if (!embedEnabled) return;
+
+            // Snapshot the embed config so afterAll can restore it.
+            const snap = await getEmbedConfig(admin);
+            snapshot = snap.body.results;
+
+            // Create a throwaway dashboard with one chart tile.
+            const dashResp = await admin.post<Body<{ uuid: string }>>(
+                `${apiV1}/projects/${SEED_PROJECT.project_uuid}/dashboards`,
+                { name: uniqueName('Embed date zoom'), tiles: [], tabs: [] },
+            );
+            expect(dashResp.status).toBe(201);
+            embedDashboardUuid = dashResp.body.results.uuid;
+
+            const chartResp = await admin.post<Body<{ uuid: string }>>(
+                `${apiV1}/projects/${SEED_PROJECT.project_uuid}/saved`,
+                {
+                    name: uniqueName('Embed date zoom chart'),
+                    tableName: 'orders',
+                    metricQuery: {
+                        exploreName: 'orders',
+                        dimensions: ['orders_status'],
+                        metrics: ['orders_average_order_size'],
+                        filters: {},
+                        sorts: [],
+                        limit: 1,
+                        tableCalculations: [],
+                    },
+                    chartConfig: { type: 'table' },
+                    tableConfig: { columnOrder: [] },
+                    dashboardUuid: embedDashboardUuid,
+                    spaceUuid: null,
+                },
+            );
+            expect(chartResp.status).toBe(200);
+
+            const emptyFilters = {
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            };
+
+            // Attach the chart as a tile, then read back its assigned uuid.
+            await admin.patch(`${apiV1}/dashboards/${embedDashboardUuid}`, {
+                tiles: [
+                    {
+                        tabUuid: undefined,
+                        type: DashboardTileTypes.SAVED_CHART,
+                        x: 0,
+                        y: 0,
+                        h: 5,
+                        w: 5,
+                        properties: {
+                            savedChartUuid: chartResp.body.results.uuid,
+                        },
+                    },
+                ],
+                tabs: [],
+                filters: emptyFilters,
+            });
+
+            const getResp = await admin.get<
+                Body<{ tiles: Array<{ uuid: string }> }>
+            >(`${apiV1}/dashboards/${embedDashboardUuid}`);
+            const tileUuid = getResp.body.results.tiles[0].uuid;
+
+            const controlUuid = randomUUID();
+            dateZoomConfig = {
+                controls: [
+                    {
+                        uuid: controlUuid,
+                        name: uniqueName('Revenue zoom'),
+                        granularity: DateGranularity.MONTH,
+                    },
+                ],
+                tileTargets: {
+                    [tileUuid]: {
+                        controlUuid,
+                        fieldId: 'orders_order_date_month',
+                        tableName: 'orders',
+                    },
+                },
+            };
+
+            await admin.patch(`${apiV1}/dashboards/${embedDashboardUuid}`, {
+                tiles: getResp.body.results.tiles,
+                tabs: [],
+                filters: emptyFilters,
+                config: { isDateZoomDisabled: false, dateZoomConfig },
+            });
+
+            // Allow the throwaway dashboard through the embed config.
+            await updateEmbedConfig(admin, {
+                dashboardUuids: [
+                    ...(snapshot.dashboardUuids ?? []),
+                    embedDashboardUuid,
+                ],
+                allowAllDashboards: snapshot.allowAllDashboards ?? false,
+                chartUuids: snapshot.chartUuids ?? [],
+                allowAllCharts: true,
+            });
+            await waitForEmbedConfigWithDashboards(admin, [embedDashboardUuid]);
+        });
+
+        afterAll(async () => {
+            if (!embedEnabled) return;
+            if (snapshot) {
+                await updateEmbedConfig(admin, {
+                    dashboardUuids: snapshot.dashboardUuids ?? [],
+                    allowAllDashboards: snapshot.allowAllDashboards ?? false,
+                    chartUuids: snapshot.chartUuids ?? [],
+                    allowAllCharts: snapshot.allowAllCharts ?? true,
+                });
+            }
+            if (embedDashboardUuid) {
+                await admin
+                    .delete(`${apiV1}/dashboards/${embedDashboardUuid}`, {
+                        failOnStatusCode: false,
+                    })
+                    .catch(() => {});
+            }
+        });
+
+        it('returns the saved dateZoomConfig in the embed dashboard payload', async () => {
+            const urlResp = await getEmbedUrl(admin, {
+                user: {
+                    externalId: 'date-zoom-user@example.com',
+                    email: 'date-zoom-user@example.com',
+                },
+                content: {
+                    type: 'dashboard',
+                    dashboardUuid: embedDashboardUuid,
+                    canExportCsv: true,
+                    canExportImages: false,
+                    canViewUnderlyingData: true,
+                    canDateZoom: true,
+                    projectUuid: SEED_PROJECT.project_uuid,
+                },
+                expiresIn: '24h',
+            });
+            expect(urlResp.status).toBe(200);
+            const token = urlResp.body.results.url.split('#')[1];
+
+            const client = new ApiClient();
+            const resp = await client.post<
+                Body<{ config?: { dateZoomConfig?: DateZoomConfig } }>
+            >(
+                `${EMBED_API_PREFIX}/dashboard`,
+                {},
+                { headers: { 'Lightdash-Embed-Token': token } },
+            );
+            expect(resp.status).toBe(200);
+            expect(resp.body.results.config?.dateZoomConfig).toEqual(
+                dateZoomConfig,
+            );
         });
     });
 });
