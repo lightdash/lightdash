@@ -33,6 +33,7 @@ import { EventName } from '../../../types/Events';
 import { getGranularityLabel } from '../utils';
 import styles from './DateZoom.module.css';
 import { DateZoomControlPills } from './DateZoomControlPills';
+import { DateZoomCrossTabFieldsLoader } from './DateZoomCrossTabFieldsLoader';
 
 type EditModeGranularityItemProps = {
     granularity: string;
@@ -589,6 +590,9 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
             )}
             {isDateZoomConfigEnabled && (
                 <DateZoomControlPills isEditMode={isEditMode} />
+            )}
+            {isDateZoomConfigEnabled && isEditMode && (
+                <DateZoomCrossTabFieldsLoader />
             )}
         </Group>
     );

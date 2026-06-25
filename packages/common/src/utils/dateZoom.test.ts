@@ -19,6 +19,7 @@ import {
     normalizeDateZoomConfig,
     normalizeGranularityParam,
     pruneDateZoomConfig,
+    removeDateZoomTileTargets,
     resolveBaseDimension,
     resolveTileDateZoom,
 } from './dateZoom';
@@ -575,6 +576,39 @@ describe('lifecycle helpers', () => {
             },
         };
         expect(pruneDateZoomConfig(cfg)).toEqual(EMPTY_DATE_ZOOM_CONFIG);
+    });
+
+    it('removes a deleted tile and prunes the now-empty control', () => {
+        // tileA is the control's only target -> deleting it drops the control.
+        expect(removeDateZoomTileTargets(controlConfig(), ['tileA'])).toEqual(
+            EMPTY_DATE_ZOOM_CONFIG,
+        );
+    });
+
+    it('removes a deleted tile but keeps a control with surviving targets', () => {
+        const cfg: DateZoomConfig = {
+            controls: controlConfig().controls,
+            tileTargets: {
+                tileA: {
+                    controlUuid: 'ctrl-1',
+                    fieldId: 'orders_fiscal_date',
+                    tableName: 'orders',
+                },
+                tileB: {
+                    controlUuid: 'ctrl-1',
+                    fieldId: 'orders_fiscal_date',
+                    tableName: 'orders',
+                },
+            },
+        };
+        const next = removeDateZoomTileTargets(cfg, ['tileA']);
+        expect(next.controls).toHaveLength(1);
+        expect(Object.keys(next.tileTargets)).toEqual(['tileB']);
+    });
+
+    it('returns the same config when no deleted tile had a target', () => {
+        const cfg = controlConfig();
+        expect(removeDateZoomTileTargets(cfg, ['tileZ'])).toBe(cfg);
     });
 });
 

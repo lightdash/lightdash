@@ -5,6 +5,7 @@ import {
     isEmptyDateZoomConfig,
     normalizeDateZoomConfig,
     pruneDateZoomConfig,
+    removeDateZoomTileTargets,
     ContentType,
     DateGranularity,
     type UpdateDashboard,
@@ -549,8 +550,24 @@ const Dashboard: FC = () => {
             );
 
             setHaveTilesChanged(true);
+
+            // Drop the deleted tile's date-zoom target and prune any control
+            // left with no charts, so deleting the last attached tile doesn't
+            // leave a dangling control behind.
+            const nextDateZoomConfig = removeDateZoomTileTargets(
+                dateZoomConfig,
+                [tile.uuid],
+            );
+            if (nextDateZoomConfig !== dateZoomConfig) {
+                setDateZoomConfig(nextDateZoomConfig);
+            }
         },
-        [setDashboardTiles, setHaveTilesChanged],
+        [
+            setDashboardTiles,
+            setHaveTilesChanged,
+            dateZoomConfig,
+            setDateZoomConfig,
+        ],
     );
 
     const handleBatchDeleteTiles = (
@@ -562,6 +579,14 @@ const Dashboard: FC = () => {
             ),
         );
         setHaveTilesChanged(true);
+
+        const nextDateZoomConfig = removeDateZoomTileTargets(
+            dateZoomConfig,
+            tilesToDelete.map((tile) => tile.uuid),
+        );
+        if (nextDateZoomConfig !== dateZoomConfig) {
+            setDateZoomConfig(nextDateZoomConfig);
+        }
     };
 
     const handleEditTiles = useCallback(
