@@ -1,3 +1,10 @@
+# [0.3242.0](https://github.com/lightdash/lightdash/compare/0.3241.3...0.3242.0) (2026-06-25)
+
+
+### Features
+
+* **data-apps:** show the app's space in the header ([#24725](https://github.com/lightdash/lightdash/issues/24725)) ([52a2ac7](https://github.com/lightdash/lightdash/commit/52a2ac70d9cf997f869fb0fc72b6ed257b73f0a2))
+
 ## [0.3241.3](https://github.com/lightdash/lightdash/compare/0.3241.2...0.3241.3) (2026-06-25)
 
 
