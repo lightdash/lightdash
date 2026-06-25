@@ -142,6 +142,7 @@ import type { SavedSqlModel } from '../../models/SavedSqlModel';
 import PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { compileMetricQuery } from '../../queryCompiler';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { traceSpan } from '../../tracing/tracing';
 import { wrapSentryTransaction } from '../../utils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import {
@@ -2148,7 +2149,7 @@ export class AsyncQueryService extends ProjectService {
             throw new ParameterError(`Invalid data timezone: ${dataTimezone}`);
         }
 
-        const warehouseResults = await Sentry.startSpan(
+        const warehouseResults = await traceSpan(
             {
                 op: 'db.query',
                 name: 'warehouse.executeAsyncQuery',
@@ -2655,7 +2656,7 @@ export class AsyncQueryService extends ProjectService {
                 },
                 pivotDetails,
                 columns,
-            } = await Sentry.startSpan(
+            } = await traceSpan(
                 {
                     op: 'query.execute',
                     name: `query.execute.${executionSource}`,
@@ -2711,7 +2712,7 @@ export class AsyncQueryService extends ProjectService {
             if (stream) {
                 // Wait for the file to be written before marking the query as ready
                 const s3UploadStart = Date.now();
-                const closeResult = await Sentry.startSpan(
+                const closeResult = await traceSpan(
                     {
                         op: 's3.upload',
                         name: 's3.results.upload',

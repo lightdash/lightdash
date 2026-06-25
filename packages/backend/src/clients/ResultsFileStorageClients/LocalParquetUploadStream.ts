@@ -14,6 +14,7 @@ import * as path from 'path';
 import { getJsonlSqlTable } from '../../ee/services/PreAggregateMaterializationService/getDuckdbPreAggregateSqlTable';
 import type Logger from '../../logging/logger';
 import PrometheusMetrics from '../../prometheus/PrometheusMetrics';
+import { traceSpan } from '../../tracing/tracing';
 import { writeWithBackpressure } from '../../utils/streamUtils';
 
 type LocalParquetUploadStreamArgs = {
@@ -99,7 +100,7 @@ export const createLocalParquetUploadStream = ({
         if (closed) return {};
         closed = true;
 
-        return Sentry.startSpan(
+        return traceSpan(
             {
                 op: 'parquet.stream.close',
                 name: 'LocalParquetUploadStream.close',
@@ -112,7 +113,7 @@ export const createLocalParquetUploadStream = ({
                 },
             },
             async (closeSpan) => {
-                await Sentry.startSpan(
+                await traceSpan(
                     {
                         op: 'file.flush',
                         name: 'LocalParquetUploadStream.flushJsonl',
@@ -137,7 +138,7 @@ export const createLocalParquetUploadStream = ({
                 }
 
                 try {
-                    const duckdb = Sentry.startSpan(
+                    const duckdb = traceSpan(
                         {
                             op: 'parquet.duckdb.init',
                             name: 'LocalParquetUploadStream.duckdbInit',
@@ -164,7 +165,7 @@ export const createLocalParquetUploadStream = ({
                     const copySql = `COPY (SELECT * FROM ${localJsonlSqlTable}) TO '${parquetS3Uri}' (FORMAT PARQUET, COMPRESSION zstd, ROW_GROUP_SIZE 100000)`;
 
                     const conversionStart = Date.now();
-                    const metrics = await Sentry.startSpan(
+                    const metrics = await traceSpan(
                         {
                             op: 'parquet.duckdb.convert',
                             name: 'LocalParquetUploadStream.parquetConvert',

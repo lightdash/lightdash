@@ -80,12 +80,15 @@ import {
     ServiceProviderMap,
     ServiceRepository,
 } from './services/ServiceRepository';
+import { initOtelTracing, shutdownOtelTracing } from './tracing/tracing';
 import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
 import { VERSION } from './version';
 
 // Express Request/User type augmentations live in src/@types/express.d.ts
 // so they're picked up as ambient declarations regardless of which file is
 // the compilation entry point (e.g. knex seed/migrate via ts-node).
+
+initOtelTracing();
 
 const schedulerWorkerFactory = (context: {
     lightdashConfig: LightdashConfig;
@@ -971,6 +974,7 @@ export default class App {
 
     async stop() {
         await this.prometheusMetrics.stop();
+        await shutdownOtelTracing();
         if (this.schedulerWorker && this.schedulerWorker.runner) {
             try {
                 await this.schedulerWorker.runner.stop();

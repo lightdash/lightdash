@@ -31,6 +31,11 @@ import {
     ServiceProviderMap,
     ServiceRepository,
 } from './services/ServiceRepository';
+import {
+    initOtelTracing,
+    otelTracingEnabled,
+    shutdownOtelTracing,
+} from './tracing/tracing';
 import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
 import { VERSION } from './version';
 
@@ -215,9 +220,12 @@ export default class SchedulerApp {
                 this.environment === 'development'
                     ? 'development'
                     : this.lightdashConfig.mode,
+            skipOpenTelemetrySetup: otelTracingEnabled(),
+            registerEsmLoaderHooks: !otelTracingEnabled(),
             integrations: [],
             ignoreErrors: IGNORE_ERRORS,
         });
+        initOtelTracing();
     }
 
     private async initWorker() {
@@ -276,6 +284,7 @@ export default class SchedulerApp {
             onSignal: async () => {
                 Logger.info('Stopping Prometheus metrics');
                 await this.prometheusMetrics.stop();
+                await shutdownOtelTracing();
                 if (worker && worker.runner) {
                     Logger.info('Stopping scheduler worker');
                     await worker?.runner?.stop();

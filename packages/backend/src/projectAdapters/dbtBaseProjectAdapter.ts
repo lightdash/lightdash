@@ -37,6 +37,7 @@ import path from 'path';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { preAggregatePostProcessor } from '../ee/preAggregates/postProcessor';
 import Logger from '../logging/logger';
+import { traceSpan } from '../tracing/tracing';
 import {
     CachedWarehouse,
     DbtClient,
@@ -202,7 +203,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             );
         }
 
-        const models = Sentry.startSpan(
+        const models = traceSpan(
             { op: 'dbt', name: 'filterManifestModels' },
             () => {
                 const startTime = Date.now();

@@ -92,6 +92,7 @@ import { SchedulerTableName } from '../database/entities/scheduler';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 import KnexPaginate from '../database/pagination';
+import { traceSpan } from '../tracing/tracing';
 import { wrapSentryTransaction } from '../utils';
 import { acquireProjectSlugLock, generateUniqueSlug } from '../utils/SlugUtils';
 import { ContentVerificationModel } from './ContentVerificationModel';
@@ -1308,7 +1309,7 @@ export class SavedChartModel {
         versionUuid?: string,
         options?: { deleted?: boolean | 'any'; projectUuid?: string },
     ): Promise<SavedChartDAO> {
-        return Sentry.startSpan(
+        return traceSpan(
             {
                 op: 'SavedChartModel.get',
                 name: 'SavedChartModel.get',
@@ -1761,7 +1762,7 @@ export class SavedChartModel {
     }
 
     async getSummary(savedChartUuid: string): Promise<ChartSummary> {
-        return Sentry.startSpan(
+        return traceSpan(
             {
                 op: 'SavedChartModel.getSummary',
                 name: 'Get chart summary',
@@ -2024,7 +2025,7 @@ export class SavedChartModel {
         excludeChartsSavedInDashboard?: boolean;
         includeOrphanChartsWithinDashboard?: boolean;
     }): Promise<(ChartSummary & { updatedAt: Date })[]> {
-        return Sentry.startSpan(
+        return traceSpan(
             {
                 op: 'SavedChartModel.find',
                 name: 'SavedChartModel.find',
