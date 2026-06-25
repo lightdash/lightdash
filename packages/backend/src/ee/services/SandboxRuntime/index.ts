@@ -1,4 +1,5 @@
 import { MissingConfigError } from '@lightdash/common';
+import { DockerSandboxProvider } from './DockerSandboxProvider';
 import { E2bSandboxProvider } from './E2bSandboxProvider';
 import { type SandboxLogger, type SandboxProvider } from './types';
 
@@ -29,11 +30,14 @@ export const createSandboxProvider = (
                 );
             }
             return new E2bSandboxProvider(options.e2bApiKey);
+        case 'docker':
+            return new DockerSandboxProvider(
+                options.dockerImage,
+                options.logger,
+            );
         default:
-            // The `docker` provider lands in the next PR of this stack; until
-            // then E2B is the only backend and anything else is unsupported.
             throw new MissingConfigError(
-                `Unsupported SANDBOX_PROVIDER: ${options.provider as string}`,
+                `Unknown SANDBOX_PROVIDER: ${options.provider as string}`,
             );
     }
 };
