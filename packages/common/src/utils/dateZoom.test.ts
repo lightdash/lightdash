@@ -451,10 +451,8 @@ describe('resolveTileDateZoom', () => {
 });
 
 // Locks the backwards-compatibility contract the config read path relies on:
-// with no config (existing dashboards) or the flag-off swap to
-// EMPTY_DATE_ZOOM_CONFIG in useDashboardChartReadyQuery, every tile resolves to
-// the single global date-zoom setting exactly as it did before configs existed.
-// This is what must hold before the DateZoomConfiguration flag can be removed.
+// with no config (existing dashboards), every tile resolves to the single
+// global date-zoom setting exactly as it did before configs existed.
 describe('resolveTileDateZoom — legacy single-setting backwards compatibility', () => {
     const legacyBase = {
         config: EMPTY_DATE_ZOOM_CONFIG,

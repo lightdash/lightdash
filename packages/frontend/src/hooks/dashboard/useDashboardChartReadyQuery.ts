@@ -1,6 +1,4 @@
 import {
-    EMPTY_DATE_ZOOM_CONFIG,
-    FeatureFlags,
     getAvailableParametersFromTables,
     getChartZoomableFields,
     getDateZoomCapabilities,
@@ -25,7 +23,6 @@ import { useExplore } from '../useExplore';
 import { useQueryRetryConfig } from '../useQueryRetry';
 import { useSavedQuery } from '../useSavedQuery';
 import useSearchParams from '../useSearchParams';
-import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
 import { useSessionTimezone } from '../useSessionTimezone';
 import useDashboardFiltersForTile from './useDashboardFiltersForTile';
 
@@ -106,18 +103,10 @@ export const useDashboardChartReadyQuery = (
         (c) => c.setTilesWithDateZoomApplied,
     );
 
-    // Date zoom controls (gated): when the flag is off, resolve against the
-    // empty config so every tile takes the Default branch and any saved controls
-    // are inert, keeping flag-off byte-for-byte identical to today.
-    const { data: dateZoomConfigFlag } = useServerFeatureFlag(
-        FeatureFlags.DateZoomConfiguration,
-    );
-    const isDateZoomConfigEnabled =
-        dateZoomConfigFlag?.enabled ?? import.meta.env.DEV;
-    const savedDateZoomConfig = useDashboardContext((c) => c.dateZoomConfig);
-    const dateZoomConfig = isDateZoomConfigEnabled
-        ? savedDateZoomConfig
-        : EMPTY_DATE_ZOOM_CONFIG;
+    // Configurable date zoom: tiles with a control resolve their control's
+    // grain; unassigned tiles (and dashboards with no config) fall through to
+    // the Default branch — the existing global picker.
+    const dateZoomConfig = useDashboardContext((c) => c.dateZoomConfig);
     const controlGranularities = useDashboardContext(
         (c) => c.controlGranularities,
     );

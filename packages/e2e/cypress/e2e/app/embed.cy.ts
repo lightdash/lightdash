@@ -95,7 +95,7 @@ describe('Embedded dashboard', () => {
                     cy.contains('Export image');
 
                     // Check date zoom
-                    cy.contains('Date Zoom');
+                    cy.contains('Default zoom');
                 });
             });
         });
@@ -374,10 +374,10 @@ describe('Embedded dashboard', () => {
                     cy.url().should('not.include', 'dateZoom=');
 
                     // Check that Date Zoom dropdown is visible
-                    cy.contains('Date Zoom').should('be.visible');
+                    cy.contains('Default zoom').should('be.visible');
 
                     // Click the Date Zoom dropdown
-                    cy.contains('Date Zoom').click();
+                    cy.contains('Default zoom').click();
 
                     // Select a granularity (e.g., Month)
                     cy.contains('Month').click();

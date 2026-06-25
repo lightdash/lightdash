@@ -1,6 +1,5 @@
 import {
     DateGranularity,
-    FeatureFlags,
     getTileControl,
     isStandardDateGranularity,
 } from '@lightdash/common';
@@ -25,7 +24,6 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -154,39 +152,30 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
         (c) => c.availableCustomGranularities,
     );
     const { track } = useTracking();
-    const { data: dateZoomConfigFlag } = useServerFeatureFlag(
-        FeatureFlags.DateZoomConfiguration,
-    );
-    const isDateZoomConfigEnabled =
-        dateZoomConfigFlag?.enabled ?? import.meta.env.DEV;
     const dateZoomConfig = useDashboardContext((c) => c.dateZoomConfig);
     const chartZoomableFieldsByTileUuid = useDashboardContext(
         (c) => c.chartZoomableFieldsByTileUuid,
     );
 
     // Charts the Default governs: date-zoomable tiles not claimed by a control.
-    const defaultTileCount = useMemo(() => {
-        if (!isDateZoomConfigEnabled) return undefined;
-        return Object.entries(chartZoomableFieldsByTileUuid)
-            .filter(([, fields]) => fields.length > 0)
-            .filter(([uuid]) => !getTileControl(dateZoomConfig, uuid)).length;
-    }, [
-        isDateZoomConfigEnabled,
-        chartZoomableFieldsByTileUuid,
-        dateZoomConfig,
-    ]);
+    const defaultTileCount = useMemo(
+        () =>
+            Object.entries(chartZoomableFieldsByTileUuid)
+                .filter(([, fields]) => fields.length > 0)
+                .filter(([uuid]) => !getTileControl(dateZoomConfig, uuid))
+                .length,
+        [chartZoomableFieldsByTileUuid, dateZoomConfig],
+    );
 
     const isDefaultInert = defaultTileCount === 0;
     // Hide the inert Default from viewers; nothing falls through to it.
     const hideDefaultInView = !isEditMode && isDefaultInert;
     const defaultTooltip =
-        defaultTileCount === undefined
-            ? undefined
-            : defaultTileCount === 0
-              ? 'No charts use the default (every chart is in a zoom control)'
-              : `Applies to ${defaultTileCount} chart${
-                    defaultTileCount === 1 ? '' : 's'
-                } not in a zoom control`;
+        defaultTileCount === 0
+            ? 'No charts use the default (every chart is in a zoom control)'
+            : `Applies to ${defaultTileCount} chart${
+                  defaultTileCount === 1 ? '' : 's'
+              } not in a zoom control`;
 
     useEffect(() => {
         if (isEditMode) setDateZoomGranularity(undefined);
@@ -354,15 +343,11 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                                                 : undefined
                                         }
                                     >
-                                        {isDateZoomConfigEnabled
-                                            ? 'Default zoom'
-                                            : 'Date Zoom'}
+                                        Default zoom
                                     </Text>
                                     {!isEditMode && dateZoomGranularity ? (
                                         <>
-                                            {isDateZoomConfigEnabled
-                                                ? ' · '
-                                                : ': '}
+                                            {' · '}
                                             <Text
                                                 fz="inherit"
                                                 fw={500}
@@ -588,12 +573,8 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                     )}
                 </Group>
             )}
-            {isDateZoomConfigEnabled && (
-                <DateZoomControlPills isEditMode={isEditMode} />
-            )}
-            {isDateZoomConfigEnabled && isEditMode && (
-                <DateZoomCrossTabFieldsLoader />
-            )}
+            <DateZoomControlPills isEditMode={isEditMode} />
+            {isEditMode && <DateZoomCrossTabFieldsLoader />}
         </Group>
     );
 };

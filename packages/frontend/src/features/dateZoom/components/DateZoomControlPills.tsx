@@ -6,7 +6,7 @@ import {
     type DateZoomConfig,
     type DateZoomControl,
 } from '@lightdash/common';
-import { Button, Group, Menu } from '@mantine-8/core';
+import { Button, Divider, Group, Menu, Tooltip } from '@mantine-8/core';
 import {
     IconChevronDown,
     IconEye,
@@ -107,137 +107,172 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
                     controlGranularities,
                 );
                 return (
-                    <Menu
-                        key={control.uuid}
-                        withinPortal
-                        position="bottom-start"
-                        closeOnItemClick
-                    >
-                        <Menu.Target>
-                            <Button
-                                size="xs"
-                                variant="default"
-                                c={control.hidden ? 'dimmed' : undefined}
-                                leftSection={
-                                    control.hidden ? (
-                                        <MantineIcon icon={IconEyeOff} />
-                                    ) : undefined
-                                }
-                                rightSection={
-                                    <MantineIcon icon={IconChevronDown} />
-                                }
-                            >
-                                {control.name} ·{' '}
-                                {getGranularityLabel(
-                                    activeGranularity,
-                                    availableCustomGranularities,
+                    <Group key={control.uuid} gap={0} wrap="nowrap">
+                        <Menu
+                            withinPortal
+                            position="bottom-start"
+                            closeOnItemClick
+                        >
+                            <Menu.Target>
+                                <Button
+                                    size="xs"
+                                    variant="default"
+                                    styles={
+                                        isEditMode
+                                            ? {
+                                                  root: {
+                                                      borderRightWidth: '0px',
+                                                      borderTopRightRadius:
+                                                          '0px',
+                                                      borderBottomRightRadius:
+                                                          '0px',
+                                                  },
+                                              }
+                                            : undefined
+                                    }
+                                    rightSection={
+                                        <MantineIcon icon={IconChevronDown} />
+                                    }
+                                >
+                                    {control.name} ·{' '}
+                                    {getGranularityLabel(
+                                        activeGranularity,
+                                        availableCustomGranularities,
+                                    )}
+                                </Button>
+                            </Menu.Target>
+                            <Menu.Dropdown>
+                                <Menu.Label>Granularity</Menu.Label>
+                                {standardGranularities.map((granularity) => (
+                                    <Menu.Item
+                                        key={granularity}
+                                        fz="xs"
+                                        disabled={
+                                            activeGranularity === granularity
+                                        }
+                                        onClick={() =>
+                                            setControlGranularity(
+                                                control.uuid,
+                                                granularity,
+                                            )
+                                        }
+                                    >
+                                        {granularity}
+                                    </Menu.Item>
+                                ))}
+                                {customGranularities.length > 0 && (
+                                    <>
+                                        <Menu.Divider />
+                                        <Menu.Label>Custom</Menu.Label>
+                                        {customGranularities.map(
+                                            (granularity) => (
+                                                <Menu.Item
+                                                    key={granularity}
+                                                    fz="xs"
+                                                    disabled={
+                                                        activeGranularity ===
+                                                        granularity
+                                                    }
+                                                    onClick={() =>
+                                                        setControlGranularity(
+                                                            control.uuid,
+                                                            granularity,
+                                                        )
+                                                    }
+                                                >
+                                                    {getGranularityLabel(
+                                                        granularity,
+                                                        availableCustomGranularities,
+                                                    )}
+                                                </Menu.Item>
+                                            ),
+                                        )}
+                                    </>
                                 )}
-                            </Button>
-                        </Menu.Target>
-                        <Menu.Dropdown>
-                            <Menu.Label>Granularity</Menu.Label>
-                            {standardGranularities.map((granularity) => (
+                                <Menu.Divider />
                                 <Menu.Item
-                                    key={granularity}
                                     fz="xs"
-                                    disabled={activeGranularity === granularity}
                                     onClick={() =>
                                         setControlGranularity(
                                             control.uuid,
-                                            granularity,
+                                            undefined,
                                         )
                                     }
                                 >
-                                    {granularity}
+                                    Reset to default
                                 </Menu.Item>
-                            ))}
-                            {customGranularities.length > 0 && (
-                                <>
-                                    <Menu.Divider />
-                                    <Menu.Label>Custom</Menu.Label>
-                                    {customGranularities.map((granularity) => (
+                                {isEditMode && (
+                                    <>
                                         <Menu.Item
-                                            key={granularity}
                                             fz="xs"
-                                            disabled={
-                                                activeGranularity ===
-                                                granularity
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconSettings}
+                                                />
                                             }
                                             onClick={() =>
-                                                setControlGranularity(
-                                                    control.uuid,
-                                                    granularity,
-                                                )
+                                                setEditingControl(control)
                                             }
                                         >
-                                            {getGranularityLabel(
-                                                granularity,
-                                                availableCustomGranularities,
-                                            )}
+                                            Configure
                                         </Menu.Item>
-                                    ))}
-                                </>
-                            )}
-                            <Menu.Divider />
-                            <Menu.Item
-                                fz="xs"
-                                onClick={() =>
-                                    setControlGranularity(
-                                        control.uuid,
-                                        undefined,
-                                    )
-                                }
-                            >
-                                Reset to default
-                            </Menu.Item>
-                            {isEditMode && (
-                                <>
-                                    <Menu.Item
-                                        fz="xs"
-                                        leftSection={
-                                            <MantineIcon icon={IconSettings} />
-                                        }
-                                        onClick={() =>
-                                            setEditingControl(control)
-                                        }
-                                    >
-                                        Configure
-                                    </Menu.Item>
-                                    <Menu.Item
-                                        fz="xs"
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={
-                                                    control.hidden
-                                                        ? IconEye
-                                                        : IconEyeOff
-                                                }
-                                            />
-                                        }
+                                        <Menu.Item
+                                            fz="xs"
+                                            color="red"
+                                            leftSection={
+                                                <MantineIcon icon={IconTrash} />
+                                            }
+                                            onClick={() =>
+                                                handleDelete(control.uuid)
+                                            }
+                                        >
+                                            Remove
+                                        </Menu.Item>
+                                    </>
+                                )}
+                            </Menu.Dropdown>
+                        </Menu>
+
+                        {isEditMode && (
+                            <>
+                                <Divider orientation="vertical" />
+
+                                <Tooltip
+                                    label={
+                                        control.hidden
+                                            ? 'Hidden from viewers. Click to show.'
+                                            : 'Visible to viewers. Click to hide.'
+                                    }
+                                    withinPortal
+                                >
+                                    <Button
+                                        aria-label="Toggle zoom control visibility for viewers"
+                                        size="xs"
+                                        variant="default"
+                                        color="gray"
                                         onClick={() =>
                                             handleToggleHidden(control)
                                         }
+                                        styles={{
+                                            root: {
+                                                borderLeftWidth: '0px',
+                                                borderStartStartRadius: '0px',
+                                                borderEndStartRadius: '0px',
+                                            },
+                                        }}
                                     >
-                                        {control.hidden
-                                            ? 'Show to viewers'
-                                            : 'Hide from viewers'}
-                                    </Menu.Item>
-                                    <Menu.Item
-                                        fz="xs"
-                                        color="red"
-                                        leftSection={
-                                            <MantineIcon icon={IconTrash} />
-                                        }
-                                        onClick={() =>
-                                            handleDelete(control.uuid)
-                                        }
-                                    >
-                                        Remove
-                                    </Menu.Item>
-                                </>
-                            )}
-                        </Menu.Dropdown>
-                    </Menu>
+                                        <MantineIcon
+                                            icon={
+                                                control.hidden
+                                                    ? IconEyeOff
+                                                    : IconEye
+                                            }
+                                        />
+                                    </Button>
+                                </Tooltip>
+                            </>
+                        )}
+                    </Group>
                 );
             })}
 
