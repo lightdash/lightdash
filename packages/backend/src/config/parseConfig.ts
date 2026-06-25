@@ -1589,6 +1589,18 @@ export type AppRuntimeConfig = {
      */
     e2bAiWritebackTemplateName: string;
     e2bAiWritebackTemplateTag: string;
+    /**
+     * Which sandbox backend the data-app pipeline launches sandboxes on.
+     * `e2b` keeps today's hosted path; `docker` runs a plain local container
+     * (dev / self-host testbed — see SandboxRuntime/DESIGN.md). Later:
+     * kubernetes | ecs | microsandbox.
+     */
+    sandboxProvider: 'e2b' | 'docker';
+    /**
+     * OCI image the `docker` sandbox provider launches containers from. Built
+     * locally from sandboxes/data-apps (e.g. `lightdash-sandbox:local`).
+     */
+    sandboxDockerImage: string;
 };
 
 export type IntercomConfig = {
@@ -1813,6 +1825,10 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             'lightdash-ai-writeback',
         e2bAiWritebackTemplateTag:
             process.env.E2B_AI_WRITEBACK_TEMPLATE_TAG ?? (VERSION as string),
+        sandboxProvider:
+            process.env.SANDBOX_PROVIDER === 'docker' ? 'docker' : 'e2b',
+        sandboxDockerImage:
+            process.env.SANDBOX_DOCKER_IMAGE || 'lightdash-sandbox:local',
     };
 };
 

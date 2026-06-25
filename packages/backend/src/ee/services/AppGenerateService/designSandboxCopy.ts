@@ -3,10 +3,10 @@ import {
     type AppVersionDesignSnapshot,
     type OrganizationDesignFileKind,
 } from '@lightdash/common';
-import { Sandbox } from 'e2b';
 import type { Logger } from 'winston';
 import type { OrganizationDesignModel } from '../../../models/OrganizationDesignModel';
 import { designS3Key } from '../../../services/OrganizationDesignService/OrganizationDesignService';
+import { type SandboxHandle } from '../SandboxRuntime';
 
 /**
  * Sandbox layout the agent sees when a theme is applied. Subdirectories are
@@ -73,7 +73,7 @@ const readS3ObjectAsBuffer = async (
  * previous version sitting on a warm sandbox.
  */
 export async function copyDesignIntoSandbox(args: {
-    sandbox: Sandbox;
+    sandbox: SandboxHandle;
     s3Client: S3Client;
     bucket: string;
     organizationDesignModel: OrganizationDesignModel;
@@ -151,13 +151,7 @@ export async function copyDesignIntoSandbox(args: {
                 );
             } else {
                 const sandboxPath = `${dir}/${file.filename}`;
-                await sandbox.files.write(
-                    sandboxPath,
-                    buffer.buffer.slice(
-                        buffer.byteOffset,
-                        buffer.byteOffset + buffer.byteLength,
-                    ) as ArrayBuffer,
-                );
+                await sandbox.files.write(sandboxPath, buffer);
 
                 if (file.kind === 'css') cssEntrypoints.push(sandboxPath);
                 else if (file.kind === 'image') imagePaths.push(sandboxPath);
