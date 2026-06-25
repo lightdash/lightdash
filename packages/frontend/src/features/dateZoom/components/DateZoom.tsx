@@ -7,18 +7,16 @@ import {
     ActionIcon,
     Button,
     Checkbox,
-    Divider,
     Group,
     Menu,
     Text,
     Tooltip,
 } from '@mantine-8/core';
+import { clsx } from '@mantine/core';
 import {
     IconCheck,
     IconChevronDown,
     IconChevronUp,
-    IconEye,
-    IconEyeOff,
     IconPin,
     IconPinFilled,
 } from '@tabler/icons-react';
@@ -73,7 +71,7 @@ const EditModeGranularityItem: FC<EditModeGranularityItemProps> = ({
                     <ActionIcon
                         size="xs"
                         variant="subtle"
-                        color={isDefault ? 'blue' : 'gray'}
+                        color={isDefault ? 'blue' : 'ldGray'}
                         onClick={(e) => {
                             e.stopPropagation();
                             onSetDefault(granularity);
@@ -133,9 +131,6 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
         (c) => c.setDateZoomGranularity,
     );
     const isDateZoomDisabled = useDashboardContext((c) => c.isDateZoomDisabled);
-    const setIsDateZoomDisabled = useDashboardContext(
-        (c) => c.setIsDateZoomDisabled,
-    );
     const dateZoomGranularities = useDashboardContext(
         (c) => c.dateZoomGranularities,
     );
@@ -281,14 +276,23 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
 
     return (
         <Group gap="xs" wrap="nowrap">
-            {!hideDefaultInView && (
-                <Group gap={0} wrap="nowrap">
+            <Group
+                gap="xs"
+                wrap="nowrap"
+                className={
+                    isEditMode && isDateZoomDisabled
+                        ? styles.hiddenFromViewers
+                        : undefined
+                }
+            >
+                {!hideDefaultInView && (
                     <Menu
                         withinPortal
                         withArrow
                         closeOnItemClick={!isEditMode}
                         closeOnClickOutside
-                        offset={-1}
+                        offset={1}
+                        arrowOffset={14}
                         position="bottom-end"
                         classNames={{ dropdown: dropdownClassName }}
                         onOpen={() => setShowOpenIcon(true)}
@@ -304,26 +308,13 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                                 <Button
                                     size="xs"
                                     variant="default"
-                                    classNames={
-                                        !isEditMode && dateZoomGranularity
-                                            ? {
-                                                  root: styles.activeDateZoomButton,
-                                              }
-                                            : undefined
-                                    }
-                                    styles={
-                                        isEditMode
-                                            ? {
-                                                  root: {
-                                                      borderRightWidth: '0px',
-                                                      borderTopRightRadius:
-                                                          '0px',
-                                                      borderBottomRightRadius:
-                                                          '0px',
-                                                  },
-                                              }
-                                            : undefined
-                                    }
+                                    classNames={{
+                                        root: clsx(
+                                            styles.pill,
+                                            dateZoomGranularity &&
+                                                styles.activeDateZoomButton,
+                                        ),
+                                    }}
                                     rightSection={
                                         <MantineIcon
                                             icon={
@@ -334,37 +325,37 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                                         />
                                     }
                                 >
-                                    <Text
-                                        fz="inherit"
-                                        fw={600}
-                                        c={
-                                            isDefaultInert
-                                                ? 'dimmed'
-                                                : undefined
-                                        }
-                                    >
-                                        Default zoom
-                                    </Text>
-                                    {!isEditMode && dateZoomGranularity ? (
-                                        <>
-                                            {' · '}
+                                    <Text fz="inherit" span>
+                                        <Text
+                                            span
+                                            fz="inherit"
+                                            fw={600}
+                                            c={
+                                                isDefaultInert
+                                                    ? 'dimmed'
+                                                    : undefined
+                                            }
+                                        >
+                                            Default zoom
+                                        </Text>
+                                        {!isEditMode && dateZoomGranularity ? (
                                             <Text
+                                                span
                                                 fz="inherit"
                                                 fw={500}
-                                                ml="xxs"
                                                 c={
                                                     isDefaultInert
                                                         ? 'dimmed'
                                                         : undefined
                                                 }
                                             >
-                                                {getGranularityLabel(
+                                                {` · ${getGranularityLabel(
                                                     dateZoomGranularity,
                                                     availableCustomGranularities,
-                                                )}
+                                                )}`}
                                             </Text>
-                                        </>
-                                    ) : null}
+                                        ) : null}
+                                    </Text>
                                 </Button>
                             </Tooltip>
                         </Menu.Target>
@@ -529,51 +520,9 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                             )}
                         </Menu.Dropdown>
                     </Menu>
-
-                    {isEditMode && (
-                        <>
-                            <Divider orientation="vertical" />
-
-                            <Tooltip
-                                label={
-                                    isDateZoomDisabled
-                                        ? 'Hidden from viewers. Click to show.'
-                                        : 'Visible to viewers. Click to hide.'
-                                }
-                                withinPortal
-                            >
-                                <Button
-                                    aria-label="Toggle date zoom visibility for viewers"
-                                    size="xs"
-                                    variant="default"
-                                    color="gray"
-                                    onClick={() =>
-                                        setIsDateZoomDisabled(
-                                            !isDateZoomDisabled,
-                                        )
-                                    }
-                                    styles={{
-                                        root: {
-                                            borderLeftWidth: '0px',
-                                            borderStartStartRadius: '0px',
-                                            borderEndStartRadius: '0px',
-                                        },
-                                    }}
-                                >
-                                    <MantineIcon
-                                        icon={
-                                            isDateZoomDisabled
-                                                ? IconEyeOff
-                                                : IconEye
-                                        }
-                                    />
-                                </Button>
-                            </Tooltip>
-                        </>
-                    )}
-                </Group>
-            )}
-            <DateZoomControlPills isEditMode={isEditMode} />
+                )}
+                <DateZoomControlPills isEditMode={isEditMode} />
+            </Group>
             {isEditMode && <DateZoomCrossTabFieldsLoader />}
         </Group>
     );

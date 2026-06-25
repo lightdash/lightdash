@@ -5,3 +5,49 @@
 .checkboxInput {
     cursor: pointer;
 }
+
+/* Master switch is off: the whole date-zoom section is hidden from viewers, so
+   dim it in edit mode to signal nothing here reaches the published dashboard. */
+.hiddenFromViewers {
+    opacity: 0.45;
+}
+
+/* Mantine mutes the disabled checkbox border to the surface colour, which makes
+   conflict (already-attached) tiles invisible in dark mode. Restore the standard
+   border token so the box still reads. */
+input.checkboxInput:disabled {
+    border-color: var(--mantine-color-default-border);
+}
+
+/* Pill-shaped control, matching the dashboard filter pills */
+.pill {
+    border-radius: 100px;
+}
+
+/* Leading segment of a joined pill: rounded left, flush right */
+.segmentStart {
+    border-radius: 100px;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-right-width: 0;
+}
+
+/* Trailing segment of a joined pill: flush left, rounded right */
+.segmentEnd {
+    border-radius: 100px;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-left-width: 0;
+}
+
+/* "Add" trigger, matching the dashed "Add filter" button */
+.addControl {
+    border-radius: 100px;
+    border-style: dashed;
+}
+
+/* Scrollable tile list inside the config popover, matching the filters */
+.tileScrollArea {
+    max-height: min(50vh, calc(100vh - 200px));
+    overflow: auto;
+}
