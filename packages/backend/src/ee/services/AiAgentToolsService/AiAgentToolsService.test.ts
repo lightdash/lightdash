@@ -224,37 +224,25 @@ describe('AiAgentToolsService', () => {
         ]);
     });
 
-    it('adds verified field usage for AI runtime searches but not MCP searches', async () => {
-        const searchCatalog = jest.fn(async ({ catalogSearch }) => ({
-            data:
-                catalogSearch.type === CatalogType.Table
-                    ? [
-                          {
-                              type: CatalogType.Table,
-                              name: 'orders',
-                              label: 'Orders',
-                              description: null,
-                              aiHints: null,
-                              searchRank: 1,
-                              joinedTables: [],
-                          },
-                      ]
-                    : [
-                          {
-                              type: CatalogType.Field,
-                              name: 'orders_count',
-                              label: 'Orders Count',
-                              tableName: 'orders',
-                              fieldType: 'metric',
-                              searchRank: 1,
-                              description: null,
-                              chartUsage: 3,
-                          },
-                      ],
+    it('adds verified field usage for AI field searches but not MCP field searches', async () => {
+        const searchCatalog = jest.fn(async () => ({
+            data: [
+                {
+                    type: CatalogType.Field,
+                    name: 'orders_count',
+                    label: 'Orders Count',
+                    tableName: 'orders',
+                    fieldType: 'metric',
+                    searchRank: 1,
+                    description: 'Field detail returned by findFields',
+                    chartUsage: 3,
+                },
+            ],
             pagination: undefined,
         }));
+        const explore = makeExplore({ name: 'orders' });
         const service = makeService({
-            explores: { orders: makeExplore({ name: 'orders' }) },
+            explores: { orders: explore },
             searchCatalog,
             verifiedFieldUsage: new Map([['orders_orders_count::metric', 7]]),
         });
@@ -270,22 +258,90 @@ describe('AiAgentToolsService', () => {
         );
 
         await expect(
-            aiRuntime.findExplores({
-                fieldSearchSize: 50,
+            aiRuntime.findFields({
+                table: 'orders',
+                fieldSearchQuery: { label: 'orders count' },
+                page: 1,
+                pageSize: 50,
+                explore,
+            }),
+        ).resolves.toMatchObject({
+            fields: [expect.objectContaining({ verifiedChartUsage: 7 })],
+        });
+
+        const mcpResults = await mcpRuntime.findFields({
+            table: 'orders',
+            fieldSearchQuery: { label: 'orders count' },
+            page: 1,
+            pageSize: 50,
+            explore,
+        });
+        expect(mcpResults.fields[0]).not.toHaveProperty('verifiedChartUsage');
+        expect(mcpResults.fields[0]).toHaveProperty(
+            'description',
+            'Field detail returned by findFields',
+        );
+        expect(searchCatalog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                catalogSearch: expect.objectContaining({
+                    type: CatalogType.Field,
+                }),
+                paginateArgs: { page: 1, pageSize: 50 },
+            }),
+        );
+    });
+
+    it('returns compact all-field ids for matched explores without field search', async () => {
+        const searchCatalog = jest.fn(async () => ({
+            data: [
+                {
+                    type: CatalogType.Table,
+                    name: 'orders',
+                    label: 'Orders',
+                    description: 'Orders explore',
+                    aiHints: ['Use for order analysis'],
+                    searchRank: 1,
+                    joinedTables: ['customers'],
+                },
+            ],
+            pagination: undefined,
+        }));
+        const service = makeService({
+            explores: {
+                orders: makeExplore({
+                    name: 'orders',
+                    dimensions: {
+                        status: { name: 'status', table: 'orders' },
+                    },
+                    metrics: {
+                        count: { name: 'count', table: 'orders' },
+                    },
+                }),
+            },
+            searchCatalog,
+        });
+
+        await expect(
+            service.createRuntime(makeRuntimeContext()).findExplores({
                 searchQuery: 'orders',
             }),
         ).resolves.toMatchObject({
-            topMatchingFields: [
-                expect.objectContaining({ verifiedChartUsage: 7 }),
+            exploreSearchResults: [
+                expect.objectContaining({
+                    name: 'orders',
+                    fields: {
+                        dimensions: ['orders_status'],
+                        metrics: ['orders_count'],
+                    },
+                }),
             ],
         });
-
-        const mcpResults = await mcpRuntime.findExplores({
-            fieldSearchSize: 50,
-            searchQuery: 'orders',
-        });
-        expect(mcpResults.topMatchingFields?.[0]).not.toHaveProperty(
-            'verifiedChartUsage',
+        expect(searchCatalog).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                catalogSearch: expect.objectContaining({
+                    type: CatalogType.Field,
+                }),
+            }),
         );
     });
 
@@ -340,7 +396,6 @@ describe('AiAgentToolsService', () => {
         const runtime = service.createRuntime(makeRuntimeContext());
 
         const results = await runtime.findExplores({
-            fieldSearchSize: 50,
             searchQuery: 'orders',
         });
 
@@ -361,8 +416,12 @@ describe('AiAgentToolsService', () => {
                 }),
             ],
         });
-        expect(results.topMatchingFields?.[0]).not.toHaveProperty(
-            'requiredFilter',
+        expect(searchCatalog).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                catalogSearch: expect.objectContaining({
+                    type: CatalogType.Field,
+                }),
+            }),
         );
     });
 

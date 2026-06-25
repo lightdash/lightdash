@@ -1,4 +1,7 @@
-import { findExploresToolDefinition } from '@lightdash/common';
+import {
+    findExploresToolDefinition,
+    type ToolFindExploresOutput,
+} from '@lightdash/common';
 import { tool } from 'ai';
 import type {
     FindExploresFn,
@@ -6,148 +9,42 @@ import type {
 } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-import { truncate } from '../utils/truncation';
-import { xmlBuilder } from '../xmlBuilder';
+import { stringifyToolJson } from './toolOutputFormat';
 
 type Dependencies = {
-    fieldSearchSize: number;
     findExplores: FindExploresFn;
     updateProgress: UpdateProgressFn;
-    toolDescriptionMaxChars: number;
+    fieldSearchSize?: number;
+    toolDescriptionMaxChars?: number;
 };
 
 const toolDefinition = findExploresToolDefinition.for('agent');
 
-const generateExploreResponse = ({
+const getExploreStructuredResponse = ({
     searchQuery,
     exploreSearchResults,
-    topMatchingFields,
-    toolDescriptionMaxChars,
-}: Awaited<ReturnType<FindExploresFn>> & {
-    searchQuery: string;
-    toolDescriptionMaxChars: number;
-}) => {
-    const exploreCount = exploreSearchResults?.length ?? 0;
-    const fieldCount = topMatchingFields?.length ?? 0;
+}: Awaited<ReturnType<FindExploresFn>> & { searchQuery: string }) => ({
+    searchQuery,
+    explores: (exploreSearchResults ?? []).map((result) => ({
+        exploreName: result.name,
+        label: result.label,
+        searchRank: result.searchRank,
+        description: result.description,
+        aiHints: result.aiHints ?? [],
+        joinedTables: result.joinedTables ?? [],
+        requiredFilters: result.requiredFilters ?? [],
+        dimensions: result.fields?.dimensions ?? [],
+        metrics: result.fields?.metrics ?? [],
+    })),
+});
 
-    const searchResultsNote = (() => {
-        if (exploreCount === 0) {
-            return fieldCount > 0
-                ? 'No explore name/label/description/aiHints matched. Use topMatchingFields below and call findFields on the most relevant explore.'
-                : 'No explore matched your search. Try different terms or synonyms.';
-        }
-        if (exploreCount === 1) {
-            return 'One explore matched your search. Call findFields for this explore to get all its dimensions and metrics.';
-        }
-        return "Multiple explores matched. Pick the explore whose fields can answer the user's question (a follow-up query runs against a single explore), using topMatchingFields to compare field-level relevance. Then call findFields on it.";
-    })();
+export type FindExploresStructuredResult = ReturnType<
+    typeof getExploreStructuredResponse
+>;
 
-    const topFieldsNote =
-        fieldCount === 0
-            ? 'No field-level matches either.'
-            : "Per-field matches across all explores. Each field's `exploreName` shows where it lives — pick the explore whose fields can answer the user's question.";
-
-    return (
-        <findExplores searchQuery={searchQuery}>
-            <description>
-                Two-pass catalog search whose goal is to identify the single
-                explore for a follow-up query: a query runs against exactly one
-                explore, so the chosen explore must contain the fields needed to
-                answer the user's question. `searchResults` lists explores whose
-                name/label/description/aiHints matched the query.
-                `topMatchingFields` lists individual fields whose
-                name/label/description matched, across all explores — use it to
-                identify or disambiguate the explore to dig into when no explore
-                matched directly, or when several matched.
-            </description>
-            <searchResults count={exploreCount}>
-                <note>{searchResultsNote}</note>
-                {exploreSearchResults?.map((result) => (
-                    <alternative
-                        name={result.name}
-                        label={result.label}
-                        searchRank={result.searchRank?.toFixed(3) ?? 'N/A'}
-                    >
-                        {result.description && (
-                            <description>
-                                {truncate(
-                                    result.description,
-                                    toolDescriptionMaxChars,
-                                )}
-                            </description>
-                        )}
-                        {result.aiHints && result.aiHints.length > 0 && (
-                            <aiHints>
-                                {result.aiHints.map((hint) => (
-                                    <hint>{hint}</hint>
-                                ))}
-                            </aiHints>
-                        )}
-                        {result.joinedTables &&
-                            result.joinedTables.length > 0 && (
-                                <joinedTables
-                                    count={result.joinedTables.length}
-                                >
-                                    <note>
-                                        Fields from these joined tables are
-                                        available when querying this explore
-                                    </note>
-                                    {result.joinedTables.map((tableName) => (
-                                        <table>{tableName}</table>
-                                    ))}
-                                </joinedTables>
-                            )}
-                        {result.requiredFilters &&
-                            result.requiredFilters.length > 0 && (
-                                <requiredFilters
-                                    count={result.requiredFilters.length}
-                                >
-                                    {result.requiredFilters.map((filter) => (
-                                        <filter
-                                            fieldId={filter.fieldId}
-                                            fieldRef={filter.fieldRef}
-                                            tableName={filter.tableName}
-                                            operator={filter.operator}
-                                            values={JSON.stringify(
-                                                filter.values ?? [],
-                                            )}
-                                            settings={
-                                                filter.settings
-                                                    ? JSON.stringify(
-                                                          filter.settings,
-                                                      )
-                                                    : undefined
-                                            }
-                                            required={filter.required}
-                                        />
-                                    ))}
-                                </requiredFilters>
-                            )}
-                    </alternative>
-                ))}
-            </searchResults>
-            <topMatchingFields count={fieldCount}>
-                <note>{topFieldsNote}</note>
-                {topMatchingFields?.map((field) => (
-                    <field
-                        name={field.name}
-                        label={field.label}
-                        exploreName={field.tableName}
-                        fieldType={field.fieldType}
-                        searchRank={field.searchRank?.toFixed(3) ?? 'N/A'}
-                        usageInCharts={field.chartUsage ?? 0}
-                        usageInVerifiedCharts={field.verifiedChartUsage ?? 0}
-                    />
-                ))}
-            </topMatchingFields>
-        </findExplores>
-    ).toString();
-};
 export const getFindExplores = ({
     findExplores,
     updateProgress,
-    fieldSearchSize,
-    toolDescriptionMaxChars,
 }: Dependencies) =>
     tool({
         ...toolDefinition,
@@ -157,53 +54,23 @@ export const getFindExplores = ({
                     `Searching explores matching query: "${args.searchQuery}"...`,
                 );
 
-                const { exploreSearchResults, topMatchingFields } =
-                    await findExplores({
-                        fieldSearchSize,
-                        searchQuery: args.searchQuery,
-                    });
+                const { exploreSearchResults } = await findExplores({
+                    searchQuery: args.searchQuery,
+                });
+
+                const structuredResult = getExploreStructuredResponse({
+                    searchQuery: args.searchQuery,
+                    exploreSearchResults,
+                });
 
                 return {
-                    result: generateExploreResponse({
-                        searchQuery: args.searchQuery,
-                        exploreSearchResults,
-                        topMatchingFields,
-                        toolDescriptionMaxChars,
-                    }),
+                    result: stringifyToolJson(structuredResult),
+                    structuredResult,
                     metadata: {
                         status: 'success',
-                        ranking: {
-                            searchQuery: args.searchQuery,
-                            exploreSearchResults: exploreSearchResults?.map(
-                                (result) => ({
-                                    name: result.name,
-                                    label: result.label,
-                                    searchRank: result.searchRank,
-                                    joinedTables: result.joinedTables ?? [],
-                                    ...(result.requiredFilters &&
-                                    result.requiredFilters.length > 0
-                                        ? {
-                                              requiredFilters:
-                                                  result.requiredFilters,
-                                          }
-                                        : {}),
-                                }),
-                            ),
-                            topMatchingFields: topMatchingFields?.map(
-                                (field) => ({
-                                    name: field.name,
-                                    label: field.label,
-                                    tableName: field.tableName,
-                                    fieldType: field.fieldType,
-                                    searchRank: field.searchRank,
-                                    chartUsage: field.chartUsage,
-                                    verifiedChartUsage:
-                                        field.verifiedChartUsage,
-                                }),
-                            ),
-                        },
+                        ranking: structuredResult,
                     },
-                };
+                } as ToolFindExploresOutput;
             } catch (error) {
                 return {
                     result: toolErrorHandler(error, `Error listing explores.`),

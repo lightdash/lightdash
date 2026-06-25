@@ -80,12 +80,12 @@ Parameters:
     "description": "Tool: discoverFields
 
 Purpose:
-Run the data-discovery subagent. Given the latest user query, returns a structured handoff describing which explore and which fields to use to answer it.
+Run the data-discovery subagent. Given the latest user query, returns a structured handoff describing which explore, dimensions, and metrics to use to answer it.
 
 Use this tool as the FIRST step whenever the user asks a data question (counts, totals, breakdowns, trends, "what is", "show me", "how many"). Do NOT call this when the user is only asking about existing dashboards/charts (use findContent) or follow-up clarifications about a chart you already produced.
 
 You will receive one of three statuses:
-- "resolved" — proceed with generateVisualization (or generateDashboard) using the returned explore + fields.
+- "resolved" — proceed with generateVisualization (or generateDashboard) using the returned explore + dimensions/metrics.
 - "ambiguous" — surface the suggestedQuestion to the user; do NOT call generateVisualization.
 - "no_match" — explain back to the user that no data source covers the request.
 
@@ -123,39 +123,76 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
             "metadata": {
               "additionalProperties": false,
               "properties": {
-                "status": {
-                  "const": "streaming",
-                  "type": "string",
-                },
-                "streamingMessage": {},
-              },
-              "required": [
-                "status",
-              ],
-              "type": "object",
-            },
-            "result": {
-              "const": "",
-              "type": "string",
-            },
-          },
-          "required": [
-            "result",
-            "metadata",
-          ],
-          "type": "object",
-        },
-        {
-          "additionalProperties": false,
-          "properties": {
-            "metadata": {
-              "additionalProperties": false,
-              "properties": {
                 "discovery": {
                   "anyOf": [
                     {
                       "additionalProperties": false,
                       "properties": {
+                        "dimensions": {
+                          "description": "Filtered list of dimension fields relevant to the user query: groupings, dates, filters, and breakdowns. Not the full explore.",
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "caseSensitiveFilters": {
+                                "description": "Use "true" or "false" only when the exact selected findFields result explicitly includes caseSensitiveFilters with that value; otherwise use "not_applicable".",
+                                "enum": [
+                                  "true",
+                                  "false",
+                                  "not_applicable",
+                                ],
+                                "type": "string",
+                              },
+                              "description": {
+                                "description": "Full field description copied exactly from listFields when fetched, otherwise a non-truncated findFields description; null when the field has no description.",
+                                "type": [
+                                  "string",
+                                  "null",
+                                ],
+                              },
+                              "fieldFilterType": {
+                                "type": "string",
+                              },
+                              "fieldId": {
+                                "description": "The fieldId to use in generateVisualization payloads.",
+                                "type": "string",
+                              },
+                              "fieldType": {
+                                "const": "dimension",
+                                "type": "string",
+                              },
+                              "fieldValueType": {
+                                "description": "The value type (e.g. number, string, date, timestamp, boolean).",
+                                "type": "string",
+                              },
+                              "isFromJoinedTable": {
+                                "type": "boolean",
+                              },
+                              "label": {
+                                "type": "string",
+                              },
+                              "name": {
+                                "type": "string",
+                              },
+                              "table": {
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "fieldId",
+                              "name",
+                              "label",
+                              "table",
+                              "fieldValueType",
+                              "fieldFilterType",
+                              "caseSensitiveFilters",
+                              "isFromJoinedTable",
+                              "description",
+                              "fieldType",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
                         "explore": {
                           "additionalProperties": false,
                           "properties": {
@@ -221,7 +258,137 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                           "type": "object",
                         },
                         "fields": {
-                          "description": "Filtered list of fields relevant to the user query — typically 5–20 entries. Not the full explore.",
+                          "description": "Legacy combined list of selected dimensions and metrics. Prefer dimensions and metrics for new consumers.",
+                          "items": {
+                            "anyOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "caseSensitiveFilters": {
+                                    "description": "Use "true" or "false" only when the exact selected findFields result explicitly includes caseSensitiveFilters with that value; otherwise use "not_applicable".",
+                                    "enum": [
+                                      "true",
+                                      "false",
+                                      "not_applicable",
+                                    ],
+                                    "type": "string",
+                                  },
+                                  "description": {
+                                    "description": "Full field description copied exactly from listFields when fetched, otherwise a non-truncated findFields description; null when the field has no description.",
+                                    "type": [
+                                      "string",
+                                      "null",
+                                    ],
+                                  },
+                                  "fieldFilterType": {
+                                    "type": "string",
+                                  },
+                                  "fieldId": {
+                                    "description": "The fieldId to use in generateVisualization payloads.",
+                                    "type": "string",
+                                  },
+                                  "fieldType": {
+                                    "const": "dimension",
+                                    "type": "string",
+                                  },
+                                  "fieldValueType": {
+                                    "description": "The value type (e.g. number, string, date, timestamp, boolean).",
+                                    "type": "string",
+                                  },
+                                  "isFromJoinedTable": {
+                                    "type": "boolean",
+                                  },
+                                  "label": {
+                                    "type": "string",
+                                  },
+                                  "name": {
+                                    "type": "string",
+                                  },
+                                  "table": {
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "fieldId",
+                                  "name",
+                                  "label",
+                                  "table",
+                                  "fieldValueType",
+                                  "fieldFilterType",
+                                  "caseSensitiveFilters",
+                                  "isFromJoinedTable",
+                                  "description",
+                                  "fieldType",
+                                ],
+                                "type": "object",
+                              },
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "caseSensitiveFilters": {
+                                    "description": "Use "true" or "false" only when the exact selected findFields result explicitly includes caseSensitiveFilters with that value; otherwise use "not_applicable".",
+                                    "enum": [
+                                      "true",
+                                      "false",
+                                      "not_applicable",
+                                    ],
+                                    "type": "string",
+                                  },
+                                  "description": {
+                                    "description": "Full field description copied exactly from listFields when fetched, otherwise a non-truncated findFields description; null when the field has no description.",
+                                    "type": [
+                                      "string",
+                                      "null",
+                                    ],
+                                  },
+                                  "fieldFilterType": {
+                                    "type": "string",
+                                  },
+                                  "fieldId": {
+                                    "description": "The fieldId to use in generateVisualization payloads.",
+                                    "type": "string",
+                                  },
+                                  "fieldType": {
+                                    "const": "metric",
+                                    "type": "string",
+                                  },
+                                  "fieldValueType": {
+                                    "description": "The value type (e.g. number, string, date, timestamp, boolean).",
+                                    "type": "string",
+                                  },
+                                  "isFromJoinedTable": {
+                                    "type": "boolean",
+                                  },
+                                  "label": {
+                                    "type": "string",
+                                  },
+                                  "name": {
+                                    "type": "string",
+                                  },
+                                  "table": {
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "fieldId",
+                                  "name",
+                                  "label",
+                                  "table",
+                                  "fieldValueType",
+                                  "fieldFilterType",
+                                  "caseSensitiveFilters",
+                                  "isFromJoinedTable",
+                                  "description",
+                                  "fieldType",
+                                ],
+                                "type": "object",
+                              },
+                            ],
+                          },
+                          "type": "array",
+                        },
+                        "metrics": {
+                          "description": "Filtered list of metric fields relevant to the user query. Not the full explore.",
                           "items": {
                             "additionalProperties": false,
                             "properties": {
@@ -235,7 +402,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                                 "type": "string",
                               },
                               "description": {
-                                "description": "Short description, only include when needed to distinguish similar fields.",
+                                "description": "Full field description copied exactly from listFields when fetched, otherwise a non-truncated findFields description; null when the field has no description.",
                                 "type": [
                                   "string",
                                   "null",
@@ -249,10 +416,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                                 "type": "string",
                               },
                               "fieldType": {
-                                "enum": [
-                                  "dimension",
-                                  "metric",
-                                ],
+                                "const": "metric",
                                 "type": "string",
                               },
                               "fieldValueType": {
@@ -277,12 +441,12 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                               "name",
                               "label",
                               "table",
-                              "fieldType",
                               "fieldValueType",
                               "fieldFilterType",
                               "caseSensitiveFilters",
                               "isFromJoinedTable",
                               "description",
+                              "fieldType",
                             ],
                             "type": "object",
                           },
@@ -299,12 +463,22 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                           "const": "resolved",
                           "type": "string",
                         },
+                        "uncertainties": {
+                          "description": "Free-form uncertainties or caveats encountered during discovery. Null when selection was straightforward.",
+                          "type": [
+                            "string",
+                            "null",
+                          ],
+                        },
                       },
                       "required": [
                         "status",
                         "explore",
+                        "dimensions",
+                        "metrics",
                         "fields",
                         "rationale",
+                        "uncertainties",
                       ],
                       "type": "object",
                     },
@@ -345,11 +519,19 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                           "description": "A clarification question the parent can echo to the user (e.g. 'Did you mean revenue from the orders explore or the payments explore?').",
                           "type": "string",
                         },
+                        "uncertainties": {
+                          "description": "Free-form uncertainties or caveats encountered during discovery. Null when selection was straightforward.",
+                          "type": [
+                            "string",
+                            "null",
+                          ],
+                        },
                       },
                       "required": [
                         "status",
                         "candidates",
                         "suggestedQuestion",
+                        "uncertainties",
                       ],
                       "type": "object",
                     },
@@ -364,10 +546,18 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                           "const": "no_match",
                           "type": "string",
                         },
+                        "uncertainties": {
+                          "description": "Free-form uncertainties or caveats encountered during discovery. Null when selection was straightforward.",
+                          "type": [
+                            "string",
+                            "null",
+                          ],
+                        },
                       },
                       "required": [
                         "status",
                         "reason",
+                        "uncertainties",
                       ],
                       "type": "object",
                     },
@@ -377,7 +567,6 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                   "const": "success",
                   "type": "string",
                 },
-                "streamingMessage": {},
               },
               "required": [
                 "status",
@@ -879,23 +1068,25 @@ Usage tips:
     "description": "Tool: findExplores
 
 Purpose:
-Returns explores matching the query with their joined tables, required filters, AI hints and descriptions, plus the top 50 matching fields across ALL explores. Search matches explore and field name, label, and description. A follow-up query runs against a single explore, so this tool is meant to identify the explore whose fields can answer the user's question.
+Returns explores matching the query with joined tables, required filters, AI hints, full descriptions, and compact lists of all dimension/metric field ids available in each matched explore. Search matches explore name, label, description, and AI hints. A follow-up query runs against a single explore, so this tool is meant to identify the explore to inspect next with findFields or listFields.
+
 IMPORTANT: Each explore may include fields from multiple joined tables. Check the "joinedTables" elements to see which tables are included in the explore.
 
 Parameters:
 - searchQuery: Keyword terms for finding relevant explores
 
 Output:
-- Matching explores with searchRank scores
-- Top matching fields with their explore names and searchRank scores
-- Required filters set on matching explores, including default values
+- Matching explores with searchRank scores, joined tables, required filters, AI hints, and full descriptions
+- Compact all-field inventories split into dimension and metric field ids
+
+Field descriptions are not included in the compact field inventories. Use findFields to search/compare fields by label/description, or listFields when you need exact full metadata for known field ids.
 ",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "searchQuery": {
-          "description": "set of high-signal keyword terms for query. Search uses PostgreSQL websearch_to_tsquery after joining whitespace-separated terms with OR. It searches explore and field name, label, and description. Prefer metric/entity/dimension nouns that capture the user's analytical intent.",
+          "description": "set of high-signal keyword terms for query. Search uses PostgreSQL websearch_to_tsquery after joining whitespace-separated terms with OR. It searches explore name, label, description, and AI hints. Prefer entity/domain nouns that capture the user's analytical intent.",
           "type": "string",
         },
       },
@@ -915,28 +1106,45 @@ Output:
             "ranking": {
               "additionalProperties": false,
               "properties": {
-                "exploreSearchResults": {
+                "explores": {
                   "items": {
                     "additionalProperties": false,
                     "properties": {
-                      "joinedTables": {
-                        "anyOf": [
-                          {
-                            "items": {
-                              "type": "string",
-                            },
-                            "type": "array",
-                          },
-                          {
-                            "type": "null",
-                          },
+                      "aiHints": {
+                        "items": {
+                          "type": "string",
+                        },
+                        "type": "array",
+                      },
+                      "description": {
+                        "type": [
+                          "string",
+                          "null",
                         ],
+                      },
+                      "dimensions": {
+                        "items": {
+                          "type": "string",
+                        },
+                        "type": "array",
+                      },
+                      "exploreName": {
+                        "type": "string",
+                      },
+                      "joinedTables": {
+                        "items": {
+                          "type": "string",
+                        },
+                        "type": "array",
                       },
                       "label": {
                         "type": "string",
                       },
-                      "name": {
-                        "type": "string",
+                      "metrics": {
+                        "items": {
+                          "type": "string",
+                        },
+                        "type": "array",
                       },
                       "requiredFilters": {
                         "items": {
@@ -982,8 +1190,13 @@ Output:
                       },
                     },
                     "required": [
-                      "name",
+                      "exploreName",
                       "label",
+                      "aiHints",
+                      "joinedTables",
+                      "requiredFilters",
+                      "dimensions",
+                      "metrics",
                     ],
                     "type": "object",
                   },
@@ -992,54 +1205,10 @@ Output:
                 "searchQuery": {
                   "type": "string",
                 },
-                "topMatchingFields": {
-                  "items": {
-                    "additionalProperties": false,
-                    "properties": {
-                      "chartUsage": {
-                        "type": [
-                          "number",
-                          "null",
-                        ],
-                      },
-                      "fieldType": {
-                        "type": "string",
-                      },
-                      "label": {
-                        "type": "string",
-                      },
-                      "name": {
-                        "type": "string",
-                      },
-                      "searchRank": {
-                        "type": [
-                          "number",
-                          "null",
-                        ],
-                      },
-                      "tableName": {
-                        "type": "string",
-                      },
-                      "verifiedChartUsage": {
-                        "type": [
-                          "number",
-                          "null",
-                        ],
-                      },
-                    },
-                    "required": [
-                      "name",
-                      "label",
-                      "tableName",
-                      "fieldType",
-                    ],
-                    "type": "object",
-                  },
-                  "type": "array",
-                },
               },
               "required": [
                 "searchQuery",
+                "explores",
               ],
               "type": "object",
             },

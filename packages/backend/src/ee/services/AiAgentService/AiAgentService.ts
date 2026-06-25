@@ -7372,7 +7372,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             availableSkills,
             enableAgentRevamp: agentRevampEnabled,
 
-            findExploresFieldSearchSize: 200,
             findFieldsPageSize: 30,
             toolDescriptionMaxChars:
                 this.lightdashConfig.ai.copilot.toolDescriptionMaxChars,

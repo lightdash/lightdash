@@ -60,10 +60,7 @@ export type AiAgentRequiredFilterMetadata = {
 
 export type ListExploresFn = () => Promise<Explore[]>;
 
-export type FindExploresFn = (args: {
-    fieldSearchSize: number;
-    searchQuery?: string;
-}) => Promise<{
+export type FindExploresFn = (args: { searchQuery?: string }) => Promise<{
     exploreSearchResults?: Array<{
         name: string;
         label: string;
@@ -72,16 +69,10 @@ export type FindExploresFn = (args: {
         searchRank?: number;
         joinedTables?: string[] | null;
         requiredFilters?: AiAgentRequiredFilterMetadata[];
-    }>;
-    topMatchingFields?: Array<{
-        name: string;
-        label: string;
-        tableName: string;
-        fieldType: string;
-        searchRank?: number;
-        description?: string;
-        chartUsage?: number;
-        verifiedChartUsage?: number;
+        fields?: {
+            dimensions: string[];
+            metrics: string[];
+        };
     }>;
 }>;
 
