@@ -1,4 +1,8 @@
-import { getItemId, getItemLabelWithoutTableName } from '@lightdash/common';
+import {
+    getGranularityMapFromItems,
+    getItemId,
+    getItemLabelWithoutTableName,
+} from '@lightdash/common';
 import {
     Center,
     Checkbox,
@@ -6,7 +10,6 @@ import {
     NumberInput,
     SegmentedControl,
     Stack,
-    TextInput,
     Tooltip,
 } from '@mantine/core';
 import { memo, type FC } from 'react';
@@ -14,15 +17,18 @@ import FieldSelect from '../../common/FieldSelect';
 import { isGaugeVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
+import { LabelEditor } from '../common/LabelEditor';
 import GaugeSections from './GaugeSections';
 import { GaugeValueMode } from './types';
 
 export const GaugeDisplayConfig: FC = memo(() => {
-    const { visualizationConfig } = useVisualizationContext();
+    const { visualizationConfig, itemsMap } = useVisualizationContext();
 
     if (!isGaugeVisualizationConfig(visualizationConfig)) {
         return null;
     }
+
+    const granularityFields = Object.keys(getGranularityMapFromItems(itemsMap));
 
     const {
         chartConfig: {
@@ -166,28 +172,24 @@ export const GaugeDisplayConfig: FC = memo(() => {
                     />
 
                     {showPercentage && (
-                        <TextInput
+                        <LabelEditor
                             label="Custom percentage label"
                             description="Add a custom label after the percentage"
                             value={customPercentageLabel || ''}
-                            onChange={(event) =>
-                                setCustomPercentageLabel(
-                                    event.currentTarget.value || undefined,
-                                )
+                            onChange={(value) =>
+                                setCustomPercentageLabel(value || undefined)
                             }
+                            fields={granularityFields}
                             placeholder="e.g. 'completed'"
                         />
                     )}
 
-                    <TextInput
+                    <LabelEditor
                         label="Custom label"
                         description="Override the default field label"
                         value={customLabel || ''}
-                        onChange={(event) =>
-                            setCustomLabel(
-                                event.currentTarget.value || undefined,
-                            )
-                        }
+                        onChange={(value) => setCustomLabel(value || undefined)}
+                        fields={granularityFields}
                         placeholder={
                             selectedField
                                 ? getItemLabelWithoutTableName(selectedField)

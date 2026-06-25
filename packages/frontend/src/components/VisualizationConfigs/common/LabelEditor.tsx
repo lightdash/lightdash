@@ -8,7 +8,15 @@ import {
     type OnMount,
 } from '@monaco-editor/react';
 import { type IDisposable, type languages } from 'monaco-editor';
-import { useCallback, useEffect, useRef, useState, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useId,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import { useDeepCompareEffect } from 'react-use';
 import { getLightdashMonacoTheme } from '../../../features/sqlRunner/utils/monaco';
 import '../../../styles/monaco.css';
@@ -30,6 +38,11 @@ const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {
     lineNumbersMinChars: 0,
     fixedOverflowWidgets: true,
 };
+
+// Each LabelEditor registers its completion provider against a private Monaco
+// language id. Monaco language providers are global, so mounting several editors
+// against a shared language (e.g. 'plaintext') stacks duplicate providers and
+// repeats every suggestion once per editor.
 
 const registerCompletionProvider = (
     monaco: Monaco,
@@ -76,9 +89,10 @@ const registerCompletionProvider = (
 };
 
 type LabelEditorProps = {
-    label: string;
+    label?: string;
     value: string;
     placeholder?: string;
+    description?: string;
     onChange: (value: string) => void;
     fields: string[];
     readOnly?: boolean;
@@ -88,6 +102,7 @@ export const LabelEditor: FC<LabelEditorProps> = ({
     label,
     value,
     placeholder,
+    description,
     onChange,
     fields,
     readOnly = false,
@@ -100,6 +115,12 @@ export const LabelEditor: FC<LabelEditorProps> = ({
         const lines = Math.min(lineCount || 1, MAX_LINES);
         return lines * MONACO_LINE_HEIGHT + MONACO_PADDING;
     };
+
+    const reactId = useId();
+    const languageId = useMemo(
+        () => `label-editor-${reactId.replace(/:/g, '')}`,
+        [reactId],
+    );
 
     const { colorScheme } = useMantineColorScheme();
     const [localValue, setLocalValue] = useState(value);
@@ -152,10 +173,11 @@ export const LabelEditor: FC<LabelEditorProps> = ({
 
     const beforeMount: BeforeMount = useCallback(
         (monaco) => {
+            monaco.languages.register({ id: languageId });
             completionDisposableRef.current?.dispose();
             completionDisposableRef.current = registerCompletionProvider(
                 monaco,
-                'plaintext',
+                languageId,
                 fields,
             );
 
@@ -175,7 +197,7 @@ export const LabelEditor: FC<LabelEditorProps> = ({
                 colors: { ...darkTheme.colors },
             });
         },
-        [fields],
+        [fields, languageId],
     );
 
     const onMount: OnMount = useCallback((monacoEditor) => {
@@ -191,7 +213,7 @@ export const LabelEditor: FC<LabelEditorProps> = ({
     if (!monacoOptions) return null;
 
     return (
-        <Input.Wrapper label={label}>
+        <Input.Wrapper label={label} description={description}>
             <Paper
                 className={`${styles.editorWrapper} ${readOnly ? styles.editorWrapperReadOnly : ''}`}
                 radius="sm"
@@ -215,7 +237,7 @@ export const LabelEditor: FC<LabelEditorProps> = ({
                     value={localValue}
                     options={monacoOptions}
                     onChange={(v) => setLocalValue(v ?? '')}
-                    language="plaintext"
+                    language={languageId}
                     height={`${editorHeight}px`}
                     width="100%"
                     theme={

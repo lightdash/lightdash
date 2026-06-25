@@ -15,9 +15,9 @@ import FieldSelect from '../../common/FieldSelect';
 import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
+import { LabelEditor } from '../common/LabelEditor';
 import classes from './BigNumberComparison.module.css';
 import { StyleOptions } from './common';
-import { LabelEditor } from './LabelEditor';
 
 type CompareTarget = 'previous_row' | 'another_field';
 

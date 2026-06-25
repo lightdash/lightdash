@@ -12,8 +12,8 @@ import MantineIcon from '../../common/MantineIcon';
 import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
+import { LabelEditor } from '../common/LabelEditor';
 import { StyleOptions } from './common';
-import { LabelEditor } from './LabelEditor';
 
 export const Layout: FC = () => {
     const { visualizationConfig, itemsMap } = useVisualizationContext();
