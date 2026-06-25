@@ -107,6 +107,8 @@ query('orders')
 
 **Never prefix joined table fields with the base explore name.** `'customers.name'` is correct. `'name'` alone would resolve to `orders_name` which doesn't exist.
 
+Each entry under `meta.joins` may carry a `relationship` (`one-to-many`, `many-to-one`, `one-to-one`, `many-to-many`) and a `sql_on` condition — either can be absent. When a `relationship` is present, use it to reason about grain and fan-out: joining a `one-to-many` table multiplies base rows, so aggregating a base metric across that join can double-count — prefer a metric defined on the "many" side, or aggregate before joining.
+
 ### Understanding data grain
 
 When designing queries, consider the model's grain — what combination of dimensions produces one unique row. If the grain includes dimensions you aren't selecting, you may need filters to avoid duplicates. Estimate row counts from the grain to set appropriate `.limit()` values.

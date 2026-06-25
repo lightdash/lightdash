@@ -240,10 +240,10 @@ describe('AppGenerateService pipeline external connection samples', () => {
                 chartReferences: undefined,
                 template: undefined,
             ) => Promise<unknown>;
-            catalogModel: { getCatalogItemsSummary: jest.Mock };
+            projectModel: { getAllExploresFromCache: jest.Mock };
         };
-        privateService.catalogModel = {
-            getCatalogItemsSummary: jest.fn().mockResolvedValue([]),
+        privateService.projectModel = {
+            getAllExploresFromCache: jest.fn().mockResolvedValue({}),
         };
 
         await privateService.writeCatalogAndPrompt(
