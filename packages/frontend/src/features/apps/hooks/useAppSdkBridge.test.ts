@@ -1,3 +1,4 @@
+import { LightdashAppUuidHeader } from '@lightdash/common';
 import { renderHook } from '@testing-library/react';
 import { type RefObject } from 'react';
 import {
@@ -170,6 +171,30 @@ describe('useAppSdkBridge', () => {
             queryUuid: QUERY_UUID,
             rowCount: 42,
         });
+    });
+
+    it('attaches the app UUID header to metric-query requests for warehouse attribution', async () => {
+        renderBridge(() => undefined);
+
+        mockFetchOk({
+            status: 'ok',
+            results: { queryUuid: QUERY_UUID, metricQuery: METRIC_QUERY },
+        });
+        postMetricQuery();
+
+        await vi.waitFor(() =>
+            expect(fetch).toHaveBeenCalledWith(
+                POST_PATH,
+                expect.objectContaining({ method: 'POST' }),
+            ),
+        );
+
+        const [, init] = (fetch as Mock).mock.calls[0];
+        expect(init.headers).toMatchObject({
+            [LightdashAppUuidHeader]: APP_UUID,
+        });
+        // App attribution rides on the header, not the request body.
+        expect(JSON.parse(init.body)).toEqual({ query: METRIC_QUERY });
     });
 
     it('re-keys terminal error events to the POST request id', async () => {

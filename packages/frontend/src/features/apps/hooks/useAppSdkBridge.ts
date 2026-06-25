@@ -1,4 +1,8 @@
-import { JWT_HEADER_NAME, type DashboardFilters } from '@lightdash/common';
+import {
+    JWT_HEADER_NAME,
+    LightdashAppUuidHeader,
+    type DashboardFilters,
+} from '@lightdash/common';
 import { useCallback, useEffect, useRef, type RefObject } from 'react';
 import { lightdashApi } from '../../../api';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
@@ -408,7 +412,8 @@ export function useAppSdkBridge(
             // fields aren't in the query's explore, so it's safe to send the
             // full set on every call. `invalidateCache` mirrors what charts
             // send on a dashboard refresh so the app's queries bypass the
-            // warehouse results cache too.
+            // warehouse results cache too. App attribution rides on the
+            // LightdashAppUuidHeader instead (see the fetch below).
             const effectiveBody =
                 isMetricQueryPost(method, path) &&
                 (dashboardFilters || invalidateCache)
@@ -504,6 +509,11 @@ export function useAppSdkBridge(
                         'Content-Type': 'application/json',
                         ...(embedToken
                             ? { [JWT_HEADER_NAME]: embedToken }
+                            : {}),
+                        // Self-reported app attribution; the backend tags
+                        // warehouse queries with it. Tracking only.
+                        ...(appUuid
+                            ? { [LightdashAppUuidHeader]: appUuid }
                             : {}),
                     },
                     ...(effectiveBody
