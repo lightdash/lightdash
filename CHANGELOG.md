@@ -1,3 +1,17 @@
+# [0.3248.0](https://github.com/lightdash/lightdash/compare/0.3247.0...0.3248.0) (2026-06-25)
+
+
+### Bug Fixes
+
+* **custom-roles:** show correct scopes after switching role level ([#24780](https://github.com/lightdash/lightdash/issues/24780)) ([5776895](https://github.com/lightdash/lightdash/commit/577689543243de8812cdfa49941b38f99595219d)), closes [#24779](https://github.com/lightdash/lightdash/issues/24779)
+
+
+### Features
+
+* **ai:** show Ask AI admin settings to project-scoped users ([#24779](https://github.com/lightdash/lightdash/issues/24779)) ([9c30c57](https://github.com/lightdash/lightdash/commit/9c30c57a25dcb777a0f6136c7be01bb2b218afbe)), closes [#24778](https://github.com/lightdash/lightdash/issues/24778)
+* **ai:** split org AI admin into OrganizationAiAgent scope ([#24778](https://github.com/lightdash/lightdash/issues/24778)) ([674c589](https://github.com/lightdash/lightdash/commit/674c589db67c13da957ac0e911d326a4887b0b48)), closes [#24779](https://github.com/lightdash/lightdash/issues/24779)
+* **date-zoom:** enable configurable date zoom by default ([#24757](https://github.com/lightdash/lightdash/issues/24757)) ([56658f2](https://github.com/lightdash/lightdash/commit/56658f221f43cc9f0bc7654efe46503940855724))
+
 # [0.3247.0](https://github.com/lightdash/lightdash/compare/0.3246.0...0.3247.0) (2026-06-25)
 
 
