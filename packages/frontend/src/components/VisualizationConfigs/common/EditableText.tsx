@@ -5,11 +5,11 @@ import {
     Menu,
     TextInput,
     type TextInputProps,
-} from '@mantine/core';
-import { useHover } from '@mantine/hooks';
+} from '@mantine-8/core';
 import { IconPencil, IconVariable } from '@tabler/icons-react';
 import { useRef, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
+import styles from './EditableText.module.css';
 
 type Props = TextInputProps & {
     lighter?: boolean;
@@ -23,7 +23,6 @@ export const EditableText: FC<Props> = ({
     granularityFields,
     ...props
 }) => {
-    const { hovered, ref } = useHover();
     const inputRef = useRef<HTMLInputElement>(null);
 
     const handleIconClick = () => {
@@ -54,10 +53,7 @@ export const EditableText: FC<Props> = ({
 
     const pencil = (
         <MantineIcon
-            style={{
-                visibility: hovered ? 'initial' : 'hidden',
-                cursor: 'pointer',
-            }}
+            className={styles.action}
             color="ldGray.6"
             icon={IconPencil}
             onClick={handleIconClick}
@@ -65,15 +61,20 @@ export const EditableText: FC<Props> = ({
     );
 
     return (
-        <Box ref={ref}>
+        <Box className={styles.root}>
             <TextInput
                 size="xs"
                 {...props}
                 ref={inputRef}
+                classNames={{
+                    input: lighter
+                        ? `${styles.input} ${styles.lighter}`
+                        : styles.input,
+                }}
                 rightSectionWidth={hasGranularity ? 48 : undefined}
                 rightSection={
                     hasGranularity ? (
-                        <Group spacing={2} noWrap>
+                        <Group gap={2} wrap="nowrap">
                             <Menu
                                 withinPortal
                                 position="bottom-end"
@@ -81,14 +82,10 @@ export const EditableText: FC<Props> = ({
                             >
                                 <Menu.Target>
                                     <ActionIcon
+                                        className={styles.action}
                                         size="xs"
                                         variant="subtle"
                                         color="ldGray.6"
-                                        style={{
-                                            visibility: hovered
-                                                ? 'initial'
-                                                : 'hidden',
-                                        }}
                                     >
                                         <MantineIcon icon={IconVariable} />
                                     </ActionIcon>
@@ -115,26 +112,6 @@ export const EditableText: FC<Props> = ({
                         pencil
                     )
                 }
-                styles={(theme) => ({
-                    input: {
-                        border: 'none',
-                        background: 'transparent',
-                        fontWeight: 500,
-                        paddingLeft: 4,
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        ':hover': {
-                            whiteSpace: 'normal',
-                            overflow: 'visible',
-                            background:
-                                theme.colors.ldGray[lighter ? '1' : '2'],
-                        },
-                        '::placeholder': {
-                            color: theme.colors.ldGray[lighter ? '5' : '6'],
-                        },
-                    },
-                })}
             />
         </Box>
     );
