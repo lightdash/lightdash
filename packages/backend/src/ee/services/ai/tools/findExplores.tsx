@@ -92,6 +92,32 @@ const generateExploreResponse = ({
                                     ))}
                                 </joinedTables>
                             )}
+                        {result.requiredFilters &&
+                            result.requiredFilters.length > 0 && (
+                                <requiredFilters
+                                    count={result.requiredFilters.length}
+                                >
+                                    {result.requiredFilters.map((filter) => (
+                                        <filter
+                                            fieldId={filter.fieldId}
+                                            fieldRef={filter.fieldRef}
+                                            tableName={filter.tableName}
+                                            operator={filter.operator}
+                                            values={JSON.stringify(
+                                                filter.values ?? [],
+                                            )}
+                                            settings={
+                                                filter.settings
+                                                    ? JSON.stringify(
+                                                          filter.settings,
+                                                      )
+                                                    : undefined
+                                            }
+                                            required={filter.required}
+                                        />
+                                    ))}
+                                </requiredFilters>
+                            )}
                     </alternative>
                 ))}
             </searchResults>
@@ -147,6 +173,13 @@ export const getFindExplores = ({
                                     label: result.label,
                                     searchRank: result.searchRank,
                                     joinedTables: result.joinedTables ?? [],
+                                    ...(result.requiredFilters &&
+                                    result.requiredFilters.length > 0
+                                        ? {
+                                              requiredFilters:
+                                                  result.requiredFilters,
+                                          }
+                                        : {}),
                                 }),
                             ),
                             topMatchingFields: topMatchingFields?.map(

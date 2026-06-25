@@ -5,7 +5,7 @@ import { createToolSchema } from '../toolSchemaBuilder';
 export const TOOL_FIND_EXPLORES_DESCRIPTION = `Tool: findExplores
 
 Purpose:
-Returns explores matching the query with their joined tables, AI hints and descriptions, plus the top 50 matching fields across ALL explores. Search matches explore and field name, label, and description. A follow-up query runs against a single explore, so this tool is meant to identify the explore whose fields can answer the user's question.
+Returns explores matching the query with their joined tables, required filters, AI hints and descriptions, plus the top 50 matching fields across ALL explores. Search matches explore and field name, label, and description. A follow-up query runs against a single explore, so this tool is meant to identify the explore whose fields can answer the user's question.
 IMPORTANT: Each explore may include fields from multiple joined tables. Check the "joinedTables" elements to see which tables are included in the explore.
 
 Parameters:
@@ -14,6 +14,7 @@ Parameters:
 Output:
 - Matching explores with searchRank scores
 - Top matching fields with their explore names and searchRank scores
+- Required filters set on matching explores, including default values
 `;
 
 export const toolFindExploresArgsSchemaV1 = createToolSchema()
@@ -57,6 +58,19 @@ export const findExploresRankingMetadataSchema = z.object({
                 label: z.string(),
                 searchRank: z.number().nullable().optional(),
                 joinedTables: z.array(z.string()).nullable().optional(),
+                requiredFilters: z
+                    .array(
+                        z.object({
+                            fieldId: z.string(),
+                            fieldRef: z.string(),
+                            tableName: z.string(),
+                            operator: z.string(),
+                            values: z.array(z.unknown()).optional(),
+                            settings: z.unknown().optional(),
+                            required: z.boolean(),
+                        }),
+                    )
+                    .optional(),
             }),
         )
         .optional(),
