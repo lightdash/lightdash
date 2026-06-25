@@ -6,7 +6,24 @@ import type {
     LightdashProjectConfig,
     ProjectDefaults,
 } from '../types/lightdashProjectConfig';
+import { TimeFrames } from '../types/timeFrames';
 import type { ResolvedAdditionalTimeIntervals } from '../utils/timeFrames';
+
+const STANDARD_TIME_FRAMES: ReadonlySet<string> = new Set(
+    Object.values(TimeFrames),
+);
+
+const isStandardTimeFrame = (value: string): value is TimeFrames =>
+    STANDARD_TIME_FRAMES.has(value);
+
+/** Standard time frames that are meaningless on a plain DATE dimension. */
+const DATE_INVALID_TIME_FRAMES: ReadonlySet<TimeFrames> = new Set([
+    TimeFrames.RAW,
+    TimeFrames.MILLISECOND,
+    TimeFrames.SECOND,
+    TimeFrames.MINUTE,
+    TimeFrames.HOUR,
+]);
 
 type SpotlightConfigArgs = {
     visibility?: LightdashProjectConfig['spotlight']['default_visibility'];
@@ -97,41 +114,31 @@ export const getCategoriesFromResource = (
 };
 
 const resolveAdditionalTimeIntervalList = (
-    values: (string | undefined)[] | undefined,
+    values: (TimeFrames | string)[] | undefined,
     key: 'date' | 'timestamp',
     customGranularities: LightdashProjectConfig['custom_granularities'],
-): string[] => {
-    // Lazy import to avoid circular dependency via dbt
-    // eslint-disable-next-line global-require, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-    const {
-        DATE_INVALID_TIME_FRAMES,
-        isTimeInterval,
-    } = require('../utils/timeFrames');
-    return (values ?? []).reduce<string[]>((acc, raw) => {
-        const name = String(raw);
-        const upper = name.toUpperCase();
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-        if (isTimeInterval(upper)) {
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+): string[] =>
+    (values ?? []).reduce<string[]>((acc, raw) => {
+        const upper = raw.toUpperCase();
+        if (isStandardTimeFrame(upper)) {
             if (key === 'date' && DATE_INVALID_TIME_FRAMES.has(upper)) {
                 // eslint-disable-next-line no-console
                 console.warn(
-                    `Ignoring sub-day time interval "${name}" in defaults.additional_time_intervals.date — not valid for DATE dimensions.`,
+                    `Ignoring sub-day time interval "${raw}" in defaults.additional_time_intervals.date — not valid for DATE dimensions.`,
                 );
                 return acc;
             }
             return [...acc, upper];
         }
-        if (customGranularities?.[name]) {
-            return [...acc, name];
+        if (customGranularities?.[raw]) {
+            return [...acc, raw];
         }
         // eslint-disable-next-line no-console
         console.warn(
-            `Ignoring unknown time interval "${name}" in defaults.additional_time_intervals.${key} — not a standard granularity or a defined custom_granularity.`,
+            `Ignoring unknown time interval "${raw}" in defaults.additional_time_intervals.${key} — not a standard granularity or a defined custom_granularity.`,
         );
         return acc;
     }, []);
-};
 
 /**
  * Validate `defaults.additional_time_intervals` once: keep standard grains

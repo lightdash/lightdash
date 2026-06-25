@@ -1034,15 +1034,6 @@ export type ResolvedAdditionalTimeIntervals = {
     timestamp: (TimeFrames | string)[];
 };
 
-/** Standard time frames that are meaningless on a plain DATE dimension. */
-export const DATE_INVALID_TIME_FRAMES: ReadonlySet<TimeFrames> = new Set([
-    TimeFrames.RAW,
-    TimeFrames.MILLISECOND,
-    TimeFrames.SECOND,
-    TimeFrames.MINUTE,
-    TimeFrames.HOUR,
-]);
-
 /**
  * Built-in default time frames for a dimension type, with project-level
  * `additional_time_intervals` appended (de-duplicated, built-ins first).
