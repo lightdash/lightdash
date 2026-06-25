@@ -161,6 +161,36 @@
                 }
             }
         },
+        "defaults": {
+            "type": ["object", "null"],
+            "description": "Project-wide default settings that can be overridden at explore or field level",
+            "properties": {
+                "case_sensitive": {
+                    "type": "boolean",
+                    "description": "Default case sensitivity for string filters. Defaults to true."
+                },
+                "column_totals": {
+                    "type": "boolean",
+                    "description": "Default behaviour for column totals in results tables. Defaults to true."
+                },
+                "additional_time_intervals": {
+                    "type": ["object", "null"],
+                    "description": "Extra time intervals appended to the built-in defaults for date/timestamp dimensions that do not declare their own time_intervals. Values may be standard granularities (e.g. hour) or custom_granularities keys.",
+                    "properties": {
+                        "date": {
+                            "type": "array",
+                            "items": { "type": "string" },
+                            "description": "Appended to the built-in DAY/WEEK/MONTH/QUARTER/YEAR defaults for DATE dimensions."
+                        },
+                        "timestamp": {
+                            "type": "array",
+                            "items": { "type": "string" },
+                            "description": "Appended to the built-in RAW/DAY/WEEK/MONTH/QUARTER/YEAR defaults for TIMESTAMP dimensions."
+                        }
+                    }
+                }
+            }
+        },
         "table_groups": {
             "type": ["object", "null"],
             "description": "Define labels and descriptions for the group keys referenced by models in their meta.groups array. Used to render nested table groups in the sidebar.",

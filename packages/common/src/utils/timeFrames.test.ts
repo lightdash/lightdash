@@ -9,6 +9,7 @@ import {
     getSqlForDatePart,
     getSqlForDatePartName,
     getSqlForTruncatedDate,
+    getTimeFramesWithProjectDefaults,
     isSubDayGranularity,
     SUB_DAY_GRANULARITIES,
     timeFrameConfigs,
@@ -1365,5 +1366,77 @@ describe('TimeFrames', () => {
                 );
             },
         );
+    });
+
+    describe('getTimeFramesWithProjectDefaults', () => {
+        it('returns built-in defaults unchanged when no additions are given', () => {
+            expect(
+                getTimeFramesWithProjectDefaults(DimensionType.DATE),
+            ).toEqual([
+                TimeFrames.DAY,
+                TimeFrames.WEEK,
+                TimeFrames.MONTH,
+                TimeFrames.QUARTER,
+                TimeFrames.YEAR,
+            ]);
+            expect(
+                getTimeFramesWithProjectDefaults(DimensionType.TIMESTAMP),
+            ).toEqual([
+                TimeFrames.RAW,
+                TimeFrames.DAY,
+                TimeFrames.WEEK,
+                TimeFrames.MONTH,
+                TimeFrames.QUARTER,
+                TimeFrames.YEAR,
+            ]);
+        });
+
+        it('appends timestamp additions after the built-in defaults', () => {
+            expect(
+                getTimeFramesWithProjectDefaults(DimensionType.TIMESTAMP, {
+                    date: [],
+                    timestamp: [TimeFrames.HOUR],
+                }),
+            ).toEqual([
+                TimeFrames.RAW,
+                TimeFrames.DAY,
+                TimeFrames.WEEK,
+                TimeFrames.MONTH,
+                TimeFrames.QUARTER,
+                TimeFrames.YEAR,
+                TimeFrames.HOUR,
+            ]);
+        });
+
+        it('appends a custom granularity name for date dimensions', () => {
+            expect(
+                getTimeFramesWithProjectDefaults(DimensionType.DATE, {
+                    date: ['fiscal_week'],
+                    timestamp: [],
+                }),
+            ).toEqual([
+                TimeFrames.DAY,
+                TimeFrames.WEEK,
+                TimeFrames.MONTH,
+                TimeFrames.QUARTER,
+                TimeFrames.YEAR,
+                'fiscal_week',
+            ]);
+        });
+
+        it('de-duplicates an addition that already exists in the built-in defaults', () => {
+            expect(
+                getTimeFramesWithProjectDefaults(DimensionType.DATE, {
+                    date: [TimeFrames.DAY],
+                    timestamp: [],
+                }),
+            ).toEqual([
+                TimeFrames.DAY,
+                TimeFrames.WEEK,
+                TimeFrames.MONTH,
+                TimeFrames.QUARTER,
+                TimeFrames.YEAR,
+            ]);
+        });
     });
 });

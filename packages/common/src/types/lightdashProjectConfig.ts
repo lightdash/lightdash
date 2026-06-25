@@ -2,6 +2,7 @@ import { type DimensionType } from './field';
 import type { ParameterValue } from './parameters';
 import type { WarehouseTypes } from './projects';
 import type { GroupType } from './table';
+import { type TimeFrames } from './timeFrames';
 
 type SpotlightCategory = {
     label: string;
@@ -57,6 +58,15 @@ export type ProjectDefaults = {
      * Defaults to true if not specified.
      */
     column_totals?: boolean;
+    /**
+     * Extra time intervals appended to the built-in defaults for date/timestamp
+     * dimensions that do not declare their own `time_intervals`. Values may be
+     * standard granularities (e.g. `hour`) or `custom_granularities` keys.
+     */
+    additional_time_intervals?: {
+        date?: (TimeFrames | string)[];
+        timestamp?: (TimeFrames | string)[];
+    };
     // Room for future project-wide defaults like:
     // date_format?: string;
     // number_format?: string;

@@ -1029,6 +1029,31 @@ export const getDefaultTimeFrames = (type: DimensionType) =>
               TimeFrames.YEAR,
           ];
 
+export type ResolvedAdditionalTimeIntervals = {
+    date: (TimeFrames | string)[];
+    timestamp: (TimeFrames | string)[];
+};
+
+/**
+ * Built-in default time frames for a dimension type, with project-level
+ * `additional_time_intervals` appended (de-duplicated, built-ins first).
+ */
+export const getTimeFramesWithProjectDefaults = (
+    type: DimensionType,
+    additionalTimeIntervals?: ResolvedAdditionalTimeIntervals,
+): (TimeFrames | string)[] => {
+    const additions =
+        type === DimensionType.TIMESTAMP
+            ? (additionalTimeIntervals?.timestamp ?? [])
+            : (additionalTimeIntervals?.date ?? []);
+    const seen = new Set<string>();
+    return [...getDefaultTimeFrames(type), ...additions].filter((value) => {
+        if (seen.has(value)) return false;
+        seen.add(value);
+        return true;
+    });
+};
+
 /** Time frames that use DATE_TRUNC (not EXTRACT/DATE_PART). */
 export const truncatableTimeFrames: ReadonlySet<TimeFrames> = new Set([
     TimeFrames.MILLISECOND,

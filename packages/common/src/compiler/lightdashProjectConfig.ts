@@ -2,7 +2,28 @@ import { ParseError } from '../types/errors';
 import type { Explore } from '../types/explore';
 import type { Metric } from '../types/field';
 import type { MetricFilterRule } from '../types/filter';
-import type { LightdashProjectConfig } from '../types/lightdashProjectConfig';
+import type {
+    LightdashProjectConfig,
+    ProjectDefaults,
+} from '../types/lightdashProjectConfig';
+import { TimeFrames } from '../types/timeFrames';
+import type { ResolvedAdditionalTimeIntervals } from '../utils/timeFrames';
+
+const STANDARD_TIME_FRAMES: ReadonlySet<string> = new Set(
+    Object.values(TimeFrames),
+);
+
+const isStandardTimeFrame = (value: string): value is TimeFrames =>
+    STANDARD_TIME_FRAMES.has(value);
+
+/** Standard time frames that are meaningless on a plain DATE dimension. */
+const DATE_INVALID_TIME_FRAMES: ReadonlySet<TimeFrames> = new Set([
+    TimeFrames.RAW,
+    TimeFrames.MILLISECOND,
+    TimeFrames.SECOND,
+    TimeFrames.MINUTE,
+    TimeFrames.HOUR,
+]);
 
 type SpotlightConfigArgs = {
     visibility?: LightdashProjectConfig['spotlight']['default_visibility'];
@@ -91,3 +112,51 @@ export const getCategoriesFromResource = (
 
     return resourceCategories;
 };
+
+const resolveAdditionalTimeIntervalList = (
+    values: (TimeFrames | string)[] | undefined,
+    key: 'date' | 'timestamp',
+    customGranularities: LightdashProjectConfig['custom_granularities'],
+): string[] =>
+    (values ?? []).reduce<string[]>((acc, raw) => {
+        const upper = raw.toUpperCase();
+        if (isStandardTimeFrame(upper)) {
+            if (key === 'date' && DATE_INVALID_TIME_FRAMES.has(upper)) {
+                // eslint-disable-next-line no-console
+                console.warn(
+                    `Ignoring sub-day time interval "${raw}" in defaults.additional_time_intervals.date — not valid for DATE dimensions.`,
+                );
+                return acc;
+            }
+            return [...acc, upper];
+        }
+        if (customGranularities?.[raw]) {
+            return [...acc, raw];
+        }
+        // eslint-disable-next-line no-console
+        console.warn(
+            `Ignoring unknown time interval "${raw}" in defaults.additional_time_intervals.${key} — not a standard granularity or a defined custom_granularity.`,
+        );
+        return acc;
+    }, []);
+
+/**
+ * Validate `defaults.additional_time_intervals` once: keep standard grains
+ * (uppercased) and defined custom-granularity keys; drop sub-day grains under
+ * `date` and unknown names (each with a single console.warn).
+ */
+export const resolveAdditionalTimeIntervals = (
+    additionalTimeIntervals: ProjectDefaults['additional_time_intervals'],
+    customGranularities: LightdashProjectConfig['custom_granularities'],
+): ResolvedAdditionalTimeIntervals => ({
+    date: resolveAdditionalTimeIntervalList(
+        additionalTimeIntervals?.date,
+        'date',
+        customGranularities,
+    ),
+    timestamp: resolveAdditionalTimeIntervalList(
+        additionalTimeIntervals?.timestamp,
+        'timestamp',
+        customGranularities,
+    ),
+});
