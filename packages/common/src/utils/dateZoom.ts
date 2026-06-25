@@ -191,6 +191,49 @@ export const getDateZoomXAxisFieldId = (
     return baseTimeDimension ? xFieldId : undefined;
 };
 
+export type ChartZoomableField = {
+    fieldId: string;
+    label: string;
+    tableName: string;
+};
+
+/**
+ * The date fields a chart can actually be zoomed on: the dimensions in the
+ * chart's own `metricQuery` that resolve to a base DATE/TIMESTAMP dimension.
+ * This is the set a date-zoom control should offer for a tile, narrower than
+ * the dashboard-filter field set, which exposes every filterable dimension in
+ * the explore regardless of whether the chart plots it.
+ *
+ * The returned `fieldId` is the queried dimension id (e.g. `orders_order_date_month`),
+ * matching the `xAxisFieldId` the backend re-grains in `_getDateZoomExplore`.
+ */
+export const getChartZoomableFields = (
+    explore: Explore,
+    metricQuery: MetricQuery,
+): ChartZoomableField[] => {
+    const allDimensionsMap = getAllDimensionsMap(explore);
+    const timeDimensionsMap = getTimeDimensionsMap(explore);
+    const fields: ChartZoomableField[] = [];
+    const seen = new Set<string>();
+    [...new Set(metricQuery.dimensions)].forEach((dimId) => {
+        const dim = allDimensionsMap[dimId];
+        if (!dim || seen.has(dimId)) return;
+        const baseTimeDimension = resolveToBaseTimeDimension(
+            dimId,
+            allDimensionsMap,
+            timeDimensionsMap,
+        );
+        if (!baseTimeDimension) return;
+        seen.add(dimId);
+        fields.push({
+            fieldId: dimId,
+            label: dim.label ?? dimId,
+            tableName: dim.table,
+        });
+    });
+    return fields;
+};
+
 export const EMPTY_DATE_ZOOM_CONFIG: DateZoomConfig = {
     controls: [],
     tileTargets: {},

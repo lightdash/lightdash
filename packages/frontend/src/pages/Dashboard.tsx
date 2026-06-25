@@ -2,6 +2,9 @@ import { subject } from '@casl/ability';
 import {
     copyDateZoomTileTargets,
     getShadowedReservedNames,
+    isEmptyDateZoomConfig,
+    normalizeDateZoomConfig,
+    pruneDateZoomConfig,
     ContentType,
     DateGranularity,
     type UpdateDashboard,
@@ -178,6 +181,12 @@ const Dashboard: FC = () => {
     const setHasDefaultDateZoomGranularityChanged = useDashboardContext(
         (c) => c.setHasDefaultDateZoomGranularityChanged,
     );
+    const hasDateZoomConfigChanged = useDashboardContext(
+        (c) => c.hasDateZoomConfigChanged,
+    );
+    const setHasDateZoomConfigChanged = useDashboardContext(
+        (c) => c.setHasDateZoomConfigChanged,
+    );
 
     const parameterDefinitions = useDashboardContext(
         (c) => c.parameterDefinitions,
@@ -346,6 +355,7 @@ const Dashboard: FC = () => {
             setHavePinnedParametersChanged(false);
             setHaveDateZoomGranularitiesChanged(false);
             setHasDefaultDateZoomGranularityChanged(false);
+            setHasDateZoomConfigChanged(false);
             setDashboardTemporaryFilters({
                 dimensions: [],
                 metrics: [],
@@ -376,6 +386,7 @@ const Dashboard: FC = () => {
         setHavePinnedParametersChanged,
         setHaveDateZoomGranularitiesChanged,
         setHasDefaultDateZoomGranularityChanged,
+        setHasDateZoomConfigChanged,
         dashboardTabs,
         activeTab,
     ]);
@@ -589,6 +600,8 @@ const Dashboard: FC = () => {
             dashboard.config?.defaultDateZoomGranularity,
         );
         setHasDefaultDateZoomGranularityChanged(false);
+        setDateZoomConfig(normalizeDateZoomConfig(dashboard.config));
+        setHasDateZoomConfigChanged(false);
 
         if (dashboardTabs.length > 0) {
             void navigate(
@@ -621,6 +634,8 @@ const Dashboard: FC = () => {
         setHaveDateZoomGranularitiesChanged,
         setDefaultDateZoomGranularity,
         setHasDefaultDateZoomGranularityChanged,
+        setDateZoomConfig,
+        setHasDateZoomConfigChanged,
         setHasParameterOrderChanged,
     ]);
 
@@ -753,6 +768,15 @@ const Dashboard: FC = () => {
             return filter;
         });
 
+        // Prune empty controls + dangling targets on save; omit the field
+        // entirely when no controls remain so untouched dashboards don't churn.
+        const prunedDateZoomConfig = pruneDateZoomConfig(dateZoomConfig);
+        const savedDateZoomConfig = hasDateZoomConfigChanged
+            ? isEmptyDateZoomConfig(prunedDateZoomConfig)
+                ? undefined
+                : prunedDateZoomConfig
+            : dashboard.config?.dateZoomConfig;
+
         const dashboardUpdate: UpdateDashboard = {
             tiles: dashboardTiles,
             filters: {
@@ -781,6 +805,7 @@ const Dashboard: FC = () => {
                 defaultDateZoomGranularity: hasDefaultDateZoomGranularityChanged
                     ? defaultDateZoomGranularity
                     : dashboard.config?.defaultDateZoomGranularity,
+                dateZoomConfig: savedDateZoomConfig,
             },
             parameters: dashboardParameters,
             ...(preserveVerification !== undefined
@@ -816,7 +841,8 @@ const Dashboard: FC = () => {
             havePinnedParametersChanged ||
             hasParameterOrderChanged ||
             haveDateZoomGranularitiesChanged ||
-            hasDefaultDateZoomGranularityChanged,
+            hasDefaultDateZoomGranularityChanged ||
+            hasDateZoomConfigChanged,
         onAddTiles: handleAddTiles,
         onSaveDashboard: () => {
             if (shouldShowVerificationSaveOptions) {

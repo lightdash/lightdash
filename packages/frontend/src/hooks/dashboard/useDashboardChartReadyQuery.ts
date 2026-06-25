@@ -2,6 +2,7 @@ import {
     EMPTY_DATE_ZOOM_CONFIG,
     FeatureFlags,
     getAvailableParametersFromTables,
+    getChartZoomableFields,
     getDateZoomCapabilities,
     getDateZoomXAxisFieldId,
     hasReservedParameterReference,
@@ -123,6 +124,9 @@ export const useDashboardChartReadyQuery = (
     const addParameterDefinitions = useDashboardContext(
         (c) => c.addParameterDefinitions,
     );
+    const setChartZoomableFields = useDashboardContext(
+        (c) => c.setChartZoomableFields,
+    );
 
     const sortKey =
         dashboardSorts
@@ -156,6 +160,19 @@ export const useDashboardChartReadyQuery = (
         if (!chartQuery.data || !explore) return undefined;
         return getDateZoomCapabilities(explore, chartQuery.data.metricQuery);
     }, [chartQuery.data, explore]);
+
+    // Report this tile's zoomable date fields up so the date-zoom control modal
+    // can offer exactly the fields the chart plots, not every explore dimension.
+    const chartZoomableFields = useMemo(() => {
+        if (!chartQuery.data || !explore) return undefined;
+        return getChartZoomableFields(explore, chartQuery.data.metricQuery);
+    }, [chartQuery.data, explore]);
+
+    useEffect(() => {
+        if (chartZoomableFields) {
+            setChartZoomableFields(tileUuid, chartZoomableFields);
+        }
+    }, [chartZoomableFields, setChartZoomableFields, tileUuid]);
 
     // Target the chart's own x-axis date field so the backend re-grains the
     // field the chart actually plots, rather than auto-picking the first date
