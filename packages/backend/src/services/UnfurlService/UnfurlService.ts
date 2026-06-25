@@ -1102,6 +1102,33 @@ export class UnfurlService extends BaseService {
                                 .internalLightdashHostIgnoreHttpsErrors,
                     });
 
+                    if (lightdashPage === LightdashPage.APP) {
+                        // Browserless drops Playwright's viewport over CDP (see [APP-DIAG]
+                        // logs stuck at 800×600); push the override straight to Chrome.
+                        try {
+                            const cdp = await page
+                                .context()
+                                .newCDPSession(page);
+                            await cdp.send(
+                                'Emulation.setDeviceMetricsOverride',
+                                {
+                                    width: initialViewport.width,
+                                    height: initialViewport.height,
+                                    deviceScaleFactor: 1,
+                                    mobile: false,
+                                },
+                            );
+                        } catch (cdpErr) {
+                            this.logger.warn(
+                                `[APP] CDP viewport override failed; falling through - unfurlId: ${imageId}, err: ${
+                                    cdpErr instanceof Error
+                                        ? cdpErr.message
+                                        : String(cdpErr)
+                                }`,
+                            );
+                        }
+                    }
+
                     // Scope custom headers to internal requests only — setting them
                     // on every request (e.g. Google Fonts) triggers CORS preflight failures.
                     const internalHost =
