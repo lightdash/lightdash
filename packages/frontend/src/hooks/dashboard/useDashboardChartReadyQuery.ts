@@ -69,9 +69,6 @@ export type DashboardChartReadyQuery = {
     // Default). Downstream consumers reuse it so visualization, downloads, and
     // underlying data agree with the query that was executed.
     dateZoom: DateZoom | undefined;
-    // The date-zoom target field for this chart, so downstream re-executions
-    // (e.g. downloads) zoom the same x-axis field as the displayed query.
-    dateZoomXAxisFieldId: string | undefined;
 };
 
 export const useDashboardChartReadyQuery = (
@@ -331,7 +328,6 @@ export const useDashboardChartReadyQuery = (
                 explore,
                 executeQueryResponse,
                 dateZoom: tileDateZoom,
-                dateZoomXAxisFieldId: tileDateZoom?.xAxisFieldId,
             };
         },
         enabled: Boolean(

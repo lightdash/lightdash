@@ -106,6 +106,10 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     children,
 }) => {
     const { search, pathname } = useLocation();
+    // Mirrors `search` without re-triggering effects that should fire on other
+    // deps (e.g. dashboard load) while still reading the live URL.
+    const searchRef = useRef(search);
+    searchRef.current = search;
     const navigate = useNavigate();
     const { showToastWarning, showToastInfo } = useToaster();
     const hasNotifiedLockedOverrideRef = useRef(false);
@@ -401,8 +405,15 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     }, [dashboard?.config?.defaultDateZoomGranularity]);
 
     // Reset per-control runtime overrides when the dashboard identity changes;
-    // each control's default comes from its persisted granularity.
+    // each control's default comes from its persisted granularity. Skip when the
+    // URL carries `dateZoom.<control>` overrides (deep link / refresh), mirroring
+    // the global default's URL guard so `useMount` hydration isn't clobbered when
+    // the dashboard query resolves after mount.
     useEffect(() => {
+        const hasUrlOverride = [
+            ...new URLSearchParams(searchRef.current).keys(),
+        ].some((key) => key.startsWith('dateZoom.'));
+        if (hasUrlOverride) return;
         setControlGranularities({});
     }, [dashboard?.uuid]);
 
@@ -658,23 +669,35 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
             return;
         }
 
-        const currentParams = new URLSearchParams(search);
-        const newParams = new URLSearchParams(search);
+        const params = new URLSearchParams(search);
+        const currentControlParams = [...params.entries()].filter(([key]) =>
+            key.startsWith('dateZoom.'),
+        );
+        const nextControlParams: Array<[string, string]> = Object.entries(
+            controlGranularities,
+        ).map(([uuid, grain]) => [
+            `dateZoom.${uuid}`,
+            grain.toString().toLowerCase(),
+        ]);
 
-        [...newParams.keys()]
-            .filter((key) => key.startsWith('dateZoom.'))
-            .forEach((key) => newParams.delete(key));
-
-        Object.entries(controlGranularities).forEach(([uuid, grain]) => {
-            newParams.set(`dateZoom.${uuid}`, grain.toString().toLowerCase());
-        });
-
-        if (currentParams.toString() !== newParams.toString()) {
-            void navigate(
-                { pathname, search: newParams.toString() },
-                { replace: true },
-            );
+        // Compare content order-independently so a deep link with interleaved
+        // params doesn't trigger a no-op navigation just from re-appending.
+        const serialize = (entries: Array<[string, string]>): string =>
+            entries
+                .map(([key, value]) => `${key}=${value}`)
+                .sort()
+                .join('&');
+        if (serialize(currentControlParams) === serialize(nextControlParams)) {
+            return;
         }
+
+        currentControlParams.forEach(([key]) => params.delete(key));
+        nextControlParams.forEach(([key, value]) => params.set(key, value));
+
+        void navigate(
+            { pathname, search: params.toString() },
+            { replace: true },
+        );
     }, [controlGranularities, search, navigate, pathname, embed.mode]);
 
     const {
@@ -1191,10 +1214,8 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     });
 
     // Apply default date zoom granularity when dashboard loads (if no URL override).
-    // Uses a ref for `search` so URL changes don't re-trigger this effect —
-    // it should only fire when the configured default changes (initial load + after saves).
-    const searchRef = useRef(search);
-    searchRef.current = search;
+    // Uses `searchRef` so URL changes don't re-trigger this effect — it should
+    // only fire when the configured default changes (initial load + after saves).
     useEffect(() => {
         if (isEditMode) return;
         if (
