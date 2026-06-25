@@ -1,3 +1,15 @@
+# [0.3246.0](https://github.com/lightdash/lightdash/compare/0.3245.1...0.3246.0) (2026-06-25)
+
+
+### Bug Fixes
+
+* **mcp:** surface queryUuid in metric query result content ([#24750](https://github.com/lightdash/lightdash/issues/24750)) ([386e38c](https://github.com/lightdash/lightdash/commit/386e38c45c315e2034d37be6e3d0e1a5f1bd0d9c))
+
+
+### Features
+
+* **date-zoom:** control modal, tile attachment, and view pills ([#24732](https://github.com/lightdash/lightdash/issues/24732)) ([90cd552](https://github.com/lightdash/lightdash/commit/90cd552880213d86f5f1c821b3d40212f461bf3d))
+
 ## [0.3245.1](https://github.com/lightdash/lightdash/compare/0.3245.0...0.3245.1) (2026-06-25)
 
 
