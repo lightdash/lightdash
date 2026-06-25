@@ -2,6 +2,7 @@ import {
     FunnelChartDataInput,
     FunnelChartLabelPosition,
     FunnelChartLegendPosition,
+    getGranularityMapFromItems,
     getItemId,
     isField,
     isTableCalculation,
@@ -37,9 +38,11 @@ export const ConfigTabs: FC = memo(() => {
         [colorScheme],
     );
 
-    const { visualizationConfig } = useVisualizationContext();
+    const { visualizationConfig, itemsMap } = useVisualizationContext();
 
     if (!isFunnelVisualizationConfig(visualizationConfig)) return null;
+
+    const granularityFields = Object.keys(getGranularityMapFromItems(itemsMap));
 
     const numericFields = Object.values(visualizationConfig.numericFields);
     // TODO: dimensions should be selectable for labels
@@ -247,6 +250,9 @@ export const ConfigTabs: FC = memo(() => {
                                                 swatches={[]}
                                                 color={colorOverrides[step.id]}
                                                 label={labelOverrides[step.id]}
+                                                granularityFields={
+                                                    granularityFields
+                                                }
                                                 onColorChange={
                                                     onColorOverridesChange
                                                 }

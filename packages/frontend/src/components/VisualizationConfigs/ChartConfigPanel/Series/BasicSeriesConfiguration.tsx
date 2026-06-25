@@ -86,7 +86,6 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                             }}
                         >
                             <EditableText
-                                sx={{ flexGrow: 1 }}
                                 fw={600}
                                 size="sm"
                                 lighter
