@@ -28,6 +28,7 @@ import {
     formatValueWithExpression,
     getCustomFormatFromLegacy,
     getEffectiveSeparator,
+    getFormatExpressionLocale,
     getFormatterTimezone,
     isCalendarValueItem,
     isItemTimezoneAffected,
@@ -3371,6 +3372,36 @@ describe('Formatting', () => {
             test('returns undefined when nothing sets one', () => {
                 expect(getEffectiveSeparator(metric)).toBeUndefined();
                 expect(getEffectiveSeparator(undefined)).toBeUndefined();
+            });
+        });
+
+        describe('getFormatExpressionLocale', () => {
+            // Render paths that call formatValueWithExpression directly (e.g.
+            // chart series formatters) rely on this to localise ECMA-376
+            // expressions the same way formatItemValue does.
+            test('derives a numfmt locale from a non-default separator', () => {
+                const locale = getFormatExpressionLocale({
+                    ...metric,
+                    separator: NumberSeparator.PERIOD_COMMA,
+                });
+                expect(locale).toBeDefined();
+                // The derived locale must actually flip the separators on an
+                // ECMA-376 currency expression (the bug was passing undefined,
+                // which silently rendered US separators on charts).
+                expect(
+                    formatValueWithExpression('[$€]#,##0.00', 1234.56, locale),
+                ).toEqual('€1.234,56');
+            });
+
+            test('returns undefined for the default/US separator', () => {
+                expect(
+                    getFormatExpressionLocale({
+                        ...metric,
+                        separator: NumberSeparator.COMMA_PERIOD,
+                    }),
+                ).toBeUndefined();
+                expect(getFormatExpressionLocale(metric)).toBeUndefined();
+                expect(getFormatExpressionLocale(undefined)).toBeUndefined();
             });
         });
     });

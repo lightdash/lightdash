@@ -25,6 +25,7 @@ import {
     getBarTotalLabelStyle,
     getCustomFormatFromLegacy,
     getDateGroupLabel,
+    getFormatExpressionLocale,
     getFormattedValue,
     getFormatterTimezone,
     getGranularityMapFromItems,
@@ -807,7 +808,7 @@ const seriesValueFormatter = (
         return formatValueWithExpression(
             formatExpression,
             value,
-            undefined,
+            getFormatExpressionLocale(item),
             expressionTimezone,
         );
     }
