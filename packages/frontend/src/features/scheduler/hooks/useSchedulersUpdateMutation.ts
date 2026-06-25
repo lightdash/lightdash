@@ -30,6 +30,7 @@ export const useSchedulersUpdateMutation = (schedulerUuid: string) => {
             await queryClient.invalidateQueries(['chart_schedulers']);
             await queryClient.invalidateQueries(['dashboard_schedulers']);
             await queryClient.invalidateQueries(['sql_chart_schedulers']);
+            await queryClient.invalidateQueries(['app_schedulers']);
             await queryClient.invalidateQueries(['scheduler', schedulerUuid]);
             showToastSuccess({
                 title: `Success! Scheduled delivery was updated.`,
@@ -62,6 +63,7 @@ export const useSchedulersEnabledUpdateMutation = (schedulerUuid: string) => {
                 await queryClient.invalidateQueries(['chart_schedulers']);
                 await queryClient.invalidateQueries(['dashboard_schedulers']);
                 await queryClient.invalidateQueries(['sql_chart_schedulers']);
+                await queryClient.invalidateQueries(['app_schedulers']);
             },
             onError: ({ error }) => {
                 showToastApiError({

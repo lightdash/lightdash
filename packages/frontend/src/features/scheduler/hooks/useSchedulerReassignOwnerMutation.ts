@@ -31,6 +31,7 @@ export const useSchedulerReassignOwnerMutation = (projectUuid: string) => {
             await queryClient.invalidateQueries(['paginatedSchedulers']);
             await queryClient.invalidateQueries(['chart_schedulers']);
             await queryClient.invalidateQueries(['dashboard_schedulers']);
+            await queryClient.invalidateQueries(['app_schedulers']);
 
             const count = variables.schedulerUuids.length;
             showToastSuccess({
