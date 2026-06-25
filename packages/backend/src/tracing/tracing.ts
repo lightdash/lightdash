@@ -168,6 +168,7 @@ class OtelTracingStrategy implements TracingStrategy {
                 }),
             ),
             sampler: createTraceSampler(),
+            metricReaders: [],
             textMapPropagator: new CompositePropagator({
                 propagators: [
                     new W3CTraceContextPropagator(),
