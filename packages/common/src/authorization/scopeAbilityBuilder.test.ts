@@ -1420,11 +1420,92 @@ describe('scopeAbilityBuilder', () => {
                 ),
             ).toBe(true);
 
-            // Cannot promote without editor access
+            // Can promote dashboard with admin access
             expect(
                 ability.can(
                     'promote',
                     subject('Dashboard', {
+                        projectUuid: 'project-123',
+                        access: [
+                            {
+                                userUuid: 'user-456',
+                                role: SpaceMemberRole.ADMIN,
+                            },
+                        ],
+                    }),
+                ),
+            ).toBe(true);
+
+            // Cannot promote without editor or admin access
+            expect(
+                ability.can(
+                    'promote',
+                    subject('Dashboard', {
+                        projectUuid: 'project-123',
+                        access: [
+                            {
+                                userUuid: 'user-456',
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                    }),
+                ),
+            ).toBe(false);
+        });
+
+        it('should handle promote:saved_chart@space permissions', () => {
+            const contextWithUser = {
+                ...baseContext,
+                userUuid: 'user-456',
+            };
+
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            buildAbilityFromScopes(
+                {
+                    ...contextWithUser,
+                    scopes: ['promote:SavedChart@space'],
+                },
+                builder,
+            );
+            const ability = builder.build();
+
+            // Can promote chart with editor access
+            expect(
+                ability.can(
+                    'promote',
+                    subject('SavedChart', {
+                        projectUuid: 'project-123',
+                        access: [
+                            {
+                                userUuid: 'user-456',
+                                role: SpaceMemberRole.EDITOR,
+                            },
+                        ],
+                    }),
+                ),
+            ).toBe(true);
+
+            // Can promote chart with admin access
+            expect(
+                ability.can(
+                    'promote',
+                    subject('SavedChart', {
+                        projectUuid: 'project-123',
+                        access: [
+                            {
+                                userUuid: 'user-456',
+                                role: SpaceMemberRole.ADMIN,
+                            },
+                        ],
+                    }),
+                ),
+            ).toBe(true);
+
+            // Cannot promote without editor or admin access
+            expect(
+                ability.can(
+                    'promote',
+                    subject('SavedChart', {
                         projectUuid: 'project-123',
                         access: [
                             {

@@ -1240,6 +1240,83 @@ describe('Organization member permissions', () => {
                     ).toEqual(false);
                 });
             });
+
+            describe('Promote', () => {
+                const promoteSubject = (
+                    entity: 'SavedChart' | 'Dashboard',
+                    role: SpaceMemberRole,
+                ) =>
+                    subject(entity, {
+                        organizationUuid:
+                            ORGANIZATION_DEVELOPER.organizationUuid,
+                        access: [
+                            {
+                                userUuid: ORGANIZATION_DEVELOPER.userUuid,
+                                role,
+                            },
+                        ],
+                    });
+
+                it('can promote charts in spaces with admin access', () => {
+                    expect(
+                        ability.can(
+                            'promote',
+                            promoteSubject('SavedChart', SpaceMemberRole.ADMIN),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('can promote charts in spaces with editor access', () => {
+                    expect(
+                        ability.can(
+                            'promote',
+                            promoteSubject(
+                                'SavedChart',
+                                SpaceMemberRole.EDITOR,
+                            ),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('cannot promote charts in spaces with viewer access', () => {
+                    expect(
+                        ability.can(
+                            'promote',
+                            promoteSubject(
+                                'SavedChart',
+                                SpaceMemberRole.VIEWER,
+                            ),
+                        ),
+                    ).toEqual(false);
+                });
+
+                it('can promote dashboards in spaces with admin access', () => {
+                    expect(
+                        ability.can(
+                            'promote',
+                            promoteSubject('Dashboard', SpaceMemberRole.ADMIN),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('can promote dashboards in spaces with editor access', () => {
+                    expect(
+                        ability.can(
+                            'promote',
+                            promoteSubject('Dashboard', SpaceMemberRole.EDITOR),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('cannot promote dashboards in spaces with viewer access', () => {
+                    expect(
+                        ability.can(
+                            'promote',
+                            promoteSubject('Dashboard', SpaceMemberRole.VIEWER),
+                        ),
+                    ).toEqual(false);
+                });
+            });
         });
 
         describe('when user is a member', () => {
