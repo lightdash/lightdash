@@ -2,8 +2,14 @@ import { ALL_TRAFFIC, CommandExitError, Sandbox, TimeoutError } from 'e2b';
 import { SandboxCommandError, SandboxTimeoutError } from './errors';
 import {
     type CommandResult,
+    type GitAddTarget,
+    type GitCloneOptions,
+    type GitCommitOptions,
+    type GitPushOptions,
+    type GitStatus,
     type RunOptions,
     type SandboxCapabilities,
+    type SandboxGit,
     type SandboxHandle,
     type SandboxProvider,
     type SandboxSpec,
@@ -90,6 +96,62 @@ class E2bSandboxHandle implements SandboxHandle {
         },
         remove: async (path: string): Promise<void> => {
             await this.sandbox.files.remove(path);
+        },
+    };
+
+    // Near 1:1 passthrough to the E2B git helper. Errors surface as the SDK's
+    // own git errors (auth/upstream) — those are control-plane failures the
+    // feature already handles, not the command/timeout pair the shim normalizes.
+    readonly git: SandboxGit = {
+        clone: async (url: string, options: GitCloneOptions): Promise<void> => {
+            await this.sandbox.git.clone(url, {
+                path: options.path,
+                username: options.username,
+                password: options.password,
+                ...(options.depth !== undefined
+                    ? { depth: options.depth }
+                    : {}),
+                ...(options.timeoutMs !== undefined
+                    ? { timeoutMs: options.timeoutMs }
+                    : {}),
+                ...(options.branch !== undefined
+                    ? { branch: options.branch }
+                    : {}),
+            });
+        },
+        status: async (path: string): Promise<GitStatus> => {
+            const status = await this.sandbox.git.status(path);
+            return {
+                currentBranch: status.currentBranch ?? null,
+                hasChanges: status.hasChanges,
+            };
+        },
+        createBranch: async (path: string, branch: string): Promise<void> => {
+            await this.sandbox.git.createBranch(path, branch);
+        },
+        add: async (path: string, target: GitAddTarget): Promise<void> => {
+            await this.sandbox.git.add(path, target);
+        },
+        commit: async (
+            path: string,
+            message: string,
+            options: GitCommitOptions,
+        ): Promise<void> => {
+            await this.sandbox.git.commit(path, message, {
+                authorName: options.authorName,
+                authorEmail: options.authorEmail,
+            });
+        },
+        push: async (path: string, options: GitPushOptions): Promise<void> => {
+            await this.sandbox.git.push(path, {
+                remote: options.remote,
+                branch: options.branch,
+                username: options.username,
+                password: options.password,
+                ...(options.setUpstream !== undefined
+                    ? { setUpstream: options.setUpstream }
+                    : {}),
+            });
         },
     };
 }

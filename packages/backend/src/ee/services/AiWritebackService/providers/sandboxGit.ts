@@ -1,6 +1,6 @@
-import type { Sandbox } from 'e2b';
 import type { Logger } from 'winston';
 import type { GithubFileChanges } from '../../../../clients/github/Github';
+import type { SandboxHandle } from '../../SandboxRuntime';
 import { CWD } from '../constants';
 import type { GitCommitAuthor } from '../types';
 import { parseGitNameStatus } from '../utils';
@@ -15,7 +15,7 @@ import { parseGitNameStatus } from '../utils';
  * known scratch files before this runs.
  */
 export const stageChanges = async (
-    sandbox: Sandbox,
+    sandbox: SandboxHandle,
     projectSubPath: string,
     logger: Logger,
 ): Promise<void> => {
@@ -50,7 +50,7 @@ export const stageChanges = async (
  * which is what `createCommitOnBranch` expects.
  */
 export const collectFileChanges = async (
-    sandbox: Sandbox,
+    sandbox: SandboxHandle,
 ): Promise<GithubFileChanges> => {
     const { stdout } = await sandbox.commands.run(
         `git -C ${CWD} diff --cached --name-status --no-renames -z`,
@@ -78,7 +78,9 @@ export type DiffStat = { additions: number; deletions: number };
  * Best-effort: any parse failure for a row is skipped rather than throwing, so
  * a single odd line can't break the writeback.
  */
-export const collectDiffStat = async (sandbox: Sandbox): Promise<DiffStat> => {
+export const collectDiffStat = async (
+    sandbox: SandboxHandle,
+): Promise<DiffStat> => {
     const { stdout } = await sandbox.commands.run(
         `git -C ${CWD} diff --cached --numstat`,
     );
@@ -98,7 +100,7 @@ export const collectDiffStat = async (sandbox: Sandbox): Promise<DiffStat> => {
 
 /** Make a local commit (never pushed by itself) to advance the sandbox HEAD. */
 export const commitLocal = async (
-    sandbox: Sandbox,
+    sandbox: SandboxHandle,
     message: string,
     author: GitCommitAuthor,
 ): Promise<void> => {

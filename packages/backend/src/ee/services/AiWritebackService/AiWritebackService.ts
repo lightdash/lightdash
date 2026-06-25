@@ -22,7 +22,6 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import { ALL_TRAFFIC, CommandExitError, Sandbox, TimeoutError } from 'e2b';
 import type {
     AiWritebackFailureStage,
     LightdashAnalytics,
@@ -49,6 +48,14 @@ import type {
     AiWritebackThreadModel,
     AiWritebackThreadWithPrUrl,
 } from '../../models/AiWritebackThreadModel';
+import {
+    createSandboxProvider,
+    SandboxCommandError,
+    SandboxTimeoutError,
+    type SandboxHandle,
+    type SandboxProvider,
+    type SandboxSpec,
+} from '../SandboxRuntime';
 import {
     ALLOWED_TOOLS,
     CLAUDE_MODEL,
@@ -238,6 +245,9 @@ export class AiWritebackService extends BaseService {
     private readonly ciService: CiService;
 
     private readonly projectService: ProjectService;
+
+    /** Memoized sandbox provider (e2b | docker), selected by SANDBOX_PROVIDER. */
+    private sandboxProvider: SandboxProvider | undefined;
 
     constructor({
         lightdashConfig,
@@ -893,14 +903,40 @@ export class AiWritebackService extends BaseService {
         }
     }
 
-    private getE2bApiKey(): string {
-        const key = this.lightdashConfig.appRuntime.e2bApiKey;
-        if (!key) {
-            throw new MissingConfigError(
-                'E2B API key is not configured (E2B_API_KEY)',
-            );
+    /**
+     * The sandbox provider selected by `SANDBOX_PROVIDER` (e2b | docker).
+     * Memoized — the feature talks only to this provider, never to a concrete
+     * sandbox SDK. See SandboxRuntime/DESIGN.md.
+     */
+    private getSandboxProvider(): SandboxProvider {
+        if (!this.sandboxProvider) {
+            this.sandboxProvider = createSandboxProvider({
+                provider: this.lightdashConfig.appRuntime.sandboxProvider,
+                e2bApiKey: this.lightdashConfig.appRuntime.e2bApiKey,
+                dockerImage:
+                    this.lightdashConfig.appRuntime
+                        .sandboxAiWritebackDockerImage,
+                logger: this.logger,
+            });
         }
-        return key;
+        return this.sandboxProvider;
+    }
+
+    /**
+     * Resolve the template/image ref the active provider launches from. E2B
+     * composes the writeback `name:tag`; Docker uses the writeback-specific
+     * local image (separate from the data-app image — different toolchain).
+     */
+    private getSandboxTemplateRef(): string {
+        const { sandboxProvider } = this.lightdashConfig.appRuntime;
+        if (sandboxProvider === 'docker') {
+            return this.lightdashConfig.appRuntime
+                .sandboxAiWritebackDockerImage;
+        }
+        return resolveSandboxTemplateRef({
+            name: this.lightdashConfig.appRuntime.e2bAiWritebackTemplateName,
+            tag: this.lightdashConfig.appRuntime.e2bAiWritebackTemplateTag,
+        });
     }
 
     private getAnthropicApiKey(): string {
@@ -919,23 +955,17 @@ export class AiWritebackService extends BaseService {
 
     private async createSandbox(
         projectUuid: string,
-    ): Promise<{ sandbox: Sandbox; durationMs: number }> {
+    ): Promise<{ sandbox: SandboxHandle; durationMs: number }> {
         const start = performance.now();
-        const { e2bAiWritebackTemplateName, e2bAiWritebackTemplateTag } =
-            this.lightdashConfig.appRuntime;
-        const templateRef = resolveSandboxTemplateRef({
-            name: e2bAiWritebackTemplateName,
-            tag: e2bAiWritebackTemplateTag,
-        });
-        const sandbox = await Sandbox.create(templateRef, {
+        const templateRef = this.getSandboxTemplateRef();
+        const spec: SandboxSpec = {
+            templateRef,
             timeoutMs: SANDBOX_TIMEOUT_MS,
-            apiKey: this.getE2bApiKey(),
-            lifecycle: { onTimeout: 'pause' },
-            network: {
-                allowOut: ['api.anthropic.com', 'github.com', 'gitlab.com'],
-                denyOut: [ALL_TRAFFIC],
+            egress: {
+                allow: ['api.anthropic.com', 'github.com', 'gitlab.com'],
             },
-        });
+        };
+        const sandbox = await this.getSandboxProvider().create(spec);
         const durationMs = AiWritebackService.elapsed(start);
         this.logger.info('AI writeback sandbox created', {
             event: 'ai_writeback.sandbox.created',
@@ -951,7 +981,7 @@ export class AiWritebackService extends BaseService {
     }
 
     private async pauseSandbox(
-        sandbox: Sandbox,
+        sandbox: SandboxHandle,
         projectUuid: string,
     ): Promise<void> {
         try {
@@ -978,12 +1008,9 @@ export class AiWritebackService extends BaseService {
     private async resumeSandbox(
         sandboxId: string,
         projectUuid: string,
-    ): Promise<{ sandbox: Sandbox; durationMs: number }> {
+    ): Promise<{ sandbox: SandboxHandle; durationMs: number }> {
         const start = performance.now();
-        const sandbox = await Sandbox.connect(sandboxId, {
-            apiKey: this.getE2bApiKey(),
-            timeoutMs: SANDBOX_TIMEOUT_MS,
-        });
+        const sandbox = await this.getSandboxProvider().connect(sandboxId);
         const durationMs = AiWritebackService.elapsed(start);
         this.logger.info('AI writeback sandbox resumed', {
             event: 'ai_writeback.sandbox.lifecycle',
@@ -1000,7 +1027,7 @@ export class AiWritebackService extends BaseService {
 
     /** Read a file the agent may or may not have written; null if absent. */
     private static async readFileOrNull(
-        sandbox: Sandbox,
+        sandbox: SandboxHandle,
         path: string,
     ): Promise<string | null> {
         try {
@@ -1022,7 +1049,7 @@ export class AiWritebackService extends BaseService {
      * the stray file was scrubbed; default = agent wrote nothing usable).
      */
     private async resolvePrMetadata(
-        sandbox: Sandbox,
+        sandbox: SandboxHandle,
         tmpPath: string,
         fallback: string,
     ): Promise<string> {
@@ -1153,7 +1180,7 @@ export class AiWritebackService extends BaseService {
             }
         };
 
-        let sandbox: Sandbox | undefined;
+        let sandbox: SandboxHandle | undefined;
         // Default to preserving a resumed sandbox through failures — its
         // sandbox_id is referenced by an ai_writeback_thread row and killing
         // it would poison the row for every future turn. Fresh turns have no
@@ -1551,7 +1578,7 @@ export class AiWritebackService extends BaseService {
         existingRow: AiWritebackThreadWithPrUrl | null;
         adoptBranch: string | null;
         setStage: SetStage;
-    }): Promise<Sandbox> {
+    }): Promise<SandboxHandle> {
         setStage('sandbox');
 
         if (existingRow) {
@@ -1611,7 +1638,7 @@ export class AiWritebackService extends BaseService {
      * false (best-effort) leaves the agent's prompt fallback in place.
      */
     private async prepareProfiles(
-        sandbox: Sandbox,
+        sandbox: SandboxHandle,
         projectSubPath: string,
     ): Promise<boolean> {
         const start = performance.now();
@@ -1669,7 +1696,7 @@ export class AiWritebackService extends BaseService {
      * on any failure — the run continues without the context block.
      */
     private async gatherRepoContext(
-        sandbox: Sandbox,
+        sandbox: SandboxHandle,
         projectSubPath: string,
     ): Promise<string | null> {
         const start = performance.now();
@@ -1725,7 +1752,7 @@ export class AiWritebackService extends BaseService {
         warehouseType,
         dbtVersion,
     }: {
-        sandbox: Sandbox;
+        sandbox: SandboxHandle;
         systemPrompt: string;
         prompt: string;
         isResume: boolean;
@@ -1930,22 +1957,23 @@ export class AiWritebackService extends BaseService {
                 },
             );
         } catch (error) {
-            // e2b throws TimeoutError when RUN_TIMEOUT_MS fires, and
-            // CommandExitError when the claude subprocess returns a non-zero
-            // exit code. Both reach Sentry as the bare message ("exit status
-            // 1") with no stderr — useless for debugging. Capture here so the
-            // rich context (timeout flag, exit code, stderr tail) is attached
+            // The provider shim throws SandboxTimeoutError when RUN_TIMEOUT_MS
+            // fires, and SandboxCommandError when the claude subprocess returns
+            // a non-zero exit code. Both reach Sentry as the bare message ("exit
+            // status 1") with no stderr — useless for debugging. Capture here so
+            // the rich context (timeout flag, exit code, stderr tail) is attached
             // before the error bubbles up to the outer wrapSentryTransaction
             // catch (Sentry's Dedupe integration collapses the two events).
-            const timedOut = error instanceof TimeoutError;
+            const timedOut = error instanceof SandboxTimeoutError;
             const exitCode =
-                error instanceof CommandExitError ? error.exitCode : null;
-            // Prefer the error's stderr (e2b accumulates it server-side and
-            // attaches it to CommandExitError) and fall back to our streamed
-            // tail; both are clipped to STDERR_TAIL_BYTES so the payload stays
-            // small.
+                error instanceof SandboxCommandError ? error.exitCode : null;
+            // Prefer the error's stderr (the shim attaches the command's stderr
+            // to SandboxCommandError) and fall back to our streamed tail; both
+            // are clipped to STDERR_TAIL_BYTES so the payload stays small.
             const errStderr =
-                error instanceof CommandExitError ? (error.stderr ?? '') : '';
+                error instanceof SandboxCommandError
+                    ? (error.stderr ?? '')
+                    : '';
             const stderrSnippet = (errStderr || stderrTail).slice(
                 -STDERR_TAIL_BYTES,
             );
@@ -2084,7 +2112,7 @@ export class AiWritebackService extends BaseService {
         prDescription,
         prSummary,
     }: {
-        sandbox: Sandbox;
+        sandbox: SandboxHandle;
         installation: GitInstallation;
         hasChanges: boolean;
         adoptedPr: AdoptedPullRequest | null;
@@ -2211,7 +2239,7 @@ export class AiWritebackService extends BaseService {
      * Provider-independent, so the provider receives a final string.
      */
     private resolvePrTitle(
-        sandbox: Sandbox,
+        sandbox: SandboxHandle,
         prTitle: string | null,
         isUpdate: boolean,
     ): Promise<string> {
@@ -2224,7 +2252,7 @@ export class AiWritebackService extends BaseService {
     }
 
     private resolvePrDescription(
-        sandbox: Sandbox,
+        sandbox: SandboxHandle,
         prDescription: string | null,
         isUpdate: boolean,
     ): Promise<string> {
@@ -2253,7 +2281,7 @@ export class AiWritebackService extends BaseService {
         projectUuid: string;
         user: SessionUser;
         aiThreadUuid: string | undefined;
-        sandbox: Sandbox;
+        sandbox: SandboxHandle;
         prUrl: string;
         summary: string | null;
     }): Promise<void> {
@@ -2284,7 +2312,7 @@ export class AiWritebackService extends BaseService {
      * kill (with a soft-fail log) to free resources for non-resumable runs.
      */
     private async releaseSandbox(
-        sandbox: Sandbox,
+        sandbox: SandboxHandle,
         shouldPause: boolean,
         projectUuid: string,
     ): Promise<void> {
@@ -2292,11 +2320,13 @@ export class AiWritebackService extends BaseService {
             await this.pauseSandbox(sandbox, projectUuid);
             return;
         }
+        // destroy() is a no-op if the sandbox is already gone and never throws
+        // for that, but guard the whole call so cleanup can't fail the run.
         try {
-            await sandbox.kill();
+            await this.getSandboxProvider().destroy(sandbox.sandboxId);
         } catch (error) {
             this.logger.warn(
-                `AiWriteback: failed to kill sandbox ${sandbox.sandboxId}: ${getErrorMessage(
+                `AiWriteback: failed to destroy sandbox ${sandbox.sandboxId}: ${getErrorMessage(
                     error,
                 )}`,
             );

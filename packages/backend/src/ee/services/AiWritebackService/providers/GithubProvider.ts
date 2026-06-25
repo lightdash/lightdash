@@ -10,7 +10,6 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
-import type { Sandbox } from 'e2b';
 import type { Logger } from 'winston';
 import {
     createBranch,
@@ -25,6 +24,7 @@ import {
 } from '../../../../clients/github/Github';
 import type { GithubAppInstallationsModel } from '../../../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import type { GithubAppService } from '../../../../services/GithubAppService/GithubAppService';
+import type { SandboxHandle } from '../../SandboxRuntime';
 import {
     CO_AUTHOR_TRAILER,
     COMMIT_AUTHOR_EMAIL,
@@ -437,7 +437,7 @@ export class GithubProvider implements GitProvider {
         user,
         setStage,
     }: {
-        sandbox: Sandbox;
+        sandbox: SandboxHandle;
         connection: GithubConnection;
         installation: GithubInstallation;
         branch: string;

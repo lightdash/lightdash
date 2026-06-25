@@ -3,7 +3,7 @@ import type {
     PullRequestProvider,
     SessionUser,
 } from '@lightdash/common';
-import type { Sandbox } from 'e2b';
+import type { SandboxHandle } from '../../SandboxRuntime';
 import type {
     AdoptedPullRequest,
     CloneTarget,
@@ -13,7 +13,7 @@ import type {
 } from '../types';
 
 export type OpenPullRequestArgs = {
-    sandbox: Sandbox;
+    sandbox: SandboxHandle;
     connection: GitConnection;
     installation: GitInstallation;
     title: string;
