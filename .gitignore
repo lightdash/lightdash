@@ -140,3 +140,6 @@ AGENTS.md
 
 # octarine
 .octarine/properties.json
+
+# editor swap files
+*.swp
