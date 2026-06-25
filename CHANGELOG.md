@@ -1,3 +1,10 @@
+## [0.3243.1](https://github.com/lightdash/lightdash/compare/0.3243.0...0.3243.1) (2026-06-25)
+
+
+### Bug Fixes
+
+* rename tracking chunks ([#24721](https://github.com/lightdash/lightdash/issues/24721)) ([c297bae](https://github.com/lightdash/lightdash/commit/c297bae06a9ab1554e08e024c3611b6883c28219))
+
 # [0.3243.0](https://github.com/lightdash/lightdash/compare/0.3242.0...0.3243.0) (2026-06-25)
 
 
