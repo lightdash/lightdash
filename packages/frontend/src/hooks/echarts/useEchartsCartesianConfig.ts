@@ -1587,6 +1587,14 @@ export const getCategoryDateAxisConfig = (
     const maxDateValue = dayjs.utc(maxX);
     if (!minDateValue.isValid() || !maxDateValue.isValid()) return {};
 
+    // Match the date format used by the backend's raw values so that
+    // xAxis.data strings equal the category values in series.data tuples
+    // (ECharts uses strict string equality for category matching).
+    // If the raw value is a date-only string (e.g. "2024-04-01"), format
+    // without the time component; otherwise use full ISO format.
+    const minXStr = String(minX);
+    const isDateOnly = !minXStr.includes('T');
+
     // Bar charts need boundary gap for proper bar spacing, but line/area charts
     // look better extending to the edges
     const hasBarSeries = series?.some(
@@ -1609,15 +1617,18 @@ export const getCategoryDateAxisConfig = (
     const reAnchor = (d: dayjs.Dayjs) =>
         tz === 'UTC' ? d : dayjs.tz(d.format('YYYY-MM-DD HH:mm:ss'), tz);
 
+    const formatDate = (d: dayjs.Dayjs): string =>
+        isDateOnly ? d.utc().format('YYYY-MM-DD') : d.utc().format();
+
     if (timeInterval === TimeFrames.WEEK) {
         const continuousRange: string[] = [];
         let nextDate = inTz(minX);
         const endDate = inTz(maxX);
         while (nextDate.isBefore(endDate)) {
-            continuousRange.push(nextDate.utc().format());
+            continuousRange.push(formatDate(nextDate));
             nextDate = reAnchor(nextDate.add(1, 'week'));
         }
-        continuousRange.push(endDate.utc().format());
+        continuousRange.push(formatDate(endDate));
         return {
             data: continuousRange,
             axisTick: { alignWithLabel: true, interval: 0 },
@@ -1630,7 +1641,7 @@ export const getCategoryDateAxisConfig = (
         let nextDate = inTz(minX).startOf('year');
         const endDate = inTz(maxX).startOf('year');
         while (!nextDate.isAfter(endDate)) {
-            continuousRange.push(nextDate.utc().format());
+            continuousRange.push(formatDate(nextDate));
             nextDate = reAnchor(nextDate.add(1, 'year'));
         }
         return {
@@ -1645,7 +1656,7 @@ export const getCategoryDateAxisConfig = (
         let nextDate = inTz(minX).startOf('quarter');
         const endDate = inTz(maxX).startOf('quarter');
         while (!nextDate.isAfter(endDate)) {
-            continuousRange.push(nextDate.utc().format());
+            continuousRange.push(formatDate(nextDate));
             // dayjs requires quarterOfYear plugin for .add(1, 'quarter')
             nextDate = reAnchor(nextDate.add(3, 'months'));
         }
@@ -1661,7 +1672,7 @@ export const getCategoryDateAxisConfig = (
         let nextDate = inTz(minX).startOf('month');
         const endDate = inTz(maxX).startOf('month');
         while (!nextDate.isAfter(endDate)) {
-            continuousRange.push(nextDate.utc().format());
+            continuousRange.push(formatDate(nextDate));
             nextDate = reAnchor(nextDate.add(1, 'month'));
         }
         return {
