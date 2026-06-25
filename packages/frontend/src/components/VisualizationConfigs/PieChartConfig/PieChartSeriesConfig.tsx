@@ -4,6 +4,7 @@ import {
     Droppable,
     type DropResult,
 } from '@hello-pangea/dnd';
+import { getGranularityMapFromItems } from '@lightdash/common';
 import { Box, Stack } from '@mantine/core';
 import { useCallback, type FC } from 'react';
 import { isPieVisualizationConfig } from '../../LightdashVisualization/types';
@@ -14,10 +15,12 @@ import { GroupItem } from './GroupItem';
 import { ValueOptions } from './ValueOptions';
 
 export const Series: FC = () => {
-    const { visualizationConfig, colorPalette, getGroupColor } =
+    const { visualizationConfig, colorPalette, getGroupColor, itemsMap } =
         useVisualizationContext();
 
     const isPieChartConfig = isPieVisualizationConfig(visualizationConfig);
+
+    const granularityFields = Object.keys(getGranularityMapFromItems(itemsMap));
 
     const handleDragEnd = useCallback(
         (result: DropResult) => {
@@ -125,6 +128,9 @@ export const Series: FC = () => {
                                                             isOnlyItem={
                                                                 sortedGroupLabels.length ===
                                                                 1
+                                                            }
+                                                            granularityFields={
+                                                                granularityFields
                                                             }
                                                             sx={(theme) =>
                                                                 draggableSnapshot.isDragging

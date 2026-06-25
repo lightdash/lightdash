@@ -16,6 +16,8 @@ type StepConfigProps = {
     color: string | undefined;
     label: string | undefined;
 
+    granularityFields?: string[];
+
     onColorChange: (id: string, newColor: string) => void;
     onLabelChange: (id: string, newLabel: string) => void;
 };
@@ -27,6 +29,7 @@ export const StepConfig: FC<StepConfigProps> = ({
     swatches,
     color,
     label,
+    granularityFields,
     onColorChange,
     onLabelChange,
     ...rest
@@ -47,6 +50,7 @@ export const StepConfig: FC<StepConfigProps> = ({
                     <EditableText
                         placeholder={defaultLabel}
                         value={label}
+                        granularityFields={granularityFields}
                         onChange={(event) => {
                             onLabelChange(stepId, event.currentTarget.value);
                         }}

@@ -40,6 +40,8 @@ type GroupItemProps = {
     showValue: boolean;
     showPercentage: boolean;
 
+    granularityFields?: string[];
+
     onColorChange: (label: string, newColor: string) => void;
     onLabelChange: (label: string, newLabel: string) => void;
     onValueOptionsChange: (
@@ -70,6 +72,8 @@ export const GroupItem = forwardRef<
             showValue,
             showPercentage,
 
+            granularityFields,
+
             onColorChange,
             onLabelChange,
             onValueOptionsChange,
@@ -99,6 +103,7 @@ export const GroupItem = forwardRef<
                         <EditableText
                             placeholder={defaultLabel}
                             value={label}
+                            granularityFields={granularityFields}
                             onChange={(event) => {
                                 onLabelChange(
                                     defaultLabel,
