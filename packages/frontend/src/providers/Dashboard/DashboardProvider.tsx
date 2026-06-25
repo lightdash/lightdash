@@ -177,6 +177,13 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         },
     });
 
+    // Embedded dashboards populate `embedDashboard` instead of the query hook,
+    // so config-derived state must read from whichever holds the dashboard.
+    const currentDashboardConfig = useMemo(
+        () => (dashboard ?? embedDashboard)?.config,
+        [dashboard, embedDashboard],
+    );
+
     const { data: dashboardComments } = useGetComments(
         dashboardUuid,
         projectUuid,
@@ -321,8 +328,8 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
 
     // Persisted config, used to seed editable state on load and after save.
     const persistedDateZoomConfig = useMemo(
-        () => normalizeDateZoomConfig(dashboard?.config),
-        [dashboard?.config],
+        () => normalizeDateZoomConfig(currentDashboardConfig),
+        [currentDashboardConfig],
     );
     const [syncedDateZoomConfig, setSyncedDateZoomConfig] =
         useState<DateZoomConfig | null>(null);
@@ -386,24 +393,24 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     // Sync date zoom granularities from dashboard config
     // Note: Custom granularities from explores are added by DashboardGranularitySync
     useEffect(() => {
-        if (dashboard?.config?.dateZoomGranularities !== undefined) {
+        if (currentDashboardConfig?.dateZoomGranularities !== undefined) {
             setDateZoomGranularitiesState(
-                dashboard.config.dateZoomGranularities,
+                currentDashboardConfig.dateZoomGranularities,
             );
         } else {
             setDateZoomGranularitiesState(defaultStandardGranularities);
         }
     }, [
-        dashboard?.config?.dateZoomGranularities,
+        currentDashboardConfig?.dateZoomGranularities,
         defaultStandardGranularities,
     ]);
 
     // Sync default date zoom granularity from dashboard config
     useEffect(() => {
         setDefaultDateZoomGranularityState(
-            dashboard?.config?.defaultDateZoomGranularity,
+            currentDashboardConfig?.defaultDateZoomGranularity,
         );
-    }, [dashboard?.config?.defaultDateZoomGranularity]);
+    }, [currentDashboardConfig?.defaultDateZoomGranularity]);
 
     // Reset per-control runtime overrides when the dashboard identity changes;
     // each control's default comes from its persisted granularity. Skip when the
@@ -1253,21 +1260,21 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     useEffect(() => {
         if (isEditMode) return;
         if (
-            dashboard?.config?.defaultDateZoomGranularity &&
-            !dashboard?.config?.isDateZoomDisabled
+            currentDashboardConfig?.defaultDateZoomGranularity &&
+            !currentDashboardConfig?.isDateZoomDisabled
         ) {
             const searchParams = new URLSearchParams(searchRef.current);
             const dateZoomParam = searchParams.get('dateZoom');
             // Only apply default if no URL override is present
             if (!dateZoomParam) {
                 setDateZoomGranularity(
-                    dashboard.config.defaultDateZoomGranularity,
+                    currentDashboardConfig.defaultDateZoomGranularity,
                 );
             }
         }
     }, [
-        dashboard?.config?.defaultDateZoomGranularity,
-        dashboard?.config?.isDateZoomDisabled,
+        currentDashboardConfig?.defaultDateZoomGranularity,
+        currentDashboardConfig?.isDateZoomDisabled,
         isEditMode,
         setDateZoomGranularity,
     ]);
