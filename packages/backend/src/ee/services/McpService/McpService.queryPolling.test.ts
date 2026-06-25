@@ -205,6 +205,7 @@ const makeMcpService = ({
     dashboardSearchResults = [],
     chartSearchResults = [],
     verifiedContent = [],
+    jsonRendererEnabled = false,
 }: {
     context?: {
         projectUuid: string;
@@ -225,6 +226,7 @@ const makeMcpService = ({
     })[];
     chartSearchResults?: ReturnType<typeof makeChartSearchResult>[];
     verifiedContent?: Record<string, unknown>[];
+    jsonRendererEnabled?: boolean;
 } = {}) => {
     const asyncQueryService = {
         executeAsyncSqlQuery: vi.fn(),
@@ -368,16 +370,6 @@ const makeMcpService = ({
                         searchRank: 1,
                         joinedTables: [],
                     })),
-                    topMatchingFields: [
-                        {
-                            name: 'orders_count',
-                            label: 'Orders Count',
-                            tableName: 'orders',
-                            fieldType: 'metric',
-                            searchRank: 1,
-                            description: null,
-                        },
-                    ],
                 };
             }),
             findFields: vi.fn(async () => ({ fields: [], pagination: {} })),
@@ -422,6 +414,10 @@ const makeMcpService = ({
         ),
     };
 
+    const featureFlagService = {
+        get: jest.fn().mockResolvedValue({ enabled: jsonRendererEnabled }),
+    };
+
     const service = new McpService({
         aiAgentService,
         aiAgentToolsService,
@@ -435,7 +431,7 @@ const makeMcpService = ({
         catalogService,
         contentService: {},
         contentVerificationService,
-        featureFlagService: {},
+        featureFlagService,
         lightdashConfig: {
             ai: {
                 copilot: {
@@ -463,6 +459,7 @@ const makeMcpService = ({
         asyncQueryService,
         catalogService,
         contentVerificationService,
+        featureFlagService,
         mcpContextModel,
         projectModel,
         projectService,
@@ -677,11 +674,67 @@ describe('MCP async query polling', () => {
             agentUuid: 'agent-uuid',
             searchQuery: 'Show me revenue by month',
         });
-        expect(getTextResult(result)).toContain('<verifiedAnswers count="1">');
-        expect(getTextResult(result)).toContain('Revenue by month');
+        expect(parseTextResult(result)).toMatchObject({
+            verifiedAnswers: {
+                count: 1,
+                items: [relevantVerifiedAnswer],
+            },
+        });
         expect(result).toMatchObject({
             structuredContent: {
-                relevantVerifiedAnswers: [relevantVerifiedAnswer],
+                verifiedAnswers: {
+                    count: 1,
+                    items: [relevantVerifiedAnswer],
+                },
+            },
+        });
+    });
+
+    it('returns structured content for discovery tools', async () => {
+        makeMcpService();
+
+        const findExploresResult = await getToolCallback(
+            McpToolName.FIND_EXPLORES,
+        )({ searchQuery: 'orders' }, extra);
+        expect(findExploresResult).toMatchObject({
+            structuredContent: {
+                explores: expect.any(Array),
+            },
+        });
+
+        const findFieldsResult = await getToolCallback(McpToolName.FIND_FIELDS)(
+            {
+                table: 'orders',
+                fieldSearchQueries: [{ label: 'Orders count' }],
+            },
+            extra,
+        );
+        expect(findFieldsResult).toMatchObject({
+            structuredContent: {
+                searchResults: expect.any(Array),
+            },
+        });
+
+        const listFieldsResult = await getToolCallback(McpToolName.LIST_FIELDS)(
+            {
+                fields: [
+                    {
+                        explore: 'orders',
+                        fieldId: 'orders_missing_field',
+                    },
+                ],
+            },
+            extra,
+        );
+        expect(listFieldsResult).toMatchObject({
+            structuredContent: {
+                count: 1,
+                results: [
+                    expect.objectContaining({
+                        status: 'error',
+                        fieldId: 'orders_missing_field',
+                    }),
+                ],
             },
         });
     });
@@ -818,11 +871,16 @@ describe('MCP async query polling', () => {
             extra,
         );
 
+        expect(parseTextResult(result)).toMatchObject({
+            explores: [
+                expect.objectContaining({
+                    exploreName: 'orders',
+                }),
+            ],
+        });
         expect(result).toMatchObject({
             content: [
-                expect.objectContaining({
-                    text: expect.stringContaining('name="orders"'),
-                }),
+                expect.any(Object),
                 expect.objectContaining({
                     text: expect.stringContaining('Active agent: Agent'),
                 }),

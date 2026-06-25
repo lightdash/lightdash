@@ -19,7 +19,6 @@ type Dependencies = {
     findFields: FindFieldFn;
     updateProgress: UpdateProgressFn;
     pageSize: number;
-    toolDescriptionMaxChars?: number;
 };
 
 const toolDefinition = findFieldsToolDefinition.for('agent');

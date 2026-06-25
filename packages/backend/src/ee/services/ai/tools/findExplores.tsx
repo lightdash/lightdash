@@ -14,8 +14,6 @@ import { stringifyToolJson } from './toolOutputFormat';
 type Dependencies = {
     findExplores: FindExploresFn;
     updateProgress: UpdateProgressFn;
-    fieldSearchSize?: number;
-    toolDescriptionMaxChars?: number;
 };
 
 const toolDefinition = findExploresToolDefinition.for('agent');

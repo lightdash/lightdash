@@ -7,7 +7,7 @@ Purpose:
 Lists all Explores available to the user in the current project. Returns a summary of each explore including its name, label, base table, and tags.
 
 Usage Tips:
-- Use this to discover what data sources are available before using findExplores for detailed field information
+- Use this to discover what data sources are available before using findExplores for detailed explore descriptions
 - No arguments needed - automatically uses the current project context
 - Results are filtered based on user permissions and selected tags
 - Returns explore metadata without field details for quick overview
