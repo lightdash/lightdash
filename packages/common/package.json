@@ -25,6 +25,8 @@
     "fix-lint": "pnpm run linter ./src --fix",
     "format": "oxfmt ./src --check",
     "fix-format": "oxfmt ./src",
+    "generate:filter-grammar-parser": "tsx scripts/generateFilterGrammarParser.ts && pnpm run formatter --write src/types/filterGrammar.parser.ts",
+    "check:filter-grammar-parser": "tsx scripts/generateFilterGrammarParser.ts --check",
     "generate:chart-as-code-schema": "tsx src/schemas/generateChartAsCodeSchema.ts && pnpm run formatter --write src/schemas/json/chart-as-code-1.0.json",
     "check:chart-as-code-schema": "tsx src/schemas/generateChartAsCodeSchema.ts --check",
     "generate:dashboard-as-code-schema": "tsx src/schemas/generateDashboardAsCodeSchema.ts && pnpm run formatter --write src/schemas/json/dashboard-as-code-1.0.json",
