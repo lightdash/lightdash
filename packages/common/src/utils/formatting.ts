@@ -584,6 +584,22 @@ export function getEffectiveSeparator(
     return undefined;
 }
 
+// The numfmt locale string used to render an ECMA-376 format expression for an
+// item, derived from its effective separator. Exported so render paths that call
+// formatValueWithExpression directly (e.g. chart series formatters) localise
+// expressions the same way formatItemValue does. Returns undefined for the
+// default/US separator so output stays byte-identical.
+export function getFormatExpressionLocale(
+    item:
+        | Field
+        | AdditionalMetric
+        | TableCalculation
+        | CustomDimension
+        | undefined,
+): string | undefined {
+    return separatorToNumfmtLocale(getEffectiveSeparator(item));
+}
+
 export function getCustomFormat(
     item:
         | Field
@@ -1117,9 +1133,7 @@ export function formatItemValue(
         if (hasValidFormatExpression(item)) {
             // A field-level separator localises the ECMA-376 expression, which
             // numfmt otherwise renders with US separators regardless of locale.
-            const separatorLocale = separatorToNumfmtLocale(
-                getEffectiveSeparator(item),
-            );
+            const separatorLocale = getFormatExpressionLocale(item);
 
             // Check if format uses parameter placeholders
             const hasParameterPlaceholders =
