@@ -8,7 +8,12 @@ Simple and direct - deploy changes straight to a non-production project.
 
 Do not use this as the default production workflow. Production semantic-layer updates should almost always be deployed by CI/CD after review (for example GitHub Actions on merge) or refreshed from the Lightdash UI. Use direct production `lightdash deploy` only when the user explicitly confirms an exceptional reason, such as an approved emergency or a one-off setup task.
 
+**Always confirm the target project first.** Run `lightdash config get-project`, read the project name + UUID back to the user, and get explicit confirmation before deploying. `get-project` does not report whether the project is a preview, so warn the user if it may be production.
+
 ```bash
+# Confirm the target project, then read name + UUID back to the user before deploying
+lightdash config get-project
+
 # Make dbt/YAML changes locally
 lightdash deploy --target dev
 lightdash upload

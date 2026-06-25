@@ -39,7 +39,7 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 | **Including unused dimensions in metricQuery** | "Results may be incorrect" warning — extra dimensions change SQL grouping and produce wrong numbers | Every dimension in `metricQuery.dimensions` must appear in the chart config. For cartesian: `layout.xField`, `layout.yField`, or `pivotConfig.columns` |
 | **Unsorted YAML keys** | `lightdash upload` warns "unsorted YAML keys" and diffs become noisy | Always sort keys alphabetically at every nesting level — the CLI writes with `sortKeys: true` |
 | **Running `lightdash deploy` ad hoc against production** | Bypasses the team's release process and can overwrite the production semantic layer | Avoid direct production deploys. Remind the user to use CI/CD (for example GitHub Actions) or refresh dbt from the Lightdash UI unless they explicitly confirm a rare direct-deploy reason |
-| **Deploying to wrong project** | Overwrites project content | Always run `lightdash config get-project` before any deploy or upload |
+| **Deploying without confirming the target** | Overwrites the wrong project's content | Before any deploy or upload, run `lightdash config get-project`, read the project name + UUID back to the user, and get explicit confirmation. Warn if it may be production |
 | **Missing `contentType` field** | Content type can't be determined without relying on directory structure | Always include `contentType: chart`, `contentType: dashboard`, or `contentType: sql_chart` at the top level |
 
 ## Before You Start
@@ -49,10 +49,16 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 **Always verify which project you're targeting.** Deploying or uploading to the wrong project can overwrite production content.
 
 ```bash
-lightdash config get-project        # Show current project
-lightdash config list-projects      # List available projects
+lightdash config get-project        # Show current project (name + UUID)
+lightdash config list-projects      # List available projects (preview projects are excluded)
 lightdash config set-project --name "My Project"  # Switch project
 ```
+
+**Confirm the target with the user before every `lightdash deploy`.** Do not deploy to whichever project happens to be selected. The required steps are:
+
+1. Run `lightdash config get-project` and read back the **project name and UUID** to the user.
+2. Ask the user to explicitly confirm that this is the project they want to deploy to before you run `lightdash deploy`.
+3. **Warn the user if this looks like a production project.** Note that `get-project` reports only the name and UUID — it does **not** tell you whether the project is a preview. Previews are created by `lightdash preview` and are filtered out of `lightdash config list-projects`, so if the current project appears in `list-projects` it is a regular (non-preview) project and a direct deploy may hit production. When in doubt, treat it as production and steer the user toward CI/CD or a UI refresh.
 
 **Production deploys:** Do not run `lightdash deploy` against production as a default agent action. Production updates should almost always happen through the project's CI/CD pipeline (for example GitHub Actions after merge) or by refreshing dbt from the Lightdash UI. Only run a direct production deploy when the user explicitly asks for it and confirms why the normal release path is not appropriate.
 
@@ -159,7 +165,7 @@ Read the CSV and use the **exact values** in your filter YAML. This applies to a
 1. **Find the model YAML file** (dbt: `models/*.yml`, pure Lightdash: `lightdash/models/*.yml`)
 2. **Edit metrics/dimensions** using the appropriate syntax for your project type
 3. **Validate**: `lightdash lint` (pure Lightdash) or `dbt compile` (dbt projects)
-4. **Ship**: open a PR and let CI/CD deploy, or ask the user to refresh dbt from the Lightdash UI. Use `lightdash deploy` only for non-production projects or a user-confirmed exceptional production deploy.
+4. **Ship**: open a PR and let CI/CD deploy, or ask the user to refresh dbt from the Lightdash UI. Use `lightdash deploy` only for non-production projects or a user-confirmed exceptional production deploy — and first run `lightdash config get-project`, read the project name + UUID back to the user, and get explicit confirmation of the target.
 
 See [Metrics Reference](./resources/metrics-reference.md) and [Dimensions Reference](./resources/dimensions-reference.md) for configuration options.
 

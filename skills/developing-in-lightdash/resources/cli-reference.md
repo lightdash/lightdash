@@ -26,6 +26,8 @@ lightdash config set-project --uuid abc123-def456
 
 **Production guidance for agents:** Do not run `lightdash deploy` against a production project by default. Production deployments should almost always happen through the project's CI/CD process, such as GitHub Actions after merge, or by refreshing dbt from the Lightdash UI. Use a direct production deploy only when the user explicitly confirms an exceptional reason.
 
+**Confirm the target before deploying:** Before any `lightdash deploy`, run `lightdash config get-project`, read the project **name and UUID** back to the user, and ask them to confirm it is the intended target. `get-project` reports only name and UUID, not whether the project is a preview — preview projects are created by `lightdash preview` and are excluded from `lightdash config list-projects`, so a project that shows up in `list-projects` is a regular (non-preview) project that may be production. Warn the user in that case.
+
 ```bash
 # Compile dbt models and validate
 lightdash compile --project-dir ./dbt --profiles-dir ./profiles
