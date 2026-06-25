@@ -271,6 +271,15 @@ sfw npm install -g @lightdash/cli
 
 This applies to any install Claude runs in this repo — lockfile regeneration, Snyk fixes, debug snippets, global CLI installs. CI workflows already wrap installs via `socketdev/action@<SHA>`.
 
+### Dependency Install Scripts — Blocked by Default
+
+Dependency lifecycle scripts (`preinstall`/`install`/`postinstall`) are blocked by pnpm and enforced in CI via `strictDepBuilds: true` in `pnpm-workspace.yaml`. With it set, `pnpm install` (which every CI job runs) **fails** if any dependency has a build script that isn't reviewed in one of two lists in `pnpm-workspace.yaml`:
+
+- `onlyBuiltDependencies` — packages allowed to run their build scripts (native addons we depend on).
+- `ignoredBuiltDependencies` — packages whose build scripts we intentionally do NOT run (each entry documents why).
+
+This matters because these scripts also run on `npm install` for downstream consumers of our published packages (e.g. `@lightdash/cli`). When CI fails with `ERR_PNPM_IGNORED_BUILDS`, either remove/replace the dependency, add it to `ignoredBuiltDependencies` (with a reason) if its script is safe to skip, or `onlyBuiltDependencies` if the script must run. (pnpm 11 replaces these three settings with a single `allowBuilds` map.)
+
 ### Warehouse Credentials Protection
 
 **CRITICAL**: When adding new credential fields to warehouse configurations, always check if they contain sensitive data that should NOT be exposed via API responses.

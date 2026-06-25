@@ -9,24 +9,6 @@
         "packages/frontend/sdk"
     ],
     "pnpm": {
-        "onlyBuiltDependencies": [
-            "@sentry-internal/node-cpu-profiler",
-            "@sentry/cli",
-            "@swc/core",
-            "bcrypt",
-            "canvas",
-            "core-js",
-            "core-js-pure",
-            "cpu-features",
-            "cypress",
-            "duckdb",
-            "esbuild",
-            "lz4",
-            "msgpackr-extract",
-            "protobufjs",
-            "sharp",
-            "ssh2"
-        ],
         "overrides": {
             "react-is": "19.2.0",
             "@types/react": "19.2.2",
