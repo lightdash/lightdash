@@ -1,3 +1,10 @@
+# [0.3241.0](https://github.com/lightdash/lightdash/compare/0.3240.0...0.3241.0) (2026-06-25)
+
+
+### Features
+
+* add otel trace export ([#24579](https://github.com/lightdash/lightdash/issues/24579)) ([23f1af1](https://github.com/lightdash/lightdash/commit/23f1af1a31eae933899eb7e7d6aa6005981db34e)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.3240.0](https://github.com/lightdash/lightdash/compare/0.3239.0...0.3240.0) (2026-06-24)
 
 
