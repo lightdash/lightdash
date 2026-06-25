@@ -8,9 +8,13 @@ import {
     type DateZoomTileTarget,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Badge,
+    Box,
     Button,
     Checkbox,
+    Collapse,
+    Flex,
     Group,
     Select,
     Stack,
@@ -18,37 +22,45 @@ import {
     Text,
     TextInput,
 } from '@mantine-8/core';
+import {
+    IconChevronDown,
+    IconChevronRight,
+    IconClock,
+} from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
-import MantineModal from '../../../components/common/MantineModal';
+import MantineIcon from '../../../components/common/MantineIcon';
+import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import { getGranularityLabel } from '../utils';
+import styles from './DateZoom.module.css';
 
-// The control modal owns a draft of one control plus that control's slice of
+// The control config owns a draft of one control plus that control's slice of
 // `tileTargets`, and returns the full updated config so the caller just stores it.
-export type DateZoomControlModalProps = {
+export type DateZoomControlConfigProps = {
     control: DateZoomControl;
     config: DateZoomConfig;
-    opened: boolean;
     onSave: (nextConfig: DateZoomConfig) => void;
-    onDelete: (controlUuid: string) => void;
-    onClose: () => void;
+    // Inner Select dropdowns portal outside this popover, so the caller tracks
+    // their open state to avoid closing the popover when one is clicked.
+    popoverProps: {
+        onDropdownOpen: () => void;
+        onDropdownClose: () => void;
+    };
 };
 
-enum ControlModalTab {
+enum ControlTab {
     SETTINGS = 'settings',
     TILES = 'tiles',
 }
 
 type DraftTarget = { fieldId: string; tableName: string };
 
-export const DateZoomControlModal: FC<DateZoomControlModalProps> = ({
+export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
     control,
     config,
-    opened,
     onSave,
-    onDelete,
-    onClose,
+    popoverProps,
 }) => {
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
@@ -66,8 +78,11 @@ export const DateZoomControlModal: FC<DateZoomControlModalProps> = ({
         (c) => c.dateZoomGranularities,
     );
 
-    const [selectedTab, setSelectedTab] = useState<ControlModalTab>(
-        ControlModalTab.SETTINGS,
+    const [selectedTab, setSelectedTab] = useState<ControlTab>(
+        ControlTab.SETTINGS,
+    );
+    const [collapsedTabs, setCollapsedTabs] = useState<Record<string, boolean>>(
+        {},
     );
 
     // Seeded once on mount; the parent remounts with `key={control.uuid}` when
@@ -150,11 +165,13 @@ export const DateZoomControlModal: FC<DateZoomControlModalProps> = ({
             .filter(({ zoomableFields }) => zoomableFields.length > 0);
     }, [dashboardTiles, chartZoomableFieldsByTileUuid, config, draft.uuid]);
 
+    type EligibleTile = (typeof eligibleTiles)[number];
+
     // Group eligible tiles by tab so editors can tell apart charts that live on
     // different tabs. Tab headers only appear when the dashboard has tabs and
     // more than one group ends up with charts.
     const tileGroups = useMemo(() => {
-        const byTab = new Map<string | undefined, typeof eligibleTiles>();
+        const byTab = new Map<string | undefined, EligibleTile[]>();
         eligibleTiles.forEach((entry) => {
             const group = byTab.get(entry.tabUuid) ?? [];
             group.push(entry);
@@ -175,6 +192,15 @@ export const DateZoomControlModal: FC<DateZoomControlModalProps> = ({
     }, [eligibleTiles, dashboardTabs]);
 
     const showTabHeaders = tileGroups.length > 1;
+
+    // Tiles a control can actually claim (conflict tiles belong to another).
+    const selectableTiles = useMemo(
+        () => eligibleTiles.filter(({ conflictControl }) => !conflictControl),
+        [eligibleTiles],
+    );
+
+    const isSelected = (tile: EligibleTile['tile']) =>
+        !!draftTargets[tile.uuid];
 
     const toggleTile = (
         tileUuid: string,
@@ -210,22 +236,30 @@ export const DateZoomControlModal: FC<DateZoomControlModalProps> = ({
         }));
     };
 
-    const handleSelectAll = () => {
+    // Select/deselect a group of tiles at once (used by "Select all" and the
+    // per-tab header checkbox). When already all selected, clears them.
+    const toggleMany = (tiles: EligibleTile[], allSelected: boolean) => {
         setDraftTargets((prev) => {
             const next = { ...prev };
-            eligibleTiles.forEach(
-                ({ tile, zoomableFields, conflictControl }) => {
-                    if (conflictControl || next[tile.uuid]) return;
-                    const firstField = zoomableFields[0];
+            tiles.forEach(({ tile, zoomableFields }) => {
+                if (allSelected) {
+                    delete next[tile.uuid];
+                } else if (!next[tile.uuid]) {
                     next[tile.uuid] = {
-                        fieldId: firstField.fieldId,
-                        tableName: firstField.tableName,
+                        fieldId: zoomableFields[0].fieldId,
+                        tableName: zoomableFields[0].tableName,
                     };
-                },
-            );
+                }
+            });
             return next;
         });
     };
+
+    const allSelected =
+        selectableTiles.length > 0 &&
+        selectableTiles.every(({ tile }) => isSelected(tile));
+    const someSelected = selectableTiles.some(({ tile }) => isSelected(tile));
+    const isIndeterminate = someSelected && !allSelected;
 
     const handleSave = () => {
         // Upsert this control.
@@ -258,15 +292,31 @@ export const DateZoomControlModal: FC<DateZoomControlModalProps> = ({
         zoomableFields,
         conflictControl,
         label,
-    }: (typeof eligibleTiles)[number]) => {
+    }: EligibleTile) => {
         const target = draftTargets[tile.uuid];
         const isChecked = !!target;
         return (
-            <Group key={tile.uuid} justify="space-between" wrap="nowrap">
+            <Box key={tile.uuid}>
                 <Checkbox
-                    label={label}
+                    size="xs"
+                    fw={500}
                     checked={isChecked}
                     disabled={!!conflictControl}
+                    classNames={{ input: styles.checkboxInput }}
+                    label={
+                        <Flex align="center" gap="xxs">
+                            <MantineIcon
+                                color="blue.6"
+                                icon={getChartIcon(
+                                    tile.properties.lastVersionChartKind ??
+                                        undefined,
+                                )}
+                            />
+                            <Text fz="xs" fw={500}>
+                                {label}
+                            </Text>
+                        </Flex>
+                    }
                     onChange={(e) =>
                         toggleTile(
                             tile.uuid,
@@ -276,71 +326,134 @@ export const DateZoomControlModal: FC<DateZoomControlModalProps> = ({
                     }
                 />
                 {conflictControl ? (
-                    <Badge color="gray" variant="light">
-                        in: {conflictControl.name}
-                    </Badge>
-                ) : (
-                    <Select
+                    <Box ml="xl" mt="xxs">
+                        <Badge size="sm" color="gray" variant="light">
+                            In {conflictControl.name}
+                        </Badge>
+                    </Box>
+                ) : isChecked ? (
+                    <Box ml="xl" mt="sm">
+                        <Select
+                            w="100%"
+                            size="xs"
+                            allowDeselect={false}
+                            placeholder="Date field"
+                            leftSection={<MantineIcon icon={IconClock} />}
+                            data={zoomableFields.map((field) => ({
+                                value: field.fieldId,
+                                label: field.label,
+                            }))}
+                            value={target?.fieldId ?? null}
+                            comboboxProps={{ withinPortal: true }}
+                            onDropdownOpen={popoverProps.onDropdownOpen}
+                            onDropdownClose={popoverProps.onDropdownClose}
+                            onChange={(value) =>
+                                value &&
+                                setTileField(tile.uuid, zoomableFields, value)
+                            }
+                        />
+                    </Box>
+                ) : null}
+            </Box>
+        );
+    };
+
+    const renderTileGroup = (group: (typeof tileGroups)[number]) => {
+        if (!showTabHeaders || !group.name) {
+            return (
+                <Stack key={group.tabUuid ?? 'untabbed'} gap="md">
+                    {group.tiles.map(renderTileRow)}
+                </Stack>
+            );
+        }
+
+        const tabKey = group.tabUuid ?? 'untabbed';
+        // Default to collapsed, matching the dashboard filters' tab sections.
+        const isCollapsed = collapsedTabs[tabKey] ?? true;
+        const groupSelectable = group.tiles.filter(
+            ({ conflictControl }) => !conflictControl,
+        );
+        const groupSelectedCount = group.tiles.filter(({ tile }) =>
+            isSelected(tile),
+        ).length;
+        const groupAllSelected =
+            groupSelectable.length > 0 &&
+            groupSelectable.every(({ tile }) => isSelected(tile));
+        const groupIndeterminate =
+            !groupAllSelected &&
+            groupSelectable.some(({ tile }) => isSelected(tile));
+
+        return (
+            <Box key={tabKey}>
+                <Flex align="center" gap="xxs">
+                    <ActionIcon
                         size="xs"
-                        w={200}
-                        disabled={!isChecked}
-                        placeholder="Date field"
-                        data={zoomableFields.map((field) => ({
-                            value: field.fieldId,
-                            label: field.label,
-                        }))}
-                        value={target?.fieldId ?? null}
-                        onChange={(value) =>
-                            value &&
-                            setTileField(tile.uuid, zoomableFields, value)
+                        variant="subtle"
+                        aria-label={isCollapsed ? 'Expand tab' : 'Collapse tab'}
+                        onClick={() =>
+                            setCollapsedTabs((prev) => ({
+                                ...prev,
+                                [tabKey]: !(prev[tabKey] ?? true),
+                            }))
+                        }
+                    >
+                        <MantineIcon
+                            icon={
+                                isCollapsed ? IconChevronRight : IconChevronDown
+                            }
+                        />
+                    </ActionIcon>
+                    <Checkbox
+                        size="xs"
+                        fw={500}
+                        checked={groupAllSelected}
+                        indeterminate={groupIndeterminate}
+                        disabled={groupSelectable.length === 0}
+                        classNames={{ input: styles.checkboxInput }}
+                        label={
+                            <Group gap="xs">
+                                <Text fz="xs" fw={500}>
+                                    {group.name}
+                                </Text>
+                                {isCollapsed && (
+                                    <Text fz="xs" c="dimmed">
+                                        ({groupSelectedCount} of{' '}
+                                        {group.tiles.length} selected)
+                                    </Text>
+                                )}
+                            </Group>
+                        }
+                        onChange={() =>
+                            toggleMany(groupSelectable, groupAllSelected)
                         }
                     />
-                )}
-            </Group>
+                </Flex>
+                <Collapse in={!isCollapsed}>
+                    <Stack gap="md" mt="sm" ml={22}>
+                        {group.tiles.map(renderTileRow)}
+                    </Stack>
+                </Collapse>
+            </Box>
         );
     };
 
     return (
-        <MantineModal
-            opened={opened}
-            onClose={onClose}
-            title="Date zoom control"
-            size="lg"
-            onConfirm={handleSave}
-            confirmLabel="Save changes"
-            confirmDisabled={
-                draft.name.trim().length === 0 || targetCount === 0
-            }
-            leftActions={
-                <Button
-                    variant="subtle"
-                    color="red"
-                    onClick={() => onDelete(draft.uuid)}
-                >
-                    Delete
-                </Button>
-            }
-        >
+        <Stack gap="md">
             <Tabs
                 value={selectedTab}
                 onChange={(value) =>
-                    setSelectedTab(
-                        (value as ControlModalTab) ?? ControlModalTab.SETTINGS,
-                    )
+                    setSelectedTab((value as ControlTab) ?? ControlTab.SETTINGS)
                 }
             >
                 <Tabs.List mb="md">
-                    <Tabs.Tab value={ControlModalTab.SETTINGS}>
-                        Zoom settings
-                    </Tabs.Tab>
-                    <Tabs.Tab value={ControlModalTab.TILES}>
-                        Chart tiles
-                    </Tabs.Tab>
+                    <Tabs.Tab value={ControlTab.SETTINGS}>Settings</Tabs.Tab>
+                    <Tabs.Tab value={ControlTab.TILES}>Chart tiles</Tabs.Tab>
                 </Tabs.List>
 
-                <Tabs.Panel value={ControlModalTab.SETTINGS}>
+                <Tabs.Panel value={ControlTab.SETTINGS} w={360}>
                     <Stack gap="md">
                         <TextInput
+                            size="xs"
                             label="Control name"
                             placeholder="e.g. Revenue zoom"
                             value={draft.name}
@@ -351,10 +464,14 @@ export const DateZoomControlModal: FC<DateZoomControlModalProps> = ({
                         />
 
                         <Select
+                            size="xs"
                             label="Default granularity"
                             data={granularityData}
                             value={String(draft.granularity)}
                             allowDeselect={false}
+                            comboboxProps={{ withinPortal: true }}
+                            onDropdownOpen={popoverProps.onDropdownOpen}
+                            onDropdownClose={popoverProps.onDropdownClose}
                             onChange={(value) =>
                                 value &&
                                 setDraft((prev) => ({
@@ -366,7 +483,7 @@ export const DateZoomControlModal: FC<DateZoomControlModalProps> = ({
 
                         <Group justify="space-between">
                             <Text
-                                fz="sm"
+                                fz="xs"
                                 c={targetCount === 0 ? 'red' : 'dimmed'}
                             >
                                 {targetCount === 0
@@ -378,9 +495,7 @@ export const DateZoomControlModal: FC<DateZoomControlModalProps> = ({
                             <Button
                                 variant="subtle"
                                 size="xs"
-                                onClick={() =>
-                                    setSelectedTab(ControlModalTab.TILES)
-                                }
+                                onClick={() => setSelectedTab(ControlTab.TILES)}
                             >
                                 Edit charts
                             </Button>
@@ -388,46 +503,42 @@ export const DateZoomControlModal: FC<DateZoomControlModalProps> = ({
                     </Stack>
                 </Tabs.Panel>
 
-                <Tabs.Panel value={ControlModalTab.TILES}>
-                    <Stack gap="xs">
-                        {eligibleTiles.length === 0 ? (
-                            <Text fz="sm" c="dimmed">
-                                No chart tiles with a date dimension to zoom.
-                            </Text>
-                        ) : (
-                            <>
-                                <Group justify="flex-end">
-                                    <Button
-                                        variant="subtle"
-                                        size="xs"
-                                        onClick={handleSelectAll}
-                                    >
-                                        Select all
-                                    </Button>
-                                </Group>
-                                {tileGroups.map((group) => (
-                                    <Stack
-                                        key={group.tabUuid ?? 'untabbed'}
-                                        gap="xs"
-                                    >
-                                        {showTabHeaders && group.name && (
-                                            <Text
-                                                fz="xs"
-                                                fw={600}
-                                                c="dimmed"
-                                                tt="uppercase"
-                                            >
-                                                {group.name}
-                                            </Text>
-                                        )}
-                                        {group.tiles.map(renderTileRow)}
-                                    </Stack>
-                                ))}
-                            </>
-                        )}
-                    </Stack>
+                <Tabs.Panel value={ControlTab.TILES} w={440}>
+                    {eligibleTiles.length === 0 ? (
+                        <Text fz="xs" c="dimmed">
+                            No chart tiles with a date dimension to zoom.
+                        </Text>
+                    ) : (
+                        <Stack gap="xl" className={styles.tileScrollArea}>
+                            <Checkbox
+                                size="xs"
+                                fw={500}
+                                checked={allSelected}
+                                indeterminate={isIndeterminate}
+                                disabled={selectableTiles.length === 0}
+                                classNames={{ input: styles.checkboxInput }}
+                                label="Select all"
+                                onChange={() =>
+                                    toggleMany(selectableTiles, allSelected)
+                                }
+                            />
+                            {tileGroups.map(renderTileGroup)}
+                        </Stack>
+                    )}
                 </Tabs.Panel>
             </Tabs>
-        </MantineModal>
+
+            <Group justify="flex-end">
+                <Button
+                    size="xs"
+                    disabled={
+                        draft.name.trim().length === 0 || targetCount === 0
+                    }
+                    onClick={handleSave}
+                >
+                    Save changes
+                </Button>
+            </Group>
+        </Stack>
     );
 };
