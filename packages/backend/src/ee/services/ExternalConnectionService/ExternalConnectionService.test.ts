@@ -231,6 +231,30 @@ describe('ExternalConnectionService.testConnection', () => {
         );
     });
 
+    it('rejects a method not in the connection allowlist without fetching', async () => {
+        const { service, model } = buildService({
+            connection: { ...connection, allowedMethods: ['POST'] },
+        });
+        mockAbility(service, true);
+
+        const executeExternalFetchSpy = jest.spyOn(
+            service as unknown as {
+                executeExternalFetch: (...a: unknown[]) => Promise<unknown>;
+            },
+            'executeExternalFetch',
+        );
+
+        await expect(
+            service.testConnection(adminAccount, projectUuid, connectionUuid, {
+                method: 'GET',
+                path: '/v1/current',
+            }),
+        ).rejects.toThrow(ParameterError);
+
+        expect(executeExternalFetchSpy).not.toHaveBeenCalled();
+        expect(model.getDecryptedSecret).not.toHaveBeenCalled();
+    });
+
     it('throws NotFoundError for a connection in a different project', async () => {
         const { service } = buildService({
             connection: { ...connection, projectUuid: 'other-project' },
