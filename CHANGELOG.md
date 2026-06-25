@@ -1,3 +1,10 @@
+## [0.3241.1](https://github.com/lightdash/lightdash/compare/0.3241.0...0.3241.1) (2026-06-25)
+
+
+### Bug Fixes
+
+* keep otel tracing sdk metrics-free ([#24722](https://github.com/lightdash/lightdash/issues/24722)) ([1be0ea0](https://github.com/lightdash/lightdash/commit/1be0ea0a4602097b90c9cc3b914e9fc0f49ce026))
+
 # [0.3241.0](https://github.com/lightdash/lightdash/compare/0.3240.0...0.3241.0) (2026-06-25)
 
 
