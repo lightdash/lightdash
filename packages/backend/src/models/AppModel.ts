@@ -333,6 +333,7 @@ export class AppModel {
         createdByUserUuid: string;
         organizationUuid: string;
         spaceUuid: string | null;
+        spaceName: string | null;
         template: DbApp['template'];
         pinnedListUuid: string | null;
         pinnedListOrder: number | null;
@@ -374,6 +375,13 @@ export class AppModel {
                 `${PinnedAppTableName}.app_uuid`,
                 `${AppsTableName}.app_id`,
             )
+            .leftJoin(SpaceTableName, function spaceJoin() {
+                void this.on(
+                    `${SpaceTableName}.space_uuid`,
+                    '=',
+                    `${AppsTableName}.space_uuid`,
+                ).andOnNull(`${SpaceTableName}.deleted_at`);
+            })
             .where(`${AppsTableName}.app_id`, appId)
             .andWhere(`${AppsTableName}.project_uuid`, projectUuid)
             .whereNull(`${AppsTableName}.deleted_at`)
@@ -383,6 +391,7 @@ export class AppModel {
                 `${AppsTableName}.description`,
                 `${AppsTableName}.created_by_user_uuid`,
                 `${AppsTableName}.space_uuid`,
+                `${SpaceTableName}.name as space_name`,
                 `${AppsTableName}.template`,
                 `${OrganizationTableName}.organization_uuid`,
                 `${PinnedAppTableName}.pinned_list_uuid`,
@@ -406,6 +415,7 @@ export class AppModel {
             description: string;
             created_by_user_uuid: string;
             space_uuid: string | null;
+            space_name: string | null;
             template: DbApp['template'];
             organization_uuid: string;
             pinned_list_uuid: string | null;
@@ -425,6 +435,7 @@ export class AppModel {
             description,
             created_by_user_uuid: createdByUserUuid,
             space_uuid: spaceUuid,
+            space_name: spaceName,
             template,
             organization_uuid: organizationUuid,
             pinned_list_uuid: pinnedListUuid,
@@ -440,6 +451,7 @@ export class AppModel {
                 description: string;
                 created_by_user_uuid: string;
                 space_uuid: string | null;
+                space_name: string | null;
                 template: DbApp['template'];
                 organization_uuid: string;
                 pinned_list_uuid: string | null;
@@ -455,6 +467,7 @@ export class AppModel {
             createdByUserUuid,
             organizationUuid,
             spaceUuid,
+            spaceName,
             template,
             pinnedListUuid,
             pinnedListOrder,

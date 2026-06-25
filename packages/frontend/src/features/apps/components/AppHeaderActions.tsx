@@ -1,9 +1,4 @@
-import {
-    ContentType,
-    FeatureFlags,
-    ResourceViewItemType,
-    type AppVersionStatus,
-} from '@lightdash/common';
+import { FeatureFlags, type AppVersionStatus } from '@lightdash/common';
 import { ActionIcon, Menu, Tooltip } from '@mantine-8/core';
 import {
     IconCopy,
@@ -17,14 +12,11 @@ import {
     IconSend,
     IconTrash,
 } from '@tabler/icons-react';
-import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState, type FC, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import AppDeleteModal from '../../../components/common/modal/AppDeleteModal';
 import AppUpdateModal from '../../../components/common/modal/AppUpdateModal';
-import TransferItemsModal from '../../../components/common/TransferItemsModal/TransferItemsModal';
-import { useContentAction } from '../../../hooks/useContent';
 import { useProject } from '../../../hooks/useProject';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { AppSchedulersModal } from '../../scheduler/components/SchedulerModals';
@@ -34,6 +26,7 @@ import {
     DataAppFavoriteMenuItem,
     FavoritePersonalDataAppModal,
 } from './DataAppFavoriteMenuItem';
+import { MoveAppToSpaceModal } from './MoveAppToSpaceModal';
 import { PromoteAppModal } from './PromoteAppModal';
 
 type Props = {
@@ -83,7 +76,6 @@ const AppHeaderActions: FC<Props> = ({
     navItem,
 }) => {
     const navigate = useNavigate();
-    const queryClient = useQueryClient();
 
     const canEdit = useCanEditDataApp(projectUuid, {
         spaceUuid: appSpaceUuid,
@@ -102,8 +94,6 @@ const AppHeaderActions: FC<Props> = ({
 
     const { mutate: duplicateMutate, isLoading: isDuplicating } =
         useDuplicateApp();
-    const { mutateAsync: contentAction, isLoading: isMovingToSpace } =
-        useContentAction(projectUuid);
 
     const [schedulerModalOpen, setSchedulerModalOpen] = useState(false);
     const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
@@ -124,21 +114,6 @@ const AppHeaderActions: FC<Props> = ({
             },
         );
     }, [duplicateMutate, navigate, projectUuid, appUuid]);
-
-    const handleMove = useCallback(
-        async (targetSpaceUuid: string | null) => {
-            if (!targetSpaceUuid) return;
-            await contentAction({
-                action: { type: 'move', targetSpaceUuid },
-                item: { uuid: appUuid, contentType: ContentType.DATA_APP },
-            });
-            await queryClient.invalidateQueries({
-                queryKey: ['app', projectUuid, appUuid],
-            });
-            setIsMoveToSpaceOpen(false);
-        },
-        [contentAction, queryClient, projectUuid, appUuid],
-    );
 
     return (
         <>
@@ -280,32 +255,19 @@ const AppHeaderActions: FC<Props> = ({
                 />
             )}
             {isMoveToSpaceOpen && (
-                <TransferItemsModal
+                <MoveAppToSpaceModal
                     projectUuid={projectUuid}
                     opened
                     onClose={() => setIsMoveToSpaceOpen(false)}
-                    items={[
-                        {
-                            type: ResourceViewItemType.DATA_APP,
-                            data: {
-                                uuid: appUuid,
-                                name: appName,
-                                description: appDescription || undefined,
-                                spaceUuid: appSpaceUuid,
-                                createdByUserUuid: appCreatedByUserUuid,
-                                updatedAt: new Date(),
-                                updatedByUser: null,
-                                views: 0,
-                                firstViewedAt: null,
-                                latestVersionNumber: null,
-                                latestVersionStatus: null,
-                                pinnedListUuid: null,
-                                pinnedListOrder: null,
-                            },
-                        },
-                    ]}
-                    isLoading={isMovingToSpace}
-                    onConfirm={handleMove}
+                    app={{
+                        uuid: appUuid,
+                        name: appName,
+                        description: appDescription ?? undefined,
+                        spaceUuid: appSpaceUuid,
+                        createdByUserUuid: appCreatedByUserUuid,
+                        latestVersionNumber,
+                        latestVersionStatus,
+                    }}
                 />
             )}
             {schedulerModalOpen && (
