@@ -2633,8 +2633,9 @@ export class ProjectService extends BaseService {
                         );
                     }
 
-                    await this.replaceYamlTags(
+                    await this.replaceYamlTagsWithoutPermissionCheck(
                         user,
+                        user.organizationUuid,
                         newProjectUuid,
                         // Create util to generate categories from lightdashProjectConfig - this is used as well in deploy.ts
                         Object.entries(
@@ -3181,8 +3182,9 @@ export class ProjectService extends BaseService {
                             timings.getConfig.end = performance.now();
 
                             timings.yaml.start = performance.now();
-                            await this.replaceYamlTags(
+                            await this.replaceYamlTagsWithoutPermissionCheck(
                                 user,
+                                user.organizationUuid,
                                 projectUuid,
                                 // TODO: Create util to generate categories from lightdashProjectConfig - this is used as well in deploy.ts
                                 Object.entries(
@@ -6356,8 +6358,9 @@ export class ProjectService extends BaseService {
                         );
 
                         timings.yaml.start = performance.now();
-                        await this.replaceYamlTags(
+                        await this.replaceYamlTagsWithoutPermissionCheck(
                             user,
+                            organizationUuid,
                             projectUuid,
                             // TODO: Create util to generate categories from lightdashProjectConfig - this is used as well in deploy.ts
                             Object.entries(
@@ -9041,6 +9044,22 @@ export class ProjectService extends BaseService {
             );
         }
 
+        await this.replaceYamlTagsWithoutPermissionCheck(
+            user,
+            organizationUuid,
+            projectUuid,
+            yamlTags,
+        );
+    }
+
+    private async replaceYamlTagsWithoutPermissionCheck(
+        user: SessionUser,
+        organizationUuid: string,
+        projectUuid: string,
+        yamlTags: (Pick<Tag, 'name' | 'color'> & {
+            yamlReference: NonNullable<Tag['yamlReference']>;
+        })[],
+    ) {
         const yamlTagsIn = yamlTags.map((tag) => ({
             project_uuid: projectUuid,
             name: tag.name,
