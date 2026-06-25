@@ -1,3 +1,11 @@
+# [0.3244.0](https://github.com/lightdash/lightdash/compare/0.3243.2...0.3244.0) (2026-06-25)
+
+
+### Features
+
+* **date-zoom:** autocomplete ${field.granularity} in cartesian axis & gauge labels ([#24708](https://github.com/lightdash/lightdash/issues/24708)) ([356257d](https://github.com/lightdash/lightdash/commit/356257d6180ee82b8cc70ca70696929e219d2ee1))
+* **date-zoom:** insert-variable helper for ${field.granularity} in pie & funnel labels ([#24735](https://github.com/lightdash/lightdash/issues/24735)) ([3ca50c9](https://github.com/lightdash/lightdash/commit/3ca50c9829fdf4670de27aa8b45af93f0c6f6507))
+
 ## [0.3243.2](https://github.com/lightdash/lightdash/compare/0.3243.1...0.3243.2) (2026-06-25)
 
 
