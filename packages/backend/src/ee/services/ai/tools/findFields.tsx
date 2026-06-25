@@ -1,14 +1,7 @@
 import {
-    CatalogField,
-    convertToAiHints,
-    DEFAULT_FILTER_CASE_SENSITIVE,
-    DimensionType,
-    Explore,
-    FieldType,
     findFieldsToolDefinition,
-    getFilterTypeFromItemType,
-    getItemId,
-    isEmojiIcon,
+    type Explore,
+    type ToolFindFieldsOutput,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
@@ -18,138 +11,64 @@ import type {
 } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-import { truncate } from '../utils/truncation';
-import { xmlBuilder } from '../xmlBuilder';
+import { fieldToJson } from './fieldOutput';
+import { stringifyToolJson } from './toolOutputFormat';
 
 type Dependencies = {
     getExplore: GetExploreFn;
     findFields: FindFieldFn;
     updateProgress: UpdateProgressFn;
     pageSize: number;
-    toolDescriptionMaxChars: number;
+    toolDescriptionMaxChars?: number;
 };
 
 const toolDefinition = findFieldsToolDefinition.for('agent');
 
-const getFieldCaseSensitive = (
-    catalogField: CatalogField,
-    explore?: Explore,
-): boolean | undefined => {
-    if (
-        catalogField.fieldType !== FieldType.DIMENSION ||
-        catalogField.fieldValueType !== DimensionType.STRING
-    ) {
-        return undefined;
-    }
+const findFieldsNote =
+    'Field descriptions are full, untruncated catalog descriptions. Use findFields to compare candidates; once you know exact field ids that are likely to be used, call listFields for exact lookup/validation instead of re-searching known fields.';
 
-    const dimension =
-        explore?.tables[catalogField.tableName]?.dimensions[catalogField.name];
-
-    return (
-        dimension?.caseSensitive ??
-        explore?.caseSensitive ??
-        DEFAULT_FILTER_CASE_SENSITIVE
-    );
-};
-
-const renderField = (
-    catalogField: CatalogField,
-    toolDescriptionMaxChars: number,
-    explore?: Explore,
-) => {
-    const isFromJoinedTable =
-        explore &&
-        catalogField.tableName !== explore.baseTable &&
-        explore.joinedTables.some(
-            (join) => join.table === catalogField.tableName,
-        );
-    const caseSensitiveFilters = getFieldCaseSensitive(catalogField, explore);
-
-    const aiHints = convertToAiHints(catalogField.aiHints ?? undefined);
-
-    return (
-        <field
-            type={catalogField.fieldType}
-            baseTable={catalogField.tableName}
-            name={catalogField.name}
-            fieldId={getItemId({
-                name: catalogField.name,
-                table: catalogField.tableName,
-            })}
-            fieldType={catalogField.fieldValueType}
-            fieldFilterType={getFilterTypeFromItemType(
-                catalogField.fieldValueType,
-            )}
-            searchRank={catalogField.searchRank}
-            chartUsage={catalogField.chartUsage}
-            usageInVerifiedCharts={catalogField.verifiedChartUsage ?? 0}
-            isFromJoinedTable={isFromJoinedTable}
-            {...(caseSensitiveFilters === undefined
-                ? {}
-                : { caseSensitiveFilters })}
-        >
-            {isFromJoinedTable && explore && (
-                <note>
-                    This field is from the "{catalogField.tableName}" table,
-                    which is joined to the "{explore.name}" explore. You can use
-                    this field in queries and filters just like fields from the
-                    base table.
-                </note>
-            )}
-            <label>{catalogField.label}</label>
-            {aiHints && aiHints.length > 0 ? (
-                <aihints>
-                    {aiHints.map((hint) => (
-                        <hint>{hint}</hint>
-                    ))}
-                </aihints>
-            ) : null}
-            {catalogField.description && (
-                <description>
-                    {truncate(
-                        catalogField.description,
-                        toolDescriptionMaxChars,
-                    )}
-                </description>
-            )}
-            {catalogField.categories && catalogField.categories.length > 0 ? (
-                <categories>
-                    {catalogField.categories.map((c) => (
-                        <category>{c.name}</category>
-                    ))}
-                </categories>
-            ) : null}
-            {isEmojiIcon(catalogField.icon) ? (
-                <emoji>{catalogField.icon.unicode}</emoji>
-            ) : null}
-        </field>
-    );
-};
-
-const getFieldsText = (
+const getSearchResultOutput = (
     args: Awaited<ReturnType<FindFieldFn>> & { searchQuery: string },
-    toolDescriptionMaxChars: number,
-    explore?: Explore,
-) => (
-    <searchresult
-        searchQuery={args.searchQuery}
-        page={args.pagination?.page}
-        pageSize={args.pagination?.pageSize}
-        totalPageCount={args.pagination?.totalPageCount}
-        totalResults={args.pagination?.totalResults}
-    >
-        {args.fields.map((field) =>
-            renderField(field, toolDescriptionMaxChars, explore),
-        )}
-    </searchresult>
-);
+    explore: Explore,
+) => {
+    const { fields } = args;
+
+    return {
+        searchQuery: args.searchQuery,
+        page: args.pagination?.page,
+        pageSize: args.pagination?.pageSize,
+        totalPageCount: args.pagination?.totalPageCount,
+        totalResults: args.pagination?.totalResults,
+        fieldCount: fields.length,
+        note: findFieldsNote,
+        fields: fields.map((field) => fieldToJson({ field, explore })),
+    };
+};
+
+const getStructuredResponse = ({
+    fieldSearchQueryResults,
+    explore,
+}: {
+    fieldSearchQueryResults: Array<
+        Awaited<ReturnType<FindFieldFn>> & { searchQuery: string }
+    >;
+    explore: Explore;
+}) => ({
+    count: fieldSearchQueryResults.length,
+    searchResults: fieldSearchQueryResults.map((fieldSearchQueryResult) =>
+        getSearchResultOutput(fieldSearchQueryResult, explore),
+    ),
+});
+
+export type FindFieldsStructuredResult = ReturnType<
+    typeof getStructuredResponse
+>;
 
 export const getFindFields = ({
     getExplore,
     findFields,
     updateProgress,
     pageSize,
-    toolDescriptionMaxChars,
 }: Dependencies) =>
     tool({
         ...toolDefinition,
@@ -182,20 +101,14 @@ export const getFindFields = ({
                     }),
                 );
 
-                const fieldsText = fieldSearchQueryResults
-                    .map((fieldSearchQueryResult) =>
-                        getFieldsText(
-                            fieldSearchQueryResult,
-                            toolDescriptionMaxChars,
-                            explore,
-                        ),
-                    )
-                    .join('\n\n');
+                const structuredResult = getStructuredResponse({
+                    fieldSearchQueryResults,
+                    explore,
+                });
 
                 return {
-                    result: (
-                        <searchresults>{fieldsText}</searchresults>
-                    ).toString(),
+                    result: stringifyToolJson(structuredResult),
+                    structuredResult,
                     metadata: {
                         status: 'success',
                         ranking: {
@@ -220,7 +133,7 @@ export const getFindFields = ({
                             ),
                         },
                     },
-                };
+                } as ToolFindFieldsOutput;
             } catch (error) {
                 return {
                     result: toolErrorHandler(
