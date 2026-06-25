@@ -240,6 +240,10 @@ const catalogModel = {
     getAllMetricsTreeNodes: jest.fn(async () => []),
 };
 
+const tagsModel = {
+    replaceYamlTags: jest.fn(async () => ({ yamlTagsToCreateOrUpdate: [] })),
+};
+
 const projectCompileLogModel = {
     insert: jest.fn(async () => undefined),
 };
@@ -275,7 +279,7 @@ const getMockedProjectService = (
         downloadFileModel: {} as unknown as DownloadFileModel,
         fileStorageClient: {} as FileStorageClient,
         groupsModel: {} as GroupsModel,
-        tagsModel: {} as TagsModel,
+        tagsModel: tagsModel as unknown as TagsModel,
         catalogModel: catalogModel as unknown as CatalogModel,
         contentModel: {} as ContentModel,
         encryptionUtil: {} as EncryptionUtil,
@@ -298,6 +302,7 @@ const getMockedProjectService = (
         } as unknown as FeatureFlagModel,
         projectParametersModel: {
             find: jest.fn(async () => []),
+            replace: jest.fn(async () => undefined),
         } as unknown as ProjectParametersModel,
         organizationWarehouseCredentialsModel:
             {} as unknown as OrganizationWarehouseCredentialsModel,
@@ -1599,6 +1604,105 @@ describe('ProjectService', () => {
                 jobStatus: JobStatusType.ERROR,
             });
             expect(projectModel.tryAcquireProjectLock).not.toHaveBeenCalled();
+        });
+
+        test('syncs YAML tags during compilation without manage tag permissions', async () => {
+            const compileJobUuid = 'compile-job-uuid';
+            const previewProjectUuid = 'preview-project-uuid';
+            const previewCompileUser: SessionUser = {
+                ...user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Job', action: ['create'] },
+                    { subject: 'CompileProject', action: ['manage'] },
+                    { subject: 'Project', action: ['update', 'view'] },
+                ]),
+            };
+
+            jest.spyOn(
+                service as unknown as {
+                    refreshTablesAndProjectConfig: () => Promise<unknown>;
+                },
+                'refreshTablesAndProjectConfig',
+            ).mockResolvedValueOnce({
+                explores: [],
+                lightdashProjectConfig: {
+                    spotlight: {
+                        categories: {
+                            finance: { label: 'Finance', color: 'blue' },
+                        },
+                    },
+                    parameters: {},
+                    table_groups: {},
+                },
+                projectContext: undefined,
+            });
+            (projectModel.getSummary as jest.Mock)
+                .mockResolvedValueOnce({
+                    ...projectSummary,
+                    projectUuid: previewProjectUuid,
+                    type: ProjectType.PREVIEW,
+                })
+                .mockResolvedValueOnce({
+                    ...projectSummary,
+                    projectUuid: previewProjectUuid,
+                    type: ProjectType.PREVIEW,
+                })
+                .mockResolvedValueOnce({
+                    ...projectSummary,
+                    projectUuid: previewProjectUuid,
+                    type: ProjectType.PREVIEW,
+                });
+            (projectModel.get as jest.Mock).mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                projectUuid: previewProjectUuid,
+                type: ProjectType.PREVIEW,
+            });
+
+            await service.compileProject(
+                previewCompileUser,
+                previewProjectUuid,
+                RequestMethod.WEB_APP,
+                compileJobUuid,
+            );
+
+            expect(tagsModel.replaceYamlTags).toHaveBeenCalledWith(
+                previewProjectUuid,
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        project_uuid: previewProjectUuid,
+                        yaml_reference: 'finance',
+                    }),
+                ]),
+            );
+            expect(jobModel.update).toHaveBeenCalledWith(compileJobUuid, {
+                jobStatus: JobStatusType.DONE,
+                jobResults: { indexCatalogJobUuid: { jobId: 'catalog-job-1' } },
+            });
+        });
+
+        test('requires manage tag permissions for direct YAML tag sync', async () => {
+            const noTagUser: SessionUser = {
+                ...user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: ['update', 'view'] },
+                ]),
+            };
+            (projectModel.getSummary as jest.Mock).mockResolvedValueOnce({
+                ...projectSummary,
+                type: ProjectType.DEFAULT,
+            });
+
+            await expect(
+                service.replaceYamlTags(noTagUser, projectUuid, [
+                    {
+                        yamlReference: 'finance',
+                        name: 'Finance',
+                        color: 'blue',
+                    },
+                ]),
+            ).rejects.toThrowError(ForbiddenError);
+
+            expect(tagsModel.replaceYamlTags).not.toHaveBeenCalled();
         });
     });
 
