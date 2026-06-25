@@ -1,3 +1,10 @@
+# [0.3250.0](https://github.com/lightdash/lightdash/compare/0.3249.1...0.3250.0) (2026-06-25)
+
+
+### Features
+
+* configurable project-default time intervals ([#24782](https://github.com/lightdash/lightdash/issues/24782)) ([4ce2b12](https://github.com/lightdash/lightdash/commit/4ce2b12083e2308e0e62632cc08e18a054a415f6))
+
 ## [0.3249.1](https://github.com/lightdash/lightdash/compare/0.3249.0...0.3249.1) (2026-06-25)
 
 
