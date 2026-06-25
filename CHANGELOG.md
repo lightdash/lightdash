@@ -1,3 +1,10 @@
+## [0.3241.3](https://github.com/lightdash/lightdash/compare/0.3241.2...0.3241.3) (2026-06-25)
+
+
+### Bug Fixes
+
+* stale app state in the app builder ([#24704](https://github.com/lightdash/lightdash/issues/24704)) ([5cf8f05](https://github.com/lightdash/lightdash/commit/5cf8f05730bbef4b4863c8d443957e8b89601144))
+
 ## [0.3241.2](https://github.com/lightdash/lightdash/compare/0.3241.1...0.3241.2) (2026-06-25)
 
 
