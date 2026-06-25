@@ -6,11 +6,14 @@ import {
     DashboardChartTile,
     DashboardTile,
     DashboardTileTypes,
+    DateGranularity,
+    DateZoomConfig,
     isDashboardVersionedFields,
     SavedChart,
     SEED_PROJECT,
     UpdateDashboard,
 } from '@lightdash/common';
+import { randomUUID } from 'crypto';
 import { ApiClient } from '../helpers/api-client';
 import { login } from '../helpers/auth';
 import { chartMock, dashboardMock } from '../helpers/mocks';
@@ -438,6 +441,194 @@ describe('Lightdash dashboard', () => {
             }>(`${apiUrl}/projects/${projectUuid}/spaces`);
             const spaceUuids = spacesResponse.body.results.map((s) => s.uuid);
             expect(spaceUuids).toContain(dashboard.spaceUuid);
+        });
+    });
+
+    describe('Date zoom config', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        const emptyFilters = {
+            dimensions: [],
+            metrics: [],
+            tableCalculations: [],
+        };
+
+        const dateZoomTarget = (controlUuid: string) => ({
+            controlUuid,
+            fieldId: 'orders_order_date_month',
+            tableName: 'orders',
+        });
+
+        const controlConfig = (
+            controlUuid: string,
+            tileUuids: string[],
+        ): DateZoomConfig => ({
+            controls: [
+                {
+                    uuid: controlUuid,
+                    name: uniqueName('Revenue zoom'),
+                    granularity: DateGranularity.MONTH,
+                },
+            ],
+            tileTargets: Object.fromEntries(
+                tileUuids.map((tileUuid) => [
+                    tileUuid,
+                    dateZoomTarget(controlUuid),
+                ]),
+            ),
+        });
+
+        async function getDashboard(uuid: string): Promise<Dashboard> {
+            const resp = await admin.get<{ results: Dashboard }>(
+                `${apiUrl}/dashboards/${uuid}`,
+            );
+            expect(resp.status).toBe(200);
+            return resp.body.results;
+        }
+
+        // Creates a dashboard with two saved-chart tiles and returns the tiles
+        // carrying their backend-assigned uuids, so tests can build a
+        // tileTargets map keyed by real tile uuids.
+        async function createDashboardWithTwoChartTiles(): Promise<{
+            dashboardUuid: string;
+            tiles: DashboardTile[];
+        }> {
+            const dashboard = await createDashboard(admin, projectUuid, {
+                ...dashboardMock,
+                name: uniqueName('Date zoom dashboard'),
+            });
+            tracker.trackDashboard(dashboard.uuid);
+
+            const charts = await Promise.all(
+                [0, 1].map(async () => {
+                    const resp = await admin.post<{ results: SavedChart }>(
+                        `${apiUrl}/projects/${projectUuid}/saved`,
+                        {
+                            ...chartMock,
+                            name: uniqueName('Date zoom chart'),
+                            dashboardUuid: dashboard.uuid,
+                            spaceUuid: null,
+                        },
+                    );
+                    expect(resp.status).toBe(200);
+                    return resp.body.results;
+                }),
+            );
+
+            const updated = await updateDashboard(admin, dashboard.uuid, {
+                tiles: charts.map((chart, index) => ({
+                    tabUuid: undefined,
+                    type: DashboardTileTypes.SAVED_CHART,
+                    x: 0,
+                    y: index * 5,
+                    h: 5,
+                    w: 5,
+                    properties: {
+                        savedChartUuid: chart.uuid,
+                    },
+                })),
+                tabs: [],
+                filters: emptyFilters,
+            });
+
+            expect(updated.tiles).toHaveLength(2);
+            return { dashboardUuid: dashboard.uuid, tiles: updated.tiles };
+        }
+
+        it('persists dateZoomConfig through create and get', async () => {
+            const { dashboardUuid, tiles } =
+                await createDashboardWithTwoChartTiles();
+            const controlUuid = randomUUID();
+            const dateZoomConfig = controlConfig(controlUuid, [
+                tiles[0].uuid,
+                tiles[1].uuid,
+            ]);
+
+            await updateDashboard(admin, dashboardUuid, {
+                tiles,
+                tabs: [],
+                filters: emptyFilters,
+                config: { isDateZoomDisabled: false, dateZoomConfig },
+            });
+
+            const dashboard = await getDashboard(dashboardUuid);
+            expect(dashboard.config?.dateZoomConfig).toEqual(dateZoomConfig);
+        });
+
+        it('narrows tileTargets to surviving tiles when a tile is removed', async () => {
+            const { dashboardUuid, tiles } =
+                await createDashboardWithTwoChartTiles();
+            const controlUuid = randomUUID();
+            const dateZoomConfig = controlConfig(controlUuid, [
+                tiles[0].uuid,
+                tiles[1].uuid,
+            ]);
+
+            await updateDashboard(admin, dashboardUuid, {
+                tiles,
+                tabs: [],
+                filters: emptyFilters,
+                config: { isDateZoomDisabled: false, dateZoomConfig },
+            });
+
+            // Remove the second tile but resend the same config (still
+            // referencing both). The backend narrowing drops the orphaned
+            // target without any frontend wiring.
+            await updateDashboard(admin, dashboardUuid, {
+                tiles: [tiles[0]],
+                tabs: [],
+                filters: emptyFilters,
+                config: { isDateZoomDisabled: false, dateZoomConfig },
+            });
+
+            const dashboard = await getDashboard(dashboardUuid);
+            const targets = dashboard.config?.dateZoomConfig?.tileTargets ?? {};
+            expect(Object.keys(targets)).toEqual([tiles[0].uuid]);
+            expect(targets[tiles[1].uuid]).toBeUndefined();
+            // Narrowing touches targets only; the control is left for the
+            // frontend prune to remove.
+            expect(dashboard.config?.dateZoomConfig?.controls).toHaveLength(1);
+        });
+
+        it('drops all targets but keeps controls when every tile is removed', async () => {
+            const { dashboardUuid, tiles } =
+                await createDashboardWithTwoChartTiles();
+            const controlUuid = randomUUID();
+            const dateZoomConfig = controlConfig(controlUuid, [
+                tiles[0].uuid,
+                tiles[1].uuid,
+            ]);
+
+            await updateDashboard(admin, dashboardUuid, {
+                tiles,
+                tabs: [],
+                filters: emptyFilters,
+                config: { isDateZoomDisabled: false, dateZoomConfig },
+            });
+
+            await updateDashboard(admin, dashboardUuid, {
+                tiles: [],
+                tabs: [],
+                filters: emptyFilters,
+                config: { isDateZoomDisabled: false, dateZoomConfig },
+            });
+
+            const dashboard = await getDashboard(dashboardUuid);
+            expect(dashboard.config?.dateZoomConfig?.tileTargets).toEqual({});
+            expect(dashboard.config?.dateZoomConfig?.controls).toHaveLength(1);
+        });
+
+        it('omits dateZoomConfig for dashboards that never set one', async () => {
+            const { dashboardUuid, tiles } =
+                await createDashboardWithTwoChartTiles();
+
+            await updateDashboard(admin, dashboardUuid, {
+                tiles,
+                tabs: [],
+                filters: emptyFilters,
+            });
+
+            const dashboard = await getDashboard(dashboardUuid);
+            expect(dashboard.config?.dateZoomConfig).toBeUndefined();
         });
     });
 });
