@@ -77,6 +77,8 @@ export const useSettingsNavigation = (
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
         shouldShowAiAgentReviews,
+        canManageOrgAiAgent,
+        hasAnyAiAgentAccess,
         embeddingEnabled,
         dataAppsFlag,
         isGitProject,
@@ -376,24 +378,21 @@ export const useSettingsNavigation = (
             });
         }
 
-        if (
-            isAiCopilotEnabledOrTrial &&
-            ability?.can(
-                'manage',
-                subject('AiAgent', {
-                    organizationUuid: organization?.organizationUuid,
-                }),
-            )
-        ) {
-            const aiChildren: SettingsNavigationItem[] = [
-                {
+        if (isAiCopilotEnabledOrTrial && hasAnyAiAgentAccess) {
+            const aiChildren: SettingsNavigationItem[] = [];
+            // General is org-wide config (router, org settings) — org admins only.
+            if (canManageOrgAiAgent) {
+                aiChildren.push({
                     label: 'General',
                     to: '/generalSettings/ai/general',
                     icon: IconSettings,
                     keywords: ['ai', 'settings'],
                     children: [],
                     exact: true,
-                },
+                });
+            }
+            // Threads & Agents are project-filtered for project-scoped users.
+            aiChildren.push(
                 {
                     label: 'Threads',
                     to: '/generalSettings/ai/threads',
@@ -410,7 +409,7 @@ export const useSettingsNavigation = (
                     children: [],
                     exact: true,
                 },
-            ];
+            );
 
             if (shouldShowAiAgentReviews) {
                 aiChildren.push({
@@ -795,6 +794,8 @@ export const useSettingsNavigation = (
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
         shouldShowAiAgentReviews,
+        canManageOrgAiAgent,
+        hasAnyAiAgentAccess,
         isEmbeddingEnabled,
         isDataAppsEnabled,
         isGitProject,

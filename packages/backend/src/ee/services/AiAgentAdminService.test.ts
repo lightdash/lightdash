@@ -30,6 +30,7 @@ const THREAD_UUID = '00000000-0000-0000-0000-000000000006';
 const PROMPT_UUID = '00000000-0000-0000-0000-000000000007';
 const PREVIEW_PROJECT_UUID = '00000000-0000-0000-0000-000000000008';
 const PREVIEW_AGENT_UUID = '00000000-0000-0000-0000-000000000009';
+const OTHER_PROJECT_UUID = '00000000-0000-0000-0000-000000000099';
 const PREVIEW_THREAD_UUID = '00000000-0000-0000-0000-000000000010';
 const COMPILE_JOB_UUID = '00000000-0000-0000-0000-000000000011';
 const WORK_THREAD_UUID = '00000000-0000-0000-0000-000000000012';
@@ -128,6 +129,11 @@ const makeAdminUser = (): SessionUser => ({
             subject: 'AiAgent',
             conditions: { organizationUuid: ORGANIZATION_UUID },
         },
+        {
+            action: 'manage',
+            subject: 'OrganizationAiAgent',
+            conditions: { organizationUuid: ORGANIZATION_UUID },
+        },
     ]),
     abilityRules: [],
 });
@@ -139,6 +145,49 @@ const makeDeveloperUser = (): SessionUser => ({
         {
             action: 'manage',
             subject: 'AiAgent',
+            conditions: { organizationUuid: ORGANIZATION_UUID },
+        },
+        {
+            action: 'manage',
+            subject: 'OrganizationAiAgent',
+            conditions: { organizationUuid: ORGANIZATION_UUID },
+        },
+    ]),
+});
+
+// Project-scoped AI admin: org member, no org-level OrganizationAiAgent, only
+// project-level manage:AiAgent on PROJECT_UUID. Should see only that project's
+// resources. (manage implies view in CASL.)
+const makeProjectUser = (): SessionUser => ({
+    ...makeAdminUser(),
+    role: OrganizationMemberRole.MEMBER,
+    ability: new Ability<PossibleAbilities>([
+        {
+            action: 'manage',
+            subject: 'AiAgent',
+            conditions: {
+                organizationUuid: ORGANIZATION_UUID,
+                projectUuid: PROJECT_UUID,
+            },
+        },
+    ]),
+});
+
+// Org interactive_viewer-like principal: holds org-wide VIEW of AiAgent and
+// OrganizationAiAgent but no MANAGE anywhere. Must NOT receive org-wide admin
+// reads (regression guard against the view-gated widening).
+const makeOrgViewerUser = (): SessionUser => ({
+    ...makeAdminUser(),
+    role: OrganizationMemberRole.MEMBER,
+    ability: new Ability<PossibleAbilities>([
+        {
+            action: 'view',
+            subject: 'AiAgent',
+            conditions: { organizationUuid: ORGANIZATION_UUID },
+        },
+        {
+            action: 'view',
+            subject: 'OrganizationAiAgent',
             conditions: { organizationUuid: ORGANIZATION_UUID },
         },
     ]),
@@ -257,6 +306,7 @@ const makeService = ({
                 .fn()
                 .mockResolvedValue(PREVIEW_AGENT_UUID),
             findExploresFromCache: jest.fn().mockResolvedValue({}),
+            getAllByOrganizationUuid: jest.fn().mockResolvedValue([]),
             ...projectModel,
         },
         aiAgentService: {
@@ -363,7 +413,7 @@ describe('AiAgentAdminService.getPromptActivity', () => {
         await expect(
             service.getPromptActivity(user, PROJECT_UUID, 14),
         ).rejects.toThrow(
-            'Insufficient permissions to access organization-wide AI agent data',
+            'Insufficient permissions to access AI agent features',
         );
         expect(findAdminPromptActivity).not.toHaveBeenCalled();
     });
@@ -1123,6 +1173,95 @@ describe('AiAgentAdminService.getReviewItemActivity', () => {
         expect(
             aiAgentReviewClassifierModel.listRemediationEvents,
         ).not.toHaveBeenCalled();
+    });
+});
+
+describe('AiAgentAdminService project-scoped read access', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    const projectModel = {
+        getAllByOrganizationUuid: jest
+            .fn()
+            .mockResolvedValue([
+                { projectUuid: PROJECT_UUID },
+                { projectUuid: OTHER_PROJECT_UUID },
+            ]),
+    };
+
+    it('lets a project-scoped user read an item in a project they can access', async () => {
+        const aiAgentReviewClassifierModel = {
+            getReviewItem: jest
+                .fn()
+                .mockResolvedValue(
+                    makeReviewItem({ projectUuid: PROJECT_UUID }),
+                ),
+            listRemediationEvents: jest.fn().mockResolvedValue([]),
+        };
+        const service = makeService({
+            aiAgentReviewClassifierModel,
+            projectModel,
+        });
+
+        // No remediation → empty feed, but the per-item project check passes.
+        const activity = await service.getReviewItemActivity(
+            makeProjectUser(),
+            'fingerprint-1',
+        );
+        expect(activity.events).toEqual([]);
+    });
+
+    it('forbids a project-scoped user from an item in another project', async () => {
+        const aiAgentReviewClassifierModel = {
+            getReviewItem: jest
+                .fn()
+                .mockResolvedValue(
+                    makeReviewItem({ projectUuid: OTHER_PROJECT_UUID }),
+                ),
+        };
+        const service = makeService({
+            aiAgentReviewClassifierModel,
+            projectModel,
+        });
+
+        await expect(
+            service.getReviewItemActivity(makeProjectUser(), 'fingerprint-1'),
+        ).rejects.toThrow(
+            'Insufficient permissions to access this AI agent resource',
+        );
+    });
+
+    it('forbids a user with no AI access at all', async () => {
+        const service = makeService({ projectModel });
+        const user = {
+            ...makeAdminUser(),
+            ability: new Ability<PossibleAbilities>([]),
+        };
+
+        await expect(
+            service.getReviewItemActivity(user, 'fingerprint-1'),
+        ).rejects.toThrow(
+            'Insufficient permissions to access AI agent features',
+        );
+    });
+
+    it('forbids an org view-only principal (no widening to interactive_viewer)', async () => {
+        // Holds org-wide view:AiAgent + view:OrganizationAiAgent but no manage.
+        // resolveReadScope gates on manage, so this principal must be denied
+        // rather than handed {kind:'all'} cross-project admin reads.
+        const service = makeService({ projectModel });
+
+        await expect(
+            service.getReviewItemActivity(makeOrgViewerUser(), 'fingerprint-1'),
+        ).rejects.toThrow(
+            'Insufficient permissions to access AI agent features',
+        );
+        await expect(
+            service.getAllThreads(makeOrgViewerUser()),
+        ).rejects.toThrow(
+            'Insufficient permissions to access AI agent features',
+        );
     });
 });
 

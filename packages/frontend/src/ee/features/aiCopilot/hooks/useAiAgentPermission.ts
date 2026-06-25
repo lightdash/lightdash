@@ -17,3 +17,17 @@ export const useAiAgentPermission = ({
         }),
     );
 };
+
+export const useAiAgentOrgPermission = ({
+    action,
+}: {
+    action: 'manage' | 'view';
+}) => {
+    const { user } = useApp();
+    return user.data?.ability.can(
+        action,
+        subject('OrganizationAiAgent', {
+            organizationUuid: user.data?.organizationUuid,
+        }),
+    );
+};

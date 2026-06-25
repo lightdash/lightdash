@@ -124,6 +124,16 @@ type ProjectWritebackAccess =
 
 type ProjectWritebackAccessEntry = [string, ProjectWritebackAccess];
 
+/**
+ * Read-access scope for the org-wide AI admin surfaces (threads, agents,
+ * reviews). `all` = org principal with `view:OrganizationAiAgent`; `projects`
+ * = principal limited to the projects where they hold project-level
+ * `view:AiAgent`.
+ */
+type AiAdminReadScope =
+    | { kind: 'all' }
+    | { kind: 'projects'; projectUuids: string[] };
+
 const terminalReviewStatuses = new Set<AiAgentReviewItemStatus>([
     'resolved',
     'dismissed',
@@ -379,7 +389,7 @@ export class AiAgentAdminService extends BaseService {
         if (
             auditedAbility.cannot(
                 'manage',
-                subject('AiAgent', {
+                subject('OrganizationAiAgent', {
                     organizationUuid,
                 }),
             )
@@ -391,8 +401,92 @@ export class AiAgentAdminService extends BaseService {
     }
 
     /**
-     * Get all threads across all agents in the organization
-     * Only accessible by organization admins
+     * Resolve which projects a principal may read across the org-wide AI admin
+     * surfaces (threads, agents, reviews, prompt activity). These are
+     * administration surfaces, so access requires the MANAGE capability — org
+     * admins/developers (`manage:OrganizationAiAgent`) get everything; otherwise
+     * the principal is scoped to the projects where they hold `manage:AiAgent`.
+     * Mirrors `OrganizationService.getProjects` access filtering. Using `manage`
+     * (not `view`) is deliberate: org `view:AiAgent`/`view:OrganizationAiAgent`
+     * is granted org-wide down to interactive_viewer, so a `view` check would
+     * hand every interactive_viewer full cross-project org-wide admin reads.
+     * Throws when the principal has neither org nor any project AI-admin access.
+     */
+    private async resolveReadScope(
+        user: SessionUser,
+        organizationUuid: string,
+    ): Promise<AiAdminReadScope> {
+        const ability = this.createAuditedAbility(user);
+        if (
+            ability.can(
+                'manage',
+                subject('OrganizationAiAgent', { organizationUuid }),
+            )
+        ) {
+            return { kind: 'all' };
+        }
+
+        const projects =
+            await this.projectModel.getAllByOrganizationUuid(organizationUuid);
+        const projectUuids = projects
+            .filter((project) =>
+                ability.can(
+                    'manage',
+                    subject('AiAgent', {
+                        organizationUuid,
+                        projectUuid: project.projectUuid,
+                    }),
+                ),
+            )
+            .map((project) => project.projectUuid);
+
+        if (projectUuids.length === 0) {
+            throw new ForbiddenError(
+                'Insufficient permissions to access AI agent features',
+            );
+        }
+        return { kind: 'projects', projectUuids };
+    }
+
+    /** Narrows admin filters to a principal's readable projects. */
+    private static restrictFiltersToScope(
+        scope: AiAdminReadScope,
+        filters: AiAgentAdminFilters | undefined,
+    ): { filters: AiAgentAdminFilters | undefined; empty: boolean } {
+        if (scope.kind === 'all') {
+            return { filters, empty: false };
+        }
+        const allowed = new Set(scope.projectUuids);
+        const requested = filters?.projectUuids;
+        const projectUuids =
+            requested && requested.length > 0
+                ? requested.filter((uuid) => allowed.has(uuid))
+                : scope.projectUuids;
+        return {
+            filters: { ...filters, projectUuids },
+            empty: projectUuids.length === 0,
+        };
+    }
+
+    /** Per-item guard so project-scoped principals can't reach other projects. */
+    private static assertProjectInScope(
+        scope: AiAdminReadScope,
+        projectUuid: string | null,
+    ): void {
+        if (scope.kind === 'all') {
+            return;
+        }
+        if (projectUuid && scope.projectUuids.includes(projectUuid)) {
+            return;
+        }
+        throw new ForbiddenError(
+            'Insufficient permissions to access this AI agent resource',
+        );
+    }
+
+    /**
+     * Get all threads across all agents in the organization.
+     * Org principals see all; project-scoped principals see only their projects.
      */
     async getAllThreads(
         user: SessionUser,
@@ -405,16 +499,20 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        this.checkOrganizationAdminAccess(user);
+        const scope = await this.resolveReadScope(user, organizationUuid);
+        const { filters: scopedFilters, empty } =
+            AiAgentAdminService.restrictFiltersToScope(scope, filters);
+        if (empty) {
+            return { data: { threads: [] } };
+        }
 
         // TODO: Check if filter contains userUuid and check if they exist in the organization
         // TODO: Check if filter contains agentUuid and check if they exist in the organization
-        // TODO: Check if filter contains projectUuid and check if they exist in the organization
 
         return this.aiAgentModel.findAdminThreadsPaginated({
             organizationUuid,
             paginateArgs,
-            filters,
+            filters: scopedFilters,
             sort,
         });
     }
@@ -429,7 +527,8 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        this.checkOrganizationAdminAccess(user);
+        const scope = await this.resolveReadScope(user, organizationUuid);
+        AiAgentAdminService.assertProjectInScope(scope, projectUuid);
 
         const boundedDays = Math.max(1, Math.min(days, 30));
 
@@ -445,9 +544,13 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        this.checkOrganizationAdminAccess(user);
+        const scope = await this.resolveReadScope(user, organizationUuid);
         return this.aiAgentModel.findAllAgents({
             organizationUuid,
+            filter:
+                scope.kind === 'projects'
+                    ? { projectFilter: { projectUuids: scope.projectUuids } }
+                    : undefined,
         });
     }
 
@@ -489,12 +592,21 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        this.checkReviewAccess(user, organizationUuid);
+        const scope = await this.resolveReadScope(user, organizationUuid);
 
-        const items = await this.aiAgentReviewClassifierModel.listReviewItems({
-            organizationUuid,
-            statuses,
-        });
+        const allItems =
+            await this.aiAgentReviewClassifierModel.listReviewItems({
+                organizationUuid,
+                statuses,
+            });
+        const items =
+            scope.kind === 'all'
+                ? allItems
+                : allItems.filter(
+                      (item) =>
+                          item.projectUuid !== null &&
+                          scope.projectUuids.includes(item.projectUuid),
+                  );
 
         const [reviewsEnabled, projectContextEnabled] = await Promise.all([
             this.areReviewsEnabled(user),
@@ -1630,13 +1742,19 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        this.checkReviewAccess(user, organizationUuid);
+        const scope = await this.resolveReadScope(user, organizationUuid);
 
         const reviewItem =
             await this.aiAgentReviewClassifierModel.getReviewItem(
                 organizationUuid,
                 fingerprint,
             );
+        if (reviewItem) {
+            AiAgentAdminService.assertProjectInScope(
+                scope,
+                reviewItem.projectUuid,
+            );
+        }
         if (!reviewItem?.remediation) {
             return {
                 events: [],
@@ -2127,13 +2245,19 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        this.checkReviewAccess(user, organizationUuid);
+        const scope = await this.resolveReadScope(user, organizationUuid);
 
         const reviewItem =
             await this.aiAgentReviewClassifierModel.getReviewItem(
                 organizationUuid,
                 fingerprint,
             );
+        if (reviewItem) {
+            AiAgentAdminService.assertProjectInScope(
+                scope,
+                reviewItem.projectUuid,
+            );
+        }
         if (!reviewItem?.linkedPrUrl) {
             throw new NotFoundError(
                 'No pull request is linked to this review item',
@@ -2174,7 +2298,9 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        this.checkReviewAccess(user, organizationUuid);
+        // getReviewItem (delegated below) enforces the per-item project scope;
+        // resolve here too so a no-access principal fails before the lookup.
+        await this.resolveReadScope(user, organizationUuid);
 
         const remediation =
             await this.aiAgentReviewClassifierModel.findReviewRemediationByPreviewThread(
@@ -2198,7 +2324,7 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        this.checkReviewAccess(user, organizationUuid);
+        const scope = await this.resolveReadScope(user, organizationUuid);
 
         const reviewItem =
             await this.aiAgentReviewClassifierModel.getReviewItem(
@@ -2208,6 +2334,7 @@ export class AiAgentAdminService extends BaseService {
         if (!reviewItem) {
             throw new NotFoundError('Review item not found');
         }
+        AiAgentAdminService.assertProjectInScope(scope, reviewItem.projectUuid);
 
         const [reviewsEnabled, projectContextEnabled] = await Promise.all([
             this.areReviewsEnabled(user),
@@ -2255,7 +2382,7 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        this.checkReviewAccess(user, organizationUuid);
+        const scope = await this.resolveReadScope(user, organizationUuid);
 
         const reviewItem =
             await this.aiAgentReviewClassifierModel.getReviewItem(
@@ -2265,6 +2392,7 @@ export class AiAgentAdminService extends BaseService {
         if (!reviewItem) {
             throw new NotFoundError('Review item not found');
         }
+        AiAgentAdminService.assertProjectInScope(scope, reviewItem.projectUuid);
         const trackPreviewViewed = (
             available: boolean,
             strategy: AiAgentReviewItemWritebackStrategy | null,

@@ -6,7 +6,7 @@ import {
 import { Button, getDefaultZIndex, Indicator, Menu } from '@mantine-8/core';
 import { IconBell } from '@tabler/icons-react';
 import { Fragment, type FC, useMemo } from 'react';
-import { useAiAgentPermission } from '../../../ee/features/aiCopilot/hooks/useAiAgentPermission';
+import { useAiAgentOrgPermission } from '../../../ee/features/aiCopilot/hooks/useAiAgentPermission';
 import { useDashboardCommentsCheck } from '../../../features/comments';
 import {
     AiReviewNotifications,
@@ -49,7 +49,7 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
     const hasDashboardCommentsNotifications =
         dashboardCommentsNotifications &&
         dashboardCommentsNotifications.length > 0;
-    const canViewAiReviews = useAiAgentPermission({ action: 'manage' });
+    const canViewAiReviews = useAiAgentOrgPermission({ action: 'manage' });
     const { data: aiReviewNotifications } = useGetNotifications(
         NotificationResourceType.AiReview,
         !!canViewAiReviews,

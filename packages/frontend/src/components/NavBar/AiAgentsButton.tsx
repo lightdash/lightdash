@@ -7,7 +7,7 @@ import {
     useAiAgentAdminProjectPromptActivity,
     useAiAgentAdminReviewItems,
 } from '../../ee/features/aiCopilot/hooks/useAiAgentAdmin';
-import { useAiAgentPermission } from '../../ee/features/aiCopilot/hooks/useAiAgentPermission';
+import { useAiAgentOrgPermission } from '../../ee/features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentButtonVisibility } from '../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 
@@ -22,7 +22,7 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
     const navigate = useNavigate();
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
     const isVisible = useAiAgentButtonVisibility();
-    const canViewReviews = useAiAgentPermission({ action: 'manage' });
+    const canViewReviews = useAiAgentOrgPermission({ action: 'manage' });
     const aiOrganizationSettingsQuery = useAiOrganizationSettings();
     const reviewsEnabled =
         aiOrganizationSettingsQuery.data?.aiAgentReviewsEnabled === true;

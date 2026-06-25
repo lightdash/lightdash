@@ -124,6 +124,8 @@ const Settings: FC = () => {
         dataAppsFlag,
         isAiCopilotEnabledOrTrial,
         shouldShowAiAgentReviews,
+        canManageOrgAiAgent,
+        hasAnyAiAgentAccess,
         isAiOrganizationSettingsLoading,
         showImpersonationPanel,
         isLeaveOrganizationEnabled,
@@ -544,23 +546,27 @@ const Settings: FC = () => {
             });
         }
 
-        if (
-            isAiCopilotEnabledOrTrial &&
-            user?.ability.can(
-                'manage',
-                subject('AiAgent', {
-                    organizationUuid: organization?.organizationUuid,
-                }),
-            )
-        ) {
+        if (isAiCopilotEnabledOrTrial && hasAnyAiAgentAccess) {
             allowedRoutes.push({
                 path: '/ai',
-                element: <Navigate to="/generalSettings/ai/general" replace />,
+                element: (
+                    <Navigate
+                        to={
+                            canManageOrgAiAgent
+                                ? '/generalSettings/ai/general'
+                                : '/generalSettings/ai/threads'
+                        }
+                        replace
+                    />
+                ),
             });
-            allowedRoutes.push({
-                path: '/ai/general',
-                element: <AiGeneralSettingsPage />,
-            });
+            // General is org-wide config (router, org settings) — org admins only.
+            if (canManageOrgAiAgent) {
+                allowedRoutes.push({
+                    path: '/ai/general',
+                    element: <AiGeneralSettingsPage />,
+                });
+            }
             allowedRoutes.push({
                 path: '/ai/threads',
                 element: (
@@ -640,6 +646,8 @@ const Settings: FC = () => {
         isLeaveOrganizationEnabled,
         isAiCopilotEnabledOrTrial,
         shouldShowAiAgentReviews,
+        canManageOrgAiAgent,
+        hasAnyAiAgentAccess,
     ]);
     const routeElements = useRoutes(routes);
 
