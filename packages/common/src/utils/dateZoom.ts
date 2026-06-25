@@ -338,3 +338,27 @@ export const pruneDateZoomConfig = (config: DateZoomConfig): DateZoomConfig => {
         tileTargets: Object.fromEntries(liveTargets),
     };
 };
+
+/**
+ * Drops the date-zoom targets for the given tiles (e.g. tiles deleted from the
+ * dashboard) and prunes any control left with no targets. Returns the same
+ * reference when none of the tiles had a target, so callers can skip a no-op
+ * config update on dashboards that don't use controls.
+ */
+export const removeDateZoomTileTargets = (
+    config: DateZoomConfig,
+    tileUuids: string[],
+): DateZoomConfig => {
+    const removed = new Set(tileUuids);
+    if (![...removed].some((uuid) => config.tileTargets[uuid])) {
+        return config;
+    }
+    return pruneDateZoomConfig({
+        ...config,
+        tileTargets: Object.fromEntries(
+            Object.entries(config.tileTargets).filter(
+                ([uuid]) => !removed.has(uuid),
+            ),
+        ),
+    });
+};
