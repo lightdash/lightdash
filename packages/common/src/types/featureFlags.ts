@@ -254,14 +254,6 @@ export enum FeatureFlags {
      * rolled out / disabled per-org at runtime without a deploy.
      */
     RedshiftIamAuth = 'redshift-iam-auth',
-
-    /**
-     * Enable configurable date zoom controls on dashboards: named controls that
-     * each own a granularity, with tiles attached through a tileTargets map and
-     * a per-tile date field. When off, dashboards use only the existing global
-     * date zoom picker and any saved control config is inert.
-     */
-    DateZoomConfiguration = 'date-zoom-configuration',
 }
 
 export type FeatureFlag = {
