@@ -65,6 +65,7 @@ function buildService() {
             organizationDesignModel: {} as never,
             pinnedListModel: {} as never,
             projectModel: {} as never,
+            projectParametersModel: {} as never,
             spaceModel: {} as never,
             schedulerClient: {} as never,
             savedChartService: {} as never,
@@ -240,10 +241,14 @@ describe('AppGenerateService pipeline external connection samples', () => {
                 chartReferences: undefined,
                 template: undefined,
             ) => Promise<unknown>;
-            catalogModel: { getCatalogItemsSummary: jest.Mock };
+            projectModel: { getAllExploresFromCache: jest.Mock };
+            projectParametersModel: { find: jest.Mock };
         };
-        privateService.catalogModel = {
-            getCatalogItemsSummary: jest.fn().mockResolvedValue([]),
+        privateService.projectModel = {
+            getAllExploresFromCache: jest.fn().mockResolvedValue({}),
+        };
+        privateService.projectParametersModel = {
+            find: jest.fn().mockResolvedValue([]),
         };
 
         await privateService.writeCatalogAndPrompt(

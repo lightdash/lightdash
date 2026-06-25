@@ -19,6 +19,7 @@ import {
     formatPromptWithClarifications,
     getErrorMessage,
     isDashboardChartTileType,
+    isExploreError,
     MissingConfigError,
     NotFoundError,
     ParameterError,
@@ -32,14 +33,17 @@ import {
     type AppVersionChartResource,
     type AppVersionExternalConnectionResource,
     type AppVersionResources,
-    type CatalogItemSummary,
     type ChartReference,
     type ChartSampleData,
+    type CompiledExploreJoin,
+    type CompiledTable,
     type DataAppClaudeModel,
     type DataAppTemplate,
     type EmbedProjectApp,
+    type Explore,
     type ExternalConnectionMethod,
     type ExternalConnectionSample,
+    type LightdashProjectParameter,
     type PromoteAppAction,
     type PromoteAppDiff,
     type SessionUser,
@@ -70,6 +74,7 @@ import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagMo
 import { OrganizationDesignModel } from '../../../models/OrganizationDesignModel';
 import { PinnedListModel } from '../../../models/PinnedListModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { ProjectParametersModel } from '../../../models/ProjectParametersModel';
 import { SpaceModel } from '../../../models/SpaceModel';
 import { mintPreviewToken } from '../../../routers/appPreviewToken';
 import { BaseService } from '../../../services/BaseService';
@@ -128,6 +133,7 @@ type AppGenerateServiceDeps = {
     organizationDesignModel: OrganizationDesignModel;
     pinnedListModel: PinnedListModel;
     projectModel: ProjectModel;
+    projectParametersModel: ProjectParametersModel;
     spaceModel: SpaceModel;
     schedulerClient: CommercialSchedulerClient;
     savedChartService: SavedChartService;
@@ -172,6 +178,8 @@ export class AppGenerateService extends BaseService {
 
     private readonly projectModel: ProjectModel;
 
+    private readonly projectParametersModel: ProjectParametersModel;
+
     private readonly spaceModel: SpaceModel;
 
     private readonly schedulerClient: CommercialSchedulerClient;
@@ -201,6 +209,7 @@ export class AppGenerateService extends BaseService {
         organizationDesignModel,
         pinnedListModel,
         projectModel,
+        projectParametersModel,
         spaceModel,
         schedulerClient,
         savedChartService,
@@ -220,6 +229,7 @@ export class AppGenerateService extends BaseService {
         this.organizationDesignModel = organizationDesignModel;
         this.pinnedListModel = pinnedListModel;
         this.projectModel = projectModel;
+        this.projectParametersModel = projectParametersModel;
         this.spaceModel = spaceModel;
         this.schedulerClient = schedulerClient;
         this.savedChartService = savedChartService;
@@ -1337,19 +1347,44 @@ export class AppGenerateService extends BaseService {
     }> {
         const start = performance.now();
 
-        const catalogItems =
-            await this.catalogModel.getCatalogItemsSummary(projectUuid);
-        const modelYaml = AppGenerateService.catalogToYaml(catalogItems);
+        // Source the synthetic schema from the compiled explore cache (not the
+        // flattened catalog summary) so it carries joins, real dimension/metric
+        // types, and parameters. See exploresToYaml.
+        const exploresByUuid =
+            await this.projectModel.getAllExploresFromCache(projectUuid);
+        const explores = Object.values(exploresByUuid).filter(
+            (explore): explore is Explore => !isExploreError(explore),
+        );
+        const {
+            yaml: modelYaml,
+            tableCount,
+            dimensionCount,
+            metricCount,
+        } = AppGenerateService.exploresToYaml(explores);
+
+        // Project-level parameters are global (not attached to any one explore)
+        // and live in lightdash.config.yml — the location skill.md already tells
+        // the agent to look. Write them there so `.parameters()` is usable.
+        const globalParameters =
+            await this.projectParametersModel.find(projectUuid);
+        const configYaml =
+            AppGenerateService.projectParametersToConfigYaml(globalParameters);
 
         // Remove files that may have been created by a previous run with
         // different ownership (e.g. root-owned after Claude CLI execution),
         // which would cause a permission error on write.
         await sandbox.commands.run(
-            'rm -f /tmp/dbt-repo/models/schema.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/metric-queries /tmp/external-data 2>/dev/null; true',
+            'rm -f /tmp/dbt-repo/models/schema.yml /tmp/dbt-repo/lightdash.config.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/metric-queries /tmp/external-data 2>/dev/null; true',
             { timeoutMs: 10_000 },
         );
 
         await sandbox.files.write('/tmp/dbt-repo/models/schema.yml', modelYaml);
+        if (configYaml) {
+            await sandbox.files.write(
+                '/tmp/dbt-repo/lightdash.config.yml',
+                configYaml,
+            );
+        }
 
         // Write chart reference files and prepend summary to prompt
         let finalPrompt = prompt;
@@ -1426,30 +1461,15 @@ export class AppGenerateService extends BaseService {
         // responses overly verbose.
         await sandbox.files.write('/tmp/prompt.txt', `${finalPrompt}\n`);
 
-        let tableCount = 0;
-        let totalDimensions = 0;
-        let totalMetrics = 0;
-        for (const item of catalogItems) {
-            if (item.type === 'field') {
-                if (item.fieldType === 'metric') {
-                    totalMetrics += 1;
-                } else {
-                    totalDimensions += 1;
-                }
-            } else {
-                tableCount += 1;
-            }
-        }
-
         const durationMs = AppGenerateService.elapsed(start);
         this.logger.info(
-            `App ${appUuid}: model context written (tables=${tableCount}, dimensions=${totalDimensions}, metrics=${totalMetrics}, yamlBytes=${modelYaml.length}, ${durationMs}ms)`,
+            `App ${appUuid}: model context written (tables=${tableCount}, dimensions=${dimensionCount}, metrics=${metricCount}, yamlBytes=${modelYaml.length}, ${durationMs}ms)`,
         );
         return {
             durationMs,
             tableCount,
-            dimensionCount: totalDimensions,
-            metricCount: totalMetrics,
+            dimensionCount,
+            metricCount,
             yamlBytes: modelYaml.length,
         };
     }
@@ -5863,104 +5883,262 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         return { token, version: latestReady.version };
     }
 
+    /** Escape a string into a safe, single-line double-quoted YAML scalar. */
+    private static yamlQuote(s: string): string {
+        const cleaned = s
+            .replace(/[\r\n\t]+/g, ' ')
+            .replace(/\\/g, '\\\\')
+            .replace(/"/g, '\\"');
+        return `"${cleaned}"`;
+    }
+
+    /** Render a single Lightdash parameter as indented YAML lines. */
+    private static renderParameterYaml(
+        key: string,
+        param: LightdashProjectParameter,
+        indent: string,
+    ): string[] {
+        const inner = `${indent}  `;
+        const scalar = (v: string | number): string =>
+            typeof v === 'number' ? String(v) : AppGenerateService.yamlQuote(v);
+
+        const lines: string[] = [`${indent}${key}:`];
+        lines.push(
+            `${inner}label: ${AppGenerateService.yamlQuote(param.label)}`,
+        );
+        if (param.description) {
+            lines.push(
+                `${inner}description: ${AppGenerateService.yamlQuote(param.description)}`,
+            );
+        }
+        if (param.type) {
+            lines.push(`${inner}type: ${param.type}`);
+        }
+        if (param.multiple) {
+            lines.push(`${inner}multiple: true`);
+        }
+        if (param.allow_custom_values) {
+            lines.push(`${inner}allow_custom_values: true`);
+        }
+        if (param.options && param.options.length > 0) {
+            const rendered = (param.options as Array<string | number>)
+                .map(scalar)
+                .join(', ');
+            lines.push(`${inner}options: [${rendered}]`);
+        }
+        if (param.options_from_dimension) {
+            lines.push(`${inner}options_from_dimension:`);
+            lines.push(
+                `${inner}  model: ${param.options_from_dimension.model}`,
+            );
+            lines.push(
+                `${inner}  dimension: ${param.options_from_dimension.dimension}`,
+            );
+        }
+        if (param.default !== undefined) {
+            const rendered = Array.isArray(param.default)
+                ? `[${(param.default as Array<string | number>).map(scalar).join(', ')}]`
+                : scalar(param.default);
+            lines.push(`${inner}default: ${rendered}`);
+        }
+        return lines;
+    }
+
     /**
-     * Convert catalog items into a dbt-style YAML that skill.md expects.
-     * Groups fields by table and separates dimensions from metrics.
-     * Includes labels and descriptions (truncated) so the sandbox agent has
-     * semantic context for each model, metric, and dimension.
+     * Convert compiled explores into the dbt-style YAML that skill.md expects.
+     * One model per explore, keyed by the explore name (the value passed to
+     * `query()`), carrying real metric/dimension types, join relationships
+     * (`meta.joins`), and model-level parameters. Joined tables that aren't
+     * themselves a top-level explore (seeds, aliased joins) are inlined so
+     * their dot-notation fields stay discoverable. Hidden fields are skipped;
+     * descriptions are truncated to keep the prompt bounded.
      */
-    private static catalogToYaml(items: CatalogItemSummary[]): string {
+    private static exploresToYaml(explores: Explore[]): {
+        yaml: string;
+        tableCount: number;
+        dimensionCount: number;
+        metricCount: number;
+    } {
         const DESCRIPTION_MAX_LEN = 200;
-
-        const yamlStr = (s: string): string => {
-            const cleaned = s
-                .replace(/[\r\n\t]+/g, ' ')
-                .replace(/\\/g, '\\\\')
-                .replace(/"/g, '\\"');
-            return `"${cleaned}"`;
-        };
-
         const truncate = (s: string): string =>
             s.length > DESCRIPTION_MAX_LEN
                 ? `${s.slice(0, DESCRIPTION_MAX_LEN - 1)}…`
                 : s;
 
-        type FieldInfo = {
-            name: string;
-            label: string | null;
-            description: string | null;
-        };
-
-        const tableDescriptions = new Map<string, string | null>();
-        const tables = new Map<
-            string,
-            { dimensions: FieldInfo[]; metrics: FieldInfo[] }
-        >();
-
-        for (const item of items) {
-            if (item.type === 'table') {
-                tableDescriptions.set(item.name, item.description);
-                if (!tables.has(item.name)) {
-                    tables.set(item.name, { dimensions: [], metrics: [] });
-                }
-            } else if (item.type === 'field') {
-                if (!tables.has(item.tableName)) {
-                    tables.set(item.tableName, { dimensions: [], metrics: [] });
-                }
-                const table = tables.get(item.tableName)!;
-                const field: FieldInfo = {
-                    name: item.name,
-                    label: item.label,
-                    description: item.description,
-                };
-                if (item.fieldType === 'metric') {
-                    table.metrics.push(field);
-                } else {
-                    table.dimensions.push(field);
-                }
-            }
-        }
-
         const lines: string[] = ['models:'];
-        for (const [tableName, fields] of tables) {
-            lines.push(`  - name: ${tableName}`);
-            const tableDesc = tableDescriptions.get(tableName);
-            if (tableDesc) {
-                lines.push(`    description: ${yamlStr(truncate(tableDesc))}`);
+        let tableCount = 0;
+        let dimensionCount = 0;
+        let metricCount = 0;
+
+        // Names already emitted as a standalone model, so the join-target
+        // fallback (pass 2) only inlines tables that aren't otherwise visible.
+        const emittedModelNames = new Set<string>(
+            explores.map((explore) => explore.name),
+        );
+
+        // Emit one model from a compiled table. Joins and parameters live on
+        // the explore (not the table), so they're passed in explicitly.
+        const emitTableModel = (
+            modelName: string,
+            table: CompiledTable,
+            joins: CompiledExploreJoin[],
+            parameters: Record<string, LightdashProjectParameter> | undefined,
+        ): void => {
+            tableCount += 1;
+            lines.push(`  - name: ${modelName}`);
+            if (table.description) {
+                lines.push(
+                    `    description: ${AppGenerateService.yamlQuote(truncate(table.description))}`,
+                );
             }
-            if (fields.metrics.length > 0) {
+
+            const metrics = Object.values(table.metrics).filter(
+                (m) => !m.hidden,
+            );
+            const dimensions = Object.values(table.dimensions).filter(
+                (d) => !d.hidden,
+            );
+            const parameterEntries = parameters
+                ? Object.entries(parameters)
+                : [];
+
+            if (
+                metrics.length > 0 ||
+                joins.length > 0 ||
+                parameterEntries.length > 0
+            ) {
                 lines.push(`    meta:`);
-                lines.push(`      metrics:`);
-                for (const m of fields.metrics) {
-                    lines.push(`        ${m.name}:`);
-                    lines.push(`          type: metric`);
-                    if (m.label && m.label !== m.name) {
-                        lines.push(`          label: ${yamlStr(m.label)}`);
+                if (metrics.length > 0) {
+                    lines.push(`      metrics:`);
+                    for (const m of metrics) {
+                        metricCount += 1;
+                        lines.push(`        ${m.name}:`);
+                        lines.push(`          type: ${m.type}`);
+                        if (m.label && m.label !== m.name) {
+                            lines.push(
+                                `          label: ${AppGenerateService.yamlQuote(m.label)}`,
+                            );
+                        }
+                        if (m.description) {
+                            lines.push(
+                                `          description: ${AppGenerateService.yamlQuote(truncate(m.description))}`,
+                            );
+                        }
                     }
-                    if (m.description) {
+                }
+                if (joins.length > 0) {
+                    lines.push(`      joins:`);
+                    for (const j of joins) {
+                        lines.push(`        - join: ${j.table}`);
+                        if (j.relationship) {
+                            lines.push(
+                                `          relationship: ${j.relationship}`,
+                            );
+                        }
+                        if (j.sqlOn) {
+                            lines.push(
+                                `          sql_on: ${AppGenerateService.yamlQuote(j.sqlOn)}`,
+                            );
+                        }
+                    }
+                }
+                if (parameterEntries.length > 0) {
+                    lines.push(`      parameters:`);
+                    for (const [key, param] of parameterEntries) {
                         lines.push(
-                            `          description: ${yamlStr(truncate(m.description))}`,
+                            ...AppGenerateService.renderParameterYaml(
+                                key,
+                                param,
+                                '        ',
+                            ),
                         );
                     }
                 }
             }
-            if (fields.dimensions.length > 0) {
+
+            if (dimensions.length > 0) {
                 lines.push(`    columns:`);
-                for (const d of fields.dimensions) {
+                for (const d of dimensions) {
+                    dimensionCount += 1;
                     lines.push(`      - name: ${d.name}`);
                     if (d.label && d.label !== d.name) {
-                        lines.push(`        label: ${yamlStr(d.label)}`);
+                        lines.push(
+                            `        label: ${AppGenerateService.yamlQuote(d.label)}`,
+                        );
                     }
                     if (d.description) {
                         lines.push(
-                            `        description: ${yamlStr(truncate(d.description))}`,
+                            `        description: ${AppGenerateService.yamlQuote(truncate(d.description))}`,
                         );
                     }
+                    lines.push(`        meta:`);
+                    lines.push(`          dimension:`);
+                    lines.push(`            type: ${d.type}`);
+                }
+            }
+        };
+
+        // Pass 1: every explore becomes a model keyed by its queryable name.
+        for (const explore of explores) {
+            const baseTable = explore.tables[explore.baseTable];
+            if (baseTable) {
+                const joins = (explore.joinedTables ?? []).filter(
+                    (j) => !j.hidden,
+                );
+                emitTableModel(
+                    explore.name,
+                    baseTable,
+                    joins,
+                    explore.parameters,
+                );
+            }
+        }
+
+        // Pass 2: inline join targets with no standalone model (seeds, aliased
+        // joins) so their dot-notation fields remain discoverable.
+        const inlined = new Set<string>();
+        for (const explore of explores) {
+            for (const join of explore.joinedTables ?? []) {
+                const key = join.table; // alias-aware key into explore.tables
+                const joinedTable = explore.tables[key];
+                if (
+                    !join.hidden &&
+                    joinedTable &&
+                    !emittedModelNames.has(key) &&
+                    !inlined.has(key)
+                ) {
+                    inlined.add(key);
+                    emitTableModel(key, joinedTable, [], undefined);
                 }
             }
         }
 
-        return lines.join('\n');
+        return {
+            yaml: lines.join('\n'),
+            tableCount,
+            dimensionCount,
+            metricCount,
+        };
+    }
+
+    /**
+     * Render project-level (global) parameters as a `lightdash.config.yml`
+     * fragment — the location skill.md tells the agent project-wide parameters
+     * live in. Returns null when the project defines none.
+     */
+    private static projectParametersToConfigYaml(
+        parameters: { name: string; config: LightdashProjectParameter }[],
+    ): string | null {
+        if (parameters.length === 0) {
+            return null;
+        }
+        const lines: string[] = ['parameters:'];
+        for (const { name, config } of parameters) {
+            lines.push(
+                ...AppGenerateService.renderParameterYaml(name, config, '  '),
+            );
+        }
+        return `${lines.join('\n')}\n`;
     }
 
     private static getContentType(filePath: string): string {
