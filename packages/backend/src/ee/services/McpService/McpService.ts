@@ -964,11 +964,21 @@ export class McpService extends BaseService {
             columns: csvHeaders,
         });
 
+        // render_chart needs the queryUuid, and clients that only surface
+        // `content` (not structuredContent) can't otherwise recover it and may
+        // invent an invalid id. Emit it as a separate text block so the result
+        // block stays untouched for clients that render it directly.
+        const body = rows.length === 0 ? 'Query returned 0 rows.' : csv;
+
         return {
             content: [
                 {
                     type: 'text' as const,
-                    text: rows.length === 0 ? 'Query returned 0 rows.' : csv,
+                    text: body,
+                },
+                {
+                    type: 'text' as const,
+                    text: `queryUuid: ${queryUuid}`,
                 },
             ],
             structuredContent: {

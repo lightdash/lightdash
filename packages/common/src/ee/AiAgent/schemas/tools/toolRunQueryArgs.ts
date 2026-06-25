@@ -267,7 +267,7 @@ export const parsePersistedRunQueryArgs = (
 
 export const TOOL_RENDER_CHART_DESCRIPTION = `Render a chart for a completed query result in MCP App-capable clients.
 
-Use this after a query tool or get_query_result returns done and the user wants a visual chart. This tool does not start, poll, or rerun the query. If the query is still running, call get_query_result first. Pass the queryUuid and chart configuration; Lightdash loads the completed metric query from query history.
+Use this after a query tool or get_query_result returns done and the user wants a visual chart. This tool does not start, poll, or rerun the query. If the query is still running, call get_query_result first. Pass the exact queryUuid that run_metric_query (or get_query_result) returned for this query in the current conversation — it is included in that tool's response as a \`queryUuid: <id>\` text block. Never invent, guess, or reuse a queryUuid from a different query or session; an unknown id fails with "not found". Lightdash loads the completed metric query from query history.
 
 Current support: completed run_metric_query results. SQL Runner/run_sql results are not supported by render_chart. Other query result types are rejected until their chart rendering path is implemented.
 
@@ -285,7 +285,7 @@ Response shape (MCP CallToolResult):
 export const toolRenderChartArgsSchema = createToolSchema()
     .extend({
         queryUuid: mcpAsyncQueryUuidSchema.describe(
-            'Completed query UUID returned by a query tool or get_query_result. Currently, render_chart supports UUIDs from run_metric_query and does not support SQL Runner/run_sql UUIDs.',
+            'Completed query UUID returned by run_metric_query (or get_query_result) in this conversation, copied from the `queryUuid: <id>` text block of that response. Do not fabricate, guess, or reuse a UUID from another query. Currently render_chart supports UUIDs from run_metric_query and does not support SQL Runner/run_sql UUIDs.',
         ),
         chartConfig: chartConfigSchema,
         title: z
