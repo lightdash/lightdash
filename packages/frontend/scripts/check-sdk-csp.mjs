@@ -42,6 +42,8 @@ const code = Object.fromEntries(
 // Highest count across both bundles, so a regression in either one is caught.
 const count = (needle) =>
     Math.max(...BUNDLES.map((name) => code[name].split(needle).length - 1));
+const countRe = (re) =>
+    Math.max(...BUNDLES.map((name) => (code[name].match(re) || []).length));
 
 // Runtime code-generators removed in #21276 — these must never reappear.
 const FORBIDDEN_SIGNATURES = [
@@ -60,12 +62,20 @@ const FORBIDDEN_SIGNATURES = [
 // Coarse backstop. Update consciously (and explain why) if a dependency
 // legitimately changes the count — never to paper over a real new eval source.
 //
-// The current dormant occurrences (none reached on a dashboard render):
-//   new Function: ajv validator codegen, ECharts GeoJSON fallback (unreachable
-//     dead branch — guarded by `typeof JSON.parse`), html2canvas calc() colour
-//     parser, source-map, d3-dsv, and a webpack global polyfill (try/catch).
+// The total counts `eval(`, `new Function(`, AND bare `Function(` — CSP blocks
+// all three. (Vega's expression compiler uses the bare `Function(...)` form, so
+// a `new Function`-only count was blind to the most CSP-relevant codegen in the
+// bundle.) The current dormant occurrences, none reached on a dashboard render:
+//   Function() codegen: ajv validator codegen, ECharts GeoJSON fallback
+//     (unreachable dead branch — guarded by `typeof JSON.parse`), html2canvas
+//     calc() colour parser, source-map, lodash/webpack `Function('return this')`
+//     global-this probes (try/catch-guarded), and Vega's expression compiler —
+//     now bypassed at render by the `ast: true` interpreter (CustomVisualization).
 //   eval(: highlight.js keyword regex text, vega-dataflow `.eval()` method.
-const BASELINE = 11;
+// A fresh build is the canonical count; a stale local Vite/rollup cache only ever
+// lowers it, so this exact ceiling never false-fails — only a genuinely new
+// code-generator pushes the total above it.
+const BASELINE = 31;
 
 const regressions = FORBIDDEN_SIGNATURES.map((s) => ({
     ...s,
@@ -73,8 +83,10 @@ const regressions = FORBIDDEN_SIGNATURES.map((s) => ({
 })).filter((s) => s.found > 0);
 
 const evalCount = count('eval(');
-const newFunctionCount = count('new Function');
-const total = evalCount + newFunctionCount;
+// Counts BOTH `new Function(...)` and bare `Function(...)` (the negated class
+// excludes member access like `isFunction(` / `.Function(`). CSP blocks both.
+const functionCtorCount = countRe(/[^\w$.]Function\s*\(/g);
+const total = evalCount + functionCtorCount;
 
 let failed = false;
 
@@ -92,12 +104,12 @@ if (regressions.length > 0) {
 if (total > BASELINE) {
     failed = true;
     console.error(
-        `\n✗ SDK bundle eval()/new Function() count is ${total} (baseline ${BASELINE}).`,
+        `\n✗ SDK bundle eval()/Function() count is ${total} (baseline ${BASELINE}).`,
     );
     console.error(
         '  A new runtime code-generator may have entered the bundle. Identify the new source\n' +
-            '  (grep sdk.es.js for "eval(" / "new Function"). If it is genuinely dormant and CSP-safe,\n' +
-            '  bump BASELINE in packages/frontend/scripts/check-sdk-csp.mjs with a note explaining why.',
+            '  (grep sdk.es.js for "eval(" and /[^\\w$.]Function\\(/). If it is genuinely dormant and\n' +
+            '  CSP-safe, bump BASELINE in packages/frontend/scripts/check-sdk-csp.mjs with a note explaining why.',
     );
 }
 
@@ -107,5 +119,5 @@ if (failed) {
 
 console.log(
     `✓ SDK CSP check passed: 0 forbidden signatures; ` +
-        `${total}/${BASELINE} eval()+new Function() (eval=${evalCount}, new Function=${newFunctionCount}).`,
+        `${total}/${BASELINE} eval()+Function() (eval=${evalCount}, Function-ctor=${functionCtorCount}).`,
 );
