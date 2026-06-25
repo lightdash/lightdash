@@ -87,11 +87,21 @@ const patchEchartsCsp = () => ({
     name: 'patch-echarts-csp-geojson',
     transform(code, id) {
         if (!id.includes('GeoJSONResource')) return null;
-        if (!code.includes(ECHARTS_CSP_DEAD_CODE)) return null;
-        return {
-            code: code.split(ECHARTS_CSP_DEAD_CODE).join('JSON.parse(source)'),
-            map: null,
-        };
+        const patched = code
+            .split(ECHARTS_CSP_DEAD_CODE)
+            .join('JSON.parse(source)');
+        // Fail loudly rather than silently no-op: if ECharts changes the
+        // fallback, a `new Function` would survive here and re-break CSP. (If
+        // ECharts removes the fallback entirely, no `new Function` remains and
+        // this passes — update ECHARTS_CSP_DEAD_CODE then.)
+        if (patched.includes('new Function')) {
+            this.error(
+                `patch-echarts-csp-geojson: ${id} still contains \`new Function\` after patching. ` +
+                    'ECharts likely changed GeoJSONResource — update ECHARTS_CSP_DEAD_CODE so the ' +
+                    'SDK bundle stays free of runtime code-generation under a strict CSP (#21276).',
+            );
+        }
+        return { code: patched, map: null };
     },
 });
 
