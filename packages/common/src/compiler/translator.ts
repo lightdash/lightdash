@@ -55,15 +55,18 @@ import { type WarehouseSqlBuilder } from '../types/warehouse';
 import assertUnreachable from '../utils/assertUnreachable';
 import {
     getDefaultTimeFrames,
+    getTimeFramesWithProjectDefaults,
     isTimeInterval,
     timeFrameConfigs,
     validateTimeFrames,
+    type ResolvedAdditionalTimeIntervals,
     type WeekDay,
 } from '../utils/timeFrames';
 import { ExploreCompiler } from './exploreCompiler';
 import {
     getCategoriesFromResource,
     getSpotlightConfigurationForResource,
+    resolveAdditionalTimeIntervals,
 } from './lightdashProjectConfig';
 
 const convertTimezone = (
@@ -644,6 +647,7 @@ export const convertTable = (
     disableTimestampConversion?: boolean,
     customGranularities?: Record<string, CustomGranularity>,
     allowPartialCompilation?: boolean,
+    additionalTimeIntervals?: ResolvedAdditionalTimeIntervals,
 ): Omit<Table, 'lineageGraph'> => {
     // Config block takes priority, then meta block
     const meta = merge({}, model.meta, model.config?.meta);
@@ -690,7 +694,10 @@ export const convertTable = (
                     ) {
                         allIntervals = overrideTimeIntervals;
                     } else {
-                        allIntervals = getDefaultTimeFrames(dim.type);
+                        allIntervals = getTimeFramesWithProjectDefaults(
+                            dim.type,
+                            additionalTimeIntervals,
+                        );
                     }
 
                     // Split into standard TimeFrames and custom granularity names
@@ -1116,6 +1123,10 @@ export const convertExplores = async (
         postProcessors,
     } = options ?? {};
     const tableLineage = translateDbtModelsToTableLineage(models);
+    const additionalTimeIntervals = resolveAdditionalTimeIntervals(
+        lightdashProjectConfig.defaults?.additional_time_intervals,
+        lightdashProjectConfig.custom_granularities,
+    );
     const [tables, exploreErrors] = models.reduce(
         ([accTables, accErrors], model) => {
             // Config block takes priority, then meta block
@@ -1147,6 +1158,7 @@ export const convertExplores = async (
                     disableTimestampConversion,
                     lightdashProjectConfig.custom_granularities,
                     allowPartialCompilation,
+                    additionalTimeIntervals,
                 );
 
                 // add lineage

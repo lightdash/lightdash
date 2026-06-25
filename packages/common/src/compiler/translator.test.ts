@@ -1939,3 +1939,102 @@ describe('convert_timezone dimension override', () => {
         ).toBeUndefined();
     });
 });
+
+describe('project default additional_time_intervals', () => {
+    const TIMESTAMP_MODEL: DbtModelNode & { relation_name: string } = {
+        ...model,
+        columns: {
+            created_at: {
+                name: 'created_at',
+                data_type: DimensionType.TIMESTAMP,
+                meta: { dimension: { type: DimensionType.TIMESTAMP } },
+            },
+        },
+    };
+
+    it('appends a standard grain (HOUR) to a timestamp column with no explicit time_intervals', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            TIMESTAMP_MODEL,
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+            undefined, // startOfWeek
+            undefined, // disableTimestampConversion
+            undefined, // customGranularities
+            undefined, // allowPartialCompilation
+            { date: [], timestamp: [TimeFrames.HOUR] }, // additionalTimeIntervals
+        );
+        expect(result.dimensions).toHaveProperty('created_at_hour');
+        expect(result.dimensions).toHaveProperty('created_at_day');
+    });
+
+    it('appends a custom granularity to a timestamp column', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            TIMESTAMP_MODEL,
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+            undefined,
+            undefined,
+            { fiscal_week: { label: 'Fiscal Week', sql: '${COLUMN}' } },
+            undefined,
+            { date: [], timestamp: ['fiscal_week'] },
+        );
+        expect(result.dimensions).toHaveProperty('created_at_fiscal_week');
+    });
+
+    it('does NOT add the project default to a column with explicit time_intervals', () => {
+        const EXPLICIT_MODEL: DbtModelNode & { relation_name: string } = {
+            ...model,
+            columns: {
+                created_at: {
+                    name: 'created_at',
+                    data_type: DimensionType.TIMESTAMP,
+                    meta: {
+                        dimension: {
+                            type: DimensionType.TIMESTAMP,
+                            time_intervals: [TimeFrames.DAY],
+                        },
+                    },
+                },
+            },
+        };
+        const result = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            EXPLICIT_MODEL,
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            { date: [], timestamp: [TimeFrames.HOUR] },
+        );
+        expect(result.dimensions).toHaveProperty('created_at_day');
+        expect(result.dimensions).not.toHaveProperty('created_at_hour');
+    });
+
+    it('flows from convertExplores via lightdashProjectConfig.defaults', async () => {
+        const explores = await convertExplores(
+            [TIMESTAMP_MODEL],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            [],
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+                defaults: {
+                    additional_time_intervals: {
+                        timestamp: [TimeFrames.HOUR],
+                    },
+                },
+            },
+        );
+        const explore = explores[0];
+        expect('errors' in explore).toBe(false);
+        if (!('errors' in explore)) {
+            const table = explore.tables[explore.baseTable];
+            expect(table.dimensions).toHaveProperty('created_at_hour');
+        }
+    });
+});
