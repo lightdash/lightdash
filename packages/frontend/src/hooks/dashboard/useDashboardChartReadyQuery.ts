@@ -337,11 +337,12 @@ export const useDashboardChartReadyQuery = (
         refetchOnMount: false,
     });
 
-    // Backend reports it for overridden date dimensions; param-only charts are in effect
-    // whenever a grain is selected.
+    // Backend reports it for overridden date dimensions; charts that only
+    // reference the reserved date-zoom param are in effect whenever the resolved
+    // tile grain is set (the same value substituted into their SQL on the wire).
     const dateZoomApplied =
         (queryResult.data?.executeQueryResponse?.dateZoomApplied ?? false) ||
-        (referencesDateZoomReservedParam && !!granularity);
+        (referencesDateZoomReservedParam && !!tileDateZoom?.granularity);
 
     useEffect(() => {
         if (!isAffectedByDateZoom) return;
