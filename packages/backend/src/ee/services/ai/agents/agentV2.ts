@@ -225,7 +225,7 @@ const getAgentTools = (
             availableExplores,
             findExploresFieldSearchSize: args.findExploresFieldSearchSize,
             findFieldsPageSize: args.findFieldsPageSize,
-            fieldDescriptionMaxChars: args.toolFieldDescriptionMaxChars,
+            toolDescriptionMaxChars: args.toolDescriptionMaxChars,
             promptUuid: args.promptUuid,
             telemetry: {
                 agentSettings: args.agentSettings,
@@ -248,6 +248,7 @@ const getAgentTools = (
     const findContent = getFindContent({
         findContent: dependencies.findContent,
         siteUrl: args.siteUrl,
+        toolDescriptionMaxChars: args.toolDescriptionMaxChars,
         trackCoverage: (coverage) => {
             dependencies.trackEvent({
                 event: 'ai_agent.find_content_coverage',
@@ -407,7 +408,7 @@ const getAgentTools = (
         // unbounded payload while still letting an audit grab the inventory in
         // one or two round-trips.
         maxPageSize: 500,
-        fieldDescriptionMaxChars: args.toolFieldDescriptionMaxChars,
+        toolDescriptionMaxChars: args.toolDescriptionMaxChars,
     });
 
     const listKnowledgeDocuments = getListKnowledgeDocuments({

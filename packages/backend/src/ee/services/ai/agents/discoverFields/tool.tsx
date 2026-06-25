@@ -147,7 +147,7 @@ type ToolArgs = {
     availableExplores: Explore[];
     findExploresFieldSearchSize: number;
     findFieldsPageSize: number;
-    fieldDescriptionMaxChars: number;
+    toolDescriptionMaxChars: number;
     promptUuid: string;
     telemetry: Pick<
         AiAgentArgs,
@@ -186,7 +186,7 @@ export const getDiscoverFields = (args: ToolArgs, dependencies: Dependencies) =>
                         findExploresFieldSearchSize:
                             args.findExploresFieldSearchSize,
                         findFieldsPageSize: args.findFieldsPageSize,
-                        fieldDescriptionMaxChars: args.fieldDescriptionMaxChars,
+                        toolDescriptionMaxChars: args.toolDescriptionMaxChars,
                         promptUuid: args.promptUuid,
                         parentToolCallId: toolCallId,
                         telemetry: args.telemetry,

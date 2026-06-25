@@ -6,13 +6,14 @@ import type {
 } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-import { EXPLORE_DESCRIPTION_MAX_CHARS, truncate } from '../utils/truncation';
+import { truncate } from '../utils/truncation';
 import { xmlBuilder } from '../xmlBuilder';
 
 type Dependencies = {
     fieldSearchSize: number;
     findExplores: FindExploresFn;
     updateProgress: UpdateProgressFn;
+    toolDescriptionMaxChars: number;
 };
 
 const toolDefinition = findExploresToolDefinition.for('agent');
@@ -21,7 +22,11 @@ const generateExploreResponse = ({
     searchQuery,
     exploreSearchResults,
     topMatchingFields,
-}: Awaited<ReturnType<FindExploresFn>> & { searchQuery: string }) => {
+    toolDescriptionMaxChars,
+}: Awaited<ReturnType<FindExploresFn>> & {
+    searchQuery: string;
+    toolDescriptionMaxChars: number;
+}) => {
     const exploreCount = exploreSearchResults?.length ?? 0;
     const fieldCount = topMatchingFields?.length ?? 0;
 
@@ -67,7 +72,7 @@ const generateExploreResponse = ({
                             <description>
                                 {truncate(
                                     result.description,
-                                    EXPLORE_DESCRIPTION_MAX_CHARS,
+                                    toolDescriptionMaxChars,
                                 )}
                             </description>
                         )}
@@ -116,6 +121,7 @@ export const getFindExplores = ({
     findExplores,
     updateProgress,
     fieldSearchSize,
+    toolDescriptionMaxChars,
 }: Dependencies) =>
     tool({
         ...toolDefinition,
@@ -136,6 +142,7 @@ export const getFindExplores = ({
                         searchQuery: args.searchQuery,
                         exploreSearchResults,
                         topMatchingFields,
+                        toolDescriptionMaxChars,
                     }),
                     metadata: {
                         status: 'success',

@@ -249,14 +249,14 @@ test('Should parse bedrock inference profile prefix from env', () => {
     });
 });
 
-test('Should default AI tool field description max chars to 600', () => {
-    expect(parseConfig().ai.copilot.toolFieldDescriptionMaxChars).toEqual(600);
+test('Should default AI tool description max chars to 600', () => {
+    expect(parseConfig().ai.copilot.toolDescriptionMaxChars).toEqual(600);
 });
 
-test('Should parse AI tool field description max chars from env', () => {
-    process.env.AI_TOOL_FIELD_DESCRIPTION_MAX_CHARS = '2500';
+test('Should parse AI tool description max chars from env', () => {
+    process.env.AI_TOOL_DESCRIPTION_MAX_CHARS = '2500';
 
-    expect(parseConfig().ai.copilot.toolFieldDescriptionMaxChars).toEqual(2500);
+    expect(parseConfig().ai.copilot.toolDescriptionMaxChars).toEqual(2500);
 });
 
 test('Should parse valid integer', () => {

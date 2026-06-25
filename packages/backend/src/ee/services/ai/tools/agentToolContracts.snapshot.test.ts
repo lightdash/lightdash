@@ -74,7 +74,7 @@ const makeAgentTools = () => {
                 availableExplores: [],
                 findExploresFieldSearchSize: 25,
                 findFieldsPageSize: 25,
-                fieldDescriptionMaxChars: 600,
+                toolDescriptionMaxChars: 600,
                 promptUuid: 'prompt-uuid',
                 telemetry: {
                     agentSettings: {
@@ -101,19 +101,21 @@ const makeAgentTools = () => {
         findContent: getFindContent({
             findContent: noop,
             siteUrl: 'https://lightdash.example',
+            toolDescriptionMaxChars: 600,
             trackCoverage: noop,
         }),
         findExplores: getFindExplores({
             fieldSearchSize: 25,
             findExplores: noop,
             updateProgress: noopAsync,
+            toolDescriptionMaxChars: 600,
         }),
         findFields: getFindFields({
             findFields: noop,
             getExplore: noop,
             pageSize: 25,
             updateProgress: noopAsync,
-            fieldDescriptionMaxChars: 600,
+            toolDescriptionMaxChars: 600,
         }),
         generateDashboard: getGenerateDashboardV2({
             createOrUpdateArtifact: noop,

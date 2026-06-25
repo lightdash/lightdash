@@ -134,6 +134,7 @@ describe('getFindContent', () => {
             tool: getFindContent({
                 findContent: mockFindContent,
                 siteUrl: '',
+                toolDescriptionMaxChars: 600,
                 trackCoverage,
             }),
             mockFindContent,

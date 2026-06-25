@@ -18,11 +18,7 @@ import type {
 } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-import {
-    CONTENT_DESCRIPTION_MAX_CHARS,
-    DASHBOARD_CHARTS_PREVIEW_COUNT,
-    truncate,
-} from '../utils/truncation';
+import { DASHBOARD_CHARTS_PREVIEW_COUNT, truncate } from '../utils/truncation';
 import { xmlBuilder } from '../xmlBuilder';
 
 const renderVerified = (verification: ContentVerificationInfo | null) =>
@@ -36,6 +32,7 @@ const renderVerified = (verification: ContentVerificationInfo | null) =>
 type Dependencies = {
     findContent: FindContentFn;
     siteUrl: string;
+    toolDescriptionMaxChars: number;
     trackCoverage: (coverage: {
         searchQuery: string;
         totalResultCount: number;
@@ -74,6 +71,7 @@ const renderSpace = (space: FindContentSpaceResult) => (
 const renderChart = (
     chart: AllChartsSearchResult & Pick<FindContentChartResult, 'space'>,
     siteUrl: string,
+    toolDescriptionMaxChars: number,
 ) => {
     const isSavedChart = isSavedChartSearchResult(chart);
     const isSqlChart = isSqlChartSearchResult(chart);
@@ -100,7 +98,7 @@ const renderChart = (
             {renderSpaceMetadata(chart.space)}
             {chart.description && (
                 <description>
-                    {truncate(chart.description, CONTENT_DESCRIPTION_MAX_CHARS)}
+                    {truncate(chart.description, toolDescriptionMaxChars)}
                 </description>
             )}
             {renderVerified(chart.verification)}
@@ -132,6 +130,7 @@ const renderDashboard = (
     dashboard: DashboardSearchResult &
         Pick<FindContentDashboardResult, 'space'>,
     siteUrl: string,
+    toolDescriptionMaxChars: number,
 ) => (
     <dashboard
         dashboardUuid={dashboard.uuid}
@@ -146,7 +145,7 @@ const renderDashboard = (
 
         {dashboard.description && (
             <description>
-                {truncate(dashboard.description, CONTENT_DESCRIPTION_MAX_CHARS)}
+                {truncate(dashboard.description, toolDescriptionMaxChars)}
             </description>
         )}
         {renderVerified(dashboard.verification)}
@@ -187,7 +186,7 @@ const renderDashboard = (
                             <description>
                                 {truncate(
                                     chart.description,
-                                    CONTENT_DESCRIPTION_MAX_CHARS,
+                                    toolDescriptionMaxChars,
                                 )}
                             </description>
                         )}
@@ -212,6 +211,7 @@ const isSpaceResult = (
 const renderContent = (
     args: Awaited<ReturnType<FindContentFn>> & { searchQuery: string },
     siteUrl: string,
+    toolDescriptionMaxChars: number,
 ) => {
     const sortedContent = [...args.content].sort(
         (a, b) =>
@@ -224,8 +224,8 @@ const renderContent = (
                     return renderSpace(content);
                 }
                 return isDashboardResult(content)
-                    ? renderDashboard(content, siteUrl)
-                    : renderChart(content, siteUrl);
+                    ? renderDashboard(content, siteUrl, toolDescriptionMaxChars)
+                    : renderChart(content, siteUrl, toolDescriptionMaxChars);
             })}
         </searchresult>
     );
@@ -234,6 +234,7 @@ const renderContent = (
 export const getFindContent = ({
     findContent,
     siteUrl,
+    toolDescriptionMaxChars,
     trackCoverage,
 }: Dependencies) =>
     tool({
@@ -270,7 +271,11 @@ export const getFindContent = ({
                     result: (
                         <searchresults>
                             {searchQueryResults.map((searchQueryResult) =>
-                                renderContent(searchQueryResult, siteUrl),
+                                renderContent(
+                                    searchQueryResult,
+                                    siteUrl,
+                                    toolDescriptionMaxChars,
+                                ),
                             )}
                         </searchresults>
                     ).toString(),

@@ -37,7 +37,7 @@ import { VERSION } from '../version';
 import {
     aiCopilotConfigSchema,
     AiCopilotConfigSchemaType,
-    DEFAULT_AI_TOOL_FIELD_DESCRIPTION_MAX_CHARS,
+    DEFAULT_AI_TOOL_DESCRIPTION_MAX_CHARS,
     DEFAULT_ANTHROPIC_MODEL_NAME,
     DEFAULT_BEDROCK_MODEL_NAME,
     DEFAULT_DEFAULT_AI_PROVIDER,
@@ -1190,10 +1190,9 @@ export const getAiConfig = () => ({
         20_000,
     mcpAllowPrivateAddresses:
         process.env.AI_AGENT_MCP_ALLOW_PRIVATE_ADDRESSES === 'true',
-    toolFieldDescriptionMaxChars:
-        getIntegerFromEnvironmentVariable(
-            'AI_TOOL_FIELD_DESCRIPTION_MAX_CHARS',
-        ) ?? DEFAULT_AI_TOOL_FIELD_DESCRIPTION_MAX_CHARS,
+    toolDescriptionMaxChars:
+        getIntegerFromEnvironmentVariable('AI_TOOL_DESCRIPTION_MAX_CHARS') ??
+        DEFAULT_AI_TOOL_DESCRIPTION_MAX_CHARS,
 });
 
 export type LoggingConfig = {
