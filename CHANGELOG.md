@@ -1,3 +1,10 @@
+## [0.3244.1](https://github.com/lightdash/lightdash/compare/0.3244.0...0.3244.1) (2026-06-25)
+
+
+### Bug Fixes
+
+* allow compile flows to sync yaml tags ([#24739](https://github.com/lightdash/lightdash/issues/24739)) ([c3b42dd](https://github.com/lightdash/lightdash/commit/c3b42dd9609a4ff88010421263116cb494170fa9))
+
 # [0.3244.0](https://github.com/lightdash/lightdash/compare/0.3243.2...0.3244.0) (2026-06-25)
 
 
