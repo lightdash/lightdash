@@ -1,3 +1,10 @@
+# [0.3249.0](https://github.com/lightdash/lightdash/compare/0.3248.0...0.3249.0) (2026-06-25)
+
+
+### Features
+
+* **date-zoom:** match dashboard filter styling for controls ([#24771](https://github.com/lightdash/lightdash/issues/24771)) ([d6a04c0](https://github.com/lightdash/lightdash/commit/d6a04c0ac69c3d1bd2ef96e352dedc263e8328d1))
+
 # [0.3248.0](https://github.com/lightdash/lightdash/compare/0.3247.0...0.3248.0) (2026-06-25)
 
 
