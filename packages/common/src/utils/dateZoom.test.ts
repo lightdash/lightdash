@@ -448,6 +448,79 @@ describe('resolveTileDateZoom', () => {
     });
 });
 
+// Locks the backwards-compatibility contract the config read path relies on:
+// with no config (existing dashboards) or the flag-off swap to
+// EMPTY_DATE_ZOOM_CONFIG in useDashboardChartReadyQuery, every tile resolves to
+// the single global date-zoom setting exactly as it did before configs existed.
+// This is what must hold before the DateZoomConfiguration flag can be removed.
+describe('resolveTileDateZoom — legacy single-setting backwards compatibility', () => {
+    const legacyBase = {
+        config: EMPTY_DATE_ZOOM_CONFIG,
+        runtimeGranularities: {},
+        defaultXAxisFieldId: 'orders_order_date_year' as string | undefined,
+    };
+
+    it('applies the global granularity to every tile on its x-axis baseline', () => {
+        const expected = {
+            granularity: DateGranularity.YEAR,
+            xAxisFieldId: 'orders_order_date_year',
+        };
+        // No per-tile config exists, so the result is identical across tiles.
+        expect(
+            resolveTileDateZoom({
+                ...legacyBase,
+                tileUuid: 'tile-1',
+                globalGranularity: DateGranularity.YEAR,
+            }),
+        ).toEqual(expected);
+        expect(
+            resolveTileDateZoom({
+                ...legacyBase,
+                tileUuid: 'tile-2',
+                globalGranularity: DateGranularity.YEAR,
+            }),
+        ).toEqual(expected);
+    });
+
+    it('applies no zoom when the global setting is unset (chart keeps its own grain)', () => {
+        expect(
+            resolveTileDateZoom({
+                ...legacyBase,
+                tileUuid: 'tile-1',
+                globalGranularity: undefined,
+            }),
+        ).toBeUndefined();
+    });
+
+    it('zooms grain-only for a tile with no date x-axis field', () => {
+        expect(
+            resolveTileDateZoom({
+                ...legacyBase,
+                tileUuid: 'tile-1',
+                globalGranularity: DateGranularity.WEEK,
+                defaultXAxisFieldId: undefined,
+            }),
+        ).toEqual({ granularity: DateGranularity.WEEK });
+    });
+
+    it('flag-off swap makes saved controls inert: a would-be-attached tile falls back to the global setting', () => {
+        // useDashboardChartReadyQuery substitutes EMPTY_DATE_ZOOM_CONFIG when the
+        // flag is off, so 'tileA' (attached to ctrl-1 under controlConfig()) and
+        // its runtime override are ignored, resolving to the legacy global grain.
+        expect(
+            resolveTileDateZoom({
+                ...legacyBase,
+                tileUuid: 'tileA',
+                globalGranularity: DateGranularity.MONTH,
+                runtimeGranularities: { 'ctrl-1': DateGranularity.DAY },
+            }),
+        ).toEqual({
+            granularity: DateGranularity.MONTH,
+            xAxisFieldId: 'orders_order_date_year',
+        });
+    });
+});
+
 describe('normalizeGranularityParam', () => {
     it('normalizes a lowercased standard grain to canonical case', () => {
         expect(normalizeGranularityParam('week')).toBe(DateGranularity.WEEK);
