@@ -395,7 +395,7 @@ export class CoderService extends BaseService {
         if (!config?.dateZoomConfig) return config;
 
         const tileTargets = Object.entries(
-            config.dateZoomConfig.tileTargets,
+            config.dateZoomConfig.tileTargets ?? {},
         ).reduce<Record<string, DateZoomTileTarget>>(
             (acc, [tileUuid, target]) => {
                 const tileSlug = CoderService.getChartSlugForTileUuid(
@@ -424,24 +424,27 @@ export class CoderService extends BaseService {
         const { dateZoomConfig } = config;
         if (!dateZoomConfig) return config;
 
-        const tileTargets = Object.entries(dateZoomConfig.tileTargets).reduce<
-            Record<string, DateZoomTileTarget>
-        >((acc, [tileSlug, target]) => {
-            const tileUuid = tilesWithUuids.find(
-                (t) =>
-                    isAnyChartTile(t) &&
-                    // Match first by tileSlug, then by chartSlug (for the case of tile not having a slug)
-                    (t.tileSlug === tileSlug ||
-                        t.properties.chartSlug === tileSlug),
-            )?.uuid;
-            if (!tileUuid) {
-                console.error(
-                    `Tile with slug ${tileSlug} not found for date zoom target`,
-                );
-                return acc;
-            }
-            return { ...acc, [tileUuid]: target };
-        }, {});
+        const tileTargets = Object.entries(
+            dateZoomConfig.tileTargets ?? {},
+        ).reduce<Record<string, DateZoomTileTarget>>(
+            (acc, [tileSlug, target]) => {
+                const tileUuid = tilesWithUuids.find(
+                    (t) =>
+                        isAnyChartTile(t) &&
+                        // Match first by tileSlug, then by chartSlug (for the case of tile not having a slug)
+                        (t.tileSlug === tileSlug ||
+                            t.properties.chartSlug === tileSlug),
+                )?.uuid;
+                if (!tileUuid) {
+                    console.error(
+                        `Tile with slug ${tileSlug} not found for date zoom target`,
+                    );
+                    return acc;
+                }
+                return { ...acc, [tileUuid]: target };
+            },
+            {},
+        );
 
         return {
             ...config,
