@@ -55,6 +55,7 @@ type VisualizationContext = {
     containerHeight?: number;
     isDashboard?: boolean;
     isEditMode?: boolean;
+    hasExplorerStore: boolean;
     // Touch device detection for tooltip positioning
     isTouchDevice: boolean;
     // Resolved timezone for formatting (undefined when EnableTimezoneSupport flag is off)
