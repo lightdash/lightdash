@@ -201,6 +201,67 @@ describe('Dashboards as Code API', () => {
         const updatedDashboard = response.body.results.dashboards[0].data;
         expect(updatedDashboard.description).toBe(newDescription);
     });
+
+    it('should preserve date zoom controls and tileTargets through upload/download round-trip', async () => {
+        // The fixture tiles have no tileSlug, so date zoom tileTargets are keyed
+        // by chartSlug. On upload the slug is resolved to the tile's (regenerated)
+        // uuid, and on download it is converted back to the slug.
+        const controlUuid = '11111111-1111-4111-8111-111111111111';
+        const targetSlug = 'how-many-orders-we-have-over-time';
+        const dashboardWithDateZoom = {
+            ...dashboardAsCode,
+            config: {
+                isDateZoomDisabled: false,
+                dateZoomConfig: {
+                    controls: [
+                        {
+                            uuid: controlUuid,
+                            name: 'Orders zoom',
+                            granularity: 'Week',
+                        },
+                    ],
+                    tileTargets: {
+                        [targetSlug]: {
+                            controlUuid,
+                            fieldId: 'orders_order_date',
+                            tableName: 'orders',
+                        },
+                    },
+                },
+            },
+        };
+
+        const uploadResponse = await admin.post<any>(
+            `/api/v1/projects/${projectUuid}/dashboards/${dashboardAsCode.slug}/code`,
+            dashboardWithDateZoom,
+        );
+        expect(uploadResponse.status).toBe(200);
+        expect(uploadResponse.body.results.dashboards[0].action).toBe('update');
+
+        const downloadResponse = await admin.get<any>(
+            `/api/v1/projects/${projectUuid}/dashboards/code?ids=${dashboardAsCode.slug}`,
+        );
+        expect(downloadResponse.status).toBe(200);
+        const downloaded = downloadResponse.body.results.dashboards[0];
+
+        // Control definition survives, keyed by its own uuid
+        expect(downloaded.config.dateZoomConfig.controls).toEqual([
+            {
+                uuid: controlUuid,
+                name: 'Orders zoom',
+                granularity: 'Week',
+            },
+        ]);
+
+        // tileTargets survives the round-trip, re-keyed back to the tile slug
+        expect(downloaded.config.dateZoomConfig.tileTargets).toEqual({
+            [targetSlug]: {
+                controlUuid,
+                fieldId: 'orders_order_date',
+                tableName: 'orders',
+            },
+        });
+    });
 });
 
 describe('SQL Charts as Code API', () => {
