@@ -1,0 +1,10 @@
+# Local config (contains profile, hostnames) and any rendered runtime files
+config.env
+
+# Terraform state + provider/module downloads
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/*.tfvars
+terraform/crash.log

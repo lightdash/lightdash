@@ -1,0 +1,14 @@
+# gp3 StorageClass set as cluster default, so the bundled postgres PVC binds without the
+# in-tree gp2 class. Applied (idempotently) by up.sh after the EBS CSI addon is ready.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gp3
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: ebs.csi.aws.com
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+parameters:
+  type: gp3
+  encrypted: "true"
