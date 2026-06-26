@@ -1690,8 +1690,10 @@ export class CatalogModel {
             .select<
                 (DbMetricsTreeEdge & {
                     source_metric_name: string;
+                    source_metric_label: string | null;
                     source_metric_table_name: string;
                     target_metric_name: string;
+                    target_metric_label: string | null;
                     target_metric_table_name: string;
                 })[]
             >({
@@ -1701,8 +1703,10 @@ export class CatalogModel {
                 created_by_user_uuid: `${MetricsTreeEdgesTableName}.created_by_user_uuid`,
                 source: `${MetricsTreeEdgesTableName}.source`,
                 source_metric_name: `source_metric.name`,
+                source_metric_label: `source_metric.label`,
                 source_metric_table_name: `source_metric.table_name`,
                 target_metric_name: `target_metric.name`,
+                target_metric_label: `target_metric.label`,
                 target_metric_table_name: `target_metric.table_name`,
             })
             .innerJoin(
@@ -1735,11 +1739,13 @@ export class CatalogModel {
                 source: {
                     catalogSearchUuid: e.source_metric_catalog_search_uuid,
                     name: e.source_metric_name,
+                    label: e.source_metric_label ?? '',
                     tableName: e.source_metric_table_name,
                 },
                 target: {
                     catalogSearchUuid: e.target_metric_catalog_search_uuid,
                     name: e.target_metric_name,
+                    label: e.target_metric_label ?? '',
                     tableName: e.target_metric_table_name,
                 },
                 createdAt: e.created_at,
@@ -1757,8 +1763,10 @@ export class CatalogModel {
             .select<
                 (DbMetricsTreeEdge & {
                     source_metric_name: string;
+                    source_metric_label: string | null;
                     source_metric_table_name: string;
                     target_metric_name: string;
+                    target_metric_label: string | null;
                     target_metric_table_name: string;
                 })[]
             >({
@@ -1769,8 +1777,10 @@ export class CatalogModel {
                 created_by_user_uuid: `${MetricsTreeEdgesTableName}.created_by_user_uuid`,
                 source: `${MetricsTreeEdgesTableName}.source`,
                 source_metric_name: `source_metric.name`,
+                source_metric_label: `source_metric.label`,
                 source_metric_table_name: `source_metric.table_name`,
                 target_metric_name: `target_metric.name`,
+                target_metric_label: `target_metric.label`,
                 target_metric_table_name: `target_metric.table_name`,
             })
             .where(`${MetricsTreeEdgesTableName}.project_uuid`, projectUuid)
@@ -1789,11 +1799,13 @@ export class CatalogModel {
             source: {
                 catalogSearchUuid: e.source_metric_catalog_search_uuid,
                 name: e.source_metric_name,
+                label: e.source_metric_label ?? '',
                 tableName: e.source_metric_table_name,
             },
             target: {
                 catalogSearchUuid: e.target_metric_catalog_search_uuid,
                 name: e.target_metric_name,
+                label: e.target_metric_label ?? '',
                 tableName: e.target_metric_table_name,
             },
             createdAt: e.created_at,
@@ -1841,6 +1853,7 @@ export class CatalogModel {
                     metrics_tree_uuid: string;
                     catalog_search_uuid: string;
                     name: string;
+                    label: string | null;
                     table_name: string;
                     x_position: number | null;
                     y_position: number | null;
@@ -1851,6 +1864,7 @@ export class CatalogModel {
                 metrics_tree_uuid: `${MetricsTreeNodesTableName}.metrics_tree_uuid`,
                 catalog_search_uuid: `${MetricsTreeNodesTableName}.catalog_search_uuid`,
                 name: `${CatalogTableName}.name`,
+                label: `${CatalogTableName}.label`,
                 table_name: `${CatalogTableName}.table_name`,
                 x_position: `${MetricsTreeNodesTableName}.x_position`,
                 y_position: `${MetricsTreeNodesTableName}.y_position`,
@@ -2129,6 +2143,7 @@ export class CatalogModel {
             xPosition: row.x_position,
             yPosition: row.y_position,
             name: row.name,
+            label: row.label ?? '',
             tableName: row.table_name,
             source: row.source,
         }));
@@ -2171,12 +2186,14 @@ export class CatalogModel {
                         catalogSearchUuid:
                             row.source_metric_catalog_search_uuid,
                         name: sourceNode.name,
+                        label: sourceNode.label,
                         tableName: sourceNode.tableName,
                     },
                     target: {
                         catalogSearchUuid:
                             row.target_metric_catalog_search_uuid,
                         name: targetNode.name,
+                        label: targetNode.label,
                         tableName: targetNode.tableName,
                     },
                     createdAt: row.created_at,

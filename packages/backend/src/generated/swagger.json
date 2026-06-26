@@ -15679,17 +15679,17 @@
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
                                                                         "verifiedChartUsage": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
                                                                         "chartUsage": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
-                                                                        "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
@@ -15720,11 +15720,6 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
                                                                         "joinedTables": {
                                                                             "items": {
                                                                                 "type": "string"
@@ -15766,6 +15761,11 @@
                                                                                 "type": "object"
                                                                             },
                                                                             "type": "array"
+                                                                        },
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
                                                                         },
                                                                         "label": {
                                                                             "type": "string"
@@ -15839,17 +15839,17 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
+                                                                                    "searchRank": {
+                                                                                        "type": "number",
+                                                                                        "format": "double",
+                                                                                        "nullable": true
+                                                                                    },
                                                                                     "verifiedChartUsage": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
                                                                                     "chartUsage": {
-                                                                                        "type": "number",
-                                                                                        "format": "double",
-                                                                                        "nullable": true
-                                                                                    },
-                                                                                    "searchRank": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
@@ -15979,10 +15979,10 @@
                                                                                         "not_applicable"
                                                                                     ]
                                                                                 },
-                                                                                "fieldValueType": {
+                                                                                "fieldFilterType": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "fieldFilterType": {
+                                                                                "fieldValueType": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "fieldType": {
@@ -16012,8 +16012,8 @@
                                                                             "required": [
                                                                                 "isFromJoinedTable",
                                                                                 "caseSensitiveFilters",
-                                                                                "fieldValueType",
                                                                                 "fieldFilterType",
+                                                                                "fieldValueType",
                                                                                 "fieldType",
                                                                                 "description",
                                                                                 "label",
@@ -16062,14 +16062,14 @@
                                                                                 },
                                                                                 "type": "array"
                                                                             },
+                                                                            "baseTable": {
+                                                                                "type": "string"
+                                                                            },
                                                                             "joinedTables": {
                                                                                 "items": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "type": "array"
-                                                                            },
-                                                                            "baseTable": {
-                                                                                "type": "string"
                                                                             },
                                                                             "label": {
                                                                                 "type": "string"
@@ -16079,8 +16079,8 @@
                                                                             }
                                                                         },
                                                                         "required": [
-                                                                            "joinedTables",
                                                                             "baseTable",
+                                                                            "joinedTables",
                                                                             "label",
                                                                             "name"
                                                                         ],
@@ -16391,12 +16391,12 @@
                                                             "fields": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "chartUsage": {
+                                                                        "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "searchRank": {
+                                                                        "chartUsage": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
@@ -37558,18 +37558,24 @@
                             "tableName": {
                                 "type": "string"
                             },
+                            "label": {
+                                "type": "string"
+                            },
                             "name": {
                                 "type": "string"
                             }
                         },
-                        "required": ["source", "tableName", "name"],
+                        "required": ["source", "tableName", "label", "name"],
                         "type": "object"
                     }
                 ]
             },
-            "Pick_CatalogField.catalogSearchUuid-or-name-or-tableName_": {
+            "Pick_CatalogField.catalogSearchUuid-or-name-or-label-or-tableName_": {
                 "properties": {
                     "name": {
+                        "type": "string"
+                    },
+                    "label": {
                         "type": "string"
                     },
                     "tableName": {
@@ -37579,12 +37585,12 @@
                         "type": "string"
                     }
                 },
-                "required": ["name", "tableName", "catalogSearchUuid"],
+                "required": ["name", "label", "tableName", "catalogSearchUuid"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "CatalogMetricsTreeNode": {
-                "$ref": "#/components/schemas/Pick_CatalogField.catalogSearchUuid-or-name-or-tableName_"
+                "$ref": "#/components/schemas/Pick_CatalogField.catalogSearchUuid-or-name-or-label-or-tableName_"
             },
             "CatalogMetricsTreeEdge": {
                 "properties": {

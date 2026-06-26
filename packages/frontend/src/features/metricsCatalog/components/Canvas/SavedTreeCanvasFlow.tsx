@@ -78,6 +78,7 @@ const SavedTreeCanvasFlow: FC<Props> = ({
             const driver: YamlDriverInfo = {
                 catalogSearchUuid: edge.source.catalogSearchUuid,
                 name: edge.source.name,
+                label: edge.source.label,
                 tableName: edge.source.tableName,
             };
             const arr = map.get(targetUuid);
