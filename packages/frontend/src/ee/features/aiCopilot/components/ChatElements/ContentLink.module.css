@@ -64,6 +64,25 @@
     );
 }
 
+.contentLink[data-chart-active='true'] {
+    background-color: light-dark(
+        color-mix(
+            in srgb,
+            var(--mantine-color-blue-6) 3.5%,
+            var(--mantine-color-white)
+        ),
+        var(--mantine-color-dark-6)
+    ) !important;
+    border-color: light-dark(
+        color-mix(
+            in srgb,
+            var(--mantine-color-blue-6) 18%,
+            var(--mantine-color-ldGray-2)
+        ),
+        var(--mantine-color-ldGray-3)
+    );
+}
+
 .sqlRunnerLinkButton {
     --button-bg: light-dark(
         var(--mantine-color-white),

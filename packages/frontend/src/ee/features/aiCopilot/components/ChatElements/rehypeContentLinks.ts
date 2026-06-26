@@ -35,6 +35,7 @@ const LINK_PROCESSORS: LinkProcessor[] = [
             const typeMatch = href.match(/#chart-type-(.+?)($|#)/);
 
             if (chartMatch) data['data-chart-uuid'] = chartMatch[1];
+            if (chartMatch) data['data-chart-source'] = 'saved-chart';
             if (typeMatch) data['data-chart-type'] = typeMatch[1];
 
             return data;
@@ -97,6 +98,7 @@ const processLink = (node: Element, href: string): void => {
                 ...node.properties,
                 'data-content-type': 'chart-link',
                 'data-chart-uuid': chartMatch[1],
+                'data-chart-source': 'saved-chart',
                 href,
             };
         } else if (sqlRunnerMatch) {
@@ -104,6 +106,7 @@ const processLink = (node: Element, href: string): void => {
                 ...node.properties,
                 'data-content-type': 'chart-link',
                 'data-chart-uuid': sqlRunnerMatch[1],
+                'data-chart-source': 'sql-runner',
                 href,
             };
         } else if (settingsMatch) {

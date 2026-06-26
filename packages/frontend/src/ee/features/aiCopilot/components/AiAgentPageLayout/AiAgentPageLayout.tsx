@@ -21,12 +21,13 @@ import {
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
-import { clearArtifact } from '../../store/aiArtifactSlice';
+import { clearPreview } from '../../store/aiArtifactSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
 import { AiArtifactPanel } from '../ChatElements/AiArtifactPanel';
+import { AiSavedChartPreviewPanel } from '../ChatElements/AiSavedChartPreviewPanel';
 import styles from './aiAgentPageLayout.module.css';
 import { SidebarButton } from './SidebarButton';
 
@@ -52,6 +53,10 @@ export const AiAgentPageLayout: React.FC<Props> = ({
     const artifact = useAiAgentStoreSelector(
         (state) => state.aiArtifact.artifact,
     );
+    const savedChart = useAiAgentStoreSelector(
+        (state) => state.aiArtifact.savedChart,
+    );
+    const preview = artifact || savedChart;
     const isMobile = useMediaQuery('(max-width: 768px)');
 
     const toggleSidebar = useCallback(() => {
@@ -64,11 +69,15 @@ export const AiAgentPageLayout: React.FC<Props> = ({
     }, [setIsAgentSidebarCollapsed, isAgentSidebarCollapsed]);
 
     useLayoutEffect(() => {
-        if (artifact) {
+        if (!preview) return;
+
+        const frame = requestAnimationFrame(() => {
             sidebarPanelRef.current?.collapse();
             setIsAgentSidebarCollapsed?.(true);
-        }
-    }, [artifact, setIsAgentSidebarCollapsed]);
+        });
+
+        return () => cancelAnimationFrame(frame);
+    }, [preview, setIsAgentSidebarCollapsed]);
 
     return (
         <div
@@ -160,7 +169,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                     </Panel>
                 </ErrorBoundary>
 
-                {!isMobile && artifact && (
+                {!isMobile && preview && (
                     <Fragment>
                         <PanelResizeHandle
                             aria-label="Resize artifact panel"
@@ -181,7 +190,13 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                                 order={3}
                             >
                                 <Box className={styles.floatingArtifactWrap}>
-                                    <AiArtifactPanel artifact={artifact} />
+                                    {artifact ? (
+                                        <AiArtifactPanel artifact={artifact} />
+                                    ) : savedChart ? (
+                                        <AiSavedChartPreviewPanel
+                                            savedChartPreview={savedChart}
+                                        />
+                                    ) : null}
                                 </Box>
                             </Panel>
                         </ErrorBoundary>
@@ -191,8 +206,8 @@ export const AiAgentPageLayout: React.FC<Props> = ({
 
             {isMobile && (
                 <Drawer
-                    opened={!!artifact}
-                    onClose={() => dispatch(clearArtifact())}
+                    opened={!!preview}
+                    onClose={() => dispatch(clearPreview())}
                     size="75%"
                     position="bottom"
                     h="75%"
@@ -210,7 +225,13 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                         },
                     }}
                 >
-                    {artifact && <AiArtifactPanel artifact={artifact} />}
+                    {artifact ? (
+                        <AiArtifactPanel artifact={artifact} />
+                    ) : savedChart ? (
+                        <AiSavedChartPreviewPanel
+                            savedChartPreview={savedChart}
+                        />
+                    ) : null}
                 </Drawer>
             )}
         </div>
