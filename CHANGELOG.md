@@ -1,3 +1,10 @@
+# [0.3258.0](https://github.com/lightdash/lightdash/compare/0.3257.0...0.3258.0) (2026-06-26)
+
+
+### Features
+
+* honor granularity_labels override in chart-axis labels ([#24834](https://github.com/lightdash/lightdash/issues/24834)) ([5c5a2c4](https://github.com/lightdash/lightdash/commit/5c5a2c4c7fe5c600937ba6438ded9c58cd2b172a))
+
 # [0.3257.0](https://github.com/lightdash/lightdash/compare/0.3256.0...0.3257.0) (2026-06-26)
 
 
