@@ -1,3 +1,10 @@
+# [0.3253.0](https://github.com/lightdash/lightdash/compare/0.3252.2...0.3253.0) (2026-06-26)
+
+
+### Features
+
+* add app uuid to query tags for data app queries ([#24740](https://github.com/lightdash/lightdash/issues/24740)) ([35b4c91](https://github.com/lightdash/lightdash/commit/35b4c91511a72edbad83015f5c464790c5c89fa3))
+
 ## [0.3252.2](https://github.com/lightdash/lightdash/compare/0.3252.1...0.3252.2) (2026-06-26)
 
 
