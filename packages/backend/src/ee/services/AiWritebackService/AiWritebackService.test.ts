@@ -13,7 +13,6 @@ import {
     type MemberAbility,
     type SessionUser,
 } from '@lightdash/common';
-import { Sandbox } from 'e2b';
 import {
     createPullRequest,
     getAppBotIdentity,
@@ -25,6 +24,7 @@ import {
     listReposAccessibleToInstallation,
     listReposAccessibleToUser,
 } from '../../../clients/github/Github';
+import { createSandboxProvider } from '../SandboxRuntime';
 import {
     AiWritebackService,
     mergeSourceCodeRepoAccess,
@@ -44,6 +44,14 @@ jest.mock('e2b', () => ({
     Sandbox: { create: jest.fn(), connect: jest.fn() },
     CommandExitError: class CommandExitError extends Error {},
     TimeoutError: class TimeoutError extends Error {},
+    ALL_TRAFFIC: 'all',
+}));
+// The service talks to a SandboxProvider, never a concrete SDK. Keep the real
+// error classes (the service branches on them with instanceof) but stub the
+// factory so the run() tests inject a fake provider over the fake sandbox.
+jest.mock('../SandboxRuntime', () => ({
+    ...jest.requireActual('../SandboxRuntime'),
+    createSandboxProvider: jest.fn(),
 }));
 jest.mock('../../../clients/github/Github', () => ({
     createBranch: jest.fn().mockResolvedValue(undefined),
@@ -514,8 +522,24 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             }),
         },
         pause: jest.fn().mockResolvedValue(undefined),
-        kill: jest.fn().mockResolvedValue(undefined),
     });
+
+    // A fake SandboxProvider over the fake sandbox. create/connect hand back the
+    // sandbox; destroy/pause are the control-plane calls the service makes to
+    // tear the sandbox down or keep it warm.
+    const fakeSandboxProvider = {
+        capabilities: {
+            isolation: 'microvm',
+            pauseResume: true,
+            egressAllowlist: true,
+            warmPool: false,
+            persistence: 'memory',
+        },
+        create: jest.fn(),
+        connect: jest.fn(),
+        destroy: jest.fn().mockResolvedValue(undefined),
+        pause: jest.fn().mockResolvedValue(undefined),
+    };
 
     const runService = (sandbox: AnyType) => {
         const service = buildService({
@@ -579,6 +603,11 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+        fakeSandboxProvider.destroy.mockResolvedValue(undefined);
+        fakeSandboxProvider.pause.mockResolvedValue(undefined);
+        (createSandboxProvider as jest.Mock).mockReturnValue(
+            fakeSandboxProvider,
+        );
         (getInstallationToken as jest.Mock).mockResolvedValue('install-token');
         (getOrRefreshToken as jest.Mock).mockResolvedValue({
             token: 'oauth',
@@ -600,7 +629,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
 
     it('opens a PR and kills the sandbox for a one-shot run with changes', async () => {
         const sandbox = fakeSandbox(0, true);
-        (Sandbox.create as jest.Mock).mockResolvedValue(sandbox);
+        fakeSandboxProvider.create.mockResolvedValue(sandbox);
 
         const result = await runService(sandbox);
 
@@ -612,7 +641,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             repository: 'acme/analytics',
         });
         expect(createPullRequest).toHaveBeenCalledTimes(1);
-        expect(sandbox.kill).toHaveBeenCalledTimes(1);
+        expect(fakeSandboxProvider.destroy).toHaveBeenCalledTimes(1);
         expect(sandbox.pause).not.toHaveBeenCalled();
 
         // The compile wrapper pins `dbt` to the project's version venv (V1_9)
@@ -627,7 +656,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
 
     it('skips the PR when the agent exits non-zero', async () => {
         const sandbox = fakeSandbox(1, true);
-        (Sandbox.create as jest.Mock).mockResolvedValue(sandbox);
+        fakeSandboxProvider.create.mockResolvedValue(sandbox);
 
         const result = await runService(sandbox);
 
@@ -637,12 +666,12 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             prAction: null,
         });
         expect(createPullRequest).not.toHaveBeenCalled();
-        expect(sandbox.kill).toHaveBeenCalledTimes(1);
+        expect(fakeSandboxProvider.destroy).toHaveBeenCalledTimes(1);
     });
 
     it('opens no PR when the agent produced no changes', async () => {
         const sandbox = fakeSandbox(0, false);
-        (Sandbox.create as jest.Mock).mockResolvedValue(sandbox);
+        fakeSandboxProvider.create.mockResolvedValue(sandbox);
 
         const result = await runService(sandbox);
 
@@ -652,7 +681,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             prAction: null,
         });
         expect(createPullRequest).not.toHaveBeenCalled();
-        expect(sandbox.kill).toHaveBeenCalledTimes(1);
+        expect(fakeSandboxProvider.destroy).toHaveBeenCalledTimes(1);
     });
 });
 

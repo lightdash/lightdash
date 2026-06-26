@@ -1601,10 +1601,18 @@ export type AppRuntimeConfig = {
      */
     sandboxProvider: 'e2b' | 'docker';
     /**
-     * OCI image the `docker` sandbox provider launches containers from. Built
-     * locally from sandboxes/data-apps (e.g. `lightdash-sandbox:local`).
+     * OCI image the `docker` sandbox provider launches data-app containers
+     * from. Built locally from sandboxes/data-apps (e.g. `lightdash-sandbox:local`).
      */
     sandboxDockerImage: string;
+    /**
+     * OCI image the `docker` sandbox provider launches AI writeback containers
+     * from. Decoupled from the data-app image (different toolchain: dbt venvs +
+     * Lightdash CLI + Claude Code) — the Docker analog of the separate E2B
+     * writeback template. Built locally from sandboxes/ai-writeback (e.g.
+     * `lightdash-ai-writeback:local`).
+     */
+    sandboxAiWritebackDockerImage: string;
 };
 
 export type IntercomConfig = {
@@ -1833,6 +1841,9 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             process.env.SANDBOX_PROVIDER === 'docker' ? 'docker' : 'e2b',
         sandboxDockerImage:
             process.env.SANDBOX_DOCKER_IMAGE || 'lightdash-sandbox:local',
+        sandboxAiWritebackDockerImage:
+            process.env.SANDBOX_AI_WRITEBACK_DOCKER_IMAGE ||
+            'lightdash-ai-writeback:local',
     };
 };
 

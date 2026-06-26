@@ -7,15 +7,17 @@
 
 ## TL;DR
 
-Phase 0 is **partially done**. The interface, both providers (E2B + local Docker),
-the config flag, and the **`AppGenerateService` migration** are complete and
-typecheck. **`AiWritebackService` is not migrated** (still imports `e2b`
-directly), git is not in the interface, and there are **no tests**.
+Phase 0 is **done**. The interface (now including `git`), both providers
+(E2B + local Docker), the config flags, and **both feature migrations**
+(`AppGenerateService` and `AiWritebackService`) are complete and typecheck.
+Writeback has been verified end-to-end on the Docker provider — a real PR was
+opened against the connected dbt repo from a local `lightdash-ai-writeback:local`
+container (clone → agent edit → `lightdash compile` → signed commit → PR).
 
 Shipping is low-risk: `SANDBOX_PROVIDER` defaults to `e2b` (unchanged behavior),
 and the Docker provider refuses to start when `NODE_ENV=production`. The only
-thing live in prod is a **no-behavior-change refactor** of the AppGenerate E2B
-path through the new shim.
+thing live in prod is a **no-behavior-change refactor** of the AppGenerate +
+writeback E2B paths through the new shim.
 
 ---
 
@@ -35,10 +37,11 @@ path through the new shim.
 | Local image build script + example dbt project                                                         | ✅ Done      | `sandboxes/data-apps/build-local-image.sh`, `examples/empty-lightdash-project/`                                                           |
 | **`AppGenerateService` migrated** off concrete `e2b.Sandbox` → `SandboxHandle`                         | ✅ Done      | `AppGenerateService.ts`, `designSandboxCopy.ts`                                                                                           |
 | Backend typecheck passes                                                                               | ✅ Done      | —                                                                                                                                         |
-| **`AiWritebackService` migrated** off `e2b`                                                            | ❌ Not done  | still `import … from 'e2b'`                                                                                                               |
-| **Git-provider strategy migrated** (takes `SandboxHandle`, not `Sandbox`)                              | ❌ Not done  | `providers/GitProvider.ts`, `GithubProvider.ts`, `GitlabProvider.ts`, `sandboxGit.ts`                                                     |
-| **`git` in the `SandboxHandle` interface** (`SandboxGit`)                                              | ❌ Not done  | `types.ts` has no `git` member                                                                                                            |
-| Docker provider git support                                                                            | ❌ Not done  | blocked on the above                                                                                                                      |
+| **`AiWritebackService` migrated** off `e2b`                                                            | ✅ Done      | `AiWritebackService.ts` (provider factory + `SandboxHandle`, normalized errors)                                                           |
+| **Git-provider strategy migrated** (takes `SandboxHandle`, not `Sandbox`)                              | ✅ Done      | `providers/GitProvider.ts`, `GithubProvider.ts`, `GitlabProvider.ts`, `sandboxGit.ts`                                                     |
+| **`git` in the `SandboxHandle` interface** (`SandboxGit`)                                              | ✅ Done      | `types.ts` — `clone`/`status`/`createBranch`/`add`/`commit`/`push`                                                                        |
+| Docker provider git support                                                                            | ✅ Done      | `DockerSandboxProvider.ts` — git over `commands.run`; HTTPS auth via per-call `http.extraHeader` (never persisted)                        |
+| Separate Docker image for writeback (`SANDBOX_AI_WRITEBACK_DOCKER_IMAGE`)                              | ✅ Done      | `parseConfig.ts` — decoupled from the data-app image, mirroring the split E2B template                                                    |
 | Docker socket access from the backend                                                                  | ✅ Confirmed | backend runs via pm2 on the host; default `new Docker()` socket reaches the daemon (verified — no compose mount needed in this dev setup) |
 | Tests for providers / errors / factory                                                                 | ❌ None      | no `*.test.ts` in this folder                                                                                                             |
 | End-to-end proof the Docker path runs                                                                  | ✅ Verified  | see "Verification" below — 15/15 checks against the real `lightdash-sandbox:local` image                                                  |
@@ -63,21 +66,34 @@ throwaway script driving the compiled provider — **15/15 checks passed**:
 - `connect()` re-attaches by id with filesystem state preserved
 - `destroy()` removes the container; second `destroy()` on a missing id is a no-op
 
-Not yet covered by this manual run: git (not in the interface), egress
-enforcement (capability is `false` by design), and any AppGenerate-level
-integration through the provider. This was a provider-surface check, not a full
-data-app generation run.
+### Writeback verification (2026-06-25)
+
+Writeback was driven end-to-end through the **Docker provider** against the
+local `lightdash-ai-writeback:local` image (built from
+`sandboxes/ai-writeback/e2b.Dockerfile` via `build-local-image.sh`), via the
+real `POST /ai-writeback` endpoint on the connected dbt repo:
+
+- `create` launched the container; `git.clone` cloned the repo over HTTPS with
+  the per-call `http.extraHeader` token (~1.3s)
+- repo-context gather + credential-free profiles staged
+- the Claude agent ran (Read/Edit/Bash, 5 turns) and `lightdash compile`
+  succeeded inside the container (1 run, 0 failures) — proving the dbt venvs +
+  Lightdash CLI work
+- `git.add`/`git.commit` (local) staged the change; the signed commit + PR were
+  created via the GitHub API → **PR opened**, `exitCode 0`, `+1/-1`
+- one-shot teardown: `provider.destroy` removed the container
+
+The E2B path was confirmed to route identically through `E2bSandboxProvider`
+(same `create` call, same template-resolution) — a faithful passthrough. A full
+E2B end-to-end run is blocked only by the `lightdash-ai-writeback` template not
+being published on the dev E2B account (infra, not code).
 
 ### Phase 0 remaining work
 
-1. Add `git: SandboxGit` to `SandboxHandle`; implement it on both providers
-   (E2B native helper; Docker over `commands.run`).
-2. Migrate `AiWritebackService` + the three git providers + `sandboxGit.ts` off
-   the concrete `e2b` type.
-3. Unit tests: error mapping, factory selection/validation, Docker exec
-   collect/demux, E2B shim option mapping.
-4. Verify the Docker provider actually launches a container and runs a command
-   end-to-end (socket access from the pm2-run backend).
+1. Unit tests: error mapping, factory selection/validation, Docker exec
+   collect/demux + git command construction, E2B shim option mapping. (The
+   abstraction is covered indirectly by `AiWritebackService.test.ts`, which now
+   drives a fake `SandboxProvider`.)
 
 ---
 
@@ -124,7 +140,12 @@ Missing: registry table, reaper (Graphile cron), capacity caps, leases
       `commands.run`, so this is consistent.
     - `files.read(…,{format:'bytes'})` → `readBytes`; ArrayBuffer slicing moved
       into the provider. Faithful.
-- **`AiWritebackService` unchanged** — still on `e2b` directly: no risk, no benefit.
+- **Writeback E2B refactor** also routed through the shim. The lifecycle now goes
+  through the provider factory: `Sandbox.create/connect` → `provider.create/connect`,
+  `sandbox.kill()` → `provider.destroy(sandboxId)`, and the `git`/`commands`/`files`
+  surfaces go through `SandboxHandle`. E2B is a near-1:1 passthrough (git included),
+  so the hosted path is unchanged; the missing-E2B-key error now surfaces from the
+  factory rather than a local getter (same `MissingConfigError`).
 
 ## PR split (this stack)
 
@@ -138,8 +159,11 @@ Shipped as a Graphite stack on top of `main`:
    the `docker` case in the factory, `dockerode` dependency, the local image
    build script, and this status doc.
 
+3. **`sandbox-runtime-writeback-git`** (PR 3, stacked) — the `git` member on
+   `SandboxHandle` (`SandboxGit`) implemented on both providers, the
+   `AiWritebackService` + git-provider migration off `e2b`, the dedicated
+   `SANDBOX_AI_WRITEBACK_DOCKER_IMAGE` config + `sandboxes/ai-writeback/build-local-image.sh`.
+
 Still future (separate efforts, not in this stack):
 
-3. **AiWritebackService + git** — add a `git` member to `SandboxHandle`, implement
-   it on both providers, and migrate the writeback feature + git providers off `e2b`.
 4. Phases 1–3 (persistence, Manager, real GKE/ECS providers) as separate efforts.

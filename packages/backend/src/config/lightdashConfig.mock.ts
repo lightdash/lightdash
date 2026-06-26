@@ -374,6 +374,7 @@ export const lightdashConfigMock: LightdashConfig = {
         e2bAiWritebackTemplateTag: '',
         sandboxProvider: 'e2b',
         sandboxDockerImage: 'lightdash-sandbox:local',
+        sandboxAiWritebackDockerImage: 'lightdash-ai-writeback:local',
     },
     enabledFeatureFlags: new Set<string>(),
     disabledFeatureFlags: new Set<string>(),

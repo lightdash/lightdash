@@ -11,7 +11,6 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
-import type { Sandbox } from 'e2b';
 import type { Logger } from 'winston';
 import {
     createPullRequest,
@@ -21,6 +20,7 @@ import {
     updateMergeRequest,
 } from '../../../../clients/gitlab/Gitlab';
 import type { GitlabAppInstallationsModel } from '../../../../models/GitlabAppInstallations/GitlabAppInstallationsModel';
+import type { SandboxHandle } from '../../SandboxRuntime';
 import { COMMIT_AUTHOR_EMAIL, COMMIT_AUTHOR_NAME, CWD } from '../constants';
 import { WritebackGitNotConnectedError } from '../errors';
 import type {
@@ -393,7 +393,7 @@ export class GitlabProvider implements GitProvider {
         user,
         setStage,
     }: {
-        sandbox: Sandbox;
+        sandbox: SandboxHandle;
         connection: GitlabConnection;
         installation: GitlabInstallation;
         branch: string;
