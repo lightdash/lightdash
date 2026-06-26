@@ -3303,6 +3303,7 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         projectUuid,
         pivotConfiguration,
+        pivotDimensions,
         userAttributeOverrides,
         materializationRole,
         columnTimezone,
@@ -3324,6 +3325,13 @@ export class AsyncQueryService extends ProjectService {
         warehouseSqlBuilder: WarehouseSqlBuilder;
         explore: Explore;
         pivotConfiguration?: PivotConfiguration;
+        /**
+         * Chart's pivotConfig.columns, for chart types that build no
+         * pivotConfiguration (big number, map, sankey) but still need row_total()
+         * to resolve — see BuildQueryProps.pivotDimensions. Defaults to the
+         * metricQuery's own pivotDimensions (the explorer path).
+         */
+        pivotDimensions?: string[];
         columnTimezone?: string;
         sessionTimezone?: string | null;
         /**
@@ -3387,7 +3395,7 @@ export class AsyncQueryService extends ProjectService {
             parameters,
             availableParameterDefinitions,
             pivotConfiguration,
-            pivotDimensions: metricQuery.pivotDimensions,
+            pivotDimensions: pivotDimensions ?? metricQuery.pivotDimensions,
             useTimezoneAwareDateTrunc,
             columnTimezone,
             applyDateZoomToFilters,
@@ -4771,6 +4779,7 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
             projectUuid,
             pivotConfiguration,
+            pivotDimensions: savedChart.pivotConfig?.columns,
             columnTimezone: getColumnTimezone(warehouseCredentials),
             preloadedUserAccessControls,
         });
@@ -5231,6 +5240,7 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
             projectUuid,
             pivotConfiguration,
+            pivotDimensions: savedChart.pivotConfig?.columns,
             columnTimezone: getColumnTimezone(warehouseCredentials),
             sessionTimezone,
             preloadedUserAccessControls: userAccessControls,
