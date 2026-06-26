@@ -1,3 +1,10 @@
+## [0.3258.1](https://github.com/lightdash/lightdash/compare/0.3258.0...0.3258.1) (2026-06-26)
+
+
+### Bug Fixes
+
+* **athena:** forward aws_session_token for temporary credentials ([#24839](https://github.com/lightdash/lightdash/issues/24839)) ([8fe0d23](https://github.com/lightdash/lightdash/commit/8fe0d23fa05fadac29d812a112415519a5231c89))
+
 # [0.3258.0](https://github.com/lightdash/lightdash/compare/0.3257.0...0.3258.0) (2026-06-26)
 
 
