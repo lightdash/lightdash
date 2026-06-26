@@ -109,12 +109,19 @@ const DebouncedSearchInput = memo(
         const [value, setValue] = useState('');
         const debouncedOnSearch = useDebouncedCallback(onSearch, 300);
 
-        // Calling the debounced callback again (incl. on clear) cancels any
-        // pending call, so a stale keystroke can't resurrect the search.
-        const handleChange = (newValue: string) => {
-            setValue(newValue);
-            debouncedOnSearch(newValue);
-        };
+        // Debounce typing. Clearing (empty value) flushes immediately; re-invoking
+        // the debounced fn cancels any pending call so a stale keystroke can't
+        // resurrect a just-cleared search.
+        const handleChange = useCallback(
+            (newValue: string) => {
+                setValue(newValue);
+                debouncedOnSearch(newValue);
+                if (newValue === '') {
+                    debouncedOnSearch.flush();
+                }
+            },
+            [debouncedOnSearch],
+        );
 
         return (
             <Tooltip withinPortal variant="xs" label="Search by name">
