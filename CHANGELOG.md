@@ -1,3 +1,11 @@
+## [0.3253.2](https://github.com/lightdash/lightdash/compare/0.3253.1...0.3253.2) (2026-06-26)
+
+
+### Bug Fixes
+
+* **charts:** correct row_total() table calc in big number tiles ([#24805](https://github.com/lightdash/lightdash/issues/24805)) ([9ea3ed3](https://github.com/lightdash/lightdash/commit/9ea3ed35959b09f0cb317c146e00ff074308cd2e))
+* **slack:** stop link unfurls toggle reverting to on after refresh ([#24813](https://github.com/lightdash/lightdash/issues/24813)) ([b5973db](https://github.com/lightdash/lightdash/commit/b5973db43cad34dcc53da7cde7307b714fda6f1f))
+
 ## [0.3253.1](https://github.com/lightdash/lightdash/compare/0.3253.0...0.3253.1) (2026-06-26)
 
 
