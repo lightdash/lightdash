@@ -10,6 +10,7 @@ import {
 } from 'numfmt';
 import { LightdashParameters } from '../compiler/parameters';
 import {
+    Compact,
     CompactConfigMap,
     CustomFormatType,
     DimensionType,
@@ -515,6 +516,12 @@ export function getCustomFormatFromLegacy({
                 compact,
                 round,
             };
+        case Format.SI:
+            return {
+                type: CustomFormatType.NUMBER,
+                compact: Compact.AUTO,
+                round,
+            };
         case Format.PERCENT:
             return {
                 type: CustomFormatType.PERCENT,
@@ -650,6 +657,30 @@ function applyCompact(
 } {
     if (format?.compact === undefined)
         return { compactValue: Number(value), compactSuffix: '' };
+
+    if (format.compact === Compact.AUTO) {
+        const numberValue = Number(value);
+        const compactConfig = [
+            Compact.TRILLIONS,
+            Compact.BILLIONS,
+            Compact.MILLIONS,
+            Compact.THOUSANDS,
+        ]
+            .map((compact) => CompactConfigMap[compact])
+            .find(
+                ({ orderOfMagnitude }) =>
+                    Math.abs(numberValue) >= 10 ** orderOfMagnitude,
+            );
+
+        if (compactConfig) {
+            return {
+                compactValue: compactConfig.convertFn(numberValue),
+                compactSuffix: compactConfig.suffix,
+            };
+        }
+
+        return { compactValue: numberValue, compactSuffix: '' };
+    }
 
     const compactConfig = findCompactConfig(format.compact);
 
@@ -989,6 +1020,10 @@ const customFormatConversionFnMap: Record<
     },
     compact: (formatExpression, format) => {
         if (format.compact) {
+            if (format.compact === Compact.AUTO) {
+                return formatExpression;
+            }
+
             const compactConfig = findCompactConfig(format.compact);
             if (compactConfig) {
                 // Check if this is a binary (IEC) byte unit, like KiB, MiB, etc.

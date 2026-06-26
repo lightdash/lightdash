@@ -189,6 +189,7 @@
                             "compact": {
                                 "type": "string",
                                 "enum": [
+                                    "auto",
                                     "thousands",
                                     "millions",
                                     "billions",
@@ -604,6 +605,7 @@
                                 "compact": {
                                     "type": "string",
                                     "enum": [
+                                        "auto",
                                         "thousands",
                                         "millions",
                                         "billions",
@@ -1215,6 +1217,7 @@
                                 "compact": {
                                     "type": "string",
                                     "enum": [
+                                        "auto",
                                         "thousands",
                                         "millions",
                                         "billions",
@@ -1507,6 +1510,7 @@
                         "compact": {
                             "type": "string",
                             "enum": [
+                                "auto",
                                 "thousands",
                                 "millions",
                                 "billions",
@@ -1758,6 +1762,7 @@
                                 "compact": {
                                     "type": "string",
                                     "enum": [
+                                        "auto",
                                         "thousands",
                                         "millions",
                                         "billions",

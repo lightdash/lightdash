@@ -483,6 +483,7 @@
                 },
                 "compact": {
                     "enum": [
+                        "auto",
                         "thousands",
                         "thousand",
                         "K",
@@ -613,6 +614,7 @@
                 },
                 "compact": {
                     "enum": [
+                        "auto",
                         "thousands",
                         "thousand",
                         "K",

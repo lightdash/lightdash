@@ -246,6 +246,14 @@ describe('Formatting', () => {
                 type: CustomFormatType.ID,
             });
         });
+
+        test(`when it is ${Format.SI.toUpperCase()} getCustomFormatFromLegacy should return the correct CustomFormat options`, () => {
+            expect(getCustomFormatFromLegacy({ format: Format.SI })).toEqual({
+                type: CustomFormatType.NUMBER,
+                compact: Compact.AUTO,
+                round: undefined,
+            });
+        });
     });
 
     describe('applying CustomFormat to value', () => {
@@ -690,10 +698,15 @@ describe('Formatting', () => {
         });
 
         describe('when applying compact', () => {
+            const AUTO = Compact.AUTO;
             const K = Compact.THOUSANDS;
             const M = Compact.MILLIONS;
             const B = Compact.BILLIONS;
             const T = Compact.TRILLIONS;
+            const autoConfig = {
+                type: CustomFormatType.NUMBER,
+                compact: AUTO,
+            };
 
             const thousandsConfig = {
                 type: CustomFormatType.NUMBER,
@@ -722,6 +735,41 @@ describe('Formatting', () => {
                 expect(applyCustomFormat(5000000000, trillionsConfig)).toEqual(
                     '0.005T',
                 );
+            });
+
+            test('it should dynamically pick the compact style', () => {
+                expect(applyCustomFormat(999, autoConfig)).toEqual('999');
+                expect(applyCustomFormat(1000, autoConfig)).toEqual('1K');
+                expect(applyCustomFormat(1200, autoConfig)).toEqual('1.2K');
+                expect(applyCustomFormat(1200000, autoConfig)).toEqual('1.2M');
+                expect(applyCustomFormat(-1200000, autoConfig)).toEqual(
+                    '-1.2M',
+                );
+            });
+
+            test('it should apply dynamic compact with round, separators, prefix and suffix', () => {
+                expect(
+                    applyCustomFormat(1200, { ...autoConfig, round: 0 }),
+                ).toEqual('1K');
+                expect(
+                    applyCustomFormat(1234567890123456, {
+                        ...autoConfig,
+                        separator: NumberSeparator.COMMA_PERIOD,
+                        prefix: '~',
+                        suffix: ' total',
+                    }),
+                ).toEqual('~1,234.568T total');
+            });
+
+            test('it should apply dynamic compact with currency', () => {
+                expect(
+                    applyCustomFormat(1200, {
+                        type: CustomFormatType.CURRENCY,
+                        compact: AUTO,
+                        currency: 'USD',
+                        round: 1,
+                    }),
+                ).toEqual('$1.2K');
             });
 
             test('when applying round it should return the right style', () => {

@@ -115,6 +115,7 @@ describe('field util functions', () => {
             expect(isFormat('dkk')).toBe(true);
             expect(isFormat('id')).toBe(true);
             expect(isFormat('percent')).toBe(true);
+            expect(isFormat('si')).toBe(true);
         });
 
         it('should return false for invalid formats', () => {

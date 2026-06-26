@@ -11,6 +11,7 @@ import { type MetricFilterRule } from './filter';
 import type { TimeFrames } from './timeFrames';
 
 export enum Compact {
+    AUTO = 'auto',
     THOUSANDS = 'thousands',
     MILLIONS = 'millions',
     BILLIONS = 'billions',
@@ -78,6 +79,14 @@ type CompactConfig = {
 export type CompactOrAlias = Compact | (typeof CompactAlias)[number];
 
 export const CompactConfigMap: Record<Compact, CompactConfig> = {
+    [Compact.AUTO]: {
+        compact: Compact.AUTO,
+        alias: [],
+        orderOfMagnitude: 0,
+        convertFn: (value: number) => value,
+        label: 'Auto (K, M, B, T)',
+        suffix: '',
+    },
     [Compact.THOUSANDS]: {
         compact: Compact.THOUSANDS,
         alias: ['K', 'thousand'],
@@ -815,6 +824,7 @@ export enum MetricType {
 export enum Format {
     KM = 'km',
     MI = 'mi',
+    SI = 'si',
     USD = 'usd',
     GBP = 'gbp',
     EUR = 'eur',
@@ -1081,10 +1091,19 @@ export function getCompactOptionsForFormatType(
 ): Compact[] {
     if (type === CustomFormatType.BYTES_IEC) return IECByteCompacts;
     if (type === CustomFormatType.BYTES_SI) return SIByteCompacts;
-    return [
+    const numericCompacts = [
         Compact.THOUSANDS,
         Compact.MILLIONS,
         Compact.BILLIONS,
         Compact.TRILLIONS,
     ];
+
+    if (
+        type === CustomFormatType.NUMBER ||
+        type === CustomFormatType.CURRENCY
+    ) {
+        return [Compact.AUTO, ...numericCompacts];
+    }
+
+    return numericCompacts;
 }

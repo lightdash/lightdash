@@ -20,6 +20,7 @@ import {
     applyCustomFormat,
     formatDateWithPattern,
     formatNumberValue,
+    getCustomFormatFromLegacy,
 } from '../utils/formatting';
 import {
     getAxisLabelStyle,
@@ -118,6 +119,10 @@ export class CartesianChartDataModel {
                     type: CustomFormatType.PERCENT,
                 });
         }
+        if (format === Format.SI) {
+            return (value: number) =>
+                applyCustomFormat(value, getCustomFormatFromLegacy({ format }));
+        }
         return undefined;
     }
 
@@ -151,6 +156,17 @@ export class CartesianChartDataModel {
                 return applyCustomFormat(value, {
                     type: CustomFormatType.PERCENT,
                 });
+            };
+        }
+        if (format === Format.SI) {
+            return (params: AnyType) => {
+                const value =
+                    params.value[params.dimensionNames[params.encode.y[0]]];
+
+                return applyCustomFormat(
+                    value,
+                    getCustomFormatFromLegacy({ format }),
+                );
             };
         }
         return undefined;
