@@ -1,3 +1,10 @@
+## [0.3252.2](https://github.com/lightdash/lightdash/compare/0.3252.1...0.3252.2) (2026-06-26)
+
+
+### Bug Fixes
+
+* **ai:** stop blank Settings page when default AI provider isn't configured ([#24802](https://github.com/lightdash/lightdash/issues/24802)) ([#24804](https://github.com/lightdash/lightdash/issues/24804)) ([a8cb8c3](https://github.com/lightdash/lightdash/commit/a8cb8c3e27d2f0177e7b03550e742f96795056ed)), closes [#24596](https://github.com/lightdash/lightdash/issues/24596)
+
 ## [0.3252.1](https://github.com/lightdash/lightdash/compare/0.3252.0...0.3252.1) (2026-06-26)
 
 
