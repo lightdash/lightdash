@@ -160,3 +160,25 @@ export const resolveAdditionalTimeIntervals = (
         customGranularities,
     ),
 });
+
+/**
+ * Validate `defaults.granularity_labels` once: keep entries whose key is a
+ * standard granularity (keyed by uppercased TimeFrames, label verbatim); drop
+ * unknown keys with a single console.warn.
+ */
+export const resolveGranularityLabels = (
+    granularityLabels: ProjectDefaults['granularity_labels'],
+): Partial<Record<TimeFrames, string>> =>
+    Object.entries(granularityLabels ?? {}).reduce<
+        Partial<Record<TimeFrames, string>>
+    >((acc, [rawKey, label]) => {
+        const upper = rawKey.toUpperCase();
+        if (isStandardTimeFrame(upper)) {
+            return { ...acc, [upper]: label };
+        }
+        // eslint-disable-next-line no-console
+        console.warn(
+            `Ignoring unknown granularity "${rawKey}" in defaults.granularity_labels — not a standard granularity.`,
+        );
+        return acc;
+    }, {});
