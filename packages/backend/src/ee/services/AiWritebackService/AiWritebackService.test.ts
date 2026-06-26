@@ -46,6 +46,7 @@ jest.mock('e2b', () => ({
     TimeoutError: class TimeoutError extends Error {},
     ALL_TRAFFIC: 'all',
 }));
+jest.mock('dockerode', () => jest.fn());
 // The service talks to a SandboxProvider, never a concrete SDK. Keep the real
 // error classes (the service branches on them with instanceof) but stub the
 // factory so the run() tests inject a fake provider over the fake sandbox.
