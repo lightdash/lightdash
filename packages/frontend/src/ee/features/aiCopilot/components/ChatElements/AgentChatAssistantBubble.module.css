@@ -97,60 +97,6 @@
     flex-shrink: 0;
 }
 
-.mcpUnavailableNotice {
-    width: fit-content;
-    max-width: 100%;
-    border-radius: 999px;
-    padding: 5px 8px;
-    animation: cardSlideIn 280ms cubic-bezier(0.16, 1, 0.3, 1);
-    font-family: var(--mantine-font-family);
-
-    @mixin light {
-        background-color: var(--mantine-color-ldGray-0);
-    }
-
-    @mixin dark {
-        background-color: var(--mantine-color-dark-7);
-    }
-}
-
-.mcpUnavailableNoticeHeader {
-    min-width: 0;
-}
-
-.mcpUnavailableNoticeIconChip {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
-    border-radius: 999px;
-}
-
-.mcpUnavailableNoticeIcon {
-    flex-shrink: 0;
-    color: var(--mantine-color-ldGray-7);
-}
-
-.mcpUnavailableNoticeBody {
-    min-width: 0;
-}
-
-.mcpUnavailableNoticeLabel {
-    line-height: 1.1;
-    letter-spacing: 0;
-    color: var(--mantine-color-ldGray-8);
-}
-
-.mcpUnavailableNoticeMessage {
-    color: var(--mantine-color-ldGray-6);
-    letter-spacing: 0;
-}
-
-.mcpUnavailableNoticeAction {
-    align-self: center;
-}
-
 .sqlMarkdownCodeBlock {
     overflow: hidden;
     border: 1px solid var(--mantine-color-ldGray-2);

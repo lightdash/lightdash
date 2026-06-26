@@ -1,4 +1,3 @@
-import { type AiMcpServerConnectionStatus } from '@lightdash/common';
 import {
     createSlice,
     prepareAutoBatched,
@@ -14,13 +13,6 @@ type ToolCall = AiAgentToolCall & {
 type Reasoning = {
     reasoningId: string;
     parts: string[];
-};
-
-export type McpUnavailableNotice = {
-    serverUuid: string;
-    serverName: string;
-    message: string;
-    status: AiMcpServerConnectionStatus;
 };
 
 export type StepProgressMessage = {
@@ -68,7 +60,6 @@ export interface AiAgentThreadStreamingState {
     toolCalls: ToolCall[];
     reasoning: Reasoning[];
     decidedToolCallIds: string[];
-    mcpUnavailableNotices: McpUnavailableNotice[];
     /**
      * Ordered history of step-progress events emitted by the agent's
      * tools (e.g. "Starting sandbox…", "Cloning project…", "Editing
@@ -103,7 +94,6 @@ const initialThread: Omit<
     toolCalls: [],
     reasoning: [],
     decidedToolCallIds: [],
-    mcpUnavailableNotices: [],
     stepProgressMessages: [],
 };
 
@@ -355,31 +345,6 @@ export const aiAgentThreadStreamSlice = createSlice({
                 toolName: string | null;
             }>(),
         },
-        addMcpUnavailableNotice: {
-            reducer: (
-                state,
-                action: PayloadAction<{
-                    threadUuid: string;
-                    notice: McpUnavailableNotice;
-                }>,
-            ) => {
-                const { threadUuid, notice } = action.payload;
-                const streamingThread = state[threadUuid];
-                if (
-                    streamingThread &&
-                    !streamingThread.mcpUnavailableNotices.some(
-                        (existingNotice) =>
-                            existingNotice.serverUuid === notice.serverUuid,
-                    )
-                ) {
-                    streamingThread.mcpUnavailableNotices.push(notice);
-                }
-            },
-            prepare: prepareAutoBatched<{
-                threadUuid: string;
-                notice: McpUnavailableNotice;
-            }>(),
-        },
     },
 });
 
@@ -392,7 +357,6 @@ export const {
     setError,
     addToolCall,
     addReasoning,
-    addMcpUnavailableNotice,
     setImproveContextNotification,
     clearImproveContextNotification,
     appendStepProgress,

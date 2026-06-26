@@ -7577,16 +7577,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 keepaliveInterval = undefined;
             }
         };
-        const streamWithMcpNotices = createUIMessageStream({
+        const uiMessageStream = createUIMessageStream({
             execute: ({ writer }) => {
-                for (const unavailableMcpServer of mcpToolSetup.unavailableMcpServers) {
-                    writer.write({
-                        type: 'data-mcp-unavailable',
-                        data: unavailableMcpServer,
-                        transient: true,
-                    });
-                }
-
                 // Keep the connection warm during long, output-silent tool
                 // calls so an idle-timeout proxy can't cut the stream (see
                 // STREAM_KEEPALIVE_INTERVAL_MS). `transient: true` → never
@@ -7651,7 +7643,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             pipeUIMessageStreamToResponse: (response) => {
                 pipeUIMessageStreamToResponse({
                     response,
-                    stream: streamWithMcpNotices,
+                    stream: uiMessageStream,
                 });
             },
             consumeStream: result.consumeStream.bind(result),
