@@ -71,6 +71,7 @@ export class CommercialSlackIntegrationService extends SlackIntegrationService<C
             aiRequireOAuth: installation.aiRequireOAuth,
             aiMultiAgentChannelId: installation.aiMultiAgentChannelId,
             aiMultiAgentProjectUuids: installation.aiMultiAgentProjectUuids,
+            unfurlsEnabled: installation.unfurlsEnabled,
         };
 
         return response;
