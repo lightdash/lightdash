@@ -284,6 +284,7 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
                 clientConfig.credentials = {
                     accessKeyId: credentials.accessKeyId!,
                     secretAccessKey: credentials.secretAccessKey!,
+                    sessionToken: credentials.sessionToken || undefined,
                 };
             }
 

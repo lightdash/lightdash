@@ -58,6 +58,26 @@ describe('convertAthenaSchema', () => {
         });
     });
 
+    test('should forward aws_session_token as sessionToken for temporary STS credentials', () => {
+        const target = {
+            type: 'athena',
+            region_name: 'us-east-1',
+            database: 'AwsDataCatalog',
+            schema: 'default',
+            s3_staging_dir: 's3://test-results/',
+            aws_access_key_id: 'ASIATEST',
+            aws_secret_access_key: 'SECRETTEST',
+            aws_session_token: 'SESSIONTOKENTEST',
+        };
+
+        expect(convertAthenaSchema(target)).toMatchObject({
+            authenticationType: AthenaAuthenticationType.ACCESS_KEY,
+            accessKeyId: 'ASIATEST',
+            secretAccessKey: 'SECRETTEST',
+            sessionToken: 'SESSIONTOKENTEST',
+        });
+    });
+
     test('should throw parse error for invalid Athena target', () => {
         expect(() =>
             convertAthenaSchema({
