@@ -25,17 +25,22 @@ const FAST_MODELS: Record<ModelPresetProvider, string> = {
     bedrock: 'claude-haiku-4-5',
 };
 
+// Returns null when the configured default provider isn't set up (e.g. the
+// default `openai` provider with no OPENAI_API_KEY). Callers use this only to
+// flag which preset is the default, so a missing provider should degrade to
+// "no default" rather than throw — otherwise endpoints that list models (and
+// the whole Settings page that depends on them) break for that config.
 export const getDefaultModel = (
     config: LightdashConfig['ai']['copilot'],
 ): {
     name: string;
     provider: typeof config.defaultProvider;
-} => {
+} | null => {
     switch (config.defaultProvider) {
         case 'azure': {
             const azureConfig = config.providers.azure;
             if (!azureConfig) {
-                throw new ParameterError('Azure configuration is required');
+                return null;
             }
 
             return {
@@ -46,9 +51,7 @@ export const getDefaultModel = (
         default: {
             const defaultProvider = config.providers[config.defaultProvider];
             if (!defaultProvider) {
-                throw new ParameterError(
-                    `Default provider ${config.defaultProvider} not found`,
-                );
+                return null;
             }
             return {
                 name: defaultProvider.modelName,

@@ -2003,6 +2003,7 @@ export class AiAgentService extends BaseService {
         return getAvailableModels(this.lightdashConfig.ai.copilot).map(
             (preset) => {
                 const isDefault =
+                    defaultModel !== null &&
                     preset.provider === defaultModel.provider &&
                     matchesPreset(preset, defaultModel.name);
 

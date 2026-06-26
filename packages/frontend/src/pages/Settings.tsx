@@ -751,15 +751,21 @@ const Settings: FC = () => {
         );
     }, [location.pathname]);
 
+    // Only block on AI org settings while actually navigating to an AI route, so
+    // its dynamic routes (e.g. /ai/reviews) register before the catch-all redirect
+    // fires on a hard refresh. Scoping it here means a failure of that query no
+    // longer blanks the entire Settings surface — every non-AI route still renders.
+    const isAwaitingAiSettingsRoute =
+        isAiOrganizationSettingsLoading &&
+        Boolean(matchPath('/generalSettings/ai/*', location.pathname));
+
     if (
         isHealthLoading ||
         isUserLoading ||
         isOrganizationLoading ||
         isActiveProjectUuidLoading ||
         isProjectLoading ||
-        // Wait for AI org settings so the /ai/reviews route is registered before
-        // routing — otherwise a hard refresh there falls through to the default.
-        isAiOrganizationSettingsLoading
+        isAwaitingAiSettingsRoute
     ) {
         return <PageSpinner />;
     }
