@@ -1010,6 +1010,18 @@ describe('getDateZoomCapabilities', () => {
         });
     });
 
+    it('exposes standard granularity overrides keyed by DateGranularity', () => {
+        const explore = {
+            ...makeExplore([]),
+            granularityLabels: { WEEK: 'Week starting Monday' },
+        } as unknown as Explore;
+        const metricQuery = makeMetricQuery([]);
+        const caps = getDateZoomCapabilities(explore, metricQuery);
+        expect(caps.availableCustomGranularities.Week).toBe(
+            'Week starting Monday',
+        );
+    });
+
     it('exposes every custom granularity defined in the explore, regardless of which dim the chart currently queries', () => {
         const orderDate = makeDimension({
             name: 'order_date',

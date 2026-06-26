@@ -3,6 +3,7 @@ import { TimeFrames } from '../types/timeFrames';
 import {
     getSpotlightConfigurationForResource,
     resolveAdditionalTimeIntervals,
+    resolveGranularityLabels,
 } from './lightdashProjectConfig';
 
 describe('getSpotlightConfigurationForResource defaults', () => {
@@ -91,6 +92,37 @@ describe('resolveAdditionalTimeIntervals', () => {
         expect(
             resolveAdditionalTimeIntervals({ timestamp: ['nonsense'] }, {}),
         ).toEqual({ date: [], timestamp: [] });
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('resolveGranularityLabels', () => {
+    let warnSpy: ReturnType<typeof jest.spyOn>;
+
+    beforeEach(() => {
+        warnSpy = jest
+            .spyOn(console, 'warn')
+            .mockImplementation(() => undefined);
+    });
+
+    afterEach(() => {
+        warnSpy.mockRestore();
+    });
+
+    it('returns empty object when config is undefined', () => {
+        expect(resolveGranularityLabels(undefined)).toEqual({});
+        expect(warnSpy).not.toHaveBeenCalled();
+    });
+
+    it('keys by uppercased TimeFrames and keeps the label verbatim', () => {
+        expect(
+            resolveGranularityLabels({ week: 'Week starting Monday' }),
+        ).toEqual({ [TimeFrames.WEEK]: 'Week starting Monday' });
+        expect(warnSpy).not.toHaveBeenCalled();
+    });
+
+    it('drops an unknown granularity key and warns', () => {
+        expect(resolveGranularityLabels({ nonsense: 'X' })).toEqual({});
         expect(warnSpy).toHaveBeenCalledTimes(1);
     });
 });

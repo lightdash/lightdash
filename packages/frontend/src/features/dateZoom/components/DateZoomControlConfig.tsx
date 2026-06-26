@@ -121,7 +121,10 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
             .filter(isStandardDateGranularity)
             .map((granularity) => ({
                 value: String(granularity),
-                label: String(granularity),
+                label: getGranularityLabel(
+                    granularity,
+                    availableCustomGranularities,
+                ),
             }));
         const customItems = dateZoomGranularities
             .filter((g) => !isStandardDateGranularity(g))

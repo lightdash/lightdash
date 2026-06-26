@@ -4146,6 +4146,10 @@
                     "timeInterval": {
                         "$ref": "#/components/schemas/TimeFrames"
                     },
+                    "timeIntervalLabel": {
+                        "type": "string",
+                        "description": "Overridden display label for this dimension's grain (project\n`granularity_labels`); undefined when no override — callers fall back\nto `timeFrameConfigs[timeInterval].getLabel()`."
+                    },
                     "timeIntervalBaseDimensionName": {
                         "type": "string"
                     },
@@ -8246,6 +8250,10 @@
                     "timeInterval": {
                         "$ref": "#/components/schemas/TimeFrames"
                     },
+                    "timeIntervalLabel": {
+                        "type": "string",
+                        "description": "Overridden display label for this dimension's grain (project\n`granularity_labels`); undefined when no override — callers fall back\nto `timeFrameConfigs[timeInterval].getLabel()`."
+                    },
                     "timeIntervalBaseDimensionName": {
                         "type": "string"
                     },
@@ -8611,6 +8619,78 @@
                 "enum": ["virtual", "default", "pre_aggregate"],
                 "type": "string"
             },
+            "Partial_Record_TimeFrames.string__": {
+                "properties": {
+                    "RAW": {
+                        "type": "string"
+                    },
+                    "YEAR": {
+                        "type": "string"
+                    },
+                    "QUARTER": {
+                        "type": "string"
+                    },
+                    "MONTH": {
+                        "type": "string"
+                    },
+                    "WEEK": {
+                        "type": "string"
+                    },
+                    "DAY": {
+                        "type": "string"
+                    },
+                    "HOUR": {
+                        "type": "string"
+                    },
+                    "MINUTE": {
+                        "type": "string"
+                    },
+                    "SECOND": {
+                        "type": "string"
+                    },
+                    "MILLISECOND": {
+                        "type": "string"
+                    },
+                    "DAY_OF_WEEK_INDEX": {
+                        "type": "string"
+                    },
+                    "DAY_OF_MONTH_NUM": {
+                        "type": "string"
+                    },
+                    "DAY_OF_YEAR_NUM": {
+                        "type": "string"
+                    },
+                    "WEEK_NUM": {
+                        "type": "string"
+                    },
+                    "MONTH_NUM": {
+                        "type": "string"
+                    },
+                    "QUARTER_NUM": {
+                        "type": "string"
+                    },
+                    "YEAR_NUM": {
+                        "type": "string"
+                    },
+                    "DAY_OF_WEEK_NAME": {
+                        "type": "string"
+                    },
+                    "MONTH_NAME": {
+                        "type": "string"
+                    },
+                    "QUARTER_NAME": {
+                        "type": "string"
+                    },
+                    "HOUR_OF_DAY_NUM": {
+                        "type": "string"
+                    },
+                    "MINUTE_OF_HOUR_NUM": {
+                        "type": "string"
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
             "Record_string.string-Array_": {
                 "properties": {},
                 "additionalProperties": {
@@ -8717,6 +8797,10 @@
                     },
                     "savedParameterValues": {
                         "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "granularityLabels": {
+                        "$ref": "#/components/schemas/Partial_Record_TimeFrames.string__",
+                        "description": "Project `granularity_labels` overrides, keyed by TimeFrames. Consumed\nby the date zoom to relabel standard granularities."
                     },
                     "parameters": {
                         "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
@@ -15701,6 +15785,11 @@
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
                                                                         "verifiedChartUsage": {
                                                                             "type": "number",
                                                                             "format": "double",
@@ -15711,18 +15800,13 @@
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -15731,8 +15815,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "label",
                                                                         "tableName",
+                                                                        "label",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -15742,16 +15826,16 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
                                                                         "joinedTables": {
                                                                             "items": {
                                                                                 "type": "string"
                                                                             },
                                                                             "type": "array",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
                                                                             "nullable": true
                                                                         },
                                                                         "requiredFilters": {
@@ -15771,10 +15855,10 @@
                                                                                     "fieldRef": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "fieldId": {
+                                                                                    "operator": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "operator": {
+                                                                                    "fieldId": {
                                                                                         "type": "string"
                                                                                     }
                                                                                 },
@@ -15782,8 +15866,8 @@
                                                                                     "required",
                                                                                     "tableName",
                                                                                     "fieldRef",
-                                                                                    "fieldId",
-                                                                                    "operator"
+                                                                                    "operator",
+                                                                                    "fieldId"
                                                                                 ],
                                                                                 "type": "object"
                                                                             },
@@ -15861,6 +15945,11 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
+                                                                                    "searchRank": {
+                                                                                        "type": "number",
+                                                                                        "format": "double",
+                                                                                        "nullable": true
+                                                                                    },
                                                                                     "verifiedChartUsage": {
                                                                                         "type": "number",
                                                                                         "format": "double",
@@ -15871,18 +15960,13 @@
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "searchRank": {
-                                                                                        "type": "number",
-                                                                                        "format": "double",
-                                                                                        "nullable": true
-                                                                                    },
                                                                                     "fieldType": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "label": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "label": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "name": {
@@ -15891,8 +15975,8 @@
                                                                                 },
                                                                                 "required": [
                                                                                     "fieldType",
-                                                                                    "label",
                                                                                     "tableName",
+                                                                                    "label",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -16014,18 +16098,18 @@
                                                                                         "metric"
                                                                                     ]
                                                                                 },
-                                                                                "label": {
+                                                                                "table": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "fieldId": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "table": {
-                                                                                    "type": "string"
-                                                                                },
                                                                                 "description": {
                                                                                     "type": "string",
                                                                                     "nullable": true
+                                                                                },
+                                                                                "label": {
+                                                                                    "type": "string"
                                                                                 },
                                                                                 "name": {
                                                                                     "type": "string"
@@ -16037,10 +16121,10 @@
                                                                                 "fieldValueType",
                                                                                 "fieldFilterType",
                                                                                 "fieldType",
-                                                                                "label",
-                                                                                "fieldId",
                                                                                 "table",
+                                                                                "fieldId",
                                                                                 "description",
+                                                                                "label",
                                                                                 "name"
                                                                             ],
                                                                             "type": "object"
@@ -16066,10 +16150,10 @@
                                                                                         "fieldRef": {
                                                                                             "type": "string"
                                                                                         },
-                                                                                        "fieldId": {
+                                                                                        "operator": {
                                                                                             "type": "string"
                                                                                         },
-                                                                                        "operator": {
+                                                                                        "fieldId": {
                                                                                             "type": "string"
                                                                                         }
                                                                                     },
@@ -16077,8 +16161,8 @@
                                                                                         "required",
                                                                                         "tableName",
                                                                                         "fieldRef",
-                                                                                        "fieldId",
-                                                                                        "operator"
+                                                                                        "operator",
+                                                                                        "fieldId"
                                                                                     ],
                                                                                     "type": "object"
                                                                                 },
@@ -16221,12 +16305,6 @@
                                                     "href": {
                                                         "type": "string"
                                                     },
-                                                    "warnings": {
-                                                        "items": {
-                                                            "type": "string"
-                                                        },
-                                                        "type": "array"
-                                                    },
                                                     "status": {
                                                         "type": "string",
                                                         "enum": ["success"],
@@ -16235,21 +16313,27 @@
                                                     "slug": {
                                                         "type": "string"
                                                     },
-                                                    "name": {
+                                                    "uuid": {
                                                         "type": "string"
                                                     },
-                                                    "uuid": {
+                                                    "warnings": {
+                                                        "items": {
+                                                            "type": "string"
+                                                        },
+                                                        "type": "array"
+                                                    },
+                                                    "name": {
                                                         "type": "string"
                                                     }
                                                 },
                                                 "required": [
                                                     "versionUuids",
                                                     "href",
-                                                    "warnings",
                                                     "status",
                                                     "slug",
-                                                    "name",
-                                                    "uuid"
+                                                    "uuid",
+                                                    "warnings",
+                                                    "name"
                                                 ],
                                                 "type": "object"
                                             },
@@ -16289,9 +16373,9 @@
                                                                     "type": "string",
                                                                     "enum": [
                                                                         "search",
+                                                                        "compile",
                                                                         "read",
                                                                         "edit",
-                                                                        "compile",
                                                                         "stage"
                                                                     ]
                                                                 },
@@ -16413,12 +16497,12 @@
                                                             "fields": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "chartUsage": {
+                                                                        "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "searchRank": {
+                                                                        "chartUsage": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
@@ -16426,10 +16510,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -16438,8 +16522,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "label",
                                                                         "tableName",
+                                                                        "label",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -29907,6 +29991,10 @@
             },
             "ProjectDefaults": {
                 "properties": {
+                    "granularity_labels": {
+                        "$ref": "#/components/schemas/Record_string.string_",
+                        "description": "Override the display label of standard granularities (e.g. `week`:\n\"Week starting Monday\"). Keyed by standard granularity name; applies to\nExplorer dimension labels, the Explorer sidebar tree, and the date zoom."
+                    },
                     "additional_time_intervals": {
                         "properties": {
                             "timestamp": {
@@ -32910,6 +32998,10 @@
                     },
                     "parameters": {
                         "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
+                    },
+                    "granularityLabels": {
+                        "$ref": "#/components/schemas/Partial_Record_TimeFrames.string__",
+                        "description": "Project `granularity_labels` overrides, keyed by TimeFrames. Consumed\nby the date zoom to relabel standard granularities."
                     },
                     "savedParameterValues": {
                         "$ref": "#/components/schemas/ParametersValuesMap"
@@ -36559,6 +36651,10 @@
                                 "type": "array"
                             }
                         ]
+                    },
+                    "granularityLabels": {
+                        "$ref": "#/components/schemas/Partial_Record_TimeFrames.string__",
+                        "description": "Project `granularity_labels` overrides, keyed by TimeFrames. Consumed\nby the date zoom to relabel standard granularities."
                     },
                     "savedParameterValues": {
                         "$ref": "#/components/schemas/ParametersValuesMap"
