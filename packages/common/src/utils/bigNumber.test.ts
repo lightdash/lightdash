@@ -90,6 +90,14 @@ describe('resolveGranularityInLabel', () => {
         map.d = DateGranularity.YEAR;
         expect(resolveGranularityInLabel('${d.granularity}', map)).toBe('year');
     });
+
+    it('renders a standard-grain override verbatim (not lowercased)', () => {
+        expect(
+            resolveGranularityInLabel('Revenue by ${events_date.granularity}', {
+                events_date: { verbatim: 'Week starting Monday' },
+            }),
+        ).toBe('Revenue by Week starting Monday');
+    });
 });
 
 describe('getGranularityMapFromItems', () => {
@@ -126,6 +134,25 @@ describe('getGranularityMapFromItems', () => {
 
         expect(getGranularityMapFromItems(itemsMap)).toEqual({
             orders_order_date: 'Fiscal quarter',
+        });
+    });
+
+    it('uses the verbatim override label for a standard grain with timeIntervalLabel', () => {
+        const itemsMap = {
+            orders_order_date_week: {
+                fieldType: FieldType.DIMENSION,
+                type: DimensionType.DATE,
+                table: 'orders',
+                name: 'order_date_week',
+                label: 'Order date week starting monday',
+                timeInterval: TimeFrames.WEEK,
+                timeIntervalLabel: 'Week starting Monday',
+                timeIntervalBaseDimensionName: 'order_date',
+            },
+        } as unknown as ItemsMap;
+
+        expect(getGranularityMapFromItems(itemsMap)).toEqual({
+            orders_order_date: { verbatim: 'Week starting Monday' },
         });
     });
 });

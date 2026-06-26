@@ -7,7 +7,15 @@ import {
 
 const GRANULARITY_PATTERN = /\$\{([^}]+)\.granularity\}/g;
 
-export type GranularityMap = Record<string, DateGranularity | string>;
+/** A standard grain whose label was overridden via project `granularity_labels`.
+ *  Carried verbatim so chart labels show it as-authored, unlike
+ *  standard/custom grains which are lowercased for the label. */
+type VerbatimGranularity = { verbatim: string };
+
+export type GranularityMap = Record<
+    string,
+    DateGranularity | string | VerbatimGranularity
+>;
 
 // Builds a base-field-id → active-granularity map from the query's items. The
 // fields already reflect the effective grain (date zoom is applied server-side
@@ -33,7 +41,11 @@ export const getGranularityMapFromItems = (
                 const granularity =
                     timeFrameToDateGranularityMap[field.timeInterval];
                 if (granularity) {
-                    map[baseId] = granularity;
+                    // A project `granularity_labels` override is baked onto the
+                    // dimension as `timeIntervalLabel`; render it verbatim.
+                    map[baseId] = field.timeIntervalLabel
+                        ? { verbatim: field.timeIntervalLabel }
+                        : granularity;
                 }
             }
         }
@@ -51,9 +63,11 @@ export const resolveGranularityInLabel = (
         GRANULARITY_PATTERN,
         (match, fieldBaseId: string) => {
             const granularity = granularityMap[fieldBaseId];
-            return granularity
-                ? getGranularityReferenceValue(granularity)
-                : match;
+            if (!granularity) return match;
+            // Overridden standard grains carry a verbatim label; everything
+            // else (DateGranularity, custom label) is lowercased as before.
+            if (typeof granularity === 'object') return granularity.verbatim;
+            return getGranularityReferenceValue(granularity);
         },
     );
 };
