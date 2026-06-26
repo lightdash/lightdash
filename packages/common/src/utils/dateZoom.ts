@@ -8,7 +8,11 @@ import type { Explore } from '../types/explore';
 import { DimensionType, type CompiledDimension } from '../types/field';
 import type { MetricQuery } from '../types/metricQuery';
 import { isCartesianChartConfig, type ChartConfig } from '../types/savedCharts';
-import { DateGranularity } from '../types/timeFrames';
+import {
+    DateGranularity,
+    timeFrameToDateGranularityMap,
+    type TimeFrames,
+} from '../types/timeFrames';
 import { getItemId } from './item';
 import { getDateDimension } from './timeFrames';
 
@@ -151,6 +155,17 @@ export const getDateZoomCapabilities = (
     for (const dim of allDimensions) {
         if (dim.customTimeInterval) {
             availableCustomGranularities[dim.customTimeInterval] = dim.label;
+        }
+    }
+
+    // Standard-granularity label overrides (project `granularity_labels`) are
+    // surfaced under the same map keyed by the DateGranularity value, so the
+    // date zoom renders them via getGranularityLabel. They are project-global,
+    // so they apply regardless of which dims the dashboard tiles reference.
+    for (const [tf, label] of Object.entries(explore.granularityLabels ?? {})) {
+        const dateGranularity = timeFrameToDateGranularityMap[tf as TimeFrames];
+        if (dateGranularity) {
+            availableCustomGranularities[dateGranularity] = label;
         }
     }
 
