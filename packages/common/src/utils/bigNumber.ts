@@ -7,8 +7,8 @@ import {
 
 const GRANULARITY_PATTERN = /\$\{([^}]+)\.granularity\}/g;
 
-/** A standard grain whose label was overridden via project `granularity_labels`
- *  (GLITCH-264). Carried verbatim so chart labels show it as-authored, unlike
+/** A standard grain whose label was overridden via project `granularity_labels`.
+ *  Carried verbatim so chart labels show it as-authored, unlike
  *  standard/custom grains which are lowercased for the label. */
 type VerbatimGranularity = { verbatim: string };
 
