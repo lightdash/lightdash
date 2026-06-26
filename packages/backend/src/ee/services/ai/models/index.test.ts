@@ -8,7 +8,7 @@ import {
 import { MockLanguageModelV3 } from 'ai/test';
 import { z } from 'zod';
 import { lightdashConfigMock } from '../../../../config/lightdashConfig.mock';
-import { applyStreamingCapability, getModel } from './index';
+import { applyStreamingCapability, getDefaultModel, getModel } from './index';
 
 jest.mock('ai', () => {
     const actual = jest.requireActual('ai');
@@ -29,6 +29,38 @@ const copilotConfigWithStreaming = (supportsStreaming: boolean) => ({
             supportsStreaming,
         },
     },
+});
+
+describe('getDefaultModel', () => {
+    it('returns the default model when the configured provider is present', () => {
+        expect(getDefaultModel(baseCopilotConfig)).toEqual({
+            name: baseCopilotConfig.providers.openai!.modelName,
+            provider: 'openai',
+        });
+    });
+
+    it('returns null when the configured default provider is not set up', () => {
+        // Reproduces the blank-Settings-page bug: defaultProvider `openai`
+        // with no OPENAI_API_KEY (providers.openai absent) must degrade to
+        // null rather than throw, so /aiAgents/admin/settings stays 2xx.
+        const configWithoutProvider = {
+            ...baseCopilotConfig,
+            defaultProvider: 'openai' as const,
+            providers: {},
+        };
+
+        expect(getDefaultModel(configWithoutProvider)).toBeNull();
+    });
+
+    it('returns null when the default azure provider is not configured', () => {
+        const configWithoutAzure = {
+            ...baseCopilotConfig,
+            defaultProvider: 'azure' as const,
+            providers: {},
+        };
+
+        expect(getDefaultModel(configWithoutAzure)).toBeNull();
+    });
 });
 
 describe('getModel', () => {
