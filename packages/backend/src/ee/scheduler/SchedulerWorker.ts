@@ -104,6 +104,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     maxAttempts: 1,
                 },
             },
+            {
+                task: EE_SCHEDULER_TASKS.REAP_SANDBOXES,
+                pattern: '*/5 * * * *', // Every 5 minutes
+                options: {
+                    backfillPeriod: 5 * 60 * 1000, // 5 min
+                    maxAttempts: 1,
+                },
+            },
         ];
     }
 
@@ -414,6 +422,9 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
             },
             [EE_SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: async () => {
                 await this.appGenerateService.sweepStaleLocks();
+            },
+            [EE_SCHEDULER_TASKS.REAP_SANDBOXES]: async () => {
+                await this.appGenerateService.reapSandboxes();
             },
             [EE_SCHEDULER_TASKS.SEND_REVIEW_NOTIFICATION]: async (payload) => {
                 await sendReviewNotification({
