@@ -200,7 +200,10 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
                                                             )
                                                         }
                                                     >
-                                                        {granularity}
+                                                        {getGranularityLabel(
+                                                            granularity,
+                                                            availableCustomGranularities,
+                                                        )}
                                                     </Menu.Item>
                                                 ),
                                             )}
