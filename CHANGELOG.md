@@ -1,3 +1,17 @@
+# [0.3254.0](https://github.com/lightdash/lightdash/compare/0.3253.4...0.3254.0) (2026-06-26)
+
+
+### Bug Fixes
+
+* **gitlab:** paginate branch list so previews show all branches ([#24819](https://github.com/lightdash/lightdash/issues/24819)) ([2650a61](https://github.com/lightdash/lightdash/commit/2650a612dcaaeb716cc11f56f84e4e1da671f037))
+
+
+### Features
+
+* preview saved charts from ai chat ([#24800](https://github.com/lightdash/lightdash/issues/24800)) ([7918aaf](https://github.com/lightdash/lightdash/commit/7918aaf6fec2a01a331e938c6099a35f6a36da2a))
+* show verified badge in chart preview ([#24822](https://github.com/lightdash/lightdash/issues/24822)) ([51e565b](https://github.com/lightdash/lightdash/commit/51e565b635aaec5768f80fba320cf7d4e20e1b14))
+* support saved chart preview drill actions ([#24810](https://github.com/lightdash/lightdash/issues/24810)) ([fc91762](https://github.com/lightdash/lightdash/commit/fc91762b3e2de2f36d32562853a3228ecb612fe5))
+
 ## [0.3253.4](https://github.com/lightdash/lightdash/compare/0.3253.3...0.3253.4) (2026-06-26)
 
 
