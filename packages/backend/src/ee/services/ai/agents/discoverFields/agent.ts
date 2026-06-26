@@ -1,5 +1,6 @@
 import { AgentToolOutput, Explore } from '@lightdash/common';
 import {
+    hasToolCall,
     smoothStream,
     stepCountIs,
     streamText,
@@ -18,7 +19,7 @@ import { getAgentTelemetryConfig } from '../telemetry';
 import { DiscoverFieldsInput, discoverFieldsResultSchema } from './schema';
 import { getDiscoverFieldsSystemPrompt } from './systemPrompt';
 
-const SUBAGENT_STEP_CAP = 15;
+const SUBAGENT_STEP_CAP = 50;
 
 const SUBAGENT_PERSISTED_TOOL_NAMES = ['findExplores', 'findFields'] as const;
 type SubagentPersistedToolName = (typeof SUBAGENT_PERSISTED_TOOL_NAMES)[number];
@@ -129,7 +130,7 @@ export const runDiscoverFieldsAgent = (
         providerOptions: args.providerOptions,
         tools: { findExplores, findFields, submitResult },
         toolChoice: 'auto',
-        stopWhen: stepCountIs(SUBAGENT_STEP_CAP),
+        stopWhen: [hasToolCall('submitResult'), stepCountIs(SUBAGENT_STEP_CAP)],
         messages,
         abortSignal: args.abortSignal,
         experimental_context: new AgentContext(args.availableExplores),
