@@ -69,6 +69,26 @@ describe('AthenaWarehouseClient', () => {
             });
         });
 
+        test('should forward sessionToken for temporary STS credentials', () => {
+            const creds: CreateAthenaCredentials = {
+                ...baseCredentials,
+                accessKeyId: 'ASIATEST',
+                secretAccessKey: 'SECRET',
+                sessionToken: 'SESSIONTOKEN',
+            };
+            // eslint-disable-next-line no-new
+            new AthenaWarehouseClient(creds);
+
+            expect(mockAthenaClient).toHaveBeenCalledWith({
+                region: 'us-east-1',
+                credentials: {
+                    accessKeyId: 'ASIATEST',
+                    secretAccessKey: 'SECRET',
+                    sessionToken: 'SESSIONTOKEN',
+                },
+            });
+        });
+
         test('should not set credentials for IAM_ROLE auth', () => {
             const creds: CreateAthenaCredentials = {
                 ...baseCredentials,
@@ -107,6 +127,31 @@ describe('AthenaWarehouseClient', () => {
             expect(mockAthenaClient).toHaveBeenCalledWith({
                 region: 'us-east-1',
                 credentials: 'sts-credentials',
+            });
+        });
+
+        test('should chain assume role using temporary credentials (sessionToken in masterCredentials)', () => {
+            const creds: CreateAthenaCredentials = {
+                ...baseCredentials,
+                accessKeyId: 'ASIATEST',
+                secretAccessKey: 'SECRET',
+                sessionToken: 'SESSIONTOKEN',
+                assumeRoleArn: 'arn:aws:iam::123456789012:role/my-role',
+            };
+            // eslint-disable-next-line no-new
+            new AthenaWarehouseClient(creds);
+
+            expect(mockFromTemporaryCredentials).toHaveBeenCalledWith({
+                masterCredentials: {
+                    accessKeyId: 'ASIATEST',
+                    secretAccessKey: 'SECRET',
+                    sessionToken: 'SESSIONTOKEN',
+                },
+                params: {
+                    RoleArn: 'arn:aws:iam::123456789012:role/my-role',
+                    RoleSessionName: 'lightdash-athena-session',
+                    ExternalId: undefined,
+                },
             });
         });
 
