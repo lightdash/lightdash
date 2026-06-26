@@ -2,6 +2,7 @@ import { Ability } from '@casl/ability';
 import {
     Account,
     AnyType,
+    ChartType,
     CreateWarehouseCredentials,
     DimensionType,
     DownloadFileType,
@@ -3639,6 +3640,102 @@ describe('AsyncQueryService', () => {
             expect(runSpy).toHaveBeenCalledTimes(1);
             expect(runSpy.mock.calls[0][0]).toEqual(
                 expect.objectContaining({ dateZoom }),
+            );
+        });
+    });
+
+    describe('executeAsyncSavedChartQuery pivotDimensions wiring', () => {
+        const pivotColumn = 'a_dim1';
+
+        const authorizedAccount = {
+            ...sessionAccount,
+            user: {
+                ...sessionAccount.user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: ['view'] },
+                    { subject: 'SavedChart', action: ['view'] },
+                ]),
+            },
+        } as unknown as Account;
+
+        const bigNumberChart = {
+            uuid: 'savedChartUuid',
+            name: 'Big number chart',
+            organizationUuid: projectSummary.organizationUuid,
+            projectUuid,
+            spaceUuid: 'spaceUuid',
+            tableName: validExplore.name,
+            metricQuery: metricQueryMock,
+            parameters: undefined,
+            pivotConfig: { columns: [pivotColumn] },
+            chartConfig: { type: ChartType.BIG_NUMBER },
+        };
+
+        test('passes savedChart.pivotConfig.columns as pivotDimensions to prepareMetricQueryAsyncQueryArgs', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                savedChartModel: {
+                    get: jest.fn(async () => bigNumberChart),
+                } as unknown as SavedChartModel,
+                analyticsModel: {
+                    addChartViewEvent: jest.fn(async () => {}),
+                } as unknown as AnalyticsModel,
+            });
+
+            service.getExploreWithUserAccessControls = jest
+                .fn()
+                .mockResolvedValue({
+                    explore: validExplore,
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                });
+            (service as AnyType).getWarehouseCredentials = jest
+                .fn()
+                .mockResolvedValue(warehouseClientMock.credentials);
+            service.combineParameters = jest.fn().mockResolvedValue(undefined);
+            (service as AnyType).getMetricQueryFields = jest
+                .fn()
+                .mockResolvedValue({ fields: {} });
+
+            const prepareSpy = jest.fn().mockResolvedValue({
+                sql: 'SELECT 1',
+                fields: {},
+                warnings: [],
+                parameterReferences: [],
+                missingParameterReferences: [],
+                usedParameters: {},
+                responseMetricQuery: metricQueryMock,
+                userAccessControls: {
+                    userAttributes: {},
+                    intrinsicUserAttributes: {},
+                },
+                availableParameterDefinitions: {},
+            });
+            (service as AnyType).prepareMetricQueryAsyncQueryArgs = prepareSpy;
+
+            service['executeAsyncQuery'] = jest.fn().mockResolvedValue({
+                queryUuid: 'queryUuid',
+                cacheMetadata: { cacheHit: false },
+            });
+
+            await service.executeAsyncSavedChartQuery({
+                account: authorizedAccount,
+                projectUuid,
+                chartUuid: bigNumberChart.uuid,
+                versionUuid: undefined,
+                context: QueryExecutionContext.CHART,
+                invalidateCache: false,
+                limit: undefined,
+                parameters: undefined,
+                pivotResults: false,
+                filterOverrides: undefined,
+            });
+
+            expect(prepareSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    pivotDimensions: [pivotColumn],
+                }),
             );
         });
     });
