@@ -833,13 +833,13 @@ export class AppModel {
         }
     }
 
-    async updateSandboxId(
+    async updateSandboxUuid(
         appId: string,
-        sandboxId: string | null,
+        sandboxUuid: string | null,
     ): Promise<void> {
         await this.database(AppsTableName)
             .where({ app_id: appId })
-            .update({ sandbox_id: sandboxId });
+            .update({ sandbox_id: sandboxUuid });
     }
 
     /**

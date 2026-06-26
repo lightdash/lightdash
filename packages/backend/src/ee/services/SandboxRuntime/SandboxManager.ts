@@ -204,6 +204,21 @@ export class SandboxManager {
         });
     }
 
+    /**
+     * Suspend a sandbox by its stable id alone — for callers (cancel,
+     * soft-delete, the reaper) that hold no live handle. Connects to the
+     * recorded container then suspends it (snapshot + destroy on object-store
+     * backends), preserving state for a later resume. A row with no live
+     * sandbox is GC'd (nothing to preserve); an already-gone row is a no-op.
+     */
+    async suspendByUuid(sandboxUuid: string): Promise<void> {
+        const row = await this.registry.findBySandboxUuid(sandboxUuid);
+        if (!row) {
+            return;
+        }
+        await this.suspendOrphan(row);
+    }
+
     /** Permanently dispose of a sandbox: kill it, GC its snapshot, drop the row. */
     async destroy(input: {
         sandboxUuid: string;

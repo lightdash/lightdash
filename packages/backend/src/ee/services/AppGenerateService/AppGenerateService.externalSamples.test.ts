@@ -74,6 +74,7 @@ function buildService() {
             projectService: {} as never,
             promoteService: {} as never,
             externalConnectionModel: {} as never,
+            sandboxRegistryModel: {} as never,
         }) as unknown as PrivateWithSamples,
         featureFlagModel,
     };
