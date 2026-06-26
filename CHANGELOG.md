@@ -1,3 +1,16 @@
+# [0.3255.0](https://github.com/lightdash/lightdash/compare/0.3254.2...0.3255.0) (2026-06-26)
+
+
+### Bug Fixes
+
+* **content-table:** debounce search and stop per-keystroke table re-renders ([#24809](https://github.com/lightdash/lightdash/issues/24809)) ([a784e42](https://github.com/lightdash/lightdash/commit/a784e425fe5c8935cc3beb8aca3dc64591ed965b))
+* **date-zoom:** preserve date zoom tileTargets in dashboards as code ([#24826](https://github.com/lightdash/lightdash/issues/24826)) ([2d8a910](https://github.com/lightdash/lightdash/commit/2d8a910b1ef44d078c9d570b3844c8de03b7c68e))
+
+
+### Features
+
+* **filters:** support null as a selectable value in the 'is' filter ([#24828](https://github.com/lightdash/lightdash/issues/24828)) ([7758c69](https://github.com/lightdash/lightdash/commit/7758c695fadc053e900a8282cfb5cbc5a452e877)), closes [#15640](https://github.com/lightdash/lightdash/issues/15640)
+
 ## [0.3254.2](https://github.com/lightdash/lightdash/compare/0.3254.1...0.3254.2) (2026-06-26)
 
 
