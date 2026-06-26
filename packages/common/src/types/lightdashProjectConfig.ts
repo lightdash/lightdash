@@ -67,6 +67,12 @@ export type ProjectDefaults = {
         date?: (TimeFrames | string)[];
         timestamp?: (TimeFrames | string)[];
     };
+    /**
+     * Override the display label of standard granularities (e.g. `week`:
+     * "Week starting Monday"). Keyed by standard granularity name; applies to
+     * Explorer dimension labels, the Explorer sidebar tree, and the date zoom.
+     */
+    granularity_labels?: Record<string, string>;
     // Room for future project-wide defaults like:
     // date_format?: string;
     // number_format?: string;

@@ -1011,6 +1011,15 @@ export const timeFrameConfigs: Record<TimeFrames, TimeFrameConfig> = {
     },
 };
 
+/**
+ * Display label for a time frame, honouring project-level `granularity_labels`
+ * overrides. Returns the built-in `timeFrameConfigs` label when no override.
+ */
+export const getTimeFrameLabel = (
+    tf: TimeFrames,
+    overrides?: Partial<Record<TimeFrames, string>>,
+): string => overrides?.[tf] ?? timeFrameConfigs[tf].getLabel();
+
 export const getDefaultTimeFrames = (type: DimensionType) =>
     type === DimensionType.TIMESTAMP
         ? [

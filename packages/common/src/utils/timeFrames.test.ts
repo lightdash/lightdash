@@ -9,6 +9,7 @@ import {
     getSqlForDatePart,
     getSqlForDatePartName,
     getSqlForTruncatedDate,
+    getTimeFrameLabel,
     getTimeFramesWithProjectDefaults,
     isSubDayGranularity,
     SUB_DAY_GRANULARITIES,
@@ -1437,6 +1438,29 @@ describe('TimeFrames', () => {
                 TimeFrames.QUARTER,
                 TimeFrames.YEAR,
             ]);
+        });
+    });
+
+    describe('getTimeFrameLabel', () => {
+        it('returns the built-in label when no overrides', () => {
+            expect(getTimeFrameLabel(TimeFrames.WEEK)).toBe('Week');
+            expect(getTimeFrameLabel(TimeFrames.MONTH, {})).toBe('Month');
+        });
+
+        it('returns the override verbatim when present', () => {
+            expect(
+                getTimeFrameLabel(TimeFrames.WEEK, {
+                    [TimeFrames.WEEK]: 'Week starting Monday',
+                }),
+            ).toBe('Week starting Monday');
+        });
+
+        it('falls back to built-in for grains without an override', () => {
+            expect(
+                getTimeFrameLabel(TimeFrames.MONTH, {
+                    [TimeFrames.WEEK]: 'Week starting Monday',
+                }),
+            ).toBe('Month');
         });
     });
 });
