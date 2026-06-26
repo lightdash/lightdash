@@ -39,6 +39,21 @@ describe('rehypeAiAgentContentLinks', () => {
         ).toMatchObject({
             href: '/projects/project-uuid/saved/chart-slug/view#section',
             'data-content-type': 'chart-link',
+            'data-chart-source': 'saved-chart',
+            'data-chart-uuid': 'chart-slug',
+        });
+    });
+
+    it('marks explicit saved chart reference links', () => {
+        expect(
+            processHref(
+                '/projects/project-uuid/saved/chart-slug/view#chart-link#chart-type-line',
+            ),
+        ).toMatchObject({
+            href: '/projects/project-uuid/saved/chart-slug/view',
+            'data-content-type': 'chart-link',
+            'data-chart-source': 'saved-chart',
+            'data-chart-type': 'line',
             'data-chart-uuid': 'chart-slug',
         });
     });
@@ -49,6 +64,7 @@ describe('rehypeAiAgentContentLinks', () => {
         ).toMatchObject({
             href: '/projects/project-uuid/sql-runner/sql-chart-slug',
             'data-content-type': 'chart-link',
+            'data-chart-source': 'sql-runner',
             'data-chart-uuid': 'sql-chart-slug',
         });
     });
