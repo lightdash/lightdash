@@ -3,6 +3,7 @@ import { createContext, useContext } from 'react';
 export type YamlDriverInfo = {
     catalogSearchUuid: string;
     name: string;
+    label: string;
     tableName: string;
 };
 
