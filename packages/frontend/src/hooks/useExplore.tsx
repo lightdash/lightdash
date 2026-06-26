@@ -21,6 +21,19 @@ export const useExplore = (
     useQueryOptions?: UseQueryOptions<ApiExploreResults, ApiError>,
 ) => {
     const projectUuid = useProjectUuid();
+
+    return useExploreByProjectUuid(
+        activeTableName,
+        projectUuid,
+        useQueryOptions,
+    );
+};
+
+export const useExploreByProjectUuid = (
+    activeTableName: string | undefined,
+    projectUuid: string | undefined,
+    useQueryOptions?: UseQueryOptions<ApiExploreResults, ApiError>,
+) => {
     const setErrorResponse = useQueryError();
 
     const queryKey = ['tables', activeTableName, projectUuid];

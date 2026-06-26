@@ -31,7 +31,6 @@ import {
     IconCopy,
     IconExclamationCircle,
     IconMessageX,
-    IconPlug,
     IconRefresh,
     IconTerminal2,
     IconTestPipe,
@@ -45,7 +44,6 @@ import { Link } from 'react-router';
 import { type CustomRendererProps } from 'streamdown';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { useAiAgentPermission } from '../../hooks/useAiAgentPermission';
 import {
     useRetryAiAgentThreadMessageMutation,
     useUpdatePromptFeedbackMutation,
@@ -325,10 +323,6 @@ const AssistantBubbleContent: FC<{
     mcpServers,
     onDashboardLinkClick,
 }) => {
-    const canManageAgents = useAiAgentPermission({
-        action: 'manage',
-        projectUuid,
-    });
     const threadStreamingState = useAiAgentThreadStreamQuery(
         message.threadUuid,
     );
@@ -478,8 +472,6 @@ const AssistantBubbleContent: FC<{
         };
     })();
 
-    const mcpUnavailableNotices = streamingState?.mcpUnavailableNotices ?? [];
-
     return (
         <>
             {shouldShowRetry && (
@@ -538,68 +530,6 @@ const AssistantBubbleContent: FC<{
                     </Group>
                 </Paper>
             )}
-
-            {mcpUnavailableNotices.map((notice) => (
-                <Box
-                    key={notice.serverUuid}
-                    className={styles.mcpUnavailableNotice}
-                >
-                    <Group
-                        gap={8}
-                        align="flex-start"
-                        wrap="nowrap"
-                        className={styles.mcpUnavailableNoticeHeader}
-                    >
-                        <Box className={styles.mcpUnavailableNoticeIconChip}>
-                            <MantineIcon
-                                icon={IconPlug}
-                                size={12}
-                                stroke={1.7}
-                                className={styles.mcpUnavailableNoticeIcon}
-                            />
-                        </Box>
-                        <Stack
-                            gap={2}
-                            className={styles.mcpUnavailableNoticeBody}
-                        >
-                            <Text
-                                size="xs"
-                                fw={500}
-                                className={styles.mcpUnavailableNoticeLabel}
-                            >
-                                Couldn&apos;t connect to {notice.serverName}
-                            </Text>
-                            <Group gap={8} align="center" wrap="wrap">
-                                <Text
-                                    size="xs"
-                                    className={
-                                        styles.mcpUnavailableNoticeMessage
-                                    }
-                                >
-                                    {canManageAgents
-                                        ? 'Check connection settings.'
-                                        : 'Reach out to an agent administrator to update this MCP connection.'}
-                                </Text>
-                                {canManageAgents && (
-                                    <Button
-                                        component={Link}
-                                        to={`/projects/${projectUuid}/ai-agents/${agentUuid}/edit`}
-                                        variant="subtle"
-                                        color="gray"
-                                        size="compact-xs"
-                                        px={0}
-                                        className={
-                                            styles.mcpUnavailableNoticeAction
-                                        }
-                                    >
-                                        Open settings
-                                    </Button>
-                                )}
-                            </Group>
-                        </Stack>
-                    </Group>
-                </Box>
-            ))}
 
             {/* Reasoning lives inside the LiveActivityCard at all times, so
              *  there is one unified bento for the agent's process. */}

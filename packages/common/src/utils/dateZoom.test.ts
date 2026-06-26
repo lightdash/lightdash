@@ -403,6 +403,59 @@ describe('resolveTileDateZoom', () => {
         });
     });
 
+    it('zooms a param-only attached tile at the control grain with no x-axis field', () => {
+        const cfg: DateZoomConfig = {
+            controls: [
+                {
+                    uuid: 'ctrl-1',
+                    name: 'Revenue zoom',
+                    granularity: DateGranularity.MONTH,
+                },
+            ],
+            tileTargets: {
+                tileParamOnly: {
+                    controlUuid: 'ctrl-1',
+                    fieldId: null,
+                    tableName: null,
+                },
+            },
+        };
+        expect(
+            resolveTileDateZoom({
+                ...base,
+                config: cfg,
+                tileUuid: 'tileParamOnly',
+            }),
+        ).toEqual({ granularity: DateGranularity.MONTH });
+    });
+
+    it('applies a runtime grain override to a param-only attached tile', () => {
+        const cfg: DateZoomConfig = {
+            controls: [
+                {
+                    uuid: 'ctrl-1',
+                    name: 'Revenue zoom',
+                    granularity: DateGranularity.MONTH,
+                },
+            ],
+            tileTargets: {
+                tileParamOnly: {
+                    controlUuid: 'ctrl-1',
+                    fieldId: null,
+                    tableName: null,
+                },
+            },
+        };
+        expect(
+            resolveTileDateZoom({
+                ...base,
+                config: cfg,
+                tileUuid: 'tileParamOnly',
+                runtimeGranularities: { 'ctrl-1': DateGranularity.WEEK },
+            }),
+        ).toEqual({ granularity: DateGranularity.WEEK });
+    });
+
     it('falls through to the Default for an unassigned tile (preserves x-axis baseline)', () => {
         expect(resolveTileDateZoom({ ...base, tileUuid: 'tileZ' })).toEqual({
             granularity: DateGranularity.YEAR,

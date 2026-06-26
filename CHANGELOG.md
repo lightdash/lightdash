@@ -1,3 +1,76 @@
+## [0.3254.2](https://github.com/lightdash/lightdash/compare/0.3254.1...0.3254.2) (2026-06-26)
+
+
+### Bug Fixes
+
+* chart language map fallback ([#24808](https://github.com/lightdash/lightdash/issues/24808)) ([5f9a1a7](https://github.com/lightdash/lightdash/commit/5f9a1a70d06520cd11ea5a561e0ec4e5eb643faf))
+
+## [0.3254.1](https://github.com/lightdash/lightdash/compare/0.3254.0...0.3254.1) (2026-06-26)
+
+
+### Bug Fixes
+
+* **date-zoom:** apply control grain to date_zoom parameter ([#24821](https://github.com/lightdash/lightdash/issues/24821)) ([27d2fcb](https://github.com/lightdash/lightdash/commit/27d2fcb3d3134059860efbfa93229a5024ae08b5))
+* remove MCP auth warnings from agent thread UI ([#24824](https://github.com/lightdash/lightdash/issues/24824)) ([187df74](https://github.com/lightdash/lightdash/commit/187df7431af39d548e168e753f689645ae1e1a08))
+
+# [0.3254.0](https://github.com/lightdash/lightdash/compare/0.3253.4...0.3254.0) (2026-06-26)
+
+
+### Bug Fixes
+
+* **gitlab:** paginate branch list so previews show all branches ([#24819](https://github.com/lightdash/lightdash/issues/24819)) ([2650a61](https://github.com/lightdash/lightdash/commit/2650a612dcaaeb716cc11f56f84e4e1da671f037))
+
+
+### Features
+
+* preview saved charts from ai chat ([#24800](https://github.com/lightdash/lightdash/issues/24800)) ([7918aaf](https://github.com/lightdash/lightdash/commit/7918aaf6fec2a01a331e938c6099a35f6a36da2a))
+* show verified badge in chart preview ([#24822](https://github.com/lightdash/lightdash/issues/24822)) ([51e565b](https://github.com/lightdash/lightdash/commit/51e565b635aaec5768f80fba320cf7d4e20e1b14))
+* support saved chart preview drill actions ([#24810](https://github.com/lightdash/lightdash/issues/24810)) ([fc91762](https://github.com/lightdash/lightdash/commit/fc91762b3e2de2f36d32562853a3228ecb612fe5))
+
+## [0.3253.4](https://github.com/lightdash/lightdash/compare/0.3253.3...0.3253.4) (2026-06-26)
+
+
+### Bug Fixes
+
+* stop discover fields loop ([#24820](https://github.com/lightdash/lightdash/issues/24820)) ([757d24b](https://github.com/lightdash/lightdash/commit/757d24b20303224199f2e8a933315dc192cba92a))
+
+## [0.3253.3](https://github.com/lightdash/lightdash/compare/0.3253.2...0.3253.3) (2026-06-26)
+
+
+### Bug Fixes
+
+* use primary preview project button ([#24806](https://github.com/lightdash/lightdash/issues/24806)) ([cf064c8](https://github.com/lightdash/lightdash/commit/cf064c8a464b19679e5569688de2282a1b63793f)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+## [0.3253.2](https://github.com/lightdash/lightdash/compare/0.3253.1...0.3253.2) (2026-06-26)
+
+
+### Bug Fixes
+
+* **charts:** correct row_total() table calc in big number tiles ([#24805](https://github.com/lightdash/lightdash/issues/24805)) ([9ea3ed3](https://github.com/lightdash/lightdash/commit/9ea3ed35959b09f0cb317c146e00ff074308cd2e))
+* **slack:** stop link unfurls toggle reverting to on after refresh ([#24813](https://github.com/lightdash/lightdash/issues/24813)) ([b5973db](https://github.com/lightdash/lightdash/commit/b5973db43cad34dcc53da7cde7307b714fda6f1f))
+
+## [0.3253.1](https://github.com/lightdash/lightdash/compare/0.3253.0...0.3253.1) (2026-06-26)
+
+
+### Bug Fixes
+
+* **omnibar:** use subtle dark shade for search group dividers in dark mode ([#24811](https://github.com/lightdash/lightdash/issues/24811)) ([65ea02c](https://github.com/lightdash/lightdash/commit/65ea02c77bd56b33aa80a45c7703164e03e6bcb7)), closes [#7a7a7](https://github.com/lightdash/lightdash/issues/7a7a7)
+* **sql-runner:** restore warehouse type when share link clears it ([#24807](https://github.com/lightdash/lightdash/issues/24807)) ([9dc77db](https://github.com/lightdash/lightdash/commit/9dc77db6535f640396cad0abe2e598347e44bd49))
+
+# [0.3253.0](https://github.com/lightdash/lightdash/compare/0.3252.2...0.3253.0) (2026-06-26)
+
+
+### Features
+
+* add app uuid to query tags for data app queries ([#24740](https://github.com/lightdash/lightdash/issues/24740)) ([35b4c91](https://github.com/lightdash/lightdash/commit/35b4c91511a72edbad83015f5c464790c5c89fa3))
+
+## [0.3252.2](https://github.com/lightdash/lightdash/compare/0.3252.1...0.3252.2) (2026-06-26)
+
+
+### Bug Fixes
+
+* **ai:** stop blank Settings page when default AI provider isn't configured ([#24802](https://github.com/lightdash/lightdash/issues/24802)) ([#24804](https://github.com/lightdash/lightdash/issues/24804)) ([a8cb8c3](https://github.com/lightdash/lightdash/commit/a8cb8c3e27d2f0177e7b03550e742f96795056ed)), closes [#24596](https://github.com/lightdash/lightdash/issues/24596)
+
 ## [0.3252.1](https://github.com/lightdash/lightdash/compare/0.3252.0...0.3252.1) (2026-06-26)
 
 

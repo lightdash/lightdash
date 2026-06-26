@@ -1,6 +1,6 @@
 import { type AiAgentThread } from '@lightdash/common';
 import { useEffect, useMemo, useRef } from 'react';
-import { clearArtifact, setArtifact } from '../store/aiArtifactSlice';
+import { clearPreview, setArtifact } from '../store/aiArtifactSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
@@ -29,7 +29,7 @@ export const useAiAgentThreadArtifact = ({
 
     useEffect(() => {
         return () => {
-            dispatch(clearArtifact());
+            dispatch(clearPreview());
             lastHandledMessageUuidRef.current = null;
             prevArtifactRef.current = null;
         };
