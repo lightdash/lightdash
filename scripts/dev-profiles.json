@@ -10,14 +10,15 @@
     },
     "ee": {
       "label": "Enterprise Edition — license + all AI (agents, writeback, reviews)",
-      "description": "EE license plus every AI feature: Copilot/agents, AI writeback (opens PRs via GitHub), and the reviews classifier. Bootstraps from the EE base snapshot. Requires the GitHub integration so writeback is turnkey.",
+      "description": "EE license plus every AI feature: Copilot/agents, AI writeback (opens PRs via GitHub), and the reviews classifier. Bootstraps from the EE base snapshot. Requires the GitHub integration so writeback is turnkey. AI sandboxes default to the LOCAL Docker provider (SANDBOX_PROVIDER=docker) — no E2B account needed locally; build the images per the Sandboxes section of docker-dev.md.",
       "ee": true,
       "requires": ["github"],
-      "secrets": ["LIGHTDASH_LICENSE_KEY", "ANTHROPIC_API_KEY", "E2B_API_KEY"],
-      "env": { "AI_COPILOT_ENABLED": "true", "AI_DEFAULT_PROVIDER": "anthropic" },
+      "secrets": ["LIGHTDASH_LICENSE_KEY", "ANTHROPIC_API_KEY"],
+      "env": { "AI_COPILOT_ENABLED": "true", "AI_DEFAULT_PROVIDER": "anthropic", "SANDBOX_PROVIDER": "docker" },
       "flags": ["ai-writeback", "github-mcp-one-click", "ai-preview-deploy-setup"],
       "orgSettings": { "ai_agent_reviews_enabled": true },
-      "verify": ["agents-200", "writeback-token"]
+      "verify": ["agents-200", "writeback-token"],
+      "notes": "Sandboxes default to SANDBOX_PROVIDER=docker (local containers). Build the two local images (lightdash-sandbox:local, lightdash-ai-writeback:local) via sandboxes/*/build-local-image.sh before running writeback or data-app generation — see the Sandboxes section of docker-dev.md. To use E2B instead, add E2B_API_KEY and set SANDBOX_PROVIDER=e2b."
     },
     "slack": {
       "label": "Slack bot (optional add-on)",

@@ -276,6 +276,60 @@ Expect `Enterprise license for <site> is valid.` and no `no factory or provider`
 
 ---
 
+## Sandboxes (AI writeback & data-app generation)
+
+AI writeback and data-app generation run a Claude Code agent inside a **sandbox**. Locally,
+the **default is the Docker sandbox provider** (`SANDBOX_PROVIDER=docker`) — plain local
+containers, no E2B account needed. The `ee` profile sets `SANDBOX_PROVIDER=docker` for you
+(see `scripts/dev-profiles.json`); the dev E2B account is missing the `lightdash-ai-writeback`
+template, so Docker is the working local path anyway. Public docs:
+`mintlify-docs/self-host/customize-deployment/sandboxes.mdx`.
+
+**This is dev-only.** The Docker provider refuses to start when `NODE_ENV=production` (root
+-equivalent Docker-socket access, no isolation). Production uses `SANDBOX_PROVIDER=e2b`.
+
+### Setup (one-time per machine)
+
+1. **Build the two local images** (heavy — `lightdash-sandbox:local` ~2.3GB for data apps,
+   `lightdash-ai-writeback:local` ~5GB for writeback; rebuild only when the toolchain changes):
+   ```bash
+   ./sandboxes/data-apps/build-local-image.sh        # -> lightdash-sandbox:local
+   ./sandboxes/ai-writeback/build-local-image.sh     # -> lightdash-ai-writeback:local
+   ```
+2. **Env** (the `ee` profile writes `SANDBOX_PROVIDER=docker`; the image vars default, set only to override):
+   ```bash
+   SANDBOX_PROVIDER=docker
+   # SANDBOX_DOCKER_IMAGE=lightdash-sandbox:local
+   # SANDBOX_AI_WRITEBACK_DOCKER_IMAGE=lightdash-ai-writeback:local
+   ```
+   Requires `ANTHROPIC_API_KEY` (agent) and MinIO up (snapshots tar to object storage).
+
+### Critical gotchas
+
+- **Both api AND scheduler need the env.** Data-app generation runs in the **scheduler**
+  graphile task, so a stale `SANDBOX_PROVIDER` there silently keeps gen on E2B. PM2 caches
+  env across a plain `restart` — `pm2 delete ${LD_INSTANCE_ID}-api ${LD_INSTANCE_ID}-scheduler && pnpm pm2:start`
+  to reliably reload `.env.development.local`. Verify with `pm2 jlist` that BOTH processes
+  show `SANDBOX_PROVIDER=docker`.
+- **After an OrbStack/Docker restart**, MinIO + NATS may not come back (gen needs MinIO) and
+  the graphile worker can zombie — re-run shared compose up and restart the scheduler.
+
+### Verify
+
+```bash
+# One-shot writeback (synchronous, ~50s; destroys the container on exit):
+curl -s -X POST -H "Authorization: ApiKey $LDPAT" -H 'Content-Type: application/json' \
+  "$LIGHTDASH_API_URL/api/v1/ee/projects/<projectUuid>/ai-writeback" \
+  -d '{"prompt":"add a test metric"}'
+# Watch for: Docker sandbox created -> repo cloned -> lightdash compile -> opened PR.
+# A suspended data-app sandbox leaves a sandbox_registry row (provider=docker, status=suspended,
+# snapshot_ref kind=s3-tar) with the container destroyed.
+```
+
+To switch a local instance to E2B instead, add `E2B_API_KEY` and set `SANDBOX_PROVIDER=e2b`.
+
+---
+
 ## `start`: Auto-detect and Setup
 
 **ALWAYS try the deterministic fast path first.** Only fall back to the agentic steps when the script fails — this is what keeps worktree iteration fast.
