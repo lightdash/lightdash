@@ -1,3 +1,16 @@
+# [0.3256.0](https://github.com/lightdash/lightdash/compare/0.3255.0...0.3256.0) (2026-06-26)
+
+
+### Bug Fixes
+
+* ai artifact grouped tables ([#24832](https://github.com/lightdash/lightdash/issues/24832)) ([39a7887](https://github.com/lightdash/lightdash/commit/39a7887b3ab88098ff3861b20bd38c0f3a08718c))
+* cap notifications popover scroll height ([#24827](https://github.com/lightdash/lightdash/issues/24827)) ([b610ade](https://github.com/lightdash/lightdash/commit/b610ade59e08b7eebe504997d682b203f28f9c4b))
+
+
+### Features
+
+* show saved chart preview in launcher ([#24825](https://github.com/lightdash/lightdash/issues/24825)) ([1dba59e](https://github.com/lightdash/lightdash/commit/1dba59e638bd793309d6896c82e86f99b0529521))
+
 # [0.3255.0](https://github.com/lightdash/lightdash/compare/0.3254.2...0.3255.0) (2026-06-26)
 
 
