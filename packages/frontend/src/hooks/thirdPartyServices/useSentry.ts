@@ -61,14 +61,8 @@ const useSentry = (
                     replayIntegration(),
                 ],
                 tracesSampler(samplingContext) {
-                    if (sentrySpotlightEnabled) {
-                        return 1.0;
-                    }
-
-                    // Skip tracing on dashboard pages — Sentry's timer
-                    // wrapping causes significant main thread blocking
-                    // when dashboards unmount/mount many tiles at once.
-                    // Controlled by LIGHTDASH_DASHBOARD_DISABLE_SENTRY_TRACKING=true
+                    // Skip dashboard tracing before the Spotlight branch so the
+                    // opt-out also applies in Spotlight dev (100% sampling).
                     if (disableDashboardTracing) {
                         const name =
                             samplingContext.name ||
@@ -77,6 +71,10 @@ const useSentry = (
                         if (name.includes('/dashboards/')) {
                             return 0;
                         }
+                    }
+
+                    if (sentrySpotlightEnabled) {
+                        return 1.0;
                     }
 
                     if (samplingContext.parentSampled !== undefined) {
