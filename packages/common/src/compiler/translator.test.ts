@@ -141,6 +141,24 @@ describe('attachTypesToModels', () => {
             'Column "myColumnName" from model "myTable" does not exist.\n "myTable.myColumnName" was not found in your target warehouse at myDatabase.mySchema.myTable. Try rerunning dbt to update your warehouse.',
         );
     });
+    it('should not throw for a missing column with an explicit dimension type', async () => {
+        const modelWithExplicitType = {
+            ...model,
+            columns: {
+                myColumnName: {
+                    name: 'myColumnName',
+                    meta: { dimension: { type: DimensionType.STRING } },
+                },
+            },
+        };
+        expect(
+            attachTypesToModels(
+                [modelWithExplicitType],
+                warehouseSchemaWithMissingColumn,
+                true,
+            )[0].columns.myColumnName.data_type,
+        ).toBeUndefined();
+    });
     it('should match uppercase column names when case-sensitive is false', async () => {
         expect(
             attachTypesToModels(
