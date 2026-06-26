@@ -1,4 +1,5 @@
-import Docker, { type Container } from 'dockerode';
+import type Docker from 'dockerode';
+import type { Container } from 'dockerode';
 import { randomBytes } from 'node:crypto';
 import { posix } from 'node:path';
 import { Writable } from 'node:stream';
@@ -327,7 +328,7 @@ export class DockerSandboxProvider implements SandboxProvider {
         persistence: 'objectstore',
     };
 
-    private readonly docker: Docker;
+    private docker: Docker | undefined;
 
     constructor(
         private readonly image: string,
@@ -338,11 +339,21 @@ export class DockerSandboxProvider implements SandboxProvider {
                 'DockerSandboxProvider is not allowed in production (runc + Docker socket is root-equivalent on the host)',
             );
         }
-        this.docker = new Docker();
+    }
+
+    private async getDocker(): Promise<Docker> {
+        if (this.docker) {
+            return this.docker;
+        }
+        const { default: DockerCtor } = await import('dockerode');
+        const docker = new DockerCtor();
+        this.docker = docker;
+        return docker;
     }
 
     async create(spec: SandboxSpec): Promise<SandboxHandle> {
-        const container = await this.docker.createContainer({
+        const docker = await this.getDocker();
+        const container = await docker.createContainer({
             Image: this.image,
             name: `${SANDBOX_NAME_PREFIX}-${randomBytes(4).toString('hex')}`,
             // Keep the container alive so we can exec into it across stages.
@@ -359,7 +370,8 @@ export class DockerSandboxProvider implements SandboxProvider {
     }
 
     async connect(sandboxId: string): Promise<SandboxHandle> {
-        const container = this.docker.getContainer(sandboxId);
+        const docker = await this.getDocker();
+        const container = docker.getContainer(sandboxId);
         // Throws if the container no longer exists — callers fall back to create.
         await container.inspect();
         return new DockerSandboxHandle(container, sandboxId, this.logger);
@@ -367,7 +379,8 @@ export class DockerSandboxProvider implements SandboxProvider {
 
     async destroy(sandboxId: string): Promise<void> {
         try {
-            await this.docker.getContainer(sandboxId).remove({ force: true });
+            const docker = await this.getDocker();
+            await docker.getContainer(sandboxId).remove({ force: true });
             this.logger.info(`Docker sandbox destroyed (id=${sandboxId})`);
         } catch (error) {
             // 404 — already gone. Anything else is logged but not fatal to the

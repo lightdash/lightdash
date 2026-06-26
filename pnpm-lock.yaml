@@ -23,6 +23,9 @@ overrides:
   tar: 7.5.11
   eslint: 8.57.1
   canvas: 3.2.1
+  ssh2: 1.17.0
+  cpu-features: 0.0.10
+  nan: 2.27.0
   express-rate-limit: 8.3.0
   '@hapi/content': 6.0.1
   undici: 6.27.0
@@ -1773,8 +1776,8 @@ importers:
         specifier: 2.3.4
         version: 2.3.4(asn1.js@5.4.1)(encoding@0.1.13)
       ssh2:
-        specifier: 1.14.0
-        version: 1.14.0
+        specifier: 1.17.0
+        version: 1.17.0
       trino-client:
         specifier: 0.2.9
         version: 0.2.9
@@ -9097,10 +9100,6 @@ packages:
     resolution: {integrity: sha512-9IkYqtX3YHPCzoVg1Py+o9057a3i0fp7S530UWokCSaFVTc7CwXPRiOjRjBQQ18ZCNafx78YfnG+HALxtVmOGA==}
     engines: {node: '>=10.0.0'}
 
-  cpu-features@0.0.9:
-    resolution: {integrity: sha512-AKjgn2rP2yJyfbepsmLfiYcmtNn/2eUvocUyM/09yB0YDiz39HteK/5/T4Onf0pmdYDMgkBoGvRLvEguzyL7wQ==}
-    engines: {node: '>=10.0.0'}
-
   crc-32@1.2.2:
     resolution: {integrity: sha512-ROmzCKrTnOwybPcJApAA6WBWij23HVfGVNKqqrZpuyZOHqK2CwHSvpGuyt/UNNvaIjEd8X5IFGp4Mh+Ie1IHJQ==}
     engines: {node: '>=0.8'}
@@ -12995,9 +12994,6 @@ packages:
   mz@2.7.0:
     resolution: {integrity: sha512-z81GNO7nnYMEhrGh9LeymoE4+Yr0Wn5McHIZMK5cfQCl+NDX08sCZgUc9/6MHni9IWuFLm1Z3HTCXu2z9fN62Q==}
 
-  nan@2.18.0:
-    resolution: {integrity: sha512-W7tfG7vMOGtD30sHoZSSc/JVYiyDPEyQVso/Zz+/uQd0B0L46gtC+pHha5FFMRpil6fm/AoEcRWyOVi4+E/f8w==}
-
   nan@2.27.0:
     resolution: {integrity: sha512-hC+0LidcL3XE4rp1C4H54KujgXKzbfyTngZTwBByQxsOxCEKZT0MPQ4hOKUH2jU1OYstqdDH4onyHPDzcV0XdQ==}
 
@@ -15394,10 +15390,6 @@ packages:
 
   sql.js@1.14.1:
     resolution: {integrity: sha512-gcj8zBWU5cFsi9WUP+4bFNXAyF1iRpA3LLyS/DP5xlrNzGmPIizUeBggKa8DbDwdqaKwUcTEnChtd2grWo/x/A==}
-
-  ssh2@1.14.0:
-    resolution: {integrity: sha512-AqzD1UCqit8tbOKoj6ztDDi1ffJZ2rV2SwlgrVVrHPkV5vWqGJOVp5pmtj18PunkPJAuKQsnInyKV+/Nb2bUnA==}
-    engines: {node: '>=10.16.0'}
 
   ssh2@1.17.0:
     resolution: {integrity: sha512-wPldCk3asibAjQ/kziWQQt1Wh3PgDFpC0XpwclzKcdT1vql6KeYxf5LIt4nlFkUeR8WuphYMKqUA56X4rjbfgQ==}
@@ -26333,12 +26325,6 @@ snapshots:
       nan: 2.27.0
     optional: true
 
-  cpu-features@0.0.9:
-    dependencies:
-      buildcheck: 0.0.6
-      nan: 2.18.0
-    optional: true
-
   crc-32@1.2.2: {}
 
   crc32-stream@4.0.3:
@@ -30672,7 +30658,7 @@ snapshots:
     dependencies:
       buffer: 5.7.1
       cuint: 0.2.2
-      nan: 2.18.0
+      nan: 2.27.0
       xxhashjs: 0.2.2
     optional: true
 
@@ -31490,9 +31476,6 @@ snapshots:
       any-promise: 1.3.0
       object-assign: 4.1.1
       thenify-all: 1.6.0
-
-  nan@2.18.0:
-    optional: true
 
   nan@2.27.0:
     optional: true
@@ -34368,14 +34351,6 @@ snapshots:
       nearley: 2.20.1
 
   sql.js@1.14.1: {}
-
-  ssh2@1.14.0:
-    dependencies:
-      asn1: 0.2.6
-      bcrypt-pbkdf: 1.0.2
-    optionalDependencies:
-      cpu-features: 0.0.9
-      nan: 2.18.0
 
   ssh2@1.17.0:
     dependencies:
