@@ -44,8 +44,8 @@ type DraggableMetricItemProps = {
 const DraggableMetricItem: FC<DraggableMetricItemProps> = React.memo(
     ({ node, hasYamlDrivers, onDragStart }) => {
         const title = useMemo(
-            () => friendlyName(node.data.label),
-            [node.data.label],
+            () => node.data.label || friendlyName(node.data.metricName),
+            [node.data.label, node.data.metricName],
         );
 
         const { ref, isTruncated } = useIsTruncated();
@@ -120,7 +120,7 @@ const MetricsSidebar: FC<MetricsSidebarProps> = React.memo(
                     'application/reactflow',
                     JSON.stringify({
                         catalogSearchUuid: node.id,
-                        name: node.data.label,
+                        name: node.data.metricName,
                         tableName: node.data.tableName,
                     }),
                 );

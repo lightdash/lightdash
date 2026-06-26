@@ -104,7 +104,10 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
     isConnectable,
     selected,
 }) => {
-    const title = useMemo(() => friendlyName(data.label), [data.label]);
+    const title = useMemo(
+        () => data.label || friendlyName(data.metricName),
+        [data.label, data.metricName],
+    );
 
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,

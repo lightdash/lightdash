@@ -411,7 +411,7 @@ export const useCanvasFlow = ({
                             (n) => n.id === driver.catalogSearchUuid,
                         );
                         const baseData = fromAllNodes?.data ?? {
-                            label: driver.name,
+                            label: driver.label,
                             tableName: driver.tableName,
                             metricName: driver.name,
                             isEdgeTarget: false,

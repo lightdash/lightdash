@@ -12,6 +12,7 @@ import type { ExpandedNodeData } from './TreeComponents/nodes/ExpandedNode';
  * CatalogField satisfies this (no positions), MetricsTreeNode satisfies this (with positions).
  */
 export type CanvasMetric = CatalogMetricsTreeNode & {
+    label: string;
     xPosition?: number | null;
     yPosition?: number | null;
 };
@@ -141,7 +142,7 @@ export const buildAllNodes = (
             position: savedPosition ?? { x: 0, y: 0 },
             type: 'expanded',
             data: {
-                label: metric.name,
+                label: metric.label,
                 tableName: metric.tableName,
                 metricName: metric.name,
                 timeFrame: TimeFrames.MONTH, // Default, will be updated by effect
