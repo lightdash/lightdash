@@ -409,6 +409,18 @@ export class AppGenerateService extends BaseService {
      * and to the returned {@link SandboxHandle} for the data plane.
      * See SandboxRuntime/DESIGN.md.
      */
+    /**
+     * Whether a sandbox runtime is actually configured. Mirrors the precondition
+     * in `createSandboxProvider`: Docker needs no credentials, E2B requires an
+     * API key. Used to no-op the reaper cron on installs with no runtime
+     * configured (the default `SANDBOX_PROVIDER=e2b` with no `E2B_API_KEY`),
+     * instead of throwing `MissingConfigError` on every scheduled run.
+     */
+    private isSandboxRuntimeConfigured(): boolean {
+        const { sandboxProvider, e2bApiKey } = this.lightdashConfig.appRuntime;
+        return sandboxProvider === 'docker' || e2bApiKey !== null;
+    }
+
     private getSandboxManager(): SandboxManager {
         if (!this.sandboxManager) {
             this.sandboxManager = createSandboxManager({
@@ -1159,6 +1171,13 @@ export class AppGenerateService extends BaseService {
                 `Released ${rowCount} stale appGeneratePipeline job(s) (no progress in ${STALE_THRESHOLD})`,
             );
         }
+    }
+
+    async reapSandboxes(): Promise<void> {
+        if (!this.isSandboxRuntimeConfigured()) {
+            return;
+        }
+        await this.getSandboxManager().reapIdle();
     }
 
     private async createSandbox(
