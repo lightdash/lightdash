@@ -1,3 +1,15 @@
+# [0.3257.0](https://github.com/lightdash/lightdash/compare/0.3256.0...0.3257.0) (2026-06-26)
+
+
+### Features
+
+* configurable standard-granularity labels ([#24831](https://github.com/lightdash/lightdash/issues/24831)) ([66b58e9](https://github.com/lightdash/lightdash/commit/66b58e9028d46df0c783b9afbe4add66e91bb868))
+
+
+### Reverts
+
+* strip hardcoded pivot values from chart-as-code YAML ([#24629](https://github.com/lightdash/lightdash/issues/24629)) ([#24836](https://github.com/lightdash/lightdash/issues/24836)) ([a8bca80](https://github.com/lightdash/lightdash/commit/a8bca80480c1639d1d2e52614a2cc124d9abd643))
+
 # [0.3256.0](https://github.com/lightdash/lightdash/compare/0.3255.0...0.3256.0) (2026-06-26)
 
 
