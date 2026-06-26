@@ -15749,10 +15749,10 @@
                                                                                     "fieldRef": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "fieldId": {
+                                                                                    "operator": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "operator": {
+                                                                                    "fieldId": {
                                                                                         "type": "string"
                                                                                     }
                                                                                 },
@@ -15760,8 +15760,8 @@
                                                                                     "required",
                                                                                     "tableName",
                                                                                     "fieldRef",
-                                                                                    "fieldId",
-                                                                                    "operator"
+                                                                                    "operator",
+                                                                                    "fieldId"
                                                                                 ],
                                                                                 "type": "object"
                                                                             },
@@ -15961,6 +15961,10 @@
                                                         "anyOf": [
                                                             {
                                                                 "properties": {
+                                                                    "rationale": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
                                                                     "fields": {
                                                                         "items": {
                                                                             "properties": {
@@ -15970,8 +15974,8 @@
                                                                                 "caseSensitiveFilters": {
                                                                                     "type": "string",
                                                                                     "enum": [
-                                                                                        "false",
                                                                                         "true",
+                                                                                        "false",
                                                                                         "not_applicable"
                                                                                     ]
                                                                                 },
@@ -15995,13 +15999,13 @@
                                                                                 "label": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "fieldId": {
-                                                                                    "type": "string"
-                                                                                },
                                                                                 "name": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "table": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "fieldId": {
                                                                                     "type": "string"
                                                                                 }
                                                                             },
@@ -16013,17 +16017,13 @@
                                                                                 "fieldType",
                                                                                 "description",
                                                                                 "label",
-                                                                                "fieldId",
                                                                                 "name",
-                                                                                "table"
+                                                                                "table",
+                                                                                "fieldId"
                                                                             ],
                                                                             "type": "object"
                                                                         },
                                                                         "type": "array"
-                                                                    },
-                                                                    "rationale": {
-                                                                        "type": "string",
-                                                                        "nullable": true
                                                                     },
                                                                     "explore": {
                                                                         "properties": {
@@ -16044,10 +16044,10 @@
                                                                                         "fieldRef": {
                                                                                             "type": "string"
                                                                                         },
-                                                                                        "fieldId": {
+                                                                                        "operator": {
                                                                                             "type": "string"
                                                                                         },
-                                                                                        "operator": {
+                                                                                        "fieldId": {
                                                                                             "type": "string"
                                                                                         }
                                                                                     },
@@ -16055,8 +16055,8 @@
                                                                                         "required",
                                                                                         "tableName",
                                                                                         "fieldRef",
-                                                                                        "fieldId",
-                                                                                        "operator"
+                                                                                        "operator",
+                                                                                        "fieldId"
                                                                                     ],
                                                                                     "type": "object"
                                                                                 },
@@ -16095,8 +16095,8 @@
                                                                     }
                                                                 },
                                                                 "required": [
-                                                                    "fields",
                                                                     "rationale",
+                                                                    "fields",
                                                                     "explore",
                                                                     "status"
                                                                 ],
@@ -16199,6 +16199,12 @@
                                                     "href": {
                                                         "type": "string"
                                                     },
+                                                    "warnings": {
+                                                        "items": {
+                                                            "type": "string"
+                                                        },
+                                                        "type": "array"
+                                                    },
                                                     "status": {
                                                         "type": "string",
                                                         "enum": ["success"],
@@ -16210,12 +16216,6 @@
                                                     "uuid": {
                                                         "type": "string"
                                                     },
-                                                    "warnings": {
-                                                        "items": {
-                                                            "type": "string"
-                                                        },
-                                                        "type": "array"
-                                                    },
                                                     "name": {
                                                         "type": "string"
                                                     }
@@ -16223,10 +16223,10 @@
                                                 "required": [
                                                     "versionUuids",
                                                     "href",
+                                                    "warnings",
                                                     "status",
                                                     "slug",
                                                     "uuid",
-                                                    "warnings",
                                                     "name"
                                                 ],
                                                 "type": "object"
@@ -16267,9 +16267,9 @@
                                                                     "type": "string",
                                                                     "enum": [
                                                                         "search",
+                                                                        "compile",
                                                                         "read",
                                                                         "edit",
-                                                                        "compile",
                                                                         "stage"
                                                                     ]
                                                                 },
@@ -41459,7 +41459,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3249.0",
+        "version": "0.3252.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

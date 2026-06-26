@@ -22,6 +22,7 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import type { SshTunnel } from '@lightdash/warehouses';
+import ExecutionContext from 'node-execution-context';
 import { Readable } from 'stream';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import type { S3CacheClient } from '../../clients/Aws/S3CacheClient';
@@ -1435,6 +1436,72 @@ describe('AsyncQueryService', () => {
     });
 
     describe('executeAsyncMetricQuery', () => {
+        test('tags warehouse queries with the originating data app from the request context', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            service.getExploreWithUserAccessControls = jest
+                .fn()
+                .mockResolvedValue({
+                    explore: validExplore,
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                });
+            (service as AnyType).getWarehouseCredentials = jest
+                .fn()
+                .mockResolvedValue(warehouseClientMock.credentials);
+            service.combineParameters = jest.fn().mockResolvedValue(undefined);
+            (service as AnyType).prepareMetricQueryAsyncQueryArgs = jest
+                .fn()
+                .mockResolvedValue({
+                    sql: 'SELECT * FROM test',
+                    fields: {},
+                    warnings: [],
+                    parameterReferences: [],
+                    missingParameterReferences: [],
+                    usedParameters: {},
+                    responseMetricQuery: metricQueryMock,
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                    availableParameterDefinitions: {},
+                });
+            service['executeAsyncQuery'] = jest.fn().mockResolvedValue({
+                queryUuid: 'queryUuid',
+                cacheMetadata: {
+                    cacheHit: false,
+                },
+            });
+
+            // app_uuid rides in on the request-scoped ExecutionContext (stamped
+            // by requestExecutionContextMiddleware from the app header), not a
+            // query arg — so exercise the real context the same way.
+            await ExecutionContext.run(
+                () =>
+                    service.executeAsyncMetricQuery({
+                        account: sessionAccount,
+                        projectUuid,
+                        metricQuery: metricQueryMock,
+                        context: QueryExecutionContext.EXPLORE,
+                        invalidateCache: false,
+                        dateZoom: undefined,
+                        parameters: undefined,
+                        pivotConfiguration: undefined,
+                    }),
+                { app_uuid: 'app-uuid' },
+            );
+
+            expect(service['executeAsyncQuery']).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    queryTags: expect.objectContaining({
+                        app_uuid: 'app-uuid',
+                    }),
+                }),
+                expect.any(Object),
+            );
+        });
+
         test('attaches required pre-aggregate routing metadata for direct pre-aggregate explores', async () => {
             const mockStrategy: PreAggregateStrategy = {
                 ...makeMockStrategy({

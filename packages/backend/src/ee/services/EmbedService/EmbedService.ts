@@ -998,6 +998,7 @@ export class EmbedService extends BaseService {
         queryTags: Omit<
             Required<RunQueryTags>,
             | 'user_uuid'
+            | 'app_uuid'
             | 'chart_uuid'
             | 'dashboard_uuid'
             // Scheduler-attribution tags only apply to scheduler-driven jobs,
