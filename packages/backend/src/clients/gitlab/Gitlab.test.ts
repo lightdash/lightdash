@@ -1,5 +1,6 @@
 import fetchMock from 'jest-fetch-mock';
 import {
+    getBranches,
     getFileContent,
     getGitlabRepoTree,
     getMergeRequestComments,
@@ -165,6 +166,70 @@ describe('GitlabClient.getGitlabRepoTree', () => {
 
         const error = await getGitlabRepoTree(args).catch((e) => e);
         expect(isGitlabRateLimitError(error)).toBe(true);
+    });
+});
+
+describe('GitlabClient.getBranches', () => {
+    beforeEach(() => {
+        fetchMock.resetMocks();
+    });
+
+    const args = {
+        owner: 'my-group',
+        repo: 'my-repo',
+        token: 'glpat-xxx',
+    };
+
+    // One GitLab branches API page plus the x-next-page header GitLab uses for
+    // pagination (empty string ⇒ last page).
+    const branchPage = (
+        branches: Array<{ name: string; protected?: boolean }>,
+        nextPage: string,
+    ) =>
+        [
+            JSON.stringify(branches),
+            { headers: { 'x-next-page': nextPage } },
+        ] as const;
+
+    it('follows x-next-page across pages and returns every branch', async () => {
+        fetchMock.mockResponseOnce(
+            ...branchPage([{ name: 'main', protected: true }], '2'),
+        );
+        fetchMock.mockResponseOnce(
+            ...branchPage([{ name: 'feature/a', protected: false }], ''),
+        );
+
+        const branches = await getBranches(args);
+
+        expect(fetchMock.mock.calls).toHaveLength(2);
+        expect(branches).toEqual([
+            { name: 'main', protected: true },
+            { name: 'feature/a', protected: false },
+        ]);
+        // requests the max page size and walks pages in order
+        expect(fetchMock.mock.calls[0][0]).toContain('per_page=100');
+        expect(fetchMock.mock.calls[0][0]).toContain('page=1');
+        expect(fetchMock.mock.calls[1][0]).toContain('page=2');
+    });
+
+    it('stops after a single page when x-next-page is empty', async () => {
+        fetchMock.mockResponseOnce(...branchPage([{ name: 'main' }], ''));
+
+        const branches = await getBranches(args);
+
+        expect(fetchMock.mock.calls).toHaveLength(1);
+        expect(branches).toEqual([{ name: 'main' }]);
+    });
+
+    it('requests branches on a self-hosted host when hostDomain is provided', async () => {
+        fetchMock.mockResponseOnce(...branchPage([], ''));
+
+        await getBranches({ ...args, hostDomain: 'gitlab.internal.acme.com' });
+
+        const [url] = fetchMock.mock.calls[0];
+        expect(url).toContain(
+            'https://gitlab.internal.acme.com/api/v4/projects/my-group%2Fmy-repo/repository/branches',
+        );
     });
 });
 
