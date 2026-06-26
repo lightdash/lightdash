@@ -139,12 +139,19 @@ export class ChartAsCodeInternalization extends AsCodeInternalization<
     }
 
     public getLanguageMap(chartAsCode: ChartAsCode) {
+        const parsedChartAsCode = this.schema
+            .deepPartial()
+            .strip()
+            .safeParse(chartAsCode);
+
         return {
             chart: {
-                [chartAsCode.slug]: this.schema
-                    .deepPartial()
-                    .strip()
-                    .parse(chartAsCode),
+                [chartAsCode.slug]: parsedChartAsCode.success
+                    ? parsedChartAsCode.data
+                    : chartAsCodeSchema
+                          .pick({ name: true, description: true })
+                          .strip()
+                          .parse(chartAsCode),
             },
         };
     }
