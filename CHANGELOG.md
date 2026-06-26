@@ -1,3 +1,11 @@
+## [0.3254.1](https://github.com/lightdash/lightdash/compare/0.3254.0...0.3254.1) (2026-06-26)
+
+
+### Bug Fixes
+
+* **date-zoom:** apply control grain to date_zoom parameter ([#24821](https://github.com/lightdash/lightdash/issues/24821)) ([27d2fcb](https://github.com/lightdash/lightdash/commit/27d2fcb3d3134059860efbfa93229a5024ae08b5))
+* remove MCP auth warnings from agent thread UI ([#24824](https://github.com/lightdash/lightdash/issues/24824)) ([187df74](https://github.com/lightdash/lightdash/commit/187df7431af39d548e168e753f689645ae1e1a08))
+
 # [0.3254.0](https://github.com/lightdash/lightdash/compare/0.3253.4...0.3254.0) (2026-06-26)
 
 
