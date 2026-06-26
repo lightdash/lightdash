@@ -4,7 +4,7 @@ import { findDbtDefaultProfile } from './dbt/profile';
 
 export const NODE_VERSION = { major: parseNodeVersion(process.version).major };
 
-export const OPTIMIZED_NODE_VERSION = 20;
+export const OPTIMIZED_NODE_VERSION = 22;
 
 export const { version: CLI_VERSION } = packageJson;
 
