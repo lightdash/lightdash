@@ -1,3 +1,4 @@
+import { type ContentVerificationInfo } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -9,7 +10,12 @@ import {
     Text,
     Tooltip,
 } from '@mantine-8/core';
-import { IconDots, IconExternalLink, IconX } from '@tabler/icons-react';
+import {
+    IconCircleCheckFilled,
+    IconDots,
+    IconExternalLink,
+    IconX,
+} from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
@@ -24,6 +30,26 @@ import { AiSavedChartVisualization } from './AiSavedChartVisualization';
 
 type Props = {
     savedChartPreview: SavedChartPreviewData;
+};
+
+const VerifiedBadge: FC<{ verification: ContentVerificationInfo }> = ({
+    verification,
+}) => {
+    const verifiedDate = new Date(verification.verifiedAt).toLocaleDateString();
+
+    return (
+        <Tooltip
+            withinPortal
+            multiline
+            maw={300}
+            position="bottom"
+            label={`Verified by ${verification.verifiedBy.firstName} ${verification.verifiedBy.lastName} on ${verifiedDate}`}
+        >
+            <Box component="span" lh={0} c="green.6">
+                <MantineIcon icon={IconCircleCheckFilled} size={16} />
+            </Box>
+        </Tooltip>
+    );
 };
 
 export const AiSavedChartPreviewPanel: FC<Props> = ({ savedChartPreview }) => {
@@ -100,6 +126,11 @@ export const AiSavedChartPreviewPanel: FC<Props> = ({ savedChartPreview }) => {
                     </Stack>
 
                     <Group gap={2} className={artifactStyles.headRight}>
+                        {savedChart.verification && (
+                            <VerifiedBadge
+                                verification={savedChart.verification}
+                            />
+                        )}
                         <Menu withinPortal position="bottom-end">
                             <Menu.Target>
                                 <Tooltip withinPortal label="More options">
