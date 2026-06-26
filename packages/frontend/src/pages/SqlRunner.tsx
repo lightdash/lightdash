@@ -52,6 +52,9 @@ const SqlRunner = ({
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const mode = useAppSelector((state) => state.sqlRunner.mode);
+    const warehouseConnectionType = useAppSelector(
+        (state) => state.sqlRunner.warehouseConnectionType,
+    );
 
     const params = useParams<{ projectUuid: string; slug?: string }>();
     const share = useSearchParams('share');
@@ -148,18 +151,15 @@ const SqlRunner = ({
         }
     }, [dispatch, data]);
 
+    // Share links replace the whole slice via `setState`, dropping this
+    // project-derived field; re-restore it whenever the store value is missing.
+    const warehouseType = project?.warehouseConnection?.type;
     useEffect(() => {
-        if (project?.warehouseConnection?.type) {
-            dispatch(
-                setWarehouseConnectionType(project.warehouseConnection.type),
-            );
-            dispatch(
-                setQuoteChar(
-                    getFieldQuoteChar(project?.warehouseConnection?.type),
-                ),
-            );
+        if (warehouseType && !warehouseConnectionType) {
+            dispatch(setWarehouseConnectionType(warehouseType));
+            dispatch(setQuoteChar(getFieldQuoteChar(warehouseType)));
         }
-    }, [dispatch, project?.warehouseConnection?.type]);
+    }, [dispatch, warehouseType, warehouseConnectionType]);
 
     const handleSetSidebarOpen = (isOpen: boolean) => {
         dispatch(setSidebarOpen(isOpen));
