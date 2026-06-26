@@ -1,10 +1,18 @@
-import { type SavedChart } from '@lightdash/common';
+import {
+    ChartType,
+    type EChartsSeries,
+    type SavedChart,
+} from '@lightdash/common';
 import { Box, Center, Loader } from '@mantine-8/core';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { Provider } from 'react-redux';
+import { SeriesContextMenu } from '../../../../../components/Explorer/VisualizationCard/SeriesContextMenu';
 import LightdashVisualization from '../../../../../components/LightdashVisualization';
 import VisualizationProvider from '../../../../../components/LightdashVisualization/VisualizationProvider';
+import { DrillDownModal } from '../../../../../components/MetricQueryData/DrillDownModal';
 import MetricQueryDataProvider from '../../../../../components/MetricQueryData/MetricQueryDataProvider';
+import UnderlyingDataModal from '../../../../../components/MetricQueryData/UnderlyingDataModal';
+import { type EchartsSeriesClickEvent } from '../../../../../components/SimpleChart';
 import {
     buildInitialExplorerState,
     createExplorerStore,
@@ -32,6 +40,9 @@ const AiSavedChartVisualizationContent: FC<Props> = ({
 
     const [measureRef, { width: containerWidth, height: containerHeight }] =
         useResizeObserver<HTMLDivElement>();
+    const [echartsClickEvent, setEchartsClickEvent] =
+        useState<EchartsSeriesClickEvent | null>(null);
+    const [echartsSeries, setEchartsSeries] = useState<EChartsSeries[]>([]);
 
     const { query, queryResults, explore } = useExplorerQueryManager({
         projectUuid,
@@ -75,6 +86,13 @@ const AiSavedChartVisualizationContent: FC<Props> = ({
                 parameters={query.data?.usedParametersValues}
                 containerWidth={containerWidth}
                 containerHeight={containerHeight}
+                onSeriesContextMenu={(
+                    e: EchartsSeriesClickEvent,
+                    series: EChartsSeries[],
+                ) => {
+                    setEchartsClickEvent(e);
+                    setEchartsSeries(series);
+                }}
             >
                 <Box h="100%" mih="inherit">
                     <LightdashVisualization
@@ -82,6 +100,18 @@ const AiSavedChartVisualizationContent: FC<Props> = ({
                         className="sentry-block ph-no-capture"
                         data-testid="ai-saved-chart-visualization"
                     />
+                    {savedChart.chartConfig.type === ChartType.CARTESIAN && (
+                        <SeriesContextMenu
+                            echartsSeriesClickEvent={
+                                echartsClickEvent ?? undefined
+                            }
+                            dimensions={query.data?.metricQuery.dimensions}
+                            series={echartsSeries}
+                            explore={explore}
+                        />
+                    )}
+                    <UnderlyingDataModal />
+                    <DrillDownModal />
                 </Box>
             </VisualizationProvider>
         </MetricQueryDataProvider>
