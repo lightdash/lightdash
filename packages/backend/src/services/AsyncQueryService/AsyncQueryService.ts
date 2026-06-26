@@ -2806,6 +2806,7 @@ export class AsyncQueryService extends ProjectService {
                 : '';
             this.logger.info(
                 `Query ${queryUuid} completed: source=${executionSource} s3_stream_create=${s3StreamCreatedMs}ms query_exec=${queryExecMs}ms s3_upload_close=${s3UploadCloseMs}ms db_update=${dbUpdateMs}ms total=${totalMs}ms rows=${pivotDetails?.totalRows ?? totalRows}${streamMetricsStr}`,
+                { organizationUuid, projectUuid, queryUuid },
             );
 
             // Track successful query in Prometheus
