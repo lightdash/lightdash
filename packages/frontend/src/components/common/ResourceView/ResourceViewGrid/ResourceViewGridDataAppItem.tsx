@@ -1,4 +1,7 @@
-import { type ResourceViewDataAppItem } from '@lightdash/common';
+import {
+    getAppDisplayName,
+    type ResourceViewDataAppItem,
+} from '@lightdash/common';
 import { Box, Flex, Group, Paper, Text, Tooltip } from '@mantine-8/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
 import { IconEye } from '@tabler/icons-react';
@@ -57,7 +60,7 @@ const ResourceViewGridDataAppItem: FC<ResourceViewGridDataAppItemProps> = ({
                     disabled={!item.data.description}
                 >
                     <Text lineClamp={2} fz="sm" fw={600}>
-                        {item.data.name}
+                        {getAppDisplayName(item.data.name, item.data.uuid)}
                     </Text>
                 </Tooltip>
             </Group>

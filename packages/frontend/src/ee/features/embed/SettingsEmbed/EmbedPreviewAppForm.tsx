@@ -1,4 +1,5 @@
 import {
+    getAppDisplayName,
     type ApiError,
     type CreateEmbedJwt,
     type EmbedJwtContentDataApp,
@@ -174,7 +175,7 @@ const EmbedPreviewAppForm: FC<{
                     label="Data app"
                     data={apps.map((app) => ({
                         value: app.appUuid,
-                        label: app.name,
+                        label: getAppDisplayName(app.name, app.appUuid),
                     }))}
                     placeholder={
                         apps.length === 0

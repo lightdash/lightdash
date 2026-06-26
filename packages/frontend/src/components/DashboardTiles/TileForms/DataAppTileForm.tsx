@@ -1,5 +1,6 @@
 import {
     ContentType,
+    getAppDisplayName,
     type ApiContentResponse,
     type ApiError,
     type DashboardDataAppTileProperties,
@@ -51,7 +52,7 @@ const DataAppTileForm = ({ form }: DataAppTileFormProps) => {
             .filter((item) => item.contentType === ContentType.DATA_APP)
             .map((item) => ({
                 value: item.uuid,
-                label: item.name || 'Untitled app',
+                label: getAppDisplayName(item.name, item.uuid),
             }));
     }, [data]);
 

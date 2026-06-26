@@ -1,5 +1,6 @@
 import {
     ContentType,
+    getAppDisplayName,
     ResourceViewItemType,
     type ApiAppSummary,
 } from '@lightdash/common';
@@ -178,8 +179,10 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                 ),
                 Cell: ({ row }) => {
                     const app = row.original;
-                    const displayName =
-                        app.name || `Untitled app ${app.appUuid.slice(0, 8)}`;
+                    const displayName = getAppDisplayName(
+                        app.name,
+                        app.appUuid,
+                    );
 
                     return (
                         <Anchor

@@ -1,4 +1,8 @@
-import { FeatureFlags, type AppVersionStatus } from '@lightdash/common';
+import {
+    FeatureFlags,
+    getAppDisplayName,
+    type AppVersionStatus,
+} from '@lightdash/common';
 import { ActionIcon, Menu, Tooltip } from '@mantine-8/core';
 import {
     IconCopy,
@@ -274,7 +278,7 @@ const AppHeaderActions: FC<Props> = ({
                 <AppSchedulersModal
                     projectUuid={projectUuid}
                     appUuid={appUuid}
-                    name={appName || 'Data app'}
+                    name={getAppDisplayName(appName, appUuid)}
                     isOpen
                     onClose={() => setSchedulerModalOpen(false)}
                 />
@@ -307,7 +311,7 @@ const AppHeaderActions: FC<Props> = ({
                     onClose={() => setFavoriteSpaceModalOpen(false)}
                     app={{
                         uuid: appUuid,
-                        name: appName || 'Untitled app',
+                        name: appName,
                         description: appDescription || undefined,
                         spaceUuid: appSpaceUuid,
                         createdByUserUuid: appCreatedByUserUuid,

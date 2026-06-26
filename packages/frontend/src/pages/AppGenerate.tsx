@@ -2734,6 +2734,7 @@ const AppGenerate: FC = () => {
                         <Box className={classes.previewPanel}>
                             {activeAppUuid && (
                                 <AppHeader
+                                    appUuid={activeAppUuid}
                                     name={appName}
                                     description={appDescription || null}
                                     spaceChip={

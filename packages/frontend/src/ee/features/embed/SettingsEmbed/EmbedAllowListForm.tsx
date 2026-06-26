@@ -1,4 +1,5 @@
 import {
+    getAppDisplayName,
     type DashboardBasicDetails,
     type DecodedEmbed,
     type EmbedProjectApp,
@@ -128,7 +129,10 @@ const EmbedAllowListForm: FC<{
                                 label={'Data apps'}
                                 data={apps.map((app) => ({
                                     value: app.appUuid,
-                                    label: app.name,
+                                    label: getAppDisplayName(
+                                        app.name,
+                                        app.appUuid,
+                                    ),
                                 }))}
                                 disabled={
                                     disabled ||

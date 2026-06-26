@@ -27,6 +27,17 @@ export type AppVersionStatus =
 export const isAppVersionInProgress = (status: AppVersionStatus): boolean =>
     !(APP_VERSION_TERMINAL_STATUSES as readonly string[]).includes(status);
 
+/**
+ * Data apps are created with an empty name and only get an auto-generated
+ * title after their first version builds successfully. If that build never
+ * completes the name stays blank. Everywhere an app name is shown to the user,
+ * fall back to a stable, identifiable placeholder instead of rendering nothing
+ * — the uuid suffix keeps two unnamed apps distinguishable. Use this as the
+ * single source of truth so the convention stays consistent across the UI.
+ */
+export const getAppDisplayName = (name: string, appUuid: string): string =>
+    name.trim().length > 0 ? name : `Untitled app ${appUuid.slice(0, 8)}`;
+
 export type ApiGenerateAppResponse = ApiSuccess<{
     appUuid: string;
     version: number;

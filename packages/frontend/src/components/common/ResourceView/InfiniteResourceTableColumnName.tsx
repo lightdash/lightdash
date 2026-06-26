@@ -1,5 +1,6 @@
 import {
     FeatureFlags,
+    getResourceViewItemName,
     isResourceViewDataAppItem,
     isResourceViewItemChart,
     isResourceViewItemDashboard,
@@ -193,7 +194,7 @@ const InfiniteResourceTableColumnName = ({
                             lineClamp={1}
                             style={{ overflowWrap: 'anywhere' }}
                         >
-                            {item.data.name}
+                            {getResourceViewItemName(item)}
                         </Text>
                         <ResourceVerifiedInlineBadge
                             verification={verification}

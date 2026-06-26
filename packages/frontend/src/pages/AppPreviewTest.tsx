@@ -167,6 +167,7 @@ export default function AppPreviewTest() {
     return (
         <Box className={classes.previewContainer}>
             <AppHeader
+                appUuid={appUuid}
                 name={appName}
                 description={appDescription}
                 spaceChip={
