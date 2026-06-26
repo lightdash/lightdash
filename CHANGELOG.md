@@ -1,3 +1,10 @@
+## [0.3254.2](https://github.com/lightdash/lightdash/compare/0.3254.1...0.3254.2) (2026-06-26)
+
+
+### Bug Fixes
+
+* chart language map fallback ([#24808](https://github.com/lightdash/lightdash/issues/24808)) ([5f9a1a7](https://github.com/lightdash/lightdash/commit/5f9a1a70d06520cd11ea5a561e0ec4e5eb643faf))
+
 ## [0.3254.1](https://github.com/lightdash/lightdash/compare/0.3254.0...0.3254.1) (2026-06-26)
 
 
