@@ -19,6 +19,7 @@ import { DbtGitlabProjectAdapter } from './dbtGitlabProjectAdapter';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
 import { DbtManifestProjectAdapter } from './dbtManifestProjectAdapter';
 import { DbtNoneCredentialsProjectAdapter } from './dbtNoneCredentialsProjectAdapter';
+import { GitProjectAdapter } from './gitProjectAdapter';
 
 export const projectAdapterFromConfig = async (
     config: DbtProjectConfig,
@@ -95,21 +96,33 @@ export const projectAdapterFromConfig = async (
                     `Missing repository for GitHub project`,
                 );
             }
-            return new DbtGithubProjectAdapter({
-                analytics,
+            const githubRemoteRepositoryUrl = `https://lightdash:${githubToken}@${
+                config.host_domain || 'github.com'
+            }/${config.repository}.git`;
+            return new GitProjectAdapter({
                 warehouseClient,
-                githubPersonalAccessToken: githubToken!,
-                githubRepository: config.repository,
-                githubBranch: config.branch,
+                remoteRepositoryUrl: githubRemoteRepositoryUrl,
+                branch: config.branch,
                 projectDirectorySubPath: config.project_sub_path,
-                hostDomain: config.host_domain,
-                warehouseCredentials,
-                targetName: config.target,
-                environment: config.environment,
-                cachedWarehouse,
-                dbtVersion,
+                // dbt branch is delegated to the existing adapter unchanged;
+                // the YAML branch is handled by GitProjectAdapter directly.
+                createDbtAdapter: () =>
+                    new DbtGithubProjectAdapter({
+                        analytics,
+                        warehouseClient,
+                        githubPersonalAccessToken: githubToken!,
+                        githubRepository: config.repository,
+                        githubBranch: config.branch,
+                        projectDirectorySubPath: config.project_sub_path,
+                        hostDomain: config.host_domain,
+                        warehouseCredentials,
+                        targetName: config.target,
+                        environment: config.environment,
+                        cachedWarehouse,
+                        dbtVersion,
 
-                selector: config.selector,
+                        selector: config.selector,
+                    }),
             });
         case DbtProjectType.GITLAB:
             return new DbtGitlabProjectAdapter({

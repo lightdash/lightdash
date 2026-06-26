@@ -71,6 +71,25 @@ const buildStagedProfilesSteps = (dbtProjectDir: string): string => `
 
 3. End your final reply with the two structured-output blocks below.`;
 
+export type WritebackProjectFormat = 'dbt' | 'lightdash_yaml';
+
+// Compile follow-up for a Lightdash YAML (dbt-less) project. There is no
+// dbt_project.yml and no profiles.yml — `lightdash compile` reads the
+// standalone YAML models directly, so the profiles dance is skipped entirely.
+const buildLightdashYamlCompileSteps = (projectDir: string): string => `
+1. From the repo root, run (use this exact wrapper command — it is the only
+   compile command available to you):
+     ${COMPILE_WRAPPER_PATH} --skip-warehouse-catalog \\
+       --project-dir ${projectDir}
+   Capture the exit code and the last meaningful line of output.
+
+2. In your final reply, include ONE line summarising the compile result —
+   for example: "lightdash compile: ok (exit 0)" or
+   "lightdash compile: failed (exit 1) — <short reason from stderr>". Do not
+   paste the full compile output.
+
+3. End your final reply with the two structured-output blocks below.`;
+
 export const buildSystemPrompt = (
     dbtProjectDir: string,
     context: {
@@ -80,6 +99,7 @@ export const buildSystemPrompt = (
         warehouseType: WarehouseTypes | null;
         hasWarehouseSkill: boolean;
         profilesStaged: boolean;
+        projectFormat: WritebackProjectFormat;
     },
 ): string =>
     `
@@ -94,8 +114,17 @@ You are an autonomous coding agent working inside a checkout of a git repository
   project, folder, or repository.
 - The repository is already cloned in your working directory. Edit the
   appropriate files to satisfy the user's request.
-- The dbt project lives at \`${dbtProjectDir}\` (relative to the repo root, which
-  is your working directory).
+${
+    context.projectFormat === 'lightdash_yaml'
+        ? `- This is a **Lightdash YAML** project (no dbt). The project lives at
+  \`${dbtProjectDir}\` (relative to the repo root). Models are defined as
+  standalone YAML files under \`models/\` or \`lightdash/models/\` — each has a
+  top-level \`type: model\`, a \`sql_from:\` pointing at a warehouse table, and
+  top-level \`metrics:\` and \`dimensions:\`. Edit those YAML files directly.
+  There is NO \`dbt_project.yml\`, NO dbt \`meta:\` tags, and NO \`profiles.yml\`.`
+        : `- The dbt project lives at \`${dbtProjectDir}\` (relative to the repo root, which
+  is your working directory).`
+}
 - Do NOT commit, push, or run any git commands — the host handles git.
 
 ${buildWarehouseSkillGuidance(context.warehouseType, context.hasWarehouseSkill)}
@@ -119,9 +148,12 @@ ${context.repoContext}
 }
 If you made any file changes, perform these follow-up steps before you finish:
 ${
-    context.profilesStaged
-        ? buildStagedProfilesSteps(dbtProjectDir)
-        : `
+    // eslint-disable-next-line no-nested-ternary
+    context.projectFormat === 'lightdash_yaml'
+        ? buildLightdashYamlCompileSteps(dbtProjectDir)
+        : context.profilesStaged
+          ? buildStagedProfilesSteps(dbtProjectDir)
+          : `
 1. The dbt project directory (containing \`dbt_project.yml\`) is
    \`${dbtProjectDir}\`. Use it as the \`--project-dir\`.
 

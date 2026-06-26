@@ -88,7 +88,7 @@ import { GitlabProvider } from './providers/GitlabProvider';
 import type { GitProvider } from './providers/GitProvider';
 import { buildGatherRepoContextScript } from './scripts';
 import { loadWarehouseSkills, warehouseTypeToSkillKey } from './skills';
-import { buildSystemPrompt } from './templates';
+import { buildSystemPrompt, type WritebackProjectFormat } from './templates';
 import type {
     AdoptedPullRequest,
     AiWritebackRunArgs,
@@ -1217,14 +1217,26 @@ export class AiWritebackService extends BaseService {
                 sandbox,
                 turn.gitConnection.projectSubPath,
             );
-            // Stage a credential-free profiles copy host-side so the agent
-            // doesn't burn turns discovering profiles.yml and hand-stripping
-            // Jinja (mkdir + cp + edit). Deterministic string work — no reason
-            // to spend LLM round-trips on it.
-            const profilesStaged = await this.prepareProfiles(
+            // Detect dbt vs Lightdash YAML from the cloned repo so the agent
+            // gets format-appropriate instructions. The sandbox compile and
+            // repo VFS are format-agnostic; only the prompt (and the dbt-only
+            // profiles staging) differ.
+            const projectFormat = await this.detectProjectFormat(
                 sandbox,
                 turn.gitConnection.projectSubPath,
             );
+            // Stage a credential-free profiles copy host-side so the agent
+            // doesn't burn turns discovering profiles.yml and hand-stripping
+            // Jinja (mkdir + cp + edit). Deterministic string work — no reason
+            // to spend LLM round-trips on it. Lightdash YAML projects have no
+            // profiles.yml, so this is dbt-only.
+            const profilesStaged =
+                projectFormat === 'dbt'
+                    ? await this.prepareProfiles(
+                          sandbox,
+                          turn.gitConnection.projectSubPath,
+                      )
+                    : false;
             const skillKey = warehouseTypeToSkillKey(turn.warehouseType);
             const systemPrompt = buildSystemPrompt(
                 turn.gitConnection.projectSubPath,
@@ -1235,6 +1247,7 @@ export class AiWritebackService extends BaseService {
                     warehouseType: turn.warehouseType,
                     hasWarehouseSkill: skillKey !== null,
                     profilesStaged,
+                    projectFormat,
                 },
             );
             const agent = await this.runAgentInSandbox({
@@ -1695,6 +1708,40 @@ export class AiWritebackService extends BaseService {
      * YAML) so the agent doesn't burn turns rediscovering them. Returns null
      * on any failure — the run continues without the context block.
      */
+    /**
+     * Detect whether the cloned repo is a dbt project or a Lightdash YAML
+     * (dbt-less) project. Lightdash YAML markers: a `lightdash.config.yml`, or a
+     * model file declaring `type: model` under `models/`/`lightdash/models/`.
+     * Defaults to `dbt` (the historical assumption) on any error.
+     */
+    private async detectProjectFormat(
+        sandbox: Sandbox,
+        projectSubPath: string,
+    ): Promise<WritebackProjectFormat> {
+        const dir = projectSubPath.replace(/^\/+|\/+$/g, '') || '.';
+        const cmd =
+            `( test -f "${dir}/lightdash.config.yml" || ` +
+            `grep -rlsE '^[[:space:]]*type:[[:space:]]*"?model"?' ` +
+            `"${dir}/models" "${dir}/lightdash/models" 2>/dev/null | head -1 | grep -q . ) ` +
+            `&& echo lightdash_yaml || echo dbt`;
+        try {
+            const result = await sandbox.commands.run(cmd, { cwd: CWD });
+            const format: WritebackProjectFormat =
+                result.stdout.trim() === 'lightdash_yaml'
+                    ? 'lightdash_yaml'
+                    : 'dbt';
+            this.logger.info(`AiWriteback: detected project format=${format}`);
+            return format;
+        } catch (error) {
+            this.logger.warn(
+                `AiWriteback: detectProjectFormat failed, defaulting to dbt: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+            return 'dbt';
+        }
+    }
+
     private async gatherRepoContext(
         sandbox: SandboxHandle,
         projectSubPath: string,
