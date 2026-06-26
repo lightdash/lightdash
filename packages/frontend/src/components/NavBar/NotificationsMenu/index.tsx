@@ -130,7 +130,7 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
                     </Indicator>
                 </Button>
             </Menu.Target>
-            <Menu.Dropdown maw="400px">
+            <Menu.Dropdown maw="400px" className={classes.dropdown}>
                 {hasValidationNotifications && (
                     <ValidationErrorNotification
                         projectUuid={projectUuid}
