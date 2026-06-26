@@ -783,6 +783,19 @@ export class CatalogModel {
         hasTimeDimension?: boolean;
         tags?: string[];
     }): Promise<KnexPaginatedData<CatalogItem[]>> {
+        // filteredExplores enforces visibility through the type-specific allow-list
+        // filter below, which only runs for Table/Field. Without an explicit type that
+        // filter is skipped and nothing constrains the results, so fail loud instead.
+        if (
+            filteredExplores &&
+            type !== CatalogType.Table &&
+            type !== CatalogType.Field
+        ) {
+            throw new UnexpectedServerError(
+                'filteredExplores requires an explicit Table or Field catalog type',
+            );
+        }
+
         // Use websearch_to_tsquery for AI Agent queries for better natural language support
         const useWebSearch =
             context === CatalogSearchContext.AI_AGENT ||
@@ -849,6 +862,12 @@ export class CatalogModel {
             .where(`${CatalogTableName}.project_uuid`, projectUuid)
             // tables configuration filtering
             .andWhere(function tablesConfigurationFiltering() {
+                // An explicit explore allow-list is the authoritative visibility set,
+                // so the project table-selection config must not further restrict it.
+                if (filteredExplores) {
+                    return;
+                }
+
                 const {
                     tableSelection: { type: tableSelectionType, value },
                 } = tablesConfiguration;
