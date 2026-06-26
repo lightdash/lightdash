@@ -998,6 +998,39 @@ Lightdash-specific constraints that apply on top of `frontend-design`'s directio
 - **Commit to one theme; don't design for dark while rendering light.** The template's `:root` defaults to white (light tokens). If your design needs a dark background, you must do *one* of: (a) apply `className="dark"` to your top-level `<div>` so Tailwind activates the dark token values, or (b) override the CSS variables on `:root` directly to match your chosen theme. **Never** author colors that assume a dark background without ensuring the page actually loads dark — the symptom is invisible secondary text (faint red/gray on white). Before declaring done, check: does the page background actually look the way you described it? If not, you have a theme-wiring bug.
 - **Leave a gutter at the bottom of the page.** Don't let the last card, chart, or footer sit flush against the iframe's bottom edge — it reads as clipped. Add bottom padding (`pb-8` or similar) on your page's top-level themed wrapper so the gutter inherits the theme's background. Don't push the gutter onto `#root` or `body` instead — those sit outside your theme, so any space below the wrapper falls back to the template default and shows as a mismatched strip.
 
+### Sizing for scheduled-delivery screenshots
+
+Scheduled deliveries (Slack/email) render the app inside a tall **1400×4000** iframe and screenshot from the top down to the deepest visible element. If the app stretches to fill that height — via viewport-relative heights or full-bleed decorative backgrounds — the delivered image is mostly empty space around a small island of content.
+
+**Mark the content extent with `data-screenshot-bounds`.** Put the attribute on your top-level themed wrapper — the same element that carries the background and bottom gutter (`pb-8`) from the rule above. The delivery pipeline uses that element's bottom edge as the image height and crops anything below it. Without the attribute it falls back to a best-effort measurement that the patterns below easily inflate, so set it.
+
+```tsx
+<div data-screenshot-bounds className="dark bg-background p-8 pb-12">
+  <Header />
+  <ChartGrid />
+  <Footer />
+</div>
+```
+
+Then keep the layout from inflating the canvas:
+
+- **No viewport-relative heights on root or near-root containers** — avoid `min-h-screen`, `h-screen`, `h-[100vh]`, or `min-height: 100vh` on the page wrapper; let it size to its content. A nested component that genuinely needs a fixed height (e.g. a resizable panel) may still use one, as long as it lives inside `data-screenshot-bounds`.
+- **Don't vertically center variable-height content in a viewport-height parent** — `h-screen flex items-center justify-center` around a short widget parks it in the middle of a 4000px-tall screenshot.
+- **Keep decorative backgrounds within the content area** — themed sprites, gradients, particle layers, and landscape art paint on the `data-screenshot-bounds` element itself, never on a separate 100vh layer that extends past the content.
+
+Avoid — each of these inflates the screenshot:
+
+```tsx
+// min-h-screen blows up to 4000px in the delivery iframe
+<div className="min-h-screen bg-blue-400">…</div>
+
+// a short widget centered in 100vh ends up mid-screenshot
+<div className="h-screen flex items-center justify-center"><SmallWidget /></div>
+
+// a decorative background filling 100vh past the real content
+<div className="h-screen bg-[url('/sky.png')] bg-cover"><Dashboard /></div>
+```
+
 ### Organization themes
 
 When `/app/src/design/` exists in the workspace, the organization has supplied brand assets that **must** drive the visual direction. The pipeline copies them in at build time; you do not create them. Treat their contents as inviolable: read and reference, never edit or duplicate.
