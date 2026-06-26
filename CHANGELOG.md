@@ -1,3 +1,15 @@
+# [0.3252.0](https://github.com/lightdash/lightdash/compare/0.3251.0...0.3252.0) (2026-06-26)
+
+
+### Bug Fixes
+
+* **sentry:** honor dashboard tracing opt-out under Spotlight ([#24789](https://github.com/lightdash/lightdash/issues/24789)) ([a470d64](https://github.com/lightdash/lightdash/commit/a470d64146c8208c3f995fab5ad55188b86b4710))
+
+
+### Features
+
+* **ai-writeback:** run on the SandboxProvider abstraction (E2B or local Docker) ([#24767](https://github.com/lightdash/lightdash/issues/24767)) ([d092e85](https://github.com/lightdash/lightdash/commit/d092e858088d2606781b4cd41952d3c3086f7565)), closes [#24742](https://github.com/lightdash/lightdash/issues/24742) [#24743](https://github.com/lightdash/lightdash/issues/24743) [#24605](https://github.com/lightdash/lightdash/issues/24605)
+
 # [0.3251.0](https://github.com/lightdash/lightdash/compare/0.3250.0...0.3251.0) (2026-06-26)
 
 
