@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import {
     AiWritebackAttribution,
     AuthorizationError,
-    FeatureFlags,
     ForbiddenError,
     getErrorMessage,
     GithubUserCredential,
@@ -31,7 +30,6 @@ import { GithubAppInstallationsModel } from '../../models/GithubAppInstallations
 import { GitUserCredentialsModel } from '../../models/GitUserCredentials/GitUserCredentialsModel';
 import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
-import { FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 
 /**
  * GitHub OAuth error codes that mean the stored refresh token is no longer
@@ -67,7 +65,6 @@ type GithubAppServiceArguments = {
     userModel: UserModel;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
-    featureFlagService: FeatureFlagService;
 };
 
 export class GithubAppService extends BaseService {
@@ -81,8 +78,6 @@ export class GithubAppService extends BaseService {
 
     private readonly analytics: LightdashAnalytics;
 
-    private readonly featureFlagService: FeatureFlagService;
-
     constructor(args: GithubAppServiceArguments) {
         super();
         this.githubAppInstallationsModel = args.githubAppInstallationsModel;
@@ -90,20 +85,6 @@ export class GithubAppService extends BaseService {
         this.userModel = args.userModel;
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
-        this.featureFlagService = args.featureFlagService;
-    }
-
-    private async isUserCredentialsFeatureEnabled(
-        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
-    ): Promise<boolean> {
-        const flag = await this.featureFlagService.get({
-            user: {
-                userUuid: user.userUuid,
-                organizationUuid: user.organizationUuid,
-            },
-            featureFlagId: FeatureFlags.GithubUserCredentials,
-        });
-        return flag.enabled;
     }
 
     async installRedirect(user: SessionUser) {
@@ -479,11 +460,6 @@ export class GithubAppService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        if (!(await this.isUserCredentialsFeatureEnabled(user))) {
-            throw new ForbiddenError(
-                'Linking personal GitHub accounts is not enabled',
-            );
-        }
 
         this.analytics.track({
             event: 'github_user_link.started',
@@ -518,11 +494,6 @@ export class GithubAppService extends BaseService {
             throw new ForbiddenError('User is not part of an organization');
         }
         try {
-            if (!(await this.isUserCredentialsFeatureEnabled(user))) {
-                throw new ForbiddenError(
-                    'Linking personal GitHub accounts is not enabled',
-                );
-            }
             if (!state || state !== oauth?.state) {
                 throw new AuthorizationError('State does not match');
             }
@@ -582,9 +553,6 @@ export class GithubAppService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        if (!(await this.isUserCredentialsFeatureEnabled(user))) {
-            return null;
-        }
         const credential = await this.gitUserCredentialsModel.findCredential(
             user.userUuid,
             user.organizationUuid,
@@ -630,10 +598,6 @@ export class GithubAppService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        const canLink = await this.isUserCredentialsFeatureEnabled(user);
-        if (!canLink) {
-            return { mode: 'org', canLink: false };
-        }
         const credential = await this.gitUserCredentialsModel.findCredential(
             user.userUuid,
             user.organizationUuid,
@@ -645,10 +609,8 @@ export class GithubAppService extends BaseService {
         return { mode: 'org', canLink: true };
     }
 
-    // Intentionally NOT gated on the GithubUserCredentials feature flag: if an
-    // org disables the flag after users have linked, those users must still be
-    // able to revoke their stored token. Unlink only ever removes the caller's
-    // own credential, so there is no exposure in leaving it always available.
+    // Unlink only ever removes the caller's own credential, so there is no
+    // exposure in leaving it always available.
     async unlinkUser(user: SessionUser): Promise<void> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -699,14 +661,6 @@ export class GithubAppService extends BaseService {
         userUuid: string,
         organizationUuid: string,
     ): Promise<string | undefined> {
-        if (
-            !(await this.isUserCredentialsFeatureEnabled({
-                userUuid,
-                organizationUuid,
-            }))
-        ) {
-            return undefined;
-        }
         const credential = await this.gitUserCredentialsModel.findCredential(
             userUuid,
             organizationUuid,

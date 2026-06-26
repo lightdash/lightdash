@@ -197,7 +197,6 @@ const makeService = ({
     aiAgentModel = {},
     aiAgentReviewClassifierModel = {},
     aiAgentReviewNotificationModel = {},
-    featureFlagService = {},
     aiOrganizationSettingsService = {},
     projectModel = {},
     projectService = {},
@@ -214,7 +213,6 @@ const makeService = ({
     aiAgentModel?: Record<string, unknown>;
     aiAgentReviewClassifierModel?: Record<string, unknown>;
     aiAgentReviewNotificationModel?: Record<string, unknown>;
-    featureFlagService?: Record<string, unknown>;
     aiOrganizationSettingsService?: Record<string, unknown>;
     projectModel?: Record<string, unknown>;
     projectService?: Record<string, unknown>;
@@ -291,10 +289,6 @@ const makeService = ({
                 slackChannelId: 'C123',
             }),
             ...aiAgentReviewNotificationModel,
-        },
-        featureFlagService: {
-            get: jest.fn().mockResolvedValue({ enabled: true }),
-            ...featureFlagService,
         },
         aiOrganizationSettingsService: {
             isAiAgentReviewsEnabled: jest.fn().mockResolvedValue(true),

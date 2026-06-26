@@ -173,24 +173,6 @@ export enum FeatureFlags {
     OrganizationTrialWarning = 'organization-trial-warning',
 
     /**
-     * Enable the (in-progress) AI writeback feature. Spins up an e2b
-     * sandbox pre-loaded with dbt and the Claude Code CLI, then runs a
-     * user-supplied prompt against it synchronously. Off by default — gated
-     * while the sandbox runtime and write-back semantics are still being
-     * built out.
-     */
-    AiWriteback = 'ai-writeback',
-
-    /**
-     * Enable the `searchSemanticLayer` agent tool, which lets the AI agent
-     * list/search metrics and dimensions across ALL explores at once (backed
-     * by the catalog search index) to answer project-wide questions like
-     * "find duplicate or confusingly similar metrics". Off by default while
-     * the tool and its prompt routing are validated.
-     */
-    SearchSemanticLayer = 'search-semantic-layer',
-
-    /**
      * Enable the AI writeback sandbox agent's preview-deploy secondary task:
      * detecting whether a repo deploys Lightdash preview projects via GitHub
      * Actions, offering to set it up during a writeback, and the
@@ -207,39 +189,6 @@ export enum FeatureFlags {
      * the features can be toggled separately.
      */
     AiSlackSystemAgentFallback = 'ai-slack-system-agent-fallback',
-
-    /**
-     * Enable one-click "Connect GitHub" setup for AI agent MCP servers. When
-     * enabled (and the org has a GitHub App installation the user can manage),
-     * the agent MCP settings offer a button that provisions the hosted GitHub
-     * MCP using the org's existing installation token — no manual URL/auth.
-     */
-    GithubMcpOneClick = 'github-mcp-one-click',
-
-    /**
-     * Let users link their personal GitHub account (user-to-server OAuth
-     * token) so write-back commits and pull requests are authored as them
-     * instead of the Lightdash GitHub App bot. Off by default while the
-     * link/unlink UX and token lifecycle are validated; when off, write-backs
-     * keep today's bot identity.
-     */
-    GithubUserCredentials = 'github-user-credentials',
-
-    /**
-     * Let the AI agent discover and read any repository the org's GitHub App
-     * installation can see, through a read-only shell (ls/cat/find/grep/head)
-     * backed by the GitHub API — no E2B sandbox/clone. `discoverRepos` lists
-     * accessible repos and `exploreRepo` reads them through a single virtual
-     * filesystem: the dbt project is mounted (subPath-scoped) at `/dbt` and every
-     * accessible repo whole at `/<owner>/<repo>`, with per-repo trees fetched
-     * lazily and a per-run materialization budget bounding recursive walks. Lets
-     * the agent inspect source before diagnosing, instead of guessing or spinning
-     * up a writeback sandbox.
-     *
-     * Value kept as `repo-fs` for backwards compatibility with existing flag
-     * configuration; the symbol was renamed from `RepoFs`.
-     */
-    RepoDiscovery = 'repo-fs',
 
     /**
      * Gate the org-level export Limits settings panel (per-org query max rows

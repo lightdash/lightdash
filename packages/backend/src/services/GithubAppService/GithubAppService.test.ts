@@ -11,7 +11,6 @@ import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import type { GitUserCredentialsModel } from '../../models/GitUserCredentials/GitUserCredentialsModel';
 import type { UserModel } from '../../models/UserModel';
-import type { FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { GithubAppService } from './GithubAppService';
 
 jest.mock('../../clients/github/Github', () => ({
@@ -35,12 +34,10 @@ const user = {
 } as SessionUser;
 
 const buildService = ({
-    featureEnabled = true,
     findCredential,
     deleteCredential = jest.fn(),
     updateTokens = jest.fn(),
 }: {
-    featureEnabled?: boolean;
     findCredential?: jest.Mock;
     deleteCredential?: jest.Mock;
     updateTokens?: jest.Mock;
@@ -57,9 +54,6 @@ const buildService = ({
         userModel: {} as unknown as UserModel,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
-        featureFlagService: {
-            get: jest.fn().mockResolvedValue({ enabled: featureEnabled }),
-        } as unknown as FeatureFlagService,
     });
 
 describe('GithubAppService', () => {
@@ -101,22 +95,8 @@ describe('GithubAppService', () => {
     });
 
     describe('getAiWritebackAttribution', () => {
-        it('reports org/canLink:false without reading the credential when the feature is disabled', async () => {
-            const findCredential = jest.fn();
-            const service = buildService({
-                featureEnabled: false,
-                findCredential,
-            });
-
-            const attribution = await service.getAiWritebackAttribution(user);
-
-            expect(attribution).toEqual({ mode: 'org', canLink: false });
-            expect(findCredential).not.toHaveBeenCalled();
-        });
-
         it('reports personal attribution with the linked login when a credential exists', async () => {
             const service = buildService({
-                featureEnabled: true,
                 findCredential: jest.fn().mockResolvedValue({
                     providerLogin: 'octocat',
                     token: 't',
@@ -132,9 +112,8 @@ describe('GithubAppService', () => {
             });
         });
 
-        it('reports org/canLink:true when the feature is on but no credential is linked', async () => {
+        it('reports org/canLink:true when no credential is linked', async () => {
             const service = buildService({
-                featureEnabled: true,
                 findCredential: jest.fn().mockResolvedValue(undefined),
             });
 
@@ -146,7 +125,6 @@ describe('GithubAppService', () => {
         it('throws ForbiddenError when the caller cannot view their organization', async () => {
             const findCredential = jest.fn();
             const service = buildService({
-                featureEnabled: true,
                 findCredential,
             });
             // Ability scoped to a different org → cannot view this org.

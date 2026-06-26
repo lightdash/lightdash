@@ -16,7 +16,6 @@ import {
     createToolRunSqlArgsSchema,
     editContentToolDefinition,
     Explore,
-    FeatureFlags,
     findContentToolDefinition,
     findExploresToolDefinition,
     findFieldsToolDefinition,
@@ -3226,22 +3225,6 @@ export class McpService extends BaseService {
             aiCopilotFlag.enabled,
             user.organizationUuid,
         );
-    }
-
-    /**
-     * Whether the run_ai_writeback tool should be exposed to this caller.
-     * Gated behind the AiWriteback feature flag (off by default) so the tool
-     * can be dark launched — clients without the flag never see it in
-     * tools/list. Resolved per-request and passed into createServer.
-     */
-    public async isAiWritebackEnabled(
-        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
-    ): Promise<boolean> {
-        const flag = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.AiWriteback,
-        });
-        return flag.enabled;
     }
 
     public async isMcpContentWritesEnabled(
