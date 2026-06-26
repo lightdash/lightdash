@@ -1,3 +1,12 @@
+# [0.3251.0](https://github.com/lightdash/lightdash/compare/0.3250.0...0.3251.0) (2026-06-26)
+
+
+### Features
+
+* **data-apps:** add Continue building action to data app items menu ([#24792](https://github.com/lightdash/lightdash/issues/24792)) ([562fba8](https://github.com/lightdash/lightdash/commit/562fba84152e0849361bc09f4f75870e33bb7808))
+* **data-apps:** show a placeholder name for unnamed data apps ([#24791](https://github.com/lightdash/lightdash/issues/24791)) ([866818d](https://github.com/lightdash/lightdash/commit/866818d864065e7769614e0f9c24e9c35dd8b764))
+* **dev:** add /k8s-dev skill — production-like Lightdash on AWS EKS ([#24796](https://github.com/lightdash/lightdash/issues/24796)) ([2f788e7](https://github.com/lightdash/lightdash/commit/2f788e7e93a89d21ac8b69a113e34db7a0a4eefd))
+
 # [0.3250.0](https://github.com/lightdash/lightdash/compare/0.3249.1...0.3250.0) (2026-06-25)
 
 
