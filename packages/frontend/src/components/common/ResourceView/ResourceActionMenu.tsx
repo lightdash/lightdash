@@ -18,6 +18,7 @@ import {
     IconFolderPlus,
     IconFolderSymlink,
     IconLayoutGridAdd,
+    IconPencil,
     IconPin,
     IconPinnedOff,
     IconStar,
@@ -337,6 +338,27 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
 
                     {userCanManage && (
                         <>
+                            {item.type === ResourceViewItemType.DATA_APP && (
+                                <Menu.Item
+                                    component="button"
+                                    role="menuitem"
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconPencil}
+                                            size={18}
+                                        />
+                                    }
+                                    onClick={() => {
+                                        if (!projectUuid) return;
+                                        void navigate(
+                                            `/projects/${projectUuid}/apps/${item.data.uuid}`,
+                                        );
+                                    }}
+                                >
+                                    Continue building
+                                </Menu.Item>
+                            )}
+
                             <Menu.Item
                                 component="button"
                                 role="menuitem"
