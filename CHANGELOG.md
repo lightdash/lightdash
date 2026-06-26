@@ -1,3 +1,10 @@
+## [0.3253.3](https://github.com/lightdash/lightdash/compare/0.3253.2...0.3253.3) (2026-06-26)
+
+
+### Bug Fixes
+
+* use primary preview project button ([#24806](https://github.com/lightdash/lightdash/issues/24806)) ([cf064c8](https://github.com/lightdash/lightdash/commit/cf064c8a464b19679e5569688de2282a1b63793f)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.3253.2](https://github.com/lightdash/lightdash/compare/0.3253.1...0.3253.2) (2026-06-26)
 
 
