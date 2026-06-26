@@ -3,6 +3,13 @@ export const SUMMARY_MODE_THRESHOLD = 500;
 export const MORE_VALUES_TOKEN = '__lightdash_more_values__';
 
 /**
+ * UI-only sentinel for the static "(null)" option. It never reaches the filter
+ * rule's `values`; selecting it toggles the rule's `includeNull` flag instead.
+ */
+export const NULL_VALUE_TOKEN = '__lightdash_null_value__';
+export const NULL_VALUE_LABEL = '(null)';
+
+/**
  * Computes display values for the MultiSelect component.
  * When there are more than INLINE_RENDER_LIMIT values, truncates to first N items
  * and appends a token representing the hidden items.

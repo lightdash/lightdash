@@ -223,9 +223,11 @@ export const isMalformedEmptyDashboardFilter = (filter: {
     operator: FilterOperator;
     values?: unknown[] | null;
     disabled?: boolean;
+    includeNull?: boolean;
 }): boolean =>
     filter.disabled !== true &&
     isWithValueFilter(filter.operator) &&
+    filter.includeNull !== true &&
     (!Array.isArray(filter.values) || filter.values.length === 0);
 
 export const getFilterRuleWithDefaultValue = <T extends FilterRule>(

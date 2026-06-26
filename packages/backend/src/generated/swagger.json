@@ -3096,6 +3096,10 @@
             },
             "FilterRule_FilterOperator.DashboardFieldTarget.AnyType.AnyType_": {
                 "properties": {
+                    "includeNull": {
+                        "type": "boolean",
+                        "description": "For the `equals` operator on string fields, also match rows where the\nfield is null (compiles to `field IN (...) OR field IS NULL`). Lets users\ncombine null with selected values in a single \"is\" rule."
+                    },
                     "values": {
                         "items": {
                             "$ref": "#/components/schemas/AnyType"
@@ -4260,6 +4264,10 @@
             "MetricFilterRule": {
                 "description": "Filter rule for metrics, targeting fields by reference",
                 "properties": {
+                    "includeNull": {
+                        "type": "boolean",
+                        "description": "For the `equals` operator on string fields, also match rows where the\nfield is null (compiles to `field IN (...) OR field IS NULL`). Lets users\ncombine null with selected values in a single \"is\" rule."
+                    },
                     "values": {
                         "items": {
                             "$ref": "#/components/schemas/AnyType"
@@ -4603,6 +4611,10 @@
             },
             "FilterRule": {
                 "properties": {
+                    "includeNull": {
+                        "type": "boolean",
+                        "description": "For the `equals` operator on string fields, also match rows where the\nfield is null (compiles to `field IN (...) OR field IS NULL`). Lets users\ncombine null with selected values in a single \"is\" rule."
+                    },
                     "values": {
                         "items": {
                             "$ref": "#/components/schemas/AnyType"
@@ -5702,6 +5714,10 @@
             },
             "BaseFilterRule_FilterOperator.number-or-string_": {
                 "properties": {
+                    "includeNull": {
+                        "type": "boolean",
+                        "description": "For the `equals` operator on string fields, also match rows where the\nfield is null (compiles to `field IN (...) OR field IS NULL`). Lets users\ncombine null with selected values in a single \"is\" rule."
+                    },
                     "values": {
                         "items": {
                             "anyOf": [
@@ -7936,6 +7952,10 @@
             },
             "JoinModelRequiredFilterRule": {
                 "properties": {
+                    "includeNull": {
+                        "type": "boolean",
+                        "description": "For the `equals` operator on string fields, also match rows where the\nfield is null (compiles to `field IN (...) OR field IS NULL`). Lets users\ncombine null with selected values in a single \"is\" rule."
+                    },
                     "values": {
                         "items": {
                             "$ref": "#/components/schemas/AnyType"
@@ -15699,10 +15719,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -15711,8 +15731,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "tableName",
                                                                         "label",
+                                                                        "tableName",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -15722,19 +15742,28 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "joinedTables": {
+                                                                            "items": {
+                                                                                "type": "string"
+                                                                            },
+                                                                            "type": "array",
+                                                                            "nullable": true
+                                                                        },
                                                                         "requiredFilters": {
                                                                             "items": {
                                                                                 "properties": {
-                                                                                    "required": {
-                                                                                        "type": "boolean"
-                                                                                    },
                                                                                     "settings": {},
                                                                                     "values": {
                                                                                         "items": {},
                                                                                         "type": "array"
                                                                                     },
-                                                                                    "operator": {
-                                                                                        "type": "string"
+                                                                                    "required": {
+                                                                                        "type": "boolean"
                                                                                     },
                                                                                     "tableName": {
                                                                                         "type": "string"
@@ -15744,30 +15773,21 @@
                                                                                     },
                                                                                     "fieldId": {
                                                                                         "type": "string"
+                                                                                    },
+                                                                                    "operator": {
+                                                                                        "type": "string"
                                                                                     }
                                                                                 },
                                                                                 "required": [
                                                                                     "required",
-                                                                                    "operator",
                                                                                     "tableName",
                                                                                     "fieldRef",
-                                                                                    "fieldId"
+                                                                                    "fieldId",
+                                                                                    "operator"
                                                                                 ],
                                                                                 "type": "object"
                                                                             },
                                                                             "type": "array"
-                                                                        },
-                                                                        "joinedTables": {
-                                                                            "items": {
-                                                                                "type": "string"
-                                                                            },
-                                                                            "type": "array",
-                                                                            "nullable": true
-                                                                        },
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
                                                                         },
                                                                         "label": {
                                                                             "type": "string"
@@ -15970,25 +15990,21 @@
                                                                     "fields": {
                                                                         "items": {
                                                                             "properties": {
-                                                                                "description": {
-                                                                                    "type": "string",
-                                                                                    "nullable": true
-                                                                                },
                                                                                 "isFromJoinedTable": {
                                                                                     "type": "boolean"
                                                                                 },
                                                                                 "caseSensitiveFilters": {
                                                                                     "type": "string",
                                                                                     "enum": [
+                                                                                        "true",
                                                                                         "false",
-                                                                                        "not_applicable",
-                                                                                        "true"
+                                                                                        "not_applicable"
                                                                                     ]
                                                                                 },
-                                                                                "fieldFilterType": {
+                                                                                "fieldValueType": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "fieldValueType": {
+                                                                                "fieldFilterType": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "fieldType": {
@@ -15998,30 +16014,34 @@
                                                                                         "metric"
                                                                                     ]
                                                                                 },
-                                                                                "table": {
-                                                                                    "type": "string"
-                                                                                },
                                                                                 "label": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "name": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "fieldId": {
                                                                                     "type": "string"
+                                                                                },
+                                                                                "table": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "description": {
+                                                                                    "type": "string",
+                                                                                    "nullable": true
+                                                                                },
+                                                                                "name": {
+                                                                                    "type": "string"
                                                                                 }
                                                                             },
                                                                             "required": [
-                                                                                "description",
                                                                                 "isFromJoinedTable",
                                                                                 "caseSensitiveFilters",
-                                                                                "fieldFilterType",
                                                                                 "fieldValueType",
+                                                                                "fieldFilterType",
                                                                                 "fieldType",
-                                                                                "table",
                                                                                 "label",
-                                                                                "name",
-                                                                                "fieldId"
+                                                                                "fieldId",
+                                                                                "table",
+                                                                                "description",
+                                                                                "name"
                                                                             ],
                                                                             "type": "object"
                                                                         },
@@ -16032,16 +16052,13 @@
                                                                             "requiredFilters": {
                                                                                 "items": {
                                                                                     "properties": {
-                                                                                        "required": {
-                                                                                            "type": "boolean"
-                                                                                        },
                                                                                         "settings": {},
                                                                                         "values": {
                                                                                             "items": {},
                                                                                             "type": "array"
                                                                                         },
-                                                                                        "operator": {
-                                                                                            "type": "string"
+                                                                                        "required": {
+                                                                                            "type": "boolean"
                                                                                         },
                                                                                         "tableName": {
                                                                                             "type": "string"
@@ -16051,14 +16068,17 @@
                                                                                         },
                                                                                         "fieldId": {
                                                                                             "type": "string"
+                                                                                        },
+                                                                                        "operator": {
+                                                                                            "type": "string"
                                                                                         }
                                                                                     },
                                                                                     "required": [
                                                                                         "required",
-                                                                                        "operator",
                                                                                         "tableName",
                                                                                         "fieldRef",
-                                                                                        "fieldId"
+                                                                                        "fieldId",
+                                                                                        "operator"
                                                                                     ],
                                                                                     "type": "object"
                                                                                 },
@@ -31401,6 +31421,10 @@
                         "items": {},
                         "type": "array",
                         "description": "Values to filter by"
+                    },
+                    "includeNull": {
+                        "type": "boolean",
+                        "description": "For the `equals` operator on string fields, also match rows where the\nfield is null (compiles to `field IN (...) OR field IS NULL`). Lets users\ncombine null with selected values in a single \"is\" rule."
                     }
                 },
                 "required": ["target", "operator"],
@@ -32024,6 +32048,10 @@
                         "items": {},
                         "type": "array",
                         "description": "Values to filter by"
+                    },
+                    "includeNull": {
+                        "type": "boolean",
+                        "description": "For the `equals` operator on string fields, also match rows where the\nfield is null (compiles to `field IN (...) OR field IS NULL`). Lets users\ncombine null with selected values in a single \"is\" rule."
                     },
                     "tileTargets": {
                         "$ref": "#/components/schemas/Record_string.DashboardTileTarget_"
@@ -41461,7 +41489,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3253.1",
+        "version": "0.3254.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
