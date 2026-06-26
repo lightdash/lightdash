@@ -1,8 +1,10 @@
+import { getAppDisplayName } from '@lightdash/common';
 import { Box, Text, Title } from '@mantine-8/core';
 import { type FC, type ReactNode } from 'react';
 import classes from './AppHeader.module.css';
 
 type Props = {
+    appUuid: string;
     name: string;
     description: string | null;
     /** Space indicator shown next to the title (folder chip / "Add to space").
@@ -20,6 +22,7 @@ type Props = {
  * chrome instead of diverging.
  */
 const AppHeader: FC<Props> = ({
+    appUuid,
     name,
     description,
     spaceChip,
@@ -37,7 +40,7 @@ const AppHeader: FC<Props> = ({
                     lineClamp={1}
                     className={classes.title}
                 >
-                    {name || 'Untitled app'}
+                    {getAppDisplayName(name, appUuid)}
                 </Title>
             </Box>
             {description && (

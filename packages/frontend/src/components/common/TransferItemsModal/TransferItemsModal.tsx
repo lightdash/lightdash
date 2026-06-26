@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    getResourceViewItemName,
     ResourceViewItemType,
     type ResourceViewItem,
 } from '@lightdash/common';
@@ -36,7 +37,7 @@ const ItemName = ({ name }: { name: string }) => {
 const getItemsText = <T extends ResourceViewItem>(items: T[]) => {
     if (items.length === 1) {
         return {
-            name: <ItemName name={items[0].data.name} />,
+            name: <ItemName name={getResourceViewItemName(items[0])} />,
             type: items[0].type,
         };
     }

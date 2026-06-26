@@ -1,4 +1,5 @@
 import {
+    getResourceViewItemName,
     isResourceViewItemChart,
     isResourceViewItemDashboard,
     isResourceViewSpaceItem,
@@ -200,7 +201,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                             lineClamp={1}
                                             className={classes.itemName}
                                         >
-                                            {item.data.name}
+                                            {getResourceViewItemName(item)}
                                         </Text>
                                         {!isResourceViewSpaceItem(item) &&
                                             // If there is no description, don't show the info icon on dashboards.

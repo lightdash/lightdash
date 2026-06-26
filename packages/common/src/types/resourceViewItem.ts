@@ -1,4 +1,4 @@
-import { type AppVersionStatus } from '../ee/apps/types';
+import { getAppDisplayName, type AppVersionStatus } from '../ee/apps/types';
 import assertUnreachable from '../utils/assertUnreachable';
 import {
     ContentType as ResourceViewItemType,
@@ -138,6 +138,17 @@ export const isResourceViewDataAppItem = (
     item: ResourceViewItem,
 ): item is ResourceViewDataAppItem =>
     item.type === ResourceViewItemType.DATA_APP;
+
+/**
+ * Display name for any resource view item. Identical to `item.data.name` for
+ * every type except data apps, which fall back to a placeholder when unnamed
+ * (see `getAppDisplayName`). Use this anywhere a resource item's name is
+ * rendered so unnamed apps never show up blank.
+ */
+export const getResourceViewItemName = (item: ResourceViewItem): string =>
+    isResourceViewDataAppItem(item)
+        ? getAppDisplayName(item.data.name, item.data.uuid)
+        : item.data.name;
 
 export const wrapResource = <T extends ResourceViewAcceptedItems>(
     resource: T,

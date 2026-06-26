@@ -1,6 +1,7 @@
 import {
     ChartType,
     FieldType,
+    getAppDisplayName,
     getItemId,
     isTableErrorSearchResult,
     SearchItemType,
@@ -151,7 +152,7 @@ export const getSearchItemMap = (
 
     const dataApps = results.dataApps.map<SearchItem>((item) => ({
         type: SearchItemType.DATA_APP,
-        title: item.name,
+        title: getAppDisplayName(item.name, item.uuid),
         description: item.description || undefined,
         item: item,
         searchRank: item.search_rank,

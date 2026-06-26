@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     FeatureFlags,
+    getResourceViewItemName,
     ResourceViewItemType,
     type ResourceViewItem,
 } from '@lightdash/common';
@@ -188,7 +189,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                                         }
                                     >
                                         <TruncatedText maxWidth={200}>
-                                            {item.data.name}
+                                            {getResourceViewItemName(item)}
                                         </TruncatedText>
                                     </Menu.Item>
                                 ))}
