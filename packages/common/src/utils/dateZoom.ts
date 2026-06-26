@@ -287,7 +287,12 @@ export const resolveTileDateZoom = ({
             control,
             runtimeGranularities,
         );
-        return { granularity, xAxisFieldId: target.fieldId };
+        // Param-only targets have no field to re-grain (fieldId null); the grain
+        // only feeds the reserved `date_zoom` parameter.
+        return {
+            granularity,
+            ...(target.fieldId ? { xAxisFieldId: target.fieldId } : {}),
+        };
     }
 
     // Unassigned (or dangling target) -> Default = today's behavior.

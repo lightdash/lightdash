@@ -1,5 +1,6 @@
 import {
     getTileControl,
+    hasReservedParameterReference,
     isDashboardChartTileType,
     isStandardDateGranularity,
     type ChartZoomableField,
@@ -13,6 +14,7 @@ import {
     Box,
     Button,
     Checkbox,
+    Code,
     Collapse,
     Flex,
     Group,
@@ -54,7 +56,9 @@ enum ControlTab {
     TILES = 'tiles',
 }
 
-type DraftTarget = { fieldId: string; tableName: string };
+// Param-only tiles carry a null field: there is nothing to re-grain, only the
+// control's grain feeds the reserved `date_zoom` parameter.
+type DraftTarget = { fieldId: string | null; tableName: string | null };
 
 export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
     control,
@@ -66,6 +70,11 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const chartZoomableFieldsByTileUuid = useDashboardContext(
         (c) => c.chartZoomableFieldsByTileUuid,
+    );
+    // Param-only tiles (custom SQL referencing `${ld.parameters.date_zoom}` but
+    // no re-grainable date field) are also affected by a control's grain.
+    const tileParameterReferences = useDashboardContext(
+        (c) => c.tileParameterReferences,
     );
     // Custom granularities discovered across the dashboard's tiles (same source
     // as the global picker). A control can zoom to these when available.
@@ -136,15 +145,21 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
         ];
     }, [dateZoomGranularities, availableCustomGranularities]);
 
-    // Chart tiles that expose at least one zoomable date field (a date/timestamp
-    // dimension the chart actually queries), with the control they are currently
-    // attached to (for conflict display).
+    // Chart tiles a control can touch: those that expose a zoomable date field
+    // (a date/timestamp dimension the chart queries) OR reference the reserved
+    // `date_zoom` parameter in custom SQL (param-only, no field to re-grain).
+    // Each carries the control it is currently attached to (for conflict display).
     const eligibleTiles = useMemo(() => {
         return (dashboardTiles ?? [])
             .filter(isDashboardChartTileType)
             .map((tile) => {
                 const zoomableFields =
                     chartZoomableFieldsByTileUuid[tile.uuid] ?? [];
+                const isParamOnly =
+                    zoomableFields.length === 0 &&
+                    hasReservedParameterReference(
+                        tileParameterReferences?.[tile.uuid] ?? [],
+                    );
                 const otherControl = getTileControl(config, tile.uuid);
                 const conflictControl =
                     otherControl && otherControl.uuid !== draft.uuid
@@ -158,12 +173,22 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
                     tile,
                     tabUuid: tile.tabUuid ?? undefined,
                     zoomableFields,
+                    isParamOnly,
                     conflictControl,
                     label,
                 };
             })
-            .filter(({ zoomableFields }) => zoomableFields.length > 0);
-    }, [dashboardTiles, chartZoomableFieldsByTileUuid, config, draft.uuid]);
+            .filter(
+                ({ zoomableFields, isParamOnly }) =>
+                    zoomableFields.length > 0 || isParamOnly,
+            );
+    }, [
+        dashboardTiles,
+        chartZoomableFieldsByTileUuid,
+        tileParameterReferences,
+        config,
+        draft.uuid,
+    ]);
 
     type EligibleTile = (typeof eligibleTiles)[number];
 
@@ -212,12 +237,13 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
                 const { [tileUuid]: _removed, ...rest } = prev;
                 return rest;
             }
+            // Param-only tiles have no field to pick; carry a null field.
             const firstField = zoomableFields[0];
             return {
                 ...prev,
                 [tileUuid]: {
-                    fieldId: firstField.fieldId,
-                    tableName: firstField.tableName,
+                    fieldId: firstField?.fieldId ?? null,
+                    tableName: firstField?.tableName ?? null,
                 },
             };
         });
@@ -245,9 +271,10 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
                 if (allSelected) {
                     delete next[tile.uuid];
                 } else if (!next[tile.uuid]) {
+                    const firstField = zoomableFields[0];
                     next[tile.uuid] = {
-                        fieldId: zoomableFields[0].fieldId,
-                        tableName: zoomableFields[0].tableName,
+                        fieldId: firstField?.fieldId ?? null,
+                        tableName: firstField?.tableName ?? null,
                     };
                 }
             });
@@ -290,6 +317,7 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
     const renderTileRow = ({
         tile,
         zoomableFields,
+        isParamOnly,
         conflictControl,
         label,
     }: EligibleTile) => {
@@ -330,6 +358,13 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
                         <Badge size="sm" color="gray" variant="light">
                             In {conflictControl.name}
                         </Badge>
+                    </Box>
+                ) : isChecked && isParamOnly ? (
+                    <Box ml="xl" mt="xxs">
+                        <Text fz="xs" c="dimmed">
+                            Follows the selected granularity via{' '}
+                            <Code fz="xs">{'${ld.parameters.date_zoom}'}</Code>
+                        </Text>
                     </Box>
                 ) : isChecked ? (
                     <Box ml="xl" mt="sm">
