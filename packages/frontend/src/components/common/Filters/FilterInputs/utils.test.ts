@@ -34,6 +34,57 @@ describe('getConditionalRuleLabel', () => {
         });
     });
 
+    it('should append (null) for an equals string filter with includeNull', () => {
+        const rule: BaseFilterRule = {
+            id: 'test-rule-id',
+            operator: FilterOperator.EQUALS,
+            values: ['a', 'b'],
+            includeNull: true,
+        };
+
+        const result = getConditionalRuleLabel(
+            rule,
+            FilterType.STRING,
+            'Status',
+        );
+
+        expect(result.value).toBe('a, b, (null)');
+    });
+
+    it('should show only (null) when an equals string filter has no values but includeNull', () => {
+        const rule: BaseFilterRule = {
+            id: 'test-rule-id',
+            operator: FilterOperator.EQUALS,
+            values: [],
+            includeNull: true,
+        };
+
+        const result = getConditionalRuleLabel(
+            rule,
+            FilterType.STRING,
+            'Status',
+        );
+
+        expect(result.value).toBe('(null)');
+    });
+
+    it('should not append (null) for a non-equals string filter even if includeNull is set', () => {
+        const rule: BaseFilterRule = {
+            id: 'test-rule-id',
+            operator: FilterOperator.NOT_EQUALS,
+            values: ['a'],
+            includeNull: true,
+        };
+
+        const result = getConditionalRuleLabel(
+            rule,
+            FilterType.STRING,
+            'Status',
+        );
+
+        expect(result.value).toBe('a');
+    });
+
     it('should return correct labels for a number filter', () => {
         // Arrange
         const rule: BaseFilterRule = {

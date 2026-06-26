@@ -1302,6 +1302,36 @@ describe('Filter SQL', () => {
         ).toBe(stringFilterRuleMocks.startsWithFilterWithEmptyStringSQL);
     });
 
+    test('should add OR IS NULL when equals filter includes null with values', () => {
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.equalsFilterWithMultiValAndNull,
+                "'",
+            ),
+        ).toBe(stringFilterRuleMocks.equalsFilterWithMultiValAndNullSQL);
+    });
+
+    test('should return IS NULL when equals filter includes null with no values', () => {
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.equalsFilterWithOnlyNull,
+                "'",
+            ),
+        ).toBe(stringFilterRuleMocks.equalsFilterWithOnlyNullSQL);
+    });
+
+    test('should return true when equals filter has no values and does not include null', () => {
+        expect(
+            renderStringFilterSql(
+                stringFilterDimension,
+                stringFilterRuleMocks.equalsFilterWithNoValAndNoNull,
+                "'",
+            ),
+        ).toBe(stringFilterRuleMocks.equalsFilterWithNoValAndNoNullSQL);
+    });
+
     test('should return true when ends with filter has empty string value', () => {
         expect(
             renderStringFilterSql(

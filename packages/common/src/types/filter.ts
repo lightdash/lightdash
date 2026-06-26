@@ -55,6 +55,12 @@ export type BaseFilterRule<O = FilterOperator, V = unknown> = {
     operator: O;
     /** Values to filter by */
     values?: V[];
+    /**
+     * For the `equals` operator on string fields, also match rows where the
+     * field is null (compiles to `field IN (...) OR field IS NULL`). Lets users
+     * combine null with selected values in a single "is" rule.
+     */
+    includeNull?: boolean;
 };
 
 export enum UnitOfTime {

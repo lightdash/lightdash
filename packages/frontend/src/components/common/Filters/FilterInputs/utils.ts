@@ -30,6 +30,7 @@ import isEmpty from 'lodash/isEmpty';
 import uniq from 'lodash/uniq';
 import { type MomentInput } from 'moment';
 import { filterOperatorLabel } from './constants';
+import { NULL_VALUE_LABEL } from './FilterStringAutoComplete.utils';
 
 export const getFilterOptions = <T extends FilterOperator>(
     operators: Array<T>,
@@ -152,8 +153,19 @@ const getValueAsString = (
                 case FilterOperator.IN_BETWEEN:
                 case FilterOperator.NOT_IN_BETWEEN:
                     return `${firstValue || 0}, ${secondValue || 0}`;
-                default:
-                    return values?.join(', ');
+                default: {
+                    const joined = values?.join(', ');
+                    if (
+                        filterType === FilterType.STRING &&
+                        operator === FilterOperator.EQUALS &&
+                        rule.includeNull
+                    ) {
+                        return joined
+                            ? `${joined}, ${NULL_VALUE_LABEL}`
+                            : NULL_VALUE_LABEL;
+                    }
+                    return joined;
+                }
             }
         case FilterType.BOOLEAN:
             return values?.map(formatBoolean).join(', ');

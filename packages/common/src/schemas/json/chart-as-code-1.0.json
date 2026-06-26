@@ -179,6 +179,10 @@
                     "description": "Unique identifier for the filter rule",
                     "type": "string"
                 },
+                "includeNull": {
+                    "description": "For the `equals` operator on string fields, also match rows where the\nfield is null (compiles to `field IN (...) OR field IS NULL`). Lets users\ncombine null with selected values in a single \"is\" rule.",
+                    "type": "boolean"
+                },
                 "operator": {
                     "$ref": "#/$defs/FilterOperator",
                     "description": "Filter operator"
@@ -1938,6 +1942,10 @@
                     "description": "Unique identifier for the filter",
                     "type": "string"
                 },
+                "includeNull": {
+                    "description": "For the `equals` operator on string fields, also match rows where the\nfield is null (compiles to `field IN (...) OR field IS NULL`). Lets users\ncombine null with selected values in a single \"is\" rule.",
+                    "type": "boolean"
+                },
                 "operator": {
                     "$ref": "#/$defs/FilterOperator",
                     "description": "Filter operator"
@@ -2227,6 +2235,10 @@
                 },
                 "disabled": {
                     "description": "Whether this filter is disabled",
+                    "type": "boolean"
+                },
+                "includeNull": {
+                    "description": "For the `equals` operator on string fields, also match rows where the\nfield is null (compiles to `field IN (...) OR field IS NULL`). Lets users\ncombine null with selected values in a single \"is\" rule.",
                     "type": "boolean"
                 },
                 "operator": {

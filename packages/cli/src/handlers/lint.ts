@@ -73,6 +73,7 @@ export function findMalformedDashboardFilters(data: unknown): ErrorObject[] {
                 operator?: FilterOperator;
                 values?: unknown[] | null;
                 disabled?: boolean;
+                includeNull?: boolean;
                 label?: string;
                 target?: { fieldId?: string };
             };
@@ -82,6 +83,7 @@ export function findMalformedDashboardFilters(data: unknown): ErrorObject[] {
                     operator: f.operator,
                     values: f.values,
                     disabled: f.disabled,
+                    includeNull: f.includeNull,
                 })
             ) {
                 return;

@@ -131,15 +131,22 @@ export const renderStringFilterSql = (
         !caseSensitive ? String(value).toUpperCase() : value;
 
     switch (filter.operator) {
-        case FilterOperator.EQUALS:
-            return filter.values && filter.values.length > 0
-                ? `(${wrapDimension(dimensionSql)}) IN (${filter.values
-                      .map(
-                          (v) =>
-                              `${stringQuoteChar}${wrapValue(v)}${stringQuoteChar}`,
-                      )
-                      .join(',')})`
-                : 'true';
+        case FilterOperator.EQUALS: {
+            const inClause =
+                filter.values && filter.values.length > 0
+                    ? `(${wrapDimension(dimensionSql)}) IN (${filter.values
+                          .map(
+                              (v) =>
+                                  `${stringQuoteChar}${wrapValue(v)}${stringQuoteChar}`,
+                          )
+                          .join(',')})`
+                    : undefined;
+            if (filter.includeNull) {
+                const nullClause = `(${dimensionSql}) IS NULL`;
+                return inClause ? `(${inClause} OR ${nullClause})` : nullClause;
+            }
+            return inClause ?? 'true';
+        }
         case FilterOperator.NOT_EQUALS:
             return filter.values && filter.values.length > 0
                 ? `((${wrapDimension(dimensionSql)}) NOT IN (${filter.values
