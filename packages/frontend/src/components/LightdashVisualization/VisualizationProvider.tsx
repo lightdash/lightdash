@@ -84,6 +84,7 @@ export type VisualizationProviderProps = {
     containerHeight?: number;
     isDashboard?: boolean;
     isEditMode?: boolean;
+    hasExplorerStore?: boolean;
     dateZoom?: DateZoom;
 };
 
@@ -115,6 +116,7 @@ const VisualizationProvider: FC<
     containerHeight,
     isDashboard,
     isEditMode,
+    hasExplorerStore = true,
     dateZoom,
 }) => {
     const itemsMap = useMemo(() => {
@@ -359,6 +361,7 @@ const VisualizationProvider: FC<
         containerHeight,
         isDashboard,
         isEditMode,
+        hasExplorerStore,
         isTouchDevice,
         resolvedTimezone: lastValidResultsData?.resolvedTimezone,
     };
