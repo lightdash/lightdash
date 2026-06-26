@@ -934,6 +934,7 @@ export class AiWritebackService extends BaseService {
                 dockerImage:
                     this.lightdashConfig.appRuntime
                         .sandboxAiWritebackDockerImage,
+                lambdaMicroVm: this.lightdashConfig.appRuntime.lambdaMicroVm,
                 snapshotStore: new S3SnapshotStore({
                     lightdashConfig: this.lightdashConfig,
                 }),
@@ -968,6 +969,17 @@ export class AiWritebackService extends BaseService {
         if (sandboxProvider === 'docker') {
             return this.lightdashConfig.appRuntime
                 .sandboxAiWritebackDockerImage;
+        }
+        if (sandboxProvider === 'lambda-microvm') {
+            const imageArn =
+                this.lightdashConfig.appRuntime
+                    .lambdaMicroVmAiWritebackImageArn;
+            if (!imageArn) {
+                throw new MissingConfigError(
+                    'Lambda MicroVM AI writeback image ARN is not configured (LAMBDA_MICROVM_AI_WRITEBACK_IMAGE_ARN)',
+                );
+            }
+            return imageArn;
         }
         return resolveSandboxTemplateRef({
             name: this.lightdashConfig.appRuntime.e2bAiWritebackTemplateName,

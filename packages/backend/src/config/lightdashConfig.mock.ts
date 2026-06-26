@@ -377,6 +377,18 @@ export const lightdashConfigMock: LightdashConfig = {
         sandboxAiWritebackDockerImage: 'lightdash-ai-writeback:local',
         sandboxIdleTimeoutMs: 30 * 60 * 1000,
         sandboxSnapshotRetentionMs: 7 * 24 * 60 * 60 * 1000,
+        lambdaMicroVm: {
+            region: 'eu-west-1',
+            executionRoleArn: null,
+            ingressConnectorArn:
+                'arn:aws:lambda:eu-west-1:aws:network-connector:aws-network-connector:ALL_INGRESS',
+            egressConnectorArn:
+                'arn:aws:lambda:eu-west-1:aws:network-connector:aws-network-connector:INTERNET_EGRESS',
+            maxIdleDurationSeconds: 30 * 60,
+            suspendedDurationSeconds: 7 * 24 * 60 * 60,
+        },
+        lambdaMicroVmDataAppImageArn: null,
+        lambdaMicroVmAiWritebackImageArn: null,
     },
     enabledFeatureFlags: new Set<string>(),
     disabledFeatureFlags: new Set<string>(),

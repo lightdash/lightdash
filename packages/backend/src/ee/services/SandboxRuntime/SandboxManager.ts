@@ -230,6 +230,14 @@ export class SandboxManager {
      * Safety-net sweep (cron): suspend running sandboxes left idle by a crashed
      * worker, then GC suspended snapshots past the retention window. In steady
      * state this finds nothing — every turn suspends its own sandbox.
+     *
+     * Native-pause providers that self-suspend on their own idle policy
+     * (Lambda MicroVMs via its AWS `idlePolicy`) may have already suspended an
+     * "idle running" row out-of-band. That is harmless here: `suspendOrphan`
+     * connects (auto-resuming the microVM) and re-suspends, converging the row
+     * to SUSPENDED. A future refinement is to make this a pure reconcile for such
+     * providers (GetMicrovm: TERMINATED/missing → mark expired) and let AWS own
+     * idle-suspend entirely.
      */
     async reapIdle(): Promise<{ suspended: number; gced: number }> {
         const now = Date.now();

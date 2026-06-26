@@ -389,6 +389,7 @@ export class AppGenerateService extends BaseService {
                 provider: this.lightdashConfig.appRuntime.sandboxProvider,
                 e2bApiKey: this.lightdashConfig.appRuntime.e2bApiKey,
                 dockerImage: this.lightdashConfig.appRuntime.sandboxDockerImage,
+                lambdaMicroVm: this.lightdashConfig.appRuntime.lambdaMicroVm,
                 snapshotStore: new S3SnapshotStore({
                     lightdashConfig: this.lightdashConfig,
                 }),
@@ -407,6 +408,16 @@ export class AppGenerateService extends BaseService {
             this.lightdashConfig.appRuntime;
         if (sandboxProvider === 'docker') {
             return this.lightdashConfig.appRuntime.sandboxDockerImage;
+        }
+        if (sandboxProvider === 'lambda-microvm') {
+            const imageArn =
+                this.lightdashConfig.appRuntime.lambdaMicroVmDataAppImageArn;
+            if (!imageArn) {
+                throw new MissingConfigError(
+                    'Lambda MicroVM data-app image ARN is not configured (LAMBDA_MICROVM_DATA_APP_IMAGE_ARN)',
+                );
+            }
+            return imageArn;
         }
         // E2B treats `name` and `name:default` interchangeably, so an empty
         // tag is fine — it just resolves to the implicit `default` build.
