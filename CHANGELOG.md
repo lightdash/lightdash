@@ -1,3 +1,10 @@
+## [0.3252.1](https://github.com/lightdash/lightdash/compare/0.3252.0...0.3252.1) (2026-06-26)
+
+
+### Bug Fixes
+
+* **promote:** show promote in list views for developer users ([#24768](https://github.com/lightdash/lightdash/issues/24768)) ([27654ad](https://github.com/lightdash/lightdash/commit/27654ad52631a9bf34d4c8bf0fe2b94d49b032fb))
+
 # [0.3252.0](https://github.com/lightdash/lightdash/compare/0.3251.0...0.3252.0) (2026-06-26)
 
 
