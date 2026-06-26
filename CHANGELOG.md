@@ -1,3 +1,11 @@
+## [0.3253.1](https://github.com/lightdash/lightdash/compare/0.3253.0...0.3253.1) (2026-06-26)
+
+
+### Bug Fixes
+
+* **omnibar:** use subtle dark shade for search group dividers in dark mode ([#24811](https://github.com/lightdash/lightdash/issues/24811)) ([65ea02c](https://github.com/lightdash/lightdash/commit/65ea02c77bd56b33aa80a45c7703164e03e6bcb7)), closes [#7a7a7](https://github.com/lightdash/lightdash/issues/7a7a7)
+* **sql-runner:** restore warehouse type when share link clears it ([#24807](https://github.com/lightdash/lightdash/issues/24807)) ([9dc77db](https://github.com/lightdash/lightdash/commit/9dc77db6535f640396cad0abe2e598347e44bd49))
+
 # [0.3253.0](https://github.com/lightdash/lightdash/compare/0.3252.2...0.3253.0) (2026-06-26)
 
 
