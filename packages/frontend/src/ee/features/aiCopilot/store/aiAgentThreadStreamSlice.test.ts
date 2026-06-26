@@ -2,7 +2,6 @@ import { SHOULD_AUTOBATCH } from '@reduxjs/toolkit';
 import { describe, expect, it } from 'vitest';
 import {
     addReasoning,
-    addMcpUnavailableNotice,
     addToolCall,
     aiAgentThreadStreamSlice,
     appendStepProgress,
@@ -12,51 +11,6 @@ import {
 } from './aiAgentThreadStreamSlice';
 
 describe('aiAgentThreadStreamSlice', () => {
-    it('stores MCP unavailable notices once per server for the active stream', () => {
-        const startedState = aiAgentThreadStreamSlice.reducer(
-            undefined,
-            startStreaming({
-                threadUuid: 'thread-1',
-                messageUuid: 'message-1',
-            }),
-        );
-
-        const stateWithNotice = aiAgentThreadStreamSlice.reducer(
-            startedState,
-            addMcpUnavailableNotice({
-                threadUuid: 'thread-1',
-                notice: {
-                    serverUuid: 'server-1',
-                    serverName: 'Docs MCP',
-                    message: 'Connection refused',
-                    status: 'error',
-                },
-            }),
-        );
-
-        const dedupedState = aiAgentThreadStreamSlice.reducer(
-            stateWithNotice,
-            addMcpUnavailableNotice({
-                threadUuid: 'thread-1',
-                notice: {
-                    serverUuid: 'server-1',
-                    serverName: 'Docs MCP',
-                    message: 'Connection refused',
-                    status: 'error',
-                },
-            }),
-        );
-
-        expect(dedupedState['thread-1']?.mcpUnavailableNotices ?? []).toEqual([
-            {
-                serverUuid: 'server-1',
-                serverName: 'Docs MCP',
-                message: 'Connection refused',
-                status: 'error',
-            },
-        ]);
-    });
-
     it('marks high-frequency stream updates for Redux auto-batching', () => {
         const expectedMeta = { [SHOULD_AUTOBATCH]: true };
 
@@ -86,17 +40,6 @@ describe('aiAgentThreadStreamSlice', () => {
                 threadUuid: 'thread-1',
                 reasoningId: 'reasoning-1',
                 text: 'thinking',
-            }).meta,
-        ).toEqual(expectedMeta);
-        expect(
-            addMcpUnavailableNotice({
-                threadUuid: 'thread-1',
-                notice: {
-                    serverUuid: 'server-1',
-                    serverName: 'Docs MCP',
-                    message: 'Connection refused',
-                    status: 'error',
-                },
             }).meta,
         ).toEqual(expectedMeta);
         expect(
