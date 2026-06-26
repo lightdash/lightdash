@@ -40,6 +40,10 @@ export const getDefaultModel = (
         case 'azure': {
             const azureConfig = config.providers.azure;
             if (!azureConfig) {
+                Logger.warn(
+                    'getDefaultModel: default AI provider is not configured',
+                    { defaultProvider: 'azure' },
+                );
                 return null;
             }
 
@@ -51,6 +55,10 @@ export const getDefaultModel = (
         default: {
             const defaultProvider = config.providers[config.defaultProvider];
             if (!defaultProvider) {
+                Logger.warn(
+                    'getDefaultModel: default AI provider is not configured',
+                    { defaultProvider: config.defaultProvider },
+                );
                 return null;
             }
             return {
