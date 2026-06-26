@@ -188,6 +188,11 @@
                             "description": "Appended to the built-in RAW/DAY/WEEK/MONTH/QUARTER/YEAR defaults for TIMESTAMP dimensions."
                         }
                     }
+                },
+                "granularity_labels": {
+                    "type": ["object", "null"],
+                    "description": "Override the display label of standard granularities (e.g. week: \"Week starting Monday\"). Keyed by standard granularity name.",
+                    "additionalProperties": { "type": "string" }
                 }
             }
         },

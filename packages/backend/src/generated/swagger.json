@@ -4140,6 +4140,10 @@
                     "timeInterval": {
                         "$ref": "#/components/schemas/TimeFrames"
                     },
+                    "timeIntervalLabel": {
+                        "type": "string",
+                        "description": "Overridden display label for this dimension's grain (project\n`granularity_labels`); undefined when no override — callers fall back\nto `timeFrameConfigs[timeInterval].getLabel()`."
+                    },
                     "timeIntervalBaseDimensionName": {
                         "type": "string"
                     },
@@ -8224,6 +8228,10 @@
                     "timeInterval": {
                         "$ref": "#/components/schemas/TimeFrames"
                     },
+                    "timeIntervalLabel": {
+                        "type": "string",
+                        "description": "Overridden display label for this dimension's grain (project\n`granularity_labels`); undefined when no override — callers fall back\nto `timeFrameConfigs[timeInterval].getLabel()`."
+                    },
                     "timeIntervalBaseDimensionName": {
                         "type": "string"
                     },
@@ -8589,6 +8597,78 @@
                 "enum": ["virtual", "default", "pre_aggregate"],
                 "type": "string"
             },
+            "Partial_Record_TimeFrames.string__": {
+                "properties": {
+                    "RAW": {
+                        "type": "string"
+                    },
+                    "YEAR": {
+                        "type": "string"
+                    },
+                    "QUARTER": {
+                        "type": "string"
+                    },
+                    "MONTH": {
+                        "type": "string"
+                    },
+                    "WEEK": {
+                        "type": "string"
+                    },
+                    "DAY": {
+                        "type": "string"
+                    },
+                    "HOUR": {
+                        "type": "string"
+                    },
+                    "MINUTE": {
+                        "type": "string"
+                    },
+                    "SECOND": {
+                        "type": "string"
+                    },
+                    "MILLISECOND": {
+                        "type": "string"
+                    },
+                    "DAY_OF_WEEK_INDEX": {
+                        "type": "string"
+                    },
+                    "DAY_OF_MONTH_NUM": {
+                        "type": "string"
+                    },
+                    "DAY_OF_YEAR_NUM": {
+                        "type": "string"
+                    },
+                    "WEEK_NUM": {
+                        "type": "string"
+                    },
+                    "MONTH_NUM": {
+                        "type": "string"
+                    },
+                    "QUARTER_NUM": {
+                        "type": "string"
+                    },
+                    "YEAR_NUM": {
+                        "type": "string"
+                    },
+                    "DAY_OF_WEEK_NAME": {
+                        "type": "string"
+                    },
+                    "MONTH_NAME": {
+                        "type": "string"
+                    },
+                    "QUARTER_NAME": {
+                        "type": "string"
+                    },
+                    "HOUR_OF_DAY_NUM": {
+                        "type": "string"
+                    },
+                    "MINUTE_OF_HOUR_NUM": {
+                        "type": "string"
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
             "Record_string.string-Array_": {
                 "properties": {},
                 "additionalProperties": {
@@ -8695,6 +8775,10 @@
                     },
                     "savedParameterValues": {
                         "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "granularityLabels": {
+                        "$ref": "#/components/schemas/Partial_Record_TimeFrames.string__",
+                        "description": "Project `granularity_labels` overrides, keyed by TimeFrames. Consumed\nby the date zoom to relabel standard granularities."
                     },
                     "parameters": {
                         "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
@@ -15697,21 +15781,21 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
-                                                                            "type": "string"
-                                                                        },
                                                                         "tableName": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
                                                                             "type": "string"
+                                                                        },
+                                                                        "label": {
+                                                                            "type": "string"
                                                                         }
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "label",
                                                                         "tableName",
-                                                                        "name"
+                                                                        "name",
+                                                                        "label"
                                                                     ],
                                                                     "type": "object"
                                                                 },
@@ -15723,13 +15807,6 @@
                                                                         "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
-                                                                            "nullable": true
-                                                                        },
-                                                                        "joinedTables": {
-                                                                            "items": {
-                                                                                "type": "string"
-                                                                            },
-                                                                            "type": "array",
                                                                             "nullable": true
                                                                         },
                                                                         "requiredFilters": {
@@ -15767,16 +15844,23 @@
                                                                             },
                                                                             "type": "array"
                                                                         },
-                                                                        "label": {
-                                                                            "type": "string"
+                                                                        "joinedTables": {
+                                                                            "items": {
+                                                                                "type": "string"
+                                                                            },
+                                                                            "type": "array",
+                                                                            "nullable": true
                                                                         },
                                                                         "name": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "label": {
                                                                             "type": "string"
                                                                         }
                                                                     },
                                                                     "required": [
-                                                                        "label",
-                                                                        "name"
+                                                                        "name",
+                                                                        "label"
                                                                     ],
                                                                     "type": "object"
                                                                 },
@@ -15857,21 +15941,21 @@
                                                                                     "fieldType": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "label": {
-                                                                                        "type": "string"
-                                                                                    },
                                                                                     "tableName": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "name": {
                                                                                         "type": "string"
+                                                                                    },
+                                                                                    "label": {
+                                                                                        "type": "string"
                                                                                     }
                                                                                 },
                                                                                 "required": [
                                                                                     "fieldType",
-                                                                                    "label",
                                                                                     "tableName",
-                                                                                    "name"
+                                                                                    "name",
+                                                                                    "label"
                                                                                 ],
                                                                                 "type": "object"
                                                                             },
@@ -15970,8 +16054,8 @@
                                                                                 "caseSensitiveFilters": {
                                                                                     "type": "string",
                                                                                     "enum": [
-                                                                                        "false",
                                                                                         "true",
+                                                                                        "false",
                                                                                         "not_applicable"
                                                                                     ]
                                                                                 },
@@ -15992,9 +16076,6 @@
                                                                                     "type": "string",
                                                                                     "nullable": true
                                                                                 },
-                                                                                "label": {
-                                                                                    "type": "string"
-                                                                                },
                                                                                 "fieldId": {
                                                                                     "type": "string"
                                                                                 },
@@ -16002,6 +16083,9 @@
                                                                                     "type": "string"
                                                                                 },
                                                                                 "table": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "label": {
                                                                                     "type": "string"
                                                                                 }
                                                                             },
@@ -16012,10 +16096,10 @@
                                                                                 "fieldFilterType",
                                                                                 "fieldType",
                                                                                 "description",
-                                                                                "label",
                                                                                 "fieldId",
                                                                                 "name",
-                                                                                "table"
+                                                                                "table",
+                                                                                "label"
                                                                             ],
                                                                             "type": "object"
                                                                         },
@@ -16071,18 +16155,18 @@
                                                                             "baseTable": {
                                                                                 "type": "string"
                                                                             },
-                                                                            "label": {
+                                                                            "name": {
                                                                                 "type": "string"
                                                                             },
-                                                                            "name": {
+                                                                            "label": {
                                                                                 "type": "string"
                                                                             }
                                                                         },
                                                                         "required": [
                                                                             "joinedTables",
                                                                             "baseTable",
-                                                                            "label",
-                                                                            "name"
+                                                                            "name",
+                                                                            "label"
                                                                         ],
                                                                         "type": "object"
                                                                     },
@@ -16196,6 +16280,12 @@
                                                         ],
                                                         "type": "object"
                                                     },
+                                                    "warnings": {
+                                                        "items": {
+                                                            "type": "string"
+                                                        },
+                                                        "type": "array"
+                                                    },
                                                     "href": {
                                                         "type": "string"
                                                     },
@@ -16210,23 +16300,17 @@
                                                     "uuid": {
                                                         "type": "string"
                                                     },
-                                                    "warnings": {
-                                                        "items": {
-                                                            "type": "string"
-                                                        },
-                                                        "type": "array"
-                                                    },
                                                     "name": {
                                                         "type": "string"
                                                     }
                                                 },
                                                 "required": [
                                                     "versionUuids",
+                                                    "warnings",
                                                     "href",
                                                     "status",
                                                     "slug",
                                                     "uuid",
-                                                    "warnings",
                                                     "name"
                                                 ],
                                                 "type": "object"
@@ -16404,21 +16488,21 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
-                                                                            "type": "string"
-                                                                        },
                                                                         "tableName": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
                                                                             "type": "string"
+                                                                        },
+                                                                        "label": {
+                                                                            "type": "string"
                                                                         }
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "label",
                                                                         "tableName",
-                                                                        "name"
+                                                                        "name",
+                                                                        "label"
                                                                     ],
                                                                     "type": "object"
                                                                 },
@@ -29885,6 +29969,10 @@
             },
             "ProjectDefaults": {
                 "properties": {
+                    "granularity_labels": {
+                        "$ref": "#/components/schemas/Record_string.string_",
+                        "description": "Override the display label of standard granularities (e.g. `week`:\n\"Week starting Monday\"). Keyed by standard granularity name; applies to\nExplorer dimension labels, the Explorer sidebar tree, and the date zoom."
+                    },
                     "additional_time_intervals": {
                         "properties": {
                             "timestamp": {
@@ -32140,22 +32228,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__properties_58__title-string--chartName-string_--type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART_-or-_properties_58__title-string--content-string_--type-DashboardTileTypes.MARKDOWN_-or-_properties_58__title-string_--type-DashboardTileTypes.LOOM_-or-_properties_58__text-string_--type-DashboardTileTypes.HEADING_-or-_properties_58__title-string_--type-DashboardTileTypes.DATA_APP__41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__properties_58__title-string--chartName-string_--type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART_-or-_properties_58__title-string--content-string_--type-DashboardTileTypes.MARKDOWN_-or-_properties_58__title-string_--type-DashboardTileTypes.LOOM_-or-_properties_58__text-string_--type-DashboardTileTypes.HEADING_-or-_properties_58__title-string_--type-DashboardTileTypes.DATA_APP__41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__properties_58__title-string--chartName-string_--type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART_-or-_properties_58__title-string--content-string_--type-DashboardTileTypes.MARKDOWN_-or-_properties_58__title-string_--type-DashboardTileTypes.LOOM_-or-_properties_58__text-string_--type-DashboardTileTypes.HEADING_-or-_properties_58__title-string_--type-DashboardTileTypes.DATA_APP__41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__properties_58__title-string--chartName-string_--type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART_-or-_properties_58__title-string--content-string_--type-DashboardTileTypes.MARKDOWN_-or-_properties_58__title-string_--type-DashboardTileTypes.LOOM_-or-_properties_58__text-string_--type-DashboardTileTypes.HEADING_-or-_properties_58__title-string_--type-DashboardTileTypes.DATA_APP__41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -32880,6 +32968,10 @@
                     },
                     "parameters": {
                         "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
+                    },
+                    "granularityLabels": {
+                        "$ref": "#/components/schemas/Partial_Record_TimeFrames.string__",
+                        "description": "Project `granularity_labels` overrides, keyed by TimeFrames. Consumed\nby the date zoom to relabel standard granularities."
                     },
                     "savedParameterValues": {
                         "$ref": "#/components/schemas/ParametersValuesMap"
@@ -36529,6 +36621,10 @@
                                 "type": "array"
                             }
                         ]
+                    },
+                    "granularityLabels": {
+                        "$ref": "#/components/schemas/Partial_Record_TimeFrames.string__",
+                        "description": "Project `granularity_labels` overrides, keyed by TimeFrames. Consumed\nby the date zoom to relabel standard granularities."
                     },
                     "savedParameterValues": {
                         "$ref": "#/components/schemas/ParametersValuesMap"
@@ -41459,7 +41555,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3249.0",
+        "version": "0.3252.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -3919,6 +3919,7 @@ const models: TsoaRoute.Models = {
             },
             anyAttributes: { ref: 'Record_string.string-or-string-Array_' },
             timeInterval: { ref: 'TimeFrames' },
+            timeIntervalLabel: { dataType: 'string' },
             timeIntervalBaseDimensionName: { dataType: 'string' },
             timeIntervalBaseDimensionType: { ref: 'DimensionType' },
             customTimeInterval: { dataType: 'string' },
@@ -7055,6 +7056,7 @@ const models: TsoaRoute.Models = {
             },
             anyAttributes: { ref: 'Record_string.string-or-string-Array_' },
             timeInterval: { ref: 'TimeFrames' },
+            timeIntervalLabel: { dataType: 'string' },
             timeIntervalBaseDimensionName: { dataType: 'string' },
             timeIntervalBaseDimensionType: { ref: 'DimensionType' },
             customTimeInterval: { dataType: 'string' },
@@ -7379,6 +7381,170 @@ const models: TsoaRoute.Models = {
         enums: ['virtual', 'default', 'pre_aggregate'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Partial_Record_TimeFrames.string__': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                RAW: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                YEAR: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                QUARTER: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                MONTH: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                WEEK: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                DAY: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                HOUR: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                MINUTE: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                SECOND: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                MILLISECOND: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                DAY_OF_WEEK_INDEX: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                DAY_OF_MONTH_NUM: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                DAY_OF_YEAR_NUM: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                WEEK_NUM: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                MONTH_NUM: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                QUARTER_NUM: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                YEAR_NUM: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                DAY_OF_WEEK_NAME: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                MONTH_NAME: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                QUARTER_NAME: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                HOUR_OF_DAY_NUM: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                MINUTE_OF_HOUR_NUM: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Record_string.string-Array_': {
         dataType: 'refAlias',
         type: {
@@ -7469,6 +7635,9 @@ const models: TsoaRoute.Models = {
                     array: { dataType: 'refAlias', ref: 'PreAggregateDef' },
                 },
                 savedParameterValues: { ref: 'ParametersValuesMap' },
+                granularityLabels: {
+                    ref: 'Partial_Record_TimeFrames.string__',
+                },
                 parameters: { ref: 'Record_string.LightdashProjectParameter_' },
                 aiHint: {
                     dataType: 'union',
@@ -14203,11 +14372,6 @@ const models: TsoaRoute.Models = {
                                                                                                             'string',
                                                                                                         required: true,
                                                                                                     },
-                                                                                                label: {
-                                                                                                    dataType:
-                                                                                                        'string',
-                                                                                                    required: true,
-                                                                                                },
                                                                                                 tableName:
                                                                                                     {
                                                                                                         dataType:
@@ -14215,6 +14379,11 @@ const models: TsoaRoute.Models = {
                                                                                                         required: true,
                                                                                                     },
                                                                                                 name: {
+                                                                                                    dataType:
+                                                                                                        'string',
+                                                                                                    required: true,
+                                                                                                },
+                                                                                                label: {
                                                                                                     dataType:
                                                                                                         'string',
                                                                                                     required: true,
@@ -14251,33 +14420,6 @@ const models: TsoaRoute.Models = {
                                                                                                                 {
                                                                                                                     dataType:
                                                                                                                         'double',
-                                                                                                                },
-                                                                                                                {
-                                                                                                                    dataType:
-                                                                                                                        'enum',
-                                                                                                                    enums: [
-                                                                                                                        null,
-                                                                                                                    ],
-                                                                                                                },
-                                                                                                                {
-                                                                                                                    dataType:
-                                                                                                                        'undefined',
-                                                                                                                },
-                                                                                                            ],
-                                                                                                    },
-                                                                                                joinedTables:
-                                                                                                    {
-                                                                                                        dataType:
-                                                                                                            'union',
-                                                                                                        subSchemas:
-                                                                                                            [
-                                                                                                                {
-                                                                                                                    dataType:
-                                                                                                                        'array',
-                                                                                                                    array: {
-                                                                                                                        dataType:
-                                                                                                                            'string',
-                                                                                                                    },
                                                                                                                 },
                                                                                                                 {
                                                                                                                     dataType:
@@ -14369,12 +14511,39 @@ const models: TsoaRoute.Models = {
                                                                                                                 },
                                                                                                             ],
                                                                                                     },
-                                                                                                label: {
+                                                                                                joinedTables:
+                                                                                                    {
+                                                                                                        dataType:
+                                                                                                            'union',
+                                                                                                        subSchemas:
+                                                                                                            [
+                                                                                                                {
+                                                                                                                    dataType:
+                                                                                                                        'array',
+                                                                                                                    array: {
+                                                                                                                        dataType:
+                                                                                                                            'string',
+                                                                                                                    },
+                                                                                                                },
+                                                                                                                {
+                                                                                                                    dataType:
+                                                                                                                        'enum',
+                                                                                                                    enums: [
+                                                                                                                        null,
+                                                                                                                    ],
+                                                                                                                },
+                                                                                                                {
+                                                                                                                    dataType:
+                                                                                                                        'undefined',
+                                                                                                                },
+                                                                                                            ],
+                                                                                                    },
+                                                                                                name: {
                                                                                                     dataType:
                                                                                                         'string',
                                                                                                     required: true,
                                                                                                 },
-                                                                                                name: {
+                                                                                                label: {
                                                                                                     dataType:
                                                                                                         'string',
                                                                                                     required: true,
@@ -14561,11 +14730,6 @@ const models: TsoaRoute.Models = {
                                                                                                                 'string',
                                                                                                             required: true,
                                                                                                         },
-                                                                                                    label: {
-                                                                                                        dataType:
-                                                                                                            'string',
-                                                                                                        required: true,
-                                                                                                    },
                                                                                                     tableName:
                                                                                                         {
                                                                                                             dataType:
@@ -14573,6 +14737,11 @@ const models: TsoaRoute.Models = {
                                                                                                             required: true,
                                                                                                         },
                                                                                                     name: {
+                                                                                                        dataType:
+                                                                                                            'string',
+                                                                                                        required: true,
+                                                                                                    },
+                                                                                                    label: {
                                                                                                         dataType:
                                                                                                             'string',
                                                                                                         required: true,
@@ -14755,14 +14924,14 @@ const models: TsoaRoute.Models = {
                                                                                                     dataType:
                                                                                                         'enum',
                                                                                                     enums: [
-                                                                                                        'false',
+                                                                                                        'true',
                                                                                                     ],
                                                                                                 },
                                                                                                 {
                                                                                                     dataType:
                                                                                                         'enum',
                                                                                                     enums: [
-                                                                                                        'true',
+                                                                                                        'false',
                                                                                                     ],
                                                                                                 },
                                                                                                 {
@@ -14830,11 +14999,6 @@ const models: TsoaRoute.Models = {
                                                                                             ],
                                                                                         required: true,
                                                                                     },
-                                                                                label: {
-                                                                                    dataType:
-                                                                                        'string',
-                                                                                    required: true,
-                                                                                },
                                                                                 fieldId:
                                                                                     {
                                                                                         dataType:
@@ -14847,6 +15011,11 @@ const models: TsoaRoute.Models = {
                                                                                     required: true,
                                                                                 },
                                                                                 table: {
+                                                                                    dataType:
+                                                                                        'string',
+                                                                                    required: true,
+                                                                                },
+                                                                                label: {
                                                                                     dataType:
                                                                                         'string',
                                                                                     required: true,
@@ -14972,12 +15141,12 @@ const models: TsoaRoute.Models = {
                                                                                         'string',
                                                                                     required: true,
                                                                                 },
-                                                                            label: {
+                                                                            name: {
                                                                                 dataType:
                                                                                     'string',
                                                                                 required: true,
                                                                             },
-                                                                            name: {
+                                                                            label: {
                                                                                 dataType:
                                                                                     'string',
                                                                                 required: true,
@@ -15137,6 +15306,13 @@ const models: TsoaRoute.Models = {
                                                     },
                                                     required: true,
                                                 },
+                                                warnings: {
+                                                    dataType: 'array',
+                                                    array: {
+                                                        dataType: 'string',
+                                                    },
+                                                    required: true,
+                                                },
                                                 href: {
                                                     dataType: 'string',
                                                     required: true,
@@ -15152,13 +15328,6 @@ const models: TsoaRoute.Models = {
                                                 },
                                                 uuid: {
                                                     dataType: 'string',
-                                                    required: true,
-                                                },
-                                                warnings: {
-                                                    dataType: 'array',
-                                                    array: {
-                                                        dataType: 'string',
-                                                    },
                                                     required: true,
                                                 },
                                                 name: {
@@ -15707,11 +15876,6 @@ const models: TsoaRoute.Models = {
                                                                                             'string',
                                                                                         required: true,
                                                                                     },
-                                                                                label: {
-                                                                                    dataType:
-                                                                                        'string',
-                                                                                    required: true,
-                                                                                },
                                                                                 tableName:
                                                                                     {
                                                                                         dataType:
@@ -15719,6 +15883,11 @@ const models: TsoaRoute.Models = {
                                                                                         required: true,
                                                                                     },
                                                                                 name: {
+                                                                                    dataType:
+                                                                                        'string',
+                                                                                    required: true,
+                                                                                },
+                                                                                label: {
                                                                                     dataType:
                                                                                         'string',
                                                                                     required: true,
@@ -29207,6 +29376,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                granularity_labels: { ref: 'Record_string.string_' },
                 additional_time_intervals: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
@@ -31558,7 +31728,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__':
+    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__properties_58__title-string--chartName-string_--type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART_-or-_properties_58__title-string--content-string_--type-DashboardTileTypes.MARKDOWN_-or-_properties_58__title-string_--type-DashboardTileTypes.LOOM_-or-_properties_58__text-string_--type-DashboardTileTypes.HEADING_-or-_properties_58__title-string_--type-DashboardTileTypes.DATA_APP__41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -31568,7 +31738,7 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__':
+    'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__properties_58__title-string--chartName-string_--type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART_-or-_properties_58__title-string--content-string_--type-DashboardTileTypes.MARKDOWN_-or-_properties_58__title-string_--type-DashboardTileTypes.LOOM_-or-_properties_58__text-string_--type-DashboardTileTypes.HEADING_-or-_properties_58__title-string_--type-DashboardTileTypes.DATA_APP__41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -31578,7 +31748,7 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             {
-                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__',
+                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__properties_58__title-string--chartName-string_--type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART_-or-_properties_58__title-string--content-string_--type-DashboardTileTypes.MARKDOWN_-or-_properties_58__title-string_--type-DashboardTileTypes.LOOM_-or-_properties_58__text-string_--type-DashboardTileTypes.HEADING_-or-_properties_58__title-string_--type-DashboardTileTypes.DATA_APP__41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__',
                             },
                             { dataType: 'undefined' },
                         ],
@@ -31591,7 +31761,7 @@ const models: TsoaRoute.Models = {
     'PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__': {
         dataType: 'refAlias',
         type: {
-            ref: 'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__',
+            ref: 'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__properties_58__title-string--chartName-string_--type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART_-or-_properties_58__title-string--content-string_--type-DashboardTileTypes.MARKDOWN_-or-_properties_58__title-string_--type-DashboardTileTypes.LOOM_-or-_properties_58__text-string_--type-DashboardTileTypes.HEADING_-or-_properties_58__title-string_--type-DashboardTileTypes.DATA_APP__41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__',
             validators: {},
         },
     },
@@ -32387,6 +32557,13 @@ const models: TsoaRoute.Models = {
                     dataType: 'union',
                     subSchemas: [
                         { ref: 'Record_string.LightdashProjectParameter_' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                granularityLabels: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'Partial_Record_TimeFrames.string__' },
                         { dataType: 'undefined' },
                     ],
                 },
@@ -36068,6 +36245,13 @@ const models: TsoaRoute.Models = {
                     subSchemas: [
                         { dataType: 'string' },
                         { dataType: 'array', array: { dataType: 'string' } },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                granularityLabels: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'Partial_Record_TimeFrames.string__' },
                         { dataType: 'undefined' },
                     ],
                 },
