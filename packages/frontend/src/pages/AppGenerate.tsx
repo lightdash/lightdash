@@ -96,6 +96,7 @@ import { useAppImageUpload } from '../features/apps/hooks/useAppImageUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import type { QueryEvent } from '../features/apps/hooks/useAppSdkBridge';
+import { useAppThumbnailUpload } from '../features/apps/hooks/useAppThumbnail';
 import { useBuildNotification } from '../features/apps/hooks/useBuildNotification';
 import { useCancelAppVersion } from '../features/apps/hooks/useCancelAppVersion';
 import { useClarifyApp } from '../features/apps/hooks/useClarifyApp';
@@ -653,6 +654,7 @@ const AppGenerate: FC = () => {
     >(null);
     const { mutateAsync: uploadImage } = useAppImageUpload();
     const { showToastError, showToastWarning } = useToaster();
+    const { mutateAsync: uploadThumbnail } = useAppThumbnailUpload();
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const { user } = useApp();
     const ability = useAbilityContext();
@@ -1372,6 +1374,26 @@ const AppGenerate: FC = () => {
         setIsCapturingScreenshot(true);
         try {
             const file = await capture();
+            if (projectUuid && activeAppUuid) {
+                try {
+                    await uploadThumbnail({
+                        projectUuid,
+                        appUuid: activeAppUuid,
+                        file,
+                    });
+                    void queryClient.invalidateQueries({
+                        queryKey: ['app-thumbnail', projectUuid, activeAppUuid],
+                    });
+                } catch (err) {
+                    showToastWarning({
+                        title: 'Thumbnail not saved',
+                        subtitle:
+                            err instanceof Error
+                                ? err.message
+                                : 'Unknown error',
+                    });
+                }
+            }
             handleImageAttach(file, 'screenshot');
         } catch (err) {
             showToastError({

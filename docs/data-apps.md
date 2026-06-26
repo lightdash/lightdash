@@ -213,6 +213,17 @@ boolean to `true` on the first refresh and forwards it through `AppIframePreview
 so the initial page load can still serve cached results fast; once you've asked for a refresh, every subsequent query
 runs against the warehouse fresh. (This mirrors the sticky behaviour of the dashboard tile below.)
 
+### Manual app thumbnails
+
+The builder's Screenshot button uses the iframe-side screenshot handler (`screenshotHandler.js`) to rasterize the current
+preview. In addition to attaching that PNG to the next prompt as a screenshot reference, the frontend immediately uploads
+it as the app thumbnail.
+
+Storage is intentionally simple and app-scoped: the latest manual screenshot overwrites
+`apps/{appUuid}/thumbnail.png` in the app runtime S3 bucket. There is no DB row or per-version history; the object key is
+the metadata convention. The backend exposes a signed-url endpoint for that optional object, and the My Apps settings
+table lazy-loads it on name hover to show a preview when a thumbnail exists.
+
 ### Refreshing a data app inside a dashboard
 
 A data app embedded as a `DashboardDataAppTile` refreshes the same way a chart tile does when the dashboard's

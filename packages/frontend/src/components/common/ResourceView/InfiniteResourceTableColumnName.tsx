@@ -18,6 +18,7 @@ import {
     IconLayoutDashboard,
 } from '@tabler/icons-react';
 import { Link } from 'react-router';
+import AppThumbnailHoverCard from '../../../features/apps/components/AppThumbnailHoverCard';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../MantineIcon';
 import { ResourceIcon, ResourceIndicator } from '../ResourceIcon';
@@ -166,7 +167,7 @@ const InfiniteResourceTableColumnName = ({
             ? item.data.verification
             : null;
 
-    return (
+    const content = (
         <Anchor
             component={Link}
             c="unset"
@@ -280,6 +281,27 @@ const InfiniteResourceTableColumnName = ({
             </Group>
         </Anchor>
     );
+
+    if (isResourceViewDataAppItem(item)) {
+        const appName = getResourceViewItemName(item);
+
+        return (
+            <AppThumbnailHoverCard
+                projectUuid={projectUuid}
+                appUuid={item.data.uuid}
+                appName={appName}
+                hasReadyVersion={
+                    item.data.latestVersionStatus === 'ready' &&
+                    !!item.data.latestVersionNumber
+                }
+                activateOnClosestRow
+            >
+                {content}
+            </AppThumbnailHoverCard>
+        );
+    }
+
+    return content;
 };
 
 export default InfiniteResourceTableColumnName;

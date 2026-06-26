@@ -5,6 +5,7 @@ import {
     type ApiAppImageUploadResponse,
     type ApiAppImageUrlResponse,
     type ApiAppSchedulersResponse,
+    type ApiAppThumbnailUrlResponse,
     type ApiCancelAppVersionResponse,
     type ApiClarifyAppRequest,
     type ApiClarifyAppResponse,
@@ -19,6 +20,7 @@ import {
     type ApiPromoteAppDiffResponse,
     type ApiPromoteAppResponse,
     type ApiRestoreAppVersionResponse,
+    type ApiSuccessEmpty,
     type ApiTogglePinnedItem,
     type ApiUpdateAppRequest,
     type ApiUpdateAppResponse,
@@ -524,6 +526,66 @@ export class AppGenerateController extends BaseController {
             projectUuid,
             appUuid,
             imageId,
+        );
+        return {
+            status: 'ok',
+            results: result,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{appUuid}/thumbnail')
+    @OperationId('uploadAppThumbnail')
+    async uploadThumbnail(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        const mimeType = req.headers['content-type'];
+        if (!mimeType) {
+            throw new ParameterError('Content-Type header is required');
+        }
+        if (!req.headers['content-length']) {
+            throw new ParameterError('Content-Length header is required');
+        }
+        const contentLength = parseInt(req.headers['content-length'], 10);
+        if (Number.isNaN(contentLength) || contentLength <= 0) {
+            throw new ParameterError(
+                'Content-Length must be a positive integer',
+            );
+        }
+
+        await this.getAppGenerateService().uploadThumbnail(
+            toSessionUser(req.account),
+            projectUuid,
+            mimeType,
+            req,
+            contentLength,
+            appUuid,
+        );
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{appUuid}/thumbnail')
+    @OperationId('getAppThumbnailUrl')
+    async getAppThumbnailUrl(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+    ): Promise<ApiAppThumbnailUrlResponse> {
+        assertRegisteredAccount(req.account);
+        const result = await this.getAppGenerateService().getThumbnailUrl(
+            toSessionUser(req.account),
+            projectUuid,
+            appUuid,
         );
         return {
             status: 'ok',
