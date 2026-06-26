@@ -1,3 +1,10 @@
+## [0.3253.4](https://github.com/lightdash/lightdash/compare/0.3253.3...0.3253.4) (2026-06-26)
+
+
+### Bug Fixes
+
+* stop discover fields loop ([#24820](https://github.com/lightdash/lightdash/issues/24820)) ([757d24b](https://github.com/lightdash/lightdash/commit/757d24b20303224199f2e8a933315dc192cba92a))
+
 ## [0.3253.3](https://github.com/lightdash/lightdash/compare/0.3253.2...0.3253.3) (2026-06-26)
 
 
