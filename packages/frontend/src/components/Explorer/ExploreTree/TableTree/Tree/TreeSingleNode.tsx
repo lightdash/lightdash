@@ -293,7 +293,8 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
         isDimension(item) &&
         item.timeInterval &&
         isTimeInterval(item.timeInterval)
-            ? timeFrameConfigs[item.timeInterval].getLabel()
+            ? (item.timeIntervalLabel ??
+              timeFrameConfigs[item.timeInterval].getLabel())
             : undefined;
 
     const label =

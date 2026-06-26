@@ -185,17 +185,19 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
 
     const customGranularities = useMemo(
         () =>
-            Object.keys(availableCustomGranularities).sort((a, b) => {
-                const labelA = getGranularityLabel(
-                    a,
-                    availableCustomGranularities,
-                );
-                const labelB = getGranularityLabel(
-                    b,
-                    availableCustomGranularities,
-                );
-                return labelA.localeCompare(labelB);
-            }),
+            Object.keys(availableCustomGranularities)
+                .filter((g) => !isStandardDateGranularity(g))
+                .sort((a, b) => {
+                    const labelA = getGranularityLabel(
+                        a,
+                        availableCustomGranularities,
+                    );
+                    const labelB = getGranularityLabel(
+                        b,
+                        availableCustomGranularities,
+                    );
+                    return labelA.localeCompare(labelB);
+                }),
         [availableCustomGranularities],
     );
 
