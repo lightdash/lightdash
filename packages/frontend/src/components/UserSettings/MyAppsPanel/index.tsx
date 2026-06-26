@@ -18,12 +18,12 @@ import {
     IconClock,
     IconCode,
     IconDots,
+    IconEdit,
     IconExternalLink,
     IconFolder,
     IconFolderPlus,
     IconFolderSymlink,
     IconLayoutDashboard,
-    IconPencil,
     IconRadar,
     IconTextCaption,
     IconTrash,
@@ -354,7 +354,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                                 <Menu.Item
                                     leftSection={
                                         <MantineIcon
-                                            icon={IconPencil}
+                                            icon={IconEdit}
                                             size={14}
                                         />
                                     }

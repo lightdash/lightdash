@@ -5,7 +5,7 @@ import {
     type DashboardDataAppTile,
 } from '@lightdash/common';
 import { Box, Loader, Stack, Text } from '@mantine-8/core';
-import { IconAppsOff, IconPencil } from '@tabler/icons-react';
+import { IconAppsOff, IconCode } from '@tabler/icons-react';
 import React, { useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import AppIframePreview from '../../features/apps/AppIframePreview';
@@ -120,7 +120,7 @@ const DataAppTile: FC<Props> = (props) => {
 
     const editMenuItem = canEditApp ? (
         <LinkMenuItem
-            leftSection={<MantineIcon icon={IconPencil} />}
+            leftSection={<MantineIcon icon={IconCode} />}
             href={`/projects/${projectUuid}/apps/${appUuid}`}
         >
             Continue building
