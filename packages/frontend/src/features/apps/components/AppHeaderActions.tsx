@@ -9,9 +9,9 @@ import {
     IconDatabase,
     IconDatabaseExport,
     IconDots,
+    IconEdit,
     IconFolderPlus,
     IconFolderSymlink,
-    IconPencil,
     IconRefresh,
     IconSend,
     IconTrash,
@@ -187,7 +187,7 @@ const AppHeaderActions: FC<Props> = ({
                             <Menu.Divider />
                             <Menu.Item
                                 leftSection={
-                                    <MantineIcon icon={IconPencil} size={14} />
+                                    <MantineIcon icon={IconEdit} size={14} />
                                 }
                                 onClick={() => setIsUpdateModalOpen(true)}
                             >

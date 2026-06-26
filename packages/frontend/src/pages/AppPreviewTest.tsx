@@ -1,6 +1,6 @@
 import { FeatureFlags } from '@lightdash/common';
 import { Box, Loader, Menu, Stack, Text } from '@mantine-8/core';
-import { IconAppsOff, IconPencil } from '@tabler/icons-react';
+import { IconAppsOff, IconCode } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import MantineIcon from '../components/common/MantineIcon';
@@ -210,7 +210,7 @@ export default function AppPreviewTest() {
                                 <Menu.Item
                                     leftSection={
                                         <MantineIcon
-                                            icon={IconPencil}
+                                            icon={IconCode}
                                             size={14}
                                         />
                                     }

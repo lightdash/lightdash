@@ -11,6 +11,7 @@ import { ActionIcon, Box, Menu, Tooltip } from '@mantine-8/core';
 import {
     IconCircleCheck,
     IconCircleCheckFilled,
+    IconCode,
     IconCopy,
     IconDatabaseExport,
     IconDots,
@@ -18,7 +19,6 @@ import {
     IconFolderPlus,
     IconFolderSymlink,
     IconLayoutGridAdd,
-    IconPencil,
     IconPin,
     IconPinnedOff,
     IconStar,
@@ -344,7 +344,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                     role="menuitem"
                                     leftSection={
                                         <MantineIcon
-                                            icon={IconPencil}
+                                            icon={IconCode}
                                             size={18}
                                         />
                                     }
