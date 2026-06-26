@@ -27,7 +27,12 @@ import useHealth from './health/useHealth';
 import { useExplorerQueryManager } from './useExplorerQueryManager';
 import { usePreAggregateCacheEnabled } from './usePreAggregateCacheEnabled';
 import { usePreAggregateCheck } from './usePreAggregateCheck';
-import { useProjectUuid } from './useProjectUuid';
+
+type ExplorerQueryEffectsArgs = {
+    minimal?: boolean;
+    projectUuid?: string;
+    savedQueryUuid?: string;
+};
 
 /**
  * Effects layer for Explorer query orchestration
@@ -45,7 +50,9 @@ import { useProjectUuid } from './useProjectUuid';
  */
 export const useExplorerQueryEffects = ({
     minimal = false,
-}: { minimal?: boolean } = {}) => {
+    projectUuid: explicitProjectUuid,
+    savedQueryUuid,
+}: ExplorerQueryEffectsArgs = {}) => {
     const dispatch = useExplorerDispatch();
 
     useEffect(() => {
@@ -53,8 +60,16 @@ export const useExplorerQueryEffects = ({
     }, [minimal, dispatch]);
 
     // Get all state and runQuery from manager (single source of truth)
-    const { runQuery, query, validQueryArgs, explore } =
-        useExplorerQueryManager();
+    const {
+        runQuery,
+        query,
+        validQueryArgs,
+        explore,
+        projectUuid: resolvedProjectUuid,
+    } = useExplorerQueryManager({
+        projectUuid: explicitProjectUuid,
+        savedQueryUuid,
+    });
 
     const isEditMode = useExplorerSelector(selectIsEditMode);
     const isResultsOpen = useExplorerSelector(selectIsResultsExpanded);
@@ -77,7 +92,6 @@ export const useExplorerQueryEffects = ({
     const isPreAggregateFeatureEnabled = health?.preAggregates?.enabled;
     const tableName = useExplorerSelector(selectTableName);
     const metricQuery = useExplorerSelector(selectMetricQuery);
-    const projectUuid = useProjectUuid();
     const [preAggCacheEnabled] = usePreAggregateCacheEnabled();
 
     const hasSelectedFields =
@@ -109,7 +123,7 @@ export const useExplorerQueryEffects = ({
     }, [hasConfiguredPreAggregates, explore, isPreAggregateFeatureEnabled]);
 
     const preAggregateCheckQuery = usePreAggregateCheck({
-        projectUuid,
+        projectUuid: resolvedProjectUuid,
         exploreName: tableName,
         metricQuery,
         usePreAggregateCache: preAggCacheEnabled,

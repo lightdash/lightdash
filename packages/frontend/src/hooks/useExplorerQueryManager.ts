@@ -21,9 +21,14 @@ import {
 } from '../features/explorer/store';
 import { useQueryExecutor } from '../providers/Explorer/useQueryExecutor';
 import { buildQueryArgs } from './explorer/buildQueryArgs';
-import { useExplore } from './useExplore';
+import { useExploreByProjectUuid } from './useExplore';
 import { useDateZoomGranularitySearch } from './useExplorerRoute';
 import { usePreAggregateCacheEnabled } from './usePreAggregateCacheEnabled';
+
+type ExplorerQueryManagerArgs = {
+    projectUuid?: string;
+    savedQueryUuid?: string;
+};
 
 /**
  * Manager hook for Explorer query state
@@ -38,7 +43,10 @@ import { usePreAggregateCacheEnabled } from './usePreAggregateCacheEnabled';
  *
  * Child components should use useExplorerQuery() for the full public API.
  */
-export const useExplorerQueryManager = () => {
+export const useExplorerQueryManager = ({
+    projectUuid: explicitProjectUuid,
+    savedQueryUuid: explicitSavedQueryUuid,
+}: ExplorerQueryManagerArgs = {}) => {
     // Get state from Redux selectors
     const dispatch = useExplorerDispatch();
     const metricQuery = useExplorerSelector(selectMetricQuery);
@@ -64,8 +72,12 @@ export const useExplorerQueryManager = () => {
         savedQueryUuid: string;
         projectUuid: string;
     }>();
-    const savedQueryUuid = embed?.savedQueryUuid || params.savedQueryUuid;
-    const projectUuid = embed?.projectUuid || params.projectUuid!;
+    const savedQueryUuid =
+        explicitSavedQueryUuid ||
+        embed?.savedQueryUuid ||
+        params.savedQueryUuid;
+    const projectUuid =
+        explicitProjectUuid || embed?.projectUuid || params.projectUuid!;
     const viewModeQueryArgs = useMemo(() => {
         return savedQueryUuid ? { chartUuid: savedQueryUuid } : undefined;
     }, [savedQueryUuid]);
@@ -83,7 +95,7 @@ export const useExplorerQueryManager = () => {
     );
 
     // Get explore data and pivot configuration
-    const { data: explore } = useExplore(tableName, {
+    const { data: explore } = useExploreByProjectUuid(tableName, projectUuid, {
         refetchOnMount: false,
         refetchOnWindowFocus: false,
     });
