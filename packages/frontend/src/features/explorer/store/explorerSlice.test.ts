@@ -1,4 +1,4 @@
-import { CustomDimensionType } from '@lightdash/common';
+import { BinType, ChartType, CustomDimensionType } from '@lightdash/common';
 import { createExplorerStore, explorerActions } from './index';
 
 const CUSTOM_DIM_ID = 'my_table_my_custom_dim';
@@ -29,10 +29,11 @@ function makeStoreWithCustomDimension() {
                         {
                             id: CUSTOM_DIM_ID,
                             name: 'my_custom_dim',
-                            dimensionType: CustomDimensionType.BIN,
+                            type: CustomDimensionType.BIN,
                             table: 'my_table',
-                            binType: 'fixed_count',
-                            binCount: 5,
+                            dimensionId: 'my_table_some_field',
+                            binType: BinType.FIXED_NUMBER,
+                            binNumber: 5,
                         },
                     ],
                 },
@@ -41,7 +42,7 @@ function makeStoreWithCustomDimension() {
                     columnOrder: [CUSTOM_DIM_ID, 'my_table_regular_dim'],
                 },
                 chartConfig: {
-                    type: 'cartesian' as const,
+                    type: ChartType.CARTESIAN,
                     config: undefined,
                 },
             },
@@ -70,17 +71,17 @@ function makeStoreWithCustomDimension() {
 }
 
 describe('explorerSlice — custom dimension removal', () => {
-    it('removeField on a custom dimension id deletes the custom dimension definition (current broken behavior)', () => {
+    it('removeField on a custom dimension deletes the definition (not used by column header)', () => {
         const store = makeStoreWithCustomDimension();
         store.dispatch(explorerActions.removeField(CUSTOM_DIM_ID));
         const { metricQuery } = store.getState().explorer.unsavedChartVersion;
 
-        // removeField strips the definition — this is the BUG
+        // removeField strips the definition — only used for table calculations / invalid items, not custom dimensions
         expect(metricQuery.customDimensions).toHaveLength(0);
         expect(metricQuery.dimensions).not.toContain(CUSTOM_DIM_ID);
     });
 
-    it('toggleDimension on a custom dimension id deselects it but preserves the definition', () => {
+    it('toggleDimension on a custom dimension deselects it but preserves the definition (column header Remove behavior)', () => {
         const store = makeStoreWithCustomDimension();
         store.dispatch(explorerActions.toggleDimension(CUSTOM_DIM_ID));
         const { metricQuery } = store.getState().explorer.unsavedChartVersion;
