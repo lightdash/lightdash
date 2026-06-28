@@ -5921,7 +5921,7 @@ describe('Timezone-aware EXTRACT-based time dimensions', () => {
         );
     });
 
-    test('convert_timezone: false on base dim — SELECT skips the wrap, WHERE keeps it', () => {
+    test('convert_timezone: false on base dim — SELECT and WHERE both skip the wrap', () => {
         const explore = buildExtractExplore(DimensionType.TIMESTAMP);
         // Mark the base dim opted out of display conversion.
         explore.tables.events.dimensions.occurred_at.skipTimezoneConversion = true;
@@ -5938,14 +5938,16 @@ describe('Timezone-aware EXTRACT-based time dimensions', () => {
         const wrapped = `DATE_PART('DOW', ("events".occurred_at)::timestamptz AT TIME ZONE 'America/New_York')`;
         const bare = `DATE_PART('DOW', "events".occurred_at)`;
 
-        // Asymmetry: SELECT renders the bare expression, WHERE keeps the
-        // project-tz wrap so the filter still bounds by project-tz days.
+        // convert_timezone: false means no project-tz wrap anywhere — SELECT
+        // and WHERE both compare against the raw warehouse value, so the
+        // filter stays consistent with what's displayed.
         const selectClause = query.slice(0, query.indexOf('WHERE'));
         const whereClause = query.slice(query.indexOf('WHERE'));
 
         expect(selectClause).toContain(bare);
         expect(selectClause).not.toContain(wrapped);
-        expect(whereClause).toContain(wrapped);
+        expect(whereClause).toContain(bare);
+        expect(whereClause).not.toContain(wrapped);
     });
 });
 

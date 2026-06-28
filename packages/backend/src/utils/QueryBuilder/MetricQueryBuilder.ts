@@ -641,15 +641,14 @@ export class MetricQueryBuilder {
      * Rewrites `compiledSql` with the project-TZ wrap for truncatable and
      * extractable intervals.
      *
-     * Base dims with `convert_timezone: false` are skipped — the dim renders
-     * in its raw warehouse value. Pass `respectConvertTimezone: false` from
-     * filter rendering so WHERE clauses keep wrapping regardless.
+     * Base dims with `convert_timezone: false` are skipped everywhere —
+     * display, grouping, and filters — so the dim is always compared
+     * against its raw warehouse value.
      */
     private getTimezoneAwareDimensionSql(
         dimension: CompiledDimension,
         adapterType: SupportedDbtAdapter,
         startOfWeek: WeekDay | null | undefined,
-        respectConvertTimezone: boolean = true,
     ): string {
         const { timezone, useTimezoneAwareDateTrunc } = this.args;
 
@@ -680,7 +679,7 @@ export class MetricQueryBuilder {
             return dimension.compiledSql;
         }
 
-        if (respectConvertTimezone && baseDimension.skipTimezoneConversion) {
+        if (baseDimension.skipTimezoneConversion) {
             return dimension.compiledSql;
         }
 
@@ -1724,8 +1723,10 @@ export class MetricQueryBuilder {
         }
 
         // Override filter dimension SQL to match the timezone-aware SELECT
-        // clause. Filters always wrap by project tz — even for dims with
-        // `convert_timezone: false` — so pass `respectConvertTimezone: false`.
+        // clause. Dims with `convert_timezone: false` store pre-converted
+        // wall-clock values, so the filter must compare against the raw
+        // column too — same as display/grouping — hence `respectConvertTimezone`
+        // defaults to true here.
         const filterField = isDimension(field)
             ? {
                   ...field,
@@ -1733,7 +1734,6 @@ export class MetricQueryBuilder {
                       field,
                       adapterType,
                       startOfWeek,
-                      false,
                   ),
               }
             : field;
