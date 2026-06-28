@@ -304,34 +304,38 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     onSelect={onSortSelect}
                 />
 
-                <Menu.Divider />
-
-                <Menu.Item
-                    leftSection={<MantineIcon icon={IconTrash} />}
-                    color="red"
-                    onClick={() => {
-                        dispatch(
-                            explorerActions.toggleDimension(getItemId(item)),
-                        );
-                    }}
-                >
-                    Remove
-                </Menu.Item>
-
                 {!hideRemove && (
-                    <Menu.Item
-                        leftSection={<MantineIcon icon={IconTrash} />}
-                        color="red"
-                        onClick={() => {
-                            dispatch(
-                                explorerActions.removeCustomDimension(
-                                    getItemId(item),
-                                ),
-                            );
-                        }}
-                    >
-                        Remove custom dimension
-                    </Menu.Item>
+                    <>
+                        <Menu.Divider />
+
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconTrash} />}
+                            color="red"
+                            onClick={() => {
+                                dispatch(
+                                    explorerActions.toggleDimension(
+                                        getItemId(item),
+                                    ),
+                                );
+                            }}
+                        >
+                            Remove
+                        </Menu.Item>
+
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconTrash} />}
+                            color="red"
+                            onClick={() => {
+                                dispatch(
+                                    explorerActions.removeCustomDimension(
+                                        getItemId(item),
+                                    ),
+                                );
+                            }}
+                        >
+                            Remove custom dimension
+                        </Menu.Item>
+                    </>
                 )}
             </>
         );
