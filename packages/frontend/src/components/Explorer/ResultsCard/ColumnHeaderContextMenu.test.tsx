@@ -1,9 +1,10 @@
 /**
  * Component-level tests for the custom-dimension branch of ColumnHeaderContextMenu.
  *
- * Specifically verifies the `hideRemove` guard: when the user cannot author custom
- * SQL on a saved chart, no removal options should appear at all (regression from the
- * original fix which left the generic "Remove" unconditional).
+ * Two concerns:
+ * 1. Render guard — the `hideRemove` flag correctly shows/hides both removal items.
+ * 2. Dispatch wiring — clicking "Remove" dispatches toggleDimension (deselect, not
+ *    delete) and clicking "Remove custom dimension" dispatches removeCustomDimension.
  */
 import { CustomDimensionType, DimensionType } from '@lightdash/common';
 import { fireEvent, screen } from '@testing-library/react';
@@ -12,11 +13,16 @@ import { renderWithProviders } from '../../../testing/testUtils';
 import ColumnHeaderContextMenu from './ColumnHeaderContextMenu';
 
 // ---------------------------------------------------------------------------
+// vi.hoisted: mockDispatch must be created before vi.mock() is hoisted
+// ---------------------------------------------------------------------------
+const mockDispatch = vi.hoisted(() => vi.fn());
+
+// ---------------------------------------------------------------------------
 // Mocks
 // ---------------------------------------------------------------------------
 
 vi.mock('../../../features/explorer/store', () => ({
-    useExplorerDispatch: () => vi.fn(),
+    useExplorerDispatch: () => mockDispatch,
     useExplorerSelector: vi.fn((selector: (s: unknown) => unknown) =>
         selector({
             explorer: {
@@ -28,7 +34,6 @@ vi.mock('../../../features/explorer/store', () => ({
                         customDimensions: [],
                     },
                 },
-                // savedChart is set per test via the selector mock
             },
         }),
     ),
@@ -139,10 +144,6 @@ function makeHeader(item: typeof CUSTOM_SQL_DIM | typeof CUSTOM_BIN_DIM) {
 }
 
 function openMenu() {
-    // The test env also mounts a React Query DevTools button, so we can't use
-    // getByRole('button') alone. Find the column-header chevron button by
-    // aria-label="Open React Query Devtools" exclusion, or by picking the
-    // first button that is NOT the devtools toggle.
     const buttons = screen.getAllByRole('button');
     const trigger = buttons.find(
         (b) => b.getAttribute('aria-label') !== 'Open React Query Devtools',
@@ -158,6 +159,10 @@ describe('ColumnHeaderContextMenu — custom dimension removal options', () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
+
+    // -------------------------------------------------------------------------
+    // Render-guard tests: verify correct items appear / are hidden
+    // -------------------------------------------------------------------------
 
     describe('regular BIN custom dimension (hideRemove always false)', () => {
         beforeEach(() => {
@@ -199,7 +204,6 @@ describe('ColumnHeaderContextMenu — custom dimension removal options', () => {
             );
             openMenu();
 
-            // Mantine Menu renders items via portal — use findByText to wait for async render
             expect(await screen.findByText('Remove')).toBeInTheDocument();
             expect(
                 await screen.findByText('Remove custom dimension'),
@@ -224,12 +228,9 @@ describe('ColumnHeaderContextMenu — custom dimension removal options', () => {
             );
             openMenu();
 
-            // Wait for the menu to actually open by confirming a known item IS present.
-            // isFilterableField returns true for CustomDimensionType.SQL, so "Filter by"
-            // will always appear in the dropdown — use it as the anchor.
+            // Confirm the menu IS open — isFilterableField returns true for SQL custom dims
             await screen.findByRole('menuitem', { name: /Filter by/ });
 
-            // With hideRemove=true, neither removal option should be present
             expect(screen.queryByText('Remove')).not.toBeInTheDocument();
             expect(
                 screen.queryByText('Remove custom dimension'),
@@ -252,11 +253,64 @@ describe('ColumnHeaderContextMenu — custom dimension removal options', () => {
             );
             openMenu();
 
-            // Mantine Menu renders items via portal — use findByText to wait for async render
             expect(await screen.findByText('Remove')).toBeInTheDocument();
             expect(
                 await screen.findByText('Remove custom dimension'),
             ).toBeInTheDocument();
+        });
+    });
+
+    // -------------------------------------------------------------------------
+    // Dispatch-wiring tests: verify the correct Redux action fires on click
+    // -------------------------------------------------------------------------
+
+    describe('dispatch wiring — "Remove" deselects, does not delete', () => {
+        beforeEach(() => {
+            vi.spyOn(
+                CannotAuthorModule,
+                'useCannotAuthorCustomSql',
+            ).mockReturnValue(false);
+            vi.mocked(selectSavedChart).mockReturnValue(undefined as any);
+        });
+
+        it('clicking "Remove" dispatches toggleDimension (deselect), not removeField (delete)', async () => {
+            renderWithProviders(
+                <ColumnHeaderContextMenu header={makeHeader(CUSTOM_SQL_DIM)} />,
+            );
+            openMenu();
+
+            fireEvent.click(await screen.findByText('Remove'));
+
+            // Deselect action fired
+            expect(mockDispatch).toHaveBeenCalledWith({
+                type: 'toggleDimension',
+                id: CUSTOM_SQL_DIM.id,
+            });
+            // Destructive delete NOT fired
+            expect(mockDispatch).not.toHaveBeenCalledWith(
+                expect.objectContaining({ type: 'removeField' }),
+            );
+            expect(mockDispatch).not.toHaveBeenCalledWith(
+                expect.objectContaining({ type: 'removeCustomDimension' }),
+            );
+        });
+
+        it('clicking "Remove custom dimension" dispatches removeCustomDimension (delete)', async () => {
+            renderWithProviders(
+                <ColumnHeaderContextMenu header={makeHeader(CUSTOM_SQL_DIM)} />,
+            );
+            openMenu();
+
+            fireEvent.click(await screen.findByText('Remove custom dimension'));
+
+            expect(mockDispatch).toHaveBeenCalledWith({
+                type: 'removeCustomDimension',
+                id: CUSTOM_SQL_DIM.id,
+            });
+            // Deselect NOT fired
+            expect(mockDispatch).not.toHaveBeenCalledWith(
+                expect.objectContaining({ type: 'toggleDimension' }),
+            );
         });
     });
 });
