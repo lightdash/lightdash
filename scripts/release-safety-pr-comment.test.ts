@@ -32,8 +32,22 @@ test('always carries the sticky marker + heading', () => {
     const body = renderPrComment(baseMarker());
     assert.ok(body.startsWith(COMMENT_MARKER));
     assert.ok(body.includes('## 🛡️ Release-safety preview'));
-    assert.ok(body.includes('### Check matrix'));
+    assert.ok(body.includes('### Detector checks'));
     assert.ok(body.includes('### What would happen on deploy to customers'));
+});
+
+test('AI review is the verdict synthesis, NOT a detector row', () => {
+    const body = renderPrComment(baseMarker({
+        capabilities: ['migrations', 'sql-lint', 'ai-review', 'upgrade'],
+        migrations: { present: true, count: 1, files: ['a.ts'], ee: false },
+        compatibility: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', notes: 'AI rolling-update review: verified additive.' },
+    }), { draft: false });
+    const matrix = body.slice(body.indexOf('### Detector checks'), body.indexOf('### What would happen'));
+    // the detector table header reads "Detector", and the AI review is not a row in it
+    assert.ok(matrix.includes('| Detector | Status | Result |'));
+    assert.ok(!matrix.includes('| AI rolling-update review |'));
+    // the AI appears as the synthesis verdict line, above the table
+    assert.ok(/🧠 \*\*Verdict\*\*.*synthesis of the detectors, not one of them/.test(body));
 });
 
 test('no-migration release => safe to RollingUpdate', () => {
@@ -64,7 +78,7 @@ test('draft PR with unknown verdict => invites marking ready to run the AI revie
     const body = renderPrComment(unknownMigrationMarker(), { draft: true });
     assert.ok(body.includes('Recreate recommended'));
     assert.ok(/Mark this PR ready for review.*run the AI rolling-update review/s.test(body));
-    assert.ok(body.includes('skipped (draft PR — mark ready to run it)'));
+    assert.ok(body.includes('It is skipped on drafts; mark this PR ready to run it'));
     assert.ok(body.includes('2 added'));
 });
 
@@ -75,7 +89,7 @@ test('ready PR, AI ran and cleared it => Safe, ai-review row shows ran', () => {
         compatibility: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', notes: 'AI migration review: verified additive.' },
     }), { draft: false });
     assert.ok(body.includes('Safe to RollingUpdate'));
-    assert.ok(body.includes('✅ ran — validated the flagged change(s); verdict folded into the determination'));
+    assert.ok(body.includes('validated the flagged detector output(s) below'));
     // no "mark ready" nudge once it has actually run
     assert.ok(!/Mark this PR ready/.test(body));
 });
@@ -185,7 +199,7 @@ test('API-driven break (no migration) reads as an API change, not a schema chang
     // it must NOT claim a schema break / crash loop when there's no migration
     assert.ok(!/breaking schema change was detected/.test(body));
     assert.ok(/in-flight consumer/.test(body));
-    assert.ok(body.includes('✅ ran — validated the flagged change(s)'));
+    assert.ok(body.includes('synthesis of the detectors, not one of them'));
 });
 
 test('API-driven unknown (no migration) describes an API change, not schema', () => {
