@@ -1,3 +1,10 @@
+# [0.3261.0](https://github.com/lightdash/lightdash/compare/0.3260.2...0.3261.0) (2026-06-29)
+
+
+### Features
+
+* add dynamic SI compact formatting (duplicate of [#24790](https://github.com/lightdash/lightdash/issues/24790)) ([#24882](https://github.com/lightdash/lightdash/issues/24882)) ([f62c3ea](https://github.com/lightdash/lightdash/commit/f62c3ea13d9a62af672936b26891a008fbd18904))
+
 ## [0.3260.2](https://github.com/lightdash/lightdash/compare/0.3260.1...0.3260.2) (2026-06-29)
 
 
