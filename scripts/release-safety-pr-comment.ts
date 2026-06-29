@@ -162,17 +162,36 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
         row('Upgrade overrides', caps.has('upgrade') ? '✅ ran' : '⏭️ skipped', upgradeResult),
     ].join('\n');
 
-    // How the verdict above was reached — the AI review is the synthesis of the
-    // detectors below, not one of them. Reflect whether it ran (and produced the
-    // verdict), was skipped on a draft, degraded, or wasn't needed.
+    // How the verdict above was reached. The determination is the precedence
+    // ladder's output, NOT the AI's alone: the deterministic detectors set a
+    // baseline (a linter-flagged break is ❌ by default), and the AI review then
+    // VALIDATES the flagged change(s) and can override it — it is the only path to
+    // ✅ safe. So attribute the verdict to what the AI actually did (clear /
+    // confirm / couldn't override), or to the deterministic baseline when it
+    // didn't run. The AI is the judgement layer feeding the ladder, not a detector.
     const anythingFlagged = migrationsPresent === true || restBreaking || mcpBreaking;
-    const verdictLine = caps.has('ai-review')
-        ? '🧠 **Verdict** — the AI rolling-update review validated the flagged detector output(s) below against the previous and new code and produced the determination above. It is the synthesis of the detectors, not one of them.'
-        : opts.draft
-        ? '🧠 **Verdict** — produced by the AI rolling-update review, which synthesises the detectors below. It is skipped on drafts; mark this PR ready to run it.'
-        : anythingFlagged
-        ? '🧠 **Verdict** — the AI rolling-update review (which turns the detectors below into the verdict) did not run or could not conclude, so the determination above is the deterministic baseline.'
-        : '🧠 **Verdict** — no detector flagged a change for the AI rolling-update review to validate, so the determination above is the deterministic baseline.';
+    let verdictLine: string;
+    if (caps.has('ai-review')) {
+        const role = aiClearedLinter
+            ? 'cleared a linter-flagged destructive shape as a safe expand/contract → ✅'
+            : rollingUpdateSafe === true
+            ? 'cleared the flagged change(s) → ✅'
+            : rollingUpdateSafe === false
+            ? lintFlagged
+                ? 'did not clear the SQL-linter floor, which stands → ❌'
+                : 'confirmed a breaking change → ❌'
+            : 'ran but could not conclude, so the deterministic baseline stands → ❓';
+        verdictLine = `🧠 **Verdict** — the detectors below set a deterministic baseline; the AI rolling-update review then validated the flagged change(s) and ${role}. The AI is the only path to ✅ safe — it isn’t a detector.`;
+    } else if (opts.draft) {
+        verdictLine =
+            '🧠 **Verdict** — the detectors below set the baseline; the AI rolling-update review (which validates the flagged change(s) and is the only path to ✅ safe) is skipped on drafts — mark this PR ready to run it.';
+    } else if (anythingFlagged) {
+        verdictLine =
+            '🧠 **Verdict** — a detector flagged a change but the AI rolling-update review did not run or could not conclude, so the determination above is the deterministic baseline from the detectors below.';
+    } else {
+        verdictLine =
+            '🧠 **Verdict** — no detector flagged a change, so the determination above is the deterministic baseline (safe) from the detectors below.';
+    }
 
     // ---- customer-deploy consequence ----------------------------------------
     const consequence: string[] = [];
@@ -245,7 +264,7 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
         verdictLine,
         '',
         '### Detector checks',
-        '_The deterministic detectors below are the inputs; the verdict above is the AI review’s synthesis of them._',
+        '_The deterministic detectors below set the baseline; the verdict above is the AI review’s judgement of the flagged change(s) on top of it._',
         matrix,
         '',
         '### What would happen on deploy to customers',

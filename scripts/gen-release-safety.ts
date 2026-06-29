@@ -555,6 +555,10 @@ async function main(): Promise<void> {
                 apiKey,
                 lastTag: args.lastTag,
                 version: args.version,
+                // Hand the AI the deterministic linter's specific findings so it
+                // validates exactly what the linter flagged (confirm or clear via
+                // expand/contract), rather than re-deriving the shape from the files.
+                sqlLintFindings: sqlLint?.breaking ? sqlLint.findings : [],
                 restBreaking: restBreakingChanges,
                 mcpBreaking: mcpBreakingChanges,
                 log: (m) => console.warn(`[ai-review] ${m}`),
