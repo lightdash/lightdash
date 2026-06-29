@@ -168,6 +168,18 @@ data "aws_iam_policy_document" "lightdash_microvms" {
       values   = ["lambda.amazonaws.com"]
     }
   }
+  # RunMicrovm must be allowed to attach the ingress/egress network connectors;
+  # the AWS-managed connector ARNs are passed via lambda:PassNetworkConnector
+  # (confirmed empirically — the prefix here is `lambda:`, not `lambda-microvms:`).
+  statement {
+    sid    = "PassNetworkConnectors"
+    effect = "Allow"
+    actions = [
+      "lambda:PassNetworkConnector",
+      "lambda-microvms:PassNetworkConnector",
+    ]
+    resources = ["*"]
+  }
 }
 
 resource "aws_iam_role_policy" "lightdash_microvms" {
