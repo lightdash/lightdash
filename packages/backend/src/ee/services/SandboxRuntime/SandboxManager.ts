@@ -1,6 +1,5 @@
 import { getErrorMessage } from '@lightdash/common';
 import { type SandboxProviderKind } from './index';
-import { type SnapshotStore } from './SnapshotStore';
 import {
     type PersistentWorkspace,
     type SandboxHandle,
@@ -57,13 +56,9 @@ export class SandboxExpiredError extends Error {
     }
 }
 
-const snapshotKeyFor = (sandboxUuid: string): string =>
-    `sandboxes/${sandboxUuid}/snapshot.tar.gz`;
-
 export interface SandboxManagerDeps {
     provider: SandboxProvider;
     providerKind: SandboxProviderKind;
-    snapshotStore: SnapshotStore;
     registryModel: SandboxRegistryStore;
     logger: SandboxLogger;
     /** Live sandbox idle before the reaper suspends it (crash safety net). */
@@ -84,8 +79,6 @@ export class SandboxManager {
 
     private readonly providerKind: SandboxProviderKind;
 
-    private readonly snapshotStore: SnapshotStore;
-
     private readonly registry: SandboxRegistryStore;
 
     private readonly logger: SandboxLogger;
@@ -97,7 +90,6 @@ export class SandboxManager {
     constructor(deps: SandboxManagerDeps) {
         this.provider = deps.provider;
         this.providerKind = deps.providerKind;
-        this.snapshotStore = deps.snapshotStore;
         this.registry = deps.registryModel;
         this.logger = deps.logger;
         this.idleTimeoutMs = deps.idleTimeoutMs;
@@ -181,7 +173,6 @@ export class SandboxManager {
     }): Promise<void> {
         const ref = await this.provider.persist(input.handle, {
             workspace: input.workspace,
-            snapshotKey: snapshotKeyFor(input.sandboxUuid),
         });
         if (this.provider.capabilities.pauseResume) {
             await this.registry.markSuspended(input.sandboxUuid, {
@@ -230,8 +221,8 @@ export class SandboxManager {
         if (liveId) {
             await this.provider.destroy(liveId);
         }
-        if (row?.snapshotRef?.kind === 's3-tar') {
-            await this.snapshotStore.delete(row.snapshotRef.key);
+        if (row?.snapshotRef) {
+            await this.provider.deleteSnapshot(row.snapshotRef);
         }
         await this.registry.deleteBySandboxUuid(input.sandboxUuid);
     }

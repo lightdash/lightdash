@@ -935,9 +935,14 @@ export class AiWritebackService extends BaseService {
                     this.lightdashConfig.appRuntime
                         .sandboxAiWritebackDockerImage,
                 lambdaMicroVm: this.lightdashConfig.appRuntime.lambdaMicroVm,
-                snapshotStore: new S3SnapshotStore({
-                    lightdashConfig: this.lightdashConfig,
-                }),
+                // Object-store snapshots are Docker-only; native-pause providers
+                // never touch S3, so don't construct a client for them.
+                snapshotStore:
+                    this.lightdashConfig.appRuntime.sandboxProvider === 'docker'
+                        ? new S3SnapshotStore({
+                              lightdashConfig: this.lightdashConfig,
+                          })
+                        : null,
                 registryModel: this.sandboxRegistryModel,
                 logger: this.logger,
                 idleTimeoutMs:

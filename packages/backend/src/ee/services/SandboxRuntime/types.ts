@@ -187,8 +187,6 @@ export type SnapshotRef =
 export interface PersistOptions {
     /** What to capture. Native-pause providers (E2B) ignore this. */
     workspace: PersistentWorkspace;
-    /** Object-store key to write the snapshot to. Native-pause providers ignore this. */
-    snapshotKey: string;
 }
 
 /**
@@ -216,4 +214,11 @@ export interface SandboxProvider {
     ): Promise<SnapshotRef>;
     /** Re-materialize a sandbox from a {@link SnapshotRef}. */
     resume(ref: SnapshotRef, spec: SandboxSpec): Promise<SandboxHandle>;
+    /**
+     * Dispose a persisted snapshot. No-op for native-pause providers (the
+     * snapshot IS the suspended sandbox, reclaimed by {@link destroy}); object-
+     * store providers (Docker) delete the backing blob. The Manager calls this on
+     * destroy/GC so storage cleanup stays a provider concern.
+     */
+    deleteSnapshot(ref: SnapshotRef): Promise<void>;
 }
