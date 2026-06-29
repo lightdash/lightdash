@@ -449,11 +449,11 @@ describe('Default field labels render correctly for various input formats', () =
 
 describe('Compile metrics with filters', () => {
     beforeAll(() => {
-        jest.useFakeTimers();
-        jest.setSystemTime(new Date('04 Apr 2020 00:12:00 GMT').getTime());
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('04 Apr 2020 00:12:00 GMT').getTime());
     });
     afterAll(() => {
-        jest.useFakeTimers();
+        vi.useRealTimers();
     });
     test('should show filters as columns metric1', () => {
         expect(
@@ -1689,7 +1689,7 @@ describe('relative date metric filters are baked at compile time', () => {
     };
 
     const compileAt = (isoNow: string) => {
-        jest.setSystemTime(new Date(isoNow).getTime());
+        vi.setSystemTime(new Date(isoNow).getTime());
         return compiler.compileMetric(
             tableWithRelativeDateMetricFilter.table1.metrics
                 .bettor_in_last_30_days,
@@ -1698,8 +1698,8 @@ describe('relative date metric filters are baked at compile time', () => {
         );
     };
 
-    beforeAll(() => jest.useFakeTimers());
-    afterAll(() => jest.useRealTimers());
+    beforeAll(() => vi.useFakeTimers());
+    afterAll(() => vi.useRealTimers());
 
     test('the window is anchored to compile time and moves on recompile', () => {
         const compiledInMay = compileAt('2026-05-04T04:12:11Z').compiledSql;

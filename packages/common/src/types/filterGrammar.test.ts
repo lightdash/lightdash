@@ -706,7 +706,9 @@ describe('Parse required filters', () => {
         ]);
     });
     it('Should take required from required filters if there is a duplicated filter', () => {
-        const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+        const consoleWarnSpy = vi
+            .spyOn(console, 'warn')
+            .mockImplementation(() => {});
 
         const requiredFilters = removeIds(
             parseModelRequiredFilters({
