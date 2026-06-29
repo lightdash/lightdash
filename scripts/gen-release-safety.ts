@@ -15,7 +15,7 @@
 import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
-import { aiMigrationReview } from './ai-migration-review';
+import { aiRollingUpdateReview } from './ai-migration-review';
 import { lintMigrations, renderFindings, SqlLintFinding } from './sql-migration-lint';
 import { findExpandFloor } from './expand-version';
 import { diffRestApi } from './rest-api-diff';
@@ -204,16 +204,40 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
 
     const present: TriState = migrations ? migrations.present : 'unknown';
 
+    // A deterministic detector flagged a breaking change on a NON-migration
+    // surface (the REST API via oasdiff, or the MCP tool surface via the snapshot
+    // diff). These can break an in-flight frontend / client mid-rollout, so they
+    // are a rolling-update concern the AI review validates — even on a release
+    // with no schema migration. (They populate api.* regardless; this gate only
+    // governs whether they bear on compatibility.rollingUpdateSafe.)
+    const restBreaking = Boolean(restApi?.checked && restApi.breaking === true);
+    const mcpBreaking = Boolean(input.mcpApi?.checked && input.mcpApi.breaking === true);
+    const nonMigrationHazard = restBreaking || mcpBreaking;
+
     let rollingUpdateSafe: TriState;
     let recommendedStrategy: ReleaseSafetyMarker['compatibility']['recommendedStrategy'];
     let notes: string;
 
-    if (present === false) {
-        // No schema migrations in this release. Safe with respect to the migration
-        // check only — see blind-spot note.
+    if (present === false && !nonMigrationHazard) {
+        // No schema migrations and nothing else flagged. Safe with respect to the
+        // checks that ran — see blind-spot note.
         rollingUpdateSafe = true;
         recommendedStrategy = 'RollingUpdate';
         notes = `No database migrations detected in this release. ${BLIND_SPOT_NOTE}`;
+    } else if (present === false && nonMigrationHazard) {
+        // No migration, but a deterministic detector flagged a breaking REST/MCP
+        // change. Whether an in-flight frontend/client actually breaks mid-rollout
+        // depends on who calls it — that's the AI review's call below. Until it's
+        // verified, stay cautious rather than assert safe off "no migrations".
+        const which = [restBreaking ? 'REST API' : null, mcpBreaking ? 'MCP tool' : null]
+            .filter(Boolean)
+            .join(' and ');
+        rollingUpdateSafe = 'unknown';
+        recommendedStrategy = 'Recreate';
+        notes =
+            `No database migrations, but a deterministic check flagged a breaking ${which} change. ` +
+            `Whether an in-flight frontend or client breaks during a rolling update was not automatically ` +
+            `verified; prefer a Recreate strategy or a maintenance window. ${BLIND_SPOT_NOTE}`;
     } else if (present === true) {
         rollingUpdateSafe = 'unknown';
         recommendedStrategy = 'Recreate';
@@ -251,30 +275,33 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
         }
     }
 
-    // P6: the AI migration review — the intelligent check. Runs on ALL
-    // migration-bearing releases (even when the linter flagged a shape) because it
-    // can read the previous release's code and recognise an expand/contract: a
-    // drop/rename is safe if the old code no longer references the object. A
-    // DEFINITIVE AI verdict (high-confidence safe → true, or breaking → false)
-    // overrides the linter floor; an inconclusive AI ("unknown") leaves the floor
-    // (or the honest default) in place — so the AI can only ever make the marker
-    // MORE accurate, never downgrade a deterministic break to "unknown". It never
-    // applies on a no-migration or first release.
+    // P6: the AI rolling-update review — the intelligent VALIDATION layer. Runs to
+    // validate whatever the deterministic detectors flagged: ALL migration-bearing
+    // releases (even when the linter flagged a shape — it can read the previous
+    // release's code and recognise an expand/contract, where a drop/rename is safe
+    // because the old code no longer references the object) AND no-migration
+    // releases where a REST/MCP break was flagged (it decides whether an in-flight
+    // frontend/client actually breaks). A DEFINITIVE AI verdict (high-confidence
+    // safe → true, or breaking → false) overrides the linter floor / cautious
+    // default; an inconclusive AI ("unknown") leaves it in place — so the AI can
+    // only ever make the marker MORE accurate, never downgrade a deterministic
+    // break to "unknown". It never applies on a first release or on a release with
+    // nothing flagged (no migration AND no API break).
     // True when the AI cleared a linter-flagged destructive change as the safe
     // "contract" step of an expand/contract — the verdict it reached by verifying
     // the PREVIOUS release (previousVersion) no longer uses the object.
     const aiClearedExpandContract = Boolean(
         linterFlagged && aiReview && aiReview.rollingUpdateSafe === true,
     );
-    if (aiReview && present === true) {
+    if (aiReview && (present === true || nonMigrationHazard)) {
         capabilities.push('ai-review');
         if (aiReview.rollingUpdateSafe !== 'unknown') {
             rollingUpdateSafe = aiReview.rollingUpdateSafe;
             recommendedStrategy = aiReview.recommendedStrategy;
             notes =
                 linterFlagged && aiReview.rollingUpdateSafe === true
-                    ? `AI migration review CLEARED a deterministic linter flag — it verified the previous release (${previousVersion ?? 'unknown'}) no longer uses the changed object (expand/contract): ${aiReview.summary} Safe ONLY when upgrading from ${previousVersion ?? 'that release'} or later. ${BLIND_SPOT_NOTE}`
-                    : `AI migration review: ${aiReview.summary} ${BLIND_SPOT_NOTE}`;
+                    ? `AI rolling-update review CLEARED a deterministic linter flag — it verified the previous release (${previousVersion ?? 'unknown'}) no longer uses the changed object (expand/contract): ${aiReview.summary} Safe ONLY when upgrading from ${previousVersion ?? 'that release'} or later. ${BLIND_SPOT_NOTE}`
+                    : `AI rolling-update review: ${aiReview.summary} ${BLIND_SPOT_NOTE}`;
         }
     }
 
@@ -474,44 +501,11 @@ async function main(): Promise<void> {
         );
     }
 
-    // P6: gated AI review. Runs on ALL migration-bearing releases (not only the
-    // linter-clean ones) when a key is present — it's the only check that can read
-    // the previous release's code and recognise an expand/contract, so it may
-    // safely clear a shape the linter flagged. Any degrade leaves the verdict at
-    // the linter floor / honest "unknown" — the review can only ever make the
-    // marker more accurate, never falsely safe, and never fails the release.
-    let aiReview: AiReviewSummary | null = null;
-    if (wantAiReview && markerEnabled && migrations?.present === true && args.lastTag) {
-        const apiKey = process.env.ANTHROPIC_API_KEY;
-        if (!apiKey) {
-            console.warn('[release-safety] --ai-review requested but ANTHROPIC_API_KEY not set; rollingUpdateSafe stays "unknown"');
-        } else {
-            console.warn('[release-safety] running AI migration review...');
-            const r = await aiMigrationReview({
-                apiKey,
-                lastTag: args.lastTag,
-                version: args.version,
-                log: (m) => console.warn(`[ai-review] ${m}`),
-            });
-            if (r) {
-                aiReview = {
-                    rollingUpdateSafe: r.rollingUpdateSafe,
-                    recommendedStrategy: r.recommendedStrategy,
-                    summary: r.summary,
-                };
-                console.warn(
-                    `[release-safety] AI verdict: ${r.modelVerdict}/${r.confidence} (${r.toolCalls} tool calls) -> rollingUpdateSafe=${JSON.stringify(r.rollingUpdateSafe)}`,
-                );
-            } else {
-                console.warn('[release-safety] AI review degraded; rollingUpdateSafe stays "unknown"');
-            }
-        }
-    }
-
     // P2: deterministic REST API breaking-change diff (oasdiff). Auto-runs when a
     // previous tag exists and oasdiff is available (OASDIFF_BIN or PATH); the CI
     // workflow installs it. Soft fail-safe: any problem leaves api.rest unchecked
-    // and never fails the release.
+    // and never fails the release. Runs BEFORE the AI review so a flagged break can
+    // be handed to the reviewer to validate (does the in-flight frontend break?).
     let restApi: ApiSurface | null = null;
     if (args.lastTag) {
         restApi = diffRestApi({
@@ -531,6 +525,53 @@ async function main(): Promise<void> {
             newRef: 'HEAD',
             log: (m) => console.warn(`[mcp-tools-diff] ${m}`),
         });
+    }
+
+    // P6: gated AI rolling-update review — the VALIDATION layer over the
+    // deterministic detectors. Runs when a key is present AND something was flagged
+    // worth validating: a migration is present (even a linter-clean one — it can
+    // recognise an expand/contract the linter can't), OR a REST/MCP break was
+    // flagged (it decides whether an in-flight frontend/client actually breaks). It
+    // is fed the deterministic breaking lists so it validates exactly what the
+    // detectors found. Any degrade leaves the verdict at the linter floor / cautious
+    // default — the review can only ever make the marker more accurate, never
+    // falsely safe, and never fails the release.
+    const restBreakingChanges =
+        restApi?.checked && restApi.breaking === true ? restApi.changes : [];
+    const mcpBreakingChanges =
+        mcpApi?.checked && mcpApi.breaking === true ? mcpApi.changes : [];
+    const reviewable =
+        migrations?.present === true ||
+        restBreakingChanges.length > 0 ||
+        mcpBreakingChanges.length > 0;
+    let aiReview: AiReviewSummary | null = null;
+    if (wantAiReview && markerEnabled && reviewable && args.lastTag) {
+        const apiKey = process.env.ANTHROPIC_API_KEY;
+        if (!apiKey) {
+            console.warn('[release-safety] --ai-review requested but ANTHROPIC_API_KEY not set; rollingUpdateSafe stays "unknown"');
+        } else {
+            console.warn('[release-safety] running AI rolling-update review...');
+            const r = await aiRollingUpdateReview({
+                apiKey,
+                lastTag: args.lastTag,
+                version: args.version,
+                restBreaking: restBreakingChanges,
+                mcpBreaking: mcpBreakingChanges,
+                log: (m) => console.warn(`[ai-review] ${m}`),
+            });
+            if (r) {
+                aiReview = {
+                    rollingUpdateSafe: r.rollingUpdateSafe,
+                    recommendedStrategy: r.recommendedStrategy,
+                    summary: r.summary,
+                };
+                console.warn(
+                    `[release-safety] AI verdict: ${r.modelVerdict}/${r.confidence} (${r.toolCalls} tool calls) -> rollingUpdateSafe=${JSON.stringify(r.rollingUpdateSafe)}`,
+                );
+            } else {
+                console.warn('[release-safety] AI review degraded; rollingUpdateSafe stays "unknown"');
+            }
+        }
     }
 
     // Expand-version tracing: when the AI cleared a linter-flagged drop/rename as

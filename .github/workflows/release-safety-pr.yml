@@ -19,6 +19,7 @@ on:
       - 'packages/common/src/schemas/json/mcp-tools-1.0.json'
       - 'release-safety.overrides.json'
       - 'scripts/gen-release-safety.ts'
+      - 'scripts/ai-migration-review.ts'
       - 'scripts/sql-migration-lint.ts'
       - 'scripts/rest-api-diff.ts'
       - 'scripts/mcp-tools-diff.ts'

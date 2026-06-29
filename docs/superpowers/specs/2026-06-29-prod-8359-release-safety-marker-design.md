@@ -1,8 +1,8 @@
 # Release-Safety Marker — Design (PROD-8359 / #24441)
 
-**Status:** Feature-complete — P1–P4 + P6 + the deterministic SQL-shape linter all built; P6 activated. Marker DARK-LAUNCHED behind a kill-switch (publishes nothing yet) with a PR preview comment for visibility. Only P5 (Helm) remains parked.
+**Status:** Feature-complete — P1–P4 + P6 + the deterministic SQL-shape linter all built; P6 activated. P6 EXTENDED so the AI is the validation layer for ALL deterministic detectors (migrations AND flagged REST/MCP breaking changes), not migrations alone. Marker DARK-LAUNCHED behind a kill-switch (publishes nothing yet) with a PR preview comment for visibility. P5 (Helm) parked; the config-only/serialization blind-spot blast-radius scan is a deliberate follow-up.
 **Ticket:** PROD-8359 · GitHub issue lightdash/lightdash#24441
-**Branch / PR:** `prod-8359-release-safety` → PR lightdash/lightdash#24879 (draft)
+**Branch / PR:** `prod-8359-release-safety` (merged) → continued on `prod-8359-ai-breaking-changes`
 
 ## Status & resume
 
@@ -85,6 +85,31 @@
   when the SQL linter did not already prove a break, key-present only; any degrade
   leaves `"unknown"` and never fails the release.
 
+- **P6 EXTENDED — AI is the validation layer for every deterministic detector**
+  (`scripts/ai-migration-review.ts`, fn renamed `aiRollingUpdateReview`, alias
+  kept). Previously the AI ran only on migration-bearing releases. Now it runs to
+  VALIDATE whatever the deterministic detectors flag: migrations (as before, incl.
+  expand/contract clearance) AND a `oasdiff` REST break OR an MCP tool-surface
+  break — even on a release with NO schema migration. The reviewer is fed the
+  detectors' breaking lists and reasons "would an in-flight consumer break during
+  the rollout?" — the highest-stakes one being the bundled frontend (an
+  already-loaded OLD frontend tab hits NEW pods, and vice versa, until the rollout
+  finishes and the user reloads). A change that only affects EXTERNAL third-party
+  API scripts is a consumer concern (still surfaced in `api.*`) but not a reason to
+  block a RollingUpdate; the AI says so and leans safe for the rolling-update
+  question. New read-only tools scope to BOTH sides — `grep_new_code`,
+  `read_new_file`, `diff_file` (the release under review) alongside the existing
+  `grep_old_code` / `read_old_file` (the previous release). **Precedence
+  (`buildMarker`):** a deterministic REST/MCP break is a `nonMigrationHazard`; on a
+  no-migration release it moves the base from the silent `true` to a cautious
+  `unknown`/Recreate (never falsely safe off "no migrations"), then the AI's
+  definitive verdict resolves it — high-confidence `safe` → `true`/RollingUpdate,
+  `breaking` → `false`/Recreate, inconclusive leaves the cautious `unknown`. The AI
+  remains the ONLY path to `true`. `api.rest`/`api.mcp` still independently record
+  the external-consumer signal. Trigger: the generator runs the REST + MCP diffs
+  BEFORE the review, then invokes it when `migrations.present` OR a REST/MCP break
+  was flagged. Gating (`--ai-review` + `RELEASE_SAFETY_MARKER_ENABLED` + key)
+  unchanged; any degrade leaves the cautious default and never fails the release.
 - **Kill-switch (dark launch)** — `RELEASE_SAFETY_MARKER_ENABLED` env (default
   `false`). While off, `gen-release-safety.ts` computes + logs the marker but
   writes no file AND skips the paid AI review (a dark release publishes nothing
@@ -111,7 +136,25 @@
   (read-only token). The published asset stays dark — the comment is informational.
 
 **Remaining:**
-- **Caching/cost:** P6 is cheap now; no further work needed unless cost regresses.
+- **Config-only / serialization blind-spot scan (deferred follow-up):** the AI now
+  validates the EXISTING detectors' findings (migrations + REST/MCP). It does not
+  yet *trigger* on code-only / config-only changes that carry no migration and no
+  API-spec change — env-var default changes, removed/renamed Helm values, and
+  serialization/payload-shape changes to shared state (graphile-worker job payloads
+  in `packages/common/src/types/scheduler*.ts` + `packages/backend/src/scheduler/`,
+  the NATS async-query envelope in `packages/backend/src/{clients/NatsClient,nats}`,
+  the config contract in `packages/backend/src/config/`, the MCP SSE stream
+  envelope). The intended mechanism is a deterministic blast-radius pre-scan that
+  buckets the changed-file list by high-signal path heuristics (a sibling of the SQL
+  linter — a TRIGGER + curated input for the AI, never a deterministic verdict) and
+  feeds the candidate files to the same reviewer via the new `diff_file`/
+  `grep_new_code` tools. Scoped tight (shared-state + config paths only, excluding
+  entities/chart-config which change every release and co-occur with migrations) to
+  bound cost/noise. A prototype `coexistence-scan.ts` was built and set aside per
+  the agreed sequencing (validate existing checks first, blast-radius later).
+- **Caching/cost:** the broadened trigger means the AI now runs on more releases
+  (any REST/MCP break, not migrations alone); still prompt-cached and gated behind
+  the kill-switch, but watch cost once live.
 - **Operator/maintainer docs:** publish the `jq`-gating recipes + the
   `release-safety.overrides.json` required-stop authoring flow (the only manual
   step in the system).
@@ -129,14 +172,16 @@
   `unknown → true` (variance can only over-recommend `Recreate`).
 
 **Resume pointers:**
-- Worktree: `~/projects/worktrees/lightdash/prod-8359-release-safety`.
+- Worktree: `~/projects/worktrees/lightdash/prod-8359-ai-breaking-changes`
+  (previous, merged: `prod-8359-release-safety`).
 - Run the generator: `npx tsx scripts/gen-release-safety.ts --version X --previous-version Y --last-tag Y [--ai-review]`.
 - Run just the REST diff: `npx tsx scripts/rest-api-diff.ts --last-tag Y [--new-ref HEAD]` (needs `oasdiff` on PATH or `OASDIFF_BIN`).
 - Run just the MCP diff: `npx tsx scripts/mcp-tools-diff.ts --last-tag Y [--new-ref HEAD]` (needs the committed `mcp-tools-1.0.json` present at both refs).
 - Run just the SQL linter: `npx tsx scripts/sql-migration-lint.ts --last-tag Y` (scans migrations added in `Y..HEAD`).
 - Run just the upgrade resolver: `npx tsx scripts/upgrade-overrides.ts --version X [--overrides release-safety.overrides.json]`.
 - Regenerate the MCP snapshot: `pnpm generate:mcp-tools-snapshot` (CI guard: `pnpm check:mcp-tools-snapshot`). Runs inside `postgenerate-api`.
-- Tests: `npx tsx scripts/{gen-release-safety,sql-migration-lint,rest-api-diff,mcp-tools-diff,upgrade-overrides}.test.ts` (73 total). Backtest: `npx tsx scripts/release-safety-backtest.ts 300`.
+- Tests: `npx tsx scripts/{gen-release-safety,sql-migration-lint,rest-api-diff,mcp-tools-diff,upgrade-overrides,expand-version,release-safety-pr-comment}.test.ts` (110 total). Backtest: `npx tsx scripts/release-safety-backtest.ts 300`.
+- Typecheck (worktree has no node_modules — use the main repo's tsc): `~/projects/lightdash/node_modules/.bin/tsc --ignoreConfig --ignoreDeprecations 6.0 --noEmit --skipLibCheck --strict --module nodenext --moduleResolution nodenext --target es2022 --lib es2022,dom --types node --typeRoots ~/projects/lightdash/node_modules/@types scripts/*.ts`.
 - AI runs need `ANTHROPIC_API_KEY` — it's a per-engineer 1Password item
   (`scripts/dev-op-pull.sh` + `scripts/dev-secrets.manifest.json`, account
   `lightdash.1password.com`).
@@ -239,6 +284,13 @@ surfaced as a loud `notes` warning. `ee` is true iff any added file is under
 
 ## P6 implementation — AI migration-safety review
 
+> **Extended (see "P6 EXTENDED" in Status & resume):** this section describes the
+> original migration-only reviewer. The reviewer (`aiRollingUpdateReview`) now also
+> validates flagged REST/MCP breaking changes and is fed the detectors' breaking
+> lists + new-side tools (`grep_new_code`/`read_new_file`/`diff_file`); the
+> `perMigration` field generalised to `findings` with a `surface` tag. The
+> migration logic below is unchanged.
+
 `scripts/ai-migration-review.ts` — an **agentic** reviewer that resolves
 `rollingUpdateSafe: "unknown"` into a real `true`/`false`. It runs only when the
 cheap detector found migrations (the ~10% of releases the backtest flagged), so
@@ -295,10 +347,19 @@ its cost is bounded.
 
 ## Known blind spots (must stay documented)
 
-The marker does **not** detect code-only or config-only breaking changes (env var
-defaults, removed Helm values, serialization/protocol changes) — these crash old
-pods with no migration. The marker must never be read as "safe to RollingUpdate"
-beyond what `capabilities[]` says was checked.
+The marker still does **not** *trigger* on code-only or config-only breaking
+changes that carry no migration and no API-spec change (env var defaults, removed
+Helm values, serialization/protocol/payload-shape changes to shared state) — these
+can break a co-existing version with no migration to flag them. Closing this is the
+deferred blast-radius follow-up above; until it lands, the marker must never be read
+as "safe to RollingUpdate" beyond what `capabilities[]` says was checked.
+
+What the extended P6 DID close: a flagged REST/MCP breaking change is no longer
+treated as purely an external-consumer concern — the AI now validates whether it
+breaks an in-flight consumer (notably the bundled frontend) during the rollout and
+folds that into `rollingUpdateSafe`. The residual blind spot is specifically the
+changes NO deterministic detector flags (no migration, no OpenAPI/MCP-snapshot
+diff).
 
 ## Complementary follow-up (out of scope here)
 

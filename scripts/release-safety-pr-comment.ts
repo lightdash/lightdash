@@ -7,9 +7,10 @@
  * which checks ran and what they found, and what would happen when the change is
  * deployed to self-hosted customers.
  *
- * The AI review does not run on PRs (it's release-time only), so a migration PR
- * typically shows "unknown / Recreate" here unless the deterministic SQL linter
- * positively finds a break — the comment says so.
+ * The AI rolling-update review runs on READY PRs (not drafts): it validates
+ * whatever the deterministic detectors flagged — migrations, and REST/MCP breaking
+ * changes — and folds a verdict into the determination. On a draft the comment
+ * invites marking it ready to get that verdict.
  *
  * Pure `renderPrComment` (unit-tested) + a thin IO `main` that reads the marker
  * JSON and prints the comment body.
@@ -47,7 +48,7 @@ export interface RenderOpts {
     /** Human label for the comparison base, e.g. "main (a1b2c3d)". */
     baseLabel?: string;
     /**
-     * True if the PR is a draft. The AI migration review runs only on ready PRs,
+     * True if the PR is a draft. The AI rolling-update review runs only on ready PRs,
      * so on a draft the comment invites the author to mark it ready to get the
      * AI-refined verdict.
      */
@@ -85,6 +86,11 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
     // The linter flagged a destructive shape but the AI cleared it (expand/contract).
     const aiClearedLinter = lintFlagged && rollingUpdateSafe === true && caps.has('ai-review');
 
+    // Whether an unsafe/unknown verdict is driven by a schema migration or by a
+    // flagged API break (no migration) — so the wording stays accurate either way.
+    const apiDriven = (restBreaking || mcpBreaking) && migrationsPresent !== true;
+    const breakKind = apiDriven ? 'an API' : 'a schema';
+
     // ---- determination ------------------------------------------------------
     const lines: string[] = [];
     if (marker.upgrade.requiredStop) {
@@ -94,9 +100,15 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
         );
     }
     if (rollingUpdateSafe === false) {
-        lines.push('⚠️ **Recreate required** — a breaking schema change was detected; the previous version would not survive a rolling update.');
+        lines.push(
+            apiDriven
+                ? '⚠️ **Recreate required** — a breaking API change was flagged and the AI review found an in-flight consumer (e.g. the bundled frontend) would break during a rolling update.'
+                : '⚠️ **Recreate required** — a breaking schema change was detected; the previous version would not survive a rolling update.',
+        );
     } else if (rollingUpdateSafe === 'unknown') {
-        lines.push('❓ **Recreate recommended** — this change touches the schema and backward-compatibility was not verified.');
+        lines.push(
+            `❓ **Recreate recommended** — this change carries ${breakKind} change and backward-compatibility during a rolling update was not verified.`,
+        );
     } else if (aiClearedLinter) {
         lines.push('✅ **Safe to RollingUpdate** — the SQL linter flagged a destructive shape, but the AI review verified the previous release no longer uses it (expand/contract).');
     } else if (migrationsPresent === true) {
@@ -124,10 +136,10 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
         : '✅ no breaking shapes found';
 
     const aiResult = caps.has('ai-review')
-        ? '✅ ran — verdict folded into the determination above'
+        ? '✅ ran — validated the flagged change(s); verdict folded into the determination above'
         : opts.draft
         ? '⏭️ skipped (draft PR — mark ready to run it)'
-        : '⏭️ no verdict (no migrations, inconclusive, or linter already decided)';
+        : '⏭️ skipped (nothing flagged to validate — no migration and no API break)';
 
     const apiResult = (s: ApiSurface, missingNote: string): string => {
         if (!s.checked) return `⏭️ not checked (${missingNote})`;
@@ -147,7 +159,7 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
         '|---|---|---|',
         row('Migrations', migrationsPresent === 'unknown' ? '⚠️' : '✅ ran', migResult),
         row('SQL-shape linter', caps.has('sql-lint') ? '✅ ran' : '⏭️ n/a', sqlResult),
-        row('AI migration review', caps.has('ai-review') ? '✅ ran' : '⏭️ skipped', aiResult),
+        row('AI rolling-update review', caps.has('ai-review') ? '✅ ran' : '⏭️ skipped', aiResult),
         row('REST API (oasdiff)', marker.api.rest.checked ? '✅ ran' : '⏭️ skipped', apiResult(marker.api.rest, 'oasdiff or base spec unavailable')),
         row('MCP tool surface', marker.api.mcp.checked ? '✅ ran' : '⏭️ skipped', apiResult(marker.api.mcp, 'no baseline snapshot')),
         row('Upgrade overrides', caps.has('upgrade') ? '✅ ran' : '⏭️ skipped', upgradeResult),
@@ -158,16 +170,20 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
     consequence.push(
         'On a managed Helm upgrade the migration Job runs first (schema-before-code), then the app does a default **RollingUpdate** — so the *previous* version’s pods keep serving traffic against the already-migrated schema until the rollout finishes.',
     );
-    if (rollingUpdateSafe === false) {
+    if (rollingUpdateSafe === false && apiDriven) {
+        consequence.push(
+            '- ⚠️ A breaking API change means an already-loaded frontend (or other in-flight client) hitting a mix of old and new pods can error mid-rollout. Customers whose CI/CD reads the marker would be told **recommendedStrategy: Recreate** — a brief restart shrinks the window in which both versions serve at once.',
+        );
+    } else if (rollingUpdateSafe === false) {
         consequence.push(
             `- ⚠️ A breaking schema change means those old pods can crash (\`CrashLoopBackOff\`) mid-rollout. Customers whose CI/CD reads the marker would be told **recommendedStrategy: Recreate**${lintFlagged ? ' (flagged deterministically by the SQL linter)' : ''} — a brief restart instead of a crash loop.`,
         );
     } else if (rollingUpdateSafe === 'unknown') {
         const aiHint = opts.draft
-            ? ' **Mark this PR ready for review** to run the AI migration review (it doesn’t run on drafts) — it may refine this to ✅ safe.'
+            ? ' **Mark this PR ready for review** to run the AI rolling-update review (it doesn’t run on drafts) — it may refine this to ✅ safe.'
             : caps.has('ai-review')
             ? ''
-            : ' The AI migration review did not positively clear it.';
+            : ' The AI rolling-update review did not positively clear it.';
         consequence.push(
             `- ❓ Backward-compatibility was not verified, so customers reading the marker get **recommendedStrategy: Recreate** as the cautious default.${aiHint}`,
         );

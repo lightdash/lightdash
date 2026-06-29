@@ -1,23 +1,36 @@
 /**
- * AI migration-safety review (PROD-8359, Phase 6).
+ * AI rolling-update compatibility review (PROD-8359, Phase 6 — extended).
  *
- * Gated second stage for the release-safety marker: when a release contains
- * migrations and rollingUpdateSafe is "unknown", ask Claude whether the new
- * migrations are backward-compatible with the PREVIOUS release's running code
- * during a rolling deployment.
+ * The intelligent VALIDATION layer over the marker's deterministic detectors.
+ * When a release contains migrations and/or the deterministic detectors flag a
+ * breaking change (the SQL-shape linter on migrations, `oasdiff` on the REST spec,
+ * the MCP tool-surface snapshot diff), this reviewer asks Claude the one question
+ * a shape-only check can't answer: would the PREVIOUS release's running code keep
+ * working during a rolling deployment?
  *
- * This is an AGENTIC reviewer — Claude gets two read-only tools scoped to the
- * previous release's source (`grep_old_code`, `read_old_file`, both via
- * `git ... <lastTag>`) so it can check whether the old code actually reads or
- * writes the columns/tables/constraints a migration changes. Without that, a
- * migration can only ever be classified "needs-review"; with it, additive-but-
- * app-dependent migrations can be positively cleared to "safe".
+ * During a Kubernetes rolling update the migration runs FIRST, then the new app
+ * rolls out gradually — so the previous release's pods (and an already-loaded
+ * frontend, and external API/MCP clients) keep serving traffic against the new
+ * schema / new API until the rollout finishes. Shape alone never decides safety:
+ *   - a destructive migration is safe IF the old code stopped using the object
+ *     (expand/contract); an "additive" one is unsafe if a new constraint rejects
+ *     what the old code still writes;
+ *   - a "breaking" REST/MCP change flagged by oasdiff/the snapshot may break the
+ *     in-flight frontend (old JS → new pod, or new JS → old pod) OR may only
+ *     affect a removed/external surface no in-flight consumer hits.
+ * Only reading the old AND new code can tell — which is what this agent does.
  *
- * Raw Messages API via global fetch (Node 20+); no SDK dependency. The system
- * prompt and the migration-files turn carry `cache_control` so the large prefix
- * is read from cache (~0.1x) across the tool loop instead of re-billed each turn.
+ * AGENTIC: Claude gets read-only tools scoped to BOTH sides — `grep_old_code` /
+ * `read_old_file` (the PREVIOUS release, via `git … <lastTag>`) and `grep_new_code`
+ * / `read_new_file` / `diff_file` (the release under review, via `git … <newRef>`)
+ * — so it can trace whether a changed object/endpoint is actually read or served by
+ * the code that keeps running mid-rollout.
  *
- * Importable: `aiMigrationReview(opts)` returns a structured result, or `null`
+ * Raw Messages API via global fetch (Node 20+); no SDK dependency. System prompt,
+ * the inputs turn, and a single rolling breakpoint carry `cache_control` so the
+ * large prefix is read from cache (~0.1x) across the tool loop.
+ *
+ * Importable: `aiRollingUpdateReview(opts)` returns a structured result, or `null`
  * on any fail-safe degrade (error / refusal / truncation / budget exhaustion).
  * The generator treats `null` as "leave rollingUpdateSafe unknown".
  *
@@ -37,9 +50,21 @@ const MAX_FILE_CHARS = 8000;
 const MAX_TOOL_CALLS = 40;
 const MAX_GREP_LINES = 80;
 const MAX_READ_CHARS = 12000;
+const MAX_DIFF_CHARS = 16000;
 const MAX_TOKENS = 16000;
 
 export type TriState = boolean | 'unknown';
+
+/** A surface the review can pass judgement on. */
+export type ReviewSurface = 'migration' | 'rest-api' | 'mcp-api' | 'other';
+
+export interface AiReviewFinding {
+    surface: ReviewSurface;
+    /** The thing judged: a migration basename, an endpoint, a tool name, … */
+    ref: string;
+    classification: string;
+    reason: string;
+}
 
 export interface AiReviewResult {
     modelVerdict: 'safe' | 'breaking' | 'unknown';
@@ -47,7 +72,7 @@ export interface AiReviewResult {
     rollingUpdateSafe: TriState;
     recommendedStrategy: 'Recreate' | 'RollingUpdate';
     summary: string;
-    perMigration: Array<{ file: string; classification: string; reason: string }>;
+    findings: AiReviewFinding[];
     toolCalls: number;
     usage: { input: number; output: number; cacheRead: number };
 }
@@ -81,20 +106,20 @@ function makeTools() {
         {
             name: 'grep_old_code',
             description:
-                "Search the PREVIOUS release's source (the code that keeps running during the rolling update) for a regex. Use this to find where a column/table/constraint the migration changes is read or written. Returns matching lines (file:line:text), capped.",
+                "Search the PREVIOUS release's source (the code that keeps running during the rolling update) for a regex. Use this to find where a column/table/constraint a migration changes — or an endpoint/tool an API change touches — is read, written, or called. Returns matching lines (file:line:text), capped.",
             input_schema: {
                 type: 'object',
                 additionalProperties: false,
                 required: ['pattern'],
                 properties: {
                     pattern: { type: 'string', description: 'An extended regex (ERE) to search for — alternation a|b and groups (…) work unescaped.' },
-                    path_glob: { type: 'string', description: "Optional pathspec to limit the search, e.g. 'packages/backend/src'." },
+                    path_glob: { type: 'string', description: "Optional pathspec to limit the search, e.g. 'packages/backend/src' or 'packages/frontend/src'." },
                 },
             },
         },
         {
             name: 'read_old_file',
-            description: "Read a file from the PREVIOUS release's source by path. Returns the file content (capped). Use after grep to inspect how a schema object is used.",
+            description: "Read a file from the PREVIOUS release's source by path. Returns the file content (capped). Use after grep to inspect how a schema object/endpoint is used by the code that keeps running mid-rollout.",
             input_schema: {
                 type: 'object',
                 additionalProperties: false,
@@ -102,15 +127,54 @@ function makeTools() {
                 properties: { path: { type: 'string', description: 'Repo-relative path, e.g. packages/backend/src/models/Foo.ts' } },
             },
         },
+        {
+            name: 'grep_new_code',
+            description:
+                "Search the NEW release-under-review source for a regex (same engine as grep_old_code). Use to see how the change re-shapes an object/endpoint/tool, or whether the bundled frontend now depends on a new API shape. Returns matching lines (file:line:text), capped.",
+            input_schema: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['pattern'],
+                properties: {
+                    pattern: { type: 'string', description: 'An extended regex (ERE).' },
+                    path_glob: { type: 'string', description: 'Optional pathspec to limit the search.' },
+                },
+            },
+        },
+        {
+            name: 'read_new_file',
+            description: "Read a file from the NEW release-under-review source by path. Returns the file content (capped).",
+            input_schema: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['path'],
+                properties: { path: { type: 'string', description: 'Repo-relative path.' } },
+            },
+        },
+        {
+            name: 'diff_file',
+            description: "Show what changed in ONE file between the previous release and the release under review (git diff <lastTag>..<newRef> -- <path>). Use to see exactly how a flagged file (a migration, an API handler, a serializer) was modified. Returns a unified diff, capped.",
+            input_schema: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['path'],
+                properties: { path: { type: 'string', description: 'Repo-relative path to diff.' } },
+            },
+        },
     ];
 }
 
-function runTool(name: string, input: Record<string, unknown>, lastTag: string): { text: string; isError: boolean } {
-    if (name === 'grep_old_code') {
+interface ToolRefs {
+    lastTag: string;
+    newRef: string;
+}
+
+function runTool(name: string, input: Record<string, unknown>, refs: ToolRefs): { text: string; isError: boolean } {
+    const grepAt = (ref: string): { text: string; isError: boolean } => {
         const pattern = String(input.pattern ?? '');
         if (!pattern) return { text: 'error: empty pattern', isError: true };
         // -E: extended regex (the model writes ERE-style alternation/groups by default)
-        const args = ['grep', '-n', '-I', '-E', '--no-color', '-e', pattern, lastTag];
+        const args = ['grep', '-n', '-I', '-E', '--no-color', '-e', pattern, ref];
         if (input.path_glob) args.push('--', String(input.path_glob));
         const { ok, out } = git(args);
         if (!ok) return { text: `git grep failed: ${out}`, isError: true };
@@ -118,13 +182,27 @@ function runTool(name: string, input: Record<string, unknown>, lastTag: string):
         const shown = lines.slice(0, MAX_GREP_LINES).join('\n');
         const suffix = lines.length > MAX_GREP_LINES ? `\n... (${lines.length - MAX_GREP_LINES} more matches; refine the pattern)` : '';
         return { text: lines.length ? shown + suffix : '(no matches)', isError: false };
-    }
-    if (name === 'read_old_file') {
+    };
+    const readAt = (ref: string): { text: string; isError: boolean } => {
         const path = String(input.path ?? '');
         if (!path) return { text: 'error: empty path', isError: true };
-        const { ok, out } = git(['show', `${lastTag}:${path}`]);
-        if (!ok) return { text: `cannot read ${path} at ${lastTag}: ${out}`, isError: true };
+        const { ok, out } = git(['show', `${ref}:${path}`]);
+        if (!ok) return { text: `cannot read ${path} at ${ref}: ${out}`, isError: true };
         const body = out.length > MAX_READ_CHARS ? `${out.slice(0, MAX_READ_CHARS)}\n... (truncated)` : out;
+        return { text: body, isError: false };
+    };
+
+    if (name === 'grep_old_code') return grepAt(refs.lastTag);
+    if (name === 'read_old_file') return readAt(refs.lastTag);
+    if (name === 'grep_new_code') return grepAt(refs.newRef);
+    if (name === 'read_new_file') return readAt(refs.newRef);
+    if (name === 'diff_file') {
+        const path = String(input.path ?? '');
+        if (!path) return { text: 'error: empty path', isError: true };
+        const { ok, out } = git(['diff', `${refs.lastTag}..${refs.newRef}`, '--', path]);
+        if (!ok) return { text: `cannot diff ${path}: ${out}`, isError: true };
+        if (!out.trim()) return { text: '(no changes to that path in this range)', isError: false };
+        const body = out.length > MAX_DIFF_CHARS ? `${out.slice(0, MAX_DIFF_CHARS)}\n... (diff truncated)` : out;
         return { text: body, isError: false };
     }
     return { text: `unknown tool ${name}`, isError: true };
@@ -133,27 +211,30 @@ function runTool(name: string, input: Record<string, unknown>, lastTag: string):
 const SCHEMA_DOC = `{
   "verdict": "safe" | "breaking" | "unknown",
   "confidence": "low" | "medium" | "high",
-  "perMigration": [{ "file": "<basename>", "classification": "additive-safe" | "breaking" | "needs-review", "reason": "<one sentence, cite old-code evidence where you checked it>" }],
+  "findings": [{ "surface": "migration" | "rest-api" | "mcp-api" | "other", "ref": "<migration basename / endpoint / tool name>", "classification": "additive-safe" | "breaking" | "needs-review", "reason": "<one sentence, cite old/new-code evidence where you checked it>" }],
   "summary": "<2-3 sentences>"
 }`;
 
-const SYSTEM = `You review database migrations for rolling-deployment safety in a self-hosted app (Lightdash; Knex.js migrations on Postgres).
+const SYSTEM = `You review a release for ROLLING-DEPLOYMENT safety in a self-hosted app (Lightdash; Knex.js migrations on Postgres; an Express REST API consumed by a bundled React frontend; an MCP tool server).
 
-During a Kubernetes rolling update the migration runs FIRST, then the new app rolls out gradually — so the PREVIOUS release's application code keeps serving traffic against the ALREADY-MIGRATED schema until the rollout finishes. Decide whether the migrations below would break that previous-version code.
+During a Kubernetes rolling update the database migration runs FIRST, then the new app rolls out gradually — so until the rollout finishes the PREVIOUS release's application code keeps serving traffic against the ALREADY-MIGRATED schema, an already-loaded frontend keeps calling whichever pod (old or new) it lands on, and external REST/MCP clients keep calling too. Your job: decide whether anything in this release would break the previous release's running code (or break already-running clients) during that overlap window.
 
-Your central question for EVERY migration — destructive OR additive in shape — is: does the PREVIOUS release's running code SUPPORT this schema change? Can it keep reading and writing correctly against the migrated schema? Check every migration, not only the destructive-looking ones. An "additive" shape is NOT automatically safe: a new NOT NULL column the old INSERTs don't populate, a new UNIQUE / CHECK / FOREIGN KEY constraint the old writes can violate, a narrowed type, a new enum value the old code doesn't expect on read, or a data backfill can all break old code that doesn't know about them. Equally, a destructive shape is not automatically unsafe (see expand/contract below). Shape alone never decides it — the old code does.
+You are the VALIDATION layer over deterministic detectors. They flag changes by SHAPE; you decide whether the shape is actually breaking by reading the code. The inputs you may be given:
 
-You have read-only tools (grep_old_code, read_old_file) that read the PREVIOUS release's source. USE THEM on every migration: identify the schema objects it changes (tables, columns, constraints, indexes, types, enums) and grep the old code to see whether/how they're read or written and whether the old write paths still satisfy any new constraints. App support you can only guess from the migration text is "needs-review"; app support you have verified against the old code can be "additive-safe" or "breaking".
+1. MIGRATIONS (the added Knex migration files, inline). Central question for EVERY migration — destructive OR additive in shape — is: does the PREVIOUS release's running code SUPPORT this schema change? An "additive" shape is NOT automatically safe (a new NOT NULL column old INSERTs don't populate, a new UNIQUE/CHECK/FOREIGN KEY the old writes can violate, a narrowed type, a new enum value the old read path doesn't expect, a data backfill). A destructive shape is NOT automatically unsafe: under expand/contract a drop/rename is safe IF the previous release already stopped using the object — VERIFY with grep_old_code that there are ZERO references; a guess is needs-review, never safe.
 
-A destructive operation shape is NOT automatically breaking. Under the expand/contract (parallel change) pattern a drop or rename is split across releases: an earlier release stops using the object ("expand"), and a later release removes it ("contract"). The contract step is SAFE precisely because the previous release's code no longer touches the object. Your job is to read the old code and tell which case this is — a deterministic shape-only linter cannot, which is why you exist.
+2. REST API BREAKING CHANGES (flagged by oasdiff on the OpenAPI spec). For each: does it break a consumer that is live DURING the rollout? The highest-stakes consumer is the bundled frontend — an already-loaded OLD frontend tab will hit NEW pods (and a NEW frontend will hit OLD pods) until the rollout completes and the user reloads. Use grep_old_code / grep_new_code over packages/frontend/src to see whether the frontend actually calls the changed endpoint with the changed shape. classification: breaking if an in-flight frontend (or a documented internal caller) would get errors mid-rollout; additive-safe if you VERIFY no in-flight consumer depends on the removed/changed part (e.g. a newly-removed endpoint the frontend already stopped calling, or an added optional field); needs-review if you can't tell. A change that only affects EXTERNAL third-party API scripts (not the in-flight frontend) is a consumer concern but NOT by itself a reason to block a RollingUpdate — say so in the reason and lean additive-safe for the rolling-update question while noting the external break.
+
+3. MCP TOOL BREAKING CHANGES (flagged by the tool-surface snapshot diff). Same logic for MCP clients/agents: a removed tool, a newly-required input, a removed input, or a retyped input breaks an agent mid-call. Judge whether an in-flight MCP session would break.
+
+USE THE TOOLS on everything you're given — identify the schema objects / endpoints / tools involved and trace them through the old and new code. Verified-from-code judgements can be additive-safe or breaking; anything you can only guess is needs-review.
 
 Classification rules:
-- additive-safe: an added object (nullable column, column with a default, new table, CONCURRENT index, new enum value) for which you have VERIFIED the old code keeps working — it can omit/ignore the new column, a default covers old inserts, the old read path tolerates new enum values, and no newly-added constraint rejects what the old code still writes. "Additive shape" alone is not enough; confirm the old code path.
-- additive-safe via expand/contract: a drop or rename of a column/table/constraint is safe IF you VERIFY with grep_old_code that the PREVIOUS release's code has ZERO references to it (the "expand" already shipped, this is the "contract"). You MUST run the grep and see no reads/writes; a guess is needs-review, never safe.
-- breaking: NOT NULL without default; a drop/rename of an object the old code STILL references (grep found reads/writes); type narrowing; a CHECK/FOREIGN KEY that could reject rows the old code still writes; a non-concurrent index on a large/hot table; a data backfill that rewrites values the old code depends on.
-- needs-review: you could not verify the old-code behaviour the safety depends on.
+- additive-safe: you VERIFIED the previous release's running code (and any in-flight client) keeps working — old inserts still satisfy every constraint, old reads tolerate the new shape, a dropped/renamed object has ZERO old references, a "breaking" API change touches nothing the in-flight frontend/clients use.
+- breaking: NOT NULL without default; a drop/rename of an object the old code STILL references; a type narrowing; a CHECK/FK that could reject rows the old code writes; a non-concurrent index on a large/hot table; a data backfill the old code depends on; a REST/MCP change an in-flight frontend or client would hit and error on.
+- needs-review: you could not verify the behaviour the safety depends on.
 
-Be conservative: overall verdict is "safe" with confidence "high" ONLY when EVERY migration is additive-safe (verified, including any expand/contract drop confirmed unreferenced). Any breaking → verdict "breaking". Any unresolved needs-review → verdict at most "unknown".
+Be conservative: overall verdict is "safe" with confidence "high" ONLY when EVERY input is additive-safe (verified). Any breaking → verdict "breaking". Any unresolved needs-review → verdict at most "unknown".
 
 When you have finished investigating, reply with ONE JSON object and NOTHING else, matching:
 ${SCHEMA_DOC}`;
@@ -213,17 +294,58 @@ export interface AiReviewOpts {
     apiKey: string;
     lastTag: string;
     version: string;
+    /** New side to diff/read against; defaults to HEAD. */
+    newRef?: string;
+    /** Deterministic REST breaking changes (oasdiff text) to validate. */
+    restBreaking?: string[];
+    /** Deterministic MCP tool-surface breaking changes to validate. */
+    mcpBreaking?: string[];
     log?: (msg: string) => void;
+}
+
+/** Build the inputs-turn text from whatever surfaces were flagged. */
+function buildInputsText(opts: {
+    version: string;
+    lastTag: string;
+    migrationFiles: string[];
+    migrationBlocks: string[];
+    restBreaking: string[];
+    mcpBreaking: string[];
+}): string {
+    const sections: string[] = [
+        `Release ${opts.version} since ${opts.lastTag}. Investigate every input below against the ${opts.lastTag} (old) and new code using your tools, then give the JSON verdict.`,
+    ];
+    if (opts.migrationBlocks.length) {
+        sections.push(
+            `## Migrations (${opts.migrationBlocks.length} added)\n\n${opts.migrationBlocks.join('\n\n')}`,
+        );
+    }
+    if (opts.restBreaking.length) {
+        sections.push(
+            `## REST API changes flagged breaking by oasdiff (${opts.restBreaking.length})\n\nValidate each against the in-flight frontend (packages/frontend/src) and documented internal callers:\n${opts.restBreaking.map((c) => `- ${c}`).join('\n')}`,
+        );
+    }
+    if (opts.mcpBreaking.length) {
+        sections.push(
+            `## MCP tool-surface changes flagged breaking (${opts.mcpBreaking.length})\n\nValidate whether an in-flight MCP client/agent would break:\n${opts.mcpBreaking.map((c) => `- ${c}`).join('\n')}`,
+        );
+    }
+    return sections.join('\n\n');
 }
 
 /**
  * Runs the agentic review. Returns a structured result, or `null` on any
  * fail-safe degrade (the caller must treat null as "stay unknown / Recreate").
+ * Returns null immediately when there is nothing to review (no migrations and no
+ * flagged REST/MCP breaking changes).
  */
-export async function aiMigrationReview(opts: AiReviewOpts): Promise<AiReviewResult | null> {
+export async function aiRollingUpdateReview(opts: AiReviewOpts): Promise<AiReviewResult | null> {
     const log = opts.log ?? (() => {});
+    const newRef = opts.newRef ?? 'HEAD';
+    const restBreaking = opts.restBreaking ?? [];
+    const mcpBreaking = opts.mcpBreaking ?? [];
     const paths = addedMigrationPaths(opts.lastTag);
-    if (paths.length === 0) return null;
+    if (paths.length === 0 && restBreaking.length === 0 && mcpBreaking.length === 0) return null;
 
     const fileBlocks = paths.map((p) => {
         let body = fs.readFileSync(p, 'utf-8');
@@ -235,20 +357,26 @@ export async function aiMigrationReview(opts: AiReviewOpts): Promise<AiReviewRes
     const messages: unknown[] = [
         {
             role: 'user',
-            // cache_control here caches the (large, stable) migration-files prefix
-            // so the tool loop re-reads it at ~0.1x instead of full price each turn.
+            // cache_control here caches the (large, stable) inputs prefix so the
+            // tool loop re-reads it at ~0.1x instead of full price each turn.
             content: [
                 {
                     type: 'text',
-                    text:
-                        `Release ${opts.version} adds ${paths.length} migration(s) since ${opts.lastTag}. Investigate each against the ${opts.lastTag} app code using your tools, then give the JSON verdict.\n\n` +
-                        fileBlocks.join('\n\n'),
+                    text: buildInputsText({
+                        version: opts.version,
+                        lastTag: opts.lastTag,
+                        migrationFiles: paths,
+                        migrationBlocks: fileBlocks,
+                        restBreaking,
+                        mcpBreaking,
+                    }),
                     cache_control: { type: 'ephemeral' },
                 },
             ],
         },
     ];
 
+    const refs: ToolRefs = { lastTag: opts.lastTag, newRef };
     let toolCalls = 0;
     let inTok = 0;
     let outTok = 0;
@@ -257,9 +385,8 @@ export async function aiMigrationReview(opts: AiReviewOpts): Promise<AiReviewRes
     for (let turn = 0; turn < MAX_TOOL_CALLS + 1; turn += 1) {
         // Rolling cache breakpoint: cache the growing transcript so each turn
         // re-reads prior turns at ~0.1x. Keep the static breakpoints (system +
-        // the first migration-files message) and move a single rolling one onto
-        // the last block of the last message — total stays within the 4-breakpoint
-        // limit (system + files + rolling = 3).
+        // the first inputs message) and move a single rolling one onto the last
+        // block of the last message — total stays within the 4-breakpoint limit.
         markRollingCache(messages);
         let resp;
         try {
@@ -281,7 +408,7 @@ export async function aiMigrationReview(opts: AiReviewOpts): Promise<AiReviewRes
         if (toolUses.length === 0) {
             const textBlock = resp.content.find((b) => b.type === 'text' && b.text);
             if (!textBlock?.text) { log('degrade: no final text'); return null; }
-            let v: { verdict: 'safe' | 'breaking' | 'unknown'; confidence: 'low' | 'medium' | 'high'; perMigration: AiReviewResult['perMigration']; summary: string };
+            let v: { verdict: 'safe' | 'breaking' | 'unknown'; confidence: 'low' | 'medium' | 'high'; findings: AiReviewFinding[]; summary: string };
             try {
                 v = extractJson(textBlock.text) as typeof v;
             } catch {
@@ -298,7 +425,7 @@ export async function aiMigrationReview(opts: AiReviewOpts): Promise<AiReviewRes
                 rollingUpdateSafe,
                 recommendedStrategy: rollingUpdateSafe === true ? 'RollingUpdate' : 'Recreate',
                 summary: v.summary,
-                perMigration: v.perMigration,
+                findings: Array.isArray(v.findings) ? v.findings : [],
                 toolCalls,
                 usage: { input: inTok, output: outTok, cacheRead },
             };
@@ -307,7 +434,7 @@ export async function aiMigrationReview(opts: AiReviewOpts): Promise<AiReviewRes
         if (toolCalls >= MAX_TOOL_CALLS) { log(`degrade: tool-call budget exhausted (${MAX_TOOL_CALLS})`); return null; }
         const results = toolUses.map((tu) => {
             toolCalls += 1;
-            const r = runTool(tu.name as string, (tu.input ?? {}) as Record<string, unknown>, opts.lastTag);
+            const r = runTool(tu.name as string, (tu.input ?? {}) as Record<string, unknown>, refs);
             return { type: 'tool_result', tool_use_id: tu.id, content: r.text, is_error: r.isError };
         });
         messages.push({ role: 'user', content: results });
@@ -315,6 +442,9 @@ export async function aiMigrationReview(opts: AiReviewOpts): Promise<AiReviewRes
     log('degrade: loop did not converge');
     return null;
 }
+
+/** @deprecated renamed to aiRollingUpdateReview; kept as an alias for callers. */
+export const aiMigrationReview = aiRollingUpdateReview;
 
 // ---- CLI --------------------------------------------------------------------
 
@@ -332,21 +462,21 @@ async function main(): Promise<void> {
 
     const paths = addedMigrationPaths(lastTag);
     if (paths.length === 0) {
-        console.log(`No migrations added in ${lastTag}..HEAD — nothing to review.`);
-        return;
+        console.log(`No migrations added in ${lastTag}..HEAD. (Pass REST/MCP breaking inputs via the generator to review those surfaces.)`);
+    } else {
+        console.log(`\n=== AI rolling-update review: ${lastTag} → ${version} (${paths.length} migrations) ===`);
     }
-    console.log(`\n=== AI migration review: ${lastTag} → ${version} (${paths.length} migrations) ===`);
-    const r = await aiMigrationReview({ apiKey, lastTag, version, log: (m) => console.log(m) });
+    const r = await aiRollingUpdateReview({ apiKey, lastTag, version, newRef: arg('new-ref'), log: (m) => console.log(m) });
     if (!r) {
-        console.log(`→ rollingUpdateSafe: "unknown"  recommendedStrategy: Recreate  (fail-safe degrade)`);
+        console.log(`→ rollingUpdateSafe: "unknown"  recommendedStrategy: Recreate  (nothing to review or fail-safe degrade)`);
         return;
     }
     console.log(`model verdict : ${r.modelVerdict} (confidence: ${r.confidence})  [${r.toolCalls} tool calls]`);
     console.log(`→ rollingUpdateSafe: ${JSON.stringify(r.rollingUpdateSafe)}  recommendedStrategy: ${r.recommendedStrategy}`);
     console.log(`summary       : ${r.summary}\n`);
-    for (const m of r.perMigration) {
-        console.log(`  • ${m.file.split('/').pop()}`);
-        console.log(`      [${m.classification}] ${m.reason}`);
+    for (const f of r.findings) {
+        console.log(`  • [${f.surface}] ${f.ref}`);
+        console.log(`      [${f.classification}] ${f.reason}`);
     }
     console.log(`\ntokens: in=${r.usage.input} out=${r.usage.output} cache_read=${r.usage.cacheRead}`);
 }

@@ -201,7 +201,7 @@ test('aiReview flips a migration-bearing release to its verdict + adds capabilit
     assert.strictEqual(m.compatibility.rollingUpdateSafe, true);
     assert.strictEqual(m.compatibility.recommendedStrategy, 'RollingUpdate');
     assert.deepStrictEqual(m.capabilities, ['migrations', 'ai-review']);
-    assert.ok(/AI migration review:/.test(m.compatibility.notes));
+    assert.ok(/AI rolling-update review:/.test(m.compatibility.notes));
 });
 
 test('aiReview "breaking" verdict sets rollingUpdateSafe false', () => {
@@ -461,6 +461,83 @@ test('unchecked/null mcpApi leaves the stub and does NOT claim the capability', 
         mcpApi: null,
     });
     assert.ok(!m2.capabilities.includes('mcp'));
+});
+
+// --- AI validates non-migration breaks (REST/MCP) ----------------------------
+
+const noMig = { present: false as const, count: 0, files: [], ee: false, deletedHistorical: [] };
+
+test('REST break with NO migration → base "unknown" (cautious), not silently safe', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: noMig,
+        restApi: { checked: true, breaking: true, changes: ['DELETE /api/v1/foo — endpoint removed'] },
+    });
+    // no migration would normally be "true"; a flagged REST break makes it unknown
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, 'unknown');
+    assert.strictEqual(m.compatibility.recommendedStrategy, 'Recreate');
+    assert.ok(/breaking REST API change/.test(m.compatibility.notes));
+    // AI did not run here, so no ai-review capability — but rest is claimed
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'rest']);
+});
+
+test('REST break + AI "safe/high" verdict → RollingUpdate (in-flight frontend unaffected)', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: noMig,
+        restApi: { checked: true, breaking: true, changes: ['DELETE /api/v1/legacy — removed'] },
+        aiReview: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', summary: 'Endpoint is external-only; the bundled frontend never calls it.' },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, true);
+    assert.strictEqual(m.compatibility.recommendedStrategy, 'RollingUpdate');
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'ai-review', 'rest']);
+    assert.ok(/AI rolling-update review:/.test(m.compatibility.notes));
+});
+
+test('REST break + AI "breaking" verdict → false (an in-flight consumer breaks)', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: noMig,
+        restApi: { checked: true, breaking: true, changes: ['GET /api/v1/saved — response field removed'] },
+        aiReview: { rollingUpdateSafe: false, recommendedStrategy: 'Recreate', summary: 'The bundled frontend reads the removed field.' },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, false);
+    assert.strictEqual(m.compatibility.recommendedStrategy, 'Recreate');
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'ai-review', 'rest']);
+});
+
+test('REST break + inconclusive AI ("unknown") → stays "unknown" (never asserts safe)', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: noMig,
+        restApi: { checked: true, breaking: true, changes: ['PATCH /api/v1/x — param now required'] },
+        aiReview: { rollingUpdateSafe: 'unknown', recommendedStrategy: 'Recreate', summary: 'Could not determine frontend usage.' },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, 'unknown');
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'ai-review', 'rest']);
+});
+
+test('MCP break with NO migration + AI "breaking" → false', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: noMig,
+        mcpApi: { checked: true, breaking: true, changes: ['MCP tool `run_query` removed'] },
+        aiReview: { rollingUpdateSafe: false, recommendedStrategy: 'Recreate', summary: 'An in-flight agent session would fail the call.' },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, false);
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'ai-review', 'mcp']);
+});
+
+test('a clean REST surface does NOT make a no-migration release "unknown"', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: noMig,
+        restApi: { checked: true, breaking: false, changes: [] },
+        // an aiReview passed here must be ignored — nothing was flagged to validate
+        aiReview: { rollingUpdateSafe: false, recommendedStrategy: 'Recreate', summary: 'should be ignored' },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, true);
+    assert.ok(!m.capabilities.includes('ai-review'));
 });
 
 // --- upgrade overrides (P4) --------------------------------------------------
