@@ -127,6 +127,7 @@ const newSchedulerPayload = {
     agentUuid: null,
     prompt: null,
     sourceThreadUuid: null,
+    aiSchedulerOptions: null,
 };
 
 describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {

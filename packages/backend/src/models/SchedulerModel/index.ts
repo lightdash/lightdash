@@ -141,6 +141,7 @@ export class SchedulerModel {
             agentUuid: scheduler.agent_uuid,
             prompt: scheduler.prompt,
             sourceThreadUuid: scheduler.source_thread_uuid,
+            aiSchedulerOptions: scheduler.ai_scheduler_options,
             format: scheduler.format,
             options: scheduler.options,
             thresholds: scheduler.thresholds ?? undefined,
@@ -208,13 +209,20 @@ export class SchedulerModel {
         return value ? JSON.stringify(value) : null;
     }
 
-    // Disabling an agent (null) clears all three; a field absent from the update
-    // (undefined) is left untouched, never forced to null — that would trip the
-    // scheduler_check (agent implies prompt) and roll back the whole update.
+    // Disabling an agent (null) clears every augmentation field; a field absent
+    // from the update (undefined) is left untouched, never forced to null — that
+    // would trip the scheduler_check (agent implies prompt) and roll back the
+    // whole update.
     private static toAugmentationUpdate(
         scheduler: UpdateSchedulerAndTargets,
     ): Partial<
-        Pick<SchedulerDb, 'agent_uuid' | 'prompt' | 'source_thread_uuid'>
+        Pick<
+            SchedulerDb,
+            | 'agent_uuid'
+            | 'prompt'
+            | 'source_thread_uuid'
+            | 'ai_scheduler_options'
+        >
     > {
         if (scheduler.agentUuid) {
             return {
@@ -223,6 +231,7 @@ export class SchedulerModel {
                     ? { prompt: scheduler.prompt }
                     : {}),
                 source_thread_uuid: scheduler.sourceThreadUuid ?? null,
+                ai_scheduler_options: scheduler.aiSchedulerOptions ?? null,
             };
         }
         if (scheduler.agentUuid === null) {
@@ -230,6 +239,7 @@ export class SchedulerModel {
                 agent_uuid: null,
                 prompt: null,
                 source_thread_uuid: null,
+                ai_scheduler_options: null,
             };
         }
         return {
@@ -238,6 +248,9 @@ export class SchedulerModel {
                 : {}),
             ...(scheduler.sourceThreadUuid !== undefined
                 ? { source_thread_uuid: scheduler.sourceThreadUuid }
+                : {}),
+            ...(scheduler.aiSchedulerOptions !== undefined
+                ? { ai_scheduler_options: scheduler.aiSchedulerOptions }
                 : {}),
         };
     }
@@ -264,6 +277,7 @@ export class SchedulerModel {
             agent_uuid: newScheduler.agentUuid ?? null,
             prompt: newScheduler.prompt ?? null,
             source_thread_uuid: newScheduler.sourceThreadUuid ?? null,
+            ai_scheduler_options: newScheduler.aiSchedulerOptions ?? null,
         };
 
         if (isDashboardCreateScheduler(newScheduler)) {

@@ -39,6 +39,7 @@ type Props = {
     isThresholdAlertWithNoFields: boolean;
     numericMetrics: Record<string, any>;
     isDashboardTabsAvailable: boolean;
+    sourceThreadUuid?: string | null;
 };
 
 const SchedulerForm: FC<Props> = ({
@@ -55,6 +56,7 @@ const SchedulerForm: FC<Props> = ({
     isDashboardTabsAvailable,
     onSubmit,
     resource,
+    sourceThreadUuid,
 }) => {
     const isApp = resource?.type === 'app';
     const form = useSchedulerFormContext();
@@ -239,6 +241,7 @@ const SchedulerForm: FC<Props> = ({
                                 resource?.type === 'dashboard') &&
                             !isThresholdAlert
                         }
+                        sourceThreadUuid={sourceThreadUuid}
                     />
                 </Tabs.Panel>
                 {isDashboard ? (

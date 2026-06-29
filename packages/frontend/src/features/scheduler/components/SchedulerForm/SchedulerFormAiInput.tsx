@@ -8,10 +8,14 @@ import { useSchedulerFormContext } from './schedulerFormContext';
 
 type Props = {
     projectUuid: string | undefined;
+    sourceThreadUuid?: string | null;
 };
 
 // Renders nothing when AI agents aren't available for this project.
-export const SchedulerFormAiInput: FC<Props> = ({ projectUuid }) => {
+export const SchedulerFormAiInput: FC<Props> = ({
+    projectUuid,
+    sourceThreadUuid,
+}) => {
     const form = useSchedulerFormContext();
     const isAiVisible = useAiAgentButtonVisibility();
     const { data: agents } = useProjectAiAgents({
@@ -64,6 +68,15 @@ export const SchedulerFormAiInput: FC<Props> = ({ projectUuid }) => {
                         minRows={2}
                         {...form.getInputProps('prompt')}
                     />
+                    {sourceThreadUuid && (
+                        <Switch
+                            label="Include the source conversation as context"
+                            description="The agent will also see the conversation this delivery was created from."
+                            {...form.getInputProps('includeSourceThread', {
+                                type: 'checkbox',
+                            })}
+                        />
+                    )}
                 </Stack>
             )}
         </Stack>

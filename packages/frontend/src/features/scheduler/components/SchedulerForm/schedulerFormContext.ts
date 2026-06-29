@@ -57,6 +57,7 @@ export interface SchedulerFormValues {
     agentUuid: string | null;
     prompt: string;
     sourceThreadUuid: string | null;
+    includeSourceThread: boolean;
 }
 
 const DEFAULT_AI_PROMPT =
@@ -96,6 +97,7 @@ export const DEFAULT_VALUES: SchedulerFormValues = {
     agentUuid: null,
     prompt: DEFAULT_AI_PROMPT,
     sourceThreadUuid: null,
+    includeSourceThread: false,
 };
 
 export const DEFAULT_VALUES_ALERT: SchedulerFormValues = {
@@ -203,6 +205,8 @@ export const getFormValuesFromScheduler = (
         agentUuid: schedulerData.agentUuid,
         prompt: schedulerData.prompt ?? DEFAULT_AI_PROMPT,
         sourceThreadUuid: schedulerData.sourceThreadUuid,
+        includeSourceThread:
+            schedulerData.aiSchedulerOptions?.includeSourceThread ?? false,
     };
 };
 
@@ -278,6 +282,9 @@ export const transformFormValues = (
         agentUuid: values.agentUuid,
         prompt: values.agentUuid ? values.prompt : null,
         sourceThreadUuid: values.agentUuid ? values.sourceThreadUuid : null,
+        aiSchedulerOptions: values.agentUuid
+            ? { includeSourceThread: values.includeSourceThread }
+            : null,
         ...(resourceType === 'dashboard' && {
             filters: values.dashboardFilters,
             parameters: values.parameters,

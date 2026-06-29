@@ -112,6 +112,7 @@ export const useSyncModalForm = (chartUuid: string, projectUuid?: string) => {
                 agentUuid: null,
                 prompt: null,
                 sourceThreadUuid: null,
+                aiSchedulerOptions: null,
             };
 
             const payload = {

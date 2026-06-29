@@ -85,6 +85,7 @@ const chartSchedulerInPrivateSpace: ChartScheduler = {
     agentUuid: null,
     prompt: null,
     sourceThreadUuid: null,
+    aiSchedulerOptions: null,
     options: { formatted: true, limit: 'table' },
     enabled: true,
     includeLinks: true,

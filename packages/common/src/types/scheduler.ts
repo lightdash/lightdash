@@ -108,6 +108,13 @@ export type ThresholdOptions = {
     value: number;
 };
 
+// Behavioural settings for an AI-augmented delivery. Relational fields the DB
+// reasons about (agentUuid, sourceThreadUuid) stay as columns; these flags live
+// in one jsonb column so new ones don't each need a migration.
+export type AiSchedulerOptions = {
+    includeSourceThread: boolean;
+};
+
 export type SchedulerBase = {
     schedulerUuid: string;
     name: string;
@@ -131,6 +138,7 @@ export type SchedulerBase = {
     agentUuid: string | null;
     prompt: string | null;
     sourceThreadUuid: string | null;
+    aiSchedulerOptions: AiSchedulerOptions | null;
     options: SchedulerOptions;
     thresholds?: ThresholdOptions[]; // it can ben an array of AND conditions
     enabled: boolean;
@@ -332,6 +340,7 @@ export type UpdateSchedulerAndTargets = Pick<
     agentUuid?: string | null;
     prompt?: string | null;
     sourceThreadUuid?: string | null;
+    aiSchedulerOptions?: AiSchedulerOptions | null;
     targets: Array<
         | CreateSchedulerTarget
         | UpdateSchedulerSlackTarget

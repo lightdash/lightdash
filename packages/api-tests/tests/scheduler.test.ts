@@ -39,6 +39,7 @@ const createSchedulerBody: Omit<
     agentUuid: null,
     prompt: null,
     sourceThreadUuid: null,
+    aiSchedulerOptions: null,
 };
 
 const getUpdateSchedulerBody = (
