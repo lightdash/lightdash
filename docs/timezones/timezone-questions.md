@@ -42,7 +42,7 @@ Companion to [`timezone-handling.md`](./timezone-handling.md) (what we do) and [
 
 **Not at the column level.** `dataTimezone` is per-warehouse (set on the connection — `projects.ts`), not per-column. Every NTZ column on that connection is assumed to be in `dataTimezone`. If you have one column in PT and another in ET on the same warehouse, you cannot express that today.
 
-The closest workaround is `convert_timezone: false` per-dimension (translator.ts:219), but that's a *display* opt-out, not a wall-clock-tz declaration. The filter SQL still converts as if the value were in `dataTimezone`.
+The closest workaround is `convert_timezone: false` per-dimension (translator.ts:219). It opts the column out of conversion entirely — display, grouping, *and* filtering all use the raw stored value — so a pre-converted, already-local column is never shifted. It is still not a wall-clock-tz *declaration*: you cannot say "interpret this column as zone X and convert from it," so a single NTZ column genuinely stored in a non-default zone that still needs conversion is not expressible.
 
 **This is a real gap** — flagged in [`timezone-review.md` section E](./timezone-review.md#e-the-datatimezone-is-an-unvalidated-user-assertion). Per the research synthesis, this is the single highest-leverage feature to differentiate the design.
 
