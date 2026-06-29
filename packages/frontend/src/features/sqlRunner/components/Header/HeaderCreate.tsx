@@ -175,7 +175,16 @@ export const HeaderCreate: FC = () => {
           : canWriteBackToDbt
             ? 'writeBackToDbt'
             : 'save';
-    const ctaAction = userSelectedCtaAction ?? defaultCtaAction;
+    // Ignore a stale selection if the user no longer has permission for it
+    // (permissions can change after the spaces query resolves).
+    const isUserSelectedActionValid =
+        (userSelectedCtaAction === 'save' && canSaveChart) ||
+        (userSelectedCtaAction === 'createVirtualView' &&
+            canCreateVirtualView) ||
+        (userSelectedCtaAction === 'writeBackToDbt' && canWriteBackToDbt);
+    const ctaAction = isUserSelectedActionValid
+        ? (userSelectedCtaAction ?? defaultCtaAction)
+        : defaultCtaAction;
 
     const handleCtaClick = useCallback(() => {
         switch (ctaAction) {

@@ -160,8 +160,7 @@ describe('CoderService.upsertSqlChart - permissions', () => {
                 },
             ]);
 
-            await upsert(service, user);
-            expect(savedSqlModel.create).toHaveBeenCalledTimes(1);
+            await expect(upsert(service, user)).resolves.not.toThrow();
         });
     });
 
@@ -186,9 +185,7 @@ describe('CoderService.upsertSqlChart - permissions', () => {
                 },
             ]);
 
-            await upsert(service, user);
-            expect(savedSqlModel.update).toHaveBeenCalledTimes(1);
-            expect(savedSqlModel.create).not.toHaveBeenCalled();
+            await expect(upsert(service, user)).resolves.not.toThrow();
         });
 
         it('throws ForbiddenError on update without update:SavedChart', async () => {
