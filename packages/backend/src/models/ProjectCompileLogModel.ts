@@ -101,9 +101,15 @@ export class ProjectCompileLogModel {
         );
 
         const { pagination, data } = await KnexPaginate.paginate<
-            {},
+            DbProjectCompileLog,
             DbProjectCompileLog[]
-        >(baseQuery, paginateArgs);
+        >(
+            baseQuery as Knex.QueryBuilder<
+                DbProjectCompileLog,
+                DbProjectCompileLog[]
+            >,
+            paginateArgs,
+        );
 
         return {
             pagination,
