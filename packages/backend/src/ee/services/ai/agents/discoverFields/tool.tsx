@@ -13,6 +13,7 @@ import {
     isMetric,
     type Dimension,
     type Metric,
+    type ToolDiscoverFieldsOutput,
 } from '@lightdash/common';
 import {
     readUIMessageStream,
@@ -286,6 +287,30 @@ const getStructuredResult = (result: DiscoverFieldsResult) => {
     }
 };
 
+const getToolTraceSignature = (message: UIMessage): string =>
+    message.parts
+        .filter((part) => part.type.startsWith('tool-'))
+        .map((part) => {
+            const toolCallId =
+                'toolCallId' in part && typeof part.toolCallId === 'string'
+                    ? part.toolCallId
+                    : '';
+            const hasInput = 'input' in part && part.input !== undefined;
+            return `${part.type}:${toolCallId}:${hasInput ? '1' : '0'}`;
+        })
+        .join('|');
+
+const getStreamingToolOutput = (
+    streamingMessage: UIMessage,
+): ToolDiscoverFieldsOutput =>
+    ({
+        result: '',
+        metadata: {
+            status: 'streaming' as const,
+            streamingMessage,
+        },
+    }) as unknown as ToolDiscoverFieldsOutput;
+
 const extractSelectionFromSubmitResult = (
     message: UIMessage | undefined,
 ): DiscoverFieldsSelectionV2 | { error: string } => {
@@ -351,10 +376,19 @@ export const getDiscoverFields = (args: ToolArgs, dependencies: Dependencies) =>
                 );
 
                 let currentMessage: UIMessage | undefined;
+                let lastTraceSignature: string | null = null;
                 for await (const message of readUIMessageStream({
                     stream: stream.toUIMessageStream(),
                 })) {
                     currentMessage = message;
+                    const traceSignature = getToolTraceSignature(message);
+                    if (
+                        traceSignature &&
+                        traceSignature !== lastTraceSignature
+                    ) {
+                        lastTraceSignature = traceSignature;
+                        yield getStreamingToolOutput(message);
+                    }
                 }
 
                 await flushPersistence();
@@ -387,8 +421,9 @@ export const getDiscoverFields = (args: ToolArgs, dependencies: Dependencies) =>
                     metadata: {
                         status: 'success' as const,
                         discovery: handoff,
+                        streamingMessage: currentMessage,
                     },
-                };
+                } as ToolDiscoverFieldsOutput;
             } catch (error) {
                 yield {
                     result: toolErrorHandler(
