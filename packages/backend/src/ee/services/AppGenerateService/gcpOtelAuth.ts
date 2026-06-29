@@ -1,6 +1,7 @@
 import { assertUnreachable } from '@lightdash/common';
 import { google } from 'googleapis';
 import type { DataAppOtelAuthConfig } from '../../../config/parseConfig';
+import { runWithOtelSpanContext } from '../../../tracing/tracing';
 
 /**
  * Per-execution OTLP export auth for data-app sandbox tracing.
@@ -52,7 +53,13 @@ export const resolveOtelExportHeaders = async (
         case 'none':
             return {};
         case 'gcp': {
-            const token = await mintGcpAccessToken();
+            // Narrow span around just the token mint so we can see whether
+            // credential resolution is a slow path. Nests under the active
+            // `DataApp.generate` parent; a no-op when backend tracing is off.
+            const token = await runWithOtelSpanContext(
+                { name: 'DataApp.otelAuth.gcp' },
+                () => mintGcpAccessToken(),
+            );
             if (!token) {
                 throw new Error(
                     'GCP OTEL auth: no access token resolved from credentials',
