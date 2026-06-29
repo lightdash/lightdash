@@ -1,9 +1,9 @@
 {
     "$schema": "./scripts/release-safety-overrides.schema.json",
     "default": {
-        "minPreviousVersion": null,
-        "requiredStop": false,
-        "note": null
+        "minPreviousVersion": "0.3200.0",
+        "requiredStop": true,
+        "note": "DEMO required stop (PROD-8359 matrix): operators must land on this release before upgrading further."
     },
     "versions": {}
 }
