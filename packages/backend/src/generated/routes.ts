@@ -3945,6 +3945,28 @@ const models: TsoaRoute.Models = {
                 },
             },
             richText: { dataType: 'string' },
+            filterAutocomplete: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    fetchFromWarehouse: {
+                        dataType: 'boolean',
+                        required: true,
+                    },
+                    values: {
+                        dataType: 'array',
+                        array: {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                value: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                label: { dataType: 'string' },
+                            },
+                        },
+                    },
+                },
+            },
             spotlight: {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
@@ -7081,6 +7103,28 @@ const models: TsoaRoute.Models = {
                 },
             },
             richText: { dataType: 'string' },
+            filterAutocomplete: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    fetchFromWarehouse: {
+                        dataType: 'boolean',
+                        required: true,
+                    },
+                    values: {
+                        dataType: 'array',
+                        array: {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                value: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                label: { dataType: 'string' },
+                            },
+                        },
+                    },
+                },
+            },
             spotlight: {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {

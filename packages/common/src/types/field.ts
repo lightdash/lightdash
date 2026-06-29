@@ -669,6 +669,16 @@ export enum DimensionType {
     BOOLEAN = 'boolean',
 }
 
+export type FilterAutocompleteValue = {
+    value: string;
+    label?: string;
+};
+
+export type FilterAutocompleteConfig = {
+    values?: FilterAutocompleteValue[];
+    fetchFromWarehouse: boolean;
+};
+
 export interface Dimension extends Field {
     fieldType: FieldType.DIMENSION;
     type: DimensionType;
@@ -696,6 +706,7 @@ export interface Dimension extends Field {
         fit?: string;
     };
     richText?: string; // The markdown/HTML template with LiquidJS variables
+    filterAutocomplete?: FilterAutocompleteConfig;
     spotlight?: {
         filterBy?: boolean;
         segmentBy?: boolean;

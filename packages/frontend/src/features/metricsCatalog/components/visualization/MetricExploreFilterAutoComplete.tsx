@@ -66,12 +66,7 @@ export const MetricExploreFilterAutoComplete: FC<Props> = ({
     >();
     const [forceRefresh, setForceRefresh] = useState<boolean>(false);
 
-    const {
-        isInitialLoading,
-        results: resultsSet,
-        refreshedAt,
-        refetch,
-    } = useFieldValues(
+    const { isInitialLoading, results, refreshedAt, refetch } = useFieldValues(
         search,
         [],
         projectUuid,
@@ -91,8 +86,6 @@ export const MetricExploreFilterAutoComplete: FC<Props> = ({
             setForceRefresh(false);
         }
     }, [forceRefresh, refetch]);
-
-    const results = useMemo(() => [...resultsSet], [resultsSet]);
 
     const handleResetSearch = useCallback(() => {
         setTimeout(() => setSearch(() => ''), 0);
@@ -143,13 +136,19 @@ export const MetricExploreFilterAutoComplete: FC<Props> = ({
     );
 
     const data = useMemo(() => {
-        return uniq([...results, ...values]).map((value) => ({
-            value,
-            label: value,
-        }));
+        const resultLabels = new Map(
+            results.map(({ value, label }) => [value, label]),
+        );
+
+        return uniq([...results.map(({ value }) => value), ...values]).map(
+            (value) => ({
+                value,
+                label: resultLabels.get(value) ?? value,
+            }),
+        );
     }, [results, values]);
 
-    const searchedMaxResults = resultsSet.size >= MAX_AUTOCOMPLETE_RESULTS;
+    const searchedMaxResults = results.length >= MAX_AUTOCOMPLETE_RESULTS;
 
     const DropdownComponentOverride = useCallback(
         ({ children, ...props }: { children: ReactNode }) => (

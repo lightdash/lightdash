@@ -4203,6 +4203,30 @@
                     "richText": {
                         "type": "string"
                     },
+                    "filterAutocomplete": {
+                        "properties": {
+                            "fetchFromWarehouse": {
+                                "type": "boolean"
+                            },
+                            "values": {
+                                "items": {
+                                    "properties": {
+                                        "value": {
+                                            "type": "string"
+                                        },
+                                        "label": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["value"],
+                                    "type": "object"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["fetchFromWarehouse"],
+                        "type": "object"
+                    },
                     "spotlight": {
                         "properties": {
                             "segmentBy": {
@@ -8286,6 +8310,30 @@
                     },
                     "richText": {
                         "type": "string"
+                    },
+                    "filterAutocomplete": {
+                        "properties": {
+                            "fetchFromWarehouse": {
+                                "type": "boolean"
+                            },
+                            "values": {
+                                "items": {
+                                    "properties": {
+                                        "value": {
+                                            "type": "string"
+                                        },
+                                        "label": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["value"],
+                                    "type": "object"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["fetchFromWarehouse"],
+                        "type": "object"
                     },
                     "spotlight": {
                         "properties": {

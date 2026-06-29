@@ -20,6 +20,7 @@ import {
     type CompactOrAlias,
     type DimensionType,
     type FieldUrl,
+    type FilterAutocompleteValue,
     type Format,
     type Metric,
     type MetricType,
@@ -218,6 +219,11 @@ type DbtColumnLightdashConfig = {
     metrics?: { [metricName: string]: DbtColumnLightdashMetric };
 };
 
+export type DbtFilterAutocompleteConfig = {
+    values?: FilterAutocompleteValue[];
+    fetch_from_warehouse?: boolean;
+};
+
 export type DbtColumnLightdashDimension = {
     name?: string;
     label?: string;
@@ -244,6 +250,7 @@ export type DbtColumnLightdashDimension = {
     any_attributes?: Record<string, string | string[]>;
     ai_hint?: string | string[];
     case_sensitive?: boolean; // When false, string filters on this dimension will be case insensitive. Default is true
+    filter_autocomplete?: DbtFilterAutocompleteConfig;
     image?: {
         url: string;
         width?: number;

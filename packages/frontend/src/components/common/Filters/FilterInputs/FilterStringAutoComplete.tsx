@@ -1,4 +1,4 @@
-import { type FilterableItem } from '@lightdash/common';
+import { isDimension, type FilterableItem } from '@lightdash/common';
 import {
     ActionIcon,
     Group,
@@ -176,7 +176,7 @@ const FilterStringAutoComplete: FC<Props> = ({
 
     const {
         isInitialLoading,
-        results: resultsSet,
+        results,
         refreshedAt,
         refetch,
         reset,
@@ -206,7 +206,9 @@ const FilterStringAutoComplete: FC<Props> = ({
             setForceRefresh(false);
         }
     }, [forceRefresh, refetch]);
-    const results = useMemo(() => [...resultsSet], [resultsSet]);
+    const filterAutocomplete = isDimension(field)
+        ? field.filterAutocomplete
+        : undefined;
 
     const handleResetSearch = useCallback(() => {
         setTimeout(() => setSearch(() => ''), 0);
@@ -273,10 +275,16 @@ const FilterStringAutoComplete: FC<Props> = ({
         // Mantine does not show value tag if value is not found in data
         // so we need to add it manually here
         // also we are merging status indicator as a first item
-        return uniq([...results, ...values]).map((value) => ({
-            value,
-            label: formatDisplayValue(value),
-        }));
+        const resultLabels = new Map(
+            results.map(({ value, label }) => [value, label]),
+        );
+
+        return uniq([...results.map(({ value }) => value), ...values]).map(
+            (value) => ({
+                value,
+                label: resultLabels.get(value) ?? formatDisplayValue(value),
+            }),
+        );
     }, [results, values]);
 
     const isSummaryMode =
@@ -323,7 +331,10 @@ const FilterStringAutoComplete: FC<Props> = ({
         [disabled, hiddenCount, openManageValues],
     );
 
-    const searchedMaxResults = resultsSet.size >= MAX_AUTOCOMPLETE_RESULTS;
+    const searchedMaxResults = results.length >= MAX_AUTOCOMPLETE_RESULTS;
+    const canRefreshAutocomplete =
+        filterAutocomplete?.fetchFromWarehouse !== false &&
+        !((filterAutocomplete?.values?.length ?? 0) > 0 && search.length === 0);
     // memo override component so list doesn't scroll to the top on each click
     const DropdownComponentOverride = useCallback(
         ({ children, ...props }: { children: ReactNode }) => (
@@ -338,7 +349,8 @@ const FilterStringAutoComplete: FC<Props> = ({
 
                     {children}
                 </ScrollArea>
-                {healthData?.hasCacheAutocompleResults ? (
+                {healthData?.hasCacheAutocompleResults &&
+                canRefreshAutocomplete ? (
                     <RefreshIndicator
                         refreshedAtRef={refreshedAtRef}
                         onRefresh={() => {
@@ -353,6 +365,7 @@ const FilterStringAutoComplete: FC<Props> = ({
             searchedMaxResults,
             search,
             healthData?.hasCacheAutocompleResults,
+            canRefreshAutocomplete,
             reset,
         ],
     );
