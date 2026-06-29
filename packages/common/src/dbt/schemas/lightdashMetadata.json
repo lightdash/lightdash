@@ -60,6 +60,7 @@
         "Compact": {
             "type": "string",
             "enum": [
+                "auto",
                 "thousands",
                 "millions",
                 "billions",

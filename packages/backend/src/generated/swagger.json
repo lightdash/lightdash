@@ -3851,6 +3851,7 @@
             },
             "Compact": {
                 "enum": [
+                    "auto",
                     "thousands",
                     "millions",
                     "billions",
@@ -3952,6 +3953,33 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "FilterAutocompleteValue": {
+                "properties": {
+                    "label": {
+                        "type": "string"
+                    },
+                    "value": {
+                        "type": "string"
+                    }
+                },
+                "required": ["value"],
+                "type": "object"
+            },
+            "FilterAutocompleteConfig": {
+                "properties": {
+                    "fetchFromWarehouse": {
+                        "type": "boolean"
+                    },
+                    "values": {
+                        "items": {
+                            "$ref": "#/components/schemas/FilterAutocompleteValue"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["fetchFromWarehouse"],
+                "type": "object"
+            },
             "FieldType": {
                 "enum": ["metric", "dimension"],
                 "type": "string"
@@ -4010,6 +4038,7 @@
                 "enum": [
                     "km",
                     "mi",
+                    "si",
                     "usd",
                     "gbp",
                     "eur",
@@ -4214,28 +4243,7 @@
                         "type": "string"
                     },
                     "filterAutocomplete": {
-                        "properties": {
-                            "fetchFromWarehouse": {
-                                "type": "boolean"
-                            },
-                            "values": {
-                                "items": {
-                                    "properties": {
-                                        "value": {
-                                            "type": "string"
-                                        },
-                                        "label": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "required": ["value"],
-                                    "type": "object"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["fetchFromWarehouse"],
-                        "type": "object"
+                        "$ref": "#/components/schemas/FilterAutocompleteConfig"
                     },
                     "spotlight": {
                         "properties": {
@@ -8342,28 +8350,7 @@
                         "type": "string"
                     },
                     "filterAutocomplete": {
-                        "properties": {
-                            "fetchFromWarehouse": {
-                                "type": "boolean"
-                            },
-                            "values": {
-                                "items": {
-                                    "properties": {
-                                        "value": {
-                                            "type": "string"
-                                        },
-                                        "label": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "required": ["value"],
-                                    "type": "object"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["fetchFromWarehouse"],
-                        "type": "object"
+                        "$ref": "#/components/schemas/FilterAutocompleteConfig"
                     },
                     "spotlight": {
                         "properties": {
@@ -15724,8 +15711,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "accepted",
-                                                            "rejected"
+                                                            "rejected",
+                                                            "accepted"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -15783,8 +15770,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "accepted",
-                                                            "rejected"
+                                                            "rejected",
+                                                            "accepted"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -15833,17 +15820,17 @@
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
                                                                         "verifiedChartUsage": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
                                                                         "chartUsage": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
@@ -15874,16 +15861,16 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
                                                                         "joinedTables": {
                                                                             "items": {
                                                                                 "type": "string"
                                                                             },
                                                                             "type": "array",
-                                                                            "nullable": true
-                                                                        },
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
                                                                             "nullable": true
                                                                         },
                                                                         "requiredFilters": {
@@ -15993,17 +15980,17 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
-                                                                                    "searchRank": {
-                                                                                        "type": "number",
-                                                                                        "format": "double",
-                                                                                        "nullable": true
-                                                                                    },
                                                                                     "verifiedChartUsage": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
                                                                                     "chartUsage": {
+                                                                                        "type": "number",
+                                                                                        "format": "double",
+                                                                                        "nullable": true
+                                                                                    },
+                                                                                    "searchRank": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
@@ -16387,6 +16374,32 @@
                                             },
                                             {
                                                 "properties": {
+                                                    "steps": {
+                                                        "items": {
+                                                            "properties": {
+                                                                "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                        "search",
+                                                                        "read",
+                                                                        "edit",
+                                                                        "compile",
+                                                                        "stage"
+                                                                    ]
+                                                                },
+                                                                "label": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "kind",
+                                                                "label"
+                                                            ],
+                                                            "type": "object"
+                                                        },
+                                                        "type": "array",
+                                                        "nullable": true
+                                                    },
                                                     "previewUrl": {
                                                         "type": "string",
                                                         "nullable": true
@@ -16414,32 +16427,6 @@
                                                         ],
                                                         "nullable": true
                                                     },
-                                                    "steps": {
-                                                        "items": {
-                                                            "properties": {
-                                                                "kind": {
-                                                                    "type": "string",
-                                                                    "enum": [
-                                                                        "search",
-                                                                        "compile",
-                                                                        "read",
-                                                                        "edit",
-                                                                        "stage"
-                                                                    ]
-                                                                },
-                                                                "label": {
-                                                                    "type": "string"
-                                                                }
-                                                            },
-                                                            "required": [
-                                                                "kind",
-                                                                "label"
-                                                            ],
-                                                            "type": "object"
-                                                        },
-                                                        "type": "array",
-                                                        "nullable": true
-                                                    },
                                                     "prUrl": {
                                                         "type": "string",
                                                         "nullable": true
@@ -16459,9 +16446,9 @@
                                                         "type": "string",
                                                         "enum": [
                                                             "unknown",
-                                                            "unsupported_source_control",
                                                             "github_not_installed",
                                                             "gitlab_not_installed",
+                                                            "unsupported_source_control",
                                                             "pull_request_not_open",
                                                             "git_write_permission",
                                                             null
@@ -16525,8 +16512,8 @@
                                                         "type": "string",
                                                         "enum": [
                                                             "error",
-                                                            "rejected",
                                                             "success",
+                                                            "rejected",
                                                             "timeout"
                                                         ]
                                                     }
@@ -16545,12 +16532,12 @@
                                                             "fields": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "searchRank": {
+                                                                        "chartUsage": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "chartUsage": {
+                                                                        "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
@@ -20725,6 +20712,9 @@
                         "type": "string"
                     },
                     "assumeRoleArn": {
+                        "type": "string"
+                    },
+                    "sessionToken": {
                         "type": "string"
                     },
                     "secretAccessKey": {
@@ -41633,7 +41623,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3254.2",
+        "version": "0.3260.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

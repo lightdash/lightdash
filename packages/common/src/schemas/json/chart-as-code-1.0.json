@@ -480,6 +480,7 @@
         },
         "Compact": {
             "enum": [
+                "auto",
                 "thousands",
                 "millions",
                 "billions",
@@ -1333,6 +1334,7 @@
             "enum": [
                 "km",
                 "mi",
+                "si",
                 "usd",
                 "gbp",
                 "eur",

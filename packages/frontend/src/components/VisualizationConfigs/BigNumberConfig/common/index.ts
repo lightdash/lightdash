@@ -1,9 +1,17 @@
-import { CompactConfigMap } from '@lightdash/common';
+import { Compact, CompactConfigMap } from '@lightdash/common';
+
+const bigNumberCompactOptions = [
+    Compact.AUTO,
+    Compact.THOUSANDS,
+    Compact.MILLIONS,
+    Compact.BILLIONS,
+    Compact.TRILLIONS,
+];
 
 export const StyleOptions = [
     { value: '', label: 'None' },
-    ...Object.values(CompactConfigMap).map(({ compact, label }) => ({
+    ...bigNumberCompactOptions.map((compact) => ({
         value: compact,
-        label,
+        label: CompactConfigMap[compact].label,
     })),
 ];

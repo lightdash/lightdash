@@ -1,4 +1,6 @@
 import {
+    applyCustomFormat,
+    Compact,
     assertUnreachable,
     CompactConfigMap,
     convertCustomFormatToFormatExpression,
@@ -211,6 +213,14 @@ const getPreviewValue = (
             return dataType === TableCalculationType.TIMESTAMP
                 ? formatTimestamp(sample)
                 : formatDate(sample);
+        }
+
+        if (
+            format.compact === Compact.AUTO &&
+            (format.type === CustomFormatType.NUMBER ||
+                format.type === CustomFormatType.CURRENCY)
+        ) {
+            return applyCustomFormat(NUMERIC_SAMPLE, format);
         }
 
         const expression = convertCustomFormatToFormatExpression(format);

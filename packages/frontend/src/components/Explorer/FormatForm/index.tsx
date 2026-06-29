@@ -1,4 +1,5 @@
 import {
+    Compact,
     CompactConfigMap,
     convertCustomFormatToFormatExpression,
     currencies,
@@ -136,6 +137,11 @@ export const FormatForm: FC<Props> = ({
     compact = false,
 }) => {
     const formatType = format.type;
+    const formatExpression = convertCustomFormatToFormatExpression(format);
+    const usesRuntimeOnlyFormatExpression =
+        format.compact === Compact.AUTO &&
+        (format.type === CustomFormatType.NUMBER ||
+            format.type === CustomFormatType.CURRENCY);
 
     const isDateField = useMemo(() => {
         return (
@@ -533,8 +539,9 @@ export const FormatForm: FC<Props> = ({
                     <Text size="xs" c="ldGray.5">
                         Format expression:{' '}
                         <Text span fw={500} c="ldGray.7">
-                            {convertCustomFormatToFormatExpression(format) ||
-                                'default'}
+                            {usesRuntimeOnlyFormatExpression
+                                ? 'runtime only'
+                                : formatExpression || 'default'}
                         </Text>
                     </Text>
                 </Grid.Col>
