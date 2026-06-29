@@ -1570,6 +1570,28 @@ export class CoderService extends BaseService {
         });
         const existingSqlChart = sqlChartRows[0];
 
+        // Saving a SQL chart via content-as-code requires the same permissions
+        // as the UI path (SavedSqlService): manage:CustomSql plus space-level
+        // create/update on SavedChart. ContentAsCode alone is not sufficient.
+        // manage:CustomSql is project-level, so check it before resolving the
+        // space so a forbidden save can't orphan a newly created space.
+        const isUpdate = existingSqlChart !== undefined;
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('CustomSql', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid: project.projectUuid,
+                    metadata:
+                        existingSqlChart !== undefined
+                            ? { savedSqlUuid: existingSqlChart.saved_sql_uuid }
+                            : {},
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         const { space, created: spaceCreated } = await this.getOrCreateSpace(
             projectUuid,
             sqlChartAsCode.spaceSlug,
@@ -1578,6 +1600,37 @@ export class CoderService extends BaseService {
             publicSpaceCreate,
             spaceNames,
         );
+
+        // Space-level create/update on SavedChart. On a move (update with a
+        // different target space) require access to both the current and the
+        // target space, mirroring SavedSqlService.hasAccess.
+        const savedChartAction = isUpdate ? 'update' : 'create';
+        const spaceUuidsToCheck =
+            existingSqlChart !== undefined &&
+            existingSqlChart.space_uuid !== space.uuid
+                ? [space.uuid, existingSqlChart.space_uuid]
+                : [space.uuid];
+        const spaceAccessContexts =
+            await this.spacePermissionService.getSpacesAccessContext(
+                user.userUuid,
+                spaceUuidsToCheck,
+            );
+        const lacksSavedChartAccess = spaceUuidsToCheck.some((spaceUuid) =>
+            auditedAbility.cannot(
+                savedChartAction,
+                subject('SavedChart', {
+                    ...spaceAccessContexts[spaceUuid],
+                    metadata: {
+                        savedSqlUuid: existingSqlChart?.saved_sql_uuid ?? null,
+                    },
+                }),
+            ),
+        );
+        if (lacksSavedChartAccess) {
+            throw new ForbiddenError(
+                `You don't have access to ${savedChartAction} this Saved SQL chart`,
+            );
+        }
 
         if (existingSqlChart === undefined) {
             // Create new SQL chart

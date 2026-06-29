@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import { ChartKind } from '@lightdash/common';
 import { Button, Stack, Textarea, TextInput } from '@mantine-8/core';
 import { useForm, zodResolver } from '@mantine/form';
@@ -14,6 +15,7 @@ import { selectCompleteConfigByKind } from '../../../components/DataViz/store/se
 import { useModalSteps } from '../../../hooks/useModalSteps';
 import { useSpaceManagement } from '../../../hooks/useSpaceManagement';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
+import useApp from '../../../providers/App/useApp';
 import { DEFAULT_SQL_LIMIT } from '../constants';
 import { useCreateSqlChartMutation } from '../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
@@ -41,6 +43,7 @@ const SAVE_CHART_FORM_ID = 'save-sql-chart-form';
 
 export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
     const dispatch = useAppDispatch();
+    const { user } = useApp();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const hasUnrunChanges = useAppSelector(
         (state) => state.sqlRunner.hasUnrunChanges,
@@ -96,7 +99,19 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
         data: spaces = [],
         isLoading: isLoadingSpace,
         isSuccess: isSuccessSpace,
-    } = useSpaceSummaries(projectUuid, true);
+    } = useSpaceSummaries(projectUuid, true, {
+        select: (data) =>
+            data.filter((space) =>
+                // Only show spaces the user can create SQL charts in
+                user.data?.ability.can(
+                    'create',
+                    subject('SavedChart', {
+                        ...space,
+                        access: space.userAccess ? [space.userAccess] : [],
+                    }),
+                ),
+            ),
+    });
 
     const spaceManagement = useSpaceManagement({
         projectUuid,
