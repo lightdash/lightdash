@@ -3,6 +3,7 @@ import {
     SEED_GROUP,
     SEED_ORG_1,
     SEED_ORG_1_ADMIN,
+    SEED_ORG_1_EDITOR,
     SEED_PROJECT,
 } from '@lightdash/common';
 import { Body } from '../helpers/api-client';
@@ -410,9 +411,10 @@ describe('Roles API Tests', () => {
     describe('Unified Role Assignments', () => {
         const testUserUuid = SEED_ORG_1_ADMIN.user_uuid;
 
-        it('should reject custom role assignment at organization level', async () => {
+        it('should reject assigning a project-level custom role at organization level', async () => {
             const roleName = `User Assignment Role ${Date.now()}`;
 
+            // Roles created via this endpoint default to project level
             const createResp = await admin.post<Body<RoleResult>>(
                 `${orgRolesApiUrl}/${testOrgUuid}/roles`,
                 {
@@ -423,16 +425,17 @@ describe('Roles API Tests', () => {
             const { roleUuid } = createResp.body.results;
             rolesToCleanup.push(roleUuid);
 
-            // Try to assign custom role to user - should return 400 (only system roles allowed)
+            // Assign to a non-admin user so we hit the level check rather than
+            // the "organization must have at least one admin" guard
             const assignResp = await admin.post<ErrorBody>(
-                `${orgRolesApiUrl}/${testOrgUuid}/roles/assignments/user/${testUserUuid}`,
+                `${orgRolesApiUrl}/${testOrgUuid}/roles/assignments/user/${SEED_ORG_1_EDITOR.user_uuid}`,
                 { roleId: roleUuid },
                 { failOnStatusCode: false },
             );
 
             expect(assignResp.status).toBe(400);
             expect(assignResp.body.error.message).toContain(
-                'Only system roles can be assigned at organization level',
+                'can only be assigned at project level',
             );
         });
 
