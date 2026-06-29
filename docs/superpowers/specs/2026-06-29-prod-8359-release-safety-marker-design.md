@@ -73,6 +73,7 @@ ran. Later phases populate stub fields without breaking P1 consumers.
 | **P2** | `api.rest` breaking via `oasdiff` on `swagger.json` between tags | lightdash |
 | **P3** | `api.mcp` breaking via committed `mcp-tools.json` snapshot + conservative 4-rule diff | lightdash |
 | **P4** | `upgrade.minPreviousVersion`/`requiredStop` via committed `release-safety.overrides.json` | lightdash |
+| **P6** | AI migration-safety review — resolves `rollingUpdateSafe` "unknown" → true/false by reviewing the migrations against the previous release's code | lightdash |
 
 `schemaVersion` stays `"1"` across P1–P4 — later phases only fill honest stubs.
 
@@ -98,6 +99,44 @@ historical migrations are not counted; deletions of historical migrations are
 surfaced as a loud `notes` warning. `ee` is true iff any added file is under
 `packages/backend/src/ee/database/migrations`.
 
+## P6 implementation — AI migration-safety review
+
+`scripts/ai-migration-review.ts` — an **agentic** reviewer that resolves
+`rollingUpdateSafe: "unknown"` into a real `true`/`false`. It runs only when the
+cheap detector found migrations (the ~10% of releases the backtest flagged), so
+its cost is bounded.
+
+- **Why agentic, not a single call:** a single structured call can classify
+  migration *shape* (additive vs destructive) but cannot tell whether the
+  migration is safe *for the previous release's code* — that depends on whether
+  the old code reads/writes the changed object. So the reviewer is given two
+  read-only tools scoped to the `<lastTag>` source — `grep_old_code`
+  (`git grep -E … <lastTag>`) and `read_old_file` (`git show <lastTag>:<path>`)
+  — and a manual tool-use loop (raw Messages API via `fetch`, no SDK). Empirically
+  the single-call version returned `"unknown"` on multi-migration releases; with
+  code access the agent cleared the `0.3233.0→0.3234.0` FK batch to `safe`/high
+  by verifying `ProjectModel`/`JobModel`/`DownloadAuditModel` only ever write
+  valid references (~12 tool calls).
+- **Model:** `claude-opus-4-8`, adaptive thinking, `effort: high`,
+  `max_tokens: 16000` (adaptive thinking shares the output budget — too low
+  truncates the final JSON). Reads `ANTHROPIC_API_KEY` (the secret already wired
+  into `ai-agent-integration-tests.yml`; `release-qa.yml` uses
+  `QA_ANTHROPIC_API_KEY`).
+- **Fail-safe gating (critical):** the model verdict only moves the marker
+  `"unknown" → true` when it returns `safe` **with high confidence**; `breaking`
+  → `false`; everything else stays `"unknown"` (`Recreate`). Any API error,
+  refusal, `max_tokens` truncation, unparseable JSON, or tool-budget exhaustion
+  degrades to `"unknown"` and exits 0 — it never emits a falsely-safe verdict and
+  never fails the release. Adds `"ai-review"` to `capabilities[]`.
+- **Edge over a SQL linter:** because it reads intent, it caught a data migration
+  that rewrites existing `open` rows to a new `triage` status the old code
+  doesn't recognise — a behavioural break invisible to operation-shape linting
+  (Squawk/Atlas). The two are complementary: a deterministic linter is the floor,
+  the AI review is the ceiling.
+- **Cost note:** prompt is re-sent each tool turn (uncached in the prototype) so
+  input tokens accumulate (~120k in / ~6k out for the 4-migration batch). Prompt
+  caching on the migration files + system prompt would cut most of that.
+
 ## Known blind spots (must stay documented)
 
 The marker does **not** detect code-only or config-only breaking changes (env var
@@ -109,9 +148,11 @@ beyond what `capabilities[]` says was checked.
 
 The durable fix is **expand/contract migration discipline + a Knex migration
 classifier** (à la `strong_migrations` / `django-migration-linter` / Atlas
-`migrate lint`) that fails unsafe migrations in CI. That classification is what
-would let `rollingUpdateSafe` resolve to a truthful `true`/`false` instead of
-`"unknown"` on most releases. Tracked separately.
+`migrate lint`) that fails unsafe migrations in CI. P6 (the AI review) is the
+*judgement* half of that classification and resolves most `"unknown"` verdicts
+today; a deterministic SQL-shape linter would be the cheap, always-on floor
+underneath it. The two are complementary — pursue the linter as a follow-up so
+the marker has a non-LLM guarantee for the common destructive operations.
 
 ## Prior art
 
