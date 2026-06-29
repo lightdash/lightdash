@@ -1,3 +1,10 @@
+## [0.3259.1](https://github.com/lightdash/lightdash/compare/0.3259.0...0.3259.1) (2026-06-29)
+
+
+### Bug Fixes
+
+* **ai-agent:** rename 'App' source label to 'Web' in threads table ([#24856](https://github.com/lightdash/lightdash/issues/24856)) ([19a47ee](https://github.com/lightdash/lightdash/commit/19a47ee6dc6a6f989ac80f8c7e2b14ea7ac56f6c)), closes [/linear.app/lightdash/issue/PROD-8548/ask-ai-threads-app-source-label-is-ambiguous-now-that-data-apps-exists#agent-session-43935740](https://github.com//linear.app/lightdash/issue/PROD-8548/ask-ai-threads-app-source-label-is-ambiguous-now-that-data-apps-exists/issues/agent-session-43935740)
+
 # [0.3259.0](https://github.com/lightdash/lightdash/compare/0.3258.3...0.3259.0) (2026-06-29)
 
 
