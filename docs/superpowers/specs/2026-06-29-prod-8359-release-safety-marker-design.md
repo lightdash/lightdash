@@ -1,7 +1,56 @@
 # Release-Safety Marker — Design (PROD-8359 / #24441)
 
-**Status:** Draft / in-progress (P1)
+**Status:** In progress — P1 + P6 built; P2/P3/P4 and a deterministic linter remain; P5 parked.
 **Ticket:** PROD-8359 · GitHub issue lightdash/lightdash#24441
+**Branch / PR:** `prod-8359-release-safety` → PR lightdash/lightdash#24879 (draft)
+
+## Status & resume
+
+**Done (committed on the branch):**
+- **P1** — `migrations.present` marker. `scripts/gen-release-safety.ts` (pure
+  `detectMigrations` + `buildMarker` + IO shell), `scripts/release-safety.schema.json`
+  (draft-07 contract), `scripts/gen-release-safety.test.ts` (15 tests), and the
+  `release.config.js` wiring (generate before `@semantic-release/github`, attach
+  asset-only). `.gitignore` ignores the generated marker.
+- **Backtest** — `scripts/release-safety-backtest.ts`. Last 300 releases: ~10%
+  carry migrations, ~90% clear-to-roll → the signal partitions meaningfully.
+- **P6** — `scripts/ai-migration-review.ts`, an agentic AI reviewer (grep/read
+  tools over the previous tag), wired into the generator behind `--ai-review`
+  (gated on `migrations.present` + `ANTHROPIC_API_KEY`). Prompt-cached (rolling
+  breakpoint → ~18 full-price input tokens/review). Fail-safe: degrades to
+  `"unknown"`, never falsely safe, never fails the release.
+
+**Remaining (each independently shippable, schemaVersion stays "1"):**
+- **P2** — `api.rest.breaking` via `oasdiff` on `packages/backend/src/generated/swagger.json`
+  between tags (`git show <lastTag>:…`), key-normalized. Add an `oasdiff` install
+  step to `.github/workflows/release.yml` (mind harden-runner + Socket Firewall).
+- **P3** — `api.mcp.breaking` via a committed `mcp-tools.json` snapshot
+  (serialize `mcpToolDefinitions` from `@lightdash/common`, reuse the
+  `mcpToolContracts.snapshot.test.ts` logic; fold into `postgenerate-api`) + a
+  conservative 4-rule diff. **Open:** declared vs flag-gated runtime tool set.
+- **P4** — `upgrade.minPreviousVersion`/`requiredStop` from a committed
+  `release-safety.overrides.json` (HEAD wins on merge).
+- **Deterministic SQL-shape linter** (Squawk/Atlas-style) as the always-on floor
+  under the P6 AI review — the non-LLM guarantee for common destructive ops.
+- **Caching/cost:** P6 is cheap now; no further work needed unless cost regresses.
+
+**Parked (deliberately, per Charlie):**
+- **P5** — Helm `backend.deployment.strategy` Recreate switch + operator docs
+  (`jq` gate, Argo PreSync/Flux) in the `helm-charts` repo.
+
+**Open decisions to carry forward:**
+- No customer (Octopus/Wise) has *committed* to consuming the marker yet —
+  confirm before investing in P2+.
+- The P6 verdict is non-deterministic; only a high-confidence `safe` flips
+  `unknown → true` (variance can only over-recommend `Recreate`).
+
+**Resume pointers:**
+- Worktree: `~/projects/worktrees/lightdash/prod-8359-release-safety`.
+- Run the generator: `npx tsx scripts/gen-release-safety.ts --version X --previous-version Y --last-tag Y [--ai-review]`.
+- Tests: `npx tsx scripts/gen-release-safety.test.ts`. Backtest: `npx tsx scripts/release-safety-backtest.ts 300`.
+- AI runs need `ANTHROPIC_API_KEY` — it's a per-engineer 1Password item
+  (`scripts/dev-op-pull.sh` + `scripts/dev-secrets.manifest.json`, account
+  `lightdash.1password.com`).
 
 ## Problem
 
