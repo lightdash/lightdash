@@ -62,11 +62,19 @@ export const AiReviewsSettingsPage = () => {
 
     // While the tour runs, the board always shows the same sample cards so the
     // spotlights land every time. Closing it flips back to real data.
+    //
+    // Deep-linking straight to a review opens the sidebar on mount; the tour
+    // anchors the board behind it, so don't auto-fire it over an open sidebar.
+    // The hook only reads `autoStartOnFirstVisit` once (mount), and we don't
+    // mark the tour seen, so it still auto-fires on a later board-only visit.
     const {
         isOpen: isTourOpen,
         startTour,
         closeTour,
-    } = useGuidedTour({ storageKey: 'ld.aiReviews.tour.v2' });
+    } = useGuidedTour({
+        storageKey: 'ld.aiReviews.tour.v2',
+        autoStartOnFirstVisit: !isSidebarOpen,
+    });
 
     const [view, setView] = useLocalStorage<'board' | 'table'>({
         key: 'ld.aiReviews.view',
