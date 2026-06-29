@@ -33,6 +33,7 @@ const makeExampleReviewItem = (
     lastSeenAt: EXAMPLE_SEEN_AT,
     findingCount: 1,
     priority: 'none',
+    targetRefs: [],
     statusUpdatedAt: EXAMPLE_SEEN_AT,
     statusUpdatedByUserUuid: null,
     linkedIssueUrl: null,
