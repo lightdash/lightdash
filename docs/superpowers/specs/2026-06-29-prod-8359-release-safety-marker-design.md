@@ -1,6 +1,6 @@
 # Release-Safety Marker — Design (PROD-8359 / #24441)
 
-**Status:** Feature-complete — P1–P4 + P6 + the deterministic SQL-shape linter all built; P6 activated. P6 EXTENDED so the AI is the validation layer for ALL deterministic detectors (migrations AND flagged REST/MCP breaking changes), not migrations alone. Marker DARK-LAUNCHED behind a kill-switch (publishes nothing yet) with a PR preview comment for visibility. P5 (Helm) parked; the config-only/serialization blind-spot blast-radius scan is a deliberate follow-up.
+**Status:** Feature-complete — P1–P4 + P6 + the deterministic SQL-shape linter all built; P6 activated. P6 EXTENDED so the AI is the validation layer for ALL deterministic detectors (migrations AND flagged REST/MCP breaking changes), not migrations alone. Marker GONE LIVE — `RELEASE_SAFETY_MARKER_ENABLED='true'` in `release.yml`, so each release now writes `release-safety.json`, runs the gated AI review, and attaches the asset at `releases/download/<tag>/release-safety.json` (flip back to `'false'` to dark it again — the single revert). PR preview comment still posts for shift-left visibility. P5 (Helm) parked; the config-only/serialization blind-spot blast-radius scan is a deliberate follow-up.
 **Ticket:** PROD-8359 · GitHub issue lightdash/lightdash#24441
 **Branch / PR:** `prod-8359-release-safety` (merged) → continued on `prod-8359-ai-breaking-changes`
 
@@ -158,8 +158,10 @@
 - **Operator/maintainer docs:** publish the `jq`-gating recipes + the
   `release-safety.overrides.json` required-stop authoring flow (the only manual
   step in the system).
-- **Go-live:** flip `RELEASE_SAFETY_MARKER_ENABLED` to `'true'` in `release.yml`
-  once a consumer commits to reading the marker.
+- **Go-live: DONE** — `RELEASE_SAFETY_MARKER_ENABLED` is `'true'` in `release.yml`;
+  each release publishes the asset and runs the gated AI review. Revert by flipping
+  it back to `'false'`. Next: confirm a consumer (operator CI/CD) actually `jq`-gates
+  on it, and watch per-release AI cost now that the review is live on releases.
 
 **Parked (deliberately, per Charlie):**
 - **P5** — Helm `backend.deployment.strategy` Recreate switch + operator docs
