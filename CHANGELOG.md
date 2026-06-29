@@ -1,3 +1,10 @@
+## [0.3260.2](https://github.com/lightdash/lightdash/compare/0.3260.1...0.3260.2) (2026-06-29)
+
+
+### Bug Fixes
+
+* **roles:** update org-level custom role assignment api-test ([#24875](https://github.com/lightdash/lightdash/issues/24875)) ([8ab354d](https://github.com/lightdash/lightdash/commit/8ab354df9e480899e41e0c4ec5730f8c5e5db6e2)), closes [#24589](https://github.com/lightdash/lightdash/issues/24589)
+
 ## [0.3260.1](https://github.com/lightdash/lightdash/compare/0.3260.0...0.3260.1) (2026-06-29)
 
 
