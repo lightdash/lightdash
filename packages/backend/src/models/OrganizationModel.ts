@@ -504,22 +504,18 @@ export class OrganizationModel {
         };
     }
 
-    async getImpersonationEnabled(organizationUuid: string): Promise<boolean> {
-        const row = await this.database(OrganizationTableName)
-            .where('organization_uuid', organizationUuid)
-            .select('impersonation_enabled')
-            .first();
-
-        return row?.impersonation_enabled ?? false;
+    // EXPAND step (PROD-8359 demo): impersonation state moved off the
+    // organizations table; this release no longer reads/writes the column. The
+    // matching contract migration (dropColumn) can land in a LATER release.
+    async getImpersonationEnabled(_organizationUuid: string): Promise<boolean> {
+        return false;
     }
 
     async updateImpersonationEnabled(
-        organizationUuid: string,
-        enabled: boolean,
+        _organizationUuid: string,
+        _enabled: boolean,
     ): Promise<void> {
-        await this.database(OrganizationTableName)
-            .where('organization_uuid', organizationUuid)
-            .update({ impersonation_enabled: enabled });
+        // no-op: the column is no longer the source of truth.
     }
 
     private static mapDBColorPaletteWithIsActive(

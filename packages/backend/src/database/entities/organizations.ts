@@ -8,7 +8,6 @@ export type DbOrganization = {
     chart_colors?: string[];
     default_project_uuid: string | null;
     color_palette_uuid: string | null;
-    impersonation_enabled: boolean;
 };
 
 export type DbOrganizationIn = Pick<DbOrganization, 'organization_name'>;
@@ -18,7 +17,6 @@ export type DbOrganizationUpdate = Partial<
         | 'organization_name'
         | 'default_project_uuid'
         | 'color_palette_uuid'
-        | 'impersonation_enabled'
     >
 >;
 
