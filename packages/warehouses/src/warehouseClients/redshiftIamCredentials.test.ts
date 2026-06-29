@@ -1,3 +1,4 @@
+/* eslint-disable prefer-arrow-callback, func-names */
 import {
     CreateRedshiftCredentials,
     RedshiftAuthenticationType,
@@ -5,27 +6,31 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 
-const mockClusterSend = jest.fn();
-const mockServerlessSend = jest.fn();
+const mockClusterSend = vi.fn();
+const mockServerlessSend = vi.fn();
 
-jest.mock('@aws-sdk/client-redshift', () => ({
-    RedshiftClient: jest.fn(() => ({ send: mockClusterSend })),
-    GetClusterCredentialsCommand: jest.fn((input: unknown) => ({
-        __command: 'cluster',
-        input,
-    })),
+vi.mock('@aws-sdk/client-redshift', () => ({
+    RedshiftClient: vi.fn(function () {
+        return { send: mockClusterSend };
+    }),
+    GetClusterCredentialsCommand: vi.fn(function (input: unknown) {
+        return { __command: 'cluster', input };
+    }),
 }));
 
-jest.mock('@aws-sdk/client-redshift-serverless', () => ({
-    RedshiftServerlessClient: jest.fn(() => ({ send: mockServerlessSend })),
-    GetCredentialsCommand: jest.fn((input: unknown) => ({
-        __command: 'serverless',
-        input,
-    })),
+vi.mock('@aws-sdk/client-redshift-serverless', () => ({
+    RedshiftServerlessClient: vi.fn(function () {
+        return { send: mockServerlessSend };
+    }),
+    GetCredentialsCommand: vi.fn(function (input: unknown) {
+        return { __command: 'serverless', input };
+    }),
 }));
 
-const mockFromTemporaryCredentials = jest.fn(() => 'sts-credentials');
-jest.mock('@aws-sdk/credential-providers', () => ({
+const { mockFromTemporaryCredentials } = vi.hoisted(() => ({
+    mockFromTemporaryCredentials: vi.fn(() => 'sts-credentials'),
+}));
+vi.mock('@aws-sdk/credential-providers', () => ({
     fromTemporaryCredentials: mockFromTemporaryCredentials,
 }));
 
@@ -66,7 +71,7 @@ const serverlessCredentials: CreateRedshiftCredentials = {
 
 describe('getRedshiftAwsCredentials', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     test('returns static credentials when access keys are provided', () => {
@@ -125,7 +130,7 @@ describe('getRedshiftAwsCredentials', () => {
 
 describe('mintRedshiftIamCredentials', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     test('mints credentials for a provisioned cluster', async () => {

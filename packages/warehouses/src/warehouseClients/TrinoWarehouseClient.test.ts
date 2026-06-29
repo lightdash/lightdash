@@ -9,12 +9,12 @@ import {
 } from './TrinoWarehouseClient.mock';
 import * as wharehouseClient from './WarehouseClient.mock';
 
-const queryResultMock = jest.fn();
+const queryResultMock = vi.fn();
 
-jest.mock('trino-client', () => ({
-    BasicAuth: jest.fn(),
+vi.mock('trino-client', () => ({
+    BasicAuth: vi.fn(),
     Trino: {
-        create: jest.fn(() =>
+        create: vi.fn(() =>
             Promise.resolve({
                 query: queryResultMock,
             }),
@@ -38,7 +38,7 @@ describe('TrinoWarehouseClient', () => {
     it('expect query rows', async () => {
         const warehouse = new TrinoWarehouseClient(credentials);
         queryResultMock.mockReturnValue({
-            next: jest
+            next: vi
                 .fn()
                 .mockResolvedValue({ done: true, value: queryResponse }),
         });
@@ -50,7 +50,7 @@ describe('TrinoWarehouseClient', () => {
     it('expect query has mutiple result chunks', async () => {
         const warehouse = new TrinoWarehouseClient(credentials);
         queryResultMock.mockReturnValue({
-            next: jest
+            next: vi
                 .fn()
                 // First chunk: has nextUri indicating more data available
                 .mockResolvedValueOnce({
@@ -69,7 +69,7 @@ describe('TrinoWarehouseClient', () => {
     it('expect schema with trino types mapped to dimension types', async () => {
         const warehouse = new TrinoWarehouseClient(credentials);
         queryResultMock.mockReturnValue({
-            next: jest
+            next: vi
                 .fn()
                 .mockResolvedValue({ done: true, value: querySchemaResponse }),
         });

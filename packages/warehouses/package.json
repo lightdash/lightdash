@@ -19,7 +19,7 @@
     "fix-lint": "pnpm run linter ./src --fix",
     "format": "oxfmt ./src --check",
     "fix-format": "oxfmt ./src",
-    "test": "jest",
+    "test": "vitest run --config vitest.config.ts",
     "typecheck": "tsc --project tsconfig.json --noEmit",
     "typecheck:fast": "tsgo --project tsconfig.fast.json --noEmit",
     "copy-files": "copyfiles -u 1 src/warehouseClients/ca-bundle-aws-redshift.crt src/warehouseClients/ca-bundle-aws-rds-global.pem dist/",
@@ -55,6 +55,7 @@
     "@types/ssh2": "1.11.15",
     "@typescript/native-preview": "7.0.0-dev.20260527.2",
     "copyfiles": "2.4.1",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "vitest": "4.1.6"
   }
 }

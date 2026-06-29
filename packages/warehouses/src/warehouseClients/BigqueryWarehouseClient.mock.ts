@@ -57,7 +57,7 @@ const metadata = {
 export const getTableResponse = {
     id: 'myTable',
     bigQuery: { projectId: 'myDatabase' },
-    getMetadata: jest.fn(() => [metadata]),
+    getMetadata: vi.fn(() => [metadata]),
 };
 
 export const rows: Record<string, AnyType>[] = [
@@ -83,7 +83,7 @@ const mockStreamRow = () =>
 
 export const createJobResponse = [
     {
-        getQueryResults: jest.fn(() => [rows, undefined, metadata]),
-        getQueryResultsStream: jest.fn(mockStreamRow),
+        getQueryResults: vi.fn(() => [rows, undefined, metadata]),
+        getQueryResultsStream: vi.fn(mockStreamRow),
     },
 ];

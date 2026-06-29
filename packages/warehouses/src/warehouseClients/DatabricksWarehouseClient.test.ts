@@ -1,3 +1,4 @@
+/* eslint-disable prefer-arrow-callback, func-names */
 import {
     DatabricksSqlBuilder,
     DatabricksWarehouseClient,
@@ -5,22 +6,26 @@ import {
 import { credentials, rows, schema } from './DatabricksWarehouseClient.mock';
 import { expectedFields } from './WarehouseClient.mock';
 
-jest.mock('@databricks/sql', () => ({
-    ...jest.requireActual('@databricks/sql'),
-    DBSQLClient: jest.fn(() => ({
-        connect: jest.fn(() => ({
-            openSession: jest.fn(() => ({
-                executeStatement: jest.fn(() => ({
-                    getSchema: jest.fn(async () => schema),
-                    fetchChunk: jest.fn(async () => rows),
-                    hasMoreRows: jest.fn(async () => false),
-                    close: jest.fn(async () => undefined),
+vi.mock('@databricks/sql', async () => ({
+    ...(await vi.importActual<typeof import('@databricks/sql')>(
+        '@databricks/sql',
+    )),
+    DBSQLClient: vi.fn(function () {
+        return {
+            connect: vi.fn(() => ({
+                openSession: vi.fn(() => ({
+                    executeStatement: vi.fn(() => ({
+                        getSchema: vi.fn(async () => schema),
+                        fetchChunk: vi.fn(async () => rows),
+                        hasMoreRows: vi.fn(async () => false),
+                        close: vi.fn(async () => undefined),
+                    })),
+                    close: vi.fn(async () => undefined),
                 })),
-                close: jest.fn(async () => undefined),
+                close: vi.fn(async () => undefined),
             })),
-            close: jest.fn(async () => undefined),
-        })),
-    })),
+        };
+    }),
 }));
 
 describe('DatabricksWarehouseClient', () => {
