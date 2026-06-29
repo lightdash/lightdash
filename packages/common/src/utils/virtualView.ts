@@ -112,6 +112,7 @@ export const createTemporaryVirtualView = (
         test: async () => {},
         getStartOfWeek: () => WeekDay.MONDAY,
         getAdapterType: () => SupportedDbtAdapter.BIGQUERY,
+        supportsCteMaterialization: () => true,
         getStringQuoteChar: () => "'",
         getEscapeStringQuoteChar: () => "''",
         getFieldQuoteChar: () => '"',

@@ -31,6 +31,10 @@ export default abstract class WarehouseBaseClient<
         return this.sqlBuilder.getAdapterType();
     }
 
+    supportsCteMaterialization(): boolean {
+        return this.sqlBuilder.supportsCteMaterialization();
+    }
+
     getStringQuoteChar(): string {
         return this.sqlBuilder.getStringQuoteChar();
     }

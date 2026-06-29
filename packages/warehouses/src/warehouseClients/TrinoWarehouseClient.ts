@@ -174,6 +174,11 @@ export class TrinoSqlBuilder extends WarehouseBaseSqlBuilder {
         return SupportedDbtAdapter.TRINO;
     }
 
+    // Trino never materializes a CTE — every reference re-runs its full lineage.
+    supportsCteMaterialization(): boolean {
+        return false;
+    }
+
     getEscapeStringQuoteChar(): string {
         return "'";
     }

@@ -83,6 +83,7 @@ export const warehouseClientMock: WarehouseClient = {
     getNullSafeEqualSql: defaultNullSafeEqualSql,
     getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
     getAdapterType: () => SupportedDbtAdapter.POSTGRES,
+    supportsCteMaterialization: () => true,
     concatString: (...args) => `(${args.join(' || ')})`,
     getAllTables(
         schema?: string | undefined,
@@ -173,6 +174,7 @@ export const bigqueryClientMock: WarehouseClient = {
     getEscapeStringQuoteChar: () => '\\',
     getMetricSql: () => '',
     getAdapterType: () => SupportedDbtAdapter.BIGQUERY,
+    supportsCteMaterialization: () => true,
     concatString: (...args) => `CONCAT(${args.join(', ')})`,
     getAllTables(
         schema?: string | undefined,

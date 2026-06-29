@@ -59,6 +59,7 @@ export const warehouseClientMock: WarehouseClient = {
     getNullSafeEqualSql: defaultNullSafeEqualSql,
     getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
     getAdapterType: () => SupportedDbtAdapter.POSTGRES,
+    supportsCteMaterialization: () => true,
     getMetricSql: (sql, metric) => {
         switch (metric.type) {
             case MetricType.AVERAGE:
