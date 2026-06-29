@@ -95,6 +95,11 @@ jobs:
         env:
           HUSKY: 0
           GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          # PROD-8359: powers the gated AI migration review (P6) in the marker
+          # generator. The review reaches api.anthropic.com over the harden-runner
+          # audited egress; absent the key, the generator skips it and leaves the
+          # honest "unknown" verdict. Never fails the release.
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         with:
           semantic_version: 19
           extra_plugins: |

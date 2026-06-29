@@ -16,6 +16,7 @@ import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { aiMigrationReview } from './ai-migration-review';
+import { lintMigrations, renderFindings } from './sql-migration-lint';
 import { diffRestApi } from './rest-api-diff';
 import { diffMcpTools } from './mcp-tools-diff';
 import {
@@ -144,6 +145,14 @@ export interface BuildMarkerInput {
      */
     aiReview?: AiReviewSummary | null;
     /**
+     * Optional result of the deterministic SQL-shape migration linter — the
+     * non-LLM floor under the AI review. Applied only when migrations.present ===
+     * true. A "breaking" finding is AUTHORITATIVE (sets rollingUpdateSafe false
+     * and wins over the AI review); a clean run leaves the verdict for the AI /
+     * the honest "unknown" default. Adds "sql-lint" to capabilities when it ran.
+     */
+    sqlLint?: SqlLintSummary | null;
+    /**
      * Optional result of the REST API breaking-change diff (P2). Applied to
      * api.rest and adds "rest" to capabilities only when checked === true. A
      * null/unchecked result leaves the honest "not checked" stub.
@@ -169,13 +178,21 @@ export interface AiReviewSummary {
     summary: string;
 }
 
+export interface SqlLintSummary {
+    /** True if the linter actually scanned at least one migration. */
+    ran: boolean;
+    breaking: boolean;
+    /** Pre-rendered finding strings for the marker note. */
+    findings: string[];
+}
+
 /**
  * PURE. Assemble the marker from already-gathered inputs. Encodes the honesty
  * rules: rollingUpdateSafe is never silently true/false for a migration-bearing
  * (or unknown) release.
  */
 export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
-    const { version, previousVersion, releaseDate, migrations, aiReview, restApi } = input;
+    const { version, previousVersion, releaseDate, migrations, aiReview, sqlLint, restApi } = input;
 
     const present: TriState = migrations ? migrations.present : 'unknown';
 
@@ -207,10 +224,29 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
 
     const capabilities = ['migrations'];
 
+    // Deterministic SQL-shape linter — the non-LLM floor. Runs only for a
+    // migration-bearing release. A "breaking" finding is AUTHORITATIVE: it sets
+    // rollingUpdateSafe false and wins over the AI review below. A clean run
+    // claims the capability but leaves the verdict for the AI / the "unknown"
+    // default — the linter only knows common destructive shapes, so "no findings"
+    // is not "safe".
+    const lintBreaking = Boolean(sqlLint?.ran && sqlLint.breaking && present === true);
+    if (sqlLint?.ran && present === true) {
+        capabilities.push('sql-lint');
+        if (sqlLint.breaking) {
+            rollingUpdateSafe = false;
+            recommendedStrategy = 'Recreate';
+            const detail = sqlLint.findings.length ? ` (${sqlLint.findings.join('; ')})` : '';
+            notes = `Migration linter detected breaking schema operations${detail}. ${BLIND_SPOT_NOTE}`;
+        }
+    }
+
     // P6: a gated AI review can resolve the "unknown" verdict for a
     // migration-bearing release. It only ever overrides when migrations are
-    // present (never invents a verdict for a no-migration or first release).
-    if (aiReview && present === true) {
+    // present (never invents a verdict for a no-migration or first release), and
+    // never when the deterministic linter already proved a break — the linter's
+    // FALSE is authoritative and the AI cannot flip it back to safe.
+    if (aiReview && present === true && !lintBreaking) {
         rollingUpdateSafe = aiReview.rollingUpdateSafe;
         recommendedStrategy = aiReview.recommendedStrategy;
         notes = `AI migration review: ${aiReview.summary} ${BLIND_SPOT_NOTE}`;
@@ -361,12 +397,26 @@ async function main(): Promise<void> {
         );
     }
 
+    // Deterministic SQL-shape linter — the always-on floor. Runs (no flag, no
+    // key) whenever the cheap detector found migrations. A "breaking" finding is
+    // authoritative and short-circuits the (paid, non-deterministic) AI review.
+    let sqlLint: SqlLintSummary | null = null;
+    if (migrations?.present === true && args.lastTag) {
+        const r = lintMigrations({ lastTag: args.lastTag, log: (m) => console.warn(`[sql-lint] ${m}`) });
+        sqlLint = { ran: r.ran, breaking: r.breaking, findings: renderFindings(r.findings) };
+        console.warn(
+            `[release-safety] SQL linter: ${r.breaking ? `BREAKING (${r.findings.length} finding(s))` : 'no breaking shapes found'}`,
+        );
+    }
+
     // P6: gated AI review. Only runs when the cheap detector found migrations
-    // (so ~10% of releases) and a key is present. Any degrade leaves the verdict
-    // at its honest "unknown" — the review can only ever make the marker more
-    // informative, never falsely safe, and never fails the release.
+    // (so ~10% of releases), a key is present, AND the deterministic linter did
+    // not already prove a break (no point paying for a tool-loop to confirm it).
+    // Any degrade leaves the verdict at its honest "unknown" — the review can only
+    // ever make the marker more informative, never falsely safe, never fails the
+    // release.
     let aiReview: AiReviewSummary | null = null;
-    if (wantAiReview && migrations?.present === true && args.lastTag) {
+    if (wantAiReview && migrations?.present === true && args.lastTag && !sqlLint?.breaking) {
         const apiKey = process.env.ANTHROPIC_API_KEY;
         if (!apiKey) {
             console.warn('[release-safety] --ai-review requested but ANTHROPIC_API_KEY not set; rollingUpdateSafe stays "unknown"');
@@ -430,6 +480,7 @@ async function main(): Promise<void> {
         releaseDate: new Date().toISOString(),
         migrations,
         aiReview,
+        sqlLint,
         restApi,
         mcpApi,
         upgrade,

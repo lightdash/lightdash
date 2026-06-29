@@ -293,6 +293,75 @@ test('restApi and aiReview compose: capabilities carry both', () => {
     assert.strictEqual(m.api.rest.checked, true);
 });
 
+// --- sqlLint (deterministic floor) -------------------------------------------
+
+const migPresent = { present: true as const, count: 1, files: ['x.ts'], ee: false, deletedHistorical: [] };
+
+test('sqlLint breaking sets rollingUpdateSafe false + adds "sql-lint" capability (no AI)', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: migPresent,
+        sqlLint: { ran: true, breaking: true, findings: ['m.ts:3 drops a column [drop-column]'] },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, false);
+    assert.strictEqual(m.compatibility.recommendedStrategy, 'Recreate');
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'sql-lint']);
+    assert.ok(/Migration linter detected breaking/.test(m.compatibility.notes));
+});
+
+test('sqlLint breaking is AUTHORITATIVE over an AI "safe" verdict', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: migPresent,
+        sqlLint: { ran: true, breaking: true, findings: ['m.ts:3 drops a column [drop-column]'] },
+        aiReview: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', summary: 'looks additive' },
+    });
+    // linter wins: stays false, AI is NOT applied, ai-review capability NOT claimed
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, false);
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'sql-lint']);
+});
+
+test('sqlLint clean leaves verdict unknown and claims the capability', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: migPresent,
+        sqlLint: { ran: true, breaking: false, findings: [] },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, 'unknown');
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'sql-lint']);
+});
+
+test('sqlLint clean + AI "safe" => AI applies (true); both capabilities, sql-lint first', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: migPresent,
+        sqlLint: { ran: true, breaking: false, findings: [] },
+        aiReview: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', summary: 'verified additive' },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, true);
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'sql-lint', 'ai-review']);
+});
+
+test('sqlLint that did not run claims no capability and changes nothing', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: migPresent,
+        sqlLint: { ran: false, breaking: false, findings: [] },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, 'unknown');
+    assert.ok(!m.capabilities.includes('sql-lint'));
+});
+
+test('sqlLint is ignored on a no-migration release (never invents a verdict)', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        sqlLint: { ran: true, breaking: true, findings: ['should be ignored'] },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, true); // no-migration base value
+    assert.ok(!m.capabilities.includes('sql-lint'));
+});
+
 // --- mcpApi (P3) -------------------------------------------------------------
 
 test('checked mcpApi populates api.mcp + adds "mcp" capability', () => {
@@ -368,16 +437,17 @@ test('unconsulted/null upgrade leaves the stub and does NOT claim the capability
     assert.ok(!m2.capabilities.includes('upgrade'));
 });
 
-test('all phases compose: capabilities ordered migrations, ai-review, rest, mcp, upgrade', () => {
+test('all phases compose: capabilities ordered migrations, sql-lint, ai-review, rest, mcp, upgrade', () => {
     const m = buildMarker({
         ...base,
         migrations: { present: true, count: 1, files: ['x.ts'], ee: false, deletedHistorical: [] },
+        sqlLint: { ran: true, breaking: false, findings: [] },
         aiReview: { rollingUpdateSafe: false, recommendedStrategy: 'Recreate', summary: 'breaks.' },
         restApi: { checked: true, breaking: true, changes: ['GET /x — removed'] },
         mcpApi: { checked: true, breaking: false, changes: [] },
         upgrade: { consulted: true, minPreviousVersion: null, requiredStop: true, note: 'stop' },
     });
-    assert.deepStrictEqual(m.capabilities, ['migrations', 'ai-review', 'rest', 'mcp', 'upgrade']);
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'sql-lint', 'ai-review', 'rest', 'mcp', 'upgrade']);
     assert.strictEqual(m.compatibility.rollingUpdateSafe, false);
     assert.strictEqual(m.api.rest.breaking, true);
     assert.strictEqual(m.api.mcp.checked, true);

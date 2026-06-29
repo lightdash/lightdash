@@ -41,11 +41,17 @@ module.exports = {
         // plugin so the asset exists at publish time. Published asset-only — not
         // committed; the GitHub releases/download/<tag>/release-safety.json URL is
         // already a stable per-version URL for this public repo.
+        //
+        // --ai-review activates the gated AI migration review (P6). It only fires
+        // on the ~10% of releases with migrations, only when the deterministic SQL
+        // linter did not already prove a break, and only when ANTHROPIC_API_KEY is
+        // set in the release job. Any degrade leaves the honest "unknown" verdict;
+        // it never fails the release.
         [
             '@semantic-release/exec',
             {
                 prepareCmd:
-                    'npx tsx scripts/gen-release-safety.ts --version ${nextRelease.version} --previous-version "${lastRelease.version}" --last-tag "${lastRelease.gitTag}" --out release-safety.json',
+                    'npx tsx scripts/gen-release-safety.ts --version ${nextRelease.version} --previous-version "${lastRelease.version}" --last-tag "${lastRelease.gitTag}" --out release-safety.json --ai-review',
             },
         ],
 

@@ -1,6 +1,6 @@
 # Release-Safety Marker — Design (PROD-8359 / #24441)
 
-**Status:** In progress — P1 + P6 + P2 + P3 + P4 built; a deterministic SQL-shape linter remains; P5 parked.
+**Status:** Feature-complete — P1–P4 + P6 + the deterministic SQL-shape linter all built; P6 activated in the release pipeline. Only P5 (Helm) remains parked.
 **Ticket:** PROD-8359 · GitHub issue lightdash/lightdash#24441
 **Branch / PR:** `prod-8359-release-safety` → PR lightdash/lightdash#24879 (draft)
 
@@ -65,10 +65,31 @@
   required-stop is the falsely-safe direction. Committed an inert default file so
   the mechanism is live (`upgrade` capability appears every release).
 
-**Remaining (each independently shippable, schemaVersion stays "1"):**
-- **Deterministic SQL-shape linter** (Squawk/Atlas-style) as the always-on floor
-  under the P6 AI review — the non-LLM guarantee for common destructive ops.
+- **Deterministic SQL-shape linter** — `scripts/sql-migration-lint.ts`, the
+  always-on non-LLM floor. Pure `lintSource` statically scans the `up()` body of
+  each added Knex migration for destructive shapes: drop/rename column or table,
+  NOT NULL without a default (context-aware — `createTable` is safe, `alterTable`
+  is a candidate, `.defaultTo` clears it), and raw-SQL equivalents. IO
+  `lintMigrations` reuses `addedMigrationPaths`. Precedence: a "breaking" finding
+  is AUTHORITATIVE — it sets `rollingUpdateSafe = false` and the generator
+  SHORT-CIRCUITS the (paid, non-deterministic) AI review; the AI remains the only
+  path to `true`. Adds `"sql-lint"` to capabilities. Bias toward over-flagging
+  (a false breaking only costs an unnecessary Recreate). Validated on a real
+  historical migration (`20220727122405_drop_issuer_fk.ts`): flagged the up()
+  `dropTableIfExists` and the `.notNullable().alter()` that drops a default, but
+  NOT the sibling `.notNullable().defaultTo(...)`, and ignored the `down()`.
+- **P6 ACTIVATED** in the release pipeline: `--ai-review` added to the
+  `release.config.js` `prepareCmd`, and `ANTHROPIC_API_KEY` exported into the
+  Semantic Release step in `release.yml` (egress to api.anthropic.com over the
+  harden-runner audited policy). Gated as before — migrations-present only, only
+  when the SQL linter did not already prove a break, key-present only; any degrade
+  leaves `"unknown"` and never fails the release.
+
+**Remaining:**
 - **Caching/cost:** P6 is cheap now; no further work needed unless cost regresses.
+- **Operator/maintainer docs:** publish the `jq`-gating recipes + the
+  `release-safety.overrides.json` required-stop authoring flow (the only manual
+  step in the system).
 
 **Parked (deliberately, per Charlie):**
 - **P5** — Helm `backend.deployment.strategy` Recreate switch + operator docs
@@ -85,9 +106,10 @@
 - Run the generator: `npx tsx scripts/gen-release-safety.ts --version X --previous-version Y --last-tag Y [--ai-review]`.
 - Run just the REST diff: `npx tsx scripts/rest-api-diff.ts --last-tag Y [--new-ref HEAD]` (needs `oasdiff` on PATH or `OASDIFF_BIN`).
 - Run just the MCP diff: `npx tsx scripts/mcp-tools-diff.ts --last-tag Y [--new-ref HEAD]` (needs the committed `mcp-tools-1.0.json` present at both refs).
+- Run just the SQL linter: `npx tsx scripts/sql-migration-lint.ts --last-tag Y` (scans migrations added in `Y..HEAD`).
 - Run just the upgrade resolver: `npx tsx scripts/upgrade-overrides.ts --version X [--overrides release-safety.overrides.json]`.
 - Regenerate the MCP snapshot: `pnpm generate:mcp-tools-snapshot` (CI guard: `pnpm check:mcp-tools-snapshot`). Runs inside `postgenerate-api`.
-- Tests: `npx tsx scripts/{gen-release-safety,rest-api-diff,mcp-tools-diff,upgrade-overrides}.test.ts`. Backtest: `npx tsx scripts/release-safety-backtest.ts 300`.
+- Tests: `npx tsx scripts/{gen-release-safety,sql-migration-lint,rest-api-diff,mcp-tools-diff,upgrade-overrides}.test.ts` (73 total). Backtest: `npx tsx scripts/release-safety-backtest.ts 300`.
 - AI runs need `ANTHROPIC_API_KEY` — it's a per-engineer 1Password item
   (`scripts/dev-op-pull.sh` + `scripts/dev-secrets.manifest.json`, account
   `lightdash.1password.com`).
