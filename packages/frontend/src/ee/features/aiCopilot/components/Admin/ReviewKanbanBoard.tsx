@@ -270,6 +270,9 @@ export const ReviewKanbanBoard: FC<Props> = ({
     const projectFacetOptions = useMemo((): FilterFacetOption[] => {
         const counts = new Map<string, number>();
         for (const item of searchFilteredItems.filter((item) => {
+            // Exclude done items (resolved, dismissed, duplicate) so the badge
+            // reflects only open work in each project.
+            if (getReviewLane(item) === 'done') return false;
             if (selectedRootCauses.length === 0) return true;
             return selectedRootCauses.includes(item.primaryRootCause);
         })) {
