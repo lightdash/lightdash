@@ -10,7 +10,7 @@ echo "🔨 Building Lightdash CLI binaries..."
 # Parse command line arguments
 SIGN_AND_NOTARIZE=false
 CREATE_ARCHIVES=false
-TARGETS="node22-macos-x64,node22-macos-arm64,node22-linux-x64,node22-win-x64"
+TARGETS="node24-macos-x64,node24-macos-arm64,node24-linux-x64,node24-win-x64"
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -23,7 +23,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --mac-only)
-      TARGETS="node22-macos-x64,node22-macos-arm64"
+      TARGETS="node24-macos-x64,node24-macos-arm64"
       shift
       ;;
     --help)
@@ -57,16 +57,16 @@ echo "Version: $VERSION"
 
 duckdb_binding_for_target() {
   case $1 in
-    node22-macos-x64)
+    node24-macos-x64)
       echo "node-bindings-darwin-x64"
       ;;
-    node22-macos-arm64)
+    node24-macos-arm64)
       echo "node-bindings-darwin-arm64"
       ;;
-    node22-linux-x64)
+    node24-linux-x64)
       echo "node-bindings-linux-x64"
       ;;
-    node22-win-x64)
+    node24-win-x64)
       echo "node-bindings-win32-x64"
       ;;
   esac
@@ -113,19 +113,19 @@ for target in "${TARGET_ARRAY[@]}"; do
 
   # Determine output name based on target
   case $target in
-    node22-macos-x64)
+    node24-macos-x64)
       OUTPUT_NAME="bin/lightdash-macos-x64"
       validate_duckdb_binding "node-bindings-darwin-x64"
       ;;
-    node22-macos-arm64)
+    node24-macos-arm64)
       OUTPUT_NAME="bin/lightdash-macos-arm64"
       validate_duckdb_binding "node-bindings-darwin-arm64"
       ;;
-    node22-linux-x64)
+    node24-linux-x64)
       OUTPUT_NAME="bin/lightdash-linux-x64"
       validate_duckdb_binding "node-bindings-linux-x64"
       ;;
-    node22-win-x64)
+    node24-win-x64)
       OUTPUT_NAME="bin/lightdash-win-x64"
       validate_duckdb_binding "node-bindings-win32-x64"
       ;;
