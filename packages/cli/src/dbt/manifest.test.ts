@@ -1,17 +1,18 @@
 import { DbtManifest, DbtNode } from '@lightdash/common';
 import { promises as fs } from 'fs';
 import fetch from 'node-fetch';
+import type { Mock } from 'vitest';
 import { combineManifests, isHttpUrl, loadCombineManifest } from './manifest';
 
-jest.mock('node-fetch');
-jest.mock('fs', () => ({
+vi.mock('node-fetch');
+vi.mock('fs', () => ({
     promises: {
-        readFile: jest.fn(),
+        readFile: vi.fn(),
     },
 }));
 
-const mockedFetch = fetch as unknown as jest.Mock;
-const mockedReadFile = fs.readFile as unknown as jest.Mock;
+const mockedFetch = fetch as unknown as Mock;
+const mockedReadFile = fs.readFile as unknown as Mock;
 
 const modelNode = (uniqueId: string, extra: Record<string, unknown> = {}) =>
     ({

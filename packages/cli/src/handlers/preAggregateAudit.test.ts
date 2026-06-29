@@ -1,8 +1,8 @@
 import { testHelpers } from './preAggregateAudit';
 
-jest.mock('./dbt/apiClient', () => ({
-    lightdashApi: jest.fn(),
-    checkLightdashVersion: jest.fn(),
+vi.mock('./dbt/apiClient', () => ({
+    lightdashApi: vi.fn(),
+    checkLightdashVersion: vi.fn(),
 }));
 
 const { renderSingle, exitIfFailOnMiss } = testHelpers;
@@ -23,7 +23,7 @@ describe('renderSingle JSON mode', () => {
         const audit = makeAudit({
             summary: { hitCount: 2, missCount: 1, ineligibleCount: 0 },
         });
-        const spy = jest
+        const spy = vi
             .spyOn(process.stdout, 'write')
             .mockImplementation(() => true);
         renderSingle(audit, { json: true, verbose: false });
@@ -34,7 +34,7 @@ describe('renderSingle JSON mode', () => {
 
 describe('exitIfFailOnMiss', () => {
     it('does nothing if flag unset', () => {
-        const spy = jest
+        const spy = vi
             .spyOn(process, 'exit')
             .mockImplementation(() => undefined as never);
         exitIfFailOnMiss(
@@ -49,7 +49,7 @@ describe('exitIfFailOnMiss', () => {
         spy.mockRestore();
     });
     it('exits 1 when flag set and any miss present', () => {
-        const spy = jest
+        const spy = vi
             .spyOn(process, 'exit')
             .mockImplementation(() => undefined as never);
         exitIfFailOnMiss(
@@ -64,7 +64,7 @@ describe('exitIfFailOnMiss', () => {
         spy.mockRestore();
     });
     it('does not exit when flag set and no misses', () => {
-        const spy = jest
+        const spy = vi
             .spyOn(process, 'exit')
             .mockImplementation(() => undefined as never);
         exitIfFailOnMiss(

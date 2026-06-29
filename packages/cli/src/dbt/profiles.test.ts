@@ -1,24 +1,25 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import type { MockedFunction } from 'vitest';
 import { findDbtDefaultProfile } from './profile';
 
-jest.mock('os');
-jest.mock('fs');
-jest.mock('path');
+vi.mock('os');
+vi.mock('fs');
+vi.mock('path');
 
 describe('Profile', () => {
     const { env, cwd } = process;
-    const mockAccessSync = fs.accessSync as jest.MockedFunction<
+    const mockAccessSync = fs.accessSync as MockedFunction<
         typeof fs.accessSync
     >;
-    const mockHomedir = os.homedir as jest.MockedFunction<typeof os.homedir>;
-    const mockJoin = path.join as jest.MockedFunction<typeof path.join>;
+    const mockHomedir = os.homedir as MockedFunction<typeof os.homedir>;
+    const mockJoin = path.join as MockedFunction<typeof path.join>;
 
     beforeEach(() => {
-        jest.resetAllMocks();
-        jest.resetModules();
-        process.cwd = jest.fn(() => '/current/dir');
+        vi.resetAllMocks();
+        vi.resetModules();
+        process.cwd = vi.fn(() => '/current/dir');
         mockHomedir.mockReturnValue('/root');
         mockJoin.mockImplementation((...paths) => paths.join('/'));
         process.env = { ...env };

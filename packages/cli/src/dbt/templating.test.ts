@@ -4,7 +4,7 @@ describe('Templating', () => {
     const { env, argv } = process;
 
     beforeEach(() => {
-        jest.resetModules();
+        vi.resetModules();
         process.env = { ...env };
         process.argv = { ...argv };
     });

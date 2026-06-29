@@ -8,7 +8,7 @@ describe('getDbtContext', () => {
     let tempDir: string;
 
     beforeEach(async () => {
-        jest.resetModules();
+        vi.resetModules();
         process.env = { ...env };
         // Create a temporary directory for test files
         tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'dbt-context-test-'));

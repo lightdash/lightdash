@@ -16,7 +16,8 @@
     "entitlements.plist"
   ],
   "scripts": {
-    "test": "jest",
+    "test": "vitest run --config vitest.config.ts",
+    "test:dev": "vitest watch --config vitest.config.ts --changed",
     "dev": "ts-node src/index.ts",
     "build": "tsc --build tsconfig.json",
     "build:fast": "tsgo --build tsconfig.fast.json",
@@ -74,6 +75,7 @@
     "@vercel/ncc": "0.38.4",
     "@yao-pkg/pkg": "6.7.0",
     "ts-node": "10.9.2",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "vitest": "4.1.6"
   }
 }

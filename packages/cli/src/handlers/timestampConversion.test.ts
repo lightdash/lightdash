@@ -1,17 +1,16 @@
 import { WarehouseTypes, type Project } from '@lightdash/common';
+import type { MockedFunction, MockInstance } from 'vitest';
 import { lightdashApi } from './dbt/apiClient';
 import {
     getDisableTimestampConversionFromProject,
     getProjectDisableTimestampConversion,
 } from './timestampConversion';
 
-jest.mock('./dbt/apiClient', () => ({
-    lightdashApi: jest.fn(),
+vi.mock('./dbt/apiClient', () => ({
+    lightdashApi: vi.fn(),
 }));
 
-const mockLightdashApi = lightdashApi as jest.MockedFunction<
-    typeof lightdashApi
->;
+const mockLightdashApi = lightdashApi as MockedFunction<typeof lightdashApi>;
 
 const PROJECT_UUID = '00000000-0000-0000-0000-000000000001';
 
@@ -68,17 +67,17 @@ describe('getDisableTimestampConversionFromProject', () => {
 });
 
 describe('getProjectDisableTimestampConversion', () => {
-    let consoleErrorSpy: jest.SpyInstance;
+    let consoleErrorSpy: MockInstance;
 
     beforeEach(() => {
-        consoleErrorSpy = jest
+        consoleErrorSpy = vi
             .spyOn(console, 'error')
             .mockImplementation(() => {});
     });
 
     afterEach(() => {
         consoleErrorSpy.mockRestore();
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it('returns the project setting when the CLI flag is not provided', async () => {

@@ -33,11 +33,11 @@ const VALID_CONFIG: LightdashProjectConfig = {
 const INVALID_CONFIG_CONTENTS =
     'spotlight:\n  default_visibility: invalid_value';
 
-const readFileSpy = jest.spyOn(fs, 'readFile');
+const readFileSpy = vi.spyOn(fs, 'readFile');
 
 // Mock getConfig
-jest.mock('../config', () => ({
-    getConfig: jest.fn().mockResolvedValue({ user: null, context: null }),
+vi.mock('../config', () => ({
+    getConfig: vi.fn().mockResolvedValue({ user: null, context: null }),
 }));
 
 describe('Existing lightdash.config.yml file', () => {
@@ -70,8 +70,7 @@ class MockedFSError extends Error {
 
 describe('Missing lightdash.config.yml file', () => {
     it('should load the default config', async () => {
-        // ! Throwing a mock error, not something we should rely on but when running the test in jest `e instanceof Error` is false, but when running the code in node it is true
-        // ! Check: https://github.com/jestjs/jest/issues/11808
+        // Mock rejection: the loader handles ENOENT by falling back to defaults
         readFileSpy.mockRejectedValueOnce(
             new MockedFSError('file not found', 'ENOENT'),
         );
@@ -86,5 +85,5 @@ describe('Missing lightdash.config.yml file', () => {
 });
 
 afterAll(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
 });
