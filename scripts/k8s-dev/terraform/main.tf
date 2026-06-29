@@ -39,6 +39,8 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
+data "aws_caller_identity" "current" {}
+
 locals {
   azs = slice(data.aws_availability_zones.available.names, 0, 2)
   # OIDC issuer host/path with the https:// stripped — used to build IRSA trust conditions.

@@ -90,3 +90,88 @@ resource "aws_iam_role_policy" "lightdash_s3" {
   role   = aws_iam_role.lightdash_app.id
   policy = data.aws_iam_policy_document.lightdash_s3.json
 }
+
+# ---------- Lambda MicroVMs ----------
+# The backend drives the Lambda MicroVMs control plane cross-region (cluster in
+# eu-west-2, MicroVMs in eu-west-1 — the EU launch region). IAM is global, so the
+# app role's permissions and the execution role apply regardless of region.
+
+# Execution role assumed BY the microVM at runtime (RunMicrovm executionRoleArn).
+# Our sandbox workload reaches the internet (Anthropic/GitHub) via the egress
+# connector, not the AWS API, so this role needs only its own CloudWatch logs.
+data "aws_iam_policy_document" "microvm_execution_assume" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRole", "sts:TagSession"]
+    principals {
+      type        = "Service"
+      identifiers = ["lambda.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "microvm_execution" {
+  name               = "${var.cluster_name}-microvm-execution"
+  assume_role_policy = data.aws_iam_policy_document.microvm_execution_assume.json
+}
+
+resource "aws_iam_role_policy" "microvm_execution_logs" {
+  name = "cloudwatch-logs"
+  role = aws_iam_role.microvm_execution.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+      Resource = "arn:aws:logs:*:${data.aws_caller_identity.current.account_id}:*"
+    }]
+  })
+}
+
+# Lets the backend pods run the MicroVM lifecycle + pass the execution role.
+data "aws_iam_policy_document" "lightdash_microvms" {
+  # The IAM action prefix for this newly-launched service is not yet in the
+  # Service Authorization Reference (Access Analyzer rejects both), so grant the
+  # lifecycle actions under both candidate prefixes — `lambda-microvms:` (the
+  # API/SDK/CLI namespace) and `lambda:` (the umbrella service). IAM does not
+  # validate action existence, so the unused prefix is simply inert; the real
+  # one is confirmed by the first RunMicrovm call.
+  statement {
+    sid    = "MicrovmLifecycle"
+    effect = "Allow"
+    actions = [
+      "lambda-microvms:RunMicrovm",
+      "lambda-microvms:GetMicrovm",
+      "lambda-microvms:SuspendMicrovm",
+      "lambda-microvms:ResumeMicrovm",
+      "lambda-microvms:TerminateMicrovm",
+      "lambda-microvms:CreateMicrovmAuthToken",
+      "lambda-microvms:CreateMicrovmShellAuthToken",
+      "lambda:RunMicrovm",
+      "lambda:GetMicrovm",
+      "lambda:SuspendMicrovm",
+      "lambda:ResumeMicrovm",
+      "lambda:TerminateMicrovm",
+      "lambda:CreateMicrovmAuthToken",
+      "lambda:CreateMicrovmShellAuthToken",
+    ]
+    resources = ["*"]
+  }
+  statement {
+    sid       = "PassExecutionRole"
+    effect    = "Allow"
+    actions   = ["iam:PassRole"]
+    resources = [aws_iam_role.microvm_execution.arn]
+    condition {
+      test     = "StringEquals"
+      variable = "iam:PassedToService"
+      values   = ["lambda.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role_policy" "lightdash_microvms" {
+  name   = "lambda-microvms"
+  role   = aws_iam_role.lightdash_app.id
+  policy = data.aws_iam_policy_document.lightdash_microvms.json
+}
