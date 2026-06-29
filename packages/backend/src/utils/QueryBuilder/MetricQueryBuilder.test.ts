@@ -5921,9 +5921,9 @@ describe('Timezone-aware EXTRACT-based time dimensions', () => {
         );
     });
 
-    test('convert_timezone: false on base dim — SELECT skips the wrap, WHERE keeps it', () => {
+    test('convert_timezone: false on base dim — SELECT and WHERE both skip the wrap', () => {
         const explore = buildExtractExplore(DimensionType.TIMESTAMP);
-        // Mark the base dim opted out of display conversion.
+        // Mark the base dim opted out of timezone conversion.
         explore.tables.events.dimensions.occurred_at.skipTimezoneConversion = true;
 
         const { query } = buildQuery({
@@ -5938,13 +5938,32 @@ describe('Timezone-aware EXTRACT-based time dimensions', () => {
         const wrapped = `DATE_PART('DOW', ("events".occurred_at)::timestamptz AT TIME ZONE 'America/New_York')`;
         const bare = `DATE_PART('DOW', "events".occurred_at)`;
 
-        // Asymmetry: SELECT renders the bare expression, WHERE keeps the
-        // project-tz wrap so the filter still bounds by project-tz days.
+        // The override applies on both sides: the filter compares against the
+        // stored value, matching what the SELECT renders.
         const selectClause = query.slice(0, query.indexOf('WHERE'));
         const whereClause = query.slice(query.indexOf('WHERE'));
 
         expect(selectClause).toContain(bare);
         expect(selectClause).not.toContain(wrapped);
+        expect(whereClause).toContain(bare);
+        expect(whereClause).not.toContain(wrapped);
+    });
+
+    test('dim without convert_timezone: false still wraps WHERE in project tz', () => {
+        const explore = buildExtractExplore(DimensionType.TIMESTAMP);
+
+        const { query } = buildQuery({
+            explore,
+            compiledMetricQuery: baseDowQuery([1]),
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: true,
+        });
+
+        const wrapped = `DATE_PART('DOW', ("events".occurred_at)::timestamptz AT TIME ZONE 'America/New_York')`;
+        const whereClause = query.slice(query.indexOf('WHERE'));
+
         expect(whereClause).toContain(wrapped);
     });
 });
