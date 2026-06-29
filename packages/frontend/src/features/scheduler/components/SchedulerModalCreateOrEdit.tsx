@@ -44,6 +44,7 @@ import {
     SchedulerFormProvider,
     transformFormValues,
     useSchedulerForm,
+    type SchedulerFormValues,
 } from './SchedulerForm/schedulerFormContext';
 import { Limit } from './types';
 
@@ -61,6 +62,7 @@ interface UseSchedulerFormModalProps {
     onBack: () => void;
     itemsMap?: ItemsMap;
     currentParameterValues?: ParametersValuesMap;
+    initialFormValues?: Partial<SchedulerFormValues>;
 }
 
 const useSchedulerFormModal = ({
@@ -73,6 +75,7 @@ const useSchedulerFormModal = ({
     onBack,
     itemsMap,
     currentParameterValues,
+    initialFormValues,
 }: UseSchedulerFormModalProps) => {
     const isEditMode = !!schedulerUuid;
 
@@ -166,6 +169,7 @@ const useSchedulerFormModal = ({
                             Object.keys(dashboardParameterValues).length > 0
                                 ? dashboardParameterValues
                                 : undefined,
+                        ...initialFormValues,
                     },
         validateInputOnBlur: ['options.customLimit'],
 
@@ -407,6 +411,8 @@ interface Props {
     availableParameters?: ParameterDefinitions;
     /** undefined = create mode, string = edit mode */
     schedulerUuidToEdit: string | undefined;
+    /** Create-mode only: pre-fills the new delivery. */
+    initialFormValues?: Partial<SchedulerFormValues>;
 }
 
 export const SchedulerModalCreateOrEdit: FC<Props> = ({
@@ -421,6 +427,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
     availableParameters,
     onClose,
     onBack,
+    initialFormValues,
 }) => {
     // URL param handling is done in SchedulerModal parent component
     const schedulerUuid = schedulerUuidToEdit;
@@ -452,6 +459,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
         onBack,
         itemsMap,
         currentParameterValues,
+        initialFormValues,
     });
 
     return (
