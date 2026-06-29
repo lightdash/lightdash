@@ -9,6 +9,7 @@ import {
     NotificationFrequency,
     SchedulerFormat,
     ThresholdOperator,
+    type AiSchedulerConfig,
     type CreateSchedulerAndTargetsWithoutIds,
     type CreateSchedulerTarget,
     type Dashboard,
@@ -54,7 +55,16 @@ export interface SchedulerFormValues {
     }>;
     includeLinks: boolean;
     notificationFrequency?: NotificationFrequency;
+    // Form-local only — saved via the ai-config endpoint, not the scheduler payload.
+    agentUuid: string | null;
+    prompt: string;
+    sourceThreadUuid: string | null;
+    includeSourceThread: boolean;
+    includeRunHistory: boolean;
 }
+
+const DEFAULT_AI_PROMPT =
+    'Summarise this and call out any notable changes or trends.';
 
 const [SchedulerFormProvider, useSchedulerFormContext, useSchedulerForm] =
     createFormContext<SchedulerFormValues>();
@@ -87,6 +97,11 @@ export const DEFAULT_VALUES: SchedulerFormValues = {
     selectedTabs: null,
     thresholds: [],
     includeLinks: true,
+    agentUuid: null,
+    prompt: DEFAULT_AI_PROMPT,
+    sourceThreadUuid: null,
+    includeSourceThread: false,
+    includeRunHistory: false,
 };
 
 export const DEFAULT_VALUES_ALERT: SchedulerFormValues = {
@@ -125,6 +140,7 @@ export const getSelectedTabsForDashboardScheduler = (
 
 export const getFormValuesFromScheduler = (
     schedulerData: SchedulerAndTargets,
+    aiConfig?: AiSchedulerConfig | null,
 ): SchedulerFormValues => {
     const options = schedulerData.options;
 
@@ -191,6 +207,11 @@ export const getFormValuesFromScheduler = (
         thresholds: schedulerData.thresholds,
         notificationFrequency: schedulerData.notificationFrequency,
         includeLinks: schedulerData.includeLinks !== false,
+        agentUuid: aiConfig?.agentUuid ?? null,
+        prompt: aiConfig?.prompt ?? DEFAULT_AI_PROMPT,
+        sourceThreadUuid: aiConfig?.sourceThreadUuid ?? null,
+        includeSourceThread: aiConfig?.includeSourceThread ?? false,
+        includeRunHistory: aiConfig?.includeRunHistory ?? false,
     };
 };
 

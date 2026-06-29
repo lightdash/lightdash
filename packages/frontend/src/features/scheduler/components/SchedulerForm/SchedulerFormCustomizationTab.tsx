@@ -1,11 +1,25 @@
 import { Group, Stack, Switch, Text, Tooltip } from '@mantine-8/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import MDEditor, { commands } from '@uiw/react-md-editor';
+import { type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { SchedulerFormAiInput } from './SchedulerFormAiInput';
 import { useSchedulerFormContext } from './schedulerFormContext';
 
-export const SchedulerFormCustomizationTab = () => {
+type Props = {
+    projectUuid: string | undefined;
+    canUseAiSummary: boolean;
+    sourceThreadUuid?: string | null;
+};
+
+export const SchedulerFormCustomizationTab: FC<Props> = ({
+    projectUuid,
+    canUseAiSummary,
+    sourceThreadUuid,
+}) => {
     const form = useSchedulerFormContext();
+    // When the agent writes the message, its report replaces the manual body.
+    const isAiMessage = canUseAiSummary && form.values.agentUuid !== null;
     return (
         <Stack p="md">
             <Group gap="two">
@@ -29,26 +43,40 @@ export const SchedulerFormCustomizationTab = () => {
                     <MantineIcon icon={IconInfoCircle} color="ldGray.6" />
                 </Tooltip>
             </Group>
-            <Text fw={600} fz="sm">
-                Customize delivery message body
-            </Text>
 
-            <MDEditor
-                preview="edit"
-                commands={[
-                    commands.bold,
-                    commands.italic,
-                    commands.strikethrough,
-                    commands.divider,
-                    commands.link,
-                ]}
-                maxHeight={300}
-                minHeight={100}
-                visibleDragbar
-                value={form.values.message}
-                onChange={(value) => form.setFieldValue('message', value || '')}
-                overflow={false}
-            />
+            {canUseAiSummary && (
+                <SchedulerFormAiInput
+                    projectUuid={projectUuid}
+                    sourceThreadUuid={sourceThreadUuid}
+                />
+            )}
+
+            {!isAiMessage && (
+                <>
+                    <Text fw={600} fz="sm">
+                        Customize delivery message body
+                    </Text>
+
+                    <MDEditor
+                        preview="edit"
+                        commands={[
+                            commands.bold,
+                            commands.italic,
+                            commands.strikethrough,
+                            commands.divider,
+                            commands.link,
+                        ]}
+                        maxHeight={300}
+                        minHeight={100}
+                        visibleDragbar
+                        value={form.values.message}
+                        onChange={(value) =>
+                            form.setFieldValue('message', value || '')
+                        }
+                        overflow={false}
+                    />
+                </>
+            )}
         </Stack>
     );
 };

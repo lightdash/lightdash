@@ -1246,6 +1246,15 @@ export default class SchedulerTask {
         };
     }
 
+    // EE override point: the AI report for a delivery, or null. No-op in OSS.
+    // eslint-disable-next-line class-methods-use-this
+    protected async getScheduledReport(
+        _schedulerUuid: string | undefined,
+        _organizationUuid: string,
+    ): Promise<string | null> {
+        return null;
+    }
+
     protected async sendSlackNotification(
         jobId: string,
         notification: SlackNotificationPayload,
@@ -1283,6 +1292,14 @@ export default class SchedulerTask {
         try {
             if (!this.slackClient.isEnabled) {
                 throw new Error('Slack app is not configured');
+            }
+
+            const report = await this.getScheduledReport(
+                schedulerUuid,
+                notification.organizationUuid,
+            );
+            if (report) {
+                scheduler.message = report;
             }
 
             const {

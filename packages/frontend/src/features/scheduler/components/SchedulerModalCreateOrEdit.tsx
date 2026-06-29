@@ -21,7 +21,7 @@ import {
     Tooltip,
 } from '@mantine-8/core';
 import { IconBell, IconChevronLeft, IconSend } from '@tabler/icons-react';
-import { type UseMutationResult } from '@tanstack/react-query';
+import { useQueryClient, type UseMutationResult } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, type FC } from 'react';
 import ErrorState from '../../../components/common/ErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -33,6 +33,12 @@ import useUser from '../../../hooks/user/useUser';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
+import {
+    AI_SCHEDULER_CONFIG_KEY,
+    deleteAiSchedulerConfig,
+    upsertAiSchedulerConfig,
+    useAiSchedulerConfig,
+} from '../hooks/useAiSchedulerConfig';
 import { useScheduler, useSendNowScheduler } from '../hooks/useScheduler';
 import { useSchedulersUpdateMutation } from '../hooks/useSchedulersUpdateMutation';
 import SchedulerForm from './SchedulerForm';
@@ -44,6 +50,7 @@ import {
     SchedulerFormProvider,
     transformFormValues,
     useSchedulerForm,
+    type SchedulerFormValues,
 } from './SchedulerForm/schedulerFormContext';
 import { Limit } from './types';
 
@@ -61,6 +68,7 @@ interface UseSchedulerFormModalProps {
     onBack: () => void;
     itemsMap?: ItemsMap;
     currentParameterValues?: ParametersValuesMap;
+    initialFormValues?: Partial<SchedulerFormValues>;
 }
 
 const useSchedulerFormModal = ({
@@ -73,13 +81,21 @@ const useSchedulerFormModal = ({
     onBack,
     itemsMap,
     currentParameterValues,
+    initialFormValues,
 }: UseSchedulerFormModalProps) => {
     const isEditMode = !!schedulerUuid;
+    const queryClient = useQueryClient();
 
     // For edit mode - fetch existing scheduler
     const scheduler = useScheduler(schedulerUuid ?? '', {
         enabled: isEditMode,
     });
+
+    const aiConfig = useAiSchedulerConfig(schedulerUuid);
+    const sourceThreadUuid =
+        aiConfig.data?.sourceThreadUuid ??
+        initialFormValues?.sourceThreadUuid ??
+        null;
 
     // For edit mode - update mutation
     const updateMutation = useSchedulersUpdateMutation(schedulerUuid ?? '');
@@ -142,14 +158,17 @@ const useSchedulerFormModal = ({
     const form = useSchedulerForm({
         initialValues:
             scheduler.data !== undefined
-                ? getFormValuesFromScheduler({
-                      ...scheduler.data,
-                      ...getSelectedTabsForDashboardScheduler(
-                          scheduler.data,
-                          isDashboardTabsAvailable,
-                          dashboard,
-                      ),
-                  })
+                ? getFormValuesFromScheduler(
+                      {
+                          ...scheduler.data,
+                          ...getSelectedTabsForDashboardScheduler(
+                              scheduler.data,
+                              isDashboardTabsAvailable,
+                              dashboard,
+                          ),
+                      },
+                      aiConfig.data,
+                  )
                 : isThresholdAlert
                   ? DEFAULT_VALUES_ALERT
                   : {
@@ -166,6 +185,7 @@ const useSchedulerFormModal = ({
                             Object.keys(dashboardParameterValues).length > 0
                                 ? dashboardParameterValues
                                 : undefined,
+                        ...initialFormValues,
                     },
         validateInputOnBlur: ['options.customLimit'],
 
@@ -233,20 +253,23 @@ const useSchedulerFormModal = ({
     useEffect(() => {
         if (scheduler.data) {
             form.setValues(
-                getFormValuesFromScheduler({
-                    ...scheduler.data,
-                    ...getSelectedTabsForDashboardScheduler(
-                        scheduler.data,
-                        isDashboardTabsAvailable,
-                        dashboard,
-                    ),
-                }),
+                getFormValuesFromScheduler(
+                    {
+                        ...scheduler.data,
+                        ...getSelectedTabsForDashboardScheduler(
+                            scheduler.data,
+                            isDashboardTabsAvailable,
+                            dashboard,
+                        ),
+                    },
+                    aiConfig.data,
+                ),
             );
             form.resetDirty();
         }
         // We only want to sync when the data actually arrives or dashboard changes
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [scheduler.data, isDashboardTabsAvailable, dashboard]);
+    }, [scheduler.data, aiConfig.data, isDashboardTabsAvailable, dashboard]);
 
     // Handle mutation success
     useEffect(() => {
@@ -263,15 +286,34 @@ const useSchedulerFormModal = ({
         }
     }, [isEditMode, createMutation, onBack]);
 
-    // Submit handler
+    // Scheduler save + AI-config save chained behind one action (uuid is only
+    // known after a create).
     const handleSubmit = useCallback(
-        (values: typeof form.values) => {
+        async (values: typeof form.values) => {
             const data = transformFormValues(values, formResource?.type);
-            if (isEditMode) {
-                updateMutation.mutate(data);
-            } else {
-                createMutation.mutate({ resourceUuid, data });
+            const savedSchedulerUuid = isEditMode
+                ? (await updateMutation.mutateAsync(data)).schedulerUuid
+                : (await createMutation.mutateAsync({ resourceUuid, data }))
+                      .schedulerUuid;
+
+            if (values.agentUuid) {
+                await upsertAiSchedulerConfig(savedSchedulerUuid, {
+                    agentUuid: values.agentUuid,
+                    prompt: values.prompt,
+                    sourceThreadUuid: values.includeSourceThread
+                        ? values.sourceThreadUuid
+                        : null,
+                    includeSourceThread: values.includeSourceThread,
+                    includeRunHistory: values.includeRunHistory,
+                });
+            } else if (isEditMode) {
+                // Cleared the agent → detach any existing config.
+                await deleteAiSchedulerConfig(savedSchedulerUuid);
             }
+            await queryClient.invalidateQueries([
+                AI_SCHEDULER_CONFIG_KEY,
+                savedSchedulerUuid,
+            ]);
         },
         [
             isEditMode,
@@ -279,6 +321,7 @@ const useSchedulerFormModal = ({
             createMutation,
             resourceUuid,
             formResource?.type,
+            queryClient,
         ],
     );
 
@@ -381,6 +424,7 @@ const useSchedulerFormModal = ({
         numericMetrics,
         isDashboardTabsAvailable,
         requiredFiltersWithoutValues,
+        sourceThreadUuid,
     };
 };
 
@@ -401,6 +445,8 @@ interface Props {
     availableParameters?: ParameterDefinitions;
     /** undefined = create mode, string = edit mode */
     schedulerUuidToEdit: string | undefined;
+    /** Create-mode only: pre-fills the new delivery. */
+    initialFormValues?: Partial<SchedulerFormValues>;
 }
 
 export const SchedulerModalCreateOrEdit: FC<Props> = ({
@@ -415,6 +461,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
     availableParameters,
     onClose,
     onBack,
+    initialFormValues,
 }) => {
     // URL param handling is done in SchedulerModal parent component
     const schedulerUuid = schedulerUuidToEdit;
@@ -436,6 +483,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
         numericMetrics,
         isDashboardTabsAvailable,
         requiredFiltersWithoutValues,
+        sourceThreadUuid,
     } = useSchedulerFormModal({
         schedulerUuid,
         resourceUuid,
@@ -446,6 +494,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
         onBack,
         itemsMap,
         currentParameterValues,
+        initialFormValues,
     });
 
     return (
@@ -585,6 +634,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
                                 isDashboardTabsAvailable={
                                     isDashboardTabsAvailable
                                 }
+                                sourceThreadUuid={sourceThreadUuid}
                             />
                         </>
                     )}

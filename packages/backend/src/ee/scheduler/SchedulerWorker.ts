@@ -22,6 +22,7 @@ import { AiAgentAdminService } from '../services/AiAgentAdminService';
 import { AiAgentReviewClassifierService } from '../services/AiAgentReviewClassifierService';
 import { type AiAgentReviewNotificationService } from '../services/AiAgentReviewNotificationService';
 import { AiAgentService } from '../services/AiAgentService/AiAgentService';
+import { AiSchedulerService } from '../services/AiSchedulerService';
 import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
 import type { EmbedService } from '../services/EmbedService/EmbedService';
 import { ManagedAgentService } from '../services/ManagedAgentService/ManagedAgentService';
@@ -36,6 +37,7 @@ const APP_GENERATE_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
 
 type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     aiAgentService: AiAgentService;
+    aiSchedulerService: AiSchedulerService;
     aiAgentReviewClassifierService: AiAgentReviewClassifierService;
     aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
     aiAgentReviewNotificationModel: AiAgentReviewNotificationModel;
@@ -51,6 +53,8 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
 
 export class CommercialSchedulerWorker extends SchedulerWorker {
     protected readonly aiAgentService: AiAgentService;
+
+    protected readonly aiSchedulerService: AiSchedulerService;
 
     protected readonly aiAgentReviewClassifierService: AiAgentReviewClassifierService;
 
@@ -77,6 +81,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
     constructor(args: CommercialSchedulerWorkerArguments) {
         super(args);
         this.aiAgentService = args.aiAgentService;
+        this.aiSchedulerService = args.aiSchedulerService;
         this.aiAgentReviewClassifierService =
             args.aiAgentReviewClassifierService;
         this.aiAgentReviewClassifierModel = args.aiAgentReviewClassifierModel;
@@ -91,6 +96,19 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         this.projectContextService = args.projectContextService;
         this.projectModel = args.projectModel;
         this.openIdIdentityModel = args.openIdIdentityModel;
+    }
+
+    protected override async getScheduledReport(
+        schedulerUuid: string | undefined,
+        organizationUuid: string,
+    ): Promise<string | null> {
+        if (!schedulerUuid) {
+            return null;
+        }
+        return this.aiSchedulerService.generateScheduledReport(
+            schedulerUuid,
+            organizationUuid,
+        );
     }
 
     protected getCronItems() {

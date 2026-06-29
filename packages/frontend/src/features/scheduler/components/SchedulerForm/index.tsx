@@ -39,6 +39,7 @@ type Props = {
     isThresholdAlertWithNoFields: boolean;
     numericMetrics: Record<string, any>;
     isDashboardTabsAvailable: boolean;
+    sourceThreadUuid?: string | null;
 };
 
 const SchedulerForm: FC<Props> = ({
@@ -55,6 +56,7 @@ const SchedulerForm: FC<Props> = ({
     isDashboardTabsAvailable,
     onSubmit,
     resource,
+    sourceThreadUuid,
 }) => {
     const isApp = resource?.type === 'app';
     const form = useSchedulerFormContext();
@@ -232,7 +234,15 @@ const SchedulerForm: FC<Props> = ({
                 ) : null}
 
                 <Tabs.Panel value="customization">
-                    <SchedulerFormCustomizationTab />
+                    <SchedulerFormCustomizationTab
+                        projectUuid={projectUuid}
+                        canUseAiSummary={
+                            (resource?.type === 'chart' ||
+                                resource?.type === 'dashboard') &&
+                            !isThresholdAlert
+                        }
+                        sourceThreadUuid={sourceThreadUuid}
+                    />
                 </Tabs.Panel>
                 {isDashboard ? (
                     <Tabs.Panel value="preview">

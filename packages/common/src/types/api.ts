@@ -235,6 +235,7 @@ import {
     type SavedChart,
 } from './savedCharts';
 import {
+    type ApiAiSchedulerConfigResponse,
     type ApiJobScheduledResponse,
     type ApiJobStatusResponse,
     type ApiReassignUserSchedulersResponse,
@@ -1087,6 +1088,7 @@ type ApiResults =
     | ApiExecuteAsyncDashboardChartQueryResults
     | ApiGetAsyncQueryResults
     | ApiSchedulersResponse['results']
+    | ApiAiSchedulerConfigResponse['results']
     | ApiUserSchedulersSummaryResponse['results']
     | ApiReassignUserSchedulersResponse['results']
     | ApiUserActivityDownloadCsv['results']

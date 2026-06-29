@@ -152,6 +152,7 @@ interface ServiceManifest {
     embedService: unknown;
     aiService: unknown;
     aiAgentService: unknown;
+    aiSchedulerService: unknown;
     aiAgentToolsService: unknown;
     aiAgentAdminService: unknown;
     aiAgentDocumentService: unknown;
@@ -1362,6 +1363,12 @@ export class ServiceRepository
 
     public getAiAgentService<AiAgentServiceImplT>(): AiAgentServiceImplT {
         return this.getService('aiAgentService');
+    }
+
+    public getAiSchedulerService<
+        AiSchedulerServiceImplT,
+    >(): AiSchedulerServiceImplT {
+        return this.getService('aiSchedulerService');
     }
 
     public getAiAgentToolsService<

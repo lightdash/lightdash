@@ -32,6 +32,7 @@ import { AiAgentReviewClassifierModel } from './models/AiAgentReviewClassifierMo
 import { AiAgentReviewNotificationModel } from './models/AiAgentReviewNotificationModel';
 import { AiOrganizationSettingsModel } from './models/AiOrganizationSettingsModel';
 import { AiRouterModel } from './models/AiRouterModel';
+import { AiSchedulerModel } from './models/AiSchedulerModel';
 import { AiWritebackThreadModel } from './models/AiWritebackThreadModel';
 import { CommercialFeatureFlagModel } from './models/CommercialFeatureFlagModel';
 import { CommercialSlackAuthenticationModel } from './models/CommercialSlackAuthenticationModel';
@@ -56,6 +57,7 @@ import { AiAgentService } from './services/AiAgentService/AiAgentService';
 import { AiAgentToolsService } from './services/AiAgentToolsService/AiAgentToolsService';
 import { AiOrganizationSettingsService } from './services/AiOrganizationSettingsService';
 import { AiRouterService } from './services/AiRouterService/AiRouterService';
+import { AiSchedulerService } from './services/AiSchedulerService';
 import { AiService } from './services/AiService/AiService';
 import { AiWritebackService } from './services/AiWritebackService/AiWritebackService';
 import { WritebackPreviewService } from './services/AiWritebackService/WritebackPreviewService';
@@ -108,6 +110,16 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
 
     return {
         serviceProviders: {
+            aiSchedulerService: ({ models, repository }) =>
+                new AiSchedulerService({
+                    aiSchedulerModel:
+                        models.getAiSchedulerModel<AiSchedulerModel>(),
+                    schedulerModel: models.getSchedulerModel(),
+                    userModel: models.getUserModel(),
+                    schedulerService: repository.getSchedulerService(),
+                    aiAgentService:
+                        repository.getAiAgentService<AiAgentService>(),
+                }),
             projectContextService: ({ models }) =>
                 new ProjectContextService({
                     projectModel: models.getProjectModel(),
@@ -755,6 +767,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig,
                     encryptionUtil: utils.getEncryptionUtil(),
                 }),
+            aiSchedulerModel: ({ database }) =>
+                new AiSchedulerModel({ database }),
             aiAgentDocumentModel: ({ database }) =>
                 new AiAgentDocumentModel({ database }),
             aiWritebackThreadModel: ({ database }) =>
@@ -822,6 +836,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 fileStorageClient: context.clients.getFileStorageClient(),
                 schedulerClient: context.clients.getSchedulerClient(),
                 aiAgentService: context.serviceRepository.getAiAgentService(),
+                aiSchedulerService:
+                    context.serviceRepository.getAiSchedulerService<AiSchedulerService>(),
                 catalogService: context.serviceRepository.getCatalogService(),
                 encryptionUtil: context.utils.getEncryptionUtil(),
                 msTeamsClient: context.clients.getMsTeamsClient(),

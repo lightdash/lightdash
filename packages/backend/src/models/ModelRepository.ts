@@ -141,6 +141,7 @@ export type ModelManifest = {
     changesetModel: ChangesetModel;
     /** An implementation signature for these models are not available at this stage */
     aiAgentModel: unknown;
+    aiSchedulerModel: unknown;
     aiAgentDocumentModel: unknown;
     aiWritebackThreadModel: unknown;
     projectCiStatusModel: unknown;
@@ -755,6 +756,10 @@ export class ModelRepository
 
     public getAiAgentModel<ModelImplT>(): ModelImplT {
         return this.getModel('aiAgentModel');
+    }
+
+    public getAiSchedulerModel<ModelImplT>(): ModelImplT {
+        return this.getModel('aiSchedulerModel');
     }
 
     public getAiAgentDocumentModel<ModelImplT>(): ModelImplT {

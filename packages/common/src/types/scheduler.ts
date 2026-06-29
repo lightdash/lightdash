@@ -487,6 +487,20 @@ export type ApiSchedulerAndTargetsResponse = {
     results: SchedulerAndTargets;
 };
 
+// A delivery's AI config — kept out of Scheduler so the core type stays AI-free.
+export type AiSchedulerConfig = {
+    schedulerUuid: string;
+    agentUuid: string;
+    prompt: string;
+    sourceThreadUuid: string | null;
+    includeSourceThread: boolean;
+    includeRunHistory: boolean;
+};
+
+export type UpsertAiSchedulerConfig = Omit<AiSchedulerConfig, 'schedulerUuid'>;
+
+export type ApiAiSchedulerConfigResponse = ApiSuccess<AiSchedulerConfig | null>;
+
 export type ApiAppSchedulersResponse = {
     status: 'ok';
     results: SchedulerAndTargets[];

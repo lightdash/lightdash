@@ -428,6 +428,10 @@ import {
     AiRouterTableName,
 } from '../ee/database/entities/aiRouter';
 import {
+    AiSchedulerTable,
+    AiSchedulerTableName,
+} from '../ee/database/entities/aiScheduler';
+import {
     DashboardSummariesTable,
     DashboardSummariesTableName,
 } from '../ee/database/entities/dashboardSummaries';
@@ -576,6 +580,7 @@ declare module 'knex/types/tables' {
         [AiWritebackThreadTableName]: AiWritebackThreadTable;
         [ProjectCiStatusTableName]: ProjectCiStatusTable;
         [AiAgentTableName]: AiAgentTable;
+        [AiSchedulerTableName]: AiSchedulerTable;
         [AiAgentDocumentTableName]: AiAgentDocumentTable;
         [AiAgentDocumentAccessTableName]: AiAgentDocumentAccessTable;
         [AiAgentReviewClassifierRunTableName]: AiAgentReviewClassifierRunTable;
