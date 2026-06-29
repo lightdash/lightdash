@@ -48,7 +48,7 @@ describe('getSpotlightConfigurationForResource defaults', () => {
 });
 
 describe('resolveAdditionalTimeIntervals', () => {
-    const warnSpy = jest
+    const warnSpy = vi
         .spyOn(console, 'warn')
         .mockImplementation(() => undefined);
 
@@ -97,12 +97,10 @@ describe('resolveAdditionalTimeIntervals', () => {
 });
 
 describe('resolveGranularityLabels', () => {
-    let warnSpy: ReturnType<typeof jest.spyOn>;
+    let warnSpy: ReturnType<typeof vi.spyOn>;
 
     beforeEach(() => {
-        warnSpy = jest
-            .spyOn(console, 'warn')
-            .mockImplementation(() => undefined);
+        warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     });
 
     afterEach(() => {

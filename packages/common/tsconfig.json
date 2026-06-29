@@ -16,7 +16,7 @@
         "moduleResolution": "node10",
         "resolveJsonModule": true,
         "skipLibCheck": true,
-        "types": ["node", "jest"]
+        "types": ["node", "vitest/globals"]
     },
     "include": ["src/**/*.ts", "src/**/*.json"]
 }

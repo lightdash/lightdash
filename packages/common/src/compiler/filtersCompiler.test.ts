@@ -110,11 +110,11 @@ const formatTimestamp = (date: Date): string =>
 
 describe('Filter SQL', () => {
     beforeAll(() => {
-        jest.useFakeTimers();
-        jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
     });
     afterAll(() => {
-        jest.useFakeTimers();
+        vi.useRealTimers();
     });
     test.each(Object.values(FilterOperator))(
         'should return number filter sql for operator %s',
@@ -151,7 +151,7 @@ describe('Filter SQL', () => {
     test.each(Object.values(UnitOfTime))(
         'should return in the current %s filter sql',
         (unitOfTime) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
                 renderDateFilterSql({
                     dimensionSql: DimensionSqlMock,
@@ -169,7 +169,7 @@ describe('Filter SQL', () => {
     test.each(Object.values(UnitOfTime))(
         'should return in the current %s filter sql for trino adapter',
         (unitOfTime) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
                 renderDateFilterSql({
                     dimensionSql: DimensionSqlMock,
@@ -187,7 +187,7 @@ describe('Filter SQL', () => {
     test.each(Object.values(UnitOfTime))(
         'should return in the next %s filter sql',
         (unitOfTime) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
                 renderDateFilterSql({
                     dimensionSql: DimensionSqlMock,
@@ -205,7 +205,7 @@ describe('Filter SQL', () => {
     test.each(Object.values(UnitOfTime))(
         'should return in the next %s filter sql for trino adapter',
         (unitOfTime) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
                 renderDateFilterSql({
                     dimensionSql: DimensionSqlMock,
@@ -223,7 +223,7 @@ describe('Filter SQL', () => {
     test.each(Object.values(UnitOfTime))(
         'should return in the next complete %s filter sql',
         (unitOfTime) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
                 renderDateFilterSql({
                     dimensionSql: DimensionSqlMock,
@@ -241,7 +241,7 @@ describe('Filter SQL', () => {
     test.each(Object.values(UnitOfTime))(
         'should return in the next complete %s filter sql for trino adapter',
         (unitOfTime) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
                 renderDateFilterSql({
                     dimensionSql: DimensionSqlMock,
@@ -261,7 +261,7 @@ describe('Filter SQL', () => {
     test.each([WeekDay.MONDAY, WeekDay.SUNDAY])(
         'should return in the next complete week filter sql with %s as the start of the week',
         (weekDay) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             const filter = {
                 ...InTheNextFilterBase,
                 settings: { unitOfTime: UnitOfTime.weeks, completed: true },
@@ -285,7 +285,7 @@ describe('Filter SQL', () => {
     test.each([WeekDay.MONDAY, WeekDay.SUNDAY])(
         'should return in the next complete week filter sql with %s as the start of the week for trino adapter',
         (weekDay) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             const filter = {
                 ...InTheNextFilterBase,
                 settings: { unitOfTime: UnitOfTime.weeks, completed: true },
@@ -309,7 +309,7 @@ describe('Filter SQL', () => {
     test.each([WeekDay.MONDAY, WeekDay.SUNDAY])(
         'should return in the last complete week filter sql with %s as the start of the week',
         (weekDay) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             const filter = {
                 ...InThePastFilterBase,
                 settings: { unitOfTime: UnitOfTime.weeks, completed: true },
@@ -333,7 +333,7 @@ describe('Filter SQL', () => {
     test.each([WeekDay.MONDAY, WeekDay.SUNDAY])(
         'should return in the last complete week filter sql with %s as the start of the week for trino adapter',
         (weekDay) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             const filter = {
                 ...InThePastFilterBase,
                 settings: { unitOfTime: UnitOfTime.weeks, completed: true },
@@ -357,7 +357,7 @@ describe('Filter SQL', () => {
     test.each([WeekDay.MONDAY, WeekDay.SUNDAY])(
         'should return in the current complete week filter sql with %s as the start of the week',
         (weekDay) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             const filter = {
                 ...InTheCurrentFilterBase,
                 settings: { unitOfTime: UnitOfTime.weeks, completed: true },
@@ -381,7 +381,7 @@ describe('Filter SQL', () => {
     test.each([WeekDay.MONDAY, WeekDay.SUNDAY])(
         'should return in the current complete week filter sql with %s as the start of the week for trino adapter',
         (weekDay) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             const filter = {
                 ...InTheCurrentFilterBase,
                 settings: { unitOfTime: UnitOfTime.weeks, completed: true },
@@ -1013,7 +1013,7 @@ describe('Filter SQL', () => {
     test.each(filterInTheCurrentDayTimezoneMocks)(
         'should return in the current day filter sql for timezone %s',
         (timezone, expected) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
                 renderDateFilterSql({
                     dimensionSql: DimensionSqlMock,
@@ -1029,7 +1029,7 @@ describe('Filter SQL', () => {
     test.each(filterInThePastCompletedDayTimezoneMocks)(
         'should return in the past completed day filter sql for timezone %s',
         (timezone, expected) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
                 renderDateFilterSql({
                     dimensionSql: DimensionSqlMock,
@@ -1051,7 +1051,7 @@ describe('Filter SQL', () => {
     test.each(filterInTheNextCompletedDayTimezoneMocks)(
         'should return in the next completed day filter sql for timezone %s',
         (timezone, expected) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
                 renderDateFilterSql({
                     dimensionSql: DimensionSqlMock,
@@ -1073,7 +1073,7 @@ describe('Filter SQL', () => {
     test.each(filterInThePastCompletedDayDstMocks)(
         'should handle DST spring forward for in the past completed day filter (timezone %s)',
         (timezone, expected) => {
-            jest.setSystemTime(new Date('09 Mar 2020 05:00:00 GMT').getTime());
+            vi.setSystemTime(new Date('09 Mar 2020 05:00:00 GMT').getTime());
             expect(
                 renderDateFilterSql({
                     dimensionSql: DimensionSqlMock,
@@ -1095,7 +1095,7 @@ describe('Filter SQL', () => {
     test.each(filterInTheNextCompletedDayDstMocks)(
         'should handle DST spring forward for in the next completed day filter (timezone %s)',
         (timezone, expected) => {
-            jest.setSystemTime(new Date('07 Mar 2020 05:00:00 GMT').getTime());
+            vi.setSystemTime(new Date('07 Mar 2020 05:00:00 GMT').getTime());
             expect(
                 renderDateFilterSql({
                     dimensionSql: DimensionSqlMock,
@@ -1117,7 +1117,7 @@ describe('Filter SQL', () => {
     test.each(filterInThePastNonCompletedDayTimezoneMocks)(
         'should return in the past non-completed day filter sql for timezone %s',
         (timezone, expected) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
                 renderDateFilterSql({
                     dimensionSql: DimensionSqlMock,
@@ -1139,7 +1139,7 @@ describe('Filter SQL', () => {
     test.each(filterInTheNextNonCompletedDayTimezoneMocks)(
         'should return in the next non-completed day filter sql for timezone %s',
         (timezone, expected) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
                 renderDateFilterSql({
                     dimensionSql: DimensionSqlMock,
@@ -1161,7 +1161,7 @@ describe('Filter SQL', () => {
     test.each(filterInThePastNonCompletedDayDstMocks)(
         'should handle DST spring forward for in the past non-completed day filter (timezone %s)',
         (timezone, expected) => {
-            jest.setSystemTime(new Date('09 Mar 2020 05:00:00 GMT').getTime());
+            vi.setSystemTime(new Date('09 Mar 2020 05:00:00 GMT').getTime());
             expect(
                 renderDateFilterSql({
                     dimensionSql: DimensionSqlMock,
@@ -1183,7 +1183,7 @@ describe('Filter SQL', () => {
     test.each(filterInTheNextNonCompletedDayDstMocks)(
         'should handle DST spring forward for in the next non-completed day filter (timezone %s)',
         (timezone, expected) => {
-            jest.setSystemTime(new Date('08 Mar 2020 06:00:00 GMT').getTime());
+            vi.setSystemTime(new Date('08 Mar 2020 06:00:00 GMT').getTime());
             expect(
                 renderDateFilterSql({
                     dimensionSql: DimensionSqlMock,
@@ -2324,7 +2324,7 @@ describe('Number Filter SQL Injection Prevention', () => {
         test.each(filterInThePastCompletedDayDateFormatterMocks)(
             'inThePast completed day (tz-aware formatter) for timezone %s',
             (timezone, expected) => {
-                jest.setSystemTime(
+                vi.setSystemTime(
                     new Date('04 Apr 2020 06:12:30 GMT').getTime(),
                 );
                 expect(
@@ -2349,7 +2349,7 @@ describe('Number Filter SQL Injection Prevention', () => {
         test.each(filterInTheCurrentDayDateFormatterMocks)(
             'inTheCurrent day (tz-aware formatter) for timezone %s',
             (timezone, expected) => {
-                jest.setSystemTime(
+                vi.setSystemTime(
                     new Date('04 Apr 2020 06:12:30 GMT').getTime(),
                 );
                 expect(
@@ -2371,7 +2371,7 @@ describe('Number Filter SQL Injection Prevention', () => {
         test.each(filterInThePastNonCompletedDayDateFormatterMocks)(
             'inThePast non-completed day (tz-aware formatter) for timezone %s',
             (timezone, expected) => {
-                jest.setSystemTime(
+                vi.setSystemTime(
                     new Date('04 Apr 2020 06:12:30 GMT').getTime(),
                 );
                 expect(
@@ -2396,7 +2396,7 @@ describe('Number Filter SQL Injection Prevention', () => {
         test.each(filterInTheNextCompletedDayDateFormatterMocks)(
             'inTheNext completed day (tz-aware formatter) for timezone %s',
             (timezone, expected) => {
-                jest.setSystemTime(
+                vi.setSystemTime(
                     new Date('04 Apr 2020 06:12:30 GMT').getTime(),
                 );
                 expect(
@@ -2421,7 +2421,7 @@ describe('Number Filter SQL Injection Prevention', () => {
         test.each(filterInTheNextNonCompletedDayDateFormatterMocks)(
             'inTheNext non-completed day (tz-aware formatter) for timezone %s',
             (timezone, expected) => {
-                jest.setSystemTime(
+                vi.setSystemTime(
                     new Date('04 Apr 2020 06:12:30 GMT').getTime(),
                 );
                 expect(
@@ -2448,7 +2448,7 @@ describe('Number Filter SQL Injection Prevention', () => {
         test.each(filterNegativeOffsetEdgeCaseCurrentDayMocks)(
             'inTheCurrent day near midnight UTC for timezone %s',
             (timezone, expected) => {
-                jest.setSystemTime(
+                vi.setSystemTime(
                     new Date('04 Apr 2020 02:00:00 GMT').getTime(),
                 );
                 expect(
@@ -2470,7 +2470,7 @@ describe('Number Filter SQL Injection Prevention', () => {
         test.each(filterNegativeOffsetEdgeCasePastCompletedDayMocks)(
             'inThePast completed day near midnight UTC for timezone %s',
             (timezone, expected) => {
-                jest.setSystemTime(
+                vi.setSystemTime(
                     new Date('04 Apr 2020 02:00:00 GMT').getTime(),
                 );
                 expect(
@@ -2497,7 +2497,7 @@ describe('Number Filter SQL Injection Prevention', () => {
         test.each(filterPositiveOffsetEdgeCaseCurrentDayMocks)(
             'inTheCurrent day late UTC for timezone %s',
             (timezone, expected) => {
-                jest.setSystemTime(
+                vi.setSystemTime(
                     new Date('04 Apr 2020 22:00:00 GMT').getTime(),
                 );
                 expect(
@@ -2519,7 +2519,7 @@ describe('Number Filter SQL Injection Prevention', () => {
         test.each(filterPositiveOffsetEdgeCasePastCompletedDayMocks)(
             'inThePast completed day late UTC for timezone %s',
             (timezone, expected) => {
-                jest.setSystemTime(
+                vi.setSystemTime(
                     new Date('04 Apr 2020 22:00:00 GMT').getTime(),
                 );
                 expect(
@@ -2551,7 +2551,7 @@ describe('DATE dimension filters are server-timezone-independent', () => {
     const systemTime = new Date('10 Apr 2026 14:00:00 GMT');
 
     beforeEach(() => {
-        jest.setSystemTime(systemTime.getTime());
+        vi.setSystemTime(systemTime.getTime());
     });
 
     afterEach(() => {
@@ -2789,7 +2789,7 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
 
     describe('relative filters', () => {
         beforeEach(() => {
-            jest.setSystemTime(new Date('2026-04-22 00:00:00 GMT').getTime());
+            vi.setSystemTime(new Date('2026-04-22 00:00:00 GMT').getTime());
         });
 
         const renderWithParam = (

@@ -33,8 +33,8 @@
     "check:dashboard-as-code-schema": "tsx src/schemas/generateDashboardAsCodeSchema.ts --check",
     "generate:mcp-tools-snapshot": "tsx src/schemas/generateMcpToolsSnapshot.ts && pnpm run formatter --write src/schemas/json/mcp-tools-1.0.json",
     "check:mcp-tools-snapshot": "tsx src/schemas/generateMcpToolsSnapshot.ts --check",
-    "test": "TZ=UTC LANG=en_US.UTF-8 jest",
-    "test:dev": "TZ=UTC LANG=en_US.UTF-8 jest --config jest.config.dev.js --onlyChanged --watch",
+    "test": "vitest run --config vitest.config.ts",
+    "test:dev": "vitest watch --config vitest.config.ts --changed",
     "release": "pnpm publish --no-git-checks --access public"
   },
   "dependencies": {
@@ -76,6 +76,7 @@
     "@types/sanitize-html": "2.11.0",
     "@types/uuid": "10.0.0",
     "@typescript/native-preview": "7.0.0-dev.20260527.2",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "vitest": "4.1.6"
   }
 }

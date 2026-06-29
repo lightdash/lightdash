@@ -51,8 +51,8 @@ import {
     modelRequiredFilterRule,
 } from './filters.mock';
 
-jest.mock('uuid', () => ({
-    v4: jest.fn(() => 'uuid'),
+vi.mock('uuid', () => ({
+    v4: vi.fn(() => 'uuid'),
 }));
 
 describe('addDashboardFiltersToMetricQuery', () => {

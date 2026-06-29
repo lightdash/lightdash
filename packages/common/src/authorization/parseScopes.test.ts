@@ -91,7 +91,7 @@ describe('parseScopes', () => {
         });
 
         it('should not emit console warnings for invalid scopes', () => {
-            const warnSpy = jest
+            const warnSpy = vi
                 .spyOn(console, 'warn')
                 .mockImplementation(() => {});
             parseScopes({

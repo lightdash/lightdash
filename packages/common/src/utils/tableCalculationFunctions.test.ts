@@ -635,11 +635,11 @@ describe('tableCalculationFunctions', () => {
 
             beforeEach(() => {
                 mockWarehouseSqlBuilder = {
-                    getFieldQuoteChar: jest.fn().mockReturnValue('"'),
-                    buildArray: jest.fn(
+                    getFieldQuoteChar: vi.fn().mockReturnValue('"'),
+                    buildArray: vi.fn(
                         (elements: string[]) => `ARRAY[${elements.join(', ')}]`,
                     ),
-                    buildArrayAgg: jest.fn(
+                    buildArrayAgg: vi.fn(
                         (expression: string, orderBy?: string) =>
                             orderBy
                                 ? `ARRAY_AGG(${expression} ORDER BY ${orderBy})`
