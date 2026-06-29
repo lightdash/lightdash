@@ -9,7 +9,7 @@ import { getFromInMemoryStorage } from './inMemoryStorage';
 const LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY =
     '__lightdash_sdk_instance_url';
 
-const resolveRequestUrl = (url: string) => {
+export const resolveRequestUrl = (url: string) => {
     const sdkInstanceUrl = sessionStorage.getItem(
         LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY,
     );
