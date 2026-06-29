@@ -1747,7 +1747,35 @@ export type AppRuntimeConfig = {
      */
     e2bCodingAgentTemplateName: string;
     e2bCodingAgentTemplateTag: string;
+    /**
+     * Claude Code OpenTelemetry tracing for data-app builds. When enabled, the
+     * `claude` CLI in the sandbox exports OTLP traces (a span per LLM request /
+     * tool call) to `endpoint`, nested under the backend's `DataApp.generate`
+     * parent span. The endpoint/protocol/interval are generic OTLP settings;
+     * `auth` selects how export headers are minted (see `gcpOtelAuth.ts`).
+     */
+    otel: DataAppOtelConfig;
 };
+
+export type DataAppOtelConfig = {
+    enabled: boolean;
+    /** OTLP collector endpoint the sandbox exports traces to. */
+    endpoint: string;
+    /** OTEL_EXPORTER_OTLP_PROTOCOL value (e.g. `http/protobuf`, `grpc`). */
+    protocol: string;
+    /** OTEL_TRACES_EXPORT_INTERVAL (ms) — short so spans flush before teardown. */
+    exportIntervalMs: number;
+    /**
+     * How OTLP export auth headers are resolved per build. `none` exports with
+     * no auth headers; `gcp` mints a fresh bearer token at execute time. Keep
+     * provider-specific behaviour out of this config — it only selects a path.
+     */
+    auth: DataAppOtelAuthConfig;
+};
+
+export type DataAppOtelAuthConfig =
+    | { type: 'none' }
+    | { type: 'gcp'; quotaProjectId: string | null };
 
 export type IntercomConfig = {
     appId: string;
@@ -1920,6 +1948,29 @@ const parseSandboxProvider = (
     return 'e2b';
 };
 
+const parseDataAppOtelConfig = (): DataAppOtelConfig => {
+    const exportIntervalMs = Number(
+        process.env.DATA_APP_OTEL_EXPORT_INTERVAL_MS || '1000',
+    );
+    return {
+        enabled: process.env.DATA_APP_OTEL_TRACES_ENABLED === 'true',
+        endpoint: process.env.DATA_APP_OTEL_EXPORTER_ENDPOINT || '',
+        protocol:
+            process.env.DATA_APP_OTEL_EXPORTER_PROTOCOL || 'http/protobuf',
+        exportIntervalMs: Number.isFinite(exportIntervalMs)
+            ? exportIntervalMs
+            : 1000,
+        auth:
+            process.env.DATA_APP_OTEL_AUTH === 'gcp'
+                ? {
+                      type: 'gcp',
+                      quotaProjectId:
+                          process.env.DATA_APP_OTEL_GCP_QUOTA_PROJECT || null,
+                  }
+                : { type: 'none' },
+    };
+};
+
 const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
     const enabled = process.env.APPS_RUNTIME_ENABLED === 'true';
     const appsBucket = process.env.APPS_S3_BUCKET;
@@ -2050,6 +2101,7 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             'lightdash-ai-coding-agent',
         e2bCodingAgentTemplateTag:
             process.env.E2B_CODING_AGENT_TEMPLATE_TAG ?? (VERSION as string),
+        otel: parseDataAppOtelConfig(),
     };
 };
 

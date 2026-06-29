@@ -411,6 +411,13 @@ export const lightdashConfigMock: LightdashConfig = {
         azureSandboxesAiWritebackDiskImage: null,
         e2bCodingAgentTemplateName: 'lightdash-ai-coding-agent',
         e2bCodingAgentTemplateTag: '',
+        otel: {
+            enabled: false,
+            endpoint: '',
+            protocol: 'http/protobuf',
+            exportIntervalMs: 1000,
+            auth: { type: 'none' },
+        },
     },
     enabledFeatureFlags: new Set<string>(),
     disabledFeatureFlags: new Set<string>(),
