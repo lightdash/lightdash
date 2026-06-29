@@ -4,6 +4,9 @@
     "main": "index.js",
     "license": "MIT",
     "private": true,
+    "engines": {
+        "node": ">=22"
+    },
     "workspaces": [
         "packages/*",
         "packages/frontend/sdk"
