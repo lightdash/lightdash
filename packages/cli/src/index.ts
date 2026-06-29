@@ -754,6 +754,11 @@ program
         'skip writing space metadata files during download',
         false,
     )
+    .option(
+        '--strip-pivot-series',
+        'strip per-value pivot series config from chart YAML for portable downloads',
+        false,
+    )
     .action(downloadHandler);
 
 program

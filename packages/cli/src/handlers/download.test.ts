@@ -1,10 +1,22 @@
-import { DashboardAsCode, FilterOperator } from '@lightdash/common';
+import {
+    CartesianSeriesType,
+    ChartType,
+    DashboardAsCode,
+    FilterOperator,
+    type CartesianChartConfig,
+    type ChartAsCode,
+    type Series,
+} from '@lightdash/common';
 import { promises as fs } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { testHelpers } from './download';
 
-const { getDashboardChartSlugs, sanitizeDashboardForUpload } = testHelpers;
+const {
+    getDashboardChartSlugs,
+    sanitizeChartForDownload,
+    sanitizeDashboardForUpload,
+} = testHelpers;
 
 type LooseDashboard = DashboardAsCode & { needsUpdating: boolean };
 
@@ -37,6 +49,62 @@ const writeFolderDashboard = async (
     const yaml = `contentType: dashboard\nname: ${slug}\nslug: ${slug}\nspaceSlug: test-space\ntiles:\n${tilesYaml}\nversion: 1\n`;
     await fs.writeFile(path.join(baseDir, 'dashboards', `${slug}.yml`), yaml);
 };
+
+const pivotedSeries = (
+    pivotValue: string,
+    overrides: Partial<Series> = {},
+): Series => ({
+    type: CartesianSeriesType.BAR,
+    encode: {
+        xRef: { field: 'events_date_day' },
+        yRef: {
+            field: 'orders_count',
+            pivotValues: [{ field: 'orders_status', value: pivotValue }],
+        },
+        x: 'events_date_day',
+        y: `orders_count.orders_status.${pivotValue}`,
+    },
+    ...overrides,
+});
+
+const makeChart = (series: Series[]): ChartAsCode =>
+    ({
+        name: 'pivoted chart',
+        slug: 'pivoted-chart',
+        spaceSlug: 'test-space',
+        tableName: 'orders',
+        version: 1,
+        metricQuery: {
+            additionalMetrics: [],
+            customDimensions: [],
+            dimensionOverrides: {},
+            dimensions: ['orders_status', 'events_date_day'],
+            exploreName: 'orders',
+            filters: {},
+            limit: 500,
+            metricOverrides: {},
+            metrics: ['orders_count'],
+            sorts: [],
+            tableCalculations: [],
+            timezone: 'project_timezone',
+        },
+        chartConfig: {
+            type: ChartType.CARTESIAN,
+            config: {
+                layout: {
+                    xField: 'events_date_day',
+                    yField: ['orders_count'],
+                },
+                eChartsConfig: {
+                    series,
+                },
+            },
+        } satisfies CartesianChartConfig,
+        pivotConfig: {
+            columns: ['orders_status'],
+        },
+        dashboardSlug: undefined,
+    }) as ChartAsCode;
 
 describe('getDashboardChartSlugs', () => {
     let tmpDir: string;
@@ -209,5 +277,65 @@ describe('sanitizeDashboardForUpload (PROD-7445)', () => {
         expect(result.dashboard.filters?.dimensions).toEqual([]);
         expect(result.dashboard.filters?.metrics).toEqual([]);
         expect(result.dashboard.filters?.tableCalculations).toEqual([]);
+    });
+});
+
+describe('sanitizeChartForDownload', () => {
+    it('preserves per-value pivot series customizations by default', () => {
+        const chart = makeChart([
+            pivotedSeries('completed', {
+                name: 'Completed orders',
+                color: '#1f77b4',
+                isFilteredOut: false,
+            }),
+            pivotedSeries('returned', {
+                name: 'Returned orders',
+                color: '#d62728',
+                isFilteredOut: true,
+            }),
+        ]);
+
+        const result = sanitizeChartForDownload(chart, false);
+
+        expect(result).toBe(chart);
+        const series = (result.chartConfig as CartesianChartConfig).config
+            ?.eChartsConfig.series;
+        expect(series).toHaveLength(2);
+        expect(series?.[1]).toEqual(
+            expect.objectContaining({
+                name: 'Returned orders',
+                color: '#d62728',
+                isFilteredOut: true,
+            }),
+        );
+        expect(series?.[1].encode.yRef.pivotValues).toEqual([
+            { field: 'orders_status', value: 'returned' },
+        ]);
+    });
+
+    it('strips and dedupes per-value pivot series when requested', () => {
+        const chart = makeChart([
+            pivotedSeries('completed', {
+                name: 'Completed orders',
+                color: '#1f77b4',
+            }),
+            pivotedSeries('returned', {
+                name: 'Returned orders',
+                color: '#d62728',
+            }),
+        ]);
+
+        const result = sanitizeChartForDownload(chart, true);
+
+        expect(result).not.toBe(chart);
+        const series = (result.chartConfig as CartesianChartConfig).config
+            ?.eChartsConfig.series;
+        expect(series).toHaveLength(1);
+        expect(series?.[0].name).toBeUndefined();
+        expect(series?.[0].color).toBeUndefined();
+        expect(series?.[0].encode).toEqual({
+            xRef: { field: 'events_date_day' },
+            yRef: { field: 'orders_count' },
+        });
     });
 });

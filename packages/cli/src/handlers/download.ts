@@ -19,6 +19,7 @@ import {
     Project,
     PromotionAction,
     PromotionChanges,
+    removePivotedSeriesValuesFromChartConfig,
     SqlChartAsCode,
     type SpaceAsCode,
 } from '@lightdash/common';
@@ -57,6 +58,7 @@ export type DownloadHandlerOptions = {
     includeCharts: boolean;
     nested: boolean; // Use nested folder structure (projectName/spaceSlug/charts|dashboards)
     skipSpaces: boolean; // Skip writing space metadata files during download
+    stripPivotSeries: boolean; // Strip per-value pivot series config for portable chart YAML
     validate?: boolean; // Validate charts and dashboards after upload
     concurrency: number;
     gzip?: boolean;
@@ -157,19 +159,36 @@ type MetadataEntry = {
     downloadedAt: string;
 };
 
+const sanitizeChartForDownload = (
+    chart: ChartAsCode,
+    stripPivotSeries: boolean,
+): ChartAsCode =>
+    stripPivotSeries
+        ? {
+              ...chart,
+              chartConfig: removePivotedSeriesValuesFromChartConfig(
+                  chart.chartConfig,
+              ),
+          }
+        : chart;
+
 const writeContent = async (
     contentAsCode: ContentAsCodeType,
     outputDir: string,
     languageMap: boolean,
+    stripPivotSeries: boolean = false,
 ): Promise<MetadataEntry> => {
+    const content =
+        contentAsCode.type === 'chart'
+            ? sanitizeChartForDownload(contentAsCode.content, stripPivotSeries)
+            : contentAsCode.content;
     const extension = getFileExtension(contentAsCode.type);
-    const itemPath = path.join(
-        outputDir,
-        `${contentAsCode.content.slug}${extension}`,
-    );
+    const itemPath = path.join(outputDir, `${content.slug}${extension}`);
     // Strip timestamps — they go to .lightdash-metadata.json instead
-    const { updatedAt, downloadedAt, ...cleanContent } =
-        contentAsCode.content as ChartAsCode | SqlChartAsCode | DashboardAsCode;
+    const { updatedAt, downloadedAt, ...cleanContent } = content as
+        | ChartAsCode
+        | SqlChartAsCode
+        | DashboardAsCode;
     const chartYml = yaml.dump(cleanContent, {
         quotingType: '"',
         sortKeys: true,
@@ -179,7 +198,7 @@ const writeContent = async (
     if (contentAsCode.translationMap && languageMap) {
         const translationPath = path.join(
             outputDir,
-            `${contentAsCode.content.slug}.language.map.yml`,
+            `${content.slug}.language.map.yml`,
         );
         await fs.writeFile(
             translationPath,
@@ -200,7 +219,7 @@ const writeContent = async (
     }
 
     return {
-        slug: contentAsCode.content.slug,
+        slug: content.slug,
         type: metadataType,
         downloadedAt: downloadedAtString,
     };
@@ -555,6 +574,7 @@ const writeSpaceContent = async <
     customPath,
     languageMap,
     folderScheme,
+    stripPivotSeries,
 }: {
     projectName: string;
     spaceSlug: string;
@@ -568,6 +588,7 @@ const writeSpaceContent = async <
     customPath?: string;
     languageMap: boolean;
     folderScheme: FolderScheme;
+    stripPivotSeries: boolean;
 }): Promise<MetadataEntry[]> => {
     const outputDir = await createDirForContent(
         projectName,
@@ -591,6 +612,7 @@ const writeSpaceContent = async <
             } as ContentAsCodeType,
             outputDir,
             languageMap,
+            stripPivotSeries,
         );
         entries.push(entry);
     }
@@ -656,6 +678,7 @@ export const downloadContent = async (
     languageMap: boolean = false,
     nested: boolean = false,
     skipSpaces: boolean = false,
+    stripPivotSeries: boolean = false,
 ): Promise<[number, string[], MetadataEntry[], SpaceAsCode[]]> => {
     const spinner = GlobalState.getActiveSpinner();
     const contentFilters = parseContentFilters(ids);
@@ -718,6 +741,7 @@ export const downloadContent = async (
                     customPath,
                     languageMap,
                     folderScheme,
+                    stripPivotSeries: false,
                 });
                 allMetadataEntries = [...allMetadataEntries, ...entries];
             }
@@ -736,6 +760,7 @@ export const downloadContent = async (
                     customPath,
                     languageMap,
                     folderScheme,
+                    stripPivotSeries: false,
                 });
                 allMetadataEntries = [...allMetadataEntries, ...entries];
             }
@@ -758,6 +783,7 @@ export const downloadContent = async (
                     customPath,
                     languageMap,
                     folderScheme,
+                    stripPivotSeries,
                 });
                 allMetadataEntries = [...allMetadataEntries, ...entries];
             }
@@ -858,6 +884,7 @@ export const downloadHandler = async (
                     options.languageMap,
                     options.nested,
                     skipSpaces,
+                    options.stripPivotSeries,
                 );
             spinner.succeed(`Downloaded ${regularChartTotal} charts`);
             allMetadataEntries = [...allMetadataEntries, ...regularChartMeta];
@@ -875,6 +902,7 @@ export const downloadHandler = async (
                     options.languageMap,
                     options.nested,
                     skipSpaces,
+                    false,
                 );
             spinner.succeed(`Downloaded ${sqlChartTotal} SQL charts`);
             allMetadataEntries = [...allMetadataEntries, ...sqlChartMeta];
@@ -903,6 +931,7 @@ export const downloadHandler = async (
                     options.languageMap,
                     options.nested,
                     skipSpaces,
+                    false,
                 );
             allMetadataEntries = [...allMetadataEntries, ...dashMeta];
             allSpaces = [...allSpaces, ...dashSpaces];
@@ -924,6 +953,7 @@ export const downloadHandler = async (
                         options.languageMap,
                         options.nested,
                         skipSpaces,
+                        options.stripPivotSeries,
                     );
                 allMetadataEntries = [
                     ...allMetadataEntries,
@@ -1696,5 +1726,6 @@ export const uploadHandler = async (
 
 export const testHelpers = {
     getDashboardChartSlugs,
+    sanitizeChartForDownload,
     sanitizeDashboardForUpload,
 };

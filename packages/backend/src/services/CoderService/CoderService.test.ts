@@ -1,6 +1,8 @@
 // CoderService.test.ts
 import {
     AnyType,
+    CartesianSeriesType,
+    ChartType,
     DashboardDAO,
     DashboardFilterRule,
     DashboardTileTarget,
@@ -9,6 +11,156 @@ import {
 import { CoderService } from './CoderService';
 
 describe('CoderService', () => {
+    describe('transformChart', () => {
+        it('preserves per-value pivot series customizations for chart-as-code download', () => {
+            const chartConfig = {
+                type: ChartType.CARTESIAN,
+                config: {
+                    eChartsConfig: {
+                        series: [
+                            {
+                                color: '#1f77b4',
+                                encode: {
+                                    xRef: { field: 'events_date_day' },
+                                    yRef: {
+                                        field: 'events_count',
+                                        pivotValues: [
+                                            {
+                                                field: 'events_event_tier',
+                                                value: 'High',
+                                            },
+                                        ],
+                                    },
+                                },
+                                isFilteredOut: false,
+                                name: 'High tier custom blue',
+                                type: CartesianSeriesType.LINE,
+                                yAxisIndex: 0,
+                            },
+                            {
+                                color: '#d62728',
+                                encode: {
+                                    xRef: { field: 'events_date_day' },
+                                    yRef: {
+                                        field: 'events_count',
+                                        pivotValues: [
+                                            {
+                                                field: 'events_event_tier',
+                                                value: 'Low',
+                                            },
+                                        ],
+                                    },
+                                },
+                                isFilteredOut: true,
+                                name: 'Low tier hidden red',
+                                type: CartesianSeriesType.LINE,
+                                yAxisIndex: 0,
+                            },
+                            {
+                                color: '#2ca02c',
+                                encode: {
+                                    xRef: { field: 'events_date_day' },
+                                    yRef: {
+                                        field: 'events_count',
+                                        pivotValues: [
+                                            {
+                                                field: 'events_event_tier',
+                                                value: 'Very high',
+                                            },
+                                        ],
+                                    },
+                                },
+                                isFilteredOut: false,
+                                name: 'Very high tier green',
+                                type: CartesianSeriesType.LINE,
+                                yAxisIndex: 0,
+                            },
+                        ],
+                        showAxisTicks: false,
+                    },
+                    layout: {
+                        xField: 'events_date_day',
+                        yField: ['events_count'],
+                    },
+                },
+            };
+
+            const result = (
+                CoderService as unknown as {
+                    transformChart: (...args: AnyType[]) => AnyType;
+                }
+            ).transformChart(
+                {
+                    chartConfig,
+                    dashboardUuid: null,
+                    description: null,
+                    metricQuery: {
+                        additionalMetrics: [],
+                        customDimensions: [],
+                        dimensionOverrides: {},
+                        dimensions: ['events_event_tier', 'events_date_day'],
+                        exploreName: 'events',
+                        filters: {},
+                        limit: 500,
+                        metricOverrides: {},
+                        metrics: ['events_count'],
+                        sorts: [
+                            {
+                                descending: false,
+                                fieldId: 'events_event_tier',
+                            },
+                        ],
+                        tableCalculations: [],
+                        timezone: 'project_timezone',
+                    },
+                    name: 'PROD-8534 pivot hidden series test',
+                    parameters: undefined,
+                    pivotConfig: {
+                        columns: ['events_event_tier'],
+                    },
+                    slug: 'prod-8534-pivot-hidden-series-test',
+                    spaceUuid: 'space-uuid',
+                    tableConfig: {
+                        columnOrder: [
+                            'events_event_tier',
+                            'events_date_day',
+                            'events_count',
+                        ],
+                    },
+                    tableName: 'events',
+                    updatedAt: new Date('2026-06-29T11:49:43.855Z'),
+                    uuid: 'chart-uuid',
+                },
+                [
+                    {
+                        name: 'Jaffle shop',
+                        path: 'jaffle_shop',
+                        uuid: 'space-uuid',
+                    },
+                ],
+                {},
+                new Map(),
+            );
+
+            const { series } = result.chartConfig.config.eChartsConfig;
+            expect(series).toHaveLength(3);
+            expect(
+                series.map((s: AnyType) => s.encode.yRef.pivotValues[0]),
+            ).toEqual([
+                { field: 'events_event_tier', value: 'High' },
+                { field: 'events_event_tier', value: 'Low' },
+                { field: 'events_event_tier', value: 'Very high' },
+            ]);
+            expect(series[1]).toEqual(
+                expect.objectContaining({
+                    color: '#d62728',
+                    isFilteredOut: true,
+                    name: 'Low tier hidden red',
+                }),
+            );
+        });
+    });
+
     describe('getChartSlugForTileUuid', () => {
         it('should return undefined when chart tile slug is null', () => {
             const mockDashboard = {
