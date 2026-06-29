@@ -4,6 +4,9 @@
     "main": "index.js",
     "license": "MIT",
     "private": true,
+    "engines": {
+        "node": ">=24"
+    },
     "workspaces": [
         "packages/*",
         "packages/frontend/sdk"
@@ -50,7 +53,7 @@
     "devDependencies": {
         "@spotlightjs/spotlight": "4.10.0",
         "@types/jest": "29.5.5",
-        "@types/node": "22.13.1",
+        "@types/node": "24.13.2",
         "@types/pegjs": "0.10.3",
         "@typescript-eslint/eslint-plugin": "7.18.0",
         "@typescript-eslint/parser": "7.18.0",

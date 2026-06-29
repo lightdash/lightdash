@@ -72,7 +72,6 @@ onlyBuiltDependencies:
   - canvas
   - core-js
   - core-js-pure
-  - cpu-features
   - cypress
   - duckdb
   - esbuild
@@ -91,6 +90,10 @@ ignoredBuiltDependencies:
   # Optional native liblzma/XZ addon, pulled in transitively via just-bash → backend.
   # Not compiled; the backend runs without the native build.
   - node-liblzma
+  # Optional native CPU-feature detector for ssh2 (SSH tunnels). Its node-gyp
+  # build fails against Node 24's V8 (removed multi-arg ScriptOrigin ctor), and
+  # ssh2 runs without it (falls back to pure-JS crypto), so skip the build.
+  - cpu-features
 
 packageExtensions:
   '@mastra/schema-compat@0.11.2':
