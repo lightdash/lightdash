@@ -36,6 +36,19 @@ module.exports = {
                 publishCmd: 'pnpm release-packages',
             },
         ],
+
+        // Generate the release-safety marker (PROD-8359). Runs before the github
+        // plugin so the asset exists at publish time. Published asset-only — not
+        // committed; the GitHub releases/download/<tag>/release-safety.json URL is
+        // already a stable per-version URL for this public repo.
+        [
+            '@semantic-release/exec',
+            {
+                prepareCmd:
+                    'npx tsx scripts/gen-release-safety.ts --version ${nextRelease.version} --previous-version "${lastRelease.version}" --last-tag "${lastRelease.gitTag}" --out release-safety.json',
+            },
+        ],
+
         [
             '@semantic-release/git',
             {
@@ -55,7 +68,17 @@ module.exports = {
                     'chore(release): ${nextRelease.version} \n\n${nextRelease.notes}',
             },
         ],
-        ['@semantic-release/github', {}],
+        [
+            '@semantic-release/github',
+            {
+                assets: [
+                    {
+                        path: 'release-safety.json',
+                        label: 'release-safety.json',
+                    },
+                ],
+            },
+        ],
     ],
     tagFormat: '${version}',
 };

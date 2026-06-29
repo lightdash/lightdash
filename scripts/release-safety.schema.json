@@ -1,0 +1,97 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://lightdash.com/schemas/release-safety/v1.json",
+    "title": "Lightdash release-safety marker",
+    "description": "Machine-readable upgrade-safety signal attached to each Lightdash GitHub release. See docs/superpowers/specs/2026-06-29-prod-8359-release-safety-marker-design.md",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+        "schemaVersion",
+        "version",
+        "previousVersion",
+        "releaseDate",
+        "capabilities",
+        "migrations",
+        "compatibility",
+        "api",
+        "upgrade"
+    ],
+    "definitions": {
+        "triState": {
+            "oneOf": [
+                { "type": "boolean" },
+                { "type": "string", "const": "unknown" }
+            ]
+        },
+        "apiSurface": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["checked", "breaking", "changes"],
+            "properties": {
+                "checked": {
+                    "type": "boolean",
+                    "description": "Whether this surface was diffed for this release. false means UNKNOWN, not 'no break'."
+                },
+                "breaking": { "$ref": "#/definitions/triState" },
+                "changes": { "type": "array", "items": { "type": "string" } }
+            }
+        }
+    },
+    "properties": {
+        "schemaVersion": { "type": "string", "const": "1" },
+        "version": { "type": "string" },
+        "previousVersion": { "type": ["string", "null"] },
+        "releaseDate": { "type": "string", "format": "date-time" },
+        "capabilities": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "enum": ["migrations", "rest", "mcp", "upgrade"]
+            },
+            "description": "Which checks actually ran for this release."
+        },
+        "migrations": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["present", "count", "files", "ee"],
+            "properties": {
+                "present": { "$ref": "#/definitions/triState" },
+                "count": { "type": "integer", "minimum": 0 },
+                "files": { "type": "array", "items": { "type": "string" } },
+                "ee": { "type": "boolean" }
+            }
+        },
+        "compatibility": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["rollingUpdateSafe", "recommendedStrategy", "notes"],
+            "properties": {
+                "rollingUpdateSafe": { "$ref": "#/definitions/triState" },
+                "recommendedStrategy": {
+                    "type": "string",
+                    "enum": ["Recreate", "RollingUpdate", "unknown"]
+                },
+                "notes": { "type": "string" }
+            }
+        },
+        "api": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["rest", "mcp"],
+            "properties": {
+                "rest": { "$ref": "#/definitions/apiSurface" },
+                "mcp": { "$ref": "#/definitions/apiSurface" }
+            }
+        },
+        "upgrade": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["minPreviousVersion", "requiredStop", "note"],
+            "properties": {
+                "minPreviousVersion": { "type": ["string", "null"] },
+                "requiredStop": { "type": "boolean" },
+                "note": { "type": ["string", "null"] }
+            }
+        }
+    }
+}
