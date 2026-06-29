@@ -278,7 +278,7 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
         '</details>',
         '',
         '---',
-        'ℹ️ The published release asset is currently **disabled** (dark-launch: `RELEASE_SAFETY_MARKER_ENABLED=false`), so this preview is informational and does not affect releases yet.',
+        'ℹ️ Once merged, the release that ships this change will publish `release-safety.json` as a GitHub release asset (at `releases/download/<tag>/release-safety.json`); this preview shows what that marker will say. Self-hosted operators’ CI/CD can `jq`-gate on it before upgrading.',
         '_Blind spot: only the checks above are covered — code-only/config-only breaking changes (env defaults, removed Helm values, serialization changes) are not detected._',
         '',
     ].join('\n');

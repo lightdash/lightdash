@@ -100,12 +100,14 @@ jobs:
           # audited egress; absent the key, the generator skips it and leaves the
           # honest "unknown" verdict. Never fails the release.
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          # PROD-8359 kill-switch: the marker is DARK-LAUNCHED. While "false" the
-          # generator computes + logs the marker but writes no file (so no release
-          # asset is published) and skips the paid AI review. Flip to "true" to go
-          # live. The PR preview workflow is unaffected (it runs the generator with
-          # its own enabled=true against a throwaway file).
-          RELEASE_SAFETY_MARKER_ENABLED: 'false'
+          # PROD-8359 kill-switch (GO-LIVE). "true" → on every release the generator
+          # writes release-safety.json, runs the gated (paid) AI rolling-update
+          # review on any flagged change, and @semantic-release/github attaches the
+          # file as a release asset at releases/download/<tag>/release-safety.json.
+          # Flip back to "false" to instantly dark it again (no file, no asset, no
+          # AI spend) — this is the single revert. The PR preview workflow is
+          # independent (it always runs with its own enabled=true throwaway file).
+          RELEASE_SAFETY_MARKER_ENABLED: 'true'
         with:
           semantic_version: 19
           extra_plugins: |
