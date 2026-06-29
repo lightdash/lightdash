@@ -1,6 +1,7 @@
 import { CreateSnowflakeCredentials, DimensionType } from '@lightdash/common';
 import { createConnection } from 'snowflake-sdk';
 import { Readable } from 'stream';
+import type { Mock } from 'vitest';
 import {
     mapFieldType,
     SnowflakeWarehouseClient,
@@ -24,7 +25,7 @@ const mockStreamRows = () =>
         },
     });
 
-const executeMock = jest.fn(({ sqlText, complete }) => {
+const executeMock = vi.fn(({ sqlText, complete }) => {
     complete(
         undefined,
         {
@@ -37,22 +38,26 @@ const executeMock = jest.fn(({ sqlText, complete }) => {
     );
 });
 
-const getResultsFromQueryIdMock = jest.fn(({ sqlText, queryId }) => ({
+const getResultsFromQueryIdMock = vi.fn(({ sqlText, queryId }) => ({
     streamRows: mockStreamRows,
     getColumns: () => queryColumnsMock,
     getQueryId: () => queryId,
     getNumRows: () => 1,
 }));
 
-jest.mock('snowflake-sdk', () => ({
-    ...jest.requireActual('snowflake-sdk'),
-    createConnection: jest.fn(() => ({
-        connect: jest.fn((callback) => callback(null, {})),
+vi.mock('snowflake-sdk', async () => ({
+    ...(
+        await vi.importActual<{ default: typeof import('snowflake-sdk') }>(
+            'snowflake-sdk',
+        )
+    ).default,
+    createConnection: vi.fn(() => ({
+        connect: vi.fn((callback) => callback(null, {})),
         execute: executeMock,
-        destroy: jest.fn((callback) => callback(null, {})),
+        destroy: vi.fn((callback) => callback(null, {})),
         getResultsFromQueryId: getResultsFromQueryIdMock,
-        getQueryStatus: jest.fn(() => 'SUCCESS'),
-        isStillRunning: jest.fn(() => false),
+        getQueryStatus: vi.fn(() => 'SUCCESS'),
+        isStillRunning: vi.fn(() => false),
     })),
 }));
 
@@ -65,16 +70,16 @@ describe('SnowflakeWarehouseClient', () => {
         expect(results.rows[0]).toEqual(expectedRow);
     });
     it('expect schema with snowflake types mapped to dimension types', async () => {
-        (createConnection as jest.Mock).mockImplementationOnce(() => ({
-            connect: jest.fn((callback) => callback(null, {})),
-            execute: jest.fn(({ sqlText, complete }) => {
+        (createConnection as Mock).mockImplementationOnce(() => ({
+            connect: vi.fn((callback) => callback(null, {})),
+            execute: vi.fn(({ sqlText, complete }) => {
                 complete(
                     undefined,
                     { getColumns: () => queryColumnsMock },
                     columns,
                 );
             }),
-            destroy: jest.fn((callback) => callback(null, {})),
+            destroy: vi.fn((callback) => callback(null, {})),
         }));
         const warehouse = new SnowflakeWarehouseClient(credentials);
         expect(await warehouse.getCatalog(config)).toEqual(

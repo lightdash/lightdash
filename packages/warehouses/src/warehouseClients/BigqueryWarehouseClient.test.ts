@@ -1,4 +1,5 @@
 import { Dataset } from '@google-cloud/bigquery';
+import type { Mock, MockInstance } from 'vitest';
 import {
     BigquerySqlBuilder,
     BigqueryWarehouseClient,
@@ -19,7 +20,7 @@ describe('BigqueryWarehouseClient', () => {
     it('expect query rows with mapped values', async () => {
         const warehouse = new BigqueryWarehouseClient(credentials);
 
-        (warehouse.client.createQueryJob as jest.Mock) = jest.fn(
+        (warehouse.client.createQueryJob as Mock) = vi.fn(
             () => createJobResponse,
         );
 
@@ -27,12 +28,12 @@ describe('BigqueryWarehouseClient', () => {
 
         expect(results.fields).toEqual(expectedFields);
         expect(results.rows[0]).toEqual(expectedRow);
-        expect(
-            warehouse.client.createQueryJob as jest.Mock,
-        ).toHaveBeenCalledTimes(1);
+        expect(warehouse.client.createQueryJob as Mock).toHaveBeenCalledTimes(
+            1,
+        );
     });
     it('expect schema with bigquery types mapped to dimension types', async () => {
-        const getTableMock = jest
+        const getTableMock = vi
             .fn()
             .mockImplementationOnce(() => getTableResponse);
         Dataset.prototype.table = getTableMock;
@@ -46,10 +47,10 @@ describe('BigqueryWarehouseClient', () => {
 });
 
 describe('BigqueryWarehouseClient.sanitizeLabelsWithValues', () => {
-    let warnSpy: jest.SpyInstance;
+    let warnSpy: MockInstance;
 
     beforeEach(() => {
-        warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+        warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     });
 
     afterEach(() => {
