@@ -216,6 +216,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
             resolvedTimezone={resolvedTimezone}
         >
             <VisualizationProvider
+                hasExplorerStore={false}
                 key={selectedChartType ?? 'default'}
                 resultsData={resultsData}
                 chartConfig={

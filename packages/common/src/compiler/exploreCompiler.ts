@@ -1651,11 +1651,19 @@ export const createDimensionWithGranularity = (
                 baseTimeDimension.type,
             ),
             timeInterval: newTimeInterval,
-            label: `${baseTimeDimension.label} ${timeFrameConfigs[
-                newTimeInterval
-            ]
-                .getLabel()
-                .toLowerCase()}`,
+            label: explore.granularityLabels?.[newTimeInterval]
+                ? `${baseTimeDimension.label} ${explore.granularityLabels[newTimeInterval]}`
+                : `${baseTimeDimension.label} ${timeFrameConfigs[
+                      newTimeInterval
+                  ]
+                      .getLabel()
+                      .toLowerCase()}`,
+            ...(explore.granularityLabels?.[newTimeInterval]
+                ? {
+                      timeIntervalLabel:
+                          explore.granularityLabels[newTimeInterval],
+                  }
+                : {}),
             sql: timeFrameConfigs[newTimeInterval].getSql(
                 warehouseSqlBuilder.getAdapterType(),
                 newTimeInterval,

@@ -135,7 +135,7 @@ import type { DbProjectParameter } from '../../database/entities/projectParamete
 import { getDuckdbRuntimeConfig } from '../../ee/services/AsyncQueryService/getDuckdbRuntimeConfig';
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
-import { getSchedulerContext } from '../../logging/winston';
+import { getAppContext, getSchedulerContext } from '../../logging/winston';
 import { DownloadAuditModel } from '../../models/DownloadAuditModel';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
@@ -3169,6 +3169,19 @@ export class AsyncQueryService extends ProjectService {
         return tags;
     }
 
+    /**
+     * Reads the originating data app from the request-scoped ExecutionContext
+     * (populated by requestExecutionContextMiddleware from the app attribution
+     * header) so warehouse queries can be tagged back to the app. Mirrors
+     * getSchedulerQueryTags — provenance is carried ambiently, not via query
+     * args. Returns an empty object outside an app-originated request. The id
+     * is self-reported and not authoritative; tracking only.
+     */
+    private static getAppQueryTags(): Partial<RunQueryTags> {
+        const { app_uuid: appUuid } = getAppContext();
+        return appUuid ? { app_uuid: appUuid } : {};
+    }
+
     private static buildQueryTags(query: QueryHistory): RunQueryTags {
         let actorTags: Record<string, string>;
         if (query.createdByActorType === 'jwt') {
@@ -3303,6 +3316,7 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         projectUuid,
         pivotConfiguration,
+        pivotDimensions,
         userAttributeOverrides,
         materializationRole,
         columnTimezone,
@@ -3324,6 +3338,13 @@ export class AsyncQueryService extends ProjectService {
         warehouseSqlBuilder: WarehouseSqlBuilder;
         explore: Explore;
         pivotConfiguration?: PivotConfiguration;
+        /**
+         * Chart's pivotConfig.columns, for chart types that build no
+         * pivotConfiguration (big number, map, sankey) but still need row_total()
+         * to resolve — see BuildQueryProps.pivotDimensions. Defaults to the
+         * metricQuery's own pivotDimensions (the explorer path).
+         */
+        pivotDimensions?: string[];
         columnTimezone?: string;
         sessionTimezone?: string | null;
         /**
@@ -3387,7 +3408,7 @@ export class AsyncQueryService extends ProjectService {
             parameters,
             availableParameterDefinitions,
             pivotConfiguration,
-            pivotDimensions: metricQuery.pivotDimensions,
+            pivotDimensions: pivotDimensions ?? metricQuery.pivotDimensions,
             useTimezoneAwareDateTrunc,
             columnTimezone,
             applyDateZoomToFilters,
@@ -4139,6 +4160,7 @@ export class AsyncQueryService extends ProjectService {
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
             ...AsyncQueryService.getSchedulerQueryTags(),
+            ...AsyncQueryService.getAppQueryTags(),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             explore_name: inputMetricQuery.exploreName,
@@ -4771,6 +4793,7 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
             projectUuid,
             pivotConfiguration,
+            pivotDimensions: savedChart.pivotConfig?.columns,
             columnTimezone: getColumnTimezone(warehouseCredentials),
             preloadedUserAccessControls,
         });
@@ -5231,6 +5254,7 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
             projectUuid,
             pivotConfiguration,
+            pivotDimensions: savedChart.pivotConfig?.columns,
             columnTimezone: getColumnTimezone(warehouseCredentials),
             sessionTimezone,
             preloadedUserAccessControls: userAccessControls,

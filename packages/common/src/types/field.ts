@@ -689,6 +689,10 @@ export interface Dimension extends Field {
     requiredAttributes?: Record<string, string | string[]>;
     anyAttributes?: Record<string, string | string[]>;
     timeInterval?: TimeFrames;
+    /** Overridden display label for this dimension's grain (project
+     *  `granularity_labels`); undefined when no override — callers fall back
+     *  to `timeFrameConfigs[timeInterval].getLabel()`. */
+    timeIntervalLabel?: string;
     timeIntervalBaseDimensionName?: string;
     timeIntervalBaseDimensionType?: DimensionType;
     customTimeInterval?: string;

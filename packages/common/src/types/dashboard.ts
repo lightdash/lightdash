@@ -208,8 +208,11 @@ export type DashboardDAO = Omit<
 
 export type DateZoomTileTarget = {
     controlUuid: string;
-    fieldId: string;
-    tableName: string;
+    // Null for param-only tiles: they reference `${ld.parameters.date_zoom}` in
+    // custom SQL but plot no re-grainable date dimension, so there is no field to
+    // re-grain — only the control's grain feeds the reserved parameter.
+    fieldId: string | null;
+    tableName: string | null;
 };
 
 export type DateZoomControl = {

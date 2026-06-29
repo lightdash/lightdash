@@ -67,6 +67,7 @@ import {
     getCategoriesFromResource,
     getSpotlightConfigurationForResource,
     resolveAdditionalTimeIntervals,
+    resolveGranularityLabels,
 } from './lightdashProjectConfig';
 
 const convertTimezone = (
@@ -184,6 +185,7 @@ const convertDimension = (
     isAdditionalDimension?: boolean,
     disableTimestampConversion?: boolean,
     warnings?: InlineError[],
+    granularityLabels?: Partial<Record<TimeFrames, string>>,
 ): Dimension => {
     // Config block takes priority, then meta block
     const meta = merge({}, column.meta, column.config?.meta);
@@ -237,9 +239,12 @@ const convertDimension = (
             startOfWeek,
         );
         name = `${column.name}_${timeInterval.toLowerCase()}`;
-        label = `${label} ${timeFrameConfigs[timeInterval]
-            .getLabel()
-            .toLowerCase()}`;
+        const grainOverride = granularityLabels?.[timeInterval];
+        label = grainOverride
+            ? `${label} ${grainOverride}`
+            : `${label} ${timeFrameConfigs[timeInterval]
+                  .getLabel()
+                  .toLowerCase()}`;
 
         groups.push(
             meta.dimension?.label ??
@@ -262,6 +267,9 @@ const convertDimension = (
         timeInterval,
         timeIntervalBaseDimensionName,
         timeIntervalBaseDimensionType,
+        ...(timeInterval && granularityLabels?.[timeInterval]
+            ? { timeIntervalLabel: granularityLabels[timeInterval] }
+            : {}),
         hidden: !!meta.dimension?.hidden,
         format: meta.dimension?.format,
         round: meta.dimension?.round,
@@ -713,6 +721,7 @@ export const convertTable = (
     customGranularities?: Record<string, CustomGranularity>,
     allowPartialCompilation?: boolean,
     additionalTimeIntervals?: ResolvedAdditionalTimeIntervals,
+    granularityLabels?: Partial<Record<TimeFrames, string>>,
 ): Omit<Table, 'lineageGraph'> => {
     // Config block takes priority, then meta block
     const meta = merge({}, model.meta, model.config?.meta);
@@ -736,6 +745,7 @@ export const convertTable = (
                 undefined,
                 disableTimestampConversion,
                 tableWarnings,
+                granularityLabels,
             );
 
             // Config block takes priority, then meta block
@@ -821,6 +831,8 @@ export const convertTable = (
                                     'isAdditionalDimension' in dim &&
                                         dim.isAdditionalDimension,
                                     disableTimestampConversion,
+                                    undefined,
+                                    granularityLabels,
                                 ),
                         }),
                         {},
@@ -921,6 +933,7 @@ export const convertTable = (
                     true,
                     disableTimestampConversion,
                     tableWarnings,
+                    granularityLabels,
                 );
 
                 return {
@@ -1194,6 +1207,9 @@ export const convertExplores = async (
         lightdashProjectConfig.defaults?.additional_time_intervals,
         lightdashProjectConfig.custom_granularities,
     );
+    const granularityLabels = resolveGranularityLabels(
+        lightdashProjectConfig.defaults?.granularity_labels,
+    );
     const [tables, exploreErrors] = models.reduce(
         ([accTables, accErrors], model) => {
             // Config block takes priority, then meta block
@@ -1226,6 +1242,7 @@ export const convertExplores = async (
                     lightdashProjectConfig.custom_granularities,
                     allowPartialCompilation,
                     additionalTimeIntervals,
+                    granularityLabels,
                 );
 
                 // add lineage
@@ -1394,7 +1411,7 @@ export const convertExplores = async (
         // Properties created from `exploreToCreate` are specific to each explore. e.g. each explore can have a different name, label & joins
         const compiledExplores = exploresToCreate.map((exploreToCreate) => {
             try {
-                return exploreCompiler.compileExplore({
+                const compiled = exploreCompiler.compileExplore({
                     name: exploreToCreate.name,
                     label: exploreToCreate.label,
                     tags: tags || [],
@@ -1439,6 +1456,12 @@ export const convertExplores = async (
                     projectParameters: lightdashProjectConfig.parameters,
                     projectDefaults: lightdashProjectConfig.defaults,
                 });
+                return {
+                    ...compiled,
+                    ...(Object.keys(granularityLabels).length > 0
+                        ? { granularityLabels }
+                        : {}),
+                };
             } catch (e: unknown) {
                 return {
                     name: exploreToCreate.name,

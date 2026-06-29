@@ -536,6 +536,26 @@ export const stringFilterRuleMocks = {
         operator: FilterOperator.EQUALS,
     },
 
+    equalsFilterWithMultiValAndNull: {
+        ...stringMultiValueFilter,
+        operator: FilterOperator.EQUALS,
+        includeNull: true,
+    },
+    equalsFilterWithMultiValAndNullSQL: `((${stringFilterDimension}) IN ('Tom','Jerry') OR (${stringFilterDimension}) IS NULL)`,
+
+    equalsFilterWithOnlyNull: {
+        ...noValueFilter,
+        operator: FilterOperator.EQUALS,
+        includeNull: true,
+    },
+    equalsFilterWithOnlyNullSQL: `(${stringFilterDimension}) IS NULL`,
+
+    equalsFilterWithNoValAndNoNull: {
+        ...noValueFilter,
+        operator: FilterOperator.EQUALS,
+    },
+    equalsFilterWithNoValAndNoNullSQL: 'true',
+
     includeFilterWithEmptyString: {
         ...emptyStringFilter,
         operator: FilterOperator.INCLUDE,

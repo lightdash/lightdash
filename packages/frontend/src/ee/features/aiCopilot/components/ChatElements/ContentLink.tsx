@@ -8,7 +8,7 @@ import {
 import { type FC, type MouseEvent, type ReactNode } from 'react';
 import { Link, createPath, useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { setArtifact } from '../../store/aiArtifactSlice';
+import { setArtifact, setSavedChartPreview } from '../../store/aiArtifactSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
@@ -49,6 +49,9 @@ export const ContentLink: FC<ContentLinkProps> = ({
     const dispatch = useAiAgentStoreDispatch();
     const currentArtifact = useAiAgentStoreSelector(
         (state) => state.aiArtifact.artifact,
+    );
+    const currentSavedChart = useAiAgentStoreSelector(
+        (state) => state.aiArtifact.savedChart,
     );
 
     const handleDashboardClick = (e: MouseEvent<HTMLAnchorElement>) => {
@@ -97,6 +100,16 @@ export const ContentLink: FC<ContentLinkProps> = ({
             );
 
         case 'chart-link': {
+            const chartUuid =
+                'data-chart-uuid' in props &&
+                typeof props['data-chart-uuid'] === 'string'
+                    ? props['data-chart-uuid']
+                    : undefined;
+            const chartSource =
+                'data-chart-source' in props &&
+                typeof props['data-chart-source'] === 'string'
+                    ? props['data-chart-source']
+                    : undefined;
             const chartType =
                 'data-chart-type' in props &&
                 typeof props['data-chart-type'] === 'string'
@@ -108,12 +121,44 @@ export const ContentLink: FC<ContentLinkProps> = ({
                 Object.values(ChartKind).includes(chartType as ChartKind)
                     ? (chartType as ChartKind)
                     : ChartKind.VERTICAL_BAR;
+            const href = typeof props.href === 'string' ? props.href : '';
+            const isSavedChart = chartSource !== 'sql-runner' && !!chartUuid;
+            const isActive =
+                isSavedChart && currentSavedChart?.savedChartUuid === chartUuid;
+
+            const handleChartClick = (e: MouseEvent<HTMLAnchorElement>) => {
+                if (
+                    !isSavedChart ||
+                    !chartUuid ||
+                    e.defaultPrevented ||
+                    e.button !== 0 ||
+                    e.metaKey ||
+                    e.altKey ||
+                    e.ctrlKey ||
+                    e.shiftKey
+                ) {
+                    return;
+                }
+
+                e.preventDefault();
+                dispatch(
+                    setSavedChartPreview({
+                        savedChartUuid: chartUuid,
+                        messageUuid: message.uuid,
+                        threadUuid: message.threadUuid,
+                        projectUuid,
+                        agentUuid,
+                    }),
+                );
+            };
 
             return (
                 <ContentReferenceLink
                     chartKind={chartTypeKind}
-                    to={typeof props.href === 'string' ? props.href : undefined}
+                    to={href || undefined}
                     kind="chart"
+                    data-chart-active={isActive || undefined}
+                    onClick={handleChartClick}
                     rel="noreferrer"
                     target="_blank"
                     title={title}

@@ -13,11 +13,11 @@ export const getGranularityLabel = (
     granularity: DateGranularity | string,
     customLabels?: Record<string, string>,
 ): string => {
-    if (isStandardDateGranularity(granularity)) {
-        return granularity;
-    }
     if (customLabels && granularity in customLabels) {
         return customLabels[granularity];
+    }
+    if (isStandardDateGranularity(granularity)) {
+        return granularity;
     }
     return granularity
         .split('_')

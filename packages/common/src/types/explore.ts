@@ -15,6 +15,7 @@ import { type LightdashProjectConfig } from './lightdashProjectConfig';
 import { type ParametersValuesMap } from './parameters';
 import { type PreAggregateDef } from './preAggregate';
 import { type TableBase } from './table';
+import { type TimeFrames } from './timeFrames';
 
 export enum JoinRelationship {
     ONE_TO_MANY = 'one-to-many',
@@ -117,6 +118,9 @@ export type Explore = {
     };
     aiHint?: string | string[];
     parameters?: LightdashProjectConfig['parameters'];
+    /** Project `granularity_labels` overrides, keyed by TimeFrames. Consumed
+     *  by the date zoom to relabel standard granularities. */
+    granularityLabels?: Partial<Record<TimeFrames, string>>;
     savedParameterValues?: ParametersValuesMap; // Parameter values stored with virtual views
     preAggregates?: PreAggregateDef[];
     preAggregateSource?: PreAggregateSource;

@@ -100,6 +100,7 @@ export class SlackIntegrationService<
             hasRequiredScopes: this.slackClient.hasRequiredScopes(
                 installation.scopes,
             ),
+            unfurlsEnabled: installation.unfurlsEnabled,
         };
 
         return response;

@@ -53,6 +53,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
         isLoading,
         isEditMode,
         parameters,
+        hasExplorerStore,
     } = useVisualizationContext();
 
     const hasSignaledScreenshotReady = useRef(false);
@@ -303,10 +304,8 @@ const SimpleTable: FC<SimpleTableProps> = ({
             >
                 {pivotTableData.data && resultsData?.hasFetchedAllRows ? (
                     <>
-                        {/* Dashboard mode has no explorer store — use the plain
-                         * table; the explorer uses the sort-enabled variant. */}
-                        {isDashboard ? (
-                            <PivotTable
+                        {hasExplorerStore && !isDashboard ? (
+                            <ExplorerPivotTable
                                 className={className}
                                 data={pivotTableData.data}
                                 isMinimal={minimal}
@@ -328,7 +327,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                                 {...rest}
                             />
                         ) : (
-                            <ExplorerPivotTable
+                            <PivotTable
                                 className={className}
                                 data={pivotTableData.data}
                                 isMinimal={minimal}

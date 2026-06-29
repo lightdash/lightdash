@@ -82,6 +82,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 description: preset.description,
                 provider: preset.provider,
                 default:
+                    defaultModel !== null &&
                     preset.provider === defaultModel.provider &&
                     matchesPreset(preset, defaultModel.name),
                 supportsReasoning: preset.supportsReasoning,

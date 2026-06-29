@@ -10,6 +10,7 @@ export type RunQueryTags = {
     project_uuid?: string;
     user_uuid?: string;
     organization_uuid?: string;
+    app_uuid?: string;
     chart_uuid?: string;
     dashboard_uuid?: string;
     saved_sql_uuid?: string;

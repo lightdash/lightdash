@@ -16,7 +16,6 @@ import { lightdashApiStream } from '../../../../api';
 import { getAiAgentApiBase } from '../hooks/aiAgentRouting';
 import {
     addReasoning,
-    addMcpUnavailableNotice,
     addToolCall,
     appendStepProgress,
     markToolCallDecided,
@@ -61,17 +60,6 @@ type StreamToolPart = {
     output?: unknown;
     preliminary?: boolean;
     state: string;
-};
-
-type McpUnavailableNoticeChunk = UIMessageChunk & {
-    type: 'data-mcp-unavailable';
-    data: {
-        serverUuid: string;
-        serverName: string;
-        message: string;
-        status: 'not_connected' | 'connecting' | 'connected' | 'error';
-    };
-    transient?: boolean;
 };
 
 type StepProgressChunk = UIMessageChunk & {
@@ -209,29 +197,6 @@ export const getStreamToolCallPart = (
     } as StreamToolCallPart;
 };
 
-export const getMcpUnavailableNoticeFromChunk = (
-    chunk: UIMessageChunk,
-): McpUnavailableNoticeChunk['data'] | null => {
-    if (
-        chunk.type === 'data-mcp-unavailable' &&
-        'data' in chunk &&
-        chunk.data &&
-        typeof chunk.data === 'object'
-    ) {
-        const data = chunk.data as McpUnavailableNoticeChunk['data'];
-        if (
-            typeof data.serverUuid === 'string' &&
-            typeof data.serverName === 'string' &&
-            typeof data.message === 'string' &&
-            typeof data.status === 'string'
-        ) {
-            return data;
-        }
-    }
-
-    return null;
-};
-
 export const getStepProgressFromChunk = (
     chunk: UIMessageChunk,
 ): { message: string; toolName: string | null } | null => {
@@ -312,17 +277,6 @@ export function useAiAgentThreadStreamMutation() {
                         const { done, value } = await rawChunkReader.read();
                         if (done) {
                             break;
-                        }
-
-                        const notice = getMcpUnavailableNoticeFromChunk(value);
-                        if (notice) {
-                            dispatch(
-                                addMcpUnavailableNotice({
-                                    threadUuid,
-                                    notice,
-                                }),
-                            );
-                            continue;
                         }
 
                         const stepProgress = getStepProgressFromChunk(value);

@@ -224,6 +224,269 @@ describe('CoderService', () => {
         });
     });
 
+    describe('getConfigWithDateZoomTileSlugs', () => {
+        it('should convert date zoom tileTargets tile UUIDs to slugs', () => {
+            const mockDashboard = {
+                config: {
+                    isDateZoomDisabled: false,
+                    dateZoomConfig: {
+                        controls: [
+                            {
+                                uuid: 'control-1',
+                                name: 'Revenue zoom',
+                                granularity: 'WEEK',
+                            },
+                        ],
+                        tileTargets: {
+                            'uuid-1': {
+                                controlUuid: 'control-1',
+                                fieldId: 'orders_order_date',
+                                tableName: 'orders',
+                            },
+                        },
+                    },
+                },
+                tiles: [
+                    {
+                        uuid: 'uuid-1',
+                        type: DashboardTileTypes.SAVED_CHART,
+                        properties: { chartSlug: 'slug-1' },
+                    },
+                ],
+            } as AnyType;
+
+            const result =
+                CoderService.getConfigWithDateZoomTileSlugs(mockDashboard);
+
+            expect(result?.dateZoomConfig?.tileTargets).toEqual({
+                'slug-1': {
+                    controlUuid: 'control-1',
+                    fieldId: 'orders_order_date',
+                    tableName: 'orders',
+                },
+            });
+            // controls are untouched
+            expect(result?.dateZoomConfig?.controls).toEqual(
+                mockDashboard.config.dateZoomConfig.controls,
+            );
+        });
+
+        it('should drop tileTargets whose tile UUID no longer exists', () => {
+            const mockDashboard = {
+                config: {
+                    isDateZoomDisabled: false,
+                    dateZoomConfig: {
+                        controls: [
+                            {
+                                uuid: 'control-1',
+                                name: 'Revenue zoom',
+                                granularity: 'WEEK',
+                            },
+                        ],
+                        tileTargets: {
+                            'orphaned-uuid': {
+                                controlUuid: 'control-1',
+                                fieldId: 'orders_order_date',
+                                tableName: 'orders',
+                            },
+                        },
+                    },
+                },
+                tiles: [],
+            } as AnyType;
+
+            const result =
+                CoderService.getConfigWithDateZoomTileSlugs(mockDashboard);
+
+            expect(result?.dateZoomConfig?.tileTargets).toEqual({});
+        });
+
+        it('should return config unchanged when there is no dateZoomConfig', () => {
+            const mockDashboard = {
+                config: { isDateZoomDisabled: false },
+                tiles: [],
+            } as AnyType;
+
+            const result =
+                CoderService.getConfigWithDateZoomTileSlugs(mockDashboard);
+
+            expect(result).toEqual({ isDateZoomDisabled: false });
+        });
+
+        it('should return undefined when there is no config', () => {
+            const mockDashboard = { tiles: [] } as AnyType;
+
+            expect(
+                CoderService.getConfigWithDateZoomTileSlugs(mockDashboard),
+            ).toBeUndefined();
+        });
+    });
+
+    describe('getConfigWithDateZoomTileUuids', () => {
+        const tilesWithUuids = [
+            {
+                uuid: 'uuid-1',
+                type: DashboardTileTypes.SAVED_CHART,
+                properties: { chartSlug: 'slug-1' },
+            },
+            {
+                uuid: 'uuid-2',
+                type: DashboardTileTypes.SAVED_CHART,
+                properties: { chartSlug: 'slug-2' },
+            },
+        ];
+
+        it('should convert date zoom tileTargets tile slugs to UUIDs', () => {
+            const config = {
+                isDateZoomDisabled: false,
+                dateZoomConfig: {
+                    controls: [
+                        {
+                            uuid: 'control-1',
+                            name: 'Revenue zoom',
+                            granularity: 'WEEK',
+                        },
+                    ],
+                    tileTargets: {
+                        'slug-1': {
+                            controlUuid: 'control-1',
+                            fieldId: 'orders_order_date',
+                            tableName: 'orders',
+                        },
+                    },
+                },
+            };
+
+            const result = CoderService.getConfigWithDateZoomTileUuids(
+                config as AnyType,
+                tilesWithUuids as AnyType,
+            );
+
+            expect(result.dateZoomConfig?.tileTargets).toEqual({
+                'uuid-1': {
+                    controlUuid: 'control-1',
+                    fieldId: 'orders_order_date',
+                    tableName: 'orders',
+                },
+            });
+        });
+
+        it('should log an error and skip a target whose slug does not match a tile', () => {
+            console.error = jest.fn();
+
+            const config = {
+                isDateZoomDisabled: false,
+                dateZoomConfig: {
+                    controls: [],
+                    tileTargets: {
+                        'slug-1': {
+                            controlUuid: 'control-1',
+                            fieldId: 'f1',
+                            tableName: 'orders',
+                        },
+                        'missing-slug': {
+                            controlUuid: 'control-1',
+                            fieldId: 'f2',
+                            tableName: 'orders',
+                        },
+                    },
+                },
+            };
+
+            const result = CoderService.getConfigWithDateZoomTileUuids(
+                config as AnyType,
+                tilesWithUuids as AnyType,
+            );
+
+            expect(console.error).toHaveBeenCalledWith(
+                'Tile with slug missing-slug not found for date zoom target',
+            );
+            expect(result.dateZoomConfig?.tileTargets).toEqual({
+                'uuid-1': {
+                    controlUuid: 'control-1',
+                    fieldId: 'f1',
+                    tableName: 'orders',
+                },
+            });
+        });
+
+        it('should return config unchanged when there is no dateZoomConfig', () => {
+            const config = { isDateZoomDisabled: false };
+
+            const result = CoderService.getConfigWithDateZoomTileUuids(
+                config as AnyType,
+                tilesWithUuids as AnyType,
+            );
+
+            expect(result).toEqual({ isDateZoomDisabled: false });
+        });
+    });
+
+    describe('date zoom config round-trip', () => {
+        it('should preserve tileTargets through download then upload', () => {
+            // Download: a saved dashboard keyed by the original tile UUID
+            const mockDashboard = {
+                config: {
+                    isDateZoomDisabled: false,
+                    dateZoomConfig: {
+                        controls: [
+                            {
+                                uuid: 'control-1',
+                                name: 'Revenue zoom',
+                                granularity: 'WEEK',
+                            },
+                        ],
+                        tileTargets: {
+                            'original-uuid': {
+                                controlUuid: 'control-1',
+                                fieldId: 'orders_order_date',
+                                tableName: 'orders',
+                            },
+                        },
+                    },
+                },
+                tiles: [
+                    {
+                        uuid: 'original-uuid',
+                        type: DashboardTileTypes.SAVED_CHART,
+                        properties: { chartSlug: 'revenue-over-time' },
+                    },
+                ],
+            } as AnyType;
+
+            const asCodeConfig =
+                CoderService.getConfigWithDateZoomTileSlugs(mockDashboard);
+
+            // As-code is keyed by slug, not the ephemeral tile UUID
+            expect(
+                Object.keys(asCodeConfig?.dateZoomConfig?.tileTargets ?? {}),
+            ).toEqual(['revenue-over-time']);
+
+            // Upload: the tile is re-created with a brand new UUID
+            const tilesWithNewUuids = [
+                {
+                    uuid: 'regenerated-uuid',
+                    type: DashboardTileTypes.SAVED_CHART,
+                    properties: { chartSlug: 'revenue-over-time' },
+                },
+            ];
+
+            const restoredConfig = CoderService.getConfigWithDateZoomTileUuids(
+                asCodeConfig as AnyType,
+                tilesWithNewUuids as AnyType,
+            );
+
+            // The target is re-attached to the new tile UUID, not lost
+            expect(restoredConfig.dateZoomConfig?.tileTargets).toEqual({
+                'regenerated-uuid': {
+                    controlUuid: 'control-1',
+                    fieldId: 'orders_order_date',
+                    tableName: 'orders',
+                },
+            });
+        });
+    });
+
     describe('convertTileWithSlugsToUuids', () => {
         it('should allow chart tiles with null chartSlug', async () => {
             const service = new CoderService({

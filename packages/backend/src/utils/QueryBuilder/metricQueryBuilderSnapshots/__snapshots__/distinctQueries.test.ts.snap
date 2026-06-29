@@ -180,6 +180,8 @@ exports[`MetricQueryBuilder snapshot: distinct queries matches snapshot for a su
 "WITH
   dd_orders_total_revenue AS (
     SELECT
+      "orders_payment_method",
+      "orders_status",
       SUM(
         CASE
           WHEN __dd_rn = 1 THEN __dd_val
@@ -189,16 +191,23 @@ exports[`MetricQueryBuilder snapshot: distinct queries matches snapshot for a su
     FROM
       (
         SELECT
+          "orders".payment_method AS "orders_payment_method",
+          "orders".status AS "orders_status",
           "orders".amount AS __dd_val,
           ROW_NUMBER() OVER (
             PARTITION BY
-              "orders".line_item_id
+              "orders".line_item_id,
+              "orders".payment_method,
+              "orders".status
             ORDER BY
               "orders".amount
           ) AS __dd_rn
         FROM
           "db"."schema"."orders" AS "orders"
       ) __dd_sub
+    GROUP BY
+      1,
+      2
   ),
   dd_base AS (
     SELECT
@@ -215,7 +224,20 @@ SELECT
   dd_orders_total_revenue."orders_total_revenue" AS "orders_total_revenue"
 FROM
   dd_base
-  CROSS JOIN dd_orders_total_revenue
+  INNER JOIN dd_orders_total_revenue ON (
+    dd_base."orders_payment_method" = dd_orders_total_revenue."orders_payment_method"
+    OR (
+      dd_base."orders_payment_method" IS NULL
+      AND dd_orders_total_revenue."orders_payment_method" IS NULL
+    )
+  )
+  AND (
+    dd_base."orders_status" = dd_orders_total_revenue."orders_status"
+    OR (
+      dd_base."orders_status" IS NULL
+      AND dd_orders_total_revenue."orders_status" IS NULL
+    )
+  )
 ORDER BY
   "orders_total_revenue" DESC
 LIMIT
@@ -287,6 +309,7 @@ exports[`MetricQueryBuilder snapshot: distinct queries matches snapshot for a ty
   ),
   dd_transfers_total_residual_transfers AS (
     SELECT
+      "transfers_date",
       SUM(
         CASE
           WHEN __dd_rn = 1 THEN __dd_val
@@ -296,16 +319,20 @@ exports[`MetricQueryBuilder snapshot: distinct queries matches snapshot for a ty
     FROM
       (
         SELECT
+          "transfers".date AS "transfers_date",
           "transfers".total_daily_residual_transfers AS __dd_val,
           ROW_NUMBER() OVER (
             PARTITION BY
-              "transfers".client_id
+              "transfers".client_id,
+              "transfers".date
             ORDER BY
               "transfers".total_daily_residual_transfers
           ) AS __dd_rn
         FROM
           "db"."schema"."transfers" AS "transfers"
       ) __dd_sub
+    GROUP BY
+      1
   ),
   dd_base AS (
     SELECT
@@ -336,7 +363,13 @@ FROM
       AND dd_transfers_total_corridor_transfers."transfers_date" IS NULL
     )
   )
-  CROSS JOIN dd_transfers_total_residual_transfers
+  INNER JOIN dd_transfers_total_residual_transfers ON (
+    dd_base."transfers_date" = dd_transfers_total_residual_transfers."transfers_date"
+    OR (
+      dd_base."transfers_date" IS NULL
+      AND dd_transfers_total_residual_transfers."transfers_date" IS NULL
+    )
+  )
 ORDER BY
   "transfers_date"
 LIMIT
@@ -374,6 +407,7 @@ exports[`MetricQueryBuilder snapshot: distinct queries matches snapshot for a ty
   ),
   dd_transfers_total_residual_transfers AS (
     SELECT
+      "transfers_date",
       SUM(
         CASE
           WHEN __dd_rn = 1 THEN __dd_val
@@ -383,16 +417,20 @@ exports[`MetricQueryBuilder snapshot: distinct queries matches snapshot for a ty
     FROM
       (
         SELECT
+          "transfers".date AS "transfers_date",
           "transfers".total_daily_residual_transfers AS __dd_val,
           ROW_NUMBER() OVER (
             PARTITION BY
-              "transfers".client_id
+              "transfers".client_id,
+              "transfers".date
             ORDER BY
               "transfers".total_daily_residual_transfers
           ) AS __dd_rn
         FROM
           "db"."schema"."transfers" AS "transfers"
       ) __dd_sub
+    GROUP BY
+      1
   ),
   dd_base AS (
     SELECT
@@ -416,7 +454,13 @@ FROM
       AND dd_transfers_total_corridor_transfers."transfers_date" IS NULL
     )
   )
-  CROSS JOIN dd_transfers_total_residual_transfers
+  INNER JOIN dd_transfers_total_residual_transfers ON (
+    dd_base."transfers_date" = dd_transfers_total_residual_transfers."transfers_date"
+    OR (
+      dd_base."transfers_date" IS NULL
+      AND dd_transfers_total_residual_transfers."transfers_date" IS NULL
+    )
+  )
 ORDER BY
   "transfers_date"
 LIMIT
@@ -427,6 +471,7 @@ exports[`MetricQueryBuilder snapshot: distinct queries matches snapshot for an a
 "WITH
   dd_orders_avg_shipping_cost AS (
     SELECT
+      "orders_payment_method",
       CAST(
         SUM(
           CASE
@@ -447,16 +492,20 @@ exports[`MetricQueryBuilder snapshot: distinct queries matches snapshot for an a
     FROM
       (
         SELECT
+          "orders".payment_method AS "orders_payment_method",
           "orders".shipping_cost AS __dd_val,
           ROW_NUMBER() OVER (
             PARTITION BY
-              "orders".line_item_id
+              "orders".line_item_id,
+              "orders".payment_method
             ORDER BY
               "orders".shipping_cost
           ) AS __dd_rn
         FROM
           "db"."schema"."orders" AS "orders"
       ) __dd_sub
+    GROUP BY
+      1
   ),
   dd_base AS (
     SELECT
@@ -471,7 +520,13 @@ SELECT
   dd_orders_avg_shipping_cost."orders_avg_shipping_cost" AS "orders_avg_shipping_cost"
 FROM
   dd_base
-  CROSS JOIN dd_orders_avg_shipping_cost
+  INNER JOIN dd_orders_avg_shipping_cost ON (
+    dd_base."orders_payment_method" = dd_orders_avg_shipping_cost."orders_payment_method"
+    OR (
+      dd_base."orders_payment_method" IS NULL
+      AND dd_orders_avg_shipping_cost."orders_payment_method" IS NULL
+    )
+  )
 ORDER BY
   "orders_avg_shipping_cost" DESC
 LIMIT
@@ -554,6 +609,7 @@ exports[`MetricQueryBuilder snapshot: distinct queries matches snapshot for both
   ),
   dd_transfers_total_residual_transfers AS (
     SELECT
+      "transfers_date",
       SUM(
         CASE
           WHEN __dd_rn = 1 THEN __dd_val
@@ -563,16 +619,20 @@ exports[`MetricQueryBuilder snapshot: distinct queries matches snapshot for both
     FROM
       (
         SELECT
+          "transfers".date AS "transfers_date",
           "transfers".total_daily_residual_transfers AS __dd_val,
           ROW_NUMBER() OVER (
             PARTITION BY
-              "transfers".client_id
+              "transfers".client_id,
+              "transfers".date
             ORDER BY
               "transfers".total_daily_residual_transfers
           ) AS __dd_rn
         FROM
           "db"."schema"."transfers" AS "transfers"
       ) __dd_sub
+    GROUP BY
+      1
   ),
   dd_base AS (
     SELECT
@@ -603,7 +663,13 @@ FROM
       AND dd_transfers_total_corridor_transfers."transfers_date" IS NULL
     )
   )
-  CROSS JOIN dd_transfers_total_residual_transfers
+  INNER JOIN dd_transfers_total_residual_transfers ON (
+    dd_base."transfers_date" = dd_transfers_total_residual_transfers."transfers_date"
+    OR (
+      dd_base."transfers_date" IS NULL
+      AND dd_transfers_total_residual_transfers."transfers_date" IS NULL
+    )
+  )
 ORDER BY
   "transfers_date"
 LIMIT

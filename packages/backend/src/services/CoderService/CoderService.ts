@@ -31,7 +31,6 @@ import {
     ProjectType,
     PromotionAction,
     PromotionChanges,
-    removePivotedSeriesValuesFromChartConfig,
     SavedChartDAO,
     SessionUser,
     Space,
@@ -40,7 +39,10 @@ import {
     SqlChartAsCode,
     UpdatedByUser,
     type ContentVerificationInfo,
+    type DashboardConfig,
     type DashboardTileWithSlug,
+    type DateZoomConfig,
+    type DateZoomTileTarget,
     type FilterGroup,
     type FilterGroupInput,
     type FilterGroupItem,
@@ -214,9 +216,7 @@ export class CoderService extends BaseService {
             tableName: chart.tableName,
             updatedAt: chart.updatedAt,
             metricQuery: chart.metricQuery,
-            chartConfig: removePivotedSeriesValuesFromChartConfig(
-                chart.chartConfig,
-            ),
+            chartConfig: chart.chartConfig,
             pivotConfig: chart.pivotConfig,
             dashboardSlug: chart.dashboardUuid
                 ? dashboardSlugs[chart.dashboardUuid]
@@ -382,6 +382,73 @@ export class CoderService extends BaseService {
         };
     }
 
+    /* Convert date zoom control tileTargets from tile uuids to tile slugs
+     * DashboardDAO to DashboardAsCode
+     */
+    static getConfigWithDateZoomTileSlugs(
+        dashboard: DashboardDAO,
+    ): DashboardConfig | undefined {
+        const { config } = dashboard;
+        if (!config?.dateZoomConfig) return config;
+
+        const tileTargets = Object.entries(
+            config.dateZoomConfig.tileTargets ?? {},
+        ).reduce<Record<string, DateZoomTileTarget>>(
+            (acc, [tileUuid, target]) => {
+                const tileSlug = CoderService.getChartSlugForTileUuid(
+                    dashboard,
+                    tileUuid,
+                );
+                if (!tileSlug) return acc;
+                return { ...acc, [tileSlug]: target };
+            },
+            {},
+        );
+
+        return {
+            ...config,
+            dateZoomConfig: { ...config.dateZoomConfig, tileTargets },
+        };
+    }
+
+    /* Convert date zoom control tileTargets from tile slugs to tile uuids
+     * DashboardAsCode to DashboardDAO
+     */
+    static getConfigWithDateZoomTileUuids(
+        config: DashboardConfig,
+        tilesWithUuids: DashboardTileWithSlug[],
+    ): DashboardConfig {
+        const { dateZoomConfig } = config;
+        if (!dateZoomConfig) return config;
+
+        const tileTargets = Object.entries(
+            dateZoomConfig.tileTargets ?? {},
+        ).reduce<Record<string, DateZoomTileTarget>>(
+            (acc, [tileSlug, target]) => {
+                const tileUuid = tilesWithUuids.find(
+                    (t) =>
+                        isAnyChartTile(t) &&
+                        // Match first by tileSlug, then by chartSlug (for the case of tile not having a slug)
+                        (t.tileSlug === tileSlug ||
+                            t.properties.chartSlug === tileSlug),
+                )?.uuid;
+                if (!tileUuid) {
+                    console.error(
+                        `Tile with slug ${tileSlug} not found for date zoom target`,
+                    );
+                    return acc;
+                }
+                return { ...acc, [tileUuid]: target };
+            },
+            {},
+        );
+
+        return {
+            ...config,
+            dateZoomConfig: { ...dateZoomConfig, tileTargets },
+        };
+    }
+
     private static transformDashboard(
         dashboard: DashboardDAO,
         spaceSummary: Pick<SpaceSummaryBase, 'uuid' | 'name' | 'path'>[],
@@ -471,7 +538,13 @@ export class CoderService extends BaseService {
             filters: CoderService.getFiltersWithTileSlugs(dashboard),
             tabs: dashboard.tabs,
             slug: dashboard.slug,
-            ...(dashboard.config ? { config: dashboard.config } : {}),
+            ...(dashboard.config
+                ? {
+                      config: CoderService.getConfigWithDateZoomTileSlugs(
+                          dashboard,
+                      ),
+                  }
+                : {}),
             ...(dashboard.parameters
                 ? { parameters: dashboard.parameters }
                 : {}),
@@ -1812,6 +1885,12 @@ export class CoderService extends BaseService {
             dashboardWithDefaults,
             tilesWithUuids,
         );
+        const dashboardConfig = dashboardWithDefaults.config
+            ? CoderService.getConfigWithDateZoomTileUuids(
+                  dashboardWithDefaults.config,
+                  tilesWithUuids,
+              )
+            : dashboardWithDefaults.config;
         // If chart does not exist, we can't use promoteService,
         // since it relies on information that's not available in ChartAsCode, and other uuids
         if (dashboardSummary === undefined) {
@@ -1832,6 +1911,7 @@ export class CoderService extends BaseService {
                     tiles: tilesWithUuids,
                     forceSlug: shouldUseExactSlug,
                     filters: dashboardFilters,
+                    config: dashboardConfig,
                 },
                 user,
                 projectUuid,
@@ -1878,6 +1958,7 @@ export class CoderService extends BaseService {
         const dashboardWithUuids = {
             ...dashboardWithDefaults,
             tiles: tilesWithUuids,
+            config: dashboardConfig,
         };
         const { promotedDashboard, upstreamDashboard } =
             await this.promoteService.getPromotedDashboard(

@@ -185,17 +185,19 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
 
     const customGranularities = useMemo(
         () =>
-            Object.keys(availableCustomGranularities).sort((a, b) => {
-                const labelA = getGranularityLabel(
-                    a,
-                    availableCustomGranularities,
-                );
-                const labelB = getGranularityLabel(
-                    b,
-                    availableCustomGranularities,
-                );
-                return labelA.localeCompare(labelB);
-            }),
+            Object.keys(availableCustomGranularities)
+                .filter((g) => !isStandardDateGranularity(g))
+                .sort((a, b) => {
+                    const labelA = getGranularityLabel(
+                        a,
+                        availableCustomGranularities,
+                    );
+                    const labelB = getGranularityLabel(
+                        b,
+                        availableCustomGranularities,
+                    );
+                    return labelA.localeCompare(labelB);
+                }),
         [availableCustomGranularities],
     );
 
@@ -368,7 +370,10 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                                             <EditModeGranularityItem
                                                 key={granularity}
                                                 granularity={granularity}
-                                                label={granularity}
+                                                label={getGranularityLabel(
+                                                    granularity,
+                                                    availableCustomGranularities,
+                                                )}
                                                 isEnabled={dateZoomGranularities.includes(
                                                     granularity,
                                                 )}
@@ -479,7 +484,10 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                                             <ViewModeGranularityItem
                                                 key={granularity}
                                                 granularity={granularity}
-                                                label={granularity}
+                                                label={getGranularityLabel(
+                                                    granularity,
+                                                    availableCustomGranularities,
+                                                )}
                                                 isActive={
                                                     dateZoomGranularity ===
                                                     granularity

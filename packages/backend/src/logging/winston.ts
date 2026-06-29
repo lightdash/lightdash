@@ -1,4 +1,5 @@
 import {
+    LightdashAppUuidHeader,
     LightdashMode,
     LightdashRequestMethodHeader,
     LightdashSdkVersionHeader,
@@ -64,6 +65,7 @@ export type ExecutionContextInfo = {
     };
     organization_uuid?: string;
     organization_name?: string;
+    app_uuid?: string;
     scheduler?: {
         scheduler_uuid?: string;
         scheduler_name?: string;
@@ -99,6 +101,15 @@ export const getOrganizationContext = (): Pick<
         organization_uuid: ctx.organization_uuid,
         organization_name: ctx.organization_name,
     };
+};
+
+// Reads the originating data app from the request-scoped ExecutionContext
+// (populated by requestExecutionContextMiddleware from the app attribution
+// header) so warehouse queries can be tagged back to the app. Returns an empty
+// object outside an app-originated request.
+export const getAppContext = (): Pick<ExecutionContextInfo, 'app_uuid'> => {
+    if (!ExecutionContext.exists()) return {};
+    return { app_uuid: ExecutionContext.get<ExecutionContextInfo>().app_uuid };
 };
 
 const ALIAS_RESPONSE_TIME_AS_DURATION = winston.format((info) => {
@@ -323,10 +334,13 @@ export const expressWinstonPreResponseMiddleware: express.RequestHandler = (
 };
 
 // Stamps every log emitted while processing this request with the requesting
-// user's organization context, by attaching it to the AsyncLocalStorage-backed
-// ExecutionContext that `addExecutionContent` already merges into log payloads.
-// Place this AFTER session/auth middlewares so req.user and req.account are
-// populated. req.user is set for session-authenticated requests; embed/JWT
+// user's organization context and, for data-app traffic, the originating app —
+// by attaching them to the AsyncLocalStorage-backed ExecutionContext that
+// `addExecutionContent` already merges into log payloads. The app id rides in
+// on a self-reported header and is also read here so warehouse query tagging
+// can attribute queries back to the app without threading it through service
+// args. Place this AFTER session/auth middlewares so req.user and req.account
+// are populated. req.user is set for session-authenticated requests; embed/JWT
 // requests populate req.account only, so we fall back to it.
 export const requestExecutionContextMiddleware: express.RequestHandler = (
     req,
@@ -338,13 +352,17 @@ export const requestExecutionContextMiddleware: express.RequestHandler = (
         req.account?.organization?.organizationUuid;
     const organizationName =
         req.user?.organizationName ?? req.account?.organization?.name;
-    if (!organizationUuid && !organizationName) {
+    const appUuidHeader = req.headers[LightdashAppUuidHeader.toLowerCase()];
+    const appUuid =
+        typeof appUuidHeader === 'string' ? appUuidHeader : undefined;
+    if (!organizationUuid && !organizationName && !appUuid) {
         next();
         return;
     }
     const context: ExecutionContextInfo = {
         organization_uuid: organizationUuid,
         organization_name: organizationName,
+        ...(appUuid ? { app_uuid: appUuid } : {}),
     };
     if (ExecutionContext.exists()) {
         ExecutionContext.update(context as unknown as Record<string, unknown>);

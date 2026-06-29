@@ -87,6 +87,16 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                             onDropdownClose={popoverProps?.onClose}
                             values={(rule.values || []).filter(isString)}
                             singleValue={isSingleValue}
+                            showNullOption={
+                                rule.operator === FilterOperator.EQUALS
+                            }
+                            includeNull={rule.includeNull}
+                            onIncludeNullChange={(includeNull) =>
+                                onChange({
+                                    ...rule,
+                                    includeNull,
+                                })
+                            }
                             onChange={(values) =>
                                 onChange({
                                     ...rule,

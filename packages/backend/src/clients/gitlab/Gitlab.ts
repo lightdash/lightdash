@@ -81,11 +81,11 @@ export class GitlabRateLimitError extends LightdashError {
 export const isGitlabRateLimitError = (error: unknown): boolean =>
     error instanceof GitlabRateLimitError;
 
-const makeGitlabRequest = async (
+const makeGitlabResponse = async (
     url: string,
     token: string,
     options: RequestInit = {},
-) => {
+): Promise<Response> => {
     const response = await fetch(url, {
         ...options,
         headers: {
@@ -123,6 +123,15 @@ const makeGitlabRequest = async (
         );
     }
 
+    return response;
+};
+
+const makeGitlabRequest = async (
+    url: string,
+    token: string,
+    options: RequestInit = {},
+) => {
+    const response = await makeGitlabResponse(url, token, options);
     return response.json();
 };
 
@@ -485,19 +494,45 @@ export const updateMergeRequest = async ({
     });
 };
 
+// GitLab paginates the branches endpoint and defaults to 20 per page, so a
+// single request silently truncates repos with more branches. Request the max
+// page size and follow `x-next-page` (empty on the last page) to collect them
+// all — matching the GitHub client's `octokit.paginate` behaviour.
+const GITLAB_BRANCHES_PER_PAGE = 100;
+// Safety cap (100 pages × 100 = 10000 branches) so a malformed/looping
+// `x-next-page` from a misbehaving (e.g. self-hosted) GitLab can't spin
+// forever. Real repos are well under this; same defensive pattern as the tree.
+const MAX_BRANCH_PAGES = 100;
+
 export const getBranches = async ({
     owner,
     repo,
     token,
     hostDomain = DEFAULT_GITLAB_HOST_DOMAIN,
-}: GitlabApiParams) => {
+}: GitlabApiParams): Promise<Array<{ name: string; protected?: boolean }>> => {
     const projectId = getProjectId(owner, repo);
-    const url = getApiUrl(
-        hostDomain,
-        `/projects/${projectId}/repository/branches`,
-    );
+    const branches: Array<{ name: string; protected?: boolean }> = [];
+    let page = 1;
 
-    const branches = await makeGitlabRequest(url, token);
+    for (let i = 0; i < MAX_BRANCH_PAGES; i += 1) {
+        const url = getApiUrl(
+            hostDomain,
+            `/projects/${projectId}/repository/branches?per_page=${GITLAB_BRANCHES_PER_PAGE}&page=${page}`,
+        );
+        // eslint-disable-next-line no-await-in-loop
+        const response = await makeGitlabResponse(url, token);
+        // eslint-disable-next-line no-await-in-loop
+        const pageBranches = (await response.json()) as Array<{
+            name: string;
+            protected?: boolean;
+        }>;
+        branches.push(...pageBranches);
+
+        const nextPage = Number(response.headers.get('x-next-page'));
+        if (!nextPage || Number.isNaN(nextPage)) break;
+        page = nextPage;
+    }
+
     return branches;
 };
 

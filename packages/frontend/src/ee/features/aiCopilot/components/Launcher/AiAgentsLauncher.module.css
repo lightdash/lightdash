@@ -111,6 +111,22 @@
     flex-direction: column;
 }
 
+.previewPanel {
+    --mantine-scale: 0.9;
+    position: absolute;
+    bottom: calc(100% + var(--mantine-spacing-xs));
+    right: calc(
+        min(rem(440px), calc(100vw - var(--mantine-spacing-md) * 2)) +
+            var(--mantine-spacing-xs)
+    );
+    width: min(
+        rem(620px),
+        calc(100vw - rem(440px) - var(--mantine-spacing-md) * 3)
+    );
+    height: rem(640px);
+    max-height: min(rem(640px), calc(100vh - rem(80px)));
+}
+
 .panelHeader {
     display: flex;
     align-items: center;

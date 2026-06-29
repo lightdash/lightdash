@@ -2119,3 +2119,67 @@ describe('project default additional_time_intervals', () => {
         }
     });
 });
+
+describe('granularity_labels overrides', () => {
+    const TS_MODEL: DbtModelNode & { relation_name: string } = {
+        ...model,
+        columns: {
+            created: {
+                name: 'created',
+                data_type: DimensionType.TIMESTAMP,
+                meta: { dimension: { type: DimensionType.TIMESTAMP } },
+            },
+        },
+    };
+
+    it('bakes the override verbatim into the week dimension label + timeIntervalLabel', async () => {
+        const explores = await convertExplores(
+            [TS_MODEL],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            [],
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+                defaults: {
+                    granularity_labels: { week: 'Week starting Monday' },
+                },
+            },
+        );
+        const explore = explores[0];
+        expect('errors' in explore).toBe(false);
+        if (!('errors' in explore)) {
+            const dims = explore.tables[explore.baseTable].dimensions;
+            // Override is verbatim (not lowercased) in the compound label
+            expect(dims.created_week.label).toContain('Week starting Monday');
+            expect(dims.created_week.timeIntervalLabel).toBe(
+                'Week starting Monday',
+            );
+            // Non-overridden grain keeps default lowercased behaviour + no timeIntervalLabel
+            expect(dims.created_month.label).toContain('month');
+            expect(dims.created_month.timeIntervalLabel).toBeUndefined();
+            // The map is attached to the explore
+            expect(explore.granularityLabels).toEqual({
+                [TimeFrames.WEEK]: 'Week starting Monday',
+            });
+        }
+    });
+
+    it('is unchanged when no granularity_labels are configured', async () => {
+        const explores = await convertExplores(
+            [TS_MODEL],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            [],
+            warehouseClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+        );
+        const explore = explores[0];
+        if (!('errors' in explore)) {
+            const dims = explore.tables[explore.baseTable].dimensions;
+            expect(dims.created_week.label).toContain('week');
+            expect(dims.created_week.timeIntervalLabel).toBeUndefined();
+            expect(explore.granularityLabels).toBeUndefined();
+        }
+    });
+});

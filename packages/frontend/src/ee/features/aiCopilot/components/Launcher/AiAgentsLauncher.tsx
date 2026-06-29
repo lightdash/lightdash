@@ -1,4 +1,4 @@
-import { Transition } from '@mantine-8/core';
+import { Box, Transition } from '@mantine-8/core';
 import { useMediaQuery } from '@mantine-8/hooks';
 import { useEffect, useRef, type FC } from 'react';
 import { useMatches } from 'react-router';
@@ -9,6 +9,7 @@ import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
+import { AiSavedChartPreviewPanel } from '../ChatElements/AiSavedChartPreviewPanel';
 import styles from './AiAgentsLauncher.module.css';
 import {
     getLauncherPanelAgent,
@@ -52,6 +53,9 @@ const AiAgentsLauncherInner: FC = () => {
     );
     const activeAgentUuid = useAiAgentStoreSelector(
         (state) => state.aiAgentLauncher.activeAgentUuid,
+    );
+    const savedChartPreview = useAiAgentStoreSelector(
+        (state) => state.aiArtifact.savedChart,
     );
     const { dock } = useLauncherDock(activeProjectUuid);
 
@@ -106,6 +110,16 @@ const AiAgentsLauncherInner: FC = () => {
     const isPanelOpenSafe =
         mode === 'panel-open' &&
         (safeActiveThreadId !== null || safeActiveAgentUuid !== null);
+    const activeSavedChartPreview =
+        savedChartPreview?.projectUuid === activeProjectUuid
+            ? savedChartPreview
+            : null;
+    const lastSavedChartPreviewRef = useRef(activeSavedChartPreview);
+    if (activeSavedChartPreview) {
+        lastSavedChartPreviewRef.current = activeSavedChartPreview;
+    }
+    const transitionSavedChartPreview =
+        activeSavedChartPreview ?? lastSavedChartPreviewRef.current;
 
     // The launcher has no persistent affordance: it appears only when the
     // user opens a panel (via AskAiAgentMenuItem) or has active dock items.
@@ -117,6 +131,27 @@ const AiAgentsLauncherInner: FC = () => {
     return (
         <div className={styles.root}>
             <LauncherDock projectUuid={activeProjectUuid} agents={agents} />
+            {transitionSavedChartPreview && (
+                <Transition
+                    mounted={
+                        isPanelOpenSafe && activeSavedChartPreview !== null
+                    }
+                    transition="slide-up"
+                    duration={180}
+                    timingFunction="ease"
+                >
+                    {(transitionStyle) => (
+                        <Box
+                            className={styles.previewPanel}
+                            style={transitionStyle}
+                        >
+                            <AiSavedChartPreviewPanel
+                                savedChartPreview={transitionSavedChartPreview}
+                            />
+                        </Box>
+                    )}
+                </Transition>
+            )}
             <Transition
                 mounted={isPanelOpenSafe}
                 transition="slide-up"

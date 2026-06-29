@@ -47,6 +47,7 @@ import {
     INTRINSIC_USER_ATTRIBUTES,
     METRIC_QUERY,
     METRIC_QUERY_AVERAGE_DISTINCT_NO_DIMS,
+    METRIC_QUERY_AVERAGE_DISTINCT_WITH_DIMS,
     METRIC_QUERY_CROSS_MODEL_SUM_DISTINCT,
     METRIC_QUERY_CROSS_MODEL_SUM_DISTINCT_NO_DIMS,
     METRIC_QUERY_CROSS_TABLE,
@@ -68,6 +69,7 @@ import {
     METRIC_QUERY_NESTED_AGG_WITH_DIMS,
     METRIC_QUERY_SAME_MODEL_NUMBER_WITH_SUM_DISTINCT,
     METRIC_QUERY_SUM_DISTINCT_NO_DIMS,
+    METRIC_QUERY_SUM_DISTINCT_WITH_DIMS,
     METRIC_QUERY_TWO_TABLES,
     METRIC_QUERY_WITH_CUSTOM_DIMENSION,
     METRIC_QUERY_WITH_CUSTOM_USER_ATTRIBUTE_FILTER_VALUE,
@@ -2317,6 +2319,28 @@ LIMIT 10`;
             expect(result.query).not.toContain('INNER JOIN dd_');
         });
 
+        test('sum_distinct should deduplicate within selected dimension groups', () => {
+            const result = buildQuery({
+                explore: EXPLORE_WITH_SUM_DISTINCT,
+                compiledMetricQuery: METRIC_QUERY_SUM_DISTINCT_WITH_DIMS,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(replaceWhitespace(result.query)).toContain(
+                replaceWhitespace(
+                    'PARTITION BY "orders".line_item_id, "orders".payment_method, "orders".status ORDER BY',
+                ),
+            );
+            expect(result.query).toContain(
+                'INNER JOIN dd_orders_total_revenue',
+            );
+            expect(result.query).not.toContain(
+                'CROSS JOIN dd_orders_total_revenue',
+            );
+        });
+
         test('average_distinct should generate CTE with FLOAT division', () => {
             const result = buildQuery({
                 explore: EXPLORE_WITH_AVERAGE_DISTINCT,
@@ -2340,6 +2364,28 @@ LIMIT 10`;
             );
             // Neither distinct metric type should use COALESCE
             expect(result.query).not.toContain('COALESCE');
+        });
+
+        test('average_distinct should deduplicate within selected dimension groups', () => {
+            const result = buildQuery({
+                explore: EXPLORE_WITH_AVERAGE_DISTINCT,
+                compiledMetricQuery: METRIC_QUERY_AVERAGE_DISTINCT_WITH_DIMS,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(replaceWhitespace(result.query)).toContain(
+                replaceWhitespace(
+                    'PARTITION BY "orders".line_item_id, "orders".payment_method ORDER BY',
+                ),
+            );
+            expect(result.query).toContain(
+                'INNER JOIN dd_orders_avg_shipping_cost',
+            );
+            expect(result.query).not.toContain(
+                'CROSS JOIN dd_orders_avg_shipping_cost',
+            );
         });
 
         test('type:number metric referencing cross-model sum_distinct should use CTE', () => {

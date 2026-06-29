@@ -11,11 +11,21 @@ export interface ArtifactData {
 
 export interface AiArtifactState {
     artifact: ArtifactData | null;
+    savedChart: SavedChartPreviewData | null;
 }
 
 const initialState: AiArtifactState = {
     artifact: null,
+    savedChart: null,
 };
+
+export interface SavedChartPreviewData {
+    savedChartUuid: string;
+    messageUuid: string;
+    threadUuid: string;
+    projectUuid: string;
+    agentUuid: string;
+}
 
 export const aiArtifactSlice = createSlice({
     name: 'aiArtifact',
@@ -48,11 +58,32 @@ export const aiArtifactSlice = createSlice({
                 projectUuid,
                 agentUuid,
             };
+            state.savedChart = null;
+        },
+        setSavedChartPreview: (
+            state,
+            action: PayloadAction<SavedChartPreviewData>,
+        ) => {
+            state.savedChart = action.payload;
+            state.artifact = null;
         },
         clearArtifact: (state) => {
             state.artifact = null;
         },
+        clearSavedChartPreview: (state) => {
+            state.savedChart = null;
+        },
+        clearPreview: (state) => {
+            state.artifact = null;
+            state.savedChart = null;
+        },
     },
 });
 
-export const { setArtifact, clearArtifact } = aiArtifactSlice.actions;
+export const {
+    setArtifact,
+    setSavedChartPreview,
+    clearArtifact,
+    clearSavedChartPreview,
+    clearPreview,
+} = aiArtifactSlice.actions;
