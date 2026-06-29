@@ -86,6 +86,7 @@ type Props = {
     selectedReviewItemUuid?: string | null;
     onReviewItemSelect: (target: AiAgentAdminReviewItemPreviewTarget) => void;
     showOnboardingExamples?: boolean;
+    initialProjectUuids?: string[];
 };
 
 const toTarget = (
@@ -175,11 +176,12 @@ export const ReviewKanbanBoard: FC<Props> = ({
     selectedReviewItemUuid,
     onReviewItemSelect,
     showOnboardingExamples = false,
+    initialProjectUuids = [],
 }) => {
     const [search, setSearch] = useState<string | undefined>(undefined);
     const deferredSearch = useDeferredValue(search);
     const [selectedProjectUuids, setSelectedProjectUuids] = useState<string[]>(
-        [],
+        () => initialProjectUuids,
     );
     const [selectedRootCauses, setSelectedRootCauses] = useState<
         AiAgentRootCause[]

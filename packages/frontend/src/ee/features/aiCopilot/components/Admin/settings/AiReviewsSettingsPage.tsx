@@ -52,6 +52,14 @@ export const AiReviewsSettingsPage = () => {
 
     const isSidebarOpen = selectedReviewItem !== null;
 
+    // Seeds the board/table project filter when arriving from a project's
+    // "Review AI findings" promo (e.g. `?projects=<uuid>`).
+    const initialProjectUuids = useMemo(() => {
+        const projectsParam = searchParams.get('projects');
+        if (!projectsParam) return [];
+        return projectsParam.split(',').filter(Boolean);
+    }, [searchParams]);
+
     // While the tour runs, the board always shows the same sample cards so the
     // spotlights land every time. Closing it flips back to real data.
     const {
@@ -178,11 +186,13 @@ export const AiReviewsSettingsPage = () => {
                     selectedReviewItemUuid={selectedReviewItem?.reviewItemUuid}
                     onReviewItemSelect={handleReviewItemSelect}
                     showOnboardingExamples={isTourOpen}
+                    initialProjectUuids={initialProjectUuids}
                 />
             ) : (
                 <AiAgentAdminReviewItemsTable
                     selectedReviewItemUuid={selectedReviewItem?.reviewItemUuid}
                     onReviewItemSelect={handleReviewItemSelect}
+                    initialProjectUuids={initialProjectUuids}
                 />
             )}
 

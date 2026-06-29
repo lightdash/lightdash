@@ -121,6 +121,7 @@ type AiAgentAdminReviewItemsTableProps = {
      * tour has findings to highlight. Flips to real data once the tour is done.
      */
     showOnboardingExamples?: boolean;
+    initialProjectUuids?: string[];
 };
 
 const getSignalResultLabel = (signal: AiAgentReviewSignalSummary): string => {
@@ -374,13 +375,14 @@ const AiAgentAdminReviewItemsTable = ({
     onReviewItemSelect,
     selectedReviewItemUuid,
     showOnboardingExamples = false,
+    initialProjectUuids = [],
 }: AiAgentAdminReviewItemsTableProps) => {
     const theme = useMantineTheme();
     const [search, setSearch] = useState<string | undefined>(undefined);
     const [reviewSurface, _setReviewSurface] =
         useState<ReviewSurface>('findings');
     const [selectedProjectUuids, setSelectedProjectUuids] = useState<string[]>(
-        [],
+        () => initialProjectUuids,
     );
     const [selectedRootCauses, setSelectedRootCauses] = useState<
         AiAgentRootCause[]
