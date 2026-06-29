@@ -126,6 +126,53 @@ const isInterval = (
     ((dimension?.time_intervals && dimension.time_intervals !== 'OFF') ||
         !dimension?.time_intervals);
 
+const convertFilterAutocomplete = (
+    filterAutocomplete: NonNullable<
+        DbtColumnMetadata['dimension']
+    >['filter_autocomplete'],
+    modelName: string,
+    dimensionName: string,
+): {
+    filterAutocomplete: Dimension['filterAutocomplete'] | undefined;
+    warnings: InlineError[];
+} => {
+    if (!filterAutocomplete) {
+        return { filterAutocomplete: undefined, warnings: [] };
+    }
+
+    const { values } = filterAutocomplete;
+    const duplicateValues = values
+        ?.map(({ value }) => value)
+        .filter(
+            (value, index, allValues) => allValues.indexOf(value) !== index,
+        );
+    const uniqueValues = values?.filter(
+        ({ value }, index, allValues) =>
+            allValues.findIndex((item) => item.value === value) === index,
+    );
+    const warnings =
+        duplicateValues && duplicateValues.length > 0
+            ? [
+                  {
+                      type: InlineErrorType.FIELD_ERROR,
+                      message: `Duplicate filter autocomplete values found for dimension "${dimensionName}" in dbt model "${modelName}": ${[
+                          ...new Set(duplicateValues),
+                      ].join(
+                          ', ',
+                      )}. Keeping the first value and ignoring duplicates.`,
+                  },
+              ]
+            : [];
+
+    return {
+        filterAutocomplete: {
+            ...(uniqueValues ? { values: uniqueValues } : {}),
+            fetchFromWarehouse: filterAutocomplete.fetch_from_warehouse ?? true,
+        },
+        warnings,
+    };
+};
+
 const convertDimension = (
     index: number,
     targetWarehouse: SupportedDbtAdapter,
@@ -137,6 +184,7 @@ const convertDimension = (
     startOfWeek?: WeekDay | null,
     isAdditionalDimension?: boolean,
     disableTimestampConversion?: boolean,
+    warnings?: InlineError[],
     granularityLabels?: Partial<Record<TimeFrames, string>>,
 ): Dimension => {
     // Config block takes priority, then meta block
@@ -168,6 +216,17 @@ const convertDimension = (
         meta.dimension?.groups,
         meta.dimension?.group_label,
     );
+    const convertedFilterAutocomplete =
+        meta.dimension?.filter_autocomplete !== undefined
+            ? convertFilterAutocomplete(
+                  meta.dimension.filter_autocomplete,
+                  model.name,
+                  name,
+              )
+            : undefined;
+    if (convertedFilterAutocomplete?.warnings) {
+        warnings?.push(...convertedFilterAutocomplete.warnings);
+    }
 
     if (timeInterval) {
         timeIntervalBaseDimensionName = name;
@@ -223,6 +282,12 @@ const convertDimension = (
         ...(meta.dimension?.image ? { image: meta.dimension.image } : {}),
         ...(meta.dimension?.richText
             ? { richText: meta.dimension.richText }
+            : {}),
+        ...(meta.dimension?.filter_autocomplete
+            ? {
+                  filterAutocomplete:
+                      convertedFilterAutocomplete?.filterAutocomplete,
+              }
             : {}),
         ...(isAdditionalDimension ? { isAdditionalDimension } : {}),
         // Polarity flip: YAML reads `convert_timezone: false` (defaults true,
@@ -679,6 +744,7 @@ export const convertTable = (
                 startOfWeek,
                 undefined,
                 disableTimestampConversion,
+                tableWarnings,
                 granularityLabels,
             );
 
@@ -765,6 +831,7 @@ export const convertTable = (
                                     'isAdditionalDimension' in dim &&
                                         dim.isAdditionalDimension,
                                     disableTimestampConversion,
+                                    undefined,
                                     granularityLabels,
                                 ),
                         }),
@@ -865,6 +932,7 @@ export const convertTable = (
                     startOfWeek,
                     true,
                     disableTimestampConversion,
+                    tableWarnings,
                     granularityLabels,
                 );
 

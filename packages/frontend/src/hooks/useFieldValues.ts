@@ -2,6 +2,7 @@ import {
     FeatureFlags,
     getFilterRulesFromGroup,
     getItemId,
+    isDimension,
     isField,
     QueryHistoryStatus,
     type AndFilterGroup,
@@ -10,6 +11,7 @@ import {
     type ApiGetAsyncQueryResults,
     type DashboardFilterRule,
     type FieldValueSearchResult,
+    type FilterAutocompleteValue,
     type FilterableItem,
     type ParametersValuesMap,
 } from '@lightdash/common';
@@ -22,6 +24,59 @@ import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
 import { useSessionTimezone } from './useSessionTimezone';
 
 export const MAX_AUTOCOMPLETE_RESULTS = 50;
+
+type InitialFieldValue = string | FilterAutocompleteValue;
+
+const normalizeFieldValue = (
+    value: InitialFieldValue,
+): FilterAutocompleteValue => (typeof value === 'string' ? { value } : value);
+
+const normalizeSearchResult = (
+    value: unknown,
+): FilterAutocompleteValue | undefined => {
+    if (typeof value === 'string') return { value };
+    if (
+        typeof value === 'object' &&
+        value !== null &&
+        'value' in value &&
+        typeof value.value === 'string'
+    ) {
+        return {
+            value: value.value,
+            label:
+                'label' in value && typeof value.label === 'string'
+                    ? value.label
+                    : undefined,
+        };
+    }
+    return undefined;
+};
+
+const createAutocompleteValueMap = (
+    values: FilterAutocompleteValue[],
+): Map<string, FilterAutocompleteValue> => {
+    const map = new Map<string, FilterAutocompleteValue>();
+    values.forEach((option) => {
+        if (!map.has(option.value)) {
+            map.set(option.value, option);
+        }
+    });
+    return map;
+};
+
+const filterStaticValues = (
+    values: FilterAutocompleteValue[],
+    search: string,
+) => {
+    const normalizedSearch = search.toLowerCase();
+    if (normalizedSearch.length === 0) return values;
+
+    return values.filter(
+        ({ value, label }) =>
+            value.toLowerCase().includes(normalizedSearch) ||
+            (label?.toLowerCase().includes(normalizedSearch) ?? false),
+    );
+};
 
 /**
  * Strip tileTargets from filter rules before sending to the API.
@@ -209,7 +264,7 @@ export const getFieldValuesAsync = async (
 
 export const useFieldValues = (
     search: string,
-    initialData: string[],
+    initialData: InitialFieldValue[],
     projectId: string | undefined,
     field: FilterableItem,
     filterId: string | undefined,
@@ -225,10 +280,22 @@ export const useFieldValues = (
         FeatureFlags.ResultsCacheEnabled,
     );
     const useAsyncPath = resultsCacheFlag?.enabled === true;
+    const filterAutocomplete = isDimension(field)
+        ? field.filterAutocomplete
+        : undefined;
+    const initialOptions = useMemo(
+        () => [
+            ...(filterAutocomplete?.values ?? []),
+            ...initialData.map(normalizeFieldValue),
+        ],
+        [filterAutocomplete?.values, initialData],
+    );
     const [fieldName, setFieldName] = useState<string>(field.name);
     const [debouncedSearch, setDebouncedSearch] = useState<string>(search);
     const [searches, setSearches] = useState(new Set<string>());
-    const [results, setResults] = useState(new Set(initialData));
+    const [resultValueMap, setResultValueMap] = useState(
+        createAutocompleteValueMap(initialOptions),
+    );
     const [resultCounts, setResultCounts] = useState<Map<string, number>>(
         new Map(),
     );
@@ -242,10 +309,10 @@ export const useFieldValues = (
     const fieldId = useMemo(() => getItemId(field), [field]);
 
     const handleUpdateResults = useCallback(
-        (data: FieldValueSearchResult<string>) => {
+        (data: FieldValueSearchResult<FilterAutocompleteValue>) => {
             if (getFilterRulesFromGroup(filters).length > 0) {
                 setSearches(new Set<string>());
-                setResults(new Set(initialData));
+                setResultValueMap(createAutocompleteValueMap(initialOptions));
                 setResultCounts(new Map());
             }
             setRefreshedAt(new Date(data.refreshedAt));
@@ -261,16 +328,23 @@ export const useFieldValues = (
                 return nextResultCounts;
             });
 
-            setResults((oldSet) => {
-                return new Set(
-                    [...oldSet, ...data.results].sort((a, b) =>
-                        a.localeCompare(b),
-                    ),
-                );
+            setResultValueMap((oldMap) => {
+                const nextMap = new Map(oldMap);
+                data.results.forEach((option) => {
+                    if (!nextMap.has(option.value)) {
+                        nextMap.set(option.value, option);
+                    }
+                });
+                return nextMap;
             });
         },
-        [filters, initialData],
+        [filters, initialOptions],
     );
+    const hasStaticAutocompleteValues = initialOptions.length > 0;
+    const shouldUseStaticValues =
+        !!filterAutocomplete &&
+        (!filterAutocomplete.fetchFromWarehouse ||
+            (hasStaticAutocompleteValues && debouncedSearch.length === 0));
     const cachekey = [
         'project',
         projectId,
@@ -329,14 +403,16 @@ export const useFieldValues = (
             enabled:
                 !!tableName &&
                 !!projectId &&
+                !shouldUseStaticValues &&
                 useQueryOptions?.enabled !== false,
             staleTime: 0,
             onSuccess: (data) => {
                 const { results: newResults, search: newSearch } = data;
 
-                const normalizedNewResults = newResults.filter(
-                    (result): result is string => typeof result === 'string',
-                );
+                const normalizedNewResults = newResults.flatMap((result) => {
+                    const normalizedResult = normalizeSearchResult(result);
+                    return normalizedResult ? [normalizedResult] : [];
+                });
 
                 const normalizedData = {
                     search: newSearch,
@@ -363,16 +439,37 @@ export const useFieldValues = (
         if (!!fieldName && field.name !== fieldName) {
             setFieldName(field.name);
             setSearches(new Set<string>());
-            setResults(new Set(initialData));
+            setResultValueMap(createAutocompleteValueMap(initialOptions));
             setResultCounts(new Map());
         }
-    }, [initialData, fieldName, field.name, forceRefresh]);
+    }, [initialOptions, fieldName, field.name, forceRefresh]);
 
     const reset = useCallback(() => {
         setSearches(new Set<string>());
-        setResults(new Set(initialData));
+        setResultValueMap(createAutocompleteValueMap(initialOptions));
         setResultCounts(new Map());
-    }, [initialData]);
+    }, [initialOptions]);
+
+    const staticFilteredOptions = useMemo(
+        () => filterStaticValues(initialOptions, search),
+        [initialOptions, search],
+    );
+
+    const staticResultValueMap = useMemo(
+        () => createAutocompleteValueMap(staticFilteredOptions),
+        [staticFilteredOptions],
+    );
+
+    const activeResultValueMap = shouldUseStaticValues
+        ? staticResultValueMap
+        : resultValueMap;
+    const results = useMemo(
+        () =>
+            [...activeResultValueMap.values()].sort((a, b) =>
+                a.value.localeCompare(b.value),
+            ),
+        [activeResultValueMap],
+    );
 
     return {
         ...query,

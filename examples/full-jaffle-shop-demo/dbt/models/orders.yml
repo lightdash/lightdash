@@ -294,6 +294,19 @@ models:
                 # Hex colors are supported in both chart config and echarts
                 "placed": "#e6fa0f"
                 "completed": "#00FF00"
+              filter_autocomplete:
+                fetch_from_warehouse: false
+                values:
+                  - value: placed
+                    label: Placed order
+                  - value: shipped
+                    label: Shipped order
+                  - value: completed
+                    label: Completed order
+                  - value: return_pending
+                    label: Return pending
+                  - value: returned
+                    label: Returned order
         tests:
           - accepted_values:
               values:

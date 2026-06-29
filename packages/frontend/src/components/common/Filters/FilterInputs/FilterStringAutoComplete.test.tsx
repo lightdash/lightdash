@@ -22,9 +22,10 @@ vi.mock('../../../../hooks/useFieldValues', () => ({
     MAX_AUTOCOMPLETE_RESULTS: 100,
     useFieldValues: vi.fn(() => ({
         isInitialLoading: false,
-        results: new Set<string>(),
+        results: [],
         refreshedAt: new Date(),
         refetch: vi.fn(),
+        reset: vi.fn(),
         error: null,
         isError: false,
     })),

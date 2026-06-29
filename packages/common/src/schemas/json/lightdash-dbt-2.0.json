@@ -1637,6 +1637,31 @@
                                     "description": "Whether this dimension can be used for segmenting in the Metrics Explorer. Defaults to true."
                                 }
                             }
+                        },
+                        "filter_autocomplete": {
+                            "type": "object",
+                            "description": "Configure static filter autocomplete suggestions and warehouse fetching for this dimension.",
+                            "properties": {
+                                "values": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "value": {
+                                                "type": "string"
+                                            },
+                                            "label": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "required": ["value"]
+                                    }
+                                },
+                                "fetch_from_warehouse": {
+                                    "type": "boolean",
+                                    "description": "When false, filter autocomplete will not fetch values from the warehouse for this dimension. Defaults to true."
+                                }
+                            }
                         }
                     }
                 },
@@ -1853,6 +1878,31 @@
                                                 "type": "string"
                                             }
                                         ]
+                                    }
+                                },
+                                "filter_autocomplete": {
+                                    "type": "object",
+                                    "description": "Configure static filter autocomplete suggestions and warehouse fetching for this dimension.",
+                                    "properties": {
+                                        "values": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "value": {
+                                                        "type": "string"
+                                                    },
+                                                    "label": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": ["value"]
+                                            }
+                                        },
+                                        "fetch_from_warehouse": {
+                                            "type": "boolean",
+                                            "description": "When false, filter autocomplete will not fetch values from the warehouse for this dimension. Defaults to true."
+                                        }
                                     }
                                 }
                             }

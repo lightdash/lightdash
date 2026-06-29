@@ -120,7 +120,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
         parameterValues,
     );
 
-    const { results: resultsSet, refreshedAt, refetch } = fieldValuesResult;
+    const { results, refreshedAt, refetch } = fieldValuesResult;
 
     useEffect(() => {
         if (forceRefresh && shouldFetch && refetch) {
@@ -130,8 +130,11 @@ export const ParameterInput: FC<ParameterInputProps> = ({
     }, [forceRefresh, refetch, shouldFetch]);
 
     const fetchedResults = useMemo(
-        () => (shouldFetch && resultsSet ? [...resultsSet] : []),
-        [resultsSet, shouldFetch],
+        () =>
+            shouldFetch && results
+                ? results.map(({ value: resultValue }) => resultValue)
+                : [],
+        [results, shouldFetch],
     );
 
     const placeholder = useMemo(() => {

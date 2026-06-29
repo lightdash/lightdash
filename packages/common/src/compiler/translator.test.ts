@@ -561,6 +561,87 @@ describe('convert tables from dbt models', () => {
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_ADDITIONAL_DIMENSIONS);
     });
 
+    it('should convert dimension filter autocomplete config', () => {
+        const table = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            {
+                ...MODEL_WITH_NO_METRICS,
+                columns: {
+                    user_id: {
+                        ...MODEL_WITH_NO_METRICS.columns.user_id,
+                        meta: {
+                            dimension: {
+                                filter_autocomplete: {
+                                    values: [
+                                        {
+                                            value: 'active',
+                                            label: 'Active customer',
+                                        },
+                                        { value: 'trial' },
+                                    ],
+                                    fetch_from_warehouse: false,
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(table.dimensions.user_id.filterAutocomplete).toEqual({
+            values: [
+                { value: 'active', label: 'Active customer' },
+                { value: 'trial' },
+            ],
+            fetchFromWarehouse: false,
+        });
+    });
+
+    it('should warn and keep the first duplicate dimension filter autocomplete value', () => {
+        const table = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            {
+                ...MODEL_WITH_NO_METRICS,
+                columns: {
+                    user_id: {
+                        ...MODEL_WITH_NO_METRICS.columns.user_id,
+                        meta: {
+                            dimension: {
+                                filter_autocomplete: {
+                                    values: [
+                                        {
+                                            value: 'active',
+                                            label: 'Active customer',
+                                        },
+                                        {
+                                            value: 'active',
+                                            label: 'Duplicate active',
+                                        },
+                                    ],
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(table.dimensions.user_id.filterAutocomplete?.values).toEqual([
+            { value: 'active', label: 'Active customer' },
+        ]);
+        expect(table.warnings).toEqual([
+            {
+                type: InlineErrorType.FIELD_ERROR,
+                message:
+                    'Duplicate filter autocomplete values found for dimension "user_id" in dbt model "myTable": active. Keeping the first value and ignoring duplicates.',
+            },
+        ]);
+    });
+
     it('should convert dbt model with groups meta block', async () => {
         expect(
             convertTable(
