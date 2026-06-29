@@ -1,3 +1,10 @@
+## [0.3258.2](https://github.com/lightdash/lightdash/compare/0.3258.1...0.3258.2) (2026-06-29)
+
+
+### Bug Fixes
+
+* **catalog:** scope table-selection filter to non-allowlist searches ([#24837](https://github.com/lightdash/lightdash/issues/24837)) ([f3ba3fb](https://github.com/lightdash/lightdash/commit/f3ba3fbe8d8e4bd4c0e67701b4a8679931ea18ee))
+
 ## [0.3258.1](https://github.com/lightdash/lightdash/compare/0.3258.0...0.3258.1) (2026-06-26)
 
 
