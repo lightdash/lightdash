@@ -192,8 +192,12 @@ export interface SchedulerAiAugmentation {
     generateScheduledReport(
         scheduler: SchedulerAndTargets | CreateSchedulerAndTargets,
         organizationUuid: string,
-    ): Promise<string>;
+        priorThreadUuids: string[],
+    ): Promise<{ message: string; threadUuid: string }>;
 }
+
+// How many recent runs of a delivery to pin as context for the agent.
+const AI_RUN_HISTORY_LIMIT = 3;
 
 export type SchedulerTaskArguments = {
     schedulerAiAugmentation?: SchedulerAiAugmentation;
@@ -3970,15 +3974,27 @@ export default class SchedulerTask {
         // Run the agent and use its report as the message, then fall through to
         // the normal render + send. Kept in a separate const so the type guard
         // doesn't leak into `scheduler` and break later `in scheduler` narrowing.
+        let aiThreadUuid: string | undefined;
         const augmentedScheduler = isAugmentedScheduler(scheduler)
             ? scheduler
             : null;
         if (augmentedScheduler && this.schedulerAiAugmentation) {
-            scheduler.message =
+            const priorThreadUuids =
+                augmentedScheduler.aiSchedulerOptions?.includeRunHistory &&
+                schedulerUuid
+                    ? await this.schedulerService.schedulerModel.getRecentAiThreadUuids(
+                          schedulerUuid,
+                          AI_RUN_HISTORY_LIMIT,
+                      )
+                    : [];
+            const report =
                 await this.schedulerAiAugmentation.generateScheduledReport(
                     augmentedScheduler,
                     schedulerPayload.organizationUuid,
+                    priorThreadUuids,
                 );
+            scheduler.message = report.message;
+            aiThreadUuid = report.threadUuid;
         }
 
         this.analytics.track({
@@ -4006,6 +4022,8 @@ export default class SchedulerTask {
                 projectUuid: schedulerPayload.projectUuid,
                 organizationUuid: schedulerPayload.organizationUuid,
                 createdByUserUuid: schedulerPayload.userUuid,
+                // Lets later runs of this delivery find and build on this run.
+                ...(aiThreadUuid ? { aiThreadUuid } : {}),
             },
         });
 

@@ -4557,7 +4557,8 @@ export class AiAgentService extends BaseService {
     async generateScheduledReport(
         scheduler: SchedulerAndTargets | CreateSchedulerAndTargets,
         organizationUuid: string,
-    ): Promise<string> {
+        priorThreadUuids: string[] = [],
+    ): Promise<{ message: string; threadUuid: string }> {
         const { agentUuid, prompt, createdBy } = scheduler;
         if (!agentUuid || !prompt) {
             throw new UnexpectedServerError(
@@ -4592,6 +4593,9 @@ export class AiAgentService extends BaseService {
                 threadUuid: scheduler.sourceThreadUuid,
             });
         }
+        priorThreadUuids.forEach((threadUuid) => {
+            context.push({ type: 'thread', threadUuid });
+        });
 
         const thread = await this.createAgentThread(
             user,
@@ -4605,10 +4609,11 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        return this.generateAgentThreadResponse(user, {
+        const message = await this.generateAgentThreadResponse(user, {
             agentUuid,
             threadUuid: thread.uuid,
         });
+        return { message, threadUuid: thread.uuid };
     }
 
     async generateThreadTitle(
