@@ -333,7 +333,7 @@ const AiAgentAdminThreadsTable = ({
                 if (label === 'slack') {
                     label = 'Slack';
                 } else if (label === 'web_app') {
-                    label = 'App';
+                    label = 'Web';
                 }
 
                 const slackUrl =
