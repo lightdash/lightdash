@@ -88,6 +88,30 @@ test('ready PR, AI ran but stayed unknown => no "mark ready" nudge, no false "re
     assert.ok(!body.includes('release-time only'));
 });
 
+test('expand/contract clearance: linter flagged but AI cleared => Safe + explained', () => {
+    const body = renderPrComment(baseMarker({
+        capabilities: ['migrations', 'sql-lint', 'ai-review', 'upgrade'],
+        migrations: { present: true, count: 1, files: ['drop.ts'], ee: false },
+        compatibility: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', notes: 'AI migration review CLEARED a deterministic linter flag — it verified the previous release no longer uses the changed object (expand/contract): ...' },
+    }), { draft: false, linterBreaking: true });
+    assert.ok(body.includes('Safe to RollingUpdate'));
+    assert.ok(/expand\/contract/.test(body));
+    assert.ok(body.includes('AI cleared it — see below'));
+    assert.ok(/contract.* step of an expand\/contract/.test(body));
+    // not a "Recreate required"
+    assert.ok(!body.includes('Recreate required'));
+});
+
+test('linterBreaking flag still shows breaking when the AI did NOT clear it', () => {
+    const body = renderPrComment(baseMarker({
+        capabilities: ['migrations', 'sql-lint', 'ai-review', 'upgrade'],
+        migrations: { present: true, count: 1, files: ['drop.ts'], ee: false },
+        compatibility: { rollingUpdateSafe: false, recommendedStrategy: 'Recreate', notes: 'Migration linter detected breaking schema operations (...).' },
+    }), { draft: false, linterBreaking: true });
+    assert.ok(body.includes('Recreate required'));
+    assert.ok(body.includes('⚠️ breaking schema op(s) found'));
+});
+
 test('required stop is surfaced prominently', () => {
     const body = renderPrComment(baseMarker({
         upgrade: { minPreviousVersion: '0.3200.0', requiredStop: true, note: 'Index rebuild.' },

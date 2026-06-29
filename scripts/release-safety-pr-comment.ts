@@ -52,6 +52,13 @@ export interface RenderOpts {
      * AI-refined verdict.
      */
     draft?: boolean;
+    /**
+     * Raw verdict of the deterministic SQL linter (independent of the final
+     * marker verdict). Lets the comment show the linter's finding even when the
+     * AI later overrode it — e.g. "linter flagged a drop, AI cleared it via
+     * expand/contract". Falls back to inferring from the marker notes.
+     */
+    linterBreaking?: boolean;
 }
 
 const LINTER_NOTE_PREFIX = 'Migration linter detected breaking';
@@ -67,10 +74,16 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
     const migrationsPresent = marker.migrations.present;
     const restBreaking = marker.api.rest.checked && marker.api.rest.breaking === true;
     const mcpBreaking = marker.api.mcp.checked && marker.api.mcp.breaking === true;
+    // The linter's own finding, independent of the final verdict. Prefer the
+    // explicit signal; otherwise infer it from the notes (only detectable while
+    // the linter verdict still stands).
     const lintFlagged =
-        caps.has('sql-lint') &&
-        rollingUpdateSafe === false &&
-        marker.compatibility.notes.startsWith(LINTER_NOTE_PREFIX);
+        opts.linterBreaking ??
+        (caps.has('sql-lint') &&
+            rollingUpdateSafe === false &&
+            marker.compatibility.notes.startsWith(LINTER_NOTE_PREFIX));
+    // The linter flagged a destructive shape but the AI cleared it (expand/contract).
+    const aiClearedLinter = lintFlagged && rollingUpdateSafe === true && caps.has('ai-review');
 
     // ---- determination ------------------------------------------------------
     const lines: string[] = [];
@@ -84,6 +97,8 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
         lines.push('⚠️ **Recreate required** — a breaking schema change was detected; the previous version would not survive a rolling update.');
     } else if (rollingUpdateSafe === 'unknown') {
         lines.push('❓ **Recreate recommended** — this change touches the schema and backward-compatibility was not verified.');
+    } else if (aiClearedLinter) {
+        lines.push('✅ **Safe to RollingUpdate** — the SQL linter flagged a destructive shape, but the AI review verified the previous release no longer uses it (expand/contract).');
     } else if (migrationsPresent === true) {
         lines.push('✅ **Safe to RollingUpdate** — migrations were verified backward-compatible.');
     } else {
@@ -103,7 +118,9 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
     const sqlResult = !caps.has('sql-lint')
         ? '—'
         : lintFlagged
-        ? '⚠️ breaking schema op(s) found'
+        ? aiClearedLinter
+            ? '⚠️ flagged a destructive shape (AI cleared it — see below)'
+            : '⚠️ breaking schema op(s) found'
         : '✅ no breaking shapes found';
 
     const aiResult = caps.has('ai-review')
@@ -154,6 +171,8 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
         consequence.push(
             `- ❓ Backward-compatibility was not verified, so customers reading the marker get **recommendedStrategy: Recreate** as the cautious default.${aiHint}`,
         );
+    } else if (aiClearedLinter) {
+        consequence.push('- ✅ The SQL linter flagged a destructive shape (e.g. a drop), but the AI review read the previous release’s code and confirmed it no longer references the object — the **contract** step of an expand/contract. A **RollingUpdate** is safe; old pods won’t touch what’s being removed.');
     } else if (migrationsPresent === true) {
         consequence.push('- ✅ Migrations were verified additive/backward-compatible, so a **RollingUpdate** is safe — no special handling for customers.');
     } else {
@@ -208,6 +227,11 @@ function main(): void {
     const body = renderPrComment(marker, {
         baseLabel: arg('base'),
         draft: process.argv.includes('--draft'),
+        linterBreaking: process.argv.includes('--linter-breaking')
+            ? true
+            : process.argv.includes('--no-linter-breaking')
+            ? false
+            : undefined,
     });
     const out = arg('out');
     if (out) {
