@@ -698,11 +698,13 @@ describe('Formatting', () => {
         });
 
         describe('when applying compact', () => {
-            const AUTO = Compact.AUTO;
-            const K = Compact.THOUSANDS;
-            const M = Compact.MILLIONS;
-            const B = Compact.BILLIONS;
-            const T = Compact.TRILLIONS;
+            const {
+                AUTO,
+                THOUSANDS: K,
+                MILLIONS: M,
+                BILLIONS: B,
+                TRILLIONS: T,
+            } = Compact;
             const autoConfig = {
                 type: CustomFormatType.NUMBER,
                 compact: AUTO,
@@ -2637,6 +2639,23 @@ describe('Formatting', () => {
                     formattedValueWithCustomFormat,
                 );
             });
+        });
+
+        test('should not convert dynamic auto compact to a static format expression', () => {
+            expect(
+                convertCustomFormatToFormatExpression({
+                    type: CustomFormatType.NUMBER,
+                    compact: Compact.AUTO,
+                }),
+            ).toBeNull();
+
+            expect(
+                convertCustomFormatToFormatExpression({
+                    type: CustomFormatType.CURRENCY,
+                    currency: Format.USD,
+                    compact: Compact.AUTO,
+                }),
+            ).toBeNull();
         });
     });
 

@@ -3,7 +3,9 @@ import { CartesianChartDataModel } from './CartesianChartDataModel';
 
 describe('CartesianChartDataModel formatters', () => {
     test('formats SI tooltip values dynamically', () => {
-        const formatter = CartesianChartDataModel.getTooltipFormatter(Format.SI);
+        const formatter = CartesianChartDataModel.getTooltipFormatter(
+            Format.SI,
+        );
 
         expect(formatter?.(999)).toEqual('999');
         expect(formatter?.(1200)).toEqual('1.2K');
@@ -17,7 +19,7 @@ describe('CartesianChartDataModel formatters', () => {
             formatter?.({
                 dimensionNames: ['category', 'value'],
                 encode: { y: [1] },
-                value: ['Jan', 1200000],
+                value: { category: 'Jan', value: 1200000 },
             }),
         ).toEqual('1.2M');
     });

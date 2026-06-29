@@ -1050,9 +1050,18 @@ const customFormatConversionFnMap: Record<
     },
 };
 
+const hasDynamicCompact = (format: CustomFormat) =>
+    format.compact === Compact.AUTO &&
+    (format.type === CustomFormatType.NUMBER ||
+        format.type === CustomFormatType.CURRENCY);
+
 export function convertCustomFormatToFormatExpression(
     format: CustomFormat,
 ): string | null {
+    if (hasDynamicCompact(format)) {
+        return null;
+    }
+
     // ECMA-376 format expression
     let defaultFormatExpression: string | null = null;
     let conversions: Array<string> = [];
