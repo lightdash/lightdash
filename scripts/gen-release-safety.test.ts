@@ -232,6 +232,67 @@ test('aiReview is ignored on a no-migration release (never invents a verdict)', 
     assert.deepStrictEqual(m.capabilities, ['migrations']);
 });
 
+// --- restApi (P2) ------------------------------------------------------------
+
+test('checked restApi populates api.rest + adds "rest" capability', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        restApi: {
+            checked: true,
+            breaking: true,
+            changes: ['GET /api/v1/foo — api removed without deprecation'],
+        },
+    });
+    assert.strictEqual(m.api.rest.checked, true);
+    assert.strictEqual(m.api.rest.breaking, true);
+    assert.deepStrictEqual(m.api.rest.changes, ['GET /api/v1/foo — api removed without deprecation']);
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'rest']);
+});
+
+test('checked-but-clean restApi => breaking false, "rest" capability present', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        restApi: { checked: true, breaking: false, changes: [] },
+    });
+    assert.strictEqual(m.api.rest.checked, true);
+    assert.strictEqual(m.api.rest.breaking, false);
+    assert.ok(m.capabilities.includes('rest'));
+});
+
+test('unchecked restApi leaves the stub and does NOT claim the capability', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        restApi: { checked: false, breaking: false, changes: [] },
+    });
+    assert.strictEqual(m.api.rest.checked, false);
+    assert.ok(!m.capabilities.includes('rest'));
+});
+
+test('null restApi behaves like the unchecked stub (back-compat)', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        restApi: null,
+    });
+    assert.strictEqual(m.api.rest.checked, false);
+    assert.deepStrictEqual(m.capabilities, ['migrations']);
+});
+
+test('restApi and aiReview compose: capabilities carry both', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: { present: true, count: 1, files: ['x.ts'], ee: false, deletedHistorical: [] },
+        aiReview: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', summary: 'safe.' },
+        restApi: { checked: true, breaking: false, changes: [] },
+    });
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'ai-review', 'rest']);
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, true);
+    assert.strictEqual(m.api.rest.checked, true);
+});
+
 // --- report ------------------------------------------------------------------
 
 if (failures.length > 0) {

@@ -1,6 +1,6 @@
 # Release-Safety Marker — Design (PROD-8359 / #24441)
 
-**Status:** In progress — P1 + P6 built; P2/P3/P4 and a deterministic linter remain; P5 parked.
+**Status:** In progress — P1 + P6 + P2 built; P3/P4 and a deterministic linter remain; P5 parked.
 **Ticket:** PROD-8359 · GitHub issue lightdash/lightdash#24441
 **Branch / PR:** `prod-8359-release-safety` → PR lightdash/lightdash#24879 (draft)
 
@@ -19,11 +19,24 @@
   (gated on `migrations.present` + `ANTHROPIC_API_KEY`). Prompt-cached (rolling
   breakpoint → ~18 full-price input tokens/review). Fail-safe: degrades to
   `"unknown"`, never falsely safe, never fails the release.
+- **P2** — `api.rest.breaking` via `oasdiff`. `scripts/rest-api-diff.ts` (pure
+  `summarizeBreaking` + IO `diffRestApi`) diffs `swagger.json` between `<lastTag>`
+  and `HEAD` (both read with `git show`, never the working tree) using
+  `oasdiff breaking -f json`. oasdiff parses both specs into a semantic model, so
+  no key-normalization is needed (proven: clean `[]` on a consecutive-release pair,
+  10 correctly-classified *additive* changes on a feature commit). Auto-runs when
+  oasdiff is on PATH (`OASDIFF_BIN` or `which`) and a previous tag exists — no
+  opt-in flag, because it's deterministic. Folds into `api.rest` and adds `"rest"`
+  to `capabilities`; orthogonal to the migration/rolling-update signal. Soft
+  fail-safe: oasdiff missing / spec absent at a ref / oasdiff error / unparseable
+  output → `checked: false` (honest "not checked"), never asserts an unproven "no
+  break", never fails the release. Pinned + sha256-verified `oasdiff` install step
+  added to `.github/workflows/release.yml` (audited harden-runner egress; plain
+  curl, so no Socket Firewall wrapper). Also fixed a latent P6 schema bug: the
+  `capabilities` enum was missing `"ai-review"`. Tests: `scripts/rest-api-diff.test.ts`
+  (summarizeBreaking) + buildMarker `restApi` cases in `gen-release-safety.test.ts`.
 
 **Remaining (each independently shippable, schemaVersion stays "1"):**
-- **P2** — `api.rest.breaking` via `oasdiff` on `packages/backend/src/generated/swagger.json`
-  between tags (`git show <lastTag>:…`), key-normalized. Add an `oasdiff` install
-  step to `.github/workflows/release.yml` (mind harden-runner + Socket Firewall).
 - **P3** — `api.mcp.breaking` via a committed `mcp-tools.json` snapshot
   (serialize `mcpToolDefinitions` from `@lightdash/common`, reuse the
   `mcpToolContracts.snapshot.test.ts` logic; fold into `postgenerate-api`) + a
@@ -47,7 +60,8 @@
 **Resume pointers:**
 - Worktree: `~/projects/worktrees/lightdash/prod-8359-release-safety`.
 - Run the generator: `npx tsx scripts/gen-release-safety.ts --version X --previous-version Y --last-tag Y [--ai-review]`.
-- Tests: `npx tsx scripts/gen-release-safety.test.ts`. Backtest: `npx tsx scripts/release-safety-backtest.ts 300`.
+- Run just the REST diff: `npx tsx scripts/rest-api-diff.ts --last-tag Y [--new-ref HEAD]` (needs `oasdiff` on PATH or `OASDIFF_BIN`).
+- Tests: `npx tsx scripts/gen-release-safety.test.ts` + `npx tsx scripts/rest-api-diff.test.ts`. Backtest: `npx tsx scripts/release-safety-backtest.ts 300`.
 - AI runs need `ANTHROPIC_API_KEY` — it's a per-engineer 1Password item
   (`scripts/dev-op-pull.sh` + `scripts/dev-secrets.manifest.json`, account
   `lightdash.1password.com`).

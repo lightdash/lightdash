@@ -46,7 +46,7 @@
             "type": "array",
             "items": {
                 "type": "string",
-                "enum": ["migrations", "rest", "mcp", "upgrade"]
+                "enum": ["migrations", "rest", "mcp", "upgrade", "ai-review"]
             },
             "description": "Which checks actually ran for this release."
         },

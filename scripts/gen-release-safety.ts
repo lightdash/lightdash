@@ -16,6 +16,7 @@ import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { aiMigrationReview } from './ai-migration-review';
+import { diffRestApi } from './rest-api-diff';
 
 export const MARKER_SCHEMA_VERSION = '1';
 
@@ -135,6 +136,12 @@ export interface BuildMarkerInput {
      * leave rollingUpdateSafe at its honest "unknown" default.
      */
     aiReview?: AiReviewSummary | null;
+    /**
+     * Optional result of the REST API breaking-change diff (P2). Applied to
+     * api.rest and adds "rest" to capabilities only when checked === true. A
+     * null/unchecked result leaves the honest "not checked" stub.
+     */
+    restApi?: ApiSurface | null;
 }
 
 export interface AiReviewSummary {
@@ -149,7 +156,7 @@ export interface AiReviewSummary {
  * (or unknown) release.
  */
 export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
-    const { version, previousVersion, releaseDate, migrations, aiReview } = input;
+    const { version, previousVersion, releaseDate, migrations, aiReview, restApi } = input;
 
     const present: TriState = migrations ? migrations.present : 'unknown';
 
@@ -191,6 +198,16 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
         capabilities.push('ai-review');
     }
 
+    // P2: a deterministic REST API breaking-change diff (oasdiff). `checked: false`
+    // means the diff didn't run — leave the unchecked stub and don't claim the
+    // capability. Independent of the migration/rolling-update signal above:
+    // api.rest.breaking is about REST consumers, not mid-rollout pod safety.
+    let rest: ApiSurface = { checked: false, breaking: false, changes: [] };
+    if (restApi && restApi.checked) {
+        rest = restApi;
+        capabilities.push('rest');
+    }
+
     return {
         schemaVersion: MARKER_SCHEMA_VERSION,
         version,
@@ -209,8 +226,9 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
             notes,
         },
         api: {
-            // Not yet checked in P1 — `checked: false` means "unknown", not "no break".
-            rest: { checked: false, breaking: false, changes: [] },
+            // P2: rest is populated by the oasdiff diff when it ran; otherwise the
+            // unchecked stub. `checked: false` means "unknown", not "no break".
+            rest,
             mcp: { checked: false, breaking: false, changes: [] },
         },
         upgrade: {
@@ -330,12 +348,26 @@ async function main(): Promise<void> {
         }
     }
 
+    // P2: deterministic REST API breaking-change diff (oasdiff). Auto-runs when a
+    // previous tag exists and oasdiff is available (OASDIFF_BIN or PATH); the CI
+    // workflow installs it. Soft fail-safe: any problem leaves api.rest unchecked
+    // and never fails the release.
+    let restApi: ApiSurface | null = null;
+    if (args.lastTag) {
+        restApi = diffRestApi({
+            lastTag: args.lastTag,
+            newRef: 'HEAD',
+            log: (m) => console.warn(`[rest-api-diff] ${m}`),
+        });
+    }
+
     const marker = buildMarker({
         version: args.version,
         previousVersion: args.previousVersion,
         releaseDate: new Date().toISOString(),
         migrations,
         aiReview,
+        restApi,
     });
 
     const json = `${JSON.stringify(marker, null, 2)}\n`;
