@@ -16,7 +16,8 @@ import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { aiMigrationReview } from './ai-migration-review';
-import { lintMigrations, renderFindings } from './sql-migration-lint';
+import { lintMigrations, renderFindings, SqlLintFinding } from './sql-migration-lint';
+import { findExpandFloor } from './expand-version';
 import { diffRestApi } from './rest-api-diff';
 import { diffMcpTools } from './mcp-tools-diff';
 import {
@@ -152,6 +153,13 @@ export interface BuildMarkerInput {
      * the honest "unknown" default. Adds "sql-lint" to capabilities when it ran.
      */
     sqlLint?: SqlLintSummary | null;
+    /**
+     * Earliest release the dropped object is provably safe to remove from (the
+     * "expand" version, traced from git history). Used only when the AI cleared an
+     * expand/contract drop, as the auto-derived upgrade.minPreviousVersion in place
+     * of the conservative previousVersion. null → fall back to previousVersion.
+     */
+    expandContractFloor?: string | null;
     /**
      * Optional result of the REST API breaking-change diff (P2). Applied to
      * api.rest and adds "rest" to capabilities only when checked === true. A
@@ -316,14 +324,20 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
     // safe value (the release we actually checked); the author can lower it via the
     // overrides file if the "expand" shipped earlier. A human-authored
     // minPreviousVersion (from the overrides file) always wins.
-    if (aiClearedExpandContract && upgrade.minPreviousVersion === null && previousVersion) {
+    if (aiClearedExpandContract && upgrade.minPreviousVersion === null && (input.expandContractFloor || previousVersion)) {
+        // Prefer the git-traced expand version (earliest release the app stopped
+        // using the object — provably safe and more permissive); fall back to the
+        // conservative previousVersion (the single release the AI verified).
+        const floor = input.expandContractFloor || previousVersion!;
+        const traced = Boolean(input.expandContractFloor);
         upgrade = {
-            minPreviousVersion: previousVersion,
+            minPreviousVersion: floor,
             requiredStop: upgrade.requiredStop,
-            note:
-                `Auto-derived: the AI verified the change is safe via expand/contract from ${previousVersion}. ` +
-                `Upgrading from an earlier release is NOT verified — set a lower minPreviousVersion in ` +
-                `release-safety.overrides.json if the app stopped using the object before then.`,
+            note: traced
+                ? `Auto-derived: git history shows the app stopped referencing the dropped object by ${floor}, so upgrades from ${floor} or later are safe. Set a different minPreviousVersion in release-safety.overrides.json to override.`
+                : `Auto-derived: the AI verified the change is safe via expand/contract from ${floor}. ` +
+                  `Upgrading from an earlier release is NOT verified — set a lower minPreviousVersion in ` +
+                  `release-safety.overrides.json if the app stopped using the object before then.`,
         };
         upgradeKnown = true;
     }
@@ -450,8 +464,10 @@ async function main(): Promise<void> {
     // baseline, NOT the last word: the AI review below can clear a flagged
     // drop/rename when it verifies the previous release no longer uses the object.
     let sqlLint: SqlLintSummary | null = null;
+    let lintFindings: SqlLintFinding[] = [];
     if (migrations?.present === true && args.lastTag) {
         const r = lintMigrations({ lastTag: args.lastTag, log: (m) => console.warn(`[sql-lint] ${m}`) });
+        lintFindings = r.findings;
         sqlLint = { ran: r.ran, breaking: r.breaking, findings: renderFindings(r.findings) };
         console.warn(
             `[release-safety] SQL linter: ${r.breaking ? `BREAKING (${r.findings.length} finding(s))` : 'no breaking shapes found'}`,
@@ -517,6 +533,29 @@ async function main(): Promise<void> {
         });
     }
 
+    // Expand-version tracing: when the AI cleared a linter-flagged drop/rename as
+    // the safe "contract" step, trace from git history the EARLIEST release the
+    // app stopped referencing the object — a more permissive (but still provably
+    // safe) upgrade floor than the conservative previousVersion. Best-effort;
+    // null stays conservative.
+    let expandContractFloor: string | null = null;
+    if (sqlLint?.breaking && aiReview?.rollingUpdateSafe === true && args.lastTag) {
+        const objects = lintFindings
+            .filter((f) => ['drop-column', 'rename-column', 'drop-table', 'rename-table'].includes(f.rule))
+            .map((f) => f.object)
+            .filter((o): o is string => Boolean(o));
+        if (objects.length > 0) {
+            expandContractFloor = findExpandFloor({
+                objects,
+                fromRef: args.lastTag,
+                log: (m) => console.warn(`[expand-version] ${m}`),
+            });
+            if (expandContractFloor) {
+                console.warn(`[release-safety] expand version traced: minPreviousVersion -> ${expandContractFloor}`);
+            }
+        }
+    }
+
     // P4: human-authored upgrade-path overrides. A missing file is fine (mechanism
     // unused); a present-but-malformed file throws here and FAILS the release —
     // never silently drop a maintainer's declared required-stop.
@@ -530,6 +569,7 @@ async function main(): Promise<void> {
         migrations,
         aiReview,
         sqlLint,
+        expandContractFloor,
         restApi,
         mcpApi,
         upgrade,

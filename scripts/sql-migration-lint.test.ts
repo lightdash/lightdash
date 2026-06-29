@@ -43,6 +43,19 @@ test('NOT NULL with a default is not flagged', () => {
 
 // --- breaking shapes ---------------------------------------------------------
 
+test('extracts the dropped/renamed object name for expand-version tracing', () => {
+    const drop = lintSource(`export async function up(knex){ await knex.schema.alterTable('users', t => t.dropColumn('legacy_field')); }`);
+    assert.strictEqual(drop[0]?.object, 'legacy_field');
+    const renameCol = lintSource(`export async function up(knex){ await knex.schema.alterTable('users', t => t.renameColumn('old_name', 'new_name')); }`);
+    assert.strictEqual(renameCol[0]?.object, 'old_name'); // the removed (old) name
+    const dropTable = lintSource(`export async function up(knex){ await knex.schema.dropTableIfExists('audit_log'); }`);
+    assert.strictEqual(dropTable[0]?.object, 'audit_log');
+    // non-string-literal arg → no object captured, but still flagged
+    const dynamic = lintSource(`export async function up(knex){ await knex.schema.alterTable('users', t => t.dropColumn(colName)); }`);
+    assert.strictEqual(dynamic[0]?.rule, 'drop-column');
+    assert.strictEqual(dynamic[0]?.object, undefined);
+});
+
 test('dropColumn in up() is flagged', () => {
     const src = `export async function up(knex){ await knex.schema.alterTable('users', t => { t.dropColumn('legacy'); }); }
 export async function down(knex){ await knex.schema.alterTable('users', t => t.string('legacy')); }`;
