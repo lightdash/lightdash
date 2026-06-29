@@ -1,6 +1,6 @@
 # Release-Safety Marker — Design (PROD-8359 / #24441)
 
-**Status:** Feature-complete — P1–P4 + P6 + the deterministic SQL-shape linter all built; P6 activated in the release pipeline. Only P5 (Helm) remains parked.
+**Status:** Feature-complete — P1–P4 + P6 + the deterministic SQL-shape linter all built; P6 activated. Marker DARK-LAUNCHED behind a kill-switch (publishes nothing yet) with a PR preview comment for visibility. Only P5 (Helm) remains parked.
 **Ticket:** PROD-8359 · GitHub issue lightdash/lightdash#24441
 **Branch / PR:** `prod-8359-release-safety` → PR lightdash/lightdash#24879 (draft)
 
@@ -85,11 +85,33 @@
   when the SQL linter did not already prove a break, key-present only; any degrade
   leaves `"unknown"` and never fails the release.
 
+- **Kill-switch (dark launch)** — `RELEASE_SAFETY_MARKER_ENABLED` env (default
+  `false`). While off, `gen-release-safety.ts` computes + logs the marker but
+  writes no file AND skips the paid AI review (a dark release publishes nothing
+  and spends nothing). `release.config.js` ALSO gates the GitHub asset listing on
+  the same env (so a missing file can't fail a release — bulletproof, not relying
+  on plugin skip behaviour). Set to `'false'` in the `release.yml` Semantic
+  Release step; flipping to `'true'` writes the file, attaches the asset, and
+  enables the AI review in one switch.
+- **PR preview comment (shift-left)** — `.github/workflows/release-safety-pr.yml`
+  runs on PRs touching the schema/API/MCP surface (path-filtered). Lightweight:
+  `tsx` + a pinned `oasdiff`, NO `pnpm install` (the generator imports only
+  Node built-ins + git). Computes the marker diffed against the merge-base with
+  the target branch (with `enabled=true` to a throwaway temp file, NO `--ai-review`
+  → zero API spend), then `scripts/release-safety-pr-comment.ts` renders a sticky
+  comment (find-or-update via `actions/github-script`, same pinned action the repo
+  already uses) with: the determination, the matrix of which checks ran + what
+  they found, and the customer-deploy consequence ("old pods could CrashLoopBackOff
+  → Recreate", required-stop, REST/MCP consumer breaks). Fork PRs are skipped
+  (read-only token). The published asset stays dark — the comment is informational.
+
 **Remaining:**
 - **Caching/cost:** P6 is cheap now; no further work needed unless cost regresses.
 - **Operator/maintainer docs:** publish the `jq`-gating recipes + the
   `release-safety.overrides.json` required-stop authoring flow (the only manual
   step in the system).
+- **Go-live:** flip `RELEASE_SAFETY_MARKER_ENABLED` to `'true'` in `release.yml`
+  once a consumer commits to reading the marker.
 
 **Parked (deliberately, per Charlie):**
 - **P5** — Helm `backend.deployment.strategy` Recreate switch + operator docs

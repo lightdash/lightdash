@@ -1,6 +1,15 @@
 /**
  * @type {import('semantic-release').GlobalConfig}
  */
+
+// PROD-8359 kill-switch (see scripts/gen-release-safety.ts). While the marker is
+// dark-launched (RELEASE_SAFETY_MARKER_ENABLED !== "true") the generator writes no
+// release-safety.json, so we must NOT list it as a GitHub asset — a missing asset
+// would risk failing every release. Flipping the env var to "true" both writes the
+// file and attaches it, in one switch.
+const releaseSafetyMarkerEnabled =
+    process.env.RELEASE_SAFETY_MARKER_ENABLED === 'true';
+
 module.exports = {
     branches: [
         '+([0-9])?(.{+([0-9]),x}).x',
@@ -77,12 +86,15 @@ module.exports = {
         [
             '@semantic-release/github',
             {
-                assets: [
-                    {
-                        path: 'release-safety.json',
-                        label: 'release-safety.json',
-                    },
-                ],
+                // Attach the marker only when the kill-switch is on (see above).
+                assets: releaseSafetyMarkerEnabled
+                    ? [
+                          {
+                              path: 'release-safety.json',
+                              label: 'release-safety.json',
+                          },
+                      ]
+                    : [],
             },
         ],
     ],

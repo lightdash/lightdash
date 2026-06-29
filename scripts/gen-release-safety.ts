@@ -378,6 +378,12 @@ function writeAtomic(outPath: string, contents: string): void {
 
 async function main(): Promise<void> {
     const args = parseArgs(process.argv.slice(2));
+    // Kill-switch: the marker is dark-launched. Unless RELEASE_SAFETY_MARKER_ENABLED
+    // is "true", the generator still computes + prints the marker to stdout but
+    // does NOT write the output file (so no GitHub release asset is published) and
+    // skips the paid AI review (so a dark release spends nothing). The PR preview
+    // workflow sets it true to write its throwaway temp file.
+    const markerEnabled = process.env.RELEASE_SAFETY_MARKER_ENABLED === 'true';
     const wantAiReview = process.argv.includes('--ai-review');
 
     let migrations: MigrationsResult | null = null;
@@ -416,7 +422,7 @@ async function main(): Promise<void> {
     // ever make the marker more informative, never falsely safe, never fails the
     // release.
     let aiReview: AiReviewSummary | null = null;
-    if (wantAiReview && migrations?.present === true && args.lastTag && !sqlLint?.breaking) {
+    if (wantAiReview && markerEnabled && migrations?.present === true && args.lastTag && !sqlLint?.breaking) {
         const apiKey = process.env.ANTHROPIC_API_KEY;
         if (!apiKey) {
             console.warn('[release-safety] --ai-review requested but ANTHROPIC_API_KEY not set; rollingUpdateSafe stays "unknown"');
@@ -487,8 +493,17 @@ async function main(): Promise<void> {
     });
 
     const json = `${JSON.stringify(marker, null, 2)}\n`;
-    writeAtomic(args.out, json);
-    console.log(`[release-safety] wrote ${args.out}`);
+    // Always print the marker (CI logs + the PR preview workflow read this); only
+    // write the file — the thing that becomes the published release asset — when
+    // the kill-switch is on.
+    if (markerEnabled) {
+        writeAtomic(args.out, json);
+        console.log(`[release-safety] wrote ${args.out}`);
+    } else {
+        console.log(
+            `[release-safety] marker disabled (RELEASE_SAFETY_MARKER_ENABLED != "true"); not writing ${args.out}`,
+        );
+    }
     console.log(json);
 }
 

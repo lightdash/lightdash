@@ -1,0 +1,129 @@
+name: Release-safety preview
+
+# PROD-8359: shift-left the release-safety marker to PR time. On PRs that touch
+# the schema / API / MCP surface, compute the marker the generator WOULD emit
+# (diffed against the merge-base with the target branch) and post a sticky comment
+# with the determination, the matrix of checks, and the customer-deploy impact —
+# so the author is in the loop before merge. Does NOT run the paid AI review
+# (release-time only) and never publishes anything (the marker stays dark-launched).
+
+on:
+  pull_request:
+    paths:
+      - 'packages/backend/src/database/migrations/**'
+      - 'packages/backend/src/ee/database/migrations/**'
+      - 'packages/backend/src/generated/swagger.json'
+      - 'packages/common/src/schemas/json/mcp-tools-1.0.json'
+      - 'release-safety.overrides.json'
+      - 'scripts/gen-release-safety.ts'
+      - 'scripts/sql-migration-lint.ts'
+      - 'scripts/rest-api-diff.ts'
+      - 'scripts/mcp-tools-diff.ts'
+      - 'scripts/upgrade-overrides.ts'
+      - 'scripts/release-safety-pr-comment.ts'
+      - '.github/workflows/release-safety-pr.yml'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  preview:
+    name: Release-safety preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Resolve comparison base
+        id: base
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "${{ github.event.pull_request.base.ref }}"
+          BASE=$(git merge-base FETCH_HEAD HEAD)
+          echo "sha=${BASE}" >> "$GITHUB_OUTPUT"
+          echo "short=$(git rev-parse --short "${BASE}")" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Socket Firewall
+        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
+
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: Install tsx
+        run: sfw npm install -g tsx@4.19.4
+
+      - name: Install oasdiff
+        env:
+          OASDIFF_VERSION: '1.21.0'
+          OASDIFF_SHA256: '293811c172672e9e86313ef925f136d8a2352c7b56937f6b0f91c5de1166bd8f'
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/oasdiff.tar.gz \
+            "https://github.com/oasdiff/oasdiff/releases/download/v${OASDIFF_VERSION}/oasdiff_${OASDIFF_VERSION}_linux_amd64.tar.gz"
+          echo "${OASDIFF_SHA256}  /tmp/oasdiff.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/oasdiff.tar.gz -C /tmp oasdiff
+          sudo install -m 0755 /tmp/oasdiff /usr/local/bin/oasdiff
+          oasdiff --version
+
+      - name: Compute release-safety marker (no AI review; preview only)
+        env:
+          # Enable the write so we get the temp marker file; this is a throwaway,
+          # nothing is published. The AI review is intentionally NOT requested
+          # (no --ai-review) so PRs cost zero API spend.
+          RELEASE_SAFETY_MARKER_ENABLED: 'true'
+        run: |
+          tsx scripts/gen-release-safety.ts \
+            --version "pr-${{ github.event.pull_request.number }}" \
+            --previous-version "${{ steps.base.outputs.short }}" \
+            --last-tag "${{ steps.base.outputs.sha }}" \
+            --out /tmp/release-safety.json
+
+      - name: Render PR comment
+        run: |
+          tsx scripts/release-safety-pr-comment.ts \
+            --marker /tmp/release-safety.json \
+            --base "${{ github.event.pull_request.base.ref }} (${{ steps.base.outputs.short }})" \
+            --out /tmp/release-safety-comment.md
+
+      - name: Post or update sticky comment
+        # Fork PRs get a read-only token and cannot comment; skip them gracefully.
+        if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('/tmp/release-safety-comment.md', 'utf8');
+            const marker = '<!-- release-safety-marker -->';
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find((c) => c.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
