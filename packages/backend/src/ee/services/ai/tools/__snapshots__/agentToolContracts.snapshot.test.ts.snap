@@ -134,13 +134,11 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                             "additionalProperties": false,
                             "properties": {
                               "caseSensitiveFilters": {
-                                "description": "Use "true" or "false" only when the exact selected findFields result explicitly includes caseSensitiveFilters with that value; otherwise use "not_applicable".",
-                                "enum": [
-                                  "true",
-                                  "false",
-                                  "not_applicable",
+                                "description": "String dimension filter case-sensitivity. true means exact-case matching, false means case-insensitive matching, and null means not applicable.",
+                                "type": [
+                                  "boolean",
+                                  "null",
                                 ],
-                                "type": "string",
                               },
                               "description": {
                                 "description": "Full field description copied exactly from listFields when fetched, otherwise a non-truncated findFields description; null when the field has no description.",
@@ -184,9 +182,9 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                               "table",
                               "fieldValueType",
                               "fieldFilterType",
-                              "caseSensitiveFilters",
                               "isFromJoinedTable",
                               "description",
+                              "caseSensitiveFilters",
                               "fieldType",
                             ],
                             "type": "object",
@@ -266,13 +264,11 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                                 "additionalProperties": false,
                                 "properties": {
                                   "caseSensitiveFilters": {
-                                    "description": "Use "true" or "false" only when the exact selected findFields result explicitly includes caseSensitiveFilters with that value; otherwise use "not_applicable".",
-                                    "enum": [
-                                      "true",
-                                      "false",
-                                      "not_applicable",
+                                    "description": "String dimension filter case-sensitivity. true means exact-case matching, false means case-insensitive matching, and null means not applicable.",
+                                    "type": [
+                                      "boolean",
+                                      "null",
                                     ],
-                                    "type": "string",
                                   },
                                   "description": {
                                     "description": "Full field description copied exactly from listFields when fetched, otherwise a non-truncated findFields description; null when the field has no description.",
@@ -316,9 +312,9 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                                   "table",
                                   "fieldValueType",
                                   "fieldFilterType",
-                                  "caseSensitiveFilters",
                                   "isFromJoinedTable",
                                   "description",
+                                  "caseSensitiveFilters",
                                   "fieldType",
                                 ],
                                 "type": "object",
@@ -327,13 +323,11 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                                 "additionalProperties": false,
                                 "properties": {
                                   "caseSensitiveFilters": {
-                                    "description": "Use "true" or "false" only when the exact selected findFields result explicitly includes caseSensitiveFilters with that value; otherwise use "not_applicable".",
-                                    "enum": [
-                                      "true",
-                                      "false",
-                                      "not_applicable",
+                                    "description": "String dimension filter case-sensitivity. true means exact-case matching, false means case-insensitive matching, and null means not applicable.",
+                                    "type": [
+                                      "boolean",
+                                      "null",
                                     ],
-                                    "type": "string",
                                   },
                                   "description": {
                                     "description": "Full field description copied exactly from listFields when fetched, otherwise a non-truncated findFields description; null when the field has no description.",
@@ -377,9 +371,9 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                                   "table",
                                   "fieldValueType",
                                   "fieldFilterType",
-                                  "caseSensitiveFilters",
                                   "isFromJoinedTable",
                                   "description",
+                                  "caseSensitiveFilters",
                                   "fieldType",
                                 ],
                                 "type": "object",
@@ -394,13 +388,11 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                             "additionalProperties": false,
                             "properties": {
                               "caseSensitiveFilters": {
-                                "description": "Use "true" or "false" only when the exact selected findFields result explicitly includes caseSensitiveFilters with that value; otherwise use "not_applicable".",
-                                "enum": [
-                                  "true",
-                                  "false",
-                                  "not_applicable",
+                                "description": "String dimension filter case-sensitivity. true means exact-case matching, false means case-insensitive matching, and null means not applicable.",
+                                "type": [
+                                  "boolean",
+                                  "null",
                                 ],
-                                "type": "string",
                               },
                               "description": {
                                 "description": "Full field description copied exactly from listFields when fetched, otherwise a non-truncated findFields description; null when the field has no description.",
@@ -444,9 +436,9 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                               "table",
                               "fieldValueType",
                               "fieldFilterType",
-                              "caseSensitiveFilters",
                               "isFromJoinedTable",
                               "description",
+                              "caseSensitiveFilters",
                               "fieldType",
                             ],
                             "type": "object",
@@ -542,9 +534,9 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                               "table",
                               "fieldValueType",
                               "fieldFilterType",
-                              "caseSensitiveFilters",
                               "isFromJoinedTable",
                               "description",
+                              "caseSensitiveFilters",
                               "fieldType",
                             ],
                             "type": "object",
@@ -673,9 +665,9 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                                   "table",
                                   "fieldValueType",
                                   "fieldFilterType",
-                                  "caseSensitiveFilters",
                                   "isFromJoinedTable",
                                   "description",
+                                  "caseSensitiveFilters",
                                   "fieldType",
                                 ],
                                 "type": "object",
@@ -734,9 +726,9 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                                   "table",
                                   "fieldValueType",
                                   "fieldFilterType",
-                                  "caseSensitiveFilters",
                                   "isFromJoinedTable",
                                   "description",
+                                  "caseSensitiveFilters",
                                   "fieldType",
                                 ],
                                 "type": "object",
@@ -801,9 +793,9 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                               "table",
                               "fieldValueType",
                               "fieldFilterType",
-                              "caseSensitiveFilters",
                               "isFromJoinedTable",
                               "description",
+                              "caseSensitiveFilters",
                               "fieldType",
                             ],
                             "type": "object",

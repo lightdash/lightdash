@@ -602,7 +602,7 @@
                 "idempotentHint": true,
                 "readOnlyHint": true
             },
-            "description": "Tool: listExplores\n\nPurpose:\nLists all Explores available to the user in the current project. Returns a summary of each explore including its name, label, base table, and tags.\n\nUsage Tips:\n- Use this to discover what data sources are available before using findExplores for detailed field information\n- No arguments needed - automatically uses the current project context\n- Results are filtered based on user permissions and selected tags\n- Returns explore metadata without field details for quick overview\n",
+            "description": "Tool: listExplores\n\nPurpose:\nLists all Explores available to the user in the current project. Returns a summary of each explore including its name, label, base table, and tags.\n\nUsage Tips:\n- Use this to discover what data sources are available before using findExplores for detailed explore descriptions\n- No arguments needed - automatically uses the current project context\n- Results are filtered based on user permissions and selected tags\n- Returns explore metadata without field details for quick overview\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,

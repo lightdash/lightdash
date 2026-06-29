@@ -488,22 +488,26 @@ export class McpService extends BaseService {
         return typeof value === 'object' && value !== null;
     }
 
+    private static hasStructuredResult(
+        value: unknown,
+    ): value is StructuredToolResult<unknown> {
+        return (
+            typeof value === 'object' &&
+            value !== null &&
+            'structuredResult' in value
+        );
+    }
+
     private static getStructuredContentFromResult(
         result: unknown,
     ): Record<string, unknown> | undefined {
-        if (
-            typeof result === 'object' &&
-            result !== null &&
-            'structuredResult' in result &&
-            McpService.isStructuredContent(
-                (result as StructuredToolResult<unknown>).structuredResult,
-            )
-        ) {
-            return (result as StructuredToolResult<Record<string, unknown>>)
-                .structuredResult;
+        if (!McpService.hasStructuredResult(result)) {
+            return undefined;
         }
 
-        return undefined;
+        return McpService.isStructuredContent(result.structuredResult)
+            ? result.structuredResult
+            : undefined;
     }
 
     static async streamToolResponse<T extends { result: string }>(
@@ -646,10 +650,8 @@ export class McpService extends BaseService {
         toolResult: string,
     ): Record<string, unknown> | undefined {
         try {
-            const parsed = JSON.parse(toolResult) as unknown;
-            return typeof parsed === 'object' && parsed !== null
-                ? (parsed as Record<string, unknown>)
-                : undefined;
+            const parsed: unknown = JSON.parse(toolResult);
+            return McpService.isStructuredContent(parsed) ? parsed : undefined;
         } catch {
             return undefined;
         }

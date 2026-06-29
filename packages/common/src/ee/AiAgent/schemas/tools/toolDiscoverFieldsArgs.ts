@@ -66,6 +66,9 @@ export const discoverFieldsExploreSummarySchemaV2 =
             .describe(requiredFiltersDescription),
     });
 
+const caseSensitiveFiltersDescription =
+    'String dimension filter case-sensitivity. true means exact-case matching, false means case-insensitive matching, and null means not applicable.';
+
 const discoverFieldsFieldSummaryBaseSchema = z.object({
     fieldId: z
         .string()
@@ -79,11 +82,6 @@ const discoverFieldsFieldSummaryBaseSchema = z.object({
             'The value type (e.g. number, string, date, timestamp, boolean).',
         ),
     fieldFilterType: z.string(),
-    caseSensitiveFilters: z
-        .enum(['true', 'false', 'not_applicable'])
-        .describe(
-            'Use "true" or "false" only when the exact selected findFields result explicitly includes caseSensitiveFilters with that value; otherwise use "not_applicable".',
-        ),
     isFromJoinedTable: z.boolean(),
     description: z
         .string()
@@ -93,19 +91,51 @@ const discoverFieldsFieldSummaryBaseSchema = z.object({
         ),
 });
 
-const discoverFieldsDimensionSummarySchema =
+const discoverFieldsFieldSummaryBaseSchemaV1 =
     discoverFieldsFieldSummaryBaseSchema.extend({
+        caseSensitiveFilters: z
+            .enum(['true', 'false', 'not_applicable'])
+            .describe(
+                'Use "true" or "false" only when the exact selected findFields result explicitly includes caseSensitiveFilters with that value; otherwise use "not_applicable".',
+            ),
+    });
+
+const discoverFieldsFieldSummaryBaseSchemaV2 =
+    discoverFieldsFieldSummaryBaseSchema.extend({
+        caseSensitiveFilters: z
+            .boolean()
+            .nullable()
+            .describe(caseSensitiveFiltersDescription),
+    });
+
+const discoverFieldsDimensionSummarySchemaV1 =
+    discoverFieldsFieldSummaryBaseSchemaV1.extend({
         fieldType: z.literal('dimension'),
     });
 
-const discoverFieldsMetricSummarySchema =
-    discoverFieldsFieldSummaryBaseSchema.extend({
+const discoverFieldsMetricSummarySchemaV1 =
+    discoverFieldsFieldSummaryBaseSchemaV1.extend({
         fieldType: z.literal('metric'),
     });
 
-const discoverFieldsFieldSummarySchema = z.union([
-    discoverFieldsDimensionSummarySchema,
-    discoverFieldsMetricSummarySchema,
+const discoverFieldsFieldSummarySchemaV1 = z.union([
+    discoverFieldsDimensionSummarySchemaV1,
+    discoverFieldsMetricSummarySchemaV1,
+]);
+
+const discoverFieldsDimensionSummarySchemaV2 =
+    discoverFieldsFieldSummaryBaseSchemaV2.extend({
+        fieldType: z.literal('dimension'),
+    });
+
+const discoverFieldsMetricSummarySchemaV2 =
+    discoverFieldsFieldSummaryBaseSchemaV2.extend({
+        fieldType: z.literal('metric'),
+    });
+
+const discoverFieldsFieldSummarySchemaV2 = z.union([
+    discoverFieldsDimensionSummarySchemaV2,
+    discoverFieldsMetricSummarySchemaV2,
 ]);
 
 const discoverFieldsCandidateSchema = z.object({
@@ -125,24 +155,35 @@ const discoverFieldsUncertaintiesSchema = z
 
 const getDiscoverFieldsResolvedResultSchema = <
     TExploreSchema extends z.ZodTypeAny,
->(
-    exploreSchema: TExploreSchema,
-) =>
+    TDimensionSchema extends z.ZodTypeAny,
+    TMetricSchema extends z.ZodTypeAny,
+    TFieldSchema extends z.ZodTypeAny,
+>({
+    exploreSchema,
+    dimensionSchema,
+    metricSchema,
+    fieldSchema,
+}: {
+    exploreSchema: TExploreSchema;
+    dimensionSchema: TDimensionSchema;
+    metricSchema: TMetricSchema;
+    fieldSchema: TFieldSchema;
+}) =>
     z.object({
         status: z.literal('resolved'),
         explore: exploreSchema,
         dimensions: z
-            .array(discoverFieldsDimensionSummarySchema)
+            .array(dimensionSchema)
             .describe(
                 'Filtered list of dimension fields relevant to the user query: groupings, dates, filters, and breakdowns. Not the full explore.',
             ),
         metrics: z
-            .array(discoverFieldsMetricSummarySchema)
+            .array(metricSchema)
             .describe(
                 'Filtered list of metric fields relevant to the user query. Not the full explore.',
             ),
         fields: z
-            .array(discoverFieldsFieldSummarySchema)
+            .array(fieldSchema)
             .describe(
                 'Legacy combined list of selected dimensions and metrics. Prefer dimensions and metrics for new consumers.',
             ),
@@ -154,10 +195,20 @@ const getDiscoverFieldsResolvedResultSchema = <
     });
 
 const discoverFieldsResolvedResultSchemaV1 =
-    getDiscoverFieldsResolvedResultSchema(discoverFieldsExploreSummarySchemaV1);
+    getDiscoverFieldsResolvedResultSchema({
+        exploreSchema: discoverFieldsExploreSummarySchemaV1,
+        dimensionSchema: discoverFieldsDimensionSummarySchemaV1,
+        metricSchema: discoverFieldsMetricSummarySchemaV1,
+        fieldSchema: discoverFieldsFieldSummarySchemaV1,
+    });
 
 const discoverFieldsResolvedResultSchemaV2 =
-    getDiscoverFieldsResolvedResultSchema(discoverFieldsExploreSummarySchemaV2);
+    getDiscoverFieldsResolvedResultSchema({
+        exploreSchema: discoverFieldsExploreSummarySchemaV2,
+        dimensionSchema: discoverFieldsDimensionSummarySchemaV2,
+        metricSchema: discoverFieldsMetricSummarySchemaV2,
+        fieldSchema: discoverFieldsFieldSummarySchemaV2,
+    });
 
 const discoverFieldsAmbiguousResultSchema = z.object({
     status: z.literal('ambiguous'),

@@ -62,7 +62,7 @@ If the user mentions any time window ("last 3 months", "this quarter", "past yea
 
 ## String filter case sensitivity
 
-String dimension metadata has \`caseSensitiveFilters\` when case sensitivity applies. \`true\` means string filters must match casing exactly; \`false\` means string filters ignore casing.
+String dimension metadata has \`caseSensitiveFilters\`: \`true\` means string filters must match casing exactly, \`false\` means string filters ignore casing, and \`null\` means the setting does not apply to that field.
 
 ## Table calculations (when to reach for them)
 

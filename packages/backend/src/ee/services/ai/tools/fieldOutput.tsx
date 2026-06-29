@@ -32,15 +32,15 @@ export type RenderableField = Pick<
         >
     >;
 
-const getFieldCaseSensitive = (
+export const getFieldCaseSensitive = (
     field: RenderableField,
     explore?: Explore,
-): boolean | undefined => {
+): boolean | null => {
     if (
         field.fieldType !== FieldType.DIMENSION ||
         field.fieldValueType !== DimensionType.STRING
     ) {
-        return undefined;
+        return null;
     }
 
     const dimension = explore?.tables[field.tableName]?.dimensions[field.name];

@@ -1,12 +1,7 @@
 import {
     assertUnreachable,
-    DEFAULT_FILTER_CASE_SENSITIVE,
-    DimensionType,
     discoverFieldsToolDefinition,
     Explore,
-    Field,
-    FieldType,
-    getFilterTypeFromItemType,
     getItemId,
     getVisibleFields,
     isDimension,
@@ -22,6 +17,7 @@ import {
     type LanguageModel,
     type UIMessage,
 } from 'ai';
+import { fieldToJson, toRenderableField } from '../../tools/fieldOutput';
 import { stringifyToolJson } from '../../tools/toolOutputFormat';
 import type { AiAgentArgs } from '../../types/aiAgent';
 import { getExploreRequiredFilters } from '../../utils/requiredFilters';
@@ -42,52 +38,32 @@ const discoverFieldsTool = discoverFieldsToolDefinition.for('agent');
 const ambiguousNote =
     'Multiple explores plausibly answer this. Ask the user the suggestedQuestion. Do NOT call generateVisualization.';
 
-const getCaseSensitiveFilters = (
-    field: Field,
-    explore: Explore,
-): 'true' | 'false' | 'not_applicable' => {
-    if (
-        field.fieldType !== FieldType.DIMENSION ||
-        field.type !== DimensionType.STRING
-    ) {
-        return 'not_applicable';
-    }
-
-    const dimension = explore.tables[field.table]?.dimensions[field.name];
-    return (dimension?.caseSensitive ??
-        explore.caseSensitive ??
-        DEFAULT_FILTER_CASE_SENSITIVE)
-        ? 'true'
-        : 'false';
-};
-
-const isFromJoinedTable = (field: Field, explore: Explore) =>
-    field.table !== explore.baseTable &&
-    explore.joinedTables.some((join) => join.table === field.table);
-
 const hydrateField = ({
-    fieldId,
     field,
     explore,
 }: {
-    fieldId: string;
     field: Dimension | Metric;
     explore: Explore;
-}) => ({
-    fieldId,
-    name: field.name,
-    label: field.label,
-    table: field.table,
-    fieldType: field.fieldType,
-    fieldValueType: String(field.type),
-    fieldFilterType: getFilterTypeFromItemType(field.type),
-    caseSensitiveFilters: getCaseSensitiveFilters(field, explore),
-    isFromJoinedTable: isFromJoinedTable(field, explore),
-    description: field.description ?? null,
-});
+}) => {
+    const fieldJson = fieldToJson({
+        field: toRenderableField(field),
+        explore,
+    });
+
+    return {
+        fieldId: fieldJson.fieldId,
+        name: fieldJson.name,
+        label: fieldJson.label,
+        table: fieldJson.baseTable,
+        fieldValueType: String(fieldJson.fieldType),
+        fieldFilterType: fieldJson.fieldFilterType,
+        caseSensitiveFilters: fieldJson.caseSensitiveFilters,
+        isFromJoinedTable: fieldJson.isFromJoinedTable,
+        description: fieldJson.description ?? null,
+    };
+};
 
 const hydrateDimensionField = (args: {
-    fieldId: string;
     field: Dimension;
     explore: Explore;
 }) => ({
@@ -95,11 +71,7 @@ const hydrateDimensionField = (args: {
     fieldType: 'dimension' as const,
 });
 
-const hydrateMetricField = (args: {
-    fieldId: string;
-    field: Metric;
-    explore: Explore;
-}) => ({
+const hydrateMetricField = (args: { field: Metric; explore: Explore }) => ({
     ...hydrateField(args),
     fieldType: 'metric' as const,
 });
@@ -131,7 +103,7 @@ const hydrateResolvedSelection = async ({
             );
         }
 
-        return hydrateDimensionField({ fieldId, field: item, explore });
+        return hydrateDimensionField({ field: item, explore });
     });
 
     const metrics = selection.metricIds.map((fieldId) => {
@@ -142,7 +114,7 @@ const hydrateResolvedSelection = async ({
             );
         }
 
-        return hydrateMetricField({ fieldId, field: item, explore });
+        return hydrateMetricField({ field: item, explore });
     });
 
     return {
@@ -213,11 +185,7 @@ const getStructuredField = (
     fieldValueType: field.fieldValueType,
     fieldFilterType: field.fieldFilterType,
     isFromJoinedTable: field.isFromJoinedTable,
-    ...(field.caseSensitiveFilters === 'not_applicable'
-        ? {}
-        : {
-              caseSensitiveFilters: field.caseSensitiveFilters === 'true',
-          }),
+    caseSensitiveFilters: field.caseSensitiveFilters,
     description: field.description,
 });
 
