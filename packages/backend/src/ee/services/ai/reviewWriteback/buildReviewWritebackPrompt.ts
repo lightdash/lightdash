@@ -88,10 +88,16 @@ const buildSemanticLayerWritebackPrompt = (
 ): ReviewWritebackPlan => {
     const finding = item.latestFinding;
     if (item.source === 'manual') {
+        const manualTargetLines = item.targetRefs
+            .filter(isSemanticTargetRef)
+            .map((ref) => `- ${formatSemanticTargetRef(ref, ymlPathByModel)}`);
         const sections = [
             'You are improving the dbt/Lightdash semantic layer YAML to resolve a manually filed data issue. Make the smallest change that resolves it.',
             `Issue: ${item.title}`,
             item.description ? `Description: ${item.description}` : null,
+            manualTargetLines.length > 0
+                ? `Related explore(s)/field(s):\n${manualTargetLines.join('\n')}`
+                : null,
             'No source conversation is attached. Use the issue title and description as the source of truth, inspect the dbt project, and open a pull request if a semantic-layer change can resolve the ask.',
             'Apply the change by updating field descriptions, ai_hint, or labels, or by adding a missing model, join, dimension, or metric as appropriate. Do not change SQL logic or unrelated fields. If the data needed to answer this is genuinely not present in the warehouse/dbt project and cannot be exposed by a semantic-layer edit, do not fabricate fields or invent data — open no pull request and report that upstream dbt modeling or ingestion is required.',
         ].filter((section): section is string => section !== null);

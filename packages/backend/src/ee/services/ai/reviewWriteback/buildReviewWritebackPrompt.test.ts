@@ -20,6 +20,7 @@ const baseItem = (
     description: 'It used order count instead of revenue.',
     primaryRootCause: 'semantic_layer',
     priority: 'none',
+    targetRefs: [],
     status: 'open',
     dismissedReason: null,
     ownerType: 'semantic_layer_owner',
