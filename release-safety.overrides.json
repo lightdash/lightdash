@@ -1,0 +1,9 @@
+{
+    "$schema": "./scripts/release-safety-overrides.schema.json",
+    "default": {
+        "minPreviousVersion": null,
+        "requiredStop": false,
+        "note": null
+    },
+    "versions": {}
+}

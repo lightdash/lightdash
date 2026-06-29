@@ -1,6 +1,15 @@
 /**
  * @type {import('semantic-release').GlobalConfig}
  */
+
+// PROD-8359 kill-switch (see scripts/gen-release-safety.ts). While the marker is
+// dark-launched (RELEASE_SAFETY_MARKER_ENABLED !== "true") the generator writes no
+// release-safety.json, so we must NOT list it as a GitHub asset — a missing asset
+// would risk failing every release. Flipping the env var to "true" both writes the
+// file and attaches it, in one switch.
+const releaseSafetyMarkerEnabled =
+    process.env.RELEASE_SAFETY_MARKER_ENABLED === 'true';
+
 module.exports = {
     branches: [
         '+([0-9])?(.{+([0-9]),x}).x',
@@ -36,6 +45,25 @@ module.exports = {
                 publishCmd: 'pnpm release-packages',
             },
         ],
+
+        // Generate the release-safety marker (PROD-8359). Runs before the github
+        // plugin so the asset exists at publish time. Published asset-only — not
+        // committed; the GitHub releases/download/<tag>/release-safety.json URL is
+        // already a stable per-version URL for this public repo.
+        //
+        // --ai-review activates the gated AI migration review (P6). It only fires
+        // on the ~10% of releases with migrations, only when the deterministic SQL
+        // linter did not already prove a break, and only when ANTHROPIC_API_KEY is
+        // set in the release job. Any degrade leaves the honest "unknown" verdict;
+        // it never fails the release.
+        [
+            '@semantic-release/exec',
+            {
+                prepareCmd:
+                    'npx tsx scripts/gen-release-safety.ts --version ${nextRelease.version} --previous-version "${lastRelease.version}" --last-tag "${lastRelease.gitTag}" --out release-safety.json --ai-review',
+            },
+        ],
+
         [
             '@semantic-release/git',
             {
@@ -55,7 +83,20 @@ module.exports = {
                     'chore(release): ${nextRelease.version} \n\n${nextRelease.notes}',
             },
         ],
-        ['@semantic-release/github', {}],
+        [
+            '@semantic-release/github',
+            {
+                // Attach the marker only when the kill-switch is on (see above).
+                assets: releaseSafetyMarkerEnabled
+                    ? [
+                          {
+                              path: 'release-safety.json',
+                              label: 'release-safety.json',
+                          },
+                      ]
+                    : [],
+            },
+        ],
     ],
     tagFormat: '${version}',
 };

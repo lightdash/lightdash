@@ -70,6 +70,24 @@ jobs:
       - name: Install dependencies
         run: sfw pnpm install --frozen-lockfile --prefer-offline --prod=false
 
+      # PROD-8359: install oasdiff so the release-safety marker generator can diff
+      # the REST API (swagger.json) between the previous tag and HEAD for breaking
+      # changes (api.rest). Pinned + sha256-verified; the download goes over the
+      # harden-runner audited egress (not a package install, so no Socket Firewall
+      # wrapper). When present on PATH the generator runs the diff automatically.
+      - name: Install oasdiff
+        env:
+          OASDIFF_VERSION: '1.21.0'
+          OASDIFF_SHA256: '293811c172672e9e86313ef925f136d8a2352c7b56937f6b0f91c5de1166bd8f'
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/oasdiff.tar.gz \
+            "https://github.com/oasdiff/oasdiff/releases/download/v${OASDIFF_VERSION}/oasdiff_${OASDIFF_VERSION}_linux_amd64.tar.gz"
+          echo "${OASDIFF_SHA256}  /tmp/oasdiff.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/oasdiff.tar.gz -C /tmp oasdiff
+          sudo install -m 0755 /tmp/oasdiff /usr/local/bin/oasdiff
+          oasdiff --version
+
       - name: Semantic Release
         # Config is on release.config.js
         id: semantic
@@ -77,6 +95,17 @@ jobs:
         env:
           HUSKY: 0
           GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          # PROD-8359: powers the gated AI migration review (P6) in the marker
+          # generator. The review reaches api.anthropic.com over the harden-runner
+          # audited egress; absent the key, the generator skips it and leaves the
+          # honest "unknown" verdict. Never fails the release.
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # PROD-8359 kill-switch: the marker is DARK-LAUNCHED. While "false" the
+          # generator computes + logs the marker but writes no file (so no release
+          # asset is published) and skips the paid AI review. Flip to "true" to go
+          # live. The PR preview workflow is unaffected (it runs the generator with
+          # its own enabled=true against a throwaway file).
+          RELEASE_SAFETY_MARKER_ENABLED: 'false'
         with:
           semantic_version: 19
           extra_plugins: |
