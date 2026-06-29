@@ -399,10 +399,10 @@ const readCodeFiles = async <
 
     GlobalState.log(`Reading ${folder} from ${baseDir}`);
 
-    const [major, minor] = process.versions.node.split('.').map(Number);
-    if (major < 20 || (major === 20 && minor < 12)) {
+    const [major] = process.versions.node.split('.').map(Number);
+    if (major < 22) {
         throw new Error(
-            `Node.js v20.12.0 or later is required for this command (current: ${process.version}).`,
+            `Node.js v22.0.0 or later is required for this command (current: ${process.version}).`,
         );
     }
 
