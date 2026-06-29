@@ -309,9 +309,9 @@ test('sqlLint breaking sets rollingUpdateSafe false + adds "sql-lint" capability
     assert.ok(/Migration linter detected breaking/.test(m.compatibility.notes));
 });
 
-test('high-confidence AI "safe" OVERRIDES a linter flag (expand/contract clearance)', () => {
+test('high-confidence AI "safe" OVERRIDES a linter flag + derives a minPreviousVersion floor', () => {
     const m = buildMarker({
-        ...base,
+        ...base, // previousVersion: '0.3260.2'
         migrations: migPresent,
         sqlLint: { ran: true, breaking: true, findings: ['m.ts:3 drops a column [drop-column]'] },
         aiReview: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', summary: 'old code has zero refs to the dropped column.' },
@@ -319,9 +319,40 @@ test('high-confidence AI "safe" OVERRIDES a linter flag (expand/contract clearan
     // AI wins: the drop is the contract step of an expand/contract → safe
     assert.strictEqual(m.compatibility.rollingUpdateSafe, true);
     assert.strictEqual(m.compatibility.recommendedStrategy, 'RollingUpdate');
-    assert.deepStrictEqual(m.capabilities, ['migrations', 'sql-lint', 'ai-review']);
     assert.ok(/CLEARED a deterministic linter flag/.test(m.compatibility.notes));
-    assert.ok(/expand\/contract/.test(m.compatibility.notes));
+    assert.ok(/Safe ONLY when upgrading from 0\.3260\.2/.test(m.compatibility.notes));
+    // ...and the safe verdict is made honest with an auto-derived upgrade floor
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'sql-lint', 'ai-review', 'upgrade']);
+    assert.strictEqual(m.upgrade.minPreviousVersion, '0.3260.2');
+    assert.strictEqual(m.upgrade.requiredStop, false);
+    assert.ok(/Auto-derived/.test(m.upgrade.note ?? ''));
+});
+
+test('a human-authored minPreviousVersion (overrides) wins over the auto-derived floor', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: migPresent,
+        sqlLint: { ran: true, breaking: true, findings: ['m.ts:3 drops a column [drop-column]'] },
+        aiReview: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', summary: 'cleared.' },
+        upgrade: { consulted: true, minPreviousVersion: '0.3100.0', requiredStop: true, note: 'maintainer set this' },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, true);
+    assert.strictEqual(m.upgrade.minPreviousVersion, '0.3100.0'); // overrides win
+    assert.strictEqual(m.upgrade.requiredStop, true);
+    assert.strictEqual(m.upgrade.note, 'maintainer set this');
+});
+
+test('no expand/contract derivation when the AI cleared a linter-CLEAN migration', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: migPresent,
+        sqlLint: { ran: true, breaking: false, findings: [] },
+        aiReview: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', summary: 'additive, verified.' },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, true);
+    // additive clearance is not an expand/contract → no auto floor, no upgrade cap
+    assert.ok(!m.capabilities.includes('upgrade'));
+    assert.strictEqual(m.upgrade.minPreviousVersion, null);
 });
 
 test('AI "breaking" confirms a linter flag → stays false', () => {

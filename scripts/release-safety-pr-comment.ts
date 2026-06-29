@@ -184,6 +184,29 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
     if (restBreaking) consequence.push('- ⚠️ External REST API consumers may break across this upgrade (see `api.rest`).');
     if (mcpBreaking) consequence.push('- ⚠️ MCP clients/agents may break across this upgrade (see `api.mcp`).');
 
+    // ---- what you should do -------------------------------------------------
+    const advice: string[] = [];
+    if (rollingUpdateSafe === false) {
+        advice.push(
+            '**If you must merge this change now:** operators upgrading via a default RollingUpdate would hit the impact above. The marker tells their CI/CD to use **Recreate** (a brief restart instead of a crash loop) — call this out in the release notes, and set a `requiredStop` in `release-safety.overrides.json` if older versions must not skip it.',
+        );
+        advice.push(
+            '**Safer alternative — expand/contract (parallel change):** land the app change FIRST. Open a separate PR to `main` that makes the app stop using the affected object (the *expand*), let it release, then add this migration in a follow-up PR. This preview will then verify the previous release no longer uses it and clear the migration as safe.',
+        );
+    } else if (aiClearedLinter) {
+        const floor = marker.upgrade.minPreviousVersion;
+        advice.push(
+            `This was cleared as the **contract** step of an expand/contract, verified against \`${marker.previousVersion ?? 'the previous release'}\`. It is safe **only when upgrading from ${floor ? `\`${floor}\`` : 'that release'} or later** — an operator skipping up from an older version that still used the object could still crash.`,
+        );
+        advice.push(
+            `The marker auto-sets \`upgrade.minPreviousVersion\`${floor ? ` to \`${floor}\`` : ''} to protect them. If the app actually dropped usage in an **earlier** release, lower it (or set a \`requiredStop\`) in \`release-safety.overrides.json\` so operators aren't forced to stop unnecessarily.`,
+        );
+    } else if (marker.upgrade.requiredStop) {
+        advice.push(
+            `This release is a **required stop**${marker.upgrade.minPreviousVersion ? ` (min previous version \`${marker.upgrade.minPreviousVersion}\`)` : ''}. Make sure the release notes tell operators they cannot skip it.`,
+        );
+    }
+
     // ---- assemble -----------------------------------------------------------
     const baseLine = opts.baseLabel ? `\n> Compared against \`${opts.baseLabel}\`.\n` : '\n';
     const rawJson = JSON.stringify(marker, null, 2);
@@ -199,6 +222,7 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
         '',
         '### What would happen on deploy to customers',
         consequence.join('\n'),
+        ...(advice.length ? ['', '### What you should do', advice.map((a) => `- ${a}`).join('\n')] : []),
         '',
         '<details><summary>Raw marker JSON</summary>\n',
         '```json',

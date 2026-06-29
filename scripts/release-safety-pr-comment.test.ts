@@ -112,6 +112,42 @@ test('linterBreaking flag still shows breaking when the AI did NOT clear it', ()
     assert.ok(body.includes('⚠️ breaking schema op(s) found'));
 });
 
+test('genuine breaking change advises BOTH the merge-now impact and the expand/contract alternative', () => {
+    const body = renderPrComment(baseMarker({
+        capabilities: ['migrations', 'sql-lint', 'ai-review', 'upgrade'],
+        migrations: { present: true, count: 1, files: ['drop.ts'], ee: false },
+        compatibility: { rollingUpdateSafe: false, recommendedStrategy: 'Recreate', notes: 'AI migration review: old code still reads the column.' },
+    }), { draft: false, linterBreaking: true });
+    assert.ok(body.includes('### What you should do'));
+    assert.ok(/If you must merge this change now/.test(body));
+    assert.ok(/Recreate/.test(body));
+    assert.ok(/Safer alternative — expand\/contract/.test(body));
+    assert.ok(/land the app change FIRST/.test(body));
+});
+
+test('expand/contract clearance advises the minPreviousVersion floor + how to lower it', () => {
+    const body = renderPrComment(baseMarker({
+        capabilities: ['migrations', 'sql-lint', 'ai-review', 'upgrade'],
+        migrations: { present: true, count: 1, files: ['drop.ts'], ee: false },
+        previousVersion: '0.3260.2',
+        compatibility: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', notes: 'AI migration review CLEARED a deterministic linter flag (expand/contract): ...' },
+        upgrade: { minPreviousVersion: '0.3260.2', requiredStop: false, note: 'Auto-derived: ...' },
+    }), { draft: false, linterBreaking: true });
+    assert.ok(body.includes('### What you should do'));
+    assert.ok(/safe \*\*only when upgrading from `0\.3260\.2` or later/.test(body));
+    assert.ok(/auto-sets `upgrade.minPreviousVersion`/.test(body));
+    assert.ok(/release-safety\.overrides\.json/.test(body));
+});
+
+test('a plain safe migration gives no "what you should do" section', () => {
+    const body = renderPrComment(baseMarker({
+        capabilities: ['migrations', 'sql-lint', 'ai-review', 'upgrade'],
+        migrations: { present: true, count: 1, files: ['add.ts'], ee: false },
+        compatibility: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', notes: 'AI migration review: additive, verified.' },
+    }), { draft: false, linterBreaking: false });
+    assert.ok(!body.includes('### What you should do'));
+});
+
 test('required stop is surfaced prominently', () => {
     const body = renderPrComment(baseMarker({
         upgrade: { minPreviousVersion: '0.3200.0', requiredStop: true, note: 'Index rebuild.' },

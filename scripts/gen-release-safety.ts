@@ -252,6 +252,12 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
     // (or the honest default) in place — so the AI can only ever make the marker
     // MORE accurate, never downgrade a deterministic break to "unknown". It never
     // applies on a no-migration or first release.
+    // True when the AI cleared a linter-flagged destructive change as the safe
+    // "contract" step of an expand/contract — the verdict it reached by verifying
+    // the PREVIOUS release (previousVersion) no longer uses the object.
+    const aiClearedExpandContract = Boolean(
+        linterFlagged && aiReview && aiReview.rollingUpdateSafe === true,
+    );
     if (aiReview && present === true) {
         capabilities.push('ai-review');
         if (aiReview.rollingUpdateSafe !== 'unknown') {
@@ -259,7 +265,7 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
             recommendedStrategy = aiReview.recommendedStrategy;
             notes =
                 linterFlagged && aiReview.rollingUpdateSafe === true
-                    ? `AI migration review CLEARED a deterministic linter flag — it verified the previous release no longer uses the changed object (expand/contract): ${aiReview.summary} ${BLIND_SPOT_NOTE}`
+                    ? `AI migration review CLEARED a deterministic linter flag — it verified the previous release (${previousVersion ?? 'unknown'}) no longer uses the changed object (expand/contract): ${aiReview.summary} Safe ONLY when upgrading from ${previousVersion ?? 'that release'} or later. ${BLIND_SPOT_NOTE}`
                     : `AI migration review: ${aiReview.summary} ${BLIND_SPOT_NOTE}`;
         }
     }
@@ -292,12 +298,37 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
         requiredStop: false,
         note: null,
     };
+    let upgradeKnown = false;
     if (input.upgrade && input.upgrade.consulted) {
         upgrade = {
             minPreviousVersion: input.upgrade.minPreviousVersion,
             requiredStop: input.upgrade.requiredStop,
             note: input.upgrade.note,
         };
+        upgradeKnown = true;
+    }
+
+    // Expand/contract floor: when the AI cleared a destructive change as the
+    // "contract" step, the "safe" verdict was only verified against previousVersion
+    // — upgrading from an EARLIER release (which may still use the object) is not
+    // verified. Record that as the minimum-previous-version floor so an operator
+    // skipping up from an older version is protected. previousVersion is a provably
+    // safe value (the release we actually checked); the author can lower it via the
+    // overrides file if the "expand" shipped earlier. A human-authored
+    // minPreviousVersion (from the overrides file) always wins.
+    if (aiClearedExpandContract && upgrade.minPreviousVersion === null && previousVersion) {
+        upgrade = {
+            minPreviousVersion: previousVersion,
+            requiredStop: upgrade.requiredStop,
+            note:
+                `Auto-derived: the AI verified the change is safe via expand/contract from ${previousVersion}. ` +
+                `Upgrading from an earlier release is NOT verified — set a lower minPreviousVersion in ` +
+                `release-safety.overrides.json if the app stopped using the object before then.`,
+        };
+        upgradeKnown = true;
+    }
+
+    if (upgradeKnown) {
         capabilities.push('upgrade');
     }
 
