@@ -11,6 +11,7 @@ import { useLocation, useMatches } from 'react-router';
 import { useActiveProjectUuid } from '../../../../../hooks/useActiveProject';
 import { store } from '../../store';
 import { AiAgentThreadStreamAbortControllerContextProvider } from '../../streaming/AiAgentThreadStreamAbortControllerContextProvider';
+import { CreateIssueModalHost } from '../CreateIssue/CreateIssueModalHost';
 import { PendingPromptProvider } from '../PendingPromptContext/PendingPromptContext';
 import { LauncherDockProvider } from './LauncherDockProvider';
 import { launcherSession } from './launcherSession';
@@ -64,6 +65,7 @@ export const AiAgentsGlobalProvider: FC<PropsWithChildren> = ({ children }) => (
                     <Sentry.ErrorBoundary fallback={<></>}>
                         <AiAgentsLauncherSessionTracker />
                         <AiAgentsLauncherGate />
+                        <CreateIssueModalHost />
                     </Sentry.ErrorBoundary>
                 </LauncherDockProvider>
             </PendingPromptProvider>
