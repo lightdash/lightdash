@@ -22,6 +22,7 @@ import {
 } from 'ai';
 import { stringifyToolJson } from '../../tools/toolOutputFormat';
 import type { AiAgentArgs } from '../../types/aiAgent';
+import { getExploreRequiredFilters } from '../../utils/requiredFilters';
 import { toModelOutput } from '../../utils/toModelOutput';
 import { toolErrorHandler } from '../../utils/toolErrorHandler';
 import {
@@ -147,6 +148,7 @@ const hydrateResolvedSelection = async ({
             label: explore.label,
             baseTable: explore.baseTable,
             joinedTables: explore.joinedTables.map((join) => join.table),
+            requiredFilters: getExploreRequiredFilters(explore),
         },
         dimensions,
         metrics,
@@ -227,6 +229,7 @@ const getResolvedStructuredResult = (
             count: result.explore.joinedTables.length,
             tables: result.explore.joinedTables,
         },
+        requiredFilters: result.explore.requiredFilters ?? [],
     },
     dimensions: {
         count: result.dimensions.length,

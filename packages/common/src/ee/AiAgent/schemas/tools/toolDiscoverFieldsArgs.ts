@@ -31,28 +31,40 @@ export const discoverFieldsInputSchema = z.object({
 
 export type DiscoverFieldsInput = z.infer<typeof discoverFieldsInputSchema>;
 
-const discoverFieldsExploreSummarySchema = z.object({
+const requiredFilterSchema = z.object({
+    fieldId: z.string(),
+    fieldRef: z.string(),
+    tableName: z.string(),
+    operator: z.string(),
+    values: z.array(z.unknown()).optional(),
+    settings: z.unknown().optional(),
+    required: z.boolean(),
+});
+
+const requiredFiltersDescription =
+    'Explore-level required/default filters for the selected explore. Respect these when constructing queries; empty when the explore has none.';
+
+const discoverFieldsExploreSummarySchemaBase = z.object({
     name: z.string(),
     label: z.string(),
     baseTable: z.string(),
     joinedTables: z.array(z.string()),
-    requiredFilters: z
-        .array(
-            z.object({
-                fieldId: z.string(),
-                fieldRef: z.string(),
-                tableName: z.string(),
-                operator: z.string(),
-                values: z.array(z.unknown()).optional(),
-                settings: z.unknown().optional(),
-                required: z.boolean(),
-            }),
-        )
-        .optional()
-        .describe(
-            'Explore-level required/default filters from findExplores. Only include when findExplores returned requiredFilters for the selected explore.',
-        ),
 });
+
+export const discoverFieldsExploreSummarySchemaV1 =
+    discoverFieldsExploreSummarySchemaBase.extend({
+        requiredFilters: z
+            .array(requiredFilterSchema)
+            .optional()
+            .describe(requiredFiltersDescription),
+    });
+
+export const discoverFieldsExploreSummarySchemaV2 =
+    discoverFieldsExploreSummarySchemaBase.extend({
+        requiredFilters: z
+            .array(requiredFilterSchema)
+            .describe(requiredFiltersDescription),
+    });
 
 const discoverFieldsFieldSummaryBaseSchema = z.object({
     fieldId: z
@@ -111,10 +123,14 @@ const discoverFieldsUncertaintiesSchema = z
         'Free-form uncertainties or caveats encountered during discovery. Null when selection was straightforward.',
     );
 
-export const discoverFieldsResultUnionSchema = z.discriminatedUnion('status', [
+const getDiscoverFieldsResolvedResultSchema = <
+    TExploreSchema extends z.ZodTypeAny,
+>(
+    exploreSchema: TExploreSchema,
+) =>
     z.object({
         status: z.literal('resolved'),
-        explore: discoverFieldsExploreSummarySchema,
+        explore: exploreSchema,
         dimensions: z
             .array(discoverFieldsDimensionSummarySchema)
             .describe(
@@ -135,31 +151,66 @@ export const discoverFieldsResultUnionSchema = z.discriminatedUnion('status', [
             .nullable()
             .describe('Brief justification for the explore + field selection.'),
         uncertainties: discoverFieldsUncertaintiesSchema,
-    }),
-    z.object({
-        status: z.literal('ambiguous'),
-        candidates: z
-            .array(discoverFieldsCandidateSchema)
-            .min(2)
-            .describe(
-                'Plausible explores the parent should ask the user to disambiguate between.',
-            ),
-        suggestedQuestion: z
-            .string()
-            .describe(
-                "A clarification question the parent can echo to the user (e.g. 'Did you mean revenue from the orders explore or the payments explore?').",
-            ),
-        uncertainties: discoverFieldsUncertaintiesSchema,
-    }),
-    z.object({
-        status: z.literal('no_match'),
-        reason: z
-            .string()
-            .describe(
-                'Why no explore covers the user query — used by the parent to explain back to the user.',
-            ),
-        uncertainties: discoverFieldsUncertaintiesSchema,
-    }),
+    });
+
+const discoverFieldsResolvedResultSchemaV1 =
+    getDiscoverFieldsResolvedResultSchema(discoverFieldsExploreSummarySchemaV1);
+
+const discoverFieldsResolvedResultSchemaV2 =
+    getDiscoverFieldsResolvedResultSchema(discoverFieldsExploreSummarySchemaV2);
+
+const discoverFieldsAmbiguousResultSchema = z.object({
+    status: z.literal('ambiguous'),
+    candidates: z
+        .array(discoverFieldsCandidateSchema)
+        .min(2)
+        .describe(
+            'Plausible explores the parent should ask the user to disambiguate between.',
+        ),
+    suggestedQuestion: z
+        .string()
+        .describe(
+            "A clarification question the parent can echo to the user (e.g. 'Did you mean revenue from the orders explore or the payments explore?').",
+        ),
+    uncertainties: discoverFieldsUncertaintiesSchema,
+});
+
+const discoverFieldsNoMatchResultSchema = z.object({
+    status: z.literal('no_match'),
+    reason: z
+        .string()
+        .describe(
+            'Why no explore covers the user query — used by the parent to explain back to the user.',
+        ),
+    uncertainties: discoverFieldsUncertaintiesSchema,
+});
+
+export const discoverFieldsResultUnionSchemaV1 = z.discriminatedUnion(
+    'status',
+    [
+        discoverFieldsResolvedResultSchemaV1,
+        discoverFieldsAmbiguousResultSchema,
+        discoverFieldsNoMatchResultSchema,
+    ],
+);
+
+export const discoverFieldsResultUnionSchemaV2 = z.discriminatedUnion(
+    'status',
+    [
+        discoverFieldsResolvedResultSchemaV2,
+        discoverFieldsAmbiguousResultSchema,
+        discoverFieldsNoMatchResultSchema,
+    ],
+);
+
+export const discoverFieldsResultUnionSchema =
+    discoverFieldsResultUnionSchemaV2;
+
+const discoverFieldsResultUnionSchemaBackwardCompatible = z.union([
+    discoverFieldsResolvedResultSchemaV2,
+    discoverFieldsResolvedResultSchemaV1,
+    discoverFieldsAmbiguousResultSchema,
+    discoverFieldsNoMatchResultSchema,
 ]);
 
 export const discoverFieldsResultSchema = z.object({
@@ -171,7 +222,7 @@ export const toolDiscoverFieldsOutputSchema = z.union([
         result: z.string(),
         metadata: z.object({
             status: z.literal('success'),
-            discovery: discoverFieldsResultUnionSchema,
+            discovery: discoverFieldsResultUnionSchemaBackwardCompatible,
         }),
     }),
     z.object({
