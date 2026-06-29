@@ -16,9 +16,8 @@ import {
 import { buildQuery } from './helpers';
 
 describe('MetricQueryBuilder snapshot: distinct queries', () => {
-    // Selected dimensions are orthogonal to the distinct key, so the dedup CTE collapses to a
-    // scalar and is CROSS JOINed onto dd_base. Every output row sees the same global total
-    // (SPK-450 Wise case).
+    // Selected dimensions are orthogonal to the distinct key, but deduplication still happens
+    // within each selected dimension group so each output row gets its own grouped total.
     test('matches snapshot for a sum-distinct query with dimensions not in distinct_keys', () => {
         expect(
             buildQuery({
@@ -86,8 +85,8 @@ describe('MetricQueryBuilder snapshot: distinct queries', () => {
         ).toMatchSnapshot();
     });
 
-    // average_distinct with a selected dimension that is not in distinct_keys — same global value
-    // attached to every dimension row via CROSS JOIN.
+    // average_distinct also deduplicates within the selected dimension group, even when that
+    // dimension is not part of distinct_keys.
     test('matches snapshot for an average-distinct query with dimensions not in distinct_keys', () => {
         expect(
             buildQuery({
