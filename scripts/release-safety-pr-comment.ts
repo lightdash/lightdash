@@ -1,19 +1,19 @@
 /**
  * Renders the release-safety PR preview comment (PROD-8359).
  *
- * Takes a release-safety marker (as the generator would emit for this PR, diffed
- * against the merge-base with the target branch) and produces a sticky markdown
- * comment so the PR author sees — BEFORE merge — the determination, the matrix of
- * which checks ran and what they found, and what would happen when the change is
- * deployed to self-hosted customers.
+ * Takes the computed release-safety data for a PR (diffed against the merge-base
+ * with the target branch) and produces a sticky markdown comment that answers, in
+ * plain language for the PR author, one question: can self-hosted customers
+ * upgrade to this normally, or will it break their running app mid-upgrade? The
+ * internal vocabulary (rollingUpdateSafe / RollingUpdate / Recreate / detectors /
+ * expand-contract) stays out of the visible copy; the precise machine fields live
+ * in the collapsed raw JSON.
  *
- * The AI rolling-update review runs on READY PRs (not drafts): it validates
- * whatever the deterministic detectors flagged — migrations, and REST/MCP breaking
- * changes — and folds a verdict into the determination. On a draft the comment
- * invites marking it ready to get that verdict.
+ * On a draft PR the code-aware review hasn't run, so an unverified DB change shows
+ * "couldn't confirm" and invites marking the PR ready.
  *
- * Pure `renderPrComment` (unit-tested) + a thin IO `main` that reads the marker
- * JSON and prints the comment body.
+ * Pure `renderPrComment` (unit-tested) + a thin IO `main` that reads the JSON and
+ * prints the comment body.
  *
  * CLI:  npx tsx scripts/release-safety-pr-comment.ts --marker /tmp/rs.json [--base main] [--out /tmp/body.md]
  */
@@ -64,222 +64,143 @@ export interface RenderOpts {
 
 const LINTER_NOTE_PREFIX = 'Migration linter detected breaking';
 
-function row(check: string, ran: string, result: string): string {
-    return `| ${check} | ${ran} | ${result} |`;
-}
-
-/** PURE. Render the full sticky comment body for a marker. */
+/**
+ * PURE. Render the sticky PR comment for a marker, in plain language aimed at the
+ * PR author. It answers one question — "can self-hosted customers upgrade to this
+ * normally, or will it break them mid-upgrade?" — and avoids the internal vocab
+ * (marker / rollingUpdateSafe / RollingUpdate / Recreate / detectors / expand-
+ * contract). The precise machine fields stay in the collapsed raw JSON.
+ */
 export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
     const caps = new Set(marker.capabilities);
     const { rollingUpdateSafe } = marker.compatibility;
     const migrationsPresent = marker.migrations.present;
     const restBreaking = marker.api.rest.checked && marker.api.rest.breaking === true;
     const mcpBreaking = marker.api.mcp.checked && marker.api.mcp.breaking === true;
-    // The linter's own finding, independent of the final verdict. Prefer the
-    // explicit signal; otherwise infer it from the notes (only detectable while
-    // the linter verdict still stands).
+    // Did the deterministic linter flag a destructive migration shape? (Used only
+    // to phrase the "stop using it first" advice; never shown as jargon.)
     const lintFlagged =
         opts.linterBreaking ??
         (caps.has('sql-lint') &&
             rollingUpdateSafe === false &&
             marker.compatibility.notes.startsWith(LINTER_NOTE_PREFIX));
-    // The linter flagged a destructive shape but the AI cleared it (expand/contract).
-    const aiClearedLinter = lintFlagged && rollingUpdateSafe === true && caps.has('ai-review');
-
-    // Whether an unsafe/unknown verdict is driven by a schema migration or by a
-    // flagged API break (no migration) — so the wording stays accurate either way.
+    // A destructive migration that the code-aware review cleared because the old
+    // version already stopped using the thing being removed.
+    const clearedAsSafeDrop = lintFlagged && rollingUpdateSafe === true && caps.has('ai-review');
+    // The risk comes from an API change (no DB migration) rather than the schema.
     const apiDriven = (restBreaking || mcpBreaking) && migrationsPresent !== true;
-    const breakKind = apiDriven ? 'an API' : 'a schema';
 
-    // ---- determination ------------------------------------------------------
-    const lines: string[] = [];
+    // ---- the answer, in one line + a plain "why" ----------------------------
+    const head: string[] = [];
     if (marker.upgrade.requiredStop) {
-        lines.push(
-            `🛑 **Required stop** — operators must land on this version before upgrading further.` +
+        head.push(
+            `🛑 **Customers can’t skip this version.** Anyone upgrading from an older release has to land on this one first.` +
                 (marker.upgrade.note ? ` ${marker.upgrade.note}` : ''),
         );
     }
     if (rollingUpdateSafe === false) {
-        lines.push(
+        head.push("⚠️ **Needs care on upgrade.** A normal (zero-downtime) upgrade would briefly break customers' running app.");
+        head.push(
             apiDriven
-                ? '⚠️ **Recreate required** — a breaking API change was flagged and the AI review found an in-flight consumer (e.g. the bundled frontend) would break during a rolling update.'
-                : '⚠️ **Recreate required** — a breaking schema change was detected; the previous version would not survive a rolling update.',
+                ? 'This changes the API in a way the already-running version can’t handle. During an upgrade both the old and new versions are live for a moment, so requests would hit errors until it finishes.'
+                : 'When customers upgrade, the old version keeps serving traffic until the new one is fully live. This changes the database in a way the old version can’t handle, so its app would start erroring during that window.',
         );
     } else if (rollingUpdateSafe === 'unknown') {
-        lines.push(
-            `❓ **Recreate recommended** — this change carries ${breakKind} change and backward-compatibility during a rolling update was not verified.`,
+        head.push('❓ **Couldn’t confirm it’s safe.** Treat it as needing care on upgrade until checked.');
+        head.push(
+            opts.draft
+                ? 'This changes the database. Mark the PR ready for review and an automated, code-aware check will look at whether the old version still uses what changed — it may clear it as safe.'
+                : 'This changes the database and we couldn’t automatically confirm the old version keeps working through the upgrade.',
         );
-    } else if (aiClearedLinter) {
-        lines.push('✅ **Safe to RollingUpdate** — the SQL linter flagged a destructive shape, but the AI review verified the previous release no longer uses it (expand/contract).');
+    } else if (clearedAsSafeDrop) {
+        head.push('✅ **Safe to upgrade normally.** No downtime needed.');
+        head.push('This removes something from the database, but the app already stopped using it in an earlier release, so the old version keeps working fine through the upgrade.');
     } else if (migrationsPresent === true) {
-        lines.push('✅ **Safe to RollingUpdate** — migrations were verified backward-compatible.');
+        head.push('✅ **Safe to upgrade normally.** No downtime needed.');
+        head.push('This changes the database, and the old version keeps working with those changes through the upgrade.');
     } else {
-        lines.push('✅ **No database migrations** — safe to RollingUpdate (per the checks below).');
+        head.push('✅ **Safe to upgrade normally.** No downtime needed.');
+        head.push('No database changes in this release.');
     }
-    if (restBreaking) lines.push('⚠️ **REST API breaking change** — external API consumers may break across this upgrade.');
-    if (mcpBreaking) lines.push('⚠️ **MCP tool breaking change** — MCP clients/agents may break across this upgrade.');
+    // External API/MCP consumers are a separate audience from the in-flight app.
+    if (restBreaking) head.push('⚠️ **Also:** this makes a breaking change to the REST API — anyone running their own scripts or integrations against it may need to update.');
+    if (mcpBreaking) head.push('⚠️ **Also:** this makes a breaking change to the MCP tools — AI agents or clients using them may need to update.');
 
-    // ---- check matrix -------------------------------------------------------
-    const migResult =
+    // ---- what we looked at (plain, no internal tool names) ------------------
+    const dbResult =
         migrationsPresent === true
-            ? `${marker.migrations.count} added${marker.migrations.ee ? ' (incl. EE)' : ''}`
+            ? `${marker.migrations.count} migration${marker.migrations.count === 1 ? '' : 's'}${marker.migrations.ee ? ' (incl. enterprise)' : ''}`
             : migrationsPresent === false
             ? 'none'
-            : 'could not determine (no baseline)';
-
-    const sqlResult = !caps.has('sql-lint')
-        ? '—'
-        : lintFlagged
-        ? aiClearedLinter
-            ? '⚠️ flagged a destructive shape (AI cleared it — see below)'
-            : '⚠️ breaking schema op(s) found'
-        : '✅ no breaking shapes found';
-
-    const apiResult = (s: ApiSurface, missingNote: string): string => {
-        if (!s.checked) return `⏭️ not checked (${missingNote})`;
-        return s.breaking === true ? `⚠️ ${s.changes.length} breaking change(s)` : '✅ no breaking changes';
+            : 'couldn’t tell (no baseline to compare against)';
+    const apiResult = (s: ApiSurface): string => {
+        if (!s.checked) return 'not checked';
+        return s.breaking === true
+            ? `${s.changes.length} breaking change${s.changes.length === 1 ? '' : 's'}`
+            : 'no breaking changes';
     };
-
-    const upgradeResult = !caps.has('upgrade')
-        ? '⏭️ not consulted'
-        : marker.upgrade.requiredStop
-        ? '🛑 required stop'
+    const notesResult = marker.upgrade.requiredStop
+        ? 'can’t be skipped'
         : marker.upgrade.minPreviousVersion
-        ? `min previous: ${marker.upgrade.minPreviousVersion}`
-        : '✅ no required stop';
-
-    // The deterministic DETECTORS — the inputs the verdict is derived from. The AI
-    // rolling-update review is deliberately NOT a row here: it is not a detector,
-    // it's the synthesis step that reads these detectors' flagged output and
-    // produces the determination above (rendered as the "verdict" line below).
-    const matrix = [
-        '| Detector | Status | Result |',
-        '|---|---|---|',
-        row('Migrations', migrationsPresent === 'unknown' ? '⚠️' : '✅ ran', migResult),
-        row('SQL-shape linter', caps.has('sql-lint') ? '✅ ran' : '⏭️ n/a', sqlResult),
-        row('REST API (oasdiff)', marker.api.rest.checked ? '✅ ran' : '⏭️ skipped', apiResult(marker.api.rest, 'oasdiff or base spec unavailable')),
-        row('MCP tool surface', marker.api.mcp.checked ? '✅ ran' : '⏭️ skipped', apiResult(marker.api.mcp, 'no baseline snapshot')),
-        row('Upgrade overrides', caps.has('upgrade') ? '✅ ran' : '⏭️ skipped', upgradeResult),
+        ? `safe from ${marker.upgrade.minPreviousVersion} onward`
+        : 'none';
+    const table = [
+        '| What | Result |',
+        '|---|---|',
+        `| Database changes | ${dbResult} |`,
+        `| REST API | ${apiResult(marker.api.rest)} |`,
+        `| MCP tools | ${apiResult(marker.api.mcp)} |`,
+        `| Upgrade notes | ${notesResult} |`,
     ].join('\n');
 
-    // How the verdict above was reached. The determination is the precedence
-    // ladder's output, NOT the AI's alone: the deterministic detectors set a
-    // baseline (a linter-flagged break is ❌ by default), and the AI review then
-    // VALIDATES the flagged change(s) and can override it — it is the only path to
-    // ✅ safe. So attribute the verdict to what the AI actually did (clear /
-    // confirm / couldn't override), or to the deterministic baseline when it
-    // didn't run. The AI is the judgement layer feeding the ladder, not a detector.
-    const anythingFlagged = migrationsPresent === true || restBreaking || mcpBreaking;
-    let verdictLine: string;
-    if (caps.has('ai-review')) {
-        const role = aiClearedLinter
-            ? 'cleared a linter-flagged destructive shape as a safe expand/contract → ✅'
-            : rollingUpdateSafe === true
-            ? 'cleared them → ✅'
-            : rollingUpdateSafe === false
-            ? lintFlagged
-                ? 'did not clear the SQL-linter floor, which stands → ❌'
-                : 'confirmed a breaking change → ❌'
-            : 'ran but could not conclude, so the deterministic baseline stands → ❓';
-        verdictLine = `🧠 **Verdict** — the detectors below set a deterministic baseline; the AI rolling-update review then validated the flagged change(s) and ${role}. The AI is the only path to ✅ safe — it isn’t a detector.`;
-    } else if (opts.draft) {
-        verdictLine =
-            '🧠 **Verdict** — the detectors below set the baseline; the AI rolling-update review (which validates the flagged change(s) and is the only path to ✅ safe) is skipped on drafts — mark this PR ready to run it.';
-    } else if (anythingFlagged) {
-        verdictLine =
-            '🧠 **Verdict** — a detector flagged a change but the AI rolling-update review did not run or could not conclude, so the determination above is the deterministic baseline from the detectors below.';
-    } else {
-        verdictLine =
-            '🧠 **Verdict** — no detector flagged a change, so the determination above is the deterministic baseline (safe) from the detectors below.';
-    }
-
-    // ---- customer-deploy consequence ----------------------------------------
-    const consequence: string[] = [];
-    consequence.push(
-        'On a managed Helm upgrade the migration Job runs first (schema-before-code), then the app does a default **RollingUpdate** — so the *previous* version’s pods keep serving traffic against the already-migrated schema until the rollout finishes.',
-    );
-    if (rollingUpdateSafe === false && apiDriven) {
-        consequence.push(
-            '- ⚠️ A breaking API change means an already-loaded frontend (or other in-flight client) hitting a mix of old and new pods can error mid-rollout. Customers whose CI/CD reads the marker would be told **recommendedStrategy: Recreate** — a brief restart shrinks the window in which both versions serve at once.',
-        );
-    } else if (rollingUpdateSafe === false) {
-        consequence.push(
-            `- ⚠️ A breaking schema change means those old pods can crash (\`CrashLoopBackOff\`) mid-rollout. Customers whose CI/CD reads the marker would be told **recommendedStrategy: Recreate**${lintFlagged ? ' (flagged deterministically by the SQL linter)' : ''} — a brief restart instead of a crash loop.`,
-        );
-    } else if (rollingUpdateSafe === 'unknown') {
-        const aiHint = opts.draft
-            ? ' **Mark this PR ready for review** to run the AI rolling-update review (it doesn’t run on drafts) — it may refine this to ✅ safe.'
-            : caps.has('ai-review')
-            ? ''
-            : ' The AI rolling-update review did not positively clear it.';
-        consequence.push(
-            `- ❓ Backward-compatibility was not verified, so customers reading the marker get **recommendedStrategy: Recreate** as the cautious default.${aiHint}`,
-        );
-    } else if (aiClearedLinter) {
-        consequence.push('- ✅ The SQL linter flagged a destructive shape (e.g. a drop), but the AI review read the previous release’s code and confirmed it no longer references the object — the **contract** step of an expand/contract. A **RollingUpdate** is safe; old pods won’t touch what’s being removed.');
-    } else if (migrationsPresent === true) {
-        consequence.push('- ✅ Migrations were verified additive/backward-compatible, so a **RollingUpdate** is safe — no special handling for customers.');
-    } else {
-        consequence.push('- ✅ No schema change, so a **RollingUpdate** is safe.');
-    }
-    if (marker.upgrade.requiredStop) {
-        consequence.push('- 🛑 Customers upgrading from an older version and **skipping this one** would hit failures — the marker flags it as a required stop.');
-    }
-    if (restBreaking) consequence.push('- ⚠️ External REST API consumers may break across this upgrade (see `api.rest`).');
-    if (mcpBreaking) consequence.push('- ⚠️ MCP clients/agents may break across this upgrade (see `api.mcp`).');
-
-    // ---- what you should do -------------------------------------------------
+    // ---- what to do (only when there's something to do) ---------------------
     const advice: string[] = [];
     if (rollingUpdateSafe === false) {
         advice.push(
-            '**If you must merge this change now:** operators upgrading via a default RollingUpdate would hit the impact above. The marker tells their CI/CD to use **Recreate** (a brief restart instead of a crash loop) — call this out in the release notes, and set a `requiredStop` in `release-safety.overrides.json` if older versions must not skip it.',
+            '**Quickest:** customers should restart the app during the upgrade (a few seconds of downtime) instead of a zero-downtime rollout. Their upgrade automation does this for them once this ships.',
         );
         advice.push(
-            '**Safer alternative — expand/contract (parallel change):** land the app change FIRST. Open a separate PR to `main` that makes the app stop using the affected object (the *expand*), let it release, then add this migration in a follow-up PR. This preview will then verify the previous release no longer uses it and clear the migration as safe.',
+            apiDriven
+                ? '**Better:** keep the old API response working alongside the new shape until customers have had a chance to upgrade.'
+                : '**Better:** stop using it in the app *first*, in an earlier release, then make this change later. Once the old version no longer uses it, this exact change ships with no downtime.',
         );
-    } else if (aiClearedLinter) {
+    } else if (clearedAsSafeDrop) {
         const floor = marker.upgrade.minPreviousVersion;
         advice.push(
-            `This was cleared as the **contract** step of an expand/contract, verified against \`${marker.previousVersion ?? 'the previous release'}\`. It is safe **only when upgrading from ${floor ? `\`${floor}\`` : 'that release'} or later** — an operator skipping up from an older version that still used the object could still crash.`,
+            `Safe **only when upgrading from ${floor ? `\`${floor}\`` : 'that release'} or later** — the release where the app stopped using it. Customers jumping up from an older version could still hit the old code path.`,
         );
         advice.push(
-            `The marker auto-sets \`upgrade.minPreviousVersion\`${floor ? ` to \`${floor}\`` : ''} to protect them. If the app actually dropped usage in an **earlier** release, lower it (or set a \`requiredStop\`) in \`release-safety.overrides.json\` so operators aren't forced to stop unnecessarily.`,
+            `This is recorded automatically. If the app actually stopped using it in an earlier release, set a lower version in \`release-safety.overrides.json\`.`,
         );
+    } else if (rollingUpdateSafe === 'unknown' && !opts.draft) {
+        advice.push('Double-check the old version keeps working with this change. If unsure, customers should restart on upgrade to be safe.');
     } else if (marker.upgrade.requiredStop) {
-        advice.push(
-            `This release is a **required stop**${marker.upgrade.minPreviousVersion ? ` (min previous version \`${marker.upgrade.minPreviousVersion}\`)` : ''}. Make sure the release notes tell operators they cannot skip it.`,
-        );
+        advice.push('Call this out in the release notes so customers know they can’t skip this version.');
     }
 
     // ---- assemble -----------------------------------------------------------
-    const baseLine = opts.baseLabel ? `\n> Compared against \`${opts.baseLabel}\`.\n` : '\n';
+    const baseLine = opts.baseLabel ? `> Comparing against \`${opts.baseLabel}\`.\n` : '';
     const rawJson = JSON.stringify(marker, null, 2);
 
     return [
         COMMENT_MARKER,
-        '## 🛡️ Release-safety preview',
-        baseLine.trimEnd(),
-        lines.map((l) => `- ${l}`).join('\n'),
+        '## 🛡️ Upgrade safety for self-hosted customers',
+        baseLine,
+        head.map((l) => `- ${l}`).join('\n'),
         '',
-        verdictLine,
+        '**What we looked at**',
         '',
-        '### Detector checks',
-        '_The deterministic detectors below set the baseline; the verdict above is the AI review’s judgement of the flagged change(s) on top of it._',
-        matrix,
+        table,
+        ...(advice.length ? ['', '**What to do**', '', advice.map((a) => `- ${a}`).join('\n')] : []),
         '',
-        '### What would happen on deploy to customers',
-        consequence.join('\n'),
-        ...(advice.length ? ['', '### What you should do', advice.map((a) => `- ${a}`).join('\n')] : []),
-        '',
-        '<details><summary>Raw marker JSON</summary>\n',
+        '<details><summary>Technical details (raw JSON)</summary>\n',
         '```json',
         rawJson,
         '```',
         '</details>',
         '',
         '---',
-        'ℹ️ Once merged, the release that ships this change will publish `release-safety.json` as a GitHub release asset (at `releases/download/<tag>/release-safety.json`); this preview shows what that marker will say. Self-hosted operators’ CI/CD can `jq`-gate on it before upgrading.',
-        '_Blind spot: only the checks above are covered — code-only/config-only breaking changes (env defaults, removed Helm values, serialization changes) are not detected._',
+        '<sub>Automated upgrade-safety check. Once merged, it ships a small `release-safety.json` with the release so customers’ upgrade automation can read it. It covers database and API changes; it doesn’t yet catch config/env-var or data-format changes.</sub>',
         '',
     ].join('\n');
 }
