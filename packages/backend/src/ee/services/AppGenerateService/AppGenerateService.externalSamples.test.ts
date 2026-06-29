@@ -135,9 +135,12 @@ describe('AppGenerateService.writeExternalConnectionSamples', () => {
         );
 
         // Weather file contains expected fields
-        const weatherCall = (sandbox.files.write as import('vitest').Mock).mock.calls.find(
-            ([path]: [string]) => path === '/tmp/external-data/weather.json',
+        const weatherCall = (
+            sandbox.files.write as import('vitest').Mock
+        ).mock.calls.find(
+            ([path]) => path === '/tmp/external-data/weather.json',
         );
+        if (!weatherCall) throw new Error('Expected weather sample write');
         const weatherDoc = JSON.parse(weatherCall[1]);
         expect(weatherDoc.howToCall).toContain('weather');
         expect(weatherDoc.howToCall).toContain('externalFetch');
@@ -151,9 +154,10 @@ describe('AppGenerateService.writeExternalConnectionSamples', () => {
         expect(weatherDoc.samples[0].request.method).toBe('GET');
 
         // CRM file has 2 samples
-        const crmCall = (sandbox.files.write as import('vitest').Mock).mock.calls.find(
-            ([path]: [string]) => path === '/tmp/external-data/crm.json',
-        );
+        const crmCall = (
+            sandbox.files.write as import('vitest').Mock
+        ).mock.calls.find(([path]) => path === '/tmp/external-data/crm.json');
+        if (!crmCall) throw new Error('Expected CRM sample write');
         const crmDoc = JSON.parse(crmCall[1]);
         expect(crmDoc.allowedMethods).toEqual(['GET', 'POST']);
         expect(crmDoc.samples).toHaveLength(2);
@@ -189,7 +193,8 @@ describe('AppGenerateService.writeExternalConnectionSamples', () => {
             '/tmp/external-data/weather.json',
             expect.any(String),
         );
-        const call = (sandbox.files.write as import('vitest').Mock).mock.calls[0];
+        const call = (sandbox.files.write as import('vitest').Mock).mock
+            .calls[0];
         const written = JSON.parse(call[1]);
         expect(written.howToCall).toContain('externalFetch');
         expect(written.allowedMethods).toEqual(['GET']);

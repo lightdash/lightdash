@@ -610,7 +610,9 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         (createSandboxProvider as import('vitest').Mock).mockReturnValue(
             fakeSandboxProvider,
         );
-        (getInstallationToken as import('vitest').Mock).mockResolvedValue('install-token');
+        (getInstallationToken as import('vitest').Mock).mockResolvedValue(
+            'install-token',
+        );
         (getOrRefreshToken as import('vitest').Mock).mockResolvedValue({
             token: 'oauth',
             refreshToken: 'r',
@@ -623,7 +625,9 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             login: 'lightdash-bot',
             id: 2,
         });
-        (getBranchHeadSha as import('vitest').Mock).mockResolvedValue('base-oid');
+        (getBranchHeadSha as import('vitest').Mock).mockResolvedValue(
+            'base-oid',
+        );
         (createPullRequest as import('vitest').Mock).mockResolvedValue({
             html_url: PR_7,
         });
@@ -648,10 +652,11 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
 
         // The compile wrapper pins `dbt` to the project's version venv (V1_9)
         // and still strips secrets from the compile child's environment.
-        const wrapperWrite = (sandbox.files.write as import('vitest').Mock).mock.calls.find(
-            ([path]) => path === COMPILE_WRAPPER_PATH,
-        );
+        const wrapperWrite = (
+            sandbox.files.write as import('vitest').Mock
+        ).mock.calls.find(([path]) => path === COMPILE_WRAPPER_PATH);
         expect(wrapperWrite).toBeDefined();
+        if (!wrapperWrite) throw new Error('Expected compile wrapper write');
         expect(wrapperWrite[1]).toContain('PATH="/usr/local/dbt1.9/bin:$PATH"');
         expect(wrapperWrite[1]).toContain('-u ANTHROPIC_API_KEY');
     });
@@ -831,7 +836,9 @@ describe('AiWritebackService repo read access', () => {
 
         it('listRepos lists repos for the resolved installation and maps the shape', async () => {
             const { service } = buildWithInstallation();
-            (listReposAccessibleToInstallation as import('vitest').Mock).mockResolvedValue([
+            (
+                listReposAccessibleToInstallation as import('vitest').Mock
+            ).mockResolvedValue([
                 {
                     owner: 'lightdash',
                     repo: 'lightdash',
@@ -864,10 +871,12 @@ describe('AiWritebackService repo read access', () => {
 
         it('unions the linked user repos with the org repos (org wins on collision)', async () => {
             const { service, githubAppService } = buildWithInstallation();
-            (githubAppService.getValidUserToken as import('vitest').Mock).mockResolvedValue(
-                'user-token',
-            );
-            (listReposAccessibleToUser as import('vitest').Mock).mockResolvedValue([
+            (
+                githubAppService.getValidUserToken as import('vitest').Mock
+            ).mockResolvedValue('user-token');
+            (
+                listReposAccessibleToUser as import('vitest').Mock
+            ).mockResolvedValue([
                 {
                     owner: 'me',
                     repo: 'personal',
@@ -881,7 +890,9 @@ describe('AiWritebackService repo read access', () => {
                     private: true,
                 },
             ]);
-            (listReposAccessibleToInstallation as import('vitest').Mock).mockResolvedValue([
+            (
+                listReposAccessibleToInstallation as import('vitest').Mock
+            ).mockResolvedValue([
                 {
                     owner: 'acme',
                     repo: 'shared',
@@ -922,10 +933,12 @@ describe('AiWritebackService repo read access', () => {
 
         it('resolveRepoAccess falls back to the installation token for a repo outside the union', async () => {
             const { service } = buildWithInstallation();
-            (listReposAccessibleToInstallation as import('vitest').Mock).mockResolvedValue(
-                [],
+            (
+                listReposAccessibleToInstallation as import('vitest').Mock
+            ).mockResolvedValue([]);
+            (getRepoDefaultBranch as import('vitest').Mock).mockResolvedValue(
+                'develop',
             );
-            (getRepoDefaultBranch as import('vitest').Mock).mockResolvedValue('develop');
 
             const access = await service.getInstallationRepoReadAccess({
                 user: userWithOrg(true),

@@ -239,18 +239,14 @@ const makeService = ({
             ...aiAgentModel,
         },
         aiAgentReviewClassifierModel: {
-            getReviewRemediation: vi
-                .fn()
-                .mockResolvedValue(makeRemediation()),
+            getReviewRemediation: vi.fn().mockResolvedValue(makeRemediation()),
             getReviewItem: vi
                 .fn()
                 .mockResolvedValue(makeReviewItem({ title: 'Review revenue' })),
             setReviewRemediationPreviewThread: vi
                 .fn()
                 .mockResolvedValue(undefined),
-            updateReviewRemediationStatus: vi
-                .fn()
-                .mockResolvedValue(undefined),
+            updateReviewRemediationStatus: vi.fn().mockResolvedValue(undefined),
             getPromotedFingerprintScope: vi.fn().mockResolvedValue({
                 projectUuid: PROJECT_UUID,
                 agentUuid: AGENT_UUID,
@@ -262,9 +258,7 @@ const makeService = ({
             setReviewRemediationPullRequest: vi
                 .fn()
                 .mockResolvedValue(undefined),
-            setReviewItemWritebackStatus: vi
-                .fn()
-                .mockResolvedValue(undefined),
+            setReviewItemWritebackStatus: vi.fn().mockResolvedValue(undefined),
             createRemediationEvent: vi.fn().mockResolvedValue(undefined),
             listRemediationEvents: vi.fn().mockResolvedValue([]),
             getThreadWritebackPullRequests: vi
@@ -274,9 +268,7 @@ const makeService = ({
                         [WORK_THREAD_UUID, [{ prUrl: PR_URL, createdAt: NOW }]],
                     ]),
                 ),
-            findReviewRemediationByWorkThread: vi
-                .fn()
-                .mockResolvedValue(null),
+            findReviewRemediationByWorkThread: vi.fn().mockResolvedValue(null),
             ...aiAgentReviewClassifierModel,
         },
         aiAgentReviewNotificationModel: {
@@ -730,9 +722,7 @@ describe('AiAgentAdminService.updateReviewItemStatus', () => {
                 )
                 .mockResolvedValue(resolvedReviewItem),
             upsertReviewItemState: vi.fn().mockResolvedValue(undefined),
-            updateReviewRemediationStatus: vi
-                .fn()
-                .mockResolvedValue(undefined),
+            updateReviewRemediationStatus: vi.fn().mockResolvedValue(undefined),
         };
         const service = makeService({ aiAgentReviewClassifierModel });
 
@@ -771,18 +761,14 @@ describe('AiAgentAdminService.pollReviewRemediationPreview', () => {
                 .mockResolvedValue({ jobId: 'job-1' }),
         };
         const aiAgentReviewClassifierModel = {
-            getReviewRemediation: vi
-                .fn()
-                .mockResolvedValue(makeRemediation()),
+            getReviewRemediation: vi.fn().mockResolvedValue(makeRemediation()),
             getReviewItem: vi
                 .fn()
                 .mockResolvedValue(makeReviewItem({ title: 'Review revenue' })),
             setReviewRemediationPreviewThread: vi
                 .fn()
                 .mockResolvedValue(undefined),
-            updateReviewRemediationStatus: vi
-                .fn()
-                .mockResolvedValue(undefined),
+            updateReviewRemediationStatus: vi.fn().mockResolvedValue(undefined),
         };
         const projectModel = {
             getPreviewAiAgentUuid: vi
@@ -929,9 +915,7 @@ describe('AiAgentAdminService.pollReviewRemediationPreview', () => {
             setReviewRemediationPreviewThread: vi
                 .fn()
                 .mockResolvedValue(undefined),
-            updateReviewRemediationStatus: vi
-                .fn()
-                .mockResolvedValue(undefined),
+            updateReviewRemediationStatus: vi.fn().mockResolvedValue(undefined),
         };
         const service = makeService({
             aiAgentModel,
@@ -965,9 +949,7 @@ describe('AiAgentAdminService.pollReviewRemediationPreview', () => {
 
     it('marks remediation failed when no preview URL is published in time', async () => {
         const aiAgentReviewClassifierModel = {
-            updateReviewRemediationStatus: vi
-                .fn()
-                .mockResolvedValue(undefined),
+            updateReviewRemediationStatus: vi.fn().mockResolvedValue(undefined),
         };
         const schedulerClient = {
             aiAgentReviewRemediationPreview: vi
@@ -1379,9 +1361,7 @@ describe('AiAgentAdminService.runReviewItemWritebackJob', () => {
                     }),
                 }),
             ),
-            updateReviewRemediationStatus: vi
-                .fn()
-                .mockResolvedValue(undefined),
+            updateReviewRemediationStatus: vi.fn().mockResolvedValue(undefined),
         };
         const service = makeService({
             schedulerClient,
@@ -1536,18 +1516,14 @@ describe('AiAgentAdminService.pollReviewRemediationCompile', () => {
 
     it('fails the remediation when the compile job errors', async () => {
         const jobModel = {
-            get: vi
-                .fn()
-                .mockResolvedValue({ jobStatus: JobStatusType.ERROR }),
+            get: vi.fn().mockResolvedValue({ jobStatus: JobStatusType.ERROR }),
         };
         const schedulerClient = {
             aiAgentReviewRemediationCompile: vi.fn(),
             aiAgentReviewRemediationRun: vi.fn(),
         };
         const aiAgentReviewClassifierModel = {
-            updateReviewRemediationStatus: vi
-                .fn()
-                .mockResolvedValue(undefined),
+            updateReviewRemediationStatus: vi.fn().mockResolvedValue(undefined),
         };
         const service = makeService({
             jobModel,
@@ -1577,9 +1553,7 @@ describe('AiAgentAdminService.pollReviewRemediationCompile', () => {
             aiAgentReviewRemediationRun: vi.fn(),
         };
         const aiAgentReviewClassifierModel = {
-            updateReviewRemediationStatus: vi
-                .fn()
-                .mockResolvedValue(undefined),
+            updateReviewRemediationStatus: vi.fn().mockResolvedValue(undefined),
         };
         const service = makeService({
             jobModel,
@@ -1644,9 +1618,7 @@ describe('AiAgentAdminService.pollReviewRemediationCompile', () => {
             getReviewRemediation: vi
                 .fn()
                 .mockResolvedValue(makeRemediation({ status: 'resolved' })),
-            updateReviewRemediationStatus: vi
-                .fn()
-                .mockResolvedValue(undefined),
+            updateReviewRemediationStatus: vi.fn().mockResolvedValue(undefined),
         };
         const service = makeService({
             jobModel,

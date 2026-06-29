@@ -524,7 +524,7 @@ describe('CoderService', () => {
         });
 
         it('should log an error and skip a target whose slug does not match a tile', () => {
-            console.error = jest.fn();
+            console.error = vi.fn();
 
             const config = {
                 isDateZoomDisabled: false,

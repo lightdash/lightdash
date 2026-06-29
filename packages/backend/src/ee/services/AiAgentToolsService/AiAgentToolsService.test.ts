@@ -300,34 +300,40 @@ describe('AiAgentToolsService', () => {
                 required: true,
             },
         ];
-        const searchCatalog = jest.fn(async ({ catalogSearch }) => ({
-            data:
-                catalogSearch.type === CatalogType.Table
-                    ? [
-                          {
-                              type: CatalogType.Table,
-                              name: 'orders',
-                              label: 'Orders',
-                              description: null,
-                              aiHints: null,
-                              searchRank: 1,
-                              joinedTables: [],
-                          },
-                      ]
-                    : [
-                          {
-                              type: CatalogType.Field,
-                              name: 'created_date',
-                              label: 'Created Date',
-                              tableName: 'orders',
-                              fieldType: 'dimension',
-                              searchRank: 1,
-                              description: null,
-                              chartUsage: 3,
-                          },
-                      ],
-            pagination: undefined,
-        }));
+        const searchCatalog = vi.fn(
+            async ({
+                catalogSearch,
+            }: {
+                catalogSearch: { type: CatalogType };
+            }) => ({
+                data:
+                    catalogSearch.type === CatalogType.Table
+                        ? [
+                              {
+                                  type: CatalogType.Table,
+                                  name: 'orders',
+                                  label: 'Orders',
+                                  description: null,
+                                  aiHints: null,
+                                  searchRank: 1,
+                                  joinedTables: [],
+                              },
+                          ]
+                        : [
+                              {
+                                  type: CatalogType.Field,
+                                  name: 'created_date',
+                                  label: 'Created Date',
+                                  tableName: 'orders',
+                                  fieldType: 'dimension',
+                                  searchRank: 1,
+                                  description: null,
+                                  chartUsage: 3,
+                              },
+                          ],
+                pagination: undefined,
+            }),
+        );
         const service = makeService({
             explores: {
                 orders: makeExplore({

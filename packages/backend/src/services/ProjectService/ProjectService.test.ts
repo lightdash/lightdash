@@ -104,9 +104,10 @@ import {
 // constructor requires the built JS file which only exists after `pnpm build`.
 // This mock runs formatRows synchronously in the main thread instead.
 vi.mock('worker_threads', async () => {
-    const { formatRows } = await vi.importActual<
-        typeof import('@lightdash/common')
-    >('@lightdash/common');
+    const { formatRows } =
+        await vi.importActual<typeof import('@lightdash/common')>(
+            '@lightdash/common',
+        );
     return {
         Worker: vi.fn().mockImplementation(
             // eslint-disable-next-line prefer-arrow-callback
@@ -117,7 +118,10 @@ vi.mock('worker_threads', async () => {
                 },
             ) {
                 const { rows, itemMap } = options.workerData;
-                const result = formatRows(rows, itemMap);
+                const result = formatRows(
+                    rows as Record<string, unknown>[],
+                    itemMap as Parameters<typeof formatRows>[1],
+                );
                 return {
                     on: vi.fn(
                         (
@@ -233,9 +237,7 @@ const emailModel = {
 };
 
 const schedulerClient = {
-    deleteScheduledPreAggregateCronJobsForProject: vi.fn(
-        async () => undefined,
-    ),
+    deleteScheduledPreAggregateCronJobsForProject: vi.fn(async () => undefined),
     indexCatalog: vi.fn(async () => ({ jobId: 'catalog-job-1' })),
     materializePreAggregate: vi.fn(async () => ({ jobId: 'job-1' })),
     schedulePreAggregateCronJobs: vi.fn(async () => []),
@@ -296,17 +298,15 @@ const getMockedProjectService = (
             // Mirror production behaviour: ResultsCacheEnabled resolves from
             // the env-derived lightdashConfig.results.cacheEnabled when there
             // is no DB row.
-            get: vi.fn(
-                async ({ featureFlagId }: { featureFlagId: string }) => {
-                    if (featureFlagId === FeatureFlags.ResultsCacheEnabled) {
-                        return {
-                            id: featureFlagId,
-                            enabled: lightdashConfig.results.cacheEnabled,
-                        };
-                    }
-                    return { id: featureFlagId, enabled: false };
-                },
-            ),
+            get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => {
+                if (featureFlagId === FeatureFlags.ResultsCacheEnabled) {
+                    return {
+                        id: featureFlagId,
+                        enabled: lightdashConfig.results.cacheEnabled,
+                    };
+                }
+                return { id: featureFlagId, enabled: false };
+            }),
         } as unknown as FeatureFlagModel,
         projectParametersModel: {
             find: vi.fn(async () => []),
@@ -414,9 +414,9 @@ describe('ProjectService', () => {
             (
                 projectModel.getAllExploresFromCache as import('vitest').Mock
             ).mockResolvedValueOnce({ 'explore-uuid': validExplore });
-            (projectModel.getTableGroups as import('vitest').Mock).mockResolvedValueOnce(
-                upstreamTableGroups,
-            );
+            (
+                projectModel.getTableGroups as import('vitest').Mock
+            ).mockResolvedValueOnce(upstreamTableGroups);
             (
                 service as unknown as {
                     projectParametersModel: { find: import('vitest').Mock };
@@ -764,9 +764,7 @@ describe('ProjectService', () => {
             ).mockImplementation(async () => projectSnowflakeCredentials);
 
             // User credentials should NOT be fetched when requireUserCredentials is false
-            const findForProjectWithSecretsMock = vi.fn(
-                async () => undefined,
-            );
+            const findForProjectWithSecretsMock = vi.fn(async () => undefined);
             (
                 service as unknown as {
                     userWarehouseCredentialsModel: {
@@ -964,10 +962,11 @@ describe('ProjectService', () => {
             // clear in memory cache so new mock is applied
             service.warehouseClients = {};
 
-            const { refreshDatabricksOAuthToken } = await import(
-                '@lightdash/warehouses'
-            );
-            (refreshDatabricksOAuthToken as import('vitest').Mock).mockResolvedValue({
+            const { refreshDatabricksOAuthToken } =
+                await import('@lightdash/warehouses');
+            (
+                refreshDatabricksOAuthToken as import('vitest').Mock
+            ).mockResolvedValue({
                 accessToken: 'fresh-u2m-access-token',
                 refreshToken: 'rotated-u2m-refresh-token',
             });
@@ -1046,10 +1045,11 @@ describe('ProjectService', () => {
             // clear in memory cache so new mock is applied
             service.warehouseClients = {};
 
-            const { refreshDatabricksOAuthToken } = await import(
-                '@lightdash/warehouses'
-            );
-            (refreshDatabricksOAuthToken as import('vitest').Mock).mockResolvedValue({
+            const { refreshDatabricksOAuthToken } =
+                await import('@lightdash/warehouses');
+            (
+                refreshDatabricksOAuthToken as import('vitest').Mock
+            ).mockResolvedValue({
                 accessToken: 'fresh-u2m-access-token',
                 refreshToken: 'user-u2m-refresh-token',
             });
@@ -1122,9 +1122,8 @@ describe('ProjectService', () => {
 
     describe('getWarehouseCredentialsForEmbed', () => {
         test('should refresh Databricks oauth_m2m credentials so the access token is populated', async () => {
-            const { exchangeDatabricksOAuthCredentials } = await import(
-                '@lightdash/warehouses'
-            );
+            const { exchangeDatabricksOAuthCredentials } =
+                await import('@lightdash/warehouses');
 
             // Project credentials as stored in DB: m2m client id/secret but no token yet.
             const projectCredentials = {
@@ -1695,7 +1694,9 @@ describe('ProjectService', () => {
                     { subject: 'Project', action: ['update', 'view'] },
                 ]),
             };
-            (projectModel.getSummary as import('vitest').Mock).mockResolvedValueOnce({
+            (
+                projectModel.getSummary as import('vitest').Mock
+            ).mockResolvedValueOnce({
                 ...projectSummary,
                 type: ProjectType.DEFAULT,
             });
@@ -1740,9 +1741,7 @@ describe('ProjectService', () => {
             vi.clearAllMocks();
         });
         test('should query unique values', async () => {
-            const runQueryMock = vi.fn(
-                async (_sql: string) => resultsWith1Row,
-            );
+            const runQueryMock = vi.fn(async (_sql: string) => resultsWith1Row);
             (
                 projectModel.getWarehouseClientFromCredentials as import('vitest').Mock
             ).mockImplementation(() => ({
@@ -1769,9 +1768,7 @@ describe('ProjectService', () => {
             );
         });
         test('should query unique values with valid filters', async () => {
-            const runQueryMock = vi.fn(
-                async (_sql: string) => resultsWith1Row,
-            );
+            const runQueryMock = vi.fn(async (_sql: string) => resultsWith1Row);
             (
                 projectModel.getWarehouseClientFromCredentials as import('vitest').Mock
             ).mockImplementation(() => ({
@@ -1849,9 +1846,7 @@ describe('ProjectService', () => {
             });
             serviceWithCache.warehouseClients = {};
 
-            const runQueryMock = vi.fn(
-                async (_sql: string) => resultsWith1Row,
-            );
+            const runQueryMock = vi.fn(async (_sql: string) => resultsWith1Row);
             (
                 projectModel.getWarehouseClientFromCredentials as import('vitest').Mock
             ).mockImplementation(() => ({
@@ -1934,9 +1929,7 @@ describe('ProjectService', () => {
             });
             serviceWithCache.warehouseClients = {};
 
-            const runQueryMock = vi.fn(
-                async (_sql: string) => resultsWith1Row,
-            );
+            const runQueryMock = vi.fn(async (_sql: string) => resultsWith1Row);
             (
                 projectModel.getWarehouseClientFromCredentials as import('vitest').Mock
             ).mockImplementation(() => ({
@@ -2382,9 +2375,9 @@ describe('ProjectService', () => {
                 lightdashConfigMock,
                 { spacePermissionService },
             );
-            (savedChartModel.find as import('vitest').Mock).mockResolvedValueOnce([
-                chartSummaryMock,
-            ]);
+            (
+                savedChartModel.find as import('vitest').Mock
+            ).mockResolvedValueOnce([chartSummaryMock]);
 
             const result = await serviceWithPermissions.getChartsByExploreName(
                 user,
@@ -2408,7 +2401,9 @@ describe('ProjectService', () => {
                 lightdashConfigMock,
                 { spacePermissionService },
             );
-            (savedChartModel.find as import('vitest').Mock).mockResolvedValueOnce([]);
+            (
+                savedChartModel.find as import('vitest').Mock
+            ).mockResolvedValueOnce([]);
 
             const result = await serviceWithPermissions.getChartsByExploreName(
                 user,
@@ -2549,10 +2544,9 @@ describe('ProjectService', () => {
         });
 
         it('splits the preview into affected naive and unaffected aware groups (edit flow)', async () => {
-            vi.spyOn(
-                service,
-                'isTimezoneSupportEnabled',
-            ).mockResolvedValueOnce(true);
+            vi.spyOn(service, 'isTimezoneSupportEnabled').mockResolvedValueOnce(
+                true,
+            );
             (
                 projectModel.getWithSensitiveFields as import('vitest').Mock
             ).mockResolvedValueOnce({
@@ -2588,10 +2582,9 @@ describe('ProjectService', () => {
         });
 
         it('rejects an edit preview when the warehouse type was switched but not saved', async () => {
-            vi.spyOn(
-                service,
-                'isTimezoneSupportEnabled',
-            ).mockResolvedValueOnce(true);
+            vi.spyOn(service, 'isTimezoneSupportEnabled').mockResolvedValueOnce(
+                true,
+            );
             (
                 projectModel.getWithSensitiveFields as import('vitest').Mock
             ).mockResolvedValueOnce({
@@ -2612,10 +2605,9 @@ describe('ProjectService', () => {
         });
 
         it('throws ForbiddenError when the user cannot update the project (edit flow)', async () => {
-            vi.spyOn(
-                service,
-                'isTimezoneSupportEnabled',
-            ).mockResolvedValueOnce(true);
+            vi.spyOn(service, 'isTimezoneSupportEnabled').mockResolvedValueOnce(
+                true,
+            );
             (
                 projectModel.getWithSensitiveFields as import('vitest').Mock
             ).mockResolvedValueOnce({
@@ -2636,10 +2628,9 @@ describe('ProjectService', () => {
         });
 
         it('throws ForbiddenError when the user cannot create projects (create flow)', async () => {
-            vi.spyOn(
-                service,
-                'isTimezoneSupportEnabled',
-            ).mockResolvedValueOnce(true);
+            vi.spyOn(service, 'isTimezoneSupportEnabled').mockResolvedValueOnce(
+                true,
+            );
 
             await expect(
                 service.previewDataTimezone(noAccessAccount, {

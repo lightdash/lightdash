@@ -90,11 +90,8 @@ function buildService(opts: {
             .mockResolvedValue(
                 opts.connection !== undefined ? opts.connection : connection,
             ),
-        getDecryptedSecret: vi
-            .fn()
-            .mockResolvedValue(opts.secret ?? 's3cr3t'),
-        saveSample:
-            opts.saveSampleFn ?? vi.fn().mockResolvedValue(fakeSample),
+        getDecryptedSecret: vi.fn().mockResolvedValue(opts.secret ?? 's3cr3t'),
+        saveSample: opts.saveSampleFn ?? vi.fn().mockResolvedValue(fakeSample),
         countSamples: opts.countSamplesFn ?? vi.fn().mockResolvedValue(0),
         listSamples:
             opts.listSamplesFn ?? vi.fn().mockResolvedValue([fakeSample]),
