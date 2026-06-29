@@ -53,6 +53,8 @@ minimumReleaseAgeExclude:
   - vite@7.3.5
   # Renovate security update: undici@6.27.0
   - undici@6.27.0
+  # Renovate security update: react-router@7.15.1
+  - react-router@7.15.1
 
 # Dependency lifecycle scripts (preinstall/install/postinstall) are a supply-chain
 # attack/breakage vector — they also run on `npm install` for downstream consumers
