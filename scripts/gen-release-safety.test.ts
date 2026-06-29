@@ -328,6 +328,19 @@ test('high-confidence AI "safe" OVERRIDES a linter flag + derives a minPreviousV
     assert.ok(/Auto-derived/.test(m.upgrade.note ?? ''));
 });
 
+test('a git-traced expand floor is preferred over the conservative previousVersion', () => {
+    const m = buildMarker({
+        ...base, // previousVersion: '0.3260.2'
+        migrations: migPresent,
+        sqlLint: { ran: true, breaking: true, findings: ['m.ts:3 drops a column [drop-column]'] },
+        aiReview: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', summary: 'cleared.' },
+        expandContractFloor: '0.3240.0', // app stopped using it 20 minors earlier
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, true);
+    assert.strictEqual(m.upgrade.minPreviousVersion, '0.3240.0'); // traced, more permissive
+    assert.ok(/git history shows the app stopped referencing/.test(m.upgrade.note ?? ''));
+});
+
 test('a human-authored minPreviousVersion (overrides) wins over the auto-derived floor', () => {
     const m = buildMarker({
         ...base,

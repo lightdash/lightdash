@@ -33,6 +33,9 @@ export interface SqlLintFinding {
     rule: string;
     message: string;
     snippet: string;
+    /** The dropped/renamed schema object name (column/table), when extractable.
+     *  Used to trace the expand version. undefined for non-string-literal args. */
+    object?: string;
 }
 
 export interface SqlLintResult {
@@ -42,12 +45,14 @@ export interface SqlLintResult {
     findings: SqlLintFinding[];
 }
 
-/** Knex builder calls that are unambiguously destructive to the old code. */
-const METHOD_RULES: { rule: string; re: RegExp; message: string }[] = [
-    { rule: 'drop-column', re: /\.dropColumns?\s*\(/, message: 'drops a column the previous version may still read/write' },
-    { rule: 'rename-column', re: /\.renameColumn\s*\(/, message: 'renames a column the previous version still references' },
-    { rule: 'drop-table', re: /\.dropTable(?:IfExists)?\s*\(/, message: 'drops a table the previous version still references' },
-    { rule: 'rename-table', re: /\.renameTable\s*\(/, message: 'renames a table the previous version still references' },
+/** Knex builder calls that are unambiguously destructive to the old code.
+ *  `objectRe` (optional) captures the affected object name (group 1) from the
+ *  first string-literal argument, for expand-version tracing. */
+const METHOD_RULES: { rule: string; re: RegExp; message: string; objectRe?: RegExp }[] = [
+    { rule: 'drop-column', re: /\.dropColumns?\s*\(/, message: 'drops a column the previous version may still read/write', objectRe: /\.dropColumns?\s*\(\s*['"]([^'"]+)['"]/ },
+    { rule: 'rename-column', re: /\.renameColumn\s*\(/, message: 'renames a column the previous version still references', objectRe: /\.renameColumn\s*\(\s*['"]([^'"]+)['"]/ },
+    { rule: 'drop-table', re: /\.dropTable(?:IfExists)?\s*\(/, message: 'drops a table the previous version still references', objectRe: /\.dropTable(?:IfExists)?\s*\(\s*['"]([^'"]+)['"]/ },
+    { rule: 'rename-table', re: /\.renameTable\s*\(/, message: 'renames a table the previous version still references', objectRe: /\.renameTable\s*\(\s*['"]([^'"]+)['"]/ },
 ];
 
 /** Raw-SQL phrases (only scanned inside statements that call `.raw(`). */
@@ -100,9 +105,15 @@ export function lintSource(source: string): Omit<SqlLintFinding, 'file'>[] {
     const lines = up.split('\n');
     lines.forEach((rawLine, i) => {
         const line = stripLineComment(rawLine);
-        for (const { rule, re, message } of [...METHOD_RULES, ...RAW_RULES]) {
+        for (const { rule, re, message, objectRe } of [...METHOD_RULES, ...RAW_RULES] as {
+            rule: string;
+            re: RegExp;
+            message: string;
+            objectRe?: RegExp;
+        }[]) {
             if (re.test(line)) {
-                findings.push({ line: i + 1, rule, message, snippet: rawLine.trim().slice(0, 200) });
+                const object = objectRe ? line.match(objectRe)?.[1] : undefined;
+                findings.push({ line: i + 1, rule, message, snippet: rawLine.trim().slice(0, 200), object });
             }
         }
     });
