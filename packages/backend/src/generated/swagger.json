@@ -248,7 +248,7 @@
                 },
                 "required": ["projectUuid"],
                 "type": "object",
-                "description": "Project-scoped grant for a Member-shape SA. When `projectAccess` is non-empty\non a create request, `scopes` must be `['system:member']` — any other scope\ncombination is rejected at the service layer so the SA's effective access is\nunambiguously project-only.\n\nEach grant must carry exactly one of `role` (system) or `roleUuid` (custom).\nThe XOR is enforced at the service layer (compile-time `never` discriminator\nunions are not used here — see note on `ServiceAccountProjectGrant`).\nMixed grants across the same `projectAccess` array are allowed — e.g. one\nproject on stock Viewer and another on a custom role."
+                "description": "Project-scoped grant for a Member-shape SA. When `projectAccess` is non-empty\non a create request, `scopes` must be `['system:member']` \u2014 any other scope\ncombination is rejected at the service layer so the SA's effective access is\nunambiguously project-only.\n\nEach grant must carry exactly one of `role` (system) or `roleUuid` (custom).\nThe XOR is enforced at the service layer (compile-time `never` discriminator\nunions are not used here \u2014 see note on `ServiceAccountProjectGrant`).\nMixed grants across the same `projectAccess` array are allowed \u2014 e.g. one\nproject on stock Viewer and another on a custom role."
             },
             "ApiCreateServiceAccountRequest": {
                 "allOf": [
@@ -315,7 +315,7 @@
                         "type": "object"
                     }
                 ],
-                "description": "In-place edit of a service account's name, permissions, and project access,\nwithout rotating its token. `description` is always applied. The rest is\ntarget-shaped — the payload describes what the SA should become, and the SA\ncan move between scope modes:\n\n- `projectAccess` (or `scopes = [system:member]`) → project-scoped: replace\n  its project grants (≥1 required), keeping `scopes = [system:member]`.\n  Sending an org `roleUuid` / non-member `scopes` alongside is rejected.\n- org `scopes` (preset) or `roleUuid` (custom role) → organization-scoped:\n  set the org permission and drop any project grants.\n- neither → rename only, preserving the current mode and permission.\n\nThe token and expiry are never touched."
+                "description": "In-place edit of a service account's name, permissions, and project access,\nwithout rotating its token. `description` is always applied. The rest is\ntarget-shaped \u2014 the payload describes what the SA should become, and the SA\ncan move between scope modes:\n\n- `projectAccess` (or `scopes = [system:member]`) \u2192 project-scoped: replace\n  its project grants (\u22651 required), keeping `scopes = [system:member]`.\n  Sending an org `roleUuid` / non-member `scopes` alongside is rejected.\n- org `scopes` (preset) or `roleUuid` (custom role) \u2192 organization-scoped:\n  set the org permission and drop any project grants.\n- neither \u2192 rename only, preserving the current mode and permission.\n\nThe token and expiry are never touched."
             },
             "ApiUpdateServiceAccountRequest": {
                 "$ref": "#/components/schemas/UpdateServiceAccount"
@@ -1782,7 +1782,7 @@
                     "externalConnectionUuid"
                 ],
                 "type": "object",
-                "description": "READ shape returned by the API — NEVER includes the secret value."
+                "description": "READ shape returned by the API \u2014 NEVER includes the secret value."
             },
             "ApiExternalConnectionResponse": {
                 "properties": {
@@ -1870,7 +1870,7 @@
                     "name"
                 ],
                 "type": "object",
-                "description": "WRITE shape — includes the secret."
+                "description": "WRITE shape \u2014 includes the secret."
             },
             "ApiExternalConnectionListResponse": {
                 "properties": {
@@ -4128,7 +4128,7 @@
                     },
                     "separator": {
                         "$ref": "#/components/schemas/NumberSeparator",
-                        "description": "Number separator style for grouping/decimal characters. Composes with\n`format` (including ECMA-376 expressions) and `formatOptions` — it only\ncontrols the separator characters, not the format shape."
+                        "description": "Number separator style for grouping/decimal characters. Composes with\n`format` (including ECMA-376 expressions) and `formatOptions` \u2014 it only\ncontrols the separator characters, not the format shape."
                     },
                     "groupLabel": {
                         "type": "string",
@@ -4177,7 +4177,7 @@
                     },
                     "timeIntervalLabel": {
                         "type": "string",
-                        "description": "Overridden display label for this dimension's grain (project\n`granularity_labels`); undefined when no override — callers fall back\nto `timeFrameConfigs[timeInterval].getLabel()`."
+                        "description": "Overridden display label for this dimension's grain (project\n`granularity_labels`); undefined when no override \u2014 callers fall back\nto `timeFrameConfigs[timeInterval].getLabel()`."
                     },
                     "timeIntervalBaseDimensionName": {
                         "type": "string"
@@ -4414,7 +4414,7 @@
                     },
                     "separator": {
                         "$ref": "#/components/schemas/NumberSeparator",
-                        "description": "Number separator style for grouping/decimal characters. Composes with\n`format` (including ECMA-376 expressions) and `formatOptions` — it only\ncontrols the separator characters, not the format shape."
+                        "description": "Number separator style for grouping/decimal characters. Composes with\n`format` (including ECMA-376 expressions) and `formatOptions` \u2014 it only\ncontrols the separator characters, not the format shape."
                     },
                     "groupLabel": {
                         "type": "string",
@@ -7486,7 +7486,7 @@
             "SankeyNodeLayout": {
                 "type": "string",
                 "enum": ["multi-step", "merged", "direct"],
-                "description": "How nodes are laid out:\n- `multi-step`: depth-unrolled journeys (default)\n- `merged`: one node per label, journeys preserved (acyclic flows only)\n- `direct`: two-column source→target pairs, no chaining"
+                "description": "How nodes are laid out:\n- `multi-step`: depth-unrolled journeys (default)\n- `merged`: one node per label, journeys preserved (acyclic flows only)\n- `direct`: two-column source\u2192target pairs, no chaining"
             },
             "SankeyChart": {
                 "properties": {
@@ -7771,7 +7771,7 @@
                     },
                     "resolvedColorPalette": {
                         "$ref": "#/components/schemas/ResolvedProjectColorPalette",
-                        "description": "Fully resolved palette for this chart, computed from the\norg → project → space → dashboard → chart hierarchy. Read-only — set\nthe chart's own palette via `colorPaletteUuid`."
+                        "description": "Fully resolved palette for this chart, computed from the\norg \u2192 project \u2192 space \u2192 dashboard \u2192 chart hierarchy. Read-only \u2014 set\nthe chart's own palette via `colorPaletteUuid`."
                     },
                     "colorPaletteUuid": {
                         "type": "string",
@@ -8235,7 +8235,7 @@
                     },
                     "separator": {
                         "$ref": "#/components/schemas/NumberSeparator",
-                        "description": "Number separator style for grouping/decimal characters. Composes with\n`format` (including ECMA-376 expressions) and `formatOptions` — it only\ncontrols the separator characters, not the format shape."
+                        "description": "Number separator style for grouping/decimal characters. Composes with\n`format` (including ECMA-376 expressions) and `formatOptions` \u2014 it only\ncontrols the separator characters, not the format shape."
                     },
                     "groupLabel": {
                         "type": "string",
@@ -8284,7 +8284,7 @@
                     },
                     "timeIntervalLabel": {
                         "type": "string",
-                        "description": "Overridden display label for this dimension's grain (project\n`granularity_labels`); undefined when no override — callers fall back\nto `timeFrameConfigs[timeInterval].getLabel()`."
+                        "description": "Overridden display label for this dimension's grain (project\n`granularity_labels`); undefined when no override \u2014 callers fall back\nto `timeFrameConfigs[timeInterval].getLabel()`."
                     },
                     "timeIntervalBaseDimensionName": {
                         "type": "string"
@@ -9385,7 +9385,7 @@
                     },
                     "separator": {
                         "$ref": "#/components/schemas/NumberSeparator",
-                        "description": "Number separator style for grouping/decimal characters. Composes with\n`format` (including ECMA-376 expressions) and `formatOptions` — it only\ncontrols the separator characters, not the format shape."
+                        "description": "Number separator style for grouping/decimal characters. Composes with\n`format` (including ECMA-376 expressions) and `formatOptions` \u2014 it only\ncontrols the separator characters, not the format shape."
                     },
                     "groupLabel": {
                         "type": "string",
@@ -10081,7 +10081,7 @@
                 "properties": {
                     "resolvedColorPalette": {
                         "$ref": "#/components/schemas/ResolvedProjectColorPalette",
-                        "description": "Fully resolved palette for this SQL chart, computed from the\norg → project → space → dashboard hierarchy. SQL charts have no\nper-chart override — set the palette via the containing space,\ndashboard, project, or organization."
+                        "description": "Fully resolved palette for this SQL chart, computed from the\norg \u2192 project \u2192 space \u2192 dashboard hierarchy. SQL charts have no\nper-chart override \u2014 set the palette via the containing space,\ndashboard, project, or organization."
                     },
                     "lastViewedAt": {
                         "type": "string",
@@ -10565,7 +10565,7 @@
                 },
                 "required": ["alias", "externalConnectionUuid"],
                 "type": "object",
-                "description": "An external connection attached to a generation request. Linked to the app\n(under `alias`) server-side at creation — before the catalog stage — so the\ngenerated app can call it via `client.externalFetch(alias, …)`. Validated\n(must belong to the app's project) before linking."
+                "description": "An external connection attached to a generation request. Linked to the app\n(under `alias`) server-side at creation \u2014 before the catalog stage \u2014 so the\ngenerated app can call it via `client.externalFetch(alias, \u2026)`. Validated\n(must belong to the app's project) before linking."
             },
             "GenerateAppRequestBody": {
                 "properties": {
@@ -16968,7 +16968,7 @@
                     "prUrl"
                 ],
                 "type": "object",
-                "description": "Overview of the writeback PR a thread is associated with — either the PR the\nagent opened in this thread, or the PR a remediation verification thread is\nverifying. Live GitHub fields (state, counts) are null when the fetch fails;\n`summary` falls back to the PR title when no stored summary exists."
+                "description": "Overview of the writeback PR a thread is associated with \u2014 either the PR the\nagent opened in this thread, or the PR a remediation verification thread is\nverifying. Live GitHub fields (state, counts) are null when the fetch fails;\n`summary` falls back to the PR title when no stored summary exists."
             },
             "ApiSuccess_AiAgentThreadPullRequest-or-null_": {
                 "properties": {
@@ -17195,7 +17195,7 @@
                 "properties": {
                     "hidden": {
                         "type": "boolean",
-                        "description": "Inject the prompt as a hidden turn — the agent responds to it, but the UI\ndoes not render the user bubble. Used by the post-merge content-migration\nprompt sent from the writeback PR card."
+                        "description": "Inject the prompt as a hidden turn \u2014 the agent responds to it, but the UI\ndoes not render the user bubble. Used by the post-merge content-migration\nprompt sent from the writeback PR card."
                     },
                     "modelConfig": {
                         "$ref": "#/components/schemas/AiAgentModelConfig"
@@ -17251,11 +17251,11 @@
                             "type": "string"
                         },
                         "type": "array",
-                        "description": "Tool names hinted by the user when they composed the message (via\nsuggestion chips that carry a tool id). agentV2 appends a soft hint\nto the user message before sending it to the LLM. Transient — never\npersisted."
+                        "description": "Tool names hinted by the user when they composed the message (via\nsuggestion chips that carry a tool id). agentV2 appends a soft hint\nto the user message before sending it to the LLM. Transient \u2014 never\npersisted."
                     },
                     "autoApproveSql": {
                         "type": "boolean",
-                        "description": "Skips the SQL human-approval gate for this stream. Used by the review\nremediation workspace so Continue PR turns run frictionlessly. Defaults\nto false — normal chat still asks the user to approve SQL."
+                        "description": "Skips the SQL human-approval gate for this stream. Used by the review\nremediation workspace so Continue PR turns run frictionlessly. Defaults\nto false \u2014 normal chat still asks the user to approve SQL."
                     },
                     "enableSqlMode": {
                         "type": "boolean",
@@ -21066,7 +21066,7 @@
                 "properties": {
                     "allowPassword": {
                         "type": "boolean",
-                        "description": "Controls whether email+password sign-in is shown alongside this method\nwhen it matches a user. When multiple matching SSO methods disagree,\nlenient rule applies (ANY method that allows → show password)."
+                        "description": "Controls whether email+password sign-in is shown alongside this method\nwhen it matches a user. When multiple matching SSO methods disagree,\nlenient rule applies (ANY method that allows \u2192 show password)."
                     },
                     "emailDomains": {
                         "items": {
@@ -21164,7 +21164,7 @@
                     },
                     "allowPassword": {
                         "type": "boolean",
-                        "description": "Controls whether email+password sign-in is shown alongside this method\nwhen it matches a user. When multiple matching SSO methods disagree,\nlenient rule applies (ANY method that allows → show password)."
+                        "description": "Controls whether email+password sign-in is shown alongside this method\nwhen it matches a user. When multiple matching SSO methods disagree,\nlenient rule applies (ANY method that allows \u2192 show password)."
                     }
                 },
                 "type": "object",
@@ -21564,7 +21564,7 @@
                     "organizationUuid"
                 ],
                 "type": "object",
-                "description": "A domain an organization has proven it owns (via a one-time passcode sent to\nan address at the domain). Verified domains are globally unique — the first\norganization to verify a domain owns it."
+                "description": "A domain an organization has proven it owns (via a one-time passcode sent to\nan address at the domain). Verified domains are globally unique \u2014 the first\norganization to verify a domain owns it."
             },
             "ApiVerifiedDomainsResponse": {
                 "properties": {
@@ -21993,7 +21993,7 @@
                 },
                 "required": ["prompt"],
                 "type": "object",
-                "description": "Body for kicking off an AI writeback run. The target repository is\ncloned into a sandbox, the prompt is executed by the Claude Code CLI, and a\npull request is opened against the repo if the agent changes any files.\n\nThe target repository (owner, repo) and the dbt project sub-folder are\nresolved server-side from the Lightdash project's dbt connection — identified\nby the `projectUuid` path parameter — so the caller only supplies the prompt."
+                "description": "Body for kicking off an AI writeback run. The target repository is\ncloned into a sandbox, the prompt is executed by the Claude Code CLI, and a\npull request is opened against the repo if the agent changes any files.\n\nThe target repository (owner, repo) and the dbt project sub-folder are\nresolved server-side from the Lightdash project's dbt connection \u2014 identified\nby the `projectUuid` path parameter \u2014 so the caller only supplies the prompt."
             },
             "ProjectCiStatus": {
                 "properties": {
@@ -22054,7 +22054,7 @@
                 "type": "string"
             },
             "CiCheckState": {
-                "description": "Provider-agnostic outcome of a single CI check. Each host's native states are\nmapped onto these by its adapter (e.g. GitHub's `queued`/`in_progress` →\n`pending`; `timed_out` → `failure`).",
+                "description": "Provider-agnostic outcome of a single CI check. Each host's native states are\nmapped onto these by its adapter (e.g. GitHub's `queued`/`in_progress` \u2192\n`pending`; `timed_out` \u2192 `failure`).",
                 "enum": [
                     "success",
                     "failure",
@@ -22066,7 +22066,7 @@
                 "type": "string"
             },
             "CiMergeState": {
-                "description": "Whether the PR may actually be merged, per the repo's own policy (branch\nprotection: required checks + required reviews). This is distinct from the\nCI roll-up: a check can fail yet the PR still be mergeable when that check\nisn't *required* — so the merge verdict must come from the provider, never\nbe inferred from check states. Maps GitHub's `mergeable_state`.",
+                "description": "Whether the PR may actually be merged, per the repo's own policy (branch\nprotection: required checks + required reviews). This is distinct from the\nCI roll-up: a check can fail yet the PR still be mergeable when that check\nisn't *required* \u2014 so the merge verdict must come from the provider, never\nbe inferred from check states. Maps GitHub's `mergeable_state`.",
                 "enum": [
                     "ready",
                     "unstable",
@@ -22115,7 +22115,7 @@
                     },
                     "mergeState": {
                         "$ref": "#/components/schemas/CiMergeState",
-                        "description": "Whether the PR can actually be merged per the repo's policy — resolved\nfrom the provider, NOT inferred from `overall`. Drives the merge-\nreadiness verdict so a failing-but-not-required check doesn't read as\n\"blocked\"."
+                        "description": "Whether the PR can actually be merged per the repo's policy \u2014 resolved\nfrom the provider, NOT inferred from `overall`. Drives the merge-\nreadiness verdict so a failing-but-not-required check doesn't read as\n\"blocked\"."
                     },
                     "overall": {
                         "$ref": "#/components/schemas/CiCheckState",
@@ -22154,7 +22154,7 @@
                 },
                 "required": ["results", "status"],
                 "type": "object",
-                "description": "CI checks for a PR, or null when CI status can't be resolved (project isn't\nconnected to a supported provider, no app installation, PR not found, etc.) —\ndistinct from a resolved result with an empty `checks` array (\"no CI runs\")."
+                "description": "CI checks for a PR, or null when CI status can't be resolved (project isn't\nconnected to a supported provider, no app installation, PR not found, etc.) \u2014\ndistinct from a resolved result with an empty `checks` array (\"no CI runs\")."
             },
             "ClosePullRequestResult": {
                 "properties": {
@@ -22326,7 +22326,7 @@
                 },
                 "required": ["results", "status"],
                 "type": "object",
-                "description": "The repositories the agent can read for a project, used by the chat input's\n`@`-mention repository picker. This is the same union the agent's repo VFS\nmounts (the org installation's repos plus the linked user's own), gated by the\nproject's `view:SourceCode` ability — unlike the org-wide `/github/repos/list`\nendpoint, it never exposes repo names to users without source-code access."
+                "description": "The repositories the agent can read for a project, used by the chat input's\n`@`-mention repository picker. This is the same union the agent's repo VFS\nmounts (the org installation's repos plus the linked user's own), gated by the\nproject's `view:SourceCode` ability \u2014 unlike the org-wide `/github/repos/list`\nendpoint, it never exposes repo names to users without source-code access."
             },
             "Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid_": {
                 "properties": {
@@ -23358,13 +23358,13 @@
             "AiAgentReviewRemediationLiveState": {
                 "type": "string",
                 "enum": ["writeback", "compiling", "verifying"],
-                "description": "The in-flight step of a remediation, derived from current status + which\nevents exist — never stored. Renders as the single accented \"live\" row."
+                "description": "The in-flight step of a remediation, derived from current status + which\nevents exist \u2014 never stored. Renders as the single accented \"live\" row."
             },
             "AiAgentReviewItemActivity": {
                 "properties": {
                     "verdictStale": {
                         "type": "boolean",
-                        "description": "True when the PR changed after the latest verdict — derived from event\nordering (latest pr_opened/pr_updated/writeback_completed occurred after\nthe latest verification_completed). Drives the \"Retest\" prompt."
+                        "description": "True when the PR changed after the latest verdict \u2014 derived from event\nordering (latest pr_opened/pr_updated/writeback_completed occurred after\nthe latest verification_completed). Drives the \"Retest\" prompt."
                     },
                     "liveMessage": {
                         "type": "string",
@@ -23585,7 +23585,7 @@
                         "type": "object"
                     }
                 ],
-                "description": "Preview of the file change a writeback PR would make, computed deterministically\n(no PR opened). Only available for the project_context strategy — semantic_layer\nruns in a sandbox, so there is no static diff to show before the PR is created."
+                "description": "Preview of the file change a writeback PR would make, computed deterministically\n(no PR opened). Only available for the project_context strategy \u2014 semantic_layer\nruns in a sandbox, so there is no static diff to show before the PR is created."
             },
             "ApiSuccess_AiAgentReviewItemWritebackPreview_": {
                 "properties": {
@@ -25341,7 +25341,7 @@
             },
             "url.URL": {
                 "type": "string",
-                "description": "The URL interface represents an object providing static methods used for creating object URLs.\n\n[MDN Reference](https://developer.mozilla.org/docs/Web/API/URL)\n`URL` class is a global reference for `import { URL } from 'url'`\nhttps://nodejs.org/api/url.html#the-whatwg-url-api"
+                "description": "The URL\u00a0interface represents an object providing static methods used for creating object URLs.\n\n[MDN Reference](https://developer.mozilla.org/docs/Web/API/URL)\n`URL` class is a global reference for `import { URL } from 'url'`\nhttps://nodejs.org/api/url.html#the-whatwg-url-api"
             },
             "OauthAuth": {
                 "properties": {
@@ -26158,7 +26158,7 @@
                             "$ref": "#/components/schemas/GroupByColumn"
                         },
                         "type": "array",
-                        "description": "Declared order of the pivot-column dimensions (visible `groupByColumns`\nplus hidden `sortOnlyDimensions`) as they appear in the chart's\n`pivotConfig.columns`. `column_ranking` orders columns by this sequence so\na hidden sort-only dim sorts at its DECLARED position — hiding a dim then\nleaves column order identical to when it was visible, instead of hoisting\nthe hidden dim to the front of the ORDER BY. Passthrough (hidden, non-sort)\ndims are excluded since they don't drive sort. When omitted, ordering falls\nback to hoisting sort-only sort targets to the front (legacy behavior)."
+                        "description": "Declared order of the pivot-column dimensions (visible `groupByColumns`\nplus hidden `sortOnlyDimensions`) as they appear in the chart's\n`pivotConfig.columns`. `column_ranking` orders columns by this sequence so\na hidden sort-only dim sorts at its DECLARED position \u2014 hiding a dim then\nleaves column order identical to when it was visible, instead of hoisting\nthe hidden dim to the front of the ORDER BY. Passthrough (hidden, non-sort)\ndims are excluded since they don't drive sort. When omitted, ordering falls\nback to hoisting sort-only sort targets to the front (legacy behavior)."
                     },
                     "passthroughDimensions": {
                         "items": {
@@ -26860,7 +26860,7 @@
                     },
                     "resolvedColorPalette": {
                         "$ref": "#/components/schemas/ResolvedProjectColorPalette",
-                        "description": "Fully resolved palette for this chart, computed from the\norg → project → space → dashboard → chart hierarchy. Read-only — set\nthe chart's own palette via `colorPaletteUuid`."
+                        "description": "Fully resolved palette for this chart, computed from the\norg \u2192 project \u2192 space \u2192 dashboard \u2192 chart hierarchy. Read-only \u2014 set\nthe chart's own palette via `colorPaletteUuid`."
                     }
                 },
                 "required": [
@@ -29498,7 +29498,7 @@
                     "summary": {
                         "type": "string",
                         "nullable": true,
-                        "description": "Two-line user-facing \"what this PR does\", written by the AI write-back\nagent at PR creation. Null for non-AI PRs and PRs predating the field —\nconsumers fall back to the live PR title."
+                        "description": "Two-line user-facing \"what this PR does\", written by the AI write-back\nagent at PR creation. Null for non-AI PRs and PRs predating the field \u2014\nconsumers fall back to the live PR title."
                     },
                     "prUrl": {
                         "type": "string"
@@ -29581,7 +29581,7 @@
                         "type": "object"
                     }
                 ],
-                "description": "A stored pull request enriched with its live title/state resolved from the\nprovider API. `title`/`state` are null when the live lookup fails (e.g. the\nPR was deleted or the token lost access) — `prUrl` always remains usable."
+                "description": "A stored pull request enriched with its live title/state resolved from the\nprovider API. `title`/`state` are null when the live lookup fails (e.g. the\nPR was deleted or the token lost access) \u2014 `prUrl` always remains usable."
             },
             "KnexPaginatedData_PullRequestWithStatus-Array_": {
                 "properties": {
@@ -31097,7 +31097,7 @@
             "UpstreamFieldChangeKind": {
                 "type": "string",
                 "enum": ["added", "removed", "label_changed"],
-                "description": "Field-level diff between a preview project and the project it was copied from\n(`upstreamProjectUuid`), computed in SQL over the `catalog_search` index.\n\nDetects added/removed fields and label changes. It does not detect SQL-only\nchanges (same name/label, different SQL) — that would require walking the\ncached explore definitions, which is too expensive to do per request."
+                "description": "Field-level diff between a preview project and the project it was copied from\n(`upstreamProjectUuid`), computed in SQL over the `catalog_search` index.\n\nDetects added/removed fields and label changes. It does not detect SQL-only\nchanges (same name/label, different SQL) \u2014 that would require walking the\ncached explore definitions, which is too expensive to do per request."
             },
             "UpstreamFieldDiff": {
                 "properties": {
@@ -33806,7 +33806,7 @@
                         "type": "number",
                         "format": "double",
                         "nullable": true,
-                        "description": "Max number of cells (rows × columns) a CSV/Excel export may contain for\nthis org. Inherits `LIGHTDASH_CSV_CELLS_LIMIT` and is capped by\n`LIGHTDASH_CSV_MAX_LIMIT` (the ceiling); `null` inherits the\ndefault. Always resolved to an effective number in API responses."
+                        "description": "Max number of cells (rows \u00d7 columns) a CSV/Excel export may contain for\nthis org. Inherits `LIGHTDASH_CSV_CELLS_LIMIT` and is capped by\n`LIGHTDASH_CSV_MAX_LIMIT` (the ceiling); `null` inherits the\ndefault. Always resolved to an effective number in API responses."
                     },
                     "queryLimit": {
                         "type": "number",
@@ -33842,12 +33842,12 @@
                         "type": "number",
                         "format": "double",
                         "nullable": true,
-                        "description": "Base lifetime (seconds) of this org's scheduled-delivery download links —\nthe default every channel inherits. Overrides the instance-wide\n`PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS` env; `null` inherits it. This\nfield is always resolved to an effective number in API responses (it\nfalls back to the env default), so the frontend can display it directly.\nA value over {@link S3_PRESIGNED_URL_MAX_EXPIRATION_SECONDS} transparently\nswitches that delivery to the persistent-download-URL system (the only\nway a link can outlive AWS's 7-day presigned ceiling)."
+                        "description": "Base lifetime (seconds) of this org's scheduled-delivery download links \u2014\nthe default every channel inherits. Overrides the instance-wide\n`PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS` env; `null` inherits it. This\nfield is always resolved to an effective number in API responses (it\nfalls back to the env default), so the frontend can display it directly.\nA value over {@link S3_PRESIGNED_URL_MAX_EXPIRATION_SECONDS} transparently\nswitches that delivery to the persistent-download-URL system (the only\nway a link can outlive AWS's 7-day presigned ceiling)."
                     },
                     "supportImpersonationEnabled": {
                         "type": "boolean",
                         "nullable": true,
-                        "description": "Per-org consent for the Lightdash support team to impersonate users in\nthe org while helping with a support request. Unlike the OIDC toggles\nthis has no instance/env default — it's opt-in only, so `null` (or no\nstored row) resolves to `false`."
+                        "description": "Per-org consent for the Lightdash support team to impersonate users in\nthe org while helping with a support request. Unlike the OIDC toggles\nthis has no instance/env default \u2014 it's opt-in only, so `null` (or no\nstored row) resolves to `false`."
                     },
                     "oidcToEmailLinkingEnabled": {
                         "type": "boolean",
@@ -33874,7 +33874,7 @@
                     "oidcLinkingEnabled"
                 ],
                 "type": "object",
-                "description": "Per-organization settings migrated from instance-wide env vars. Surfaced in\nthe Pro admin panel and stored in the `organization_settings` table. Starts\nwith the OIDC account-linking toggles; designed to grow as more settings\nmove org-level.\n\nEach value is tri-state: `null` means \"not set — inherit the instance/env\ndefault\", while an explicit `true`/`false` overrides the env. The fallback\nto the env default is resolved in the auth layer, not here."
+                "description": "Per-organization settings migrated from instance-wide env vars. Surfaced in\nthe Pro admin panel and stored in the `organization_settings` table. Starts\nwith the OIDC account-linking toggles; designed to grow as more settings\nmove org-level.\n\nEach value is tri-state: `null` means \"not set \u2014 inherit the instance/env\ndefault\", while an explicit `true`/`false` overrides the env. The fallback\nto the env default is resolved in the auth layer, not here."
             },
             "ApiOrganizationSettingsResponse": {
                 "properties": {
@@ -33905,13 +33905,13 @@
                     "supportImpersonationEnabled": {
                         "type": "boolean",
                         "nullable": true,
-                        "description": "Per-org consent for the Lightdash support team to impersonate users in\nthe org while helping with a support request. Unlike the OIDC toggles\nthis has no instance/env default — it's opt-in only, so `null` (or no\nstored row) resolves to `false`."
+                        "description": "Per-org consent for the Lightdash support team to impersonate users in\nthe org while helping with a support request. Unlike the OIDC toggles\nthis has no instance/env default \u2014 it's opt-in only, so `null` (or no\nstored row) resolves to `false`."
                     },
                     "scheduledDeliveryExpirationSeconds": {
                         "type": "number",
                         "format": "double",
                         "nullable": true,
-                        "description": "Base lifetime (seconds) of this org's scheduled-delivery download links —\nthe default every channel inherits. Overrides the instance-wide\n`PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS` env; `null` inherits it. This\nfield is always resolved to an effective number in API responses (it\nfalls back to the env default), so the frontend can display it directly.\nA value over {@link S3_PRESIGNED_URL_MAX_EXPIRATION_SECONDS} transparently\nswitches that delivery to the persistent-download-URL system (the only\nway a link can outlive AWS's 7-day presigned ceiling)."
+                        "description": "Base lifetime (seconds) of this org's scheduled-delivery download links \u2014\nthe default every channel inherits. Overrides the instance-wide\n`PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS` env; `null` inherits it. This\nfield is always resolved to an effective number in API responses (it\nfalls back to the env default), so the frontend can display it directly.\nA value over {@link S3_PRESIGNED_URL_MAX_EXPIRATION_SECONDS} transparently\nswitches that delivery to the persistent-download-URL system (the only\nway a link can outlive AWS's 7-day presigned ceiling)."
                     },
                     "scheduledDeliveryExpirationSecondsEmail": {
                         "type": "number",
@@ -33947,7 +33947,7 @@
                         "type": "number",
                         "format": "double",
                         "nullable": true,
-                        "description": "Max number of cells (rows × columns) a CSV/Excel export may contain for\nthis org. Inherits `LIGHTDASH_CSV_CELLS_LIMIT` and is capped by\n`LIGHTDASH_CSV_MAX_LIMIT` (the ceiling); `null` inherits the\ndefault. Always resolved to an effective number in API responses."
+                        "description": "Max number of cells (rows \u00d7 columns) a CSV/Excel export may contain for\nthis org. Inherits `LIGHTDASH_CSV_CELLS_LIMIT` and is capped by\n`LIGHTDASH_CSV_MAX_LIMIT` (the ceiling); `null` inherits the\ndefault. Always resolved to an effective number in API responses."
                     },
                     "corsAllowedDomains": {
                         "items": {
@@ -42857,7 +42857,7 @@
                         }
                     }
                 },
-                "description": "Partially updates a group’s attributes (e.g., add or remove members).",
+                "description": "Partially updates a group\u2019s attributes (e.g., add or remove members).",
                 "summary": "Patch group",
                 "tags": ["SCIM"],
                 "security": [],
@@ -43048,7 +43048,7 @@
                         }
                     }
                 },
-                "description": "Get the AI router configuration for the organization. Returns 404 when the\nrouter has not been configured yet — clients use this to detect first-use.",
+                "description": "Get the AI router configuration for the organization. Returns 404 when the\nrouter has not been configured yet \u2014 clients use this to detect first-use.",
                 "summary": "Get AI router config",
                 "security": [],
                 "parameters": []
@@ -44919,7 +44919,7 @@
                         }
                     }
                 },
-                "description": "Get the writeback pull request associated with a thread — the PR the\nagent opened in this thread, or the PR a verification thread verifies.",
+                "description": "Get the writeback pull request associated with a thread \u2014 the PR the\nagent opened in this thread, or the PR a verification thread verifies.",
                 "summary": "Get AI agent thread pull request",
                 "security": [],
                 "parameters": [
@@ -47738,7 +47738,7 @@
                         }
                     }
                 },
-                "description": "Returns the current organization's Google SSO policy. Google is enabled\nby default using the shared instance OAuth app; a configuration only\nexists when the org has set an explicit policy (e.g. disabled Google).\n`null` means no explicit policy — Google follows the instance default.",
+                "description": "Returns the current organization's Google SSO policy. Google is enabled\nby default using the shared instance OAuth app; a configuration only\nexists when the org has set an explicit policy (e.g. disabled Google).\n`null` means no explicit policy \u2014 Google follows the instance default.",
                 "summary": "Get Google SSO configuration",
                 "tags": ["Organizations"],
                 "security": [],
@@ -47768,7 +47768,7 @@
                         }
                     }
                 },
-                "description": "Creates or updates the current organization's Google SSO policy. Google\nhas no per-org credentials — only the `enabled` / domain / password\nflags are stored.",
+                "description": "Creates or updates the current organization's Google SSO policy. Google\nhas no per-org credentials \u2014 only the `enabled` / domain / password\nflags are stored.",
                 "summary": "Upsert Google SSO configuration",
                 "tags": ["Organizations"],
                 "security": [],
@@ -48595,37 +48595,6 @@
                         }
                     }
                 ]
-            }
-        },
-        "/api/v1/aiAgents/admin/agents": {
-            "get": {
-                "operationId": "getAllAgents",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiAiAgentSummaryResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Get all AI agents for admin",
-                "summary": "List AI agents",
-                "security": [],
-                "parameters": []
             }
         },
         "/api/v1/aiAgents/admin/review-items": {
@@ -53985,7 +53954,7 @@
                         }
                     }
                 },
-                "description": "Deprecated — use the v2 Execute underlying data endpoint instead.\n\nThis endpoint was deprecated on 20 March 2025 and is past its sunset date (30 April 2025) — it may be removed at any time. Migrate to the v2 async query flow: Execute underlying data, then Get results.",
+                "description": "Deprecated \u2014 use the v2 Execute underlying data endpoint instead.\n\nThis endpoint was deprecated on 20 March 2025 and is past its sunset date (30 April 2025) \u2014 it may be removed at any time. Migrate to the v2 async query flow: Execute underlying data, then Get results.",
                 "summary": "Run underlying data query",
                 "tags": ["Exploring"],
                 "deprecated": true,
@@ -54023,7 +53992,7 @@
                     }
                 },
                 "x-mint": {
-                    "content": "<Warning>\n**This endpoint is deprecated and past its sunset date (30 April 2025) — it may be removed at any time.**\n\nMigrate to the v2 async query flow: [Execute underlying data](https://docs.lightdash.com/api-reference/v2/execute-underlying-data) (`POST /api/v2/projects/{projectUuid}/query/underlying-data`) to start the query, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. See also [Cancel query](https://docs.lightdash.com/api-reference/v2/cancel-query) and [Download results](https://docs.lightdash.com/api-reference/v2/download-results).\n</Warning>"
+                    "content": "<Warning>\n**This endpoint is deprecated and past its sunset date (30 April 2025) \u2014 it may be removed at any time.**\n\nMigrate to the v2 async query flow: [Execute underlying data](https://docs.lightdash.com/api-reference/v2/execute-underlying-data) (`POST /api/v2/projects/{projectUuid}/query/underlying-data`) to start the query, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. See also [Cancel query](https://docs.lightdash.com/api-reference/v2/cancel-query) and [Download results](https://docs.lightdash.com/api-reference/v2/download-results).\n</Warning>"
                 }
             }
         },
@@ -54052,7 +54021,7 @@
                         }
                     }
                 },
-                "description": "Deprecated — use the v2 Execute metric query endpoint instead.\n\nThis endpoint was deprecated on 20 March 2025 and is past its sunset date (30 April 2025) — it may be removed at any time. Migrate to the v2 async query flow: Execute metric query, then Get results.",
+                "description": "Deprecated \u2014 use the v2 Execute metric query endpoint instead.\n\nThis endpoint was deprecated on 20 March 2025 and is past its sunset date (30 April 2025) \u2014 it may be removed at any time. Migrate to the v2 async query flow: Execute metric query, then Get results.",
                 "summary": "Run metric query",
                 "tags": ["Exploring"],
                 "deprecated": true,
@@ -54090,7 +54059,7 @@
                     }
                 },
                 "x-mint": {
-                    "content": "<Warning>\n**This endpoint is deprecated and past its sunset date (30 April 2025) — it may be removed at any time.**\n\nMigrate to the v2 async query flow: [Execute metric query](https://docs.lightdash.com/api-reference/v2/execute-metric-query) (`POST /api/v2/projects/{projectUuid}/query/metric-query`) to start the query, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. See also [Cancel query](https://docs.lightdash.com/api-reference/v2/cancel-query) and [Download results](https://docs.lightdash.com/api-reference/v2/download-results).\n</Warning>"
+                    "content": "<Warning>\n**This endpoint is deprecated and past its sunset date (30 April 2025) \u2014 it may be removed at any time.**\n\nMigrate to the v2 async query flow: [Execute metric query](https://docs.lightdash.com/api-reference/v2/execute-metric-query) (`POST /api/v2/projects/{projectUuid}/query/metric-query`) to start the query, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. See also [Cancel query](https://docs.lightdash.com/api-reference/v2/cancel-query) and [Download results](https://docs.lightdash.com/api-reference/v2/download-results).\n</Warning>"
                 }
             }
         },
@@ -54119,7 +54088,7 @@
                         }
                     }
                 },
-                "description": "Deprecated — use the v2 Execute saved chart endpoint instead.\n\nThis endpoint was deprecated on 20 March 2025 and is past its sunset date (30 April 2025) — it may be removed at any time. Migrate to the v2 async query flow: Execute saved chart, then Get results.",
+                "description": "Deprecated \u2014 use the v2 Execute saved chart endpoint instead.\n\nThis endpoint was deprecated on 20 March 2025 and is past its sunset date (30 April 2025) \u2014 it may be removed at any time. Migrate to the v2 async query flow: Execute saved chart, then Get results.",
                 "summary": "Run chart query",
                 "tags": ["Charts"],
                 "deprecated": true,
@@ -54151,7 +54120,7 @@
                     }
                 },
                 "x-mint": {
-                    "content": "<Warning>\n**This endpoint is deprecated and past its sunset date (30 April 2025) — it may be removed at any time.**\n\nMigrate to the v2 async query flow: [Execute saved chart](https://docs.lightdash.com/api-reference/v2/execute-saved-chart) (`POST /api/v2/projects/{projectUuid}/query/chart`) to start the query, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. See also [Cancel query](https://docs.lightdash.com/api-reference/v2/cancel-query) and [Download results](https://docs.lightdash.com/api-reference/v2/download-results).\n</Warning>"
+                    "content": "<Warning>\n**This endpoint is deprecated and past its sunset date (30 April 2025) \u2014 it may be removed at any time.**\n\nMigrate to the v2 async query flow: [Execute saved chart](https://docs.lightdash.com/api-reference/v2/execute-saved-chart) (`POST /api/v2/projects/{projectUuid}/query/chart`) to start the query, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. See also [Cancel query](https://docs.lightdash.com/api-reference/v2/cancel-query) and [Download results](https://docs.lightdash.com/api-reference/v2/download-results).\n</Warning>"
                 }
             }
         },
@@ -54180,7 +54149,7 @@
                         }
                     }
                 },
-                "description": "Deprecated — use the v2 Execute dashboard chart endpoint instead.\n\nThis endpoint was deprecated on 20 March 2025 and is past its sunset date (20 June 2025) — it may be removed at any time. Migrate to the v2 async query flow: Execute dashboard chart, then Get results.",
+                "description": "Deprecated \u2014 use the v2 Execute dashboard chart endpoint instead.\n\nThis endpoint was deprecated on 20 March 2025 and is past its sunset date (20 June 2025) \u2014 it may be removed at any time. Migrate to the v2 async query flow: Execute dashboard chart, then Get results.",
                 "summary": "Get chart and results",
                 "tags": ["Charts"],
                 "deprecated": true,
@@ -54234,7 +54203,7 @@
                     }
                 },
                 "x-mint": {
-                    "content": "<Warning>\n**This endpoint is deprecated and past its sunset date (20 June 2025) — it may be removed at any time.**\n\nMigrate to the v2 async query flow: [Execute dashboard chart](https://docs.lightdash.com/api-reference/v2/execute-dashboard-chart) (`POST /api/v2/projects/{projectUuid}/query/dashboard-chart`) to start the query, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. See also [Cancel query](https://docs.lightdash.com/api-reference/v2/cancel-query) and [Download results](https://docs.lightdash.com/api-reference/v2/download-results).\n</Warning>"
+                    "content": "<Warning>\n**This endpoint is deprecated and past its sunset date (20 June 2025) \u2014 it may be removed at any time.**\n\nMigrate to the v2 async query flow: [Execute dashboard chart](https://docs.lightdash.com/api-reference/v2/execute-dashboard-chart) (`POST /api/v2/projects/{projectUuid}/query/dashboard-chart`) to start the query, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. See also [Cancel query](https://docs.lightdash.com/api-reference/v2/cancel-query) and [Download results](https://docs.lightdash.com/api-reference/v2/download-results).\n</Warning>"
                 }
             }
         },
@@ -54356,7 +54325,7 @@
                         }
                     }
                 },
-                "description": "Deprecated — use the v2 Execute saved chart endpoint instead.\n\nThis endpoint was deprecated on 20 March 2025 and is past its sunset date (30 April 2025) — it may be removed at any time. Migrate to the v2 async query flow: Execute saved chart, then Get results.",
+                "description": "Deprecated \u2014 use the v2 Execute saved chart endpoint instead.\n\nThis endpoint was deprecated on 20 March 2025 and is past its sunset date (30 April 2025) \u2014 it may be removed at any time. Migrate to the v2 async query flow: Execute saved chart, then Get results.",
                 "summary": "Get chart version results",
                 "tags": ["Charts"],
                 "deprecated": true,
@@ -54382,7 +54351,7 @@
                     }
                 ],
                 "x-mint": {
-                    "content": "<Warning>\n**This endpoint is deprecated and past its sunset date (30 April 2025) — it may be removed at any time.**\n\nMigrate to the v2 async query flow: [Execute saved chart](https://docs.lightdash.com/api-reference/v2/execute-saved-chart) (`POST /api/v2/projects/{projectUuid}/query/chart`) to run the chart's latest version, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. Running a query for a specific chart version has no v2 equivalent.\n</Warning>"
+                    "content": "<Warning>\n**This endpoint is deprecated and past its sunset date (30 April 2025) \u2014 it may be removed at any time.**\n\nMigrate to the v2 async query flow: [Execute saved chart](https://docs.lightdash.com/api-reference/v2/execute-saved-chart) (`POST /api/v2/projects/{projectUuid}/query/chart`) to run the chart's latest version, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. Running a query for a specific chart version has no v2 equivalent.\n</Warning>"
                 }
             }
         },
@@ -55677,7 +55646,7 @@
                         }
                     }
                 },
-                "description": "Deprecated — use the v2 Execute SQL query endpoint instead.\n\nThis endpoint was deprecated on 17 February 2025 and is past its sunset date (17 May 2025) — it may be removed at any time. Migrate to the v2 async query flow: Execute SQL query, then Get results.",
+                "description": "Deprecated \u2014 use the v2 Execute SQL query endpoint instead.\n\nThis endpoint was deprecated on 17 February 2025 and is past its sunset date (17 May 2025) \u2014 it may be removed at any time. Migrate to the v2 async query flow: Execute SQL query, then Get results.",
                 "summary": "Run SQL query",
                 "tags": ["Exploring", "Projects"],
                 "deprecated": true,
@@ -55712,7 +55681,7 @@
                     }
                 },
                 "x-mint": {
-                    "content": "<Warning>\n**This endpoint is deprecated and past its sunset date (17 May 2025) — it may be removed at any time.**\n\nMigrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.com/api-reference/v2/execute-sql-query) (`POST /api/v2/projects/{projectUuid}/query/sql`) to start the query, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. See also [Cancel query](https://docs.lightdash.com/api-reference/v2/cancel-query) and [Download results](https://docs.lightdash.com/api-reference/v2/download-results).\n</Warning>"
+                    "content": "<Warning>\n**This endpoint is deprecated and past its sunset date (17 May 2025) \u2014 it may be removed at any time.**\n\nMigrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.com/api-reference/v2/execute-sql-query) (`POST /api/v2/projects/{projectUuid}/query/sql`) to start the query, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. See also [Cancel query](https://docs.lightdash.com/api-reference/v2/cancel-query) and [Download results](https://docs.lightdash.com/api-reference/v2/download-results).\n</Warning>"
                 }
             }
         },
@@ -58250,7 +58219,7 @@
                         }
                     }
                 },
-                "description": "Create a new organization design. Starts empty — upload files separately.",
+                "description": "Create a new organization design. Starts empty \u2014 upload files separately.",
                 "summary": "Create organization design",
                 "tags": ["Organizations"],
                 "security": [],
@@ -58421,7 +58390,7 @@
                         }
                     }
                 },
-                "description": "Clear whichever design is currently the organization default. Idempotent\n— succeeds when no default is set.\n\nNOTE: This literal `/default` route MUST stay registered before\n`Delete('/{designUuid}')` below so Express routes a request to\n`DELETE /api/v1/org/designs/default` here rather than treating\n\"default\" as a `designUuid` path param.",
+                "description": "Clear whichever design is currently the organization default. Idempotent\n\u2014 succeeds when no default is set.\n\nNOTE: This literal `/default` route MUST stay registered before\n`Delete('/{designUuid}')` below so Express routes a request to\n`DELETE /api/v1/org/designs/default` here rather than treating\n\"default\" as a `designUuid` path param.",
                 "summary": "Clear default organization design",
                 "tags": ["Organizations"],
                 "security": [],
@@ -58494,7 +58463,7 @@
                         }
                     }
                 },
-                "description": "Upload a file into a design. Send raw bytes as the body with the\nappropriate Content-Type and Content-Length headers. Pass `kind`\nand `filename` as query parameters. Mirrors the data-app image\nupload pattern — no multipart wrapping required.",
+                "description": "Upload a file into a design. Send raw bytes as the body with the\nappropriate Content-Type and Content-Length headers. Pass `kind`\nand `filename` as query parameters. Mirrors the data-app image\nupload pattern \u2014 no multipart wrapping required.",
                 "summary": "Upload file to organization design",
                 "tags": ["Organizations"],
                 "security": [],
@@ -66013,7 +65982,7 @@
                         }
                     }
                 },
-                "description": "Calculates totals for a previously-executed query, referenced by its queryUuid. Re-runs the source query's MetricQuery against the warehouse so totals are correct for every metric type (count distinct, average, ratio, etc.) — unlike client-side cell summation, which only works for sum/count. The requested `kind` selects which totals to compute.",
+                "description": "Calculates totals for a previously-executed query, referenced by its queryUuid. Re-runs the source query's MetricQuery against the warehouse so totals are correct for every metric type (count distinct, average, ratio, etc.) \u2014 unlike client-side cell summation, which only works for sum/count. The requested `kind` selects which totals to compute.",
                 "summary": "Calculate totals",
                 "tags": ["v2", "Query"],
                 "security": [],
