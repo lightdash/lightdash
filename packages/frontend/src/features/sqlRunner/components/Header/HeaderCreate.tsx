@@ -26,6 +26,7 @@ import { useGitIntegration } from '../../../../hooks/gitIntegration/useGitIntegr
 import useHealth from '../../../../hooks/health/useHealth';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useProject } from '../../../../hooks/useProject';
+import useCreateInAnySpaceAccess from '../../../../hooks/user/useCreateInAnySpaceAccess';
 import useApp from '../../../../providers/App/useApp';
 import { CreateVirtualViewModal } from '../../../virtualView';
 import { useCreateSqlRunnerShareUrl } from '../../hooks/useSqlRunnerShareUrl';
@@ -52,10 +53,17 @@ export const HeaderCreate: FC = () => {
     const { user } = useApp();
     const organizationUuid = user.data?.organizationUuid;
 
-    const canSaveChart = !!user.data?.ability?.can(
+    // Saving a SQL chart needs both the project-level CustomSql permission and
+    // create access to at least one space (matches the backend SavedChart check).
+    const canManageCustomSql = !!user.data?.ability?.can(
         'manage',
         subject('CustomSql', { organizationUuid, projectUuid }),
     );
+    const canCreateChartInSpace = useCreateInAnySpaceAccess(
+        projectUuid,
+        'SavedChart',
+    );
+    const canSaveChart = canManageCustomSql && canCreateChartInSpace;
     const canCreateVirtualView = !!user.data?.ability?.can(
         'create',
         subject('VirtualView', { organizationUuid, projectUuid }),
@@ -155,14 +163,19 @@ export const HeaderCreate: FC = () => {
             !!cartesianChartSelectors.getErrors(state, selectedChartType),
     );
 
-    const initialCtaAction: CtaAction = canSaveChart
+    // The default depends on permissions that resolve asynchronously
+    // (canSaveChart waits on the spaces query), so derive it during render and
+    // only override it once the user explicitly picks an action.
+    const [userSelectedCtaAction, setUserSelectedCtaAction] =
+        useState<CtaAction | null>(null);
+    const defaultCtaAction: CtaAction = canSaveChart
         ? 'save'
         : canCreateVirtualView
           ? 'createVirtualView'
           : canWriteBackToDbt
             ? 'writeBackToDbt'
             : 'save';
-    const [ctaAction, setCtaAction] = useState<CtaAction>(initialCtaAction);
+    const ctaAction = userSelectedCtaAction ?? defaultCtaAction;
 
     const handleCtaClick = useCallback(() => {
         switch (ctaAction) {
@@ -325,7 +338,9 @@ export const HeaderCreate: FC = () => {
                                                 <Menu.Item
                                                     disabled={!canSaveChart}
                                                     onClick={() => {
-                                                        setCtaAction('save');
+                                                        setUserSelectedCtaAction(
+                                                            'save',
+                                                        );
                                                     }}
                                                 >
                                                     <Stack spacing="two">
@@ -380,7 +395,7 @@ export const HeaderCreate: FC = () => {
                                                         !canCreateVirtualView
                                                     }
                                                     onClick={() => {
-                                                        setCtaAction(
+                                                        setUserSelectedCtaAction(
                                                             'createVirtualView',
                                                         );
                                                     }}
@@ -448,7 +463,7 @@ export const HeaderCreate: FC = () => {
                                                         undefined
                                                     }
                                                     onClick={() => {
-                                                        setCtaAction(
+                                                        setUserSelectedCtaAction(
                                                             'writeBackToDbt',
                                                         );
                                                     }}
