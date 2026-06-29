@@ -89,7 +89,7 @@ test('ready PR, AI ran and cleared it => Safe, ai-review row shows ran', () => {
         compatibility: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', notes: 'AI migration review: verified additive.' },
     }), { draft: false });
     assert.ok(body.includes('Safe to RollingUpdate'));
-    assert.ok(body.includes('cleared the flagged change(s) → ✅'));
+    assert.ok(body.includes('validated the flagged change(s) and cleared them → ✅'));
     // no "mark ready" nudge once it has actually run
     assert.ok(!/Mark this PR ready/.test(body));
 });

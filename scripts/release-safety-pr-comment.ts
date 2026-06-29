@@ -175,7 +175,7 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
         const role = aiClearedLinter
             ? 'cleared a linter-flagged destructive shape as a safe expand/contract → ✅'
             : rollingUpdateSafe === true
-            ? 'cleared the flagged change(s) → ✅'
+            ? 'cleared them → ✅'
             : rollingUpdateSafe === false
             ? lintFlagged
                 ? 'did not clear the SQL-linter floor, which stands → ❌'
