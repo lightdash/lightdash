@@ -207,7 +207,6 @@
       "matchPackageNames": [
         "eslint-config-prettier",
         "eslint-plugin-import",
-        "eslint-plugin-jest",
         "eslint-plugin-jest-dom",
         "eslint-plugin-jsdoc",
         "eslint-plugin-jsx-a11y",
@@ -221,13 +220,10 @@
       "description": "Group testing packages",
       "groupName": "testing packages",
       "matchPackageNames": [
-        "jest",
-        "ts-jest",
         "cypress",
         "cypress-split",
         "jsdom",
-        "nock",
-        "@types/jest"
+        "nock"
       ]
     },
     {
