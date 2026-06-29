@@ -22,6 +22,10 @@ backend:
   - "packages/api-tests/**/*"
   - "packages/common/**/*"
 
+api_schema:
+  - "packages/backend/**/*"
+  - "packages/common/**/*"
+
 timezone:
   - "packages/frontend/src/components/common/TimeZonePicker/index.tsx"
   - "packages/common/src/types/timezone.ts"
