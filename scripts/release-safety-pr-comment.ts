@@ -46,6 +46,12 @@ export interface Marker {
 export interface RenderOpts {
     /** Human label for the comparison base, e.g. "main (a1b2c3d)". */
     baseLabel?: string;
+    /**
+     * True if the PR is a draft. The AI migration review runs only on ready PRs,
+     * so on a draft the comment invites the author to mark it ready to get the
+     * AI-refined verdict.
+     */
+    draft?: boolean;
 }
 
 const LINTER_NOTE_PREFIX = 'Migration linter detected breaking';
@@ -101,8 +107,10 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
         : '✅ no breaking shapes found';
 
     const aiResult = caps.has('ai-review')
-        ? 'ran'
-        : '⏭️ release-time only (not run on PRs)';
+        ? '✅ ran — verdict folded into the determination above'
+        : opts.draft
+        ? '⏭️ skipped (draft PR — mark ready to run it)'
+        : '⏭️ no verdict (no migrations, inconclusive, or linter already decided)';
 
     const apiResult = (s: ApiSurface, missingNote: string): string => {
         if (!s.checked) return `⏭️ not checked (${missingNote})`;
@@ -138,8 +146,13 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
             `- ⚠️ A breaking schema change means those old pods can crash (\`CrashLoopBackOff\`) mid-rollout. Customers whose CI/CD reads the marker would be told **recommendedStrategy: Recreate**${lintFlagged ? ' (flagged deterministically by the SQL linter)' : ''} — a brief restart instead of a crash loop.`,
         );
     } else if (rollingUpdateSafe === 'unknown') {
+        const aiHint = opts.draft
+            ? ' **Mark this PR ready for review** to run the AI migration review (it doesn’t run on drafts) — it may refine this to ✅ safe.'
+            : caps.has('ai-review')
+            ? ''
+            : ' The AI migration review did not positively clear it.';
         consequence.push(
-            '- ❓ Backward-compatibility was not verified, so customers reading the marker get **recommendedStrategy: Recreate** as the cautious default. The release-time **AI review may refine this to ✅ safe** — it does not run on PRs.',
+            `- ❓ Backward-compatibility was not verified, so customers reading the marker get **recommendedStrategy: Recreate** as the cautious default.${aiHint}`,
         );
     } else if (migrationsPresent === true) {
         consequence.push('- ✅ Migrations were verified additive/backward-compatible, so a **RollingUpdate** is safe — no special handling for customers.');
@@ -192,7 +205,10 @@ function main(): void {
     const markerPath = arg('marker');
     if (!markerPath) throw new Error('--marker <path> is required');
     const marker = JSON.parse(fs.readFileSync(markerPath, 'utf-8')) as Marker;
-    const body = renderPrComment(marker, { baseLabel: arg('base') });
+    const body = renderPrComment(marker, {
+        baseLabel: arg('base'),
+        draft: process.argv.includes('--draft'),
+    });
     const out = arg('out');
     if (out) {
         fs.writeFileSync(out, body);

@@ -97,8 +97,13 @@
   runs on PRs touching the schema/API/MCP surface (path-filtered). Lightweight:
   `tsx` + a pinned `oasdiff`, NO `pnpm install` (the generator imports only
   Node built-ins + git). Computes the marker diffed against the merge-base with
-  the target branch (with `enabled=true` to a throwaway temp file, NO `--ai-review`
-  → zero API spend), then `scripts/release-safety-pr-comment.ts` renders a sticky
+  the target branch (`enabled=true` to a throwaway temp file). The AI migration
+  review runs on **ready** PRs (a real "about to merge" signal) but NOT on
+  **drafts** (still churning); `ready_for_review` is in the trigger types so
+  draft→ready re-runs with the AI. Still gated downstream to migration-bearing
+  PRs where the linter didn't already decide, and degrades without a key (fork
+  PRs, which don't comment anyway). Then `scripts/release-safety-pr-comment.ts`
+  renders a sticky
   comment (find-or-update via `actions/github-script`, same pinned action the repo
   already uses) with: the determination, the matrix of which checks ran + what
   they found, and the customer-deploy consequence ("old pods could CrashLoopBackOff

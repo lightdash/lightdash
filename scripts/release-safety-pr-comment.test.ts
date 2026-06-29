@@ -54,16 +54,38 @@ test('linter-flagged breaking => Recreate required + deterministic note', () => 
     assert.ok(/breaking schema op\(s\) found/.test(body));
 });
 
-test('migration with unknown verdict => Recreate recommended + mentions release-time AI', () => {
-    const body = renderPrComment(baseMarker({
-        capabilities: ['migrations', 'sql-lint', 'upgrade'],
-        migrations: { present: true, count: 2, files: ['a.ts', 'b.ts'], ee: false },
-        compatibility: { rollingUpdateSafe: 'unknown', recommendedStrategy: 'Recreate', notes: 'This release contains database migrations...' },
-    }));
+const unknownMigrationMarker = (): Marker => baseMarker({
+    capabilities: ['migrations', 'sql-lint', 'upgrade'],
+    migrations: { present: true, count: 2, files: ['a.ts', 'b.ts'], ee: false },
+    compatibility: { rollingUpdateSafe: 'unknown', recommendedStrategy: 'Recreate', notes: 'This release contains database migrations...' },
+});
+
+test('draft PR with unknown verdict => invites marking ready to run the AI review', () => {
+    const body = renderPrComment(unknownMigrationMarker(), { draft: true });
     assert.ok(body.includes('Recreate recommended'));
-    assert.ok(/AI review may refine this to ✅ safe/.test(body));
-    assert.ok(body.includes('release-time only (not run on PRs)'));
+    assert.ok(/Mark this PR ready for review.*run the AI migration review/s.test(body));
+    assert.ok(body.includes('skipped (draft PR — mark ready to run it)'));
     assert.ok(body.includes('2 added'));
+});
+
+test('ready PR, AI ran and cleared it => Safe, ai-review row shows ran', () => {
+    const body = renderPrComment(baseMarker({
+        capabilities: ['migrations', 'sql-lint', 'ai-review', 'upgrade'],
+        migrations: { present: true, count: 1, files: ['a.ts'], ee: false },
+        compatibility: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', notes: 'AI migration review: verified additive.' },
+    }), { draft: false });
+    assert.ok(body.includes('Safe to RollingUpdate'));
+    assert.ok(body.includes('✅ ran — verdict folded into the determination'));
+    // no "mark ready" nudge once it has actually run
+    assert.ok(!/Mark this PR ready/.test(body));
+});
+
+test('ready PR, AI ran but stayed unknown => no "mark ready" nudge, no false "release-time" claim', () => {
+    const body = renderPrComment(unknownMigrationMarker(), { draft: false });
+    assert.ok(body.includes('Recreate recommended'));
+    assert.ok(!/Mark this PR ready/.test(body));
+    assert.ok(body.includes('did not positively clear it'));
+    assert.ok(!body.includes('release-time only'));
 });
 
 test('required stop is surfaced prominently', () => {

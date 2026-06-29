@@ -9,6 +9,9 @@ name: Release-safety preview
 
 on:
   pull_request:
+    # Include ready_for_review so flipping a draft to ready re-runs the preview —
+    # that's the event that newly enables the AI migration review (see below).
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - 'packages/backend/src/database/migrations/**'
       - 'packages/backend/src/ee/database/migrations/**'
@@ -75,24 +78,43 @@ jobs:
           sudo install -m 0755 /tmp/oasdiff /usr/local/bin/oasdiff
           oasdiff --version
 
-      - name: Compute release-safety marker (no AI review; preview only)
+      - name: Compute release-safety marker
+        id: marker
         env:
           # Enable the write so we get the temp marker file; this is a throwaway,
-          # nothing is published. The AI review is intentionally NOT requested
-          # (no --ai-review) so PRs cost zero API spend.
+          # nothing is published.
           RELEASE_SAFETY_MARKER_ENABLED: 'true'
+          # The AI migration review runs on READY PRs only (a real "about to merge"
+          # signal), never on drafts (still churning — not worth the spend). It's
+          # still gated downstream to migration-bearing PRs where the deterministic
+          # linter didn't already decide, and degrades to "unknown" without a key
+          # (e.g. fork PRs, which don't comment anyway).
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          IS_DRAFT: ${{ github.event.pull_request.draft }}
         run: |
+          set -euo pipefail
+          AI_FLAG=""
+          if [ "${IS_DRAFT}" = "true" ]; then
+            echo "draft=true" >> "$GITHUB_OUTPUT"
+            echo "Draft PR → skipping the AI migration review."
+          else
+            echo "draft=false" >> "$GITHUB_OUTPUT"
+            AI_FLAG="--ai-review"
+            echo "Ready PR → running the AI migration review (if migrations present)."
+          fi
           tsx scripts/gen-release-safety.ts \
             --version "pr-${{ github.event.pull_request.number }}" \
             --previous-version "${{ steps.base.outputs.short }}" \
             --last-tag "${{ steps.base.outputs.sha }}" \
-            --out /tmp/release-safety.json
+            --out /tmp/release-safety.json \
+            ${AI_FLAG}
 
       - name: Render PR comment
         run: |
           tsx scripts/release-safety-pr-comment.ts \
             --marker /tmp/release-safety.json \
             --base "${{ github.event.pull_request.base.ref }} (${{ steps.base.outputs.short }})" \
+            ${{ steps.marker.outputs.draft == 'true' && '--draft' || '' }} \
             --out /tmp/release-safety-comment.md
 
       - name: Post or update sticky comment
