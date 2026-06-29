@@ -37,9 +37,8 @@ import {
     PR_TITLE_OPEN,
 } from './constants';
 
-// e2b (and the GitHub client → octokit) are ESM-only and break Jest's parser.
-// Stub the modules so the import graph stays CJS; the run() tests drive the
-// fakes, the unit tests below never reach them.
+// Stub e2b and the GitHub/octokit client so the run() tests drive fakes and the
+// unit tests below never reach the real SDKs.
 vi.mock('e2b', () => ({
     Sandbox: { create: vi.fn(), connect: vi.fn() },
     CommandExitError: class CommandExitError extends Error {},

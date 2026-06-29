@@ -1,5 +1,5 @@
-// e2b and ai are ESM-only packages that cannot be required by Jest/CJS.
-// Mock them before importing AppGenerateService.
+// Stub the e2b/ai SDKs before importing AppGenerateService so the tests never
+// reach the real sandbox or model client.
 import {
     ForbiddenError,
     ParameterError,
