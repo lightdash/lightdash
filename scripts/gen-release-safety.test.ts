@@ -293,6 +293,97 @@ test('restApi and aiReview compose: capabilities carry both', () => {
     assert.strictEqual(m.api.rest.checked, true);
 });
 
+// --- mcpApi (P3) -------------------------------------------------------------
+
+test('checked mcpApi populates api.mcp + adds "mcp" capability', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        mcpApi: { checked: true, breaking: true, changes: ['MCP tool `x` removed'] },
+    });
+    assert.strictEqual(m.api.mcp.checked, true);
+    assert.strictEqual(m.api.mcp.breaking, true);
+    assert.deepStrictEqual(m.api.mcp.changes, ['MCP tool `x` removed']);
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'mcp']);
+});
+
+test('unchecked/null mcpApi leaves the stub and does NOT claim the capability', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        mcpApi: { checked: false, breaking: false, changes: [] },
+    });
+    assert.strictEqual(m.api.mcp.checked, false);
+    assert.ok(!m.capabilities.includes('mcp'));
+    const m2 = buildMarker({
+        ...base,
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        mcpApi: null,
+    });
+    assert.ok(!m2.capabilities.includes('mcp'));
+});
+
+// --- upgrade overrides (P4) --------------------------------------------------
+
+test('consulted upgrade override folds into the upgrade block + adds "upgrade" capability', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        upgrade: {
+            consulted: true,
+            minPreviousVersion: '0.3200.0',
+            requiredStop: true,
+            note: 'Stop here first.',
+        },
+    });
+    assert.strictEqual(m.upgrade.requiredStop, true);
+    assert.strictEqual(m.upgrade.minPreviousVersion, '0.3200.0');
+    assert.strictEqual(m.upgrade.note, 'Stop here first.');
+    assert.ok(m.capabilities.includes('upgrade'));
+});
+
+test('consulted-but-default upgrade => stub values, "upgrade" capability still present', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        upgrade: { consulted: true, minPreviousVersion: null, requiredStop: false, note: null },
+    });
+    assert.strictEqual(m.upgrade.requiredStop, false);
+    assert.ok(m.capabilities.includes('upgrade'));
+});
+
+test('unconsulted/null upgrade leaves the stub and does NOT claim the capability', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        upgrade: { consulted: false, minPreviousVersion: null, requiredStop: false, note: null },
+    });
+    assert.strictEqual(m.upgrade.requiredStop, false);
+    assert.ok(!m.capabilities.includes('upgrade'));
+    const m2 = buildMarker({
+        ...base,
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        upgrade: null,
+    });
+    assert.ok(!m2.capabilities.includes('upgrade'));
+});
+
+test('all phases compose: capabilities ordered migrations, ai-review, rest, mcp, upgrade', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: { present: true, count: 1, files: ['x.ts'], ee: false, deletedHistorical: [] },
+        aiReview: { rollingUpdateSafe: false, recommendedStrategy: 'Recreate', summary: 'breaks.' },
+        restApi: { checked: true, breaking: true, changes: ['GET /x — removed'] },
+        mcpApi: { checked: true, breaking: false, changes: [] },
+        upgrade: { consulted: true, minPreviousVersion: null, requiredStop: true, note: 'stop' },
+    });
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'ai-review', 'rest', 'mcp', 'upgrade']);
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, false);
+    assert.strictEqual(m.api.rest.breaking, true);
+    assert.strictEqual(m.api.mcp.checked, true);
+    assert.strictEqual(m.upgrade.requiredStop, true);
+});
+
 // --- report ------------------------------------------------------------------
 
 if (failures.length > 0) {

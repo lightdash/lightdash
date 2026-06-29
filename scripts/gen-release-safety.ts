@@ -17,6 +17,13 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { aiMigrationReview } from './ai-migration-review';
 import { diffRestApi } from './rest-api-diff';
+import { diffMcpTools } from './mcp-tools-diff';
+import {
+    DEFAULT_OVERRIDES_PATH,
+    loadUpgradeOverrides,
+    resolveUpgrade,
+    UpgradeResolution,
+} from './upgrade-overrides';
 
 export const MARKER_SCHEMA_VERSION = '1';
 
@@ -142,6 +149,18 @@ export interface BuildMarkerInput {
      * null/unchecked result leaves the honest "not checked" stub.
      */
     restApi?: ApiSurface | null;
+    /**
+     * Optional result of the MCP tool-surface breaking-change diff (P3). Applied
+     * to api.mcp and adds "mcp" to capabilities only when checked === true. A
+     * null/unchecked result leaves the honest "not checked" stub.
+     */
+    mcpApi?: ApiSurface | null;
+    /**
+     * Optional resolved upgrade-path overrides (P4). Applied to the upgrade block
+     * and adds "upgrade" to capabilities only when consulted === true (i.e. a
+     * committed overrides file was present). null leaves the honest stub.
+     */
+    upgrade?: UpgradeResolution | null;
 }
 
 export interface AiReviewSummary {
@@ -208,6 +227,33 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
         capabilities.push('rest');
     }
 
+    // P3: deterministic MCP tool-surface diff. Same semantics as rest:
+    // `checked: false` means the diff didn't run — leave the unchecked stub and
+    // don't claim the capability. About MCP tool consumers, not pod safety.
+    let mcp: ApiSurface = { checked: false, breaking: false, changes: [] };
+    if (input.mcpApi && input.mcpApi.checked) {
+        mcp = input.mcpApi;
+        capabilities.push('mcp');
+    }
+
+    // P4: human-authored upgrade-path overrides. Applied (and the capability
+    // claimed) only when a committed overrides file was consulted; otherwise the
+    // honest null stub. A malformed file fails loud upstream — it never silently
+    // degrades here, because that would drop a maintainer's required-stop signal.
+    let upgrade: ReleaseSafetyMarker['upgrade'] = {
+        minPreviousVersion: null,
+        requiredStop: false,
+        note: null,
+    };
+    if (input.upgrade && input.upgrade.consulted) {
+        upgrade = {
+            minPreviousVersion: input.upgrade.minPreviousVersion,
+            requiredStop: input.upgrade.requiredStop,
+            note: input.upgrade.note,
+        };
+        capabilities.push('upgrade');
+    }
+
     return {
         schemaVersion: MARKER_SCHEMA_VERSION,
         version,
@@ -229,13 +275,10 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
             // P2: rest is populated by the oasdiff diff when it ran; otherwise the
             // unchecked stub. `checked: false` means "unknown", not "no break".
             rest,
-            mcp: { checked: false, breaking: false, changes: [] },
+            // P3: mcp is populated by the tool-snapshot diff when it ran.
+            mcp,
         },
-        upgrade: {
-            minPreviousVersion: null,
-            requiredStop: false,
-            note: null,
-        },
+        upgrade,
     };
 }
 
@@ -248,6 +291,7 @@ interface CliArgs {
     previousVersion: string | null;
     lastTag: string | null;
     out: string;
+    overrides: string;
 }
 
 function parseArgs(argv: string[]): CliArgs {
@@ -265,6 +309,7 @@ function parseArgs(argv: string[]): CliArgs {
         previousVersion,
         lastTag: get('last-tag') || previousVersion,
         out: get('out') || 'release-safety.json',
+        overrides: get('overrides') || DEFAULT_OVERRIDES_PATH,
     };
 }
 
@@ -361,6 +406,24 @@ async function main(): Promise<void> {
         });
     }
 
+    // P3: deterministic MCP tool-surface diff (committed snapshot between tags).
+    // Auto-runs when a previous tag exists; soft fail-safe (snapshot absent at a
+    // ref → api.mcp unchecked), never fails the release.
+    let mcpApi: ApiSurface | null = null;
+    if (args.lastTag) {
+        mcpApi = diffMcpTools({
+            lastTag: args.lastTag,
+            newRef: 'HEAD',
+            log: (m) => console.warn(`[mcp-tools-diff] ${m}`),
+        });
+    }
+
+    // P4: human-authored upgrade-path overrides. A missing file is fine (mechanism
+    // unused); a present-but-malformed file throws here and FAILS the release —
+    // never silently drop a maintainer's declared required-stop.
+    const overrides = loadUpgradeOverrides(args.overrides);
+    const upgrade = resolveUpgrade(overrides, args.version);
+
     const marker = buildMarker({
         version: args.version,
         previousVersion: args.previousVersion,
@@ -368,6 +431,8 @@ async function main(): Promise<void> {
         migrations,
         aiReview,
         restApi,
+        mcpApi,
+        upgrade,
     });
 
     const json = `${JSON.stringify(marker, null, 2)}\n`;

@@ -1,6 +1,6 @@
 # Release-Safety Marker — Design (PROD-8359 / #24441)
 
-**Status:** In progress — P1 + P6 + P2 built; P3/P4 and a deterministic linter remain; P5 parked.
+**Status:** In progress — P1 + P6 + P2 + P3 + P4 built; a deterministic SQL-shape linter remains; P5 parked.
 **Ticket:** PROD-8359 · GitHub issue lightdash/lightdash#24441
 **Branch / PR:** `prod-8359-release-safety` → PR lightdash/lightdash#24879 (draft)
 
@@ -36,13 +36,36 @@
   `capabilities` enum was missing `"ai-review"`. Tests: `scripts/rest-api-diff.test.ts`
   (summarizeBreaking) + buildMarker `restApi` cases in `gen-release-safety.test.ts`.
 
+- **P3** — `api.mcp.breaking` via a committed tool-surface snapshot.
+  `packages/common/src/schemas/generateMcpToolsSnapshot.ts` serializes
+  `mcpToolDefinitions` (each tool's `for('mcp')` view, input/output Zod →
+  `zodToJsonSchema({ target: 'jsonSchema7' })`, same settings as
+  `mcpToolContracts.snapshot.test.ts`) to a byte-stable committed
+  `packages/common/src/schemas/json/mcp-tools-1.0.json` (27 tools). Wired into
+  `postgenerate-api` with a `--check` freshness guard (`check:mcp-tools-snapshot`),
+  mirroring the chart-as-code generator. `scripts/mcp-tools-diff.ts` diffs the
+  snapshot between `<lastTag>` and `HEAD` (`git show`) with a conservative 4-rule
+  classifier (R1 tool removed, R2 input field became required, R3 input field
+  removed, R4 input field type changed; additive/output/description changes are
+  NOT breaking). Folds into `api.mcp` + adds `"mcp"` to capabilities. Same soft
+  fail-safe as P2 (snapshot absent at a ref → `checked: false`).
+  **Resolved open question:** the snapshot is the DECLARED `mcpToolDefinitions`
+  superset, NOT the flag-gated runtime subset — flag-gating
+  (aiWriteback / content-writes / project-pinned) is an operator's per-request
+  runtime choice, not a release change, and the declared set is the complete
+  contract surface and is generatable purely from `@lightdash/common`.
+- **P4** — `upgrade.minPreviousVersion`/`requiredStop`/`note` from a committed
+  `release-safety.overrides.json` (+ `scripts/release-safety-overrides.schema.json`).
+  `scripts/upgrade-overrides.ts` is a pure version-keyed resolver (most-specific
+  entry wins — "HEAD wins") + a strict validator + a loader. Folds into the
+  `upgrade` block + adds `"upgrade"` to capabilities whenever the file is
+  consulted. **Fail-safe ASYMMETRY (deliberate):** unlike the detectors, an
+  ABSENT file is inert (stub, no capability) but a PRESENT-but-malformed file
+  FAILS LOUD (throws → non-zero exit), because silently dropping a maintainer's
+  required-stop is the falsely-safe direction. Committed an inert default file so
+  the mechanism is live (`upgrade` capability appears every release).
+
 **Remaining (each independently shippable, schemaVersion stays "1"):**
-- **P3** — `api.mcp.breaking` via a committed `mcp-tools.json` snapshot
-  (serialize `mcpToolDefinitions` from `@lightdash/common`, reuse the
-  `mcpToolContracts.snapshot.test.ts` logic; fold into `postgenerate-api`) + a
-  conservative 4-rule diff. **Open:** declared vs flag-gated runtime tool set.
-- **P4** — `upgrade.minPreviousVersion`/`requiredStop` from a committed
-  `release-safety.overrides.json` (HEAD wins on merge).
 - **Deterministic SQL-shape linter** (Squawk/Atlas-style) as the always-on floor
   under the P6 AI review — the non-LLM guarantee for common destructive ops.
 - **Caching/cost:** P6 is cheap now; no further work needed unless cost regresses.
@@ -61,7 +84,10 @@
 - Worktree: `~/projects/worktrees/lightdash/prod-8359-release-safety`.
 - Run the generator: `npx tsx scripts/gen-release-safety.ts --version X --previous-version Y --last-tag Y [--ai-review]`.
 - Run just the REST diff: `npx tsx scripts/rest-api-diff.ts --last-tag Y [--new-ref HEAD]` (needs `oasdiff` on PATH or `OASDIFF_BIN`).
-- Tests: `npx tsx scripts/gen-release-safety.test.ts` + `npx tsx scripts/rest-api-diff.test.ts`. Backtest: `npx tsx scripts/release-safety-backtest.ts 300`.
+- Run just the MCP diff: `npx tsx scripts/mcp-tools-diff.ts --last-tag Y [--new-ref HEAD]` (needs the committed `mcp-tools-1.0.json` present at both refs).
+- Run just the upgrade resolver: `npx tsx scripts/upgrade-overrides.ts --version X [--overrides release-safety.overrides.json]`.
+- Regenerate the MCP snapshot: `pnpm generate:mcp-tools-snapshot` (CI guard: `pnpm check:mcp-tools-snapshot`). Runs inside `postgenerate-api`.
+- Tests: `npx tsx scripts/{gen-release-safety,rest-api-diff,mcp-tools-diff,upgrade-overrides}.test.ts`. Backtest: `npx tsx scripts/release-safety-backtest.ts 300`.
 - AI runs need `ANTHROPIC_API_KEY` — it's a per-engineer 1Password item
   (`scripts/dev-op-pull.sh` + `scripts/dev-secrets.manifest.json`, account
   `lightdash.1password.com`).
