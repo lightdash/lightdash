@@ -108,6 +108,11 @@ ingress:
     # buffer overflows → 502 on asset routes ("upstream sent too big header"). Bump it.
     nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"
     nginx.ingress.kubernetes.io/proxy-buffers-number: "4"
+    # AI writeback runs synchronously and can take minutes (microVM boot + Claude
+    # + dbt compile + PR). The default 60s proxy timeout returns a 504 to the
+    # client even though the run succeeds server-side — bump it to 10 minutes.
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
   hosts:
     - host: "${SITE_HOST}"
       paths:
@@ -146,6 +151,13 @@ extraEnv:
   - name: AI_DEFAULT_PROVIDER
     value: "anthropic"
   - name: ANTHROPIC_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: lightdash-app
+        key: ANTHROPIC_API_KEY
+  # AI writeback reads a SEPARATE Anthropic key env var from the data-app/AI
+  # service; point it at the same secret so writeback can run Claude.
+  - name: AI_WRITEBACK_ANTHROPIC_API_KEY
     valueFrom:
       secretKeyRef:
         name: lightdash-app
