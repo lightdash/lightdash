@@ -1,3 +1,15 @@
+# [0.3259.0](https://github.com/lightdash/lightdash/compare/0.3258.3...0.3259.0) (2026-06-29)
+
+
+### Bug Fixes
+
+* **coder:** enforce SQL chart save permissions on content-as-code path ([#24852](https://github.com/lightdash/lightdash/issues/24852)) ([e3c0e8a](https://github.com/lightdash/lightdash/commit/e3c0e8a1f6d8457b48ab37b36da691cba26018f4))
+
+
+### Features
+
+* support filter autocomplete values and labels and disable warehouse fetch  ([#24851](https://github.com/lightdash/lightdash/issues/24851)) ([0154d3a](https://github.com/lightdash/lightdash/commit/0154d3a6724e329de59796ec6b3a2bffa11e941d))
+
 ## [0.3258.3](https://github.com/lightdash/lightdash/compare/0.3258.2...0.3258.3) (2026-06-29)
 
 
