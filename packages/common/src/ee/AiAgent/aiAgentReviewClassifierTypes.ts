@@ -695,6 +695,8 @@ export type CreateAiAgentReviewItem = {
     assignedToUserUuid: string | null;
     primaryRootCause: AiAgentRootCause | null;
     priority: AiAgentReviewItemPriority;
+    // Explores/fields the issue is about; feeds the manual-issue writeback.
+    targetRefs: AiAgentTargetRef[];
 };
 
 export type UpdateAiAgentReviewItemPriority = {

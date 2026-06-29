@@ -761,6 +761,7 @@ export class AiAgentAdminService extends BaseService {
                 assignedToUserUuid: body.assignedToUserUuid,
                 primaryRootCause: body.primaryRootCause,
                 priority: body.priority,
+                targetRefs: body.targetRefs,
                 createdByUserUuid: user.userUuid,
             });
 
