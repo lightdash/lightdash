@@ -1,8 +1,4 @@
-import type { DataAppOtelConfig } from '../../../config/parseConfig';
-import {
-    buildClaudeCodeOtelEnv,
-    claudeCodeOtelAllowedHosts,
-} from './claudeCodeOtelEnv';
+import { buildClaudeCodeOtelEnv } from './claudeCodeOtelEnv';
 
 const exporterConfig = {
     endpoint: 'https://collector.example.com',
@@ -55,39 +51,5 @@ describe('buildClaudeCodeOtelEnv', () => {
         expect(
             buildClaudeCodeOtelEnv(exporterConfig, {}, undefined),
         ).not.toHaveProperty('TRACEPARENT');
-    });
-});
-
-describe('claudeCodeOtelAllowedHosts', () => {
-    const base: DataAppOtelConfig = {
-        enabled: true,
-        endpoint: 'https://collector.example.com:4318',
-        protocol: 'http/protobuf',
-        exportIntervalMs: 1000,
-        auth: { type: 'none' },
-    };
-
-    test('returns the collector host when enabled', () => {
-        expect(claudeCodeOtelAllowedHosts(base)).toEqual([
-            'collector.example.com',
-        ]);
-    });
-
-    test('returns nothing when disabled', () => {
-        expect(claudeCodeOtelAllowedHosts({ ...base, enabled: false })).toEqual(
-            [],
-        );
-    });
-
-    test('returns nothing when the endpoint is unset', () => {
-        expect(claudeCodeOtelAllowedHosts({ ...base, endpoint: '' })).toEqual(
-            [],
-        );
-    });
-
-    test('returns nothing when the endpoint is unparseable', () => {
-        expect(
-            claudeCodeOtelAllowedHosts({ ...base, endpoint: 'not a url' }),
-        ).toEqual([]);
     });
 });
