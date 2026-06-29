@@ -231,6 +231,8 @@ const getAgentTools = (
                 agentSettings: args.agentSettings,
                 threadUuid: args.threadUuid,
                 promptUuid: args.promptUuid,
+                organizationId: args.organizationId,
+                userId: args.userId,
                 telemetryEnabled: args.telemetryEnabled,
                 model: args.model,
             },

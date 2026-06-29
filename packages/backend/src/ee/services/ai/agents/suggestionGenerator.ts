@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { generateObject } from 'ai';
 import { GeneratorModelOptions } from '../models/types';
+import { getAiCallTelemetry } from '../utils/aiCallTelemetry';
 
 const EMPTY_STATE_PROMPT = `You write 3-6 starter "chips" that appear above an empty AI agent chat input in a business-intelligence tool.
 
@@ -241,16 +242,14 @@ export async function generateAgentSuggestions(
                     : `Generate empty-state suggestion chips for this agent.\n\nContext:\n${userContent}`,
             },
         ],
-        experimental_telemetry: {
+        experimental_telemetry: getAiCallTelemetry({
             functionId: 'generateAgentSuggestions',
-            isEnabled: true,
-            recordInputs: false,
-            recordOutputs: false,
-            metadata: {
+            feature: 'agent-suggestions',
+            extra: {
                 ...metadata,
                 mode: isPostResponse ? 'post-response' : 'empty-state',
             },
-        },
+        }),
     });
 
     return result.object;

@@ -4,6 +4,7 @@ import { JSONDiff, Score } from 'autoevals';
 import { z } from 'zod';
 import { defaultAgentOptions } from '../agents/agentV2';
 import { getOpenaiGptmodel } from '../models/openai-gpt';
+import { getAiCallTelemetry } from './aiCallTelemetry';
 
 export const factualityScores = {
     A: 0.4,
@@ -182,6 +183,10 @@ export async function llmAsAJudge({
                 model: judge,
                 ...defaultAgentOptions,
                 ...callOptions,
+                experimental_telemetry: getAiCallTelemetry({
+                    functionId: 'llmAsAJudge',
+                    feature: 'llm-judge',
+                }),
                 schema: z.object({
                     answer: z
                         .enum(['A', 'B', 'C', 'D', 'E'])
@@ -260,6 +265,10 @@ ${
                 model: judge,
                 ...defaultAgentOptions,
                 ...callOptions,
+                experimental_telemetry: getAiCallTelemetry({
+                    functionId: 'llmAsAJudge',
+                    feature: 'llm-judge',
+                }),
                 schema: z.object({
                     score: z
                         .number()

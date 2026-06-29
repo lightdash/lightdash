@@ -6,6 +6,7 @@ import { generateObject } from 'ai';
 import { z } from 'zod';
 import { GeneratorModelOptions } from '../models/types';
 import { renderAvailableExplores } from '../prompts/availableExplores';
+import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
 
 const DEFINED_TERMS_LIMIT = 30;
 const RELATED_EXPLORE_NAMES_LIMIT = 20;
@@ -84,6 +85,11 @@ export async function generateDocumentSummary(
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
+        experimental_telemetry: getGeneratorTelemetry(
+            modelOptions,
+            'generateDocumentSummary',
+            'document-summary',
+        ),
         schema: DocumentSummarySchema,
         messages: [
             {

@@ -36,6 +36,7 @@ import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassi
 import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
 import { defaultAgentOptions } from './ai/agents/agentV2';
 import { getModel } from './ai/models';
+import { getAiCallTelemetry } from './ai/utils/aiCallTelemetry';
 import { type AiAgentReviewNotificationService } from './AiAgentReviewNotificationService';
 
 const REVIEW_AGENT_VERSION = 'llm-judge-v1';
@@ -1026,6 +1027,15 @@ export class AiAgentReviewClassifierService extends BaseService {
             ...defaultAgentOptions,
             ...model.callOptions,
             providerOptions: model.providerOptions,
+            experimental_telemetry: getAiCallTelemetry({
+                functionId: 'aiAgentReviewClassifierJudge',
+                feature: 'review-classifier',
+                organizationUuid: candidate.subject.organizationUuid,
+                projectUuid: candidate.subject.projectUuid,
+                agentUuid: candidate.subject.agentUuid,
+                threadUuid: candidate.subject.threadUuid,
+                promptUuid: candidate.subject.assistantPromptUuid,
+            }),
             schema: aiAgentReviewClassifierJudgeOutputSchema,
             messages: [
                 {

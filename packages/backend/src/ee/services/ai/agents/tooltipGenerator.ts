@@ -2,6 +2,7 @@ import { GenerateTooltipRequest, TooltipFieldContext } from '@lightdash/common';
 import { generateObject } from 'ai';
 import { z } from 'zod';
 import { GeneratorModelOptions } from '../models/types';
+import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
 
 const TooltipSchema = z.object({
     html: z
@@ -39,6 +40,11 @@ export async function generateTooltip(
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
+        experimental_telemetry: getGeneratorTelemetry(
+            modelOptions,
+            'generateTooltip',
+            'tooltip',
+        ),
         schema: TooltipSchema,
         messages: [
             {

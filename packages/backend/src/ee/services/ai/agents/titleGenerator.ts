@@ -1,6 +1,7 @@
 import { generateObject, ModelMessage } from 'ai';
 import { z } from 'zod';
 import { GeneratorModelOptions } from '../models/types';
+import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
 
 const TITLE_MAX_LENGTH_CHARS = 60;
 const TitleSchema = z.object({
@@ -24,6 +25,11 @@ export async function generateThreadTitle(
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
+        experimental_telemetry: getGeneratorTelemetry(
+            modelOptions,
+            'generateThreadTitle',
+            'thread-title',
+        ),
         schema: TitleSchema,
         messages: [
             {

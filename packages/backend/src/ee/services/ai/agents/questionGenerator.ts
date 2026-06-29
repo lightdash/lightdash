@@ -1,6 +1,7 @@
 import { generateObject } from 'ai';
 import { z } from 'zod';
 import { GeneratorModelOptions } from '../models/types';
+import { getAiCallTelemetry } from '../utils/aiCallTelemetry';
 
 const QUESTION_MAX_LENGTH_CHARS = 200;
 const QuestionSchema = z.object({
@@ -49,13 +50,11 @@ Title: ${title || 'N/A'}
 Description: ${description || 'N/A'}`,
             },
         ],
-        experimental_telemetry: {
+        experimental_telemetry: getAiCallTelemetry({
             functionId: 'generateArtifactQuestion',
-            isEnabled: true,
-            recordInputs: false,
-            recordOutputs: false,
-            metadata,
-        },
+            feature: 'artifact-question',
+            extra: metadata,
+        }),
     });
 
     return result.object.question;

@@ -2,6 +2,7 @@ import { Field, Filters } from '@lightdash/common';
 import { generateObject } from 'ai';
 import { z } from 'zod';
 import { GeneratorModelOptions } from '../models/types';
+import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
 
 const TITLE_MAX_LENGTH_CHARS = 140;
 const DESCRIPTION_MAX_LENGTH_CHARS = 500;
@@ -67,6 +68,11 @@ export async function generateChartMetadata(
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
         schema: ChartMetadataSchema,
+        experimental_telemetry: getGeneratorTelemetry(
+            modelOptions,
+            'generateChartMetadata',
+            'chart-metadata',
+        ),
         messages: [
             {
                 role: 'system',
