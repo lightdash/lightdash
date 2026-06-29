@@ -54,7 +54,13 @@ export interface SchedulerFormValues {
     }>;
     includeLinks: boolean;
     notificationFrequency?: NotificationFrequency;
+    agentUuid: string | null;
+    prompt: string;
+    sourceThreadUuid: string | null;
 }
+
+const DEFAULT_AI_PROMPT =
+    'Summarise this and call out any notable changes or trends.';
 
 const [SchedulerFormProvider, useSchedulerFormContext, useSchedulerForm] =
     createFormContext<SchedulerFormValues>();
@@ -87,6 +93,9 @@ export const DEFAULT_VALUES: SchedulerFormValues = {
     selectedTabs: null,
     thresholds: [],
     includeLinks: true,
+    agentUuid: null,
+    prompt: DEFAULT_AI_PROMPT,
+    sourceThreadUuid: null,
 };
 
 export const DEFAULT_VALUES_ALERT: SchedulerFormValues = {
@@ -191,6 +200,9 @@ export const getFormValuesFromScheduler = (
         thresholds: schedulerData.thresholds,
         notificationFrequency: schedulerData.notificationFrequency,
         includeLinks: schedulerData.includeLinks !== false,
+        agentUuid: schedulerData.agentUuid,
+        prompt: schedulerData.prompt ?? DEFAULT_AI_PROMPT,
+        sourceThreadUuid: schedulerData.sourceThreadUuid,
     };
 };
 
@@ -263,6 +275,9 @@ export const transformFormValues = (
         targets,
         appUuid: null,
         appName: null,
+        agentUuid: values.agentUuid,
+        prompt: values.agentUuid ? values.prompt : null,
+        sourceThreadUuid: values.agentUuid ? values.sourceThreadUuid : null,
         ...(resourceType === 'dashboard' && {
             filters: values.dashboardFilters,
             parameters: values.parameters,

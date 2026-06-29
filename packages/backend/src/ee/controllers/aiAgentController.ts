@@ -55,6 +55,7 @@ import {
     ApiGetUserAgentPreferencesResponse,
     ApiRevertChangeRequest,
     ApiRevertChangeResponse,
+    ApiSchedulerAndTargetsResponse,
     ApiStartAiMcpOAuthResponse,
     ApiSuccessEmpty,
     ApiUpdateAiAgent,

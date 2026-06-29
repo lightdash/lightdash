@@ -13,7 +13,7 @@ export type DbAiThread = {
     created_at: Date;
     organization_uuid: string;
     project_uuid: string;
-    created_from: 'slack' | 'web_app' | 'evals'; // slack, web_app, evals etc
+    created_from: 'slack' | 'web_app' | 'evals' | 'scheduler';
     title: string | null;
     title_generated_at: Date | null;
 };

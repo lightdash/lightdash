@@ -109,6 +109,9 @@ export const useSyncModalForm = (chartUuid: string, projectUuid?: string) => {
                 includeLinks: false,
                 appUuid: null,
                 appName: null,
+                agentUuid: null,
+                prompt: null,
+                sourceThreadUuid: null,
             };
 
             const payload = {

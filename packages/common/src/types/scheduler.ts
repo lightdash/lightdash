@@ -128,6 +128,9 @@ export type SchedulerBase = {
     savedSqlName: string | null;
     appUuid: string | null;
     appName: string | null;
+    agentUuid: string | null;
+    prompt: string | null;
+    sourceThreadUuid: string | null;
     options: SchedulerOptions;
     thresholds?: ThresholdOptions[]; // it can ben an array of AND conditions
     enabled: boolean;
@@ -183,6 +186,15 @@ export type AppScheduler = SchedulerBase & {
 export const isAppScheduler = (
     data: Scheduler | CreateSchedulerAndTargets,
 ): data is AppScheduler => 'appUuid' in data && !!data.appUuid;
+
+export type AugmentedScheduler = (Scheduler | CreateSchedulerAndTargets) & {
+    agentUuid: string;
+    prompt: string;
+};
+
+export const isAugmentedScheduler = (
+    data: Scheduler | CreateSchedulerAndTargets,
+): data is AugmentedScheduler => !!data.agentUuid && !!data.prompt;
 
 export const isSqlChartScheduler = (
     scheduler: Scheduler | CreateSchedulerAndTargets,
@@ -317,6 +329,9 @@ export type UpdateSchedulerAndTargets = Pick<
     filters?: SchedulerFilters;
     parameters?: ParametersValuesMap;
     customViewportWidth?: number;
+    agentUuid?: string | null;
+    prompt?: string | null;
+    sourceThreadUuid?: string | null;
     targets: Array<
         | CreateSchedulerTarget
         | UpdateSchedulerSlackTarget
