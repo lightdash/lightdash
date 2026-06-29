@@ -81,6 +81,7 @@ export enum TimeIntervalUnit {
 export interface WarehouseSqlBuilder {
     getStartOfWeek: () => WeekDay | null | undefined;
     getAdapterType: () => SupportedDbtAdapter;
+    supportsCteMaterialization: () => boolean;
     getStringQuoteChar: () => string;
     getEscapeStringQuoteChar: () => string;
     getFieldQuoteChar: () => string;

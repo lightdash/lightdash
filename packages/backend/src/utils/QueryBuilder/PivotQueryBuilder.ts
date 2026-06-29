@@ -959,9 +959,10 @@ export class PivotQueryBuilder {
     private renderAnchorEqualitySql(
         reference: string,
         value: PivotSortAnchor['value'],
+        alias: string = 'cr',
     ): string {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
-        const colSql = `cr.${q}${reference}${q}`;
+        const colSql = `${alias}.${q}${reference}${q}`;
 
         if (value === null) {
             return `(${colSql}) IS NULL`;
@@ -1012,6 +1013,7 @@ export class PivotQueryBuilder {
     private buildAnchorWhereClause(
         pivotValues: VizSortBy['pivotValues'] | undefined,
         groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
+        alias: string = 'cr',
     ): string {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
         const fallback = `${q}col_idx${q} = 1`;
@@ -1028,6 +1030,7 @@ export class PivotQueryBuilder {
                 this.renderAnchorEqualitySql(
                     c.reference,
                     pinByRef.get(c.reference)!.value,
+                    alias,
                 ),
             )
             .join(' AND ');
@@ -1441,6 +1444,146 @@ export class PivotQueryBuilder {
         return `SELECT DISTINCT ${indexRefs}, DENSE_RANK() OVER (ORDER BY ${rowIndexOrderBy}) AS ${q}row_index${q} FROM ${fromClause}`;
     }
 
+    /**
+     * Single-scan pivot body for engines that don't materialize CTEs (Trino,
+     * Athena): collapses the column_ranking + anchor_column + row_ranking +
+     * pivot_query form into one pivot_query that scans group_by_query once,
+     * stacking the anchor/rank windows as four nested derived tables (each
+     * aliased `g`). No SELECT DISTINCT is needed because each anchor value is
+     * constant within its combo, so the ranks match the DISTINCT form.
+     */
+    private buildStackedPivotQuerySQL(
+        indexColumns: ReturnType<typeof normalizeIndexColumns>,
+        valuesColumns: PivotConfiguration['valuesColumns'],
+        groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
+        sortBy: PivotConfiguration['sortBy'],
+        metricFirstValueQueries: Record<
+            string,
+            { cteName: string; sql: string }
+        >,
+        sortOnlyDimensions?: PivotConfiguration['sortOnlyDimensions'],
+        passthroughDimensions?: PivotConfiguration['passthroughDimensions'],
+    ): string {
+        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
+
+        const groupColumnReferences = groupByColumns
+            .map((col) => `${q}${col.reference}${q}`)
+            .join(', ');
+
+        // Layer 1 — column anchor: FIRST_VALUE per sorted value column.
+        const firstValueSelects = (valuesColumns ?? []).reduce<string[]>(
+            (acc, valCol) => {
+                const sortConfig = sortBy?.find(
+                    (sort) => sort.reference === valCol.reference,
+                );
+                if (!sortConfig) return acc;
+
+                const fieldName = PivotQueryBuilder.getValueColumnFieldName(
+                    valCol.reference,
+                    valCol.aggregation,
+                );
+                const sortDirection =
+                    sortConfig.direction === SortByDirection.DESC
+                        ? 'DESC'
+                        : 'ASC';
+                const nullsClause = PivotQueryBuilder.getNullsFirstLast(
+                    sortConfig.nullsFirst,
+                );
+                const colAnchorCteName = `${valCol.reference}_ca`;
+                acc.push(
+                    `FIRST_VALUE(${q}${fieldName}${q}) OVER (PARTITION BY ${groupColumnReferences} ORDER BY ${q}${fieldName}${q} ${sortDirection}${nullsClause} ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS ${q}${colAnchorCteName}_value${q}`,
+                );
+                return acc;
+            },
+            [],
+        );
+        const columnAnchorLayer = `SELECT g.*${
+            firstValueSelects.length > 0
+                ? `, ${firstValueSelects.join(', ')}`
+                : ''
+        } FROM group_by_query g`;
+
+        // Layer 2 — col_idx: DENSE_RANK over the same column ORDER BY as column_ranking.
+        const groupByOrderBy = this.buildGroupByOrderBy(
+            groupByColumns,
+            valuesColumns,
+            sortBy,
+            metricFirstValueQueries,
+            q,
+            sortOnlyDimensions,
+        );
+        const colIdxLayer = `SELECT g.*, DENSE_RANK() OVER (ORDER BY ${groupByOrderBy}) AS ${q}col_idx${q} FROM (${columnAnchorLayer}) g`;
+
+        // Layer 3 — row anchor: metric value at each metric's anchor column
+        // (col_idx = 1, or its rebased pin), constant per index combo.
+        const indexPartition = indexColumns
+            .map((col) => `g.${q}${col.reference}${q}`)
+            .join(', ');
+        const maxCaseSelects = (valuesColumns ?? []).reduce<string[]>(
+            (acc, valCol) => {
+                const sortConfig = sortBy?.find(
+                    (sort) => sort.reference === valCol.reference,
+                );
+                if (!sortConfig) return acc;
+
+                const fieldName = PivotQueryBuilder.getValueColumnFieldName(
+                    valCol.reference,
+                    valCol.aggregation,
+                );
+                const anchorPredicate = this.buildAnchorWhereClause(
+                    sortConfig.pivotValues,
+                    groupByColumns,
+                    'g',
+                );
+                acc.push(
+                    `MAX(CASE WHEN ${anchorPredicate} THEN g.${q}${fieldName}${q} END) OVER (PARTITION BY ${indexPartition}) AS ${q}${valCol.reference}_ra_value${q}`,
+                );
+                return acc;
+            },
+            [],
+        );
+        const rowAnchorLayer = `SELECT g.*${
+            maxCaseSelects.length > 0 ? `, ${maxCaseSelects.join(', ')}` : ''
+        } FROM (${colIdxLayer}) g`;
+
+        // Layer 4 — row_index + final projection (columns mirror getPivotQuerySQL).
+        const selectReferences = [
+            ...indexColumns.map(
+                (col) =>
+                    `g.${q}${col.reference}${q} AS ${q}${col.reference}${q}`,
+            ),
+            ...groupByColumns.map(
+                (col) =>
+                    `g.${q}${col.reference}${q} AS ${q}${col.reference}${q}`,
+            ),
+            ...(passthroughDimensions || []).map(
+                (col) =>
+                    `g.${q}${col.reference}${q} AS ${q}${col.reference}${q}`,
+            ),
+            ...(valuesColumns || []).map((col) => {
+                const fieldName = PivotQueryBuilder.getValueColumnFieldName(
+                    col.reference,
+                    col.aggregation,
+                );
+                return `g.${q}${fieldName}${q} AS ${q}${fieldName}${q}`;
+            }),
+            ...this.implicitMetricReferences.map(
+                (ref) => `g.${q}${ref}${q} AS ${q}${ref}${q}`,
+            ),
+        ];
+        const rowIndexOrderBy = this.buildRowIndexOrderBy(
+            indexColumns,
+            valuesColumns,
+            sortBy,
+            metricFirstValueQueries,
+            q,
+        );
+
+        return `SELECT ${selectReferences.join(
+            ', ',
+        )}, DENSE_RANK() OVER (ORDER BY ${rowIndexOrderBy}) AS ${q}row_index${q}, g.${q}col_idx${q} AS ${q}column_index${q} FROM (${rowAnchorLayer}) g`;
+    }
+
     private getPivotQuerySQL(
         indexColumns: ReturnType<typeof normalizeIndexColumns>,
         valuesColumns: PivotConfiguration['valuesColumns'],
@@ -1762,8 +1905,26 @@ export class PivotQueryBuilder {
         // row_index).
         const needsPrecomputedRankings = columnRankingCTE !== null;
 
+        // Engines that don't materialize CTEs re-scan group_by_query ~4× on the
+        // 3-CTE metric-sort path. There, collapse it into a single-scan
+        // pivot_query — capability-gated and scoped to metric sorts (a sorted
+        // sortOnlyDimension keeps the 3-CTE form).
+        const hasMetricSort = valuesColumnsWithoutPivotTableCalculations.some(
+            (valCol) =>
+                sortBy?.some((sort) => sort.reference === valCol.reference),
+        );
+        const useSingleScan =
+            !this.warehouseSqlBuilder.supportsCteMaterialization() &&
+            needsPrecomputedRankings &&
+            hasMetricSort &&
+            indexColumns.length > 0;
+
         let rowRankingCTE: string | null = null;
-        if (needsPrecomputedRankings && indexColumns.length > 0) {
+        if (
+            !useSingleScan &&
+            needsPrecomputedRankings &&
+            indexColumns.length > 0
+        ) {
             const rowRankingSQL = this.getRowRankingSQL(
                 indexColumns,
                 valuesColumnsWithoutPivotTableCalculations,
@@ -1775,16 +1936,26 @@ export class PivotQueryBuilder {
             rowRankingCTE = `row_ranking AS (${rowRankingSQL})`;
         }
 
-        const pivotQuery = this.getPivotQuerySQL(
-            indexColumns,
-            valuesColumnsWithoutPivotTableCalculations,
-            groupByColumns,
-            sortBy,
-            metricFirstValueQueries,
-            needsPrecomputedRankings,
-            sortOnlyDimensions,
-            passthroughDimensions,
-        );
+        const pivotQuery = useSingleScan
+            ? this.buildStackedPivotQuerySQL(
+                  indexColumns,
+                  valuesColumnsWithoutPivotTableCalculations,
+                  groupByColumns,
+                  sortBy,
+                  metricFirstValueQueries,
+                  sortOnlyDimensions,
+                  passthroughDimensions,
+              )
+            : this.getPivotQuerySQL(
+                  indexColumns,
+                  valuesColumnsWithoutPivotTableCalculations,
+                  groupByColumns,
+                  sortBy,
+                  metricFirstValueQueries,
+                  needsPrecomputedRankings,
+                  sortOnlyDimensions,
+                  passthroughDimensions,
+              );
 
         let columnIndexFilterSql = '';
 
@@ -1812,8 +1983,10 @@ export class PivotQueryBuilder {
         const ctes = [
             `original_query AS (${userSql})`,
             `group_by_query AS (${groupByQuery})`,
-            ...(columnRankingCTE ? [columnRankingCTE] : []),
-            ...anchorColumnCTEs,
+            // On the single-scan path these anchor/ranking CTEs are folded
+            // into the stacked pivot_query, so they are not emitted separately.
+            ...(useSingleScan || !columnRankingCTE ? [] : [columnRankingCTE]),
+            ...(useSingleScan ? [] : anchorColumnCTEs),
             ...(rowRankingCTE ? [rowRankingCTE] : []),
             `pivot_query AS (${pivotQuery})`,
         ];

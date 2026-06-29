@@ -34,6 +34,7 @@ const fakeWarehouseClient: WarehouseClient = {
     test: async () => {},
     getStartOfWeek: () => WeekDay.MONDAY,
     getAdapterType: () => SupportedDbtAdapter.POSTGRES,
+    supportsCteMaterialization: () => true,
     getStringQuoteChar: () => "'",
     getEscapeStringQuoteChar: () => "''",
     getFieldQuoteChar: () => '"',

@@ -188,6 +188,11 @@ export class AthenaSqlBuilder extends WarehouseBaseSqlBuilder {
         return SupportedDbtAdapter.ATHENA;
     }
 
+    // Athena never materializes a CTE — every reference re-runs its full lineage.
+    supportsCteMaterialization(): boolean {
+        return false;
+    }
+
     getEscapeStringQuoteChar(): string {
         return "'";
     }
