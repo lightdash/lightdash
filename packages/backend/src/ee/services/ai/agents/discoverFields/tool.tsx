@@ -38,6 +38,16 @@ const discoverFieldsTool = discoverFieldsToolDefinition.for('agent');
 const ambiguousNote =
     'Multiple explores plausibly answer this. Ask the user the suggestedQuestion. Do NOT call generateVisualization.';
 
+class RecoverableDiscoverFieldsHandoffError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'RecoverableDiscoverFieldsHandoffError';
+    }
+}
+
+const recoverableHandoffError = (message: string) =>
+    new RecoverableDiscoverFieldsHandoffError(message);
+
 const hydrateField = ({
     field,
     explore,
@@ -87,7 +97,9 @@ const hydrateResolvedSelection = async ({
         selection.dimensionIds.length === 0 &&
         selection.metricIds.length === 0
     ) {
-        throw new Error('Resolved discovery must select at least one field.');
+        throw recoverableHandoffError(
+            'Resolved discovery must select at least one field.',
+        );
     }
 
     const explore = await getExplore({ table: selection.exploreName });
@@ -98,7 +110,7 @@ const hydrateResolvedSelection = async ({
     const dimensions = selection.dimensionIds.map((fieldId) => {
         const item = itemMap[fieldId];
         if (!isDimension(item)) {
-            throw new Error(
+            throw recoverableHandoffError(
                 `Dimension "${fieldId}" was not found in explore "${selection.exploreName}".`,
             );
         }
@@ -109,7 +121,7 @@ const hydrateResolvedSelection = async ({
     const metrics = selection.metricIds.map((fieldId) => {
         const item = itemMap[fieldId];
         if (!isMetric(item)) {
-            throw new Error(
+            throw recoverableHandoffError(
                 `Metric "${fieldId}" was not found in explore "${selection.exploreName}".`,
             );
         }
@@ -397,6 +409,12 @@ export const getDiscoverFields = (args: ToolArgs, dependencies: Dependencies) =>
                     result: toolErrorHandler(
                         error,
                         'Error discovering fields.',
+                        {
+                            captureToSentry: !(
+                                error instanceof
+                                RecoverableDiscoverFieldsHandoffError
+                            ),
+                        },
                     ),
                     metadata: { status: 'error' as const },
                 };
