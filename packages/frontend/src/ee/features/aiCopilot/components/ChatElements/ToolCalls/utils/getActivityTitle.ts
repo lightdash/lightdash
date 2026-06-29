@@ -14,9 +14,12 @@ type ActivityTitle = {
 };
 
 const SEARCH_TOOLS = new Set([
+    'listExplores',
     'findExplores',
     'findFields',
+    'listFields',
     'discoverFields',
+    'submitResult',
     'searchSemanticLayer',
     'searchFieldValues',
     'findContent',

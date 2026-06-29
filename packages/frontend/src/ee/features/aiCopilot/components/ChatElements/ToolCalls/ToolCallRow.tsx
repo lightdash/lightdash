@@ -2,8 +2,6 @@ import {
     type AiAgentToolResult,
     type AiAgentToolName,
     type AiMcpServer,
-    isToolName,
-    type ToolName,
 } from '@lightdash/common';
 import {
     Box,
@@ -20,6 +18,10 @@ import { ToolCallDescription } from './descriptions/ToolCallDescription';
 import { ToolCallChip } from './ToolCallChip';
 import { ToolCallIcon } from './ToolCallIcon';
 import styles from './ToolCallRow.module.css';
+import {
+    isActivityToolName,
+    type ActivityToolName,
+} from './utils/activityToolNames';
 import { getToolCallChipLabel } from './utils/getToolCallChipLabel';
 import { getToolCallDisplayMessage } from './utils/getToolCallDisplayMessage';
 import {
@@ -34,7 +36,7 @@ import { type ToolCallSummary } from './utils/types';
 // so the row doesn't render a chevron + clickable header that expand into
 // blank space. Keep in sync with the empty `return <></>` cases in
 // ToolCallDescription.tsx.
-const TOOLS_WITHOUT_DESCRIPTION = new Set<ToolName>([
+const TOOLS_WITHOUT_DESCRIPTION = new Set<ActivityToolName>([
     'generateHashes',
     'generateUuids',
     'getProjectInfo',
@@ -50,9 +52,9 @@ const TOOLS_WITHOUT_DESCRIPTION = new Set<ToolName>([
 
 // Tools whose description renders something tall (e.g. a code block) and can't
 // be sensibly clipped to a single-line preview — collapse to verb + chevron.
-const HIDE_INLINE_PREVIEW = new Set<ToolName>(['runSql']);
+const HIDE_INLINE_PREVIEW = new Set<ActivityToolName>(['runSql']);
 
-const INLINE_CHIP_PREVIEW_TOOLS = new Set<ToolName>([
+const INLINE_CHIP_PREVIEW_TOOLS = new Set<ActivityToolName>([
     'readContent',
     'editContent',
     'createContent',
@@ -87,29 +89,29 @@ export const ToolCallRow: FC<Props> = ({
     toolResults,
     display,
 }) => {
-    const builtInToolName = isToolName(toolName) ? toolName : null;
+    const activityToolName = isActivityToolName(toolName) ? toolName : null;
     const linkedMcpServer =
         toolCalls.find((toolCall) => toolCall.mcpServer)?.mcpServer ??
         undefined;
-    const mcpServer = builtInToolName
+    const mcpServer = activityToolName
         ? undefined
         : (linkedMcpServer ?? getMcpServerForToolName(toolName, mcpServers));
-    const mcpDisplayMetadata = builtInToolName
+    const mcpDisplayMetadata = activityToolName
         ? undefined
         : getMcpToolDisplayMetadata(toolName, mcpServer);
-    const mcpToolDisplayName = builtInToolName
+    const mcpToolDisplayName = activityToolName
         ? null
         : getMcpToolDisplayName(toolName);
-    const label = builtInToolName
+    const label = activityToolName
         ? getToolCallDisplayMessage({
-              toolName: builtInToolName,
+              toolName: activityToolName,
               calls: toolCalls,
               display,
               status: status === 'running' ? 'running' : 'done',
           })
         : null;
     const hasCallDescription = (toolCall: ToolCallSummary) =>
-        isToolName(toolCall.toolName) &&
+        isActivityToolName(toolCall.toolName) &&
         !TOOLS_WITHOUT_DESCRIPTION.has(toolCall.toolName);
     const hasDescription =
         toolCalls.some(hasCallDescription) || Boolean(extraBody);
@@ -117,7 +119,7 @@ export const ToolCallRow: FC<Props> = ({
     const [expanded, setExpanded] = useState(false);
 
     const chipLabels: (string | null)[] = toolCalls.map((tc) =>
-        isToolName(tc.toolName)
+        isActivityToolName(tc.toolName)
             ? getToolCallChipLabel(tc.toolName, tc.toolArgs)
             : null,
     );
@@ -135,7 +137,7 @@ export const ToolCallRow: FC<Props> = ({
         if (
             !isGrouped &&
             visibleChips.length > 0 &&
-            isToolName(toolCalls[0].toolName) &&
+            isActivityToolName(toolCalls[0].toolName) &&
             INLINE_CHIP_PREVIEW_TOOLS.has(toolCalls[0].toolName)
         ) {
             return (
@@ -150,7 +152,7 @@ export const ToolCallRow: FC<Props> = ({
         if (
             !isGrouped &&
             hasDescription &&
-            isToolName(toolCalls[0].toolName) &&
+            isActivityToolName(toolCalls[0].toolName) &&
             !HIDE_INLINE_PREVIEW.has(toolCalls[0].toolName)
         ) {
             // Single call: show its description; clipped to one line by CSS.
@@ -252,7 +254,7 @@ export const ToolCallRow: FC<Props> = ({
             >
                 <Stack gap={4} className={styles.body}>
                     {toolCalls.map((tc) =>
-                        isToolName(tc.toolName) ? (
+                        isActivityToolName(tc.toolName) ? (
                             <ToolCallDescription
                                 key={tc.toolCallId}
                                 toolName={tc.toolName}

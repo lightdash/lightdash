@@ -113,6 +113,7 @@ export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
         findExplores: 'Found relevant explores',
         findDashboards: 'Found relevant dashboards',
         findFields: 'Found relevant fields',
+        listFields: 'Read field details',
         searchSemanticLayer: 'Searched the semantic layer',
         analyzeFieldImpact: 'Analyzed field impact',
         discoverFields: 'Discovered fields',

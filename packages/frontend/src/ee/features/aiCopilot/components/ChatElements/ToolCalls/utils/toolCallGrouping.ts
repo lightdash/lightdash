@@ -1,8 +1,5 @@
-import {
-    isToolName,
-    type AiAgentToolName,
-    type ToolName,
-} from '@lightdash/common';
+import { type AiAgentToolName } from '@lightdash/common';
+import { isActivityToolName, type ActivityToolName } from './activityToolNames';
 import { type ToolCallSummary } from './types';
 
 export type ToolCallGroupDisplay = {
@@ -19,8 +16,8 @@ export type ToolCallActivityGroup = {
 
 type ToolCallGroupDefinition = ToolCallGroupDisplay & {
     key: string;
-    representativeToolName: ToolName;
-    toolNames: readonly ToolName[];
+    representativeToolName: ActivityToolName;
+    toolNames: readonly ActivityToolName[];
 };
 
 const TOOL_CALL_GROUP_DEFINITIONS: ToolCallGroupDefinition[] = [
@@ -29,7 +26,14 @@ const TOOL_CALL_GROUP_DEFINITIONS: ToolCallGroupDefinition[] = [
         representativeToolName: 'findFields',
         liveLabel: 'Searching the data model',
         doneLabel: 'Searched the data model',
-        toolNames: ['findExplores', 'findFields', 'searchSemanticLayer'],
+        toolNames: [
+            'listExplores',
+            'findExplores',
+            'findFields',
+            'listFields',
+            'searchSemanticLayer',
+            'submitResult',
+        ],
     },
     {
         key: 'content-search',
@@ -101,7 +105,7 @@ const TOOL_NAME_TO_GROUP = new Map(
 );
 
 const getToolCallGroupDefinition = (toolName: AiAgentToolName) =>
-    isToolName(toolName) ? TOOL_NAME_TO_GROUP.get(toolName) : undefined;
+    isActivityToolName(toolName) ? TOOL_NAME_TO_GROUP.get(toolName) : undefined;
 
 const getToolCallGroupKey = (toolName: AiAgentToolName) =>
     getToolCallGroupDefinition(toolName)?.key ?? toolName;

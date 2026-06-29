@@ -23,8 +23,8 @@ import {
     type ToolGetKnowledgeDocumentContentArgs,
     type ToolGetKnowledgeDocumentContentOutput,
     type ToolListContentArgs,
+    type ToolListFieldsArgs,
     type ToolListWarehouseTablesArgs,
-    type ToolName,
     type ToolRunContentQueryArgs,
     type ToolRunQueryArgsV1,
     type ToolRunQueryArgsV2,
@@ -33,6 +33,7 @@ import {
     type ToolSearchSemanticLayerArgs,
 } from '@lightdash/common';
 import type { FC } from 'react';
+import { type ActivityToolName } from '../utils/activityToolNames';
 import type { ToolCallSummary } from '../utils/types';
 import { AiChartGenerationToolCallDescription } from './AiChartGenerationToolCallDescription';
 import { ContentEditorToolCallDescription } from './ContentEditorToolCallDescription';
@@ -47,12 +48,15 @@ import { FieldSearchToolCallDescription } from './FieldSearchToolCallDescription
 import { FieldValuesSearchToolCallDescription } from './FieldValuesSearchToolCallDescription';
 import { KnowledgeDocumentToolCallDescription } from './KnowledgeDocumentToolCallDescription';
 import { ListContentToolCallDescription } from './ListContentToolCallDescription';
+import { ListExploresToolCallDescription } from './ListExploresToolCallDescription';
+import { ListFieldsToolCallDescription } from './ListFieldsToolCallDescription';
 import { ListWarehouseTablesToolCallDescription } from './ListWarehouseTablesToolCallDescription';
 import { QueryResultToolCallDescription } from './QueryResultToolCallDescription';
 import { RepoShellToolCallDescription } from './RepoShellToolCallDescription';
 import { RunContentQueryToolCallDescription } from './RunContentQueryToolCallDescription';
 import { SemanticLayerSearchToolCallDescription } from './SemanticLayerSearchToolCallDescription';
 import { SqlRunToolCallDescription } from './SqlRunToolCallDescription';
+import { SubmitResultToolCallDescription } from './SubmitResultToolCallDescription';
 
 type ToolReadContentArgs = {
     slug?: string;
@@ -70,7 +74,7 @@ type ToolCreateContentArgs = {
 };
 
 export const ToolCallDescription: FC<{
-    toolName: ToolName;
+    toolName: ActivityToolName;
     toolCall: ToolCallSummary;
     toolResult?: AiAgentToolResult;
 }> = ({ toolName, toolCall }) => {
@@ -107,6 +111,15 @@ export const ToolCallDescription: FC<{
                     searchQueries={toolArgsFindFields.fieldSearchQueries}
                 />
             );
+        case 'listExplores':
+            return <ListExploresToolCallDescription />;
+        case 'listFields':
+            const toolArgsListFields = toolCall.toolArgs as ToolListFieldsArgs;
+            return (
+                <ListFieldsToolCallDescription
+                    fields={toolArgsListFields.fields ?? []}
+                />
+            );
         case 'discoverFields':
             const discoverFieldsArgs = toolCall.toolArgs as DiscoverFieldsInput;
             return (
@@ -114,6 +127,8 @@ export const ToolCallDescription: FC<{
                     userQuery={discoverFieldsArgs.userQuery}
                 />
             );
+        case 'submitResult':
+            return <SubmitResultToolCallDescription args={toolCall.toolArgs} />;
         case 'searchFieldValues':
             const searchFieldValuesArgs =
                 toolCall.toolArgs as ToolSearchFieldValuesArgs;

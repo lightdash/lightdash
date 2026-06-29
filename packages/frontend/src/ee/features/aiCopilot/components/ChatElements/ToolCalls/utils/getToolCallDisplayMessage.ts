@@ -1,8 +1,8 @@
+import { isToolName, type ToolName } from '@lightdash/common';
 import {
-    TOOL_DISPLAY_MESSAGES,
-    TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL,
-    type ToolName,
-} from '@lightdash/common';
+    getActivityToolMessage,
+    type ActivityToolName,
+} from './activityToolNames';
 import { type ToolCallGroupDisplay } from './toolCallGrouping';
 import { type ToolCallSummary } from './types';
 
@@ -55,7 +55,7 @@ export const getToolCallDisplayMessage = ({
     display,
     status,
 }: {
-    toolName: ToolName;
+    toolName: ActivityToolName;
     calls: ToolCallSummary[];
     display?: ToolCallGroupDisplay;
     status: ToolCallDisplayStatus;
@@ -65,9 +65,8 @@ export const getToolCallDisplayMessage = ({
     }
 
     return (
-        getContentToolDisplayMessage(toolName, calls, status) ??
-        (status === 'running'
-            ? TOOL_DISPLAY_MESSAGES[toolName]
-            : TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL[toolName])
+        (isToolName(toolName)
+            ? getContentToolDisplayMessage(toolName, calls, status)
+            : null) ?? getActivityToolMessage({ toolName, status })
     );
 };

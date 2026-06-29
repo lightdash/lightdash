@@ -5,14 +5,18 @@ import type { ToolCallSummary } from './utils/types';
 
 export type TraceEntry = {
     toolCallId: string;
-    toolName: 'findExplores' | 'findFields';
+    toolName:
+        | 'listExplores'
+        | 'findExplores'
+        | 'findFields'
+        | 'listFields'
+        | 'submitResult';
     toolArgs: unknown;
 };
 
 /**
- * Renders the subagent's internal tool calls (findExplores / findFields)
- * as regular ToolCallRow entries so they look identical to the parent
- * agent's tool calls in the activity card.
+ * Renders the subagent's internal tool calls as regular ToolCallRow entries so
+ * they look identical to the parent agent's tool calls in the activity card.
  */
 export const DiscoverFieldsTrace: FC<{ trace: TraceEntry[] }> = ({ trace }) => {
     if (!trace || trace.length === 0) return null;

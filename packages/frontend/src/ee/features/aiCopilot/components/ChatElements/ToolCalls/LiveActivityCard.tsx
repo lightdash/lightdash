@@ -4,7 +4,6 @@ import {
     type AiAgentToolResult,
     type AiMcpServer,
     type AiWritebackStep,
-    isToolName,
 } from '@lightdash/common';
 import {
     Box,
@@ -27,6 +26,7 @@ import { parseAgentStep } from './parseAgentStep';
 import { ToolCallChip } from './ToolCallChip';
 import { ToolCallIcon } from './ToolCallIcon';
 import { ToolCallRow } from './ToolCallRow';
+import { isActivityToolName } from './utils/activityToolNames';
 import { getActivityTitle } from './utils/getActivityTitle';
 import { getToolCallChipLabel } from './utils/getToolCallChipLabel';
 import { getToolCallDisplayMessage } from './utils/getToolCallDisplayMessage';
@@ -122,7 +122,7 @@ const getMcpSummaryIcons = (
     const seen = new Set<string>();
 
     return toolGroups.flatMap((group) => {
-        if (isToolName(group.toolName)) return [];
+        if (isActivityToolName(group.toolName)) return [];
 
         const linkedMcpServer =
             group.calls.find((toolCall) => toolCall.mcpServer)?.mcpServer ??
@@ -258,23 +258,25 @@ const LatestRow: FC<{
     isLive: boolean;
     mcpServers?: AiMcpServer[];
 }> = ({ group, isLive, mcpServers }) => {
-    const builtInToolName = isToolName(group.toolName) ? group.toolName : null;
+    const activityToolName = isActivityToolName(group.toolName)
+        ? group.toolName
+        : null;
     const linkedMcpServer =
         group.calls.find((toolCall) => toolCall.mcpServer)?.mcpServer ??
         undefined;
-    const mcpServer = builtInToolName
+    const mcpServer = activityToolName
         ? undefined
         : (linkedMcpServer ??
           getMcpServerForToolName(group.toolName, mcpServers));
-    const mcpDisplayMetadata = builtInToolName
+    const mcpDisplayMetadata = activityToolName
         ? undefined
         : getMcpToolDisplayMetadata(group.toolName, mcpServer);
-    const mcpToolDisplayName = builtInToolName
+    const mcpToolDisplayName = activityToolName
         ? null
         : getMcpToolDisplayName(group.toolName);
-    const label = builtInToolName
+    const label = activityToolName
         ? getToolCallDisplayMessage({
-              toolName: builtInToolName,
+              toolName: activityToolName,
               calls: group.calls,
               display: group.display,
               status: isLive ? 'running' : 'done',
@@ -282,14 +284,14 @@ const LatestRow: FC<{
         : null;
     const isGrouped = group.calls.length > 1;
     const lastCall = group.calls[group.calls.length - 1];
-    const lastBuiltInToolName = isToolName(lastCall.toolName)
+    const lastActivityToolName = isActivityToolName(lastCall.toolName)
         ? lastCall.toolName
-        : builtInToolName;
-    const chipLabel = lastBuiltInToolName
-        ? getToolCallChipLabel(lastBuiltInToolName, lastCall.toolArgs)
+        : activityToolName;
+    const chipLabel = lastActivityToolName
+        ? getToolCallChipLabel(lastActivityToolName, lastCall.toolArgs)
         : null;
     const showPreview =
-        chipLabel && !TOOLS_WITHOUT_PREVIEW.has(lastBuiltInToolName ?? '');
+        chipLabel && !TOOLS_WITHOUT_PREVIEW.has(lastActivityToolName ?? '');
 
     return (
         <Group
@@ -391,6 +393,34 @@ type DiscoverFieldsOutputMetadata = {
     trace?: TraceEntry[];
 };
 
+const DISCOVER_FIELDS_TRACE_TOOL_PARTS: Record<
+    string,
+    TraceEntry['toolName'] | undefined
+> = {
+    'tool-listExplores': 'listExplores',
+    'tool-findExplores': 'findExplores',
+    'tool-findFields': 'findFields',
+    'tool-listFields': 'listFields',
+    'tool-submitResult': 'submitResult',
+};
+
+const DISCOVER_FIELDS_TRACE_TOOL_NAMES = new Set<string>(
+    Object.values(DISCOVER_FIELDS_TRACE_TOOL_PARTS).filter(
+        (toolName): toolName is TraceEntry['toolName'] =>
+            toolName !== undefined,
+    ),
+);
+
+const getTraceToolNameFromPartType = (
+    partType: string,
+): TraceEntry['toolName'] | null =>
+    DISCOVER_FIELDS_TRACE_TOOL_PARTS[partType] ?? null;
+
+const isDiscoverFieldsTraceToolName = (
+    toolName: AiAgentToolName,
+): toolName is TraceEntry['toolName'] =>
+    DISCOVER_FIELDS_TRACE_TOOL_NAMES.has(toolName);
+
 const extractDiscoverFieldsTraceFromStreamingMessage = (
     message: StreamingMessage | undefined,
 ): TraceEntry[] | null => {
@@ -398,21 +428,14 @@ const extractDiscoverFieldsTraceFromStreamingMessage = (
     const entries: TraceEntry[] = [];
     const seenToolCallIds = new Set<string>();
     for (const part of message.parts) {
-        if (
-            part.type !== 'tool-findExplores' &&
-            part.type !== 'tool-findFields'
-        ) {
-            continue;
-        }
+        const toolName = getTraceToolNameFromPartType(part.type);
+        if (!toolName) continue;
         if (!part.toolCallId) continue;
         if (seenToolCallIds.has(part.toolCallId)) continue;
         seenToolCallIds.add(part.toolCallId);
         entries.push({
             toolCallId: part.toolCallId,
-            toolName:
-                part.type === 'tool-findExplores'
-                    ? 'findExplores'
-                    : 'findFields',
+            toolName,
             toolArgs: part.input ?? {},
         });
     }
@@ -425,14 +448,14 @@ const extractTraceFromChildren = (
 ): TraceEntry[] | null => {
     if (!allToolCalls) return null;
     const children = allToolCalls.filter(
-        (tc) =>
+        (tc): tc is AiAgentToolCall & { toolName: TraceEntry['toolName'] } =>
             tc.parentToolCallId === parentToolCallId &&
-            (tc.toolName === 'findExplores' || tc.toolName === 'findFields'),
+            isDiscoverFieldsTraceToolName(tc.toolName),
     );
     if (children.length === 0) return null;
     return children.map((tc) => ({
         toolCallId: tc.toolCallId,
-        toolName: tc.toolName as 'findExplores' | 'findFields',
+        toolName: tc.toolName,
         toolArgs: tc.toolArgs,
     }));
 };
@@ -766,27 +789,27 @@ export const LiveActivityCard: FC<Props> = ({
                     )}
                     {(() => {
                         if (!latest || hasPending) return null;
-                        const latestBuiltInToolName = isToolName(
+                        const latestActivityToolName = isActivityToolName(
                             latest.toolName,
                         )
                             ? latest.toolName
                             : null;
-                        if (!latestBuiltInToolName) return null;
+                        if (!latestActivityToolName) return null;
 
                         const renderableCalls = latest.calls
                             .map((tc) => {
-                                const callBuiltInToolName = isToolName(
+                                const callActivityToolName = isActivityToolName(
                                     tc.toolName,
                                 )
                                     ? tc.toolName
                                     : null;
-                                if (!callBuiltInToolName) return null;
+                                if (!callActivityToolName) return null;
                                 const hasNoDescription =
                                     TOOLS_WITHOUT_LATEST_DESCRIPTION.has(
-                                        callBuiltInToolName,
+                                        callActivityToolName,
                                     );
                                 const trace =
-                                    callBuiltInToolName === 'discoverFields'
+                                    callActivityToolName === 'discoverFields'
                                         ? (getDiscoverFieldsTraceFromCall(tc) ??
                                           getDiscoverFieldsTrace(
                                               toolResults?.find(
@@ -808,7 +831,7 @@ export const LiveActivityCard: FC<Props> = ({
                                     >
                                         {!hasNoDescription && (
                                             <ToolCallDescription
-                                                toolName={callBuiltInToolName}
+                                                toolName={callActivityToolName}
                                                 toolCall={tc}
                                                 toolResult={toolResults?.find(
                                                     (result) =>

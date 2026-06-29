@@ -5,6 +5,7 @@ import {
     type ToolFindFieldsOutput,
 } from '@lightdash/common';
 import { Box, Stack, Text } from '@mantine-8/core';
+import { z } from 'zod';
 import { RankingTable, TableCellText } from './RankingTable';
 
 type FieldResult = {
@@ -18,10 +19,46 @@ type FieldResult = {
 
 type ExploreResult = {
     label: string;
+    exploreName: string;
+    searchRank?: number | null | undefined;
+    joinedTables: string[];
+    dimensions: string[];
+    metrics: string[];
+    requiredFilters: unknown[];
+};
+
+type LegacyExploreResult = {
+    label: string;
     name: string;
     searchRank?: number | null | undefined;
     joinedTables?: string[] | null;
 };
+
+const legacyFindExploresRankingMetadataSchema = z.object({
+    searchQuery: z.string(),
+    exploreSearchResults: z
+        .array(
+            z.object({
+                label: z.string(),
+                name: z.string(),
+                searchRank: z.number().nullable().optional(),
+                joinedTables: z.array(z.string()).nullable().optional(),
+            }),
+        )
+        .default([]),
+    topMatchingFields: z
+        .array(
+            z.object({
+                label: z.string(),
+                name: z.string(),
+                tableName: z.string(),
+                fieldType: z.string(),
+                searchRank: z.number().nullable().optional(),
+                chartUsage: z.number().nullable().optional(),
+            }),
+        )
+        .default([]),
+});
 
 export const RankingDisplay: React.FC<{
     ranking:
@@ -127,32 +164,29 @@ export const RankingDisplay: React.FC<{
     if (type === 'findExplores') {
         const findExploresRanking =
             findExploresRankingMetadataSchema.safeParse(ranking);
-        if (!findExploresRanking.success) {
-            return null;
-        }
 
-        const parsedRanking = findExploresRanking.data;
+        if (findExploresRanking.success) {
+            const parsedRanking = findExploresRanking.data;
 
-        if (!parsedRanking.searchQuery) {
-            return null;
-        }
+            if (!parsedRanking.searchQuery) {
+                return null;
+            }
 
-        return (
-            <Box>
-                <Text fw={500} size="xs" c="dark" mb="xs">
-                    Ranking Metadata
-                </Text>
-                <Stack gap="md">
-                    <Text size="xs" c="dimmed">
-                        Search Query: "{parsedRanking.searchQuery}"
+            return (
+                <Box>
+                    <Text fw={500} size="xs" c="dark" mb="xs">
+                        Ranking Metadata
                     </Text>
+                    <Stack gap="md">
+                        <Text size="xs" c="dimmed">
+                            Search Query: "{parsedRanking.searchQuery}"
+                        </Text>
 
-                    {parsedRanking.exploreSearchResults &&
-                        parsedRanking.exploreSearchResults.length > 0 && (
+                        {parsedRanking.explores.length > 0 && (
                             <Box>
                                 <Text fw={500} size="xs" c="dark" mb="xs">
                                     Explore Results (
-                                    {parsedRanking.exploreSearchResults.length})
+                                    {parsedRanking.explores.length})
                                 </Text>
                                 <RankingTable<ExploreResult>
                                     columns={[
@@ -164,7 +198,7 @@ export const RankingDisplay: React.FC<{
                                                         {explore.label}
                                                     </TableCellText>
                                                     <TableCellText dimmed>
-                                                        {explore.name}
+                                                        {explore.exploreName}
                                                     </TableCellText>
                                                 </Box>
                                             ),
@@ -188,8 +222,7 @@ export const RankingDisplay: React.FC<{
                                             header: 'Joined Tables',
                                             render: (explore) => (
                                                 <TableCellText>
-                                                    {explore.joinedTables &&
-                                                    explore.joinedTables
+                                                    {explore.joinedTables
                                                         .length > 0
                                                         ? explore.joinedTables.join(
                                                               ', ',
@@ -198,80 +231,184 @@ export const RankingDisplay: React.FC<{
                                                 </TableCellText>
                                             ),
                                         },
+                                        {
+                                            header: 'Dimensions',
+                                            render: (explore) => (
+                                                <TableCellText>
+                                                    {explore.dimensions.length}
+                                                </TableCellText>
+                                            ),
+                                        },
+                                        {
+                                            header: 'Metrics',
+                                            render: (explore) => (
+                                                <TableCellText>
+                                                    {explore.metrics.length}
+                                                </TableCellText>
+                                            ),
+                                        },
+                                        {
+                                            header: 'Required Filters',
+                                            render: (explore) => (
+                                                <TableCellText>
+                                                    {
+                                                        explore.requiredFilters
+                                                            .length
+                                                    }
+                                                </TableCellText>
+                                            ),
+                                        },
                                     ]}
-                                    data={parsedRanking.exploreSearchResults}
+                                    data={parsedRanking.explores}
                                     maxHeight={200}
                                 />
                             </Box>
                         )}
+                    </Stack>
+                </Box>
+            );
+        }
 
-                    {parsedRanking.topMatchingFields &&
-                        parsedRanking.topMatchingFields.length > 0 && (
-                            <Box>
-                                <Text fw={500} size="xs" c="dark" mb="xs">
-                                    Top Matching Fields (
-                                    {parsedRanking.topMatchingFields.length})
-                                </Text>
-                                <RankingTable<FieldResult>
-                                    columns={[
-                                        {
-                                            header: 'Field',
-                                            render: (field) => (
-                                                <Box>
-                                                    <TableCellText>
-                                                        {field.label}
-                                                    </TableCellText>
-                                                    <TableCellText dimmed>
-                                                        {field.name}
-                                                    </TableCellText>
-                                                </Box>
-                                            ),
-                                        },
-                                        {
-                                            header: 'Explore',
-                                            render: (field) => (
+        const legacyFindExploresRanking =
+            legacyFindExploresRankingMetadataSchema.safeParse(ranking);
+        if (!legacyFindExploresRanking.success) {
+            return null;
+        }
+
+        const parsedRanking = legacyFindExploresRanking.data;
+
+        if (!parsedRanking.searchQuery) {
+            return null;
+        }
+
+        return (
+            <Box>
+                <Text fw={500} size="xs" c="dark" mb="xs">
+                    Ranking Metadata
+                </Text>
+                <Stack gap="md">
+                    <Text size="xs" c="dimmed">
+                        Search Query: "{parsedRanking.searchQuery}"
+                    </Text>
+
+                    {parsedRanking.exploreSearchResults.length > 0 && (
+                        <Box>
+                            <Text fw={500} size="xs" c="dark" mb="xs">
+                                Explore Results (
+                                {parsedRanking.exploreSearchResults.length})
+                            </Text>
+                            <RankingTable<LegacyExploreResult>
+                                columns={[
+                                    {
+                                        header: 'Explore',
+                                        render: (explore) => (
+                                            <Box>
                                                 <TableCellText>
-                                                    {field.tableName}
+                                                    {explore.label}
                                                 </TableCellText>
-                                            ),
-                                        },
-                                        {
-                                            header: 'Type',
-                                            render: (field) => (
+                                                <TableCellText dimmed>
+                                                    {explore.name}
+                                                </TableCellText>
+                                            </Box>
+                                        ),
+                                    },
+                                    {
+                                        header: 'Rank',
+                                        render: (explore) => (
+                                            <TableCellText>
+                                                {explore.searchRank !== null &&
+                                                explore.searchRank !== undefined
+                                                    ? explore.searchRank.toFixed(
+                                                          3,
+                                                      )
+                                                    : 'N/A'}
+                                            </TableCellText>
+                                        ),
+                                    },
+                                    {
+                                        header: 'Joined Tables',
+                                        render: (explore) => (
+                                            <TableCellText>
+                                                {explore.joinedTables &&
+                                                explore.joinedTables.length > 0
+                                                    ? explore.joinedTables.join(
+                                                          ', ',
+                                                      )
+                                                    : 'None'}
+                                            </TableCellText>
+                                        ),
+                                    },
+                                ]}
+                                data={parsedRanking.exploreSearchResults}
+                                maxHeight={200}
+                            />
+                        </Box>
+                    )}
+
+                    {parsedRanking.topMatchingFields.length > 0 && (
+                        <Box>
+                            <Text fw={500} size="xs" c="dark" mb="xs">
+                                Top Matching Fields (
+                                {parsedRanking.topMatchingFields.length})
+                            </Text>
+                            <RankingTable<FieldResult>
+                                columns={[
+                                    {
+                                        header: 'Field',
+                                        render: (field) => (
+                                            <Box>
                                                 <TableCellText>
-                                                    {field.fieldType}
+                                                    {field.label}
                                                 </TableCellText>
-                                            ),
-                                        },
-                                        {
-                                            header: 'Rank',
-                                            render: (field) => (
-                                                <TableCellText>
-                                                    {field.searchRank !==
-                                                        null &&
-                                                    field.searchRank !==
-                                                        undefined
-                                                        ? field.searchRank.toFixed(
-                                                              3,
-                                                          )
-                                                        : 'N/A'}
+                                                <TableCellText dimmed>
+                                                    {field.name}
                                                 </TableCellText>
-                                            ),
-                                        },
-                                        {
-                                            header: 'Usage',
-                                            render: (field) => (
-                                                <TableCellText>
-                                                    {field.chartUsage ?? 'N/A'}
-                                                </TableCellText>
-                                            ),
-                                        },
-                                    ]}
-                                    data={parsedRanking.topMatchingFields}
-                                    maxHeight={300}
-                                />
-                            </Box>
-                        )}
+                                            </Box>
+                                        ),
+                                    },
+                                    {
+                                        header: 'Explore',
+                                        render: (field) => (
+                                            <TableCellText>
+                                                {field.tableName}
+                                            </TableCellText>
+                                        ),
+                                    },
+                                    {
+                                        header: 'Type',
+                                        render: (field) => (
+                                            <TableCellText>
+                                                {field.fieldType}
+                                            </TableCellText>
+                                        ),
+                                    },
+                                    {
+                                        header: 'Rank',
+                                        render: (field) => (
+                                            <TableCellText>
+                                                {field.searchRank !== null &&
+                                                field.searchRank !== undefined
+                                                    ? field.searchRank.toFixed(
+                                                          3,
+                                                      )
+                                                    : 'N/A'}
+                                            </TableCellText>
+                                        ),
+                                    },
+                                    {
+                                        header: 'Usage',
+                                        render: (field) => (
+                                            <TableCellText>
+                                                {field.chartUsage ?? 'N/A'}
+                                            </TableCellText>
+                                        ),
+                                    },
+                                ]}
+                                data={parsedRanking.topMatchingFields}
+                                maxHeight={300}
+                            />
+                        </Box>
+                    )}
                 </Stack>
             </Box>
         );

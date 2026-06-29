@@ -11,8 +11,8 @@ import type {
     ToolFindFieldsArgs,
     ToolGetDashboardChartsArgs,
     ToolListContentArgs,
+    ToolListFieldsArgs,
     ToolListWarehouseTablesArgs,
-    ToolName,
     ToolRunContentQueryArgs,
     ToolRunQueryArgs,
     ToolSearchFieldValuesArgs,
@@ -21,6 +21,7 @@ import type {
     ToolTimeSeriesArgs,
     ToolVerticalBarArgs,
 } from '@lightdash/common';
+import { type ActivityToolName } from './activityToolNames';
 import { type ToolCallSummary } from './types';
 
 type ToolReadContentArgs = {
@@ -42,7 +43,7 @@ type ToolCreateContentArgs = {
  * lend themselves to a short label.
  */
 export const getToolCallChipLabel = (
-    toolName: ToolName,
+    toolName: ActivityToolName,
     toolArgs: ToolCallSummary['toolArgs'],
 ): string | null => {
     // toolArgs can be undefined mid-stream before the model has sent any
@@ -82,6 +83,12 @@ export const getToolCallChipLabel = (
             const args = toolArgs as ToolFindFieldsArgs;
             return args.fieldSearchQueries?.[0]?.label ?? null;
         }
+        case 'listFields': {
+            const args = toolArgs as ToolListFieldsArgs;
+            return args.fields?.[0]?.fieldId ?? null;
+        }
+        case 'listExplores':
+            return 'available explores';
         case 'discoverFields': {
             const args = toolArgs as DiscoverFieldsInput;
             return args.userQuery ?? null;
@@ -148,6 +155,30 @@ export const getToolCallChipLabel = (
             if (args.target && args.command)
                 return `${args.target}: ${args.command}`;
             return args.command ?? args.target ?? null;
+        }
+        case 'submitResult': {
+            const args = toolArgs as {
+                handoff?: {
+                    status?: string;
+                    exploreName?: string;
+                    dimensionIds?: string[];
+                    metricIds?: string[];
+                    candidates?: unknown[];
+                };
+            };
+            const handoff = args.handoff;
+            if (handoff?.status === 'resolved') {
+                const fieldCount =
+                    (handoff.dimensionIds?.length ?? 0) +
+                    (handoff.metricIds?.length ?? 0);
+                return handoff.exploreName
+                    ? `${handoff.exploreName}: ${fieldCount} fields`
+                    : `${fieldCount} fields`;
+            }
+            if (handoff?.status === 'ambiguous') {
+                return `${handoff.candidates?.length ?? 0} candidates`;
+            }
+            return handoff?.status ?? null;
         }
         case 'discoverRepos':
             return null;
