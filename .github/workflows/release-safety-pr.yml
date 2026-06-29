@@ -85,9 +85,9 @@ jobs:
           # nothing is published.
           RELEASE_SAFETY_MARKER_ENABLED: 'true'
           # The AI migration review runs on READY PRs only (a real "about to merge"
-          # signal), never on drafts (still churning — not worth the spend). It's
-          # still gated downstream to migration-bearing PRs where the deterministic
-          # linter didn't already decide, and degrades to "unknown" without a key
+          # signal), never on drafts (still churning — not worth the spend). It runs
+          # on ALL migration-bearing PRs (even ones the linter flagged) so it can
+          # clear an expand/contract drop, and degrades to "unknown" without a key
           # (e.g. fork PRs, which don't comment anyway).
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           IS_DRAFT: ${{ github.event.pull_request.draft }}
@@ -109,12 +109,23 @@ jobs:
             --out /tmp/release-safety.json \
             ${AI_FLAG}
 
+      - name: Capture raw SQL-linter verdict (for expand/contract attribution)
+        id: lint
+        run: |
+          set -euo pipefail
+          if tsx scripts/sql-migration-lint.ts --last-tag "${{ steps.base.outputs.sha }}" | grep -q '"breaking": true'; then
+            echo "breaking=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "breaking=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Render PR comment
         run: |
           tsx scripts/release-safety-pr-comment.ts \
             --marker /tmp/release-safety.json \
             --base "${{ github.event.pull_request.base.ref }} (${{ steps.base.outputs.short }})" \
             ${{ steps.marker.outputs.draft == 'true' && '--draft' || '' }} \
+            ${{ steps.lint.outputs.breaking == 'true' && '--linter-breaking' || '--no-linter-breaking' }} \
             --out /tmp/release-safety-comment.md
 
       - name: Post or update sticky comment

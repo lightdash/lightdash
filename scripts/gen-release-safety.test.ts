@@ -309,16 +309,43 @@ test('sqlLint breaking sets rollingUpdateSafe false + adds "sql-lint" capability
     assert.ok(/Migration linter detected breaking/.test(m.compatibility.notes));
 });
 
-test('sqlLint breaking is AUTHORITATIVE over an AI "safe" verdict', () => {
+test('high-confidence AI "safe" OVERRIDES a linter flag (expand/contract clearance)', () => {
     const m = buildMarker({
         ...base,
         migrations: migPresent,
         sqlLint: { ran: true, breaking: true, findings: ['m.ts:3 drops a column [drop-column]'] },
-        aiReview: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', summary: 'looks additive' },
+        aiReview: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', summary: 'old code has zero refs to the dropped column.' },
     });
-    // linter wins: stays false, AI is NOT applied, ai-review capability NOT claimed
+    // AI wins: the drop is the contract step of an expand/contract → safe
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, true);
+    assert.strictEqual(m.compatibility.recommendedStrategy, 'RollingUpdate');
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'sql-lint', 'ai-review']);
+    assert.ok(/CLEARED a deterministic linter flag/.test(m.compatibility.notes));
+    assert.ok(/expand\/contract/.test(m.compatibility.notes));
+});
+
+test('AI "breaking" confirms a linter flag → stays false', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: migPresent,
+        sqlLint: { ran: true, breaking: true, findings: ['m.ts:3 drops a column [drop-column]'] },
+        aiReview: { rollingUpdateSafe: false, recommendedStrategy: 'Recreate', summary: 'old code still reads the column.' },
+    });
     assert.strictEqual(m.compatibility.rollingUpdateSafe, false);
-    assert.deepStrictEqual(m.capabilities, ['migrations', 'sql-lint']);
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'sql-lint', 'ai-review']);
+});
+
+test('inconclusive AI ("unknown") does NOT downgrade a linter flag — floor holds at false', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: migPresent,
+        sqlLint: { ran: true, breaking: true, findings: ['m.ts:3 drops a column [drop-column]'] },
+        aiReview: { rollingUpdateSafe: 'unknown', recommendedStrategy: 'Recreate', summary: 'could not verify.' },
+    });
+    // AI ran (capability claimed) but stayed unknown → linter floor of false is kept
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, false);
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'sql-lint', 'ai-review']);
+    assert.ok(/Migration linter detected breaking/.test(m.compatibility.notes));
 });
 
 test('sqlLint clean leaves verdict unknown and claims the capability', () => {

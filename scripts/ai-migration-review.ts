@@ -143,12 +143,15 @@ During a Kubernetes rolling update the migration runs FIRST, then the new app ro
 
 You have read-only tools (grep_old_code, read_old_file) that read the PREVIOUS release's source. USE THEM: for each migration, identify the schema objects it changes (tables, columns, constraints, indexes) and grep the old code to see whether/how they're read or written. Backward-compatibility you can only guess from the migration text is "needs-review"; backward-compatibility you have verified against the old code can be "additive-safe" or "breaking".
 
+A destructive operation shape is NOT automatically breaking. Under the expand/contract (parallel change) pattern a drop or rename is split across releases: an earlier release stops using the object ("expand"), and a later release removes it ("contract"). The contract step is SAFE precisely because the previous release's code no longer touches the object. Your job is to read the old code and tell which case this is — a deterministic shape-only linter cannot, which is why you exist.
+
 Classification rules:
 - additive-safe: nullable column, column with default, new table, index created CONCURRENTLY, new enum value — AND nothing in the old code path breaks.
-- breaking: NOT NULL without default, drop/rename column or table, type narrowing, a CHECK/FOREIGN KEY that could reject rows the old code still writes, a non-concurrent index on a large/hot table, a data backfill that rewrites values the old code depends on.
+- additive-safe via expand/contract: a drop or rename of a column/table/constraint is safe IF you VERIFY with grep_old_code that the PREVIOUS release's code has ZERO references to it (the "expand" already shipped, this is the "contract"). You MUST run the grep and see no reads/writes; a guess is needs-review, never safe.
+- breaking: NOT NULL without default; a drop/rename of an object the old code STILL references (grep found reads/writes); type narrowing; a CHECK/FOREIGN KEY that could reject rows the old code still writes; a non-concurrent index on a large/hot table; a data backfill that rewrites values the old code depends on.
 - needs-review: you could not verify the old-code behaviour the safety depends on.
 
-Be conservative: overall verdict is "safe" with confidence "high" ONLY when EVERY migration is additive-safe (verified). Any breaking → verdict "breaking". Any unresolved needs-review → verdict at most "unknown".
+Be conservative: overall verdict is "safe" with confidence "high" ONLY when EVERY migration is additive-safe (verified, including any expand/contract drop confirmed unreferenced). Any breaking → verdict "breaking". Any unresolved needs-review → verdict at most "unknown".
 
 When you have finished investigating, reply with ONE JSON object and NOTHING else, matching:
 ${SCHEMA_DOC}`;
