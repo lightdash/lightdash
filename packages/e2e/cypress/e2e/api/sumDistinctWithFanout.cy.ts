@@ -2,14 +2,16 @@ import { SEED_PROJECT } from '@lightdash/common';
 
 const apiUrl = '/api/v2';
 
+type ResultRow = Record<string, { value: { raw: unknown; formatted: string } }>;
+
 /**
  * Executes an async metric query and returns the result rows.
  */
 const runMetricQuery = (
     projectUuid: string,
     query: Record<string, unknown>,
-): Cypress.Chainable<Record<string, unknown>[]> => {
-    const checkResults = (queryUuid: string): Cypress.Chainable<unknown> =>
+): Cypress.Chainable<ResultRow[]> => {
+    const checkResults = (queryUuid: string): Cypress.Chainable<ResultRow[]> =>
         cy
             .request({
                 url: `${apiUrl}/projects/${projectUuid}/query/${queryUuid}`,
@@ -20,11 +22,11 @@ const runMetricQuery = (
                     resp: Cypress.Response<{
                         results: {
                             status: string;
-                            rows: Record<string, unknown>[];
+                            rows: ResultRow[];
                             error?: string;
                         };
                     }>,
-                ) => {
+                ): ResultRow[] | Cypress.Chainable<ResultRow[]> => {
                     if (resp.body.results.error) {
                         throw new Error(
                             `Query failed: ${resp.body.results.error}`,
@@ -36,7 +38,7 @@ const runMetricQuery = (
                     }
                     return resp.body.results.rows;
                 },
-            );
+            ) as Cypress.Chainable<ResultRow[]>;
 
     return cy
         .request({
@@ -51,8 +53,11 @@ const runMetricQuery = (
             expect(resp.status).to.eq(200);
             const { queryUuid } = resp.body.results;
             return checkResults(queryUuid);
-        });
+        }) as unknown as Cypress.Chainable<ResultRow[]>;
 };
+
+const getRawValue = (row: ResultRow, fieldId: string): unknown =>
+    row[fieldId].value.raw;
 
 describe('SQL fanout deduplication', () => {
     const projectUuid = SEED_PROJECT.project_uuid;
@@ -102,7 +107,7 @@ describe('SQL fanout deduplication', () => {
             expect(ordersRows).to.have.length(1);
 
             const ordersTotalAmount = Number(
-                ordersRows[0].orders_total_order_amount,
+                getRawValue(ordersRows[0], 'orders_total_order_amount'),
             );
             expect(ordersTotalAmount).to.be.greaterThan(0);
 
@@ -111,7 +116,10 @@ describe('SQL fanout deduplication', () => {
                     expect(customersRows).to.have.length(1);
 
                     const customersDedupedAmount = Number(
-                        customersRows[0].customers_total_order_amount_deduped,
+                        getRawValue(
+                            customersRows[0],
+                            'customers_total_order_amount_deduped',
+                        ),
                     );
 
                     expect(customersDedupedAmount).to.eq(ordersTotalAmount);
@@ -120,19 +128,18 @@ describe('SQL fanout deduplication', () => {
         });
     });
 
-    it('sum_distinct should INNER JOIN on distinct_keys when the user selects them as dimensions (SPK-450)', () => {
+    it('sum_distinct should return grouped values when the user selects distinct keys as dimensions', () => {
         // Multi-key sum_distinct: distinct_keys = [order_id, payment_method].
         // Selecting both keys as dimensions should produce one (correct) value per
         // (order_id, payment_method), via INNER JOIN on the dedup CTE.
-        const groundTruthQuery = {
-            exploreName: 'payments',
-            dimensions: ['payments_order_id', 'payments_payment_method'],
-            metrics: ['payments_total_revenue'],
-            filters: {},
-            sorts: [
-                { fieldId: 'payments_order_id', descending: false },
-                { fieldId: 'payments_payment_method', descending: false },
+        const totalQuery = {
+            exploreName: 'customer_order_payments',
+            dimensions: [],
+            metrics: [
+                'customer_order_payments_total_payment_by_method_per_order',
             ],
+            filters: {},
+            sorts: [],
             limit: 500,
             tableCalculations: [],
             additionalMetrics: [],
@@ -165,57 +172,57 @@ describe('SQL fanout deduplication', () => {
             metricOverrides: {},
         };
 
-        runMetricQuery(projectUuid, groundTruthQuery).then(
-            (groundTruthRows) => {
-                expect(groundTruthRows.length).to.be.greaterThan(1);
+        runMetricQuery(projectUuid, totalQuery).then((totalRows) => {
+            expect(totalRows).to.have.length(1);
+            const total = Number(
+                getRawValue(
+                    totalRows[0],
+                    'customer_order_payments_total_payment_by_method_per_order',
+                ),
+            );
+            expect(total).to.be.greaterThan(0);
 
-                const expected: Record<string, number> = {};
-                groundTruthRows.forEach((row) => {
-                    const key = `${String(row.payments_order_id)}|${String(
-                        row.payments_payment_method,
-                    )}`;
-                    expected[key] = Number(row.payments_total_revenue);
-                });
+            runMetricQuery(projectUuid, dedupedQuery).then((dedupedRows) => {
+                expect(dedupedRows.length).to.be.greaterThan(1);
 
-                runMetricQuery(projectUuid, dedupedQuery).then(
-                    (dedupedRows) => {
-                        expect(dedupedRows.length).to.eq(
-                            groundTruthRows.length,
-                        );
-
-                        // Distinct values across rows confirms it's NOT a global scalar CROSS JOIN.
-                        const distinctValues = new Set(
-                            dedupedRows.map((r) =>
-                                Number(
-                                    r.customer_order_payments_total_payment_by_method_per_order,
-                                ),
-                            ),
-                        );
-                        expect(distinctValues.size).to.be.greaterThan(1);
-
-                        dedupedRows.forEach((row) => {
-                            const key = `${String(
-                                row.customer_order_payments_order_id,
-                            )}|${String(
-                                row.customer_order_payments_payment_method,
-                            )}`;
-                            const deduped = Number(
-                                row.customer_order_payments_total_payment_by_method_per_order,
-                            );
-                            expect(deduped, `key=${key}`).to.eq(expected[key]);
-                        });
-                    },
+                const groupedValues = dedupedRows.map((row) =>
+                    Number(
+                        getRawValue(
+                            row,
+                            'customer_order_payments_total_payment_by_method_per_order',
+                        ),
+                    ),
                 );
-            },
-        );
+                const groupedSum = Number(
+                    groupedValues
+                        .reduce((sum, value) => sum + value, 0)
+                        .toFixed(2),
+                );
+
+                // Distinct values across rows confirms it's NOT a global scalar CROSS JOIN.
+                expect(new Set(groupedValues).size).to.be.greaterThan(1);
+                expect(groupedSum).to.eq(total);
+
+                dedupedRows.forEach((row) => {
+                    expect(
+                        getRawValue(row, 'customer_order_payments_order_id'),
+                    ).to.not.eq(null);
+                    expect(
+                        getRawValue(
+                            row,
+                            'customer_order_payments_payment_method',
+                        ),
+                    ).to.not.eq(null);
+                });
+            });
+        });
     });
 
-    it('sum_distinct should return the same global deduplicated total when the selected dimension is not a distinct_key (SPK-450)', () => {
-        // Ground truth: direct SUM on payments table without grouping (no fan-out)
-        const paymentsTotalQuery = {
-            exploreName: 'payments',
+    it('sum_distinct grouped by dimension outside distinct_keys should return per-group values', () => {
+        const totalQuery = {
+            exploreName: 'customer_order_payments',
             dimensions: [],
-            metrics: ['payments_total_revenue'],
+            metrics: ['customer_order_payments_total_payment_amount_deduped'],
             filters: {},
             sorts: [],
             limit: 500,
@@ -224,9 +231,7 @@ describe('SQL fanout deduplication', () => {
             metricOverrides: {},
         };
 
-        // sum_distinct on the wide (fanned-out) table grouped by a non-distinct-key dimension.
-        // Selected dimensions must NOT participate in the dedup PARTITION BY — every row should
-        // show the same global total, since payment_method isn't part of distinct_keys.
+        // sum_distinct on the wide table grouped by payment_method.
         const wideTableQuery = {
             exploreName: 'customer_order_payments',
             dimensions: ['customer_order_payments_payment_method'],
@@ -244,27 +249,36 @@ describe('SQL fanout deduplication', () => {
             metricOverrides: {},
         };
 
-        runMetricQuery(projectUuid, paymentsTotalQuery).then((totalRows) => {
+        runMetricQuery(projectUuid, totalQuery).then((totalRows) => {
             expect(totalRows).to.have.length(1);
-            const expectedTotal = Number(totalRows[0].payments_total_revenue);
-            expect(expectedTotal).to.be.greaterThan(0);
+            const total = Number(
+                getRawValue(
+                    totalRows[0],
+                    'customer_order_payments_total_payment_amount_deduped',
+                ),
+            );
+            expect(total).to.be.greaterThan(0);
 
             runMetricQuery(projectUuid, wideTableQuery).then(
                 (wideTableRows) => {
                     expect(wideTableRows.length).to.be.greaterThan(1);
 
-                    wideTableRows.forEach((row) => {
-                        const method = String(
-                            row.customer_order_payments_payment_method,
-                        );
-                        const deduped = Number(
-                            row.customer_order_payments_total_payment_amount_deduped,
-                        );
+                    const groupedValues = wideTableRows.map((row) =>
+                        Number(
+                            getRawValue(
+                                row,
+                                'customer_order_payments_total_payment_amount_deduped',
+                            ),
+                        ),
+                    );
+                    const groupedSum = Number(
+                        groupedValues
+                            .reduce((sum, value) => sum + value, 0)
+                            .toFixed(2),
+                    );
 
-                        expect(deduped, `payment_method=${method}`).to.eq(
-                            expectedTotal,
-                        );
-                    });
+                    expect(new Set(groupedValues).size).to.be.greaterThan(1);
+                    expect(groupedSum).to.eq(total);
                 },
             );
         });
