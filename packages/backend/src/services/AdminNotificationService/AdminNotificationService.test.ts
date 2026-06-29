@@ -25,30 +25,33 @@ import {
     mockTargetUserUuid,
 } from './AdminNotificationService.mock';
 
-const sendAdminChangeNotificationEmail = jest.fn<
-    Promise<void>,
-    [string[], AdminNotificationPayload]
->();
+const sendAdminChangeNotificationEmail =
+    vi.fn<
+        (
+            recipients: string[],
+            payload: AdminNotificationPayload,
+        ) => Promise<void>
+    >();
 
 const emailClient = {
     sendAdminChangeNotificationEmail,
 };
 
 const organizationMemberProfileModel = {
-    getOrganizationAdmins: jest.fn(async () => [mockOrgAdmin1, mockOrgAdmin2]),
+    getOrganizationAdmins: vi.fn(async () => [mockOrgAdmin1, mockOrgAdmin2]),
 };
 
 const organizationModel = {
-    get: jest.fn(async () => mockOrganization),
+    get: vi.fn(async () => mockOrganization),
 };
 
 const projectModel = {
-    getSummary: jest.fn(async () => mockProjectSummary),
-    getProjectAccess: jest.fn(async () => [mockProjectAdmin]),
+    getSummary: vi.fn(async () => mockProjectSummary),
+    getProjectAccess: vi.fn(async () => [mockProjectAdmin]),
 };
 
 const userModel = {
-    getUserDetailsByUuid: jest.fn(async () => mockTargetUser),
+    getUserDetailsByUuid: vi.fn(async () => mockTargetUser),
 };
 
 describe('AdminNotificationService', () => {
@@ -63,7 +66,7 @@ describe('AdminNotificationService', () => {
     });
 
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it('should send notification when promoting user to org admin', async () => {
@@ -189,7 +192,7 @@ describe('AdminNotificationService', () => {
     });
 
     it('should not throw when email sending fails', async () => {
-        (sendAdminChangeNotificationEmail as jest.Mock).mockRejectedValueOnce(
+        sendAdminChangeNotificationEmail.mockRejectedValueOnce(
             new Error('SMTP error'),
         );
 
@@ -205,7 +208,7 @@ describe('AdminNotificationService', () => {
     });
 
     it('should not throw when fetching org data fails', async () => {
-        (organizationModel.get as jest.Mock).mockRejectedValueOnce(
+        (organizationModel.get as import('vitest').Mock).mockRejectedValueOnce(
             new Error('DB error'),
         );
 
@@ -283,11 +286,11 @@ describe('AdminNotificationService', () => {
     it('should deduplicate recipients when same user is org and project admin', async () => {
         const sameEmail = 'shared@example.com';
         (
-            organizationMemberProfileModel.getOrganizationAdmins as jest.Mock
+            organizationMemberProfileModel.getOrganizationAdmins as import('vitest').Mock
         ).mockResolvedValueOnce([{ ...mockOrgAdmin1, email: sameEmail }]);
-        (projectModel.getProjectAccess as jest.Mock).mockResolvedValueOnce([
-            { ...mockProjectAdmin, email: sameEmail },
-        ]);
+        (
+            projectModel.getProjectAccess as import('vitest').Mock
+        ).mockResolvedValueOnce([{ ...mockProjectAdmin, email: sameEmail }]);
 
         await service.notifyProjectAdminRoleChange({
             account: mockSessionAccount,
@@ -339,11 +342,11 @@ describe('AdminNotificationService', () => {
     describe('notifyConnectionSettingsChange', () => {
         it('should not send when no recipients found', async () => {
             (
-                organizationMemberProfileModel.getOrganizationAdmins as jest.Mock
+                organizationMemberProfileModel.getOrganizationAdmins as import('vitest').Mock
             ).mockResolvedValueOnce([]);
-            (projectModel.getProjectAccess as jest.Mock).mockResolvedValueOnce(
-                [],
-            );
+            (
+                projectModel.getProjectAccess as import('vitest').Mock
+            ).mockResolvedValueOnce([]);
 
             await service.notifyConnectionSettingsChange({
                 organizationUuid: mockOrganizationUuid,

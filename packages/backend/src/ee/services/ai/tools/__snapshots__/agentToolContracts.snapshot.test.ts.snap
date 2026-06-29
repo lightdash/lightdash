@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`AI agent tool contracts matches the current agent tool contract snapshot 1`] = `
+exports[`AI agent tool contracts > matches the current agent tool contract snapshot 1`] = `
 [
   {
     "description": "Tool: describe_warehouse_table
@@ -6956,7 +6956,7 @@ Usage Tips:
 ]
 `;
 
-exports[`AI agent tool contracts matches the shared agent tool definition names snapshot 1`] = `
+exports[`AI agent tool contracts > matches the shared agent tool definition names snapshot 1`] = `
 [
   "findExplores",
   "findFields",

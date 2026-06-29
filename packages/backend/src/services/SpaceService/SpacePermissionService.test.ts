@@ -15,36 +15,47 @@ import { SpacePermissionModel } from '../../models/SpacePermissionModel';
 import { SpacePermissionService } from './SpacePermissionService';
 
 const createMockSpacePermissionModel = () => ({
-    getInheritanceChains: jest.fn<
-        Promise<Record<string, SpaceInheritanceChain>>,
-        [string[]]
-    >(),
-    getDirectSpaceAccess: jest.fn<
-        Promise<Record<string, DirectSpaceAccess[]>>,
-        [string[], { userUuid?: string }?]
-    >(),
-    getProjectSpaceAccess: jest.fn<
-        Promise<Record<string, ProjectSpaceAccess[]>>,
-        [string[], { userUuid?: string }?]
-    >(),
-    getOrganizationSpaceAccess: jest.fn<
-        Promise<Record<string, OrganizationSpaceAccess[]>>,
-        [string[], { userUuid?: string }?]
-    >(),
-    getSpaceInfo: jest.fn<
-        Promise<
-            Record<
-                string,
-                {
-                    projectUuid: string;
-                    organizationUuid: string;
-                }
+    getInheritanceChains:
+        vi.fn<
+            (
+                spaceUuids: string[],
+            ) => Promise<Record<string, SpaceInheritanceChain>>
+        >(),
+    getDirectSpaceAccess:
+        vi.fn<
+            (
+                spaceUuids: string[],
+                filters?: { userUuid?: string },
+            ) => Promise<Record<string, DirectSpaceAccess[]>>
+        >(),
+    getProjectSpaceAccess:
+        vi.fn<
+            (
+                spaceUuids: string[],
+                filters?: { userUuid?: string },
+            ) => Promise<Record<string, ProjectSpaceAccess[]>>
+        >(),
+    getOrganizationSpaceAccess:
+        vi.fn<
+            (
+                spaceUuids: string[],
+                filters?: { userUuid?: string },
+            ) => Promise<Record<string, OrganizationSpaceAccess[]>>
+        >(),
+    getSpaceInfo:
+        vi.fn<
+            (spaceUuids: string[]) => Promise<
+                Record<
+                    string,
+                    {
+                        projectUuid: string;
+                        organizationUuid: string;
+                    }
+                >
             >
-        >,
-        [string[]]
-    >(),
-    getGroupAccess: jest.fn(),
-    getUserMetadataByUuids: jest.fn(),
+        >(),
+    getGroupAccess: vi.fn(),
+    getUserMetadataByUuids: vi.fn(),
 });
 
 describe('SpacePermissionService', () => {
@@ -55,7 +66,7 @@ describe('SpacePermissionService', () => {
     );
 
     afterEach(() => {
-        jest.resetAllMocks();
+        vi.resetAllMocks();
     });
 
     describe('getSpacesCaslContext (via getAllSpaceAccessContext)', () => {

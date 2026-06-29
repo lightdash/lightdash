@@ -97,20 +97,20 @@ const editorUser = {
 };
 
 const savedChartModel = {
-    getSummary: jest.fn(async () => chartSummary),
-    get: jest.fn(async () => savedChartData),
-    createVersion: jest.fn(async () => savedChartData),
-    update: jest.fn(async () => savedChartData),
+    getSummary: vi.fn(async () => chartSummary),
+    get: vi.fn(async () => savedChartData),
+    createVersion: vi.fn(async () => savedChartData),
+    update: vi.fn(async () => savedChartData),
 };
 
 const contentVerificationModel = {
-    verify: jest.fn(async () => undefined),
-    unverify: jest.fn(async () => undefined),
-    getByContent: jest.fn(async () => verificationInfo),
+    verify: vi.fn(async () => undefined),
+    unverify: vi.fn(async () => undefined),
+    getByContent: vi.fn(async () => verificationInfo),
 };
 
 const spacePermissionService = {
-    getSpaceAccessContext: jest.fn(async () => ({
+    getSpaceAccessContext: vi.fn(async () => ({
         organizationUuid: 'org-uuid',
         projectUuid: 'project-uuid',
         inheritsFromOrgOrProject: true,
@@ -119,10 +119,10 @@ const spacePermissionService = {
 };
 
 const projectModel = {
-    getExploreFromCache: jest.fn(async () => null),
+    getExploreFromCache: vi.fn(async () => null),
 };
 
-jest.spyOn(analyticsMock, 'track');
+vi.spyOn(analyticsMock, 'track');
 
 describe('SavedChartService - Content Verification', () => {
     const service = new SavedChartService({
@@ -150,7 +150,7 @@ describe('SavedChartService - Content Verification', () => {
     });
 
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     describe('CASL authorization', () => {

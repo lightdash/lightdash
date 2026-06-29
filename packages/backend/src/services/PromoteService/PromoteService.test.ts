@@ -40,64 +40,64 @@ import {
 } from './PromoteService.mock';
 
 const projectModel = {
-    getSummary: jest.fn(async () => ({
+    getSummary: vi.fn(async () => ({
         upstreamProjectUuid: existingUpstreamDashboard.projectUuid,
     })),
 };
 
 const savedChartModel = {
-    getSummary: jest.fn(async () => ({
+    getSummary: vi.fn(async () => ({
         projectUuid: promotedChart.projectUuid,
     })),
-    get: jest.fn(async () => promotedChart.chart),
-    find: jest.fn(async () => [existingUpstreamChart.chart]),
-    create: jest.fn(async () => existingUpstreamChart.chart),
+    get: vi.fn(async () => promotedChart.chart),
+    find: vi.fn(async () => [existingUpstreamChart.chart]),
+    create: vi.fn(async () => existingUpstreamChart.chart),
 };
 
 const savedSqlModel = {
-    getByUuid: jest.fn(async () => promotedSqlChart),
-    find: jest.fn(async () => []),
-    create: jest.fn(async () => ({
+    getByUuid: vi.fn(async () => promotedSqlChart),
+    find: vi.fn(async () => []),
+    create: vi.fn(async () => ({
         savedSqlUuid: existingUpstreamSqlChart.savedSqlUuid,
         slug: existingUpstreamSqlChart.slug,
         savedSqlVersionUuid: 'saved-sql-version-uuid',
     })),
-    update: jest.fn(async () => ({
+    update: vi.fn(async () => ({
         savedSqlUuid: existingUpstreamSqlChart.savedSqlUuid,
         savedSqlVersionUuid: 'saved-sql-version-uuid',
     })),
 };
 
 const spaceModel = {
-    getSpaceSummary: jest.fn(async () => promotedChart.space),
-    find: jest.fn(),
-    getSpaceAncestors: jest.fn(async () => []),
-    createSpace: jest.fn(async () => existingUpstreamChart.space),
-    createSpaceWithAncestors: jest.fn(async () => existingUpstreamChart.space),
-    addSpaceAccess: jest.fn(async () => {}),
-    addSpaceGroupAccess: jest.fn(async () => {}),
-    update: jest.fn(async () => {}),
-    isRootSpace: jest.fn(async () => true),
+    getSpaceSummary: vi.fn(async () => promotedChart.space),
+    find: vi.fn(),
+    getSpaceAncestors: vi.fn(async () => []),
+    createSpace: vi.fn(async () => existingUpstreamChart.space),
+    createSpaceWithAncestors: vi.fn(async () => existingUpstreamChart.space),
+    addSpaceAccess: vi.fn(async () => {}),
+    addSpaceGroupAccess: vi.fn(async () => {}),
+    update: vi.fn(async () => {}),
+    isRootSpace: vi.fn(async () => true),
 };
 const dashboardModel = {
-    create: jest.fn(async () => existingUpstreamDashboard.dashboard),
-    getByIdOrSlug: jest.fn(async () => promotedDashboardWithSqlTile.dashboard),
-    find: jest.fn(async () => []),
+    create: vi.fn(async () => existingUpstreamDashboard.dashboard),
+    getByIdOrSlug: vi.fn(async () => promotedDashboardWithSqlTile.dashboard),
+    find: vi.fn(async () => []),
 };
 const spacePermissionService = {
-    getSpaceAccessContext: jest.fn(async () => ({
+    getSpaceAccessContext: vi.fn(async () => ({
         organizationUuid: 'org-uuid',
         projectUuid: 'project-uuid',
         inheritsFromOrgOrProject: true,
         access: [],
     })),
-    getAllSpaceAccessContext: jest.fn(async () => ({
+    getAllSpaceAccessContext: vi.fn(async () => ({
         organizationUuid: 'org-uuid',
         projectUuid: 'project-uuid',
         inheritsFromOrgOrProject: true,
         access: upstreamFullSpace.access,
     })),
-    getGroupAccess: jest.fn(async () => upstreamFullSpace.groupsAccess),
+    getGroupAccess: vi.fn(async () => upstreamFullSpace.groupsAccess),
 };
 
 const userWithAbilities = (
@@ -128,11 +128,13 @@ describe('PromoteService chart changes', () => {
             spacePermissionService as unknown as SpacePermissionService,
     });
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     test('getChartChanges create chart and space', async () => {
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [],
+        );
         const changes = await service.getChartChanges(
             promotedChart,
             missingUpstreamChart,
@@ -160,9 +162,9 @@ describe('PromoteService chart changes', () => {
         });
     });
     test('getChartChanges create chart but no space', async () => {
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
-            upstreamSpace,
-        ]);
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [upstreamSpace],
+        );
         const changes = await service.getChartChanges(promotedChart, {
             ...missingUpstreamChart,
             space: existingUpstreamChart.space,
@@ -190,9 +192,9 @@ describe('PromoteService chart changes', () => {
     });
 
     test('getChartChanges chart with no changes', async () => {
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
-            upstreamSpace,
-        ]);
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [upstreamSpace],
+        );
         const changes = await service.getChartChanges(
             promotedChart,
             existingUpstreamChart,
@@ -208,9 +210,9 @@ describe('PromoteService chart changes', () => {
 
     test('getChartChanges update chart', async () => {
         const updatedAt = new Date();
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
-            upstreamSpace,
-        ]);
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [upstreamSpace],
+        );
         const changes = await service.getChartChanges(
             {
                 ...promotedChart,
@@ -247,7 +249,9 @@ describe('PromoteService chart changes', () => {
 
     test('getChartChanges update chart and create space', async () => {
         const updatedAt = new Date();
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [],
+        );
         const changes = await service.getChartChanges(
             {
                 ...promotedChart,
@@ -305,11 +309,13 @@ describe('PromoteService dashboard changes', () => {
             spacePermissionService as unknown as SpacePermissionService,
     });
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     test('getPromotionDashboardChanges create empty dashboard and space', async () => {
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [],
+        );
         const [changes, promotedCharts] =
             await service.getPromotionDashboardChanges(
                 user,
@@ -346,14 +352,18 @@ describe('PromoteService dashboard changes', () => {
         });
     });
     test('getPromotionDashboardChanges create dashboard with chart tiles and space', async () => {
-        (savedChartModel.get as jest.Mock).mockImplementationOnce(
+        (savedChartModel.get as import('vitest').Mock).mockImplementationOnce(
             async () => promotedChart.chart,
         );
-        (savedChartModel.find as jest.Mock).mockImplementationOnce(
+        (savedChartModel.find as import('vitest').Mock).mockImplementationOnce(
             async () => [],
         );
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [],
+        );
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [],
+        );
 
         const [changes, promotedCharts] =
             await service.getPromotionDashboardChanges(
@@ -397,9 +407,15 @@ describe('PromoteService dashboard changes', () => {
     });
 
     test('getPromotionDashboardChanges create dashboard with chart tiles in different spaces', async () => {
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [],
+        );
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [],
+        );
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [],
+        );
 
         const [changes, promotedCharts] =
             await service.getPromotionDashboardChanges(
@@ -445,15 +461,15 @@ describe('PromoteService dashboard changes', () => {
     test('getPromotionDashboardChanges update dashboard with chart tiles ', async () => {
         const updatedAt = new Date();
         const updatedPromotedChart = { ...promotedChart.chart, updatedAt };
-        (savedChartModel.get as jest.Mock).mockImplementationOnce(
+        (savedChartModel.get as import('vitest').Mock).mockImplementationOnce(
             async () => updatedPromotedChart,
         );
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
-            existingUpstreamDashboard.space,
-        ]);
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
-            existingUpstreamDashboard.space,
-        ]);
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [existingUpstreamDashboard.space],
+        );
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [existingUpstreamDashboard.space],
+        );
 
         const [changes, promotedCharts] =
             await service.getPromotionDashboardChanges(
@@ -491,14 +507,18 @@ describe('PromoteService dashboard changes', () => {
     });
 
     test('getPromotionDashboardChanges create dashboard with new chart within dashboard and space', async () => {
-        (savedChartModel.get as jest.Mock).mockImplementationOnce(
+        (savedChartModel.get as import('vitest').Mock).mockImplementationOnce(
             async () => promotedChartWithinDashboard.chart,
         );
-        (savedChartModel.find as jest.Mock).mockImplementationOnce(
+        (savedChartModel.find as import('vitest').Mock).mockImplementationOnce(
             async () => [],
         );
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [],
+        );
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [],
+        );
 
         const [changes, promotedCharts] =
             await service.getPromotionDashboardChanges(
@@ -544,15 +564,21 @@ describe('PromoteService dashboard changes', () => {
     });
 
     test('getPromotionDashboardChanges discovers SQL chart tiles and SQL space requirements', async () => {
-        (savedSqlModel.getByUuid as jest.Mock).mockImplementationOnce(
-            async () => promotedSqlChart,
-        );
-        (savedSqlModel.find as jest.Mock).mockImplementationOnce(
+        (
+            savedSqlModel.getByUuid as import('vitest').Mock
+        ).mockImplementationOnce(async () => promotedSqlChart);
+        (savedSqlModel.find as import('vitest').Mock).mockImplementationOnce(
             async () => [],
         );
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [],
+        );
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [],
+        );
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [],
+        );
 
         const [changes, promotedCharts, promotedSqlCharts, sqlChanges] =
             await service.getPromotionDashboardChanges(
@@ -610,14 +636,18 @@ describe('PromoteService dashboard changes', () => {
             },
         };
 
-        (savedChartModel.get as jest.Mock).mockImplementationOnce(
+        (savedChartModel.get as import('vitest').Mock).mockImplementationOnce(
             async () => promotedChart.chart,
         );
-        (savedChartModel.find as jest.Mock).mockImplementationOnce(
+        (savedChartModel.find as import('vitest').Mock).mockImplementationOnce(
             async () => [],
         );
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [],
+        );
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [],
+        );
 
         const [changes, promotedCharts] =
             await service.getPromotionDashboardChanges(
@@ -654,14 +684,18 @@ describe('PromoteService dashboard changes', () => {
             },
         };
 
-        (savedSqlModel.getByUuid as jest.Mock).mockImplementationOnce(
-            async () => promotedSqlChart,
-        );
-        (savedSqlModel.find as jest.Mock).mockImplementationOnce(
+        (
+            savedSqlModel.getByUuid as import('vitest').Mock
+        ).mockImplementationOnce(async () => promotedSqlChart);
+        (savedSqlModel.find as import('vitest').Mock).mockImplementationOnce(
             async () => [],
         );
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [],
+        );
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [],
+        );
 
         const [changes, , promotedSqlCharts, sqlChanges] =
             await service.getPromotionDashboardChanges(
@@ -692,16 +726,16 @@ describe('PromoteService promoting and mutating changes', () => {
             spacePermissionService as unknown as SpacePermissionService,
     });
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     test('return same changes if no new space is created', async () => {
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
-            existingUpstreamDashboard.space,
-        ]);
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
-            existingUpstreamDashboard.space,
-        ]);
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [existingUpstreamDashboard.space],
+        );
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [existingUpstreamDashboard.space],
+        );
         const [changes, promotedCharts] =
             await service.getPromotionDashboardChanges(
                 user,
@@ -723,8 +757,12 @@ describe('PromoteService promoting and mutating changes', () => {
     });
 
     test('create space and update space uuid if a new space is created', async () => {
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [],
+        );
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [],
+        );
         const [changes, promotedCharts] =
             await service.getPromotionDashboardChanges(
                 user,
@@ -785,8 +823,12 @@ describe('PromoteService promoting and mutating changes', () => {
     });
 
     test('create private space and add user as admin', async () => {
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [],
+        );
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [],
+        );
         const [changes] = await service.getPromotionDashboardChanges(
             user,
             promotedDashboardWithNewPrivateSpace,
@@ -798,7 +840,7 @@ describe('PromoteService promoting and mutating changes', () => {
         expect(changes.spaces[0].data.inheritParentPermissions).toBe(false);
 
         (
-            spaceModel.createSpaceWithAncestors as jest.Mock
+            spaceModel.createSpaceWithAncestors as import('vitest').Mock
         ).mockImplementationOnce(async () => ({
             ...promotedDashboardWithNewPrivateSpace.space,
             projectUuid: missingUpstreamDashboard.projectUuid,
@@ -835,12 +877,12 @@ describe('PromoteService promoting and mutating changes', () => {
     });
 
     test('update space should not affect permissions', async () => {
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
-            existingUpstreamDashboard.space,
-        ]);
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
-            existingUpstreamDashboard.space,
-        ]);
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [existingUpstreamDashboard.space],
+        );
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [existingUpstreamDashboard.space],
+        );
         const [changes, promotedCharts] =
             await service.getPromotionDashboardChanges(
                 user,
@@ -867,12 +909,12 @@ describe('PromoteService promoting and mutating changes', () => {
     });
 
     test('return same changes if no new dashboard is created', async () => {
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
-            existingUpstreamDashboard.space,
-        ]);
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
-            existingUpstreamDashboard.space,
-        ]);
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [existingUpstreamDashboard.space],
+        );
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [existingUpstreamDashboard.space],
+        );
         const [changes, promotedCharts] =
             await service.getPromotionDashboardChanges(
                 user,
@@ -890,12 +932,12 @@ describe('PromoteService promoting and mutating changes', () => {
     });
 
     test('create dashboard and update dashboard uuid if a new dashboard is created', async () => {
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
-            existingUpstreamDashboard.space,
-        ]);
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
-            existingUpstreamDashboard.space,
-        ]);
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [existingUpstreamDashboard.space],
+        );
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [existingUpstreamDashboard.space],
+        );
         const [changes, promotedCharts] =
             await service.getPromotionDashboardChanges(
                 user,
@@ -927,18 +969,18 @@ describe('PromoteService promoting and mutating changes', () => {
     });
 
     test('create dashboard and update dashboard uuid if a new dashboard with chart within dashboard is created', async () => {
-        (savedChartModel.get as jest.Mock).mockImplementationOnce(
+        (savedChartModel.get as import('vitest').Mock).mockImplementationOnce(
             async () => promotedChartWithinDashboard.chart,
         );
-        (savedChartModel.find as jest.Mock).mockImplementationOnce(
+        (savedChartModel.find as import('vitest').Mock).mockImplementationOnce(
             async () => [],
         );
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
-            existingUpstreamDashboard.space,
-        ]);
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
-            existingUpstreamDashboard.space,
-        ]);
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [existingUpstreamDashboard.space],
+        );
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [existingUpstreamDashboard.space],
+        );
 
         const [changes, promotedCharts] =
             await service.getPromotionDashboardChanges(
@@ -965,12 +1007,12 @@ describe('PromoteService promoting and mutating changes', () => {
     });
 
     test('create charts returns no changes if no chart is created', async () => {
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
-            existingUpstreamDashboard.space,
-        ]);
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
-            existingUpstreamDashboard.space,
-        ]);
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [existingUpstreamDashboard.space],
+        );
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [existingUpstreamDashboard.space],
+        );
         const [changes, promotedCharts] =
             await service.getPromotionDashboardChanges(
                 user,
@@ -996,26 +1038,26 @@ describe('PromoteService promoting and mutating changes', () => {
     });
 
     test('create charts and update dashboard tile uuids if a new chart created', async () => {
-        (savedChartModel.get as jest.Mock).mockImplementationOnce(
+        (savedChartModel.get as import('vitest').Mock).mockImplementationOnce(
             async () => promotedChartWithinDashboard.chart,
         );
-        (savedChartModel.find as jest.Mock).mockImplementationOnce(
+        (savedChartModel.find as import('vitest').Mock).mockImplementationOnce(
             async () => [],
         );
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
-            existingUpstreamDashboard.space,
-        ]);
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
-            existingUpstreamDashboard.space,
-        ]);
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [existingUpstreamDashboard.space],
+        );
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [existingUpstreamDashboard.space],
+        );
         const createdChart = {
             ...promotedChartWithinDashboard.chart,
             uuid: 'new-chart-uuid',
         };
 
-        (savedChartModel.create as jest.Mock).mockImplementationOnce(
-            async () => createdChart,
-        );
+        (
+            savedChartModel.create as import('vitest').Mock
+        ).mockImplementationOnce(async () => createdChart);
         const [changes, promotedCharts] =
             await service.getPromotionDashboardChanges(
                 user,
@@ -1060,19 +1102,19 @@ describe('PromoteService promoting and mutating changes', () => {
             },
         };
 
-        (savedSqlModel.getByUuid as jest.Mock).mockImplementationOnce(
-            async () => promotedSqlChart,
-        );
-        (savedSqlModel.find as jest.Mock).mockImplementationOnce(
+        (
+            savedSqlModel.getByUuid as import('vitest').Mock
+        ).mockImplementationOnce(async () => promotedSqlChart);
+        (savedSqlModel.find as import('vitest').Mock).mockImplementationOnce(
             async () => [],
         );
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
-            existingUpstreamDashboard.space,
-        ]);
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
-            existingUpstreamDashboard.space,
-        ]);
-        (savedSqlModel.create as jest.Mock).mockImplementationOnce(
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [existingUpstreamDashboard.space],
+        );
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [existingUpstreamDashboard.space],
+        );
+        (savedSqlModel.create as import('vitest').Mock).mockImplementationOnce(
             async () => ({
                 savedSqlUuid: 'new-upstream-sql-chart-uuid',
                 slug: promotedSqlChart.slug,
@@ -1129,52 +1171,56 @@ describe('PromoteService promoting and mutating changes', () => {
             },
         };
 
-        (savedSqlModel.getByUuid as jest.Mock).mockImplementationOnce(
-            async () => ({
-                ...promotedSqlChart,
-                lastUpdatedAt: new Date('2025-01-01T00:00:00.000Z'),
-                name: 'new sql chart title',
-            }),
+        (
+            savedSqlModel.getByUuid as import('vitest').Mock
+        ).mockImplementationOnce(async () => ({
+            ...promotedSqlChart,
+            lastUpdatedAt: new Date('2025-01-01T00:00:00.000Z'),
+            name: 'new sql chart title',
+        }));
+        (savedSqlModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [
+                {
+                    saved_sql_uuid: existingUpstreamSqlChart.savedSqlUuid,
+                    name: 'old sql chart title',
+                    description: promotedSqlChart.description,
+                    slug: existingUpstreamSqlChart.slug,
+                    dashboard_uuid: null,
+                    created_at: existingUpstreamSqlChart.createdAt,
+                    last_version_updated_at: new Date(
+                        '2024-01-01T00:00:00.000Z',
+                    ),
+                    views_count: existingUpstreamSqlChart.views,
+                    first_viewed_at: existingUpstreamSqlChart.firstViewedAt,
+                    last_viewed_at: existingUpstreamSqlChart.lastViewedAt,
+                    sql: existingUpstreamSqlChart.sql,
+                    limit: existingUpstreamSqlChart.limit,
+                    config: existingUpstreamSqlChart.config,
+                    chart_kind: existingUpstreamSqlChart.chartKind,
+                    space_uuid: existingUpstreamSqlChart.space.uuid,
+                    path: promotedDashboard.space.path,
+                    project_uuid: missingUpstreamDashboard.projectUuid,
+                    organization_uuid: user.organizationUuid,
+                    updated_at: new Date('2024-01-01T00:00:00.000Z'),
+                    spaceName: existingUpstreamSqlChart.space.name,
+                    space_inherit_parent_permissions:
+                        upstreamSpace!.inheritParentPermissions,
+                    dashboardName: null,
+                    created_by_user_uuid: user.userUuid,
+                    created_by_user_first_name: user.firstName,
+                    created_by_user_last_name: user.lastName,
+                    last_version_updated_by_user_uuid: user.userUuid,
+                    last_version_updated_by_user_first_name: user.firstName,
+                    last_version_updated_by_user_last_name: user.lastName,
+                },
+            ],
         );
-        (savedSqlModel.find as jest.Mock).mockImplementationOnce(async () => [
-            {
-                saved_sql_uuid: existingUpstreamSqlChart.savedSqlUuid,
-                name: 'old sql chart title',
-                description: promotedSqlChart.description,
-                slug: existingUpstreamSqlChart.slug,
-                dashboard_uuid: null,
-                created_at: existingUpstreamSqlChart.createdAt,
-                last_version_updated_at: new Date('2024-01-01T00:00:00.000Z'),
-                views_count: existingUpstreamSqlChart.views,
-                first_viewed_at: existingUpstreamSqlChart.firstViewedAt,
-                last_viewed_at: existingUpstreamSqlChart.lastViewedAt,
-                sql: existingUpstreamSqlChart.sql,
-                limit: existingUpstreamSqlChart.limit,
-                config: existingUpstreamSqlChart.config,
-                chart_kind: existingUpstreamSqlChart.chartKind,
-                space_uuid: existingUpstreamSqlChart.space.uuid,
-                path: promotedDashboard.space.path,
-                project_uuid: missingUpstreamDashboard.projectUuid,
-                organization_uuid: user.organizationUuid,
-                updated_at: new Date('2024-01-01T00:00:00.000Z'),
-                spaceName: existingUpstreamSqlChart.space.name,
-                space_inherit_parent_permissions:
-                    upstreamSpace!.inheritParentPermissions,
-                dashboardName: null,
-                created_by_user_uuid: user.userUuid,
-                created_by_user_first_name: user.firstName,
-                created_by_user_last_name: user.lastName,
-                last_version_updated_by_user_uuid: user.userUuid,
-                last_version_updated_by_user_first_name: user.firstName,
-                last_version_updated_by_user_last_name: user.lastName,
-            },
-        ]);
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
-            existingUpstreamDashboard.space,
-        ]);
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
-            existingUpstreamDashboard.space,
-        ]);
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [existingUpstreamDashboard.space],
+        );
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [existingUpstreamDashboard.space],
+        );
 
         const [changes, , , sqlChanges] =
             await service.getPromotionDashboardChanges(
@@ -1232,22 +1278,24 @@ describe('PromoteService promoting and mutating changes', () => {
             ),
         };
 
-        (projectModel.getSummary as jest.Mock).mockImplementationOnce(
-            async () => ({
-                upstreamProjectUuid: existingUpstreamDashboard.projectUuid,
-            }),
-        );
-        (dashboardModel.getByIdOrSlug as jest.Mock).mockImplementationOnce(
-            async () => dashboardWithOnlySqlTile,
-        );
-        (dashboardModel.find as jest.Mock).mockImplementationOnce(
+        (
+            projectModel.getSummary as import('vitest').Mock
+        ).mockImplementationOnce(async () => ({
+            upstreamProjectUuid: existingUpstreamDashboard.projectUuid,
+        }));
+        (
+            dashboardModel.getByIdOrSlug as import('vitest').Mock
+        ).mockImplementationOnce(async () => dashboardWithOnlySqlTile);
+        (dashboardModel.find as import('vitest').Mock).mockImplementationOnce(
             async () => [],
         );
-        (spaceModel.find as jest.Mock).mockImplementation(async () => []);
-        (savedSqlModel.getByUuid as jest.Mock).mockImplementationOnce(
-            async () => promotedSqlChart,
+        (spaceModel.find as import('vitest').Mock).mockImplementation(
+            async () => [],
         );
-        (savedSqlModel.find as jest.Mock).mockImplementationOnce(
+        (
+            savedSqlModel.getByUuid as import('vitest').Mock
+        ).mockImplementationOnce(async () => promotedSqlChart);
+        (savedSqlModel.find as import('vitest').Mock).mockImplementationOnce(
             async () => [],
         );
 
@@ -1278,9 +1326,9 @@ describe('PromoteService promoting and mutating changes', () => {
             { subject: 'Project', action: ['view'] },
         ]);
 
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
-            existingUpstreamChart.space,
-        ]);
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [existingUpstreamChart.space],
+        );
 
         await expect(
             service.getPromoteChartDiff(
@@ -1297,9 +1345,9 @@ describe('PromoteService promoting and mutating changes', () => {
             { subject: 'Project', action: ['view'] },
         ]);
 
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
-            existingUpstreamSqlChart.space,
-        ]);
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [existingUpstreamSqlChart.space],
+        );
 
         await expect(
             service.getPromoteSqlChartDiff(
@@ -1321,15 +1369,15 @@ describe('PromoteService promoting and mutating changes', () => {
             tiles: [],
         };
 
-        (dashboardModel.getByIdOrSlug as jest.Mock).mockImplementationOnce(
-            async () => dashboardWithoutTiles,
+        (
+            dashboardModel.getByIdOrSlug as import('vitest').Mock
+        ).mockImplementationOnce(async () => dashboardWithoutTiles);
+        (dashboardModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [existingUpstreamDashboard.dashboard],
         );
-        (dashboardModel.find as jest.Mock).mockImplementationOnce(async () => [
-            existingUpstreamDashboard.dashboard,
-        ]);
-        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
-            existingUpstreamDashboard.space,
-        ]);
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [existingUpstreamDashboard.space],
+        );
 
         await expect(
             service.getPromoteDashboardDiff(
@@ -1425,7 +1473,7 @@ describe('PromoteService permission checks', () => {
 
 describe('PromoteService data app promotion', () => {
     const appGenerateService = {
-        promoteAppsForDashboard: jest.fn(async () => [
+        promoteAppsForDashboard: vi.fn(async () => [
             { sourceAppUuid: promotedAppUuid, upstreamAppUuid },
         ]),
     };
@@ -1466,7 +1514,7 @@ describe('PromoteService data app promotion', () => {
     });
 
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     test('promotes referenced apps and remaps the DATA_APP tile appUuid', async () => {

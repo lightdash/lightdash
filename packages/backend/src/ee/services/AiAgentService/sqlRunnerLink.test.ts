@@ -1,7 +1,11 @@
 import { AiAgentService } from './AiAgentService';
 
-jest.mock('../ai/AiAgentMcpRuntimeClient', () => ({
-    AiAgentMcpRuntimeClient: jest.fn().mockImplementation(() => ({})),
+vi.mock('../ai/AiAgentMcpRuntimeClient', () => ({
+    AiAgentMcpRuntimeClient: vi
+        .fn()
+        .mockImplementation(function AiAgentMcpRuntimeClient() {
+            return {};
+        }),
 }));
 
 const SITE_URL = 'https://app.example.com';
@@ -10,10 +14,10 @@ const buildService = (overrides: {
     toolCalls: unknown[];
     toolResults: unknown[];
 }) => {
-    const createShareUrl = jest.fn().mockResolvedValue({ nanoid: 'share123' });
+    const createShareUrl = vi.fn().mockResolvedValue({ nanoid: 'share123' });
     const aiAgentModel = {
-        getToolCallsForPrompt: jest.fn().mockResolvedValue(overrides.toolCalls),
-        getToolResultsForPrompt: jest
+        getToolCallsForPrompt: vi.fn().mockResolvedValue(overrides.toolCalls),
+        getToolResultsForPrompt: vi
             .fn()
             .mockResolvedValue(overrides.toolResults),
     };

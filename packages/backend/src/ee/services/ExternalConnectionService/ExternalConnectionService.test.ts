@@ -76,37 +76,37 @@ const makeAccount = (_canManage: boolean): RegisteredAccount => {
 function buildService(opts: {
     connection?: ExternalConnection | null;
     secret?: string | null;
-    saveSampleFn?: jest.Mock;
-    countSamplesFn?: jest.Mock;
-    listSamplesFn?: jest.Mock;
-    deleteSampleFn?: jest.Mock;
-    getSampleConnectionUuidFn?: jest.Mock;
-    linkToAppFn?: jest.Mock;
-    findAppFn?: jest.Mock;
+    saveSampleFn?: import('vitest').Mock;
+    countSamplesFn?: import('vitest').Mock;
+    listSamplesFn?: import('vitest').Mock;
+    deleteSampleFn?: import('vitest').Mock;
+    getSampleConnectionUuidFn?: import('vitest').Mock;
+    linkToAppFn?: import('vitest').Mock;
+    findAppFn?: import('vitest').Mock;
 }) {
     const model = {
-        findByUuid: jest
+        findByUuid: vi
             .fn()
             .mockResolvedValue(
                 opts.connection !== undefined ? opts.connection : connection,
             ),
-        getDecryptedSecret: jest
+        getDecryptedSecret: vi
             .fn()
             .mockResolvedValue(opts.secret ?? 's3cr3t'),
         saveSample:
-            opts.saveSampleFn ?? jest.fn().mockResolvedValue(fakeSample),
-        countSamples: opts.countSamplesFn ?? jest.fn().mockResolvedValue(0),
+            opts.saveSampleFn ?? vi.fn().mockResolvedValue(fakeSample),
+        countSamples: opts.countSamplesFn ?? vi.fn().mockResolvedValue(0),
         listSamples:
-            opts.listSamplesFn ?? jest.fn().mockResolvedValue([fakeSample]),
+            opts.listSamplesFn ?? vi.fn().mockResolvedValue([fakeSample]),
         deleteSample:
-            opts.deleteSampleFn ?? jest.fn().mockResolvedValue(undefined),
+            opts.deleteSampleFn ?? vi.fn().mockResolvedValue(undefined),
         getSampleConnectionUuid:
             opts.getSampleConnectionUuidFn ??
-            jest.fn().mockResolvedValue(connectionUuid),
-        linkToApp: opts.linkToAppFn ?? jest.fn().mockResolvedValue(undefined),
+            vi.fn().mockResolvedValue(connectionUuid),
+        linkToApp: opts.linkToAppFn ?? vi.fn().mockResolvedValue(undefined),
         findApp:
             opts.findAppFn ??
-            jest.fn().mockResolvedValue({
+            vi.fn().mockResolvedValue({
                 app_id: 'app-1',
                 project_uuid: projectUuid,
                 space_uuid: null,
@@ -118,9 +118,9 @@ function buildService(opts: {
         externalConnectionModel: model as never,
         appModel: {} as never,
         spacePermissionService: {
-            getSpaceAccessContext: jest.fn().mockResolvedValue({}),
+            getSpaceAccessContext: vi.fn().mockResolvedValue({}),
         } as never,
-        analytics: { track: jest.fn() } as never,
+        analytics: { track: vi.fn() } as never,
     });
     return { service, model };
 }
@@ -130,7 +130,7 @@ function mockAbility(
     service: ExternalConnectionService,
     canManage: boolean,
 ): void {
-    jest.spyOn(
+    vi.spyOn(
         service as unknown as { createAuditedAbility: () => unknown },
         'createAuditedAbility',
     ).mockReturnValue({
@@ -146,10 +146,10 @@ const viewerAccount = makeAccount(false);
 // testConnection
 // -------------------------------------------------------------------
 describe('ExternalConnectionService.testConnection', () => {
-    let executeSpy: jest.SpyInstance;
+    let executeSpy: import('vitest').MockInstance;
 
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it('rejects a non-admin account with ForbiddenError', async () => {
@@ -168,7 +168,7 @@ describe('ExternalConnectionService.testConnection', () => {
         const { service, model } = buildService({});
         mockAbility(service, true);
 
-        executeSpy = jest
+        executeSpy = vi
             .spyOn(
                 service as unknown as {
                     executeExternalFetch: (...a: unknown[]) => Promise<unknown>;
@@ -202,7 +202,7 @@ describe('ExternalConnectionService.testConnection', () => {
         const { service } = buildService({});
         mockAbility(service, true);
 
-        executeSpy = jest
+        executeSpy = vi
             .spyOn(
                 service as unknown as {
                     executeExternalFetch: (...a: unknown[]) => Promise<unknown>;
@@ -237,7 +237,7 @@ describe('ExternalConnectionService.testConnection', () => {
         });
         mockAbility(service, true);
 
-        const executeExternalFetchSpy = jest.spyOn(
+        const executeExternalFetchSpy = vi.spyOn(
             service as unknown as {
                 executeExternalFetch: (...a: unknown[]) => Promise<unknown>;
             },
@@ -287,11 +287,11 @@ describe('ExternalConnectionService.testConnection', () => {
 // -------------------------------------------------------------------
 describe('ExternalConnectionService.saveSample', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it('rejects a non-admin account with ForbiddenError', async () => {
-        const saveSampleFn = jest.fn();
+        const saveSampleFn = vi.fn();
         const { service } = buildService({ saveSampleFn });
         mockAbility(service, false);
 
@@ -305,7 +305,7 @@ describe('ExternalConnectionService.saveSample', () => {
     });
 
     it('throws NotFoundError for a cross-project connection', async () => {
-        const saveSampleFn = jest.fn();
+        const saveSampleFn = vi.fn();
         const { service } = buildService({
             connection: { ...connection, projectUuid: 'other-project' },
             saveSampleFn,
@@ -322,7 +322,7 @@ describe('ExternalConnectionService.saveSample', () => {
     });
 
     it('persists the sanitized sample and returns the saved sample', async () => {
-        const saveSampleFn = jest.fn().mockResolvedValue(fakeSample);
+        const saveSampleFn = vi.fn().mockResolvedValue(fakeSample);
         const { service } = buildService({ saveSampleFn });
         mockAbility(service, true);
 
@@ -351,7 +351,7 @@ describe('ExternalConnectionService.saveSample', () => {
     });
 
     it('truncates a response larger than the byte cap before persisting', async () => {
-        const saveSampleFn = jest.fn().mockResolvedValue(fakeSample);
+        const saveSampleFn = vi.fn().mockResolvedValue(fakeSample);
         const { service } = buildService({ saveSampleFn });
         mockAbility(service, true);
 
@@ -371,7 +371,7 @@ describe('ExternalConnectionService.saveSample', () => {
     });
 
     it('truncates a long array of rows in the response to the row cap', async () => {
-        const saveSampleFn = jest.fn().mockResolvedValue(fakeSample);
+        const saveSampleFn = vi.fn().mockResolvedValue(fakeSample);
         const { service } = buildService({ saveSampleFn });
         mockAbility(service, true);
 
@@ -389,7 +389,7 @@ describe('ExternalConnectionService.saveSample', () => {
     });
 
     it('never persists the decrypted secret even if the response body echoes it', async () => {
-        const saveSampleFn = jest.fn().mockResolvedValue(fakeSample);
+        const saveSampleFn = vi.fn().mockResolvedValue(fakeSample);
         const { service, model } = buildService({
             saveSampleFn,
             secret: 'SENTINEL_SECRET_abc123',
@@ -415,7 +415,7 @@ describe('ExternalConnectionService.saveSample', () => {
     });
 
     it('does not call getDecryptedSecret — saveSample never reads the connection secret', async () => {
-        const saveSampleFn = jest.fn().mockResolvedValue(fakeSample);
+        const saveSampleFn = vi.fn().mockResolvedValue(fakeSample);
         const { service, model } = buildService({ saveSampleFn });
         mockAbility(service, true);
 
@@ -428,7 +428,7 @@ describe('ExternalConnectionService.saveSample', () => {
     });
 
     it('rejects a sample whose request method is not allowed by the connection', async () => {
-        const saveSampleFn = jest.fn();
+        const saveSampleFn = vi.fn();
         const { service } = buildService({
             connection: { ...connection, allowedMethods: ['GET'] },
             saveSampleFn,
@@ -445,7 +445,7 @@ describe('ExternalConnectionService.saveSample', () => {
     });
 
     it('rejects a sample whose request path is outside the allowed prefixes', async () => {
-        const saveSampleFn = jest.fn();
+        const saveSampleFn = vi.fn();
         const { service } = buildService({ saveSampleFn });
         mockAbility(service, true);
 
@@ -459,10 +459,10 @@ describe('ExternalConnectionService.saveSample', () => {
     });
 
     it('rejects saving once the connection is at the sample cap', async () => {
-        const saveSampleFn = jest.fn();
+        const saveSampleFn = vi.fn();
         const { service } = buildService({
             saveSampleFn,
-            countSamplesFn: jest
+            countSamplesFn: vi
                 .fn()
                 .mockResolvedValue(
                     ExternalConnectionService.MAX_SAMPLES_PER_CONNECTION,
@@ -480,7 +480,7 @@ describe('ExternalConnectionService.saveSample', () => {
     });
 
     it('redacts secret-ish keys from the request query/body before persisting', async () => {
-        const saveSampleFn = jest.fn().mockResolvedValue(fakeSample);
+        const saveSampleFn = vi.fn().mockResolvedValue(fakeSample);
         const { service } = buildService({ saveSampleFn });
         mockAbility(service, true);
 
@@ -507,11 +507,11 @@ describe('ExternalConnectionService.saveSample', () => {
 // -------------------------------------------------------------------
 describe('ExternalConnectionService.listSamples', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it('rejects a non-admin with ForbiddenError', async () => {
-        const listSamplesFn = jest.fn();
+        const listSamplesFn = vi.fn();
         const { service } = buildService({ listSamplesFn });
         mockAbility(service, false);
 
@@ -522,7 +522,7 @@ describe('ExternalConnectionService.listSamples', () => {
     });
 
     it('throws NotFoundError for a cross-project connection', async () => {
-        const listSamplesFn = jest.fn();
+        const listSamplesFn = vi.fn();
         const { service } = buildService({
             connection: { ...connection, projectUuid: 'other-project' },
             listSamplesFn,
@@ -536,7 +536,7 @@ describe('ExternalConnectionService.listSamples', () => {
     });
 
     it('returns samples for an admin on the right project', async () => {
-        const listSamplesFn = jest.fn().mockResolvedValue([fakeSample]);
+        const listSamplesFn = vi.fn().mockResolvedValue([fakeSample]);
         const { service } = buildService({ listSamplesFn });
         mockAbility(service, true);
 
@@ -556,11 +556,11 @@ describe('ExternalConnectionService.listSamples', () => {
 // -------------------------------------------------------------------
 describe('ExternalConnectionService.deleteSample', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it('rejects a non-admin with ForbiddenError', async () => {
-        const deleteSampleFn = jest.fn();
+        const deleteSampleFn = vi.fn();
         const { service } = buildService({ deleteSampleFn });
         mockAbility(service, false);
 
@@ -576,7 +576,7 @@ describe('ExternalConnectionService.deleteSample', () => {
     });
 
     it('throws NotFoundError for a cross-project connection', async () => {
-        const deleteSampleFn = jest.fn();
+        const deleteSampleFn = vi.fn();
         const { service } = buildService({
             connection: { ...connection, projectUuid: 'other-project' },
             deleteSampleFn,
@@ -595,10 +595,10 @@ describe('ExternalConnectionService.deleteSample', () => {
     });
 
     it('throws NotFoundError when the sample belongs to a different connection', async () => {
-        const deleteSampleFn = jest.fn();
+        const deleteSampleFn = vi.fn();
         const { service } = buildService({
             deleteSampleFn,
-            getSampleConnectionUuidFn: jest
+            getSampleConnectionUuidFn: vi
                 .fn()
                 .mockResolvedValue('different-connection-uuid'),
         });
@@ -616,10 +616,10 @@ describe('ExternalConnectionService.deleteSample', () => {
     });
 
     it('throws NotFoundError when the sample does not exist', async () => {
-        const deleteSampleFn = jest.fn();
+        const deleteSampleFn = vi.fn();
         const { service } = buildService({
             deleteSampleFn,
-            getSampleConnectionUuidFn: jest.fn().mockResolvedValue(undefined),
+            getSampleConnectionUuidFn: vi.fn().mockResolvedValue(undefined),
         });
         mockAbility(service, true);
 
@@ -635,7 +635,7 @@ describe('ExternalConnectionService.deleteSample', () => {
     });
 
     it('deletes the sample when the connection and sample UUID match', async () => {
-        const deleteSampleFn = jest.fn().mockResolvedValue(undefined);
+        const deleteSampleFn = vi.fn().mockResolvedValue(undefined);
         const { service } = buildService({ deleteSampleFn });
         mockAbility(service, true);
 
@@ -657,11 +657,11 @@ describe('ExternalConnectionService.deleteSample', () => {
 // -------------------------------------------------------------------
 describe('ExternalConnectionService.linkToApp alias validation', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it('rejects alias containing path-traversal characters (../prompt)', async () => {
-        const linkToAppFn = jest.fn();
+        const linkToAppFn = vi.fn();
         const { service } = buildService({ linkToAppFn });
         mockAbility(service, true);
 
@@ -678,7 +678,7 @@ describe('ExternalConnectionService.linkToApp alias validation', () => {
     });
 
     it('rejects alias containing a forward slash (a/b)', async () => {
-        const linkToAppFn = jest.fn();
+        const linkToAppFn = vi.fn();
         const { service } = buildService({ linkToAppFn });
         mockAbility(service, true);
 
@@ -695,7 +695,7 @@ describe('ExternalConnectionService.linkToApp alias validation', () => {
     });
 
     it('rejects alias longer than 64 characters', async () => {
-        const linkToAppFn = jest.fn();
+        const linkToAppFn = vi.fn();
         const { service } = buildService({ linkToAppFn });
         mockAbility(service, true);
 
@@ -713,7 +713,7 @@ describe('ExternalConnectionService.linkToApp alias validation', () => {
     });
 
     it('accepts a valid alias of letters, numbers, hyphens, and underscores', async () => {
-        const linkToAppFn = jest.fn().mockResolvedValue(undefined);
+        const linkToAppFn = vi.fn().mockResolvedValue(undefined);
         const { service } = buildService({ linkToAppFn });
         mockAbility(service, true);
 

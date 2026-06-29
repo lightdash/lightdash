@@ -6,17 +6,17 @@ const changeUuid = '22222222-2222-4222-8222-222222222222';
 const account = buildAccount();
 
 const changesetModel = {
-    getChange: jest.fn(),
-    revertChange: jest.fn(),
-    findActiveChangesetWithChangesByProjectUuid: jest.fn(),
+    getChange: vi.fn(),
+    revertChange: vi.fn(),
+    findActiveChangesetWithChangesByProjectUuid: vi.fn(),
 };
 
 const projectModel = {
-    findExploresFromCache: jest.fn(),
+    findExploresFromCache: vi.fn(),
 };
 
 const catalogModel = {
-    indexCatalogReverts: jest.fn(),
+    indexCatalogReverts: vi.fn(),
 };
 
 const service = new ChangesetService({
@@ -29,7 +29,7 @@ const service = new ChangesetService({
 
 describe('ChangesetService tenant scoping', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     test('gets a change scoped to the authorized project', async () => {

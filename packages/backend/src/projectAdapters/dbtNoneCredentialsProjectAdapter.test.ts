@@ -5,7 +5,7 @@ import {
 import { DbtNoneCredentialsProjectAdapter } from './dbtNoneCredentialsProjectAdapter';
 
 const mockProjectAdapter = new DbtNoneCredentialsProjectAdapter({
-    warehouseClient: jest.fn() as unknown as WarehouseClient,
+    warehouseClient: vi.fn() as unknown as WarehouseClient,
 });
 
 describe('getLightdashProjectConfig', () => {

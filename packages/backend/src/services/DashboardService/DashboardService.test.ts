@@ -56,38 +56,38 @@ import {
 } from './DashboardService.mock';
 
 const dashboardModel = {
-    getAllByProject: jest.fn(async () => dashboardsDetails),
+    getAllByProject: vi.fn(async () => dashboardsDetails),
 
-    getByIdOrSlug: jest.fn(async () => dashboard),
+    getByIdOrSlug: vi.fn(async () => dashboard),
 
-    create: jest.fn(async () => dashboard),
+    create: vi.fn(async () => dashboard),
 
-    update: jest.fn(async () => dashboard),
+    update: vi.fn(async () => dashboard),
 
-    permanentDelete: jest.fn(async () => dashboard),
+    permanentDelete: vi.fn(async () => dashboard),
 
-    addVersion: jest.fn(async () => dashboard),
+    addVersion: vi.fn(async () => dashboard),
 
-    getOrphanedCharts: jest.fn(async () => []),
+    getOrphanedCharts: vi.fn(async () => []),
 };
 
 const spaceModel = {
-    getSpaceSummary: jest.fn(async () => publicSpace),
-    get: jest.fn(async () => publicSpace),
+    getSpaceSummary: vi.fn(async () => publicSpace),
+    get: vi.fn(async () => publicSpace),
 };
 const analyticsModel = {
-    addDashboardViewEvent: jest.fn(async () => null),
+    addDashboardViewEvent: vi.fn(async () => null),
 };
 const savedChartModel = {
-    get: jest.fn(async () => chart),
-    permanentDelete: jest.fn(async () => ({
+    get: vi.fn(async () => chart),
+    permanentDelete: vi.fn(async () => ({
         uuid: 'chart_uuid',
         projectUuid: 'project_uuid',
     })),
-    getInfoForAvailableFilters: jest.fn(async () => []),
+    getInfoForAvailableFilters: vi.fn(async () => []),
 };
 const savedSqlModel = {
-    getByUuid: jest.fn(async () => ({
+    getByUuid: vi.fn(async () => ({
         space: {
             uuid: publicSpace.uuid,
         },
@@ -95,23 +95,23 @@ const savedSqlModel = {
 };
 
 const projectModel = {
-    getCachedExploreNames: jest.fn(async () => []),
-    get: jest.fn(async () => ({ schedulerTimezone: 'UTC' })),
+    getCachedExploreNames: vi.fn(async () => []),
+    get: vi.fn(async () => ({ schedulerTimezone: 'UTC' })),
 };
 
 const schedulerModel = {
-    getScheduler: jest.fn(),
-    getProjectSchedulerRuns: jest.fn(),
-    getSchedulers: jest.fn(),
-    createScheduler: jest.fn(),
+    getScheduler: vi.fn(),
+    getProjectSchedulerRuns: vi.fn(),
+    getSchedulers: vi.fn(),
+    createScheduler: vi.fn(),
 };
 
 const slackClient = {
-    joinChannels: jest.fn(async () => undefined),
+    joinChannels: vi.fn(async () => undefined),
 };
 
 const schedulerClient = {
-    generateDailyJobsForScheduler: jest.fn(async () => undefined),
+    generateDailyJobsForScheduler: vi.fn(async () => undefined),
 };
 
 const dashboardChartsResult = {
@@ -126,14 +126,14 @@ const dashboardChartsResult = {
 };
 
 const searchModel = {
-    getDashboardCharts: jest.fn(async () => dashboardChartsResult),
+    getDashboardCharts: vi.fn(async () => dashboardChartsResult),
 };
 
 const contentVerificationModel = {
-    getByContent: jest.fn(
+    getByContent: vi.fn(
         async (): Promise<ContentVerificationInfo | null> => null,
     ),
-    unverify: jest.fn(async () => undefined),
+    unverify: vi.fn(async () => undefined),
 };
 
 const spaceContexts = {
@@ -158,7 +158,7 @@ const spaceContexts = {
 };
 
 const spacePermissionService = {
-    getSpaceAccessContext: jest.fn(
+    getSpaceAccessContext: vi.fn(
         async (_userUuid: string, spaceUuid: string) => {
             if (spaceUuid === space.space_uuid) {
                 return spaceContexts[space.space_uuid];
@@ -169,13 +169,13 @@ const spacePermissionService = {
             return spaceContexts[publicSpace.uuid];
         },
     ),
-    getSpacesAccessContext: jest.fn(
+    getSpacesAccessContext: vi.fn(
         async (_userUuid: string, spaceUuids: string[]) => spaceContexts,
     ),
-    getFirstViewableSpaceUuid: jest.fn(async () => publicSpace.uuid),
+    getFirstViewableSpaceUuid: vi.fn(async () => publicSpace.uuid),
 };
 
-jest.spyOn(analyticsMock, 'track');
+vi.spyOn(analyticsMock, 'track');
 describe('DashboardService', () => {
     const projectUuid = 'projectUuid';
     const { uuid: dashboardUuid } = dashboard;
@@ -197,7 +197,7 @@ describe('DashboardService', () => {
         schedulerClient: schedulerClient as unknown as SchedulerClient,
         catalogModel: {} as CatalogModel,
         organizationModel: {
-            findColorPalette: jest.fn(async () => null),
+            findColorPalette: vi.fn(async () => null),
         } as unknown as OrganizationModel,
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
@@ -205,7 +205,7 @@ describe('DashboardService', () => {
             contentVerificationModel as unknown as ContentVerificationModel,
     });
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
     test('should get dashboard by uuid', async () => {
         const result = await service.getByIdOrSlug(user, dashboard.uuid);
@@ -480,9 +480,9 @@ describe('DashboardService', () => {
         );
     });
     test('should delete orphan charts when updating dashboard version', async () => {
-        (dashboardModel.getOrphanedCharts as jest.Mock).mockImplementationOnce(
-            async () => [{ uuid: 'chart_uuid' }],
-        );
+        (
+            dashboardModel.getOrphanedCharts as import('vitest').Mock
+        ).mockImplementationOnce(async () => [{ uuid: 'chart_uuid' }]);
 
         await service.update(user, dashboardUuid, updateDashboardTiles);
 
@@ -497,14 +497,14 @@ describe('DashboardService', () => {
     test('should not fail save when an orphan chart is already gone', async () => {
         // Race with a retried save: getOrphanedCharts returns a chart that
         // permanentDelete then can't find. The save must still succeed.
-        (dashboardModel.getOrphanedCharts as jest.Mock).mockImplementationOnce(
-            async () => [{ uuid: 'missing_chart_uuid' }],
-        );
-        (savedChartModel.permanentDelete as jest.Mock).mockImplementationOnce(
-            async () => {
-                throw new NotFoundError('chart already deleted');
-            },
-        );
+        (
+            dashboardModel.getOrphanedCharts as import('vitest').Mock
+        ).mockImplementationOnce(async () => [{ uuid: 'missing_chart_uuid' }]);
+        (
+            savedChartModel.permanentDelete as import('vitest').Mock
+        ).mockImplementationOnce(async () => {
+            throw new NotFoundError('chart already deleted');
+        });
 
         await expect(
             service.update(user, dashboardUuid, updateDashboardTiles),
@@ -572,9 +572,12 @@ describe('DashboardService', () => {
     });
 
     test('should not see dashboard from private space if you are not admin', async () => {
-        (dashboardModel.getByIdOrSlug as jest.Mock).mockImplementationOnce(
-            async () => ({ ...dashboard, spaceUuid: privateSpace.uuid }),
-        );
+        (
+            dashboardModel.getByIdOrSlug as import('vitest').Mock
+        ).mockImplementationOnce(async () => ({
+            ...dashboard,
+            spaceUuid: privateSpace.uuid,
+        }));
 
         const userViewer = {
             ...user,
@@ -605,9 +608,9 @@ describe('DashboardService', () => {
         };
 
         // Changing the mock to return a private dashboard (in private space)
-        (dashboardModel.getByIdOrSlug as jest.Mock).mockImplementationOnce(
-            async () => privateDashboard,
-        );
+        (
+            dashboardModel.getByIdOrSlug as import('vitest').Mock
+        ).mockImplementationOnce(async () => privateDashboard);
 
         await expect(
             service.getByIdOrSlug(user, privateDashboard.uuid),
@@ -620,12 +623,13 @@ describe('DashboardService', () => {
     });
 
     test('should not see dashboards from private space if you are not an admin', async () => {
-        (dashboardModel.getAllByProject as jest.Mock).mockImplementationOnce(
-            async () =>
-                dashboardsDetails.map((d) => ({
-                    ...d,
-                    spaceUuid: privateSpace.uuid,
-                })),
+        (
+            dashboardModel.getAllByProject as import('vitest').Mock
+        ).mockImplementationOnce(async () =>
+            dashboardsDetails.map((d) => ({
+                ...d,
+                spaceUuid: privateSpace.uuid,
+            })),
         );
 
         const editorUser: SessionUser = {
@@ -756,13 +760,13 @@ describe('DashboardService', () => {
         };
 
         beforeEach(() => {
-            (dashboardModel.getByIdOrSlug as jest.Mock).mockResolvedValue(
+            (
+                dashboardModel.getByIdOrSlug as import('vitest').Mock
+            ).mockResolvedValue(dashboardWithScopedCharts);
+            (dashboardModel.create as import('vitest').Mock).mockResolvedValue(
                 dashboardWithScopedCharts,
             );
-            (dashboardModel.create as jest.Mock).mockResolvedValue(
-                dashboardWithScopedCharts,
-            );
-            jest.spyOn(
+            vi.spyOn(
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 service as any,
                 'duplicateChartForDashboard',
@@ -776,8 +780,9 @@ describe('DashboardService', () => {
             });
 
             expect(dashboardModel.addVersion).toHaveBeenCalledTimes(1);
-            const versionData = (dashboardModel.addVersion as jest.Mock).mock
-                .calls[0][1];
+            const versionData = (
+                dashboardModel.addVersion as import('vitest').Mock
+            ).mock.calls[0][1];
 
             const dashboardScopedTile = versionData.tiles.find(
                 (t: DashboardChartTile) =>
@@ -830,10 +835,10 @@ describe('DashboardService', () => {
                     tableCalculations: [],
                 },
             };
-            (dashboardModel.getByIdOrSlug as jest.Mock).mockResolvedValue(
-                dashboardWithUntargetedFilters,
-            );
-            (dashboardModel.create as jest.Mock).mockResolvedValue(
+            (
+                dashboardModel.getByIdOrSlug as import('vitest').Mock
+            ).mockResolvedValue(dashboardWithUntargetedFilters);
+            (dashboardModel.create as import('vitest').Mock).mockResolvedValue(
                 dashboardWithUntargetedFilters,
             );
 
@@ -842,8 +847,9 @@ describe('DashboardService', () => {
                 dashboardDesc: '',
             });
 
-            const versionData = (dashboardModel.addVersion as jest.Mock).mock
-                .calls[0][1];
+            const versionData = (
+                dashboardModel.addVersion as import('vitest').Mock
+            ).mock.calls[0][1];
             expect(
                 versionData.filters.dimensions[0].tileTargets,
             ).toBeUndefined();

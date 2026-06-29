@@ -279,32 +279,32 @@ const makeProjectContextJudgeOutput = (): AiAgentReviewClassifierJudgeOutput =>
 
 describe('AiAgentReviewClassifierService', () => {
     const featureFlagService = {
-        get: jest.fn(),
-    } as unknown as jest.Mocked<FeatureFlagService>;
+        get: vi.fn(),
+    } as unknown as import('vitest').Mocked<FeatureFlagService>;
 
     const model = {
-        listTurnReviewCandidates: jest.fn(),
-        createRun: jest.fn(),
-        updateRun: jest.fn(),
-        createTurnSignal: jest.fn(),
-        getThreadWritebackPullRequests: jest.fn().mockResolvedValue(new Map()),
-    } as unknown as jest.Mocked<AiAgentReviewClassifierModel>;
+        listTurnReviewCandidates: vi.fn(),
+        createRun: vi.fn(),
+        updateRun: vi.fn(),
+        createTurnSignal: vi.fn(),
+        getThreadWritebackPullRequests: vi.fn().mockResolvedValue(new Map()),
+    } as unknown as import('vitest').Mocked<AiAgentReviewClassifierModel>;
     const aiAgentModel = {
-        getAgent: jest.fn(),
+        getAgent: vi.fn(),
     };
     const aiOrganizationSettingsModel = {
-        findByOrganizationUuid: jest.fn(),
-    } as unknown as jest.Mocked<AiOrganizationSettingsModel>;
+        findByOrganizationUuid: vi.fn(),
+    } as unknown as import('vitest').Mocked<AiOrganizationSettingsModel>;
     const catalogModel = {
-        getCatalogItemsSummary: jest.fn(),
+        getCatalogItemsSummary: vi.fn(),
     };
     const projectModel = {
-        getSummary: jest.fn(),
+        getSummary: vi.fn(),
     };
     const aiAgentReviewNotificationService = {
-        notifyNeedsReview: jest.fn(),
+        notifyNeedsReview: vi.fn(),
     };
-    const judgeTurn = jest.fn();
+    const judgeTurn = vi.fn();
 
     const service = new AiAgentReviewClassifierService({
         aiAgentReviewClassifierModel: model,
@@ -320,7 +320,7 @@ describe('AiAgentReviewClassifierService', () => {
     });
 
     beforeEach(() => {
-        jest.resetAllMocks();
+        vi.resetAllMocks();
         featureFlagService.get.mockResolvedValue({
             id: FeatureFlags.AiWriteback,
             enabled: true,

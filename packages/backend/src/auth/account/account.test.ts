@@ -216,8 +216,8 @@ describe('account', () => {
             createdAt: new Date('2024-01-01'),
             updatedAt: new Date('2024-01-01'),
             ability: {
-                can: jest.fn(),
-                cannot: jest.fn(),
+                can: vi.fn(),
+                cannot: vi.fn(),
             } as unknown as MemberAbility,
             abilityRules: [{}] as AbilityBuilder<MemberAbility>['rules'],
         };
@@ -318,8 +318,8 @@ describe('account', () => {
             createdAt: new Date('2024-01-01'),
             updatedAt: new Date('2024-01-01'),
             ability: {
-                can: jest.fn(),
-                cannot: jest.fn(),
+                can: vi.fn(),
+                cannot: vi.fn(),
             } as unknown as MemberAbility,
             abilityRules: [{}] as AbilityBuilder<MemberAbility>['rules'],
         };

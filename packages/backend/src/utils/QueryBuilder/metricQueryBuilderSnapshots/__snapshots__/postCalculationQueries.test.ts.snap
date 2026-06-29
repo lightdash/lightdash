@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`MetricQueryBuilder snapshot: post-calculation queries matches snapshot for a percent-of-total post-calculation query 1`] = `
+exports[`MetricQueryBuilder snapshot: post-calculation queries > matches snapshot for a percent-of-total post-calculation query 1`] = `
 "WITH
   metrics AS (
     SELECT
@@ -32,7 +32,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: post-calculation queries matches snapshot for a percent-of-total post-calculation query with pivot 1`] = `
+exports[`MetricQueryBuilder snapshot: post-calculation queries > matches snapshot for a percent-of-total post-calculation query with pivot 1`] = `
 "WITH
   metrics AS (
     SELECT
@@ -72,7 +72,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: post-calculation queries matches snapshot for a running-total post-calculation query 1`] = `
+exports[`MetricQueryBuilder snapshot: post-calculation queries > matches snapshot for a running-total post-calculation query 1`] = `
 "WITH
   metrics AS (
     SELECT

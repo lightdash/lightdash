@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`MetricQueryBuilder snapshot: distinct queries matches snapshot for a multi-key sum-distinct query with a partially overlapping selection 1`] = `
+exports[`MetricQueryBuilder snapshot: distinct queries > matches snapshot for a multi-key sum-distinct query with a partially overlapping selection 1`] = `
 "WITH
   dd_orders_total_payment_by_method_per_order AS (
     SELECT
@@ -55,7 +55,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: distinct queries matches snapshot for a multi-key sum-distinct query with all distinct keys selected 1`] = `
+exports[`MetricQueryBuilder snapshot: distinct queries > matches snapshot for a multi-key sum-distinct query with all distinct keys selected 1`] = `
 "WITH
   dd_orders_total_payment_by_method_per_order AS (
     SELECT
@@ -122,7 +122,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: distinct queries matches snapshot for a sum-distinct query where the selected dimension is the distinct key 1`] = `
+exports[`MetricQueryBuilder snapshot: distinct queries > matches snapshot for a sum-distinct query where the selected dimension is the distinct key 1`] = `
 "WITH
   dd_orders_total_revenue AS (
     SELECT
@@ -176,7 +176,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: distinct queries matches snapshot for a sum-distinct query with dimensions not in distinct_keys 1`] = `
+exports[`MetricQueryBuilder snapshot: distinct queries > matches snapshot for a sum-distinct query with dimensions not in distinct_keys 1`] = `
 "WITH
   dd_orders_total_revenue AS (
     SELECT
@@ -244,7 +244,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: distinct queries matches snapshot for a sum-distinct query without dimensions 1`] = `
+exports[`MetricQueryBuilder snapshot: distinct queries > matches snapshot for a sum-distinct query without dimensions 1`] = `
 "WITH
   dd_orders_total_revenue AS (
     SELECT
@@ -278,7 +278,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: distinct queries matches snapshot for a type:number metric that transitively references sum_distinct metrics through another type:number wrapper 1`] = `
+exports[`MetricQueryBuilder snapshot: distinct queries > matches snapshot for a type:number metric that transitively references sum_distinct metrics through another type:number wrapper 1`] = `
 "WITH
   dd_transfers_total_corridor_transfers AS (
     SELECT
@@ -376,7 +376,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: distinct queries matches snapshot for a type:number metric that wraps two sum_distinct metrics 1`] = `
+exports[`MetricQueryBuilder snapshot: distinct queries > matches snapshot for a type:number metric that wraps two sum_distinct metrics 1`] = `
 "WITH
   dd_transfers_total_corridor_transfers AS (
     SELECT
@@ -467,7 +467,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: distinct queries matches snapshot for an average-distinct query with dimensions not in distinct_keys 1`] = `
+exports[`MetricQueryBuilder snapshot: distinct queries > matches snapshot for an average-distinct query with dimensions not in distinct_keys 1`] = `
 "WITH
   dd_orders_avg_shipping_cost AS (
     SELECT
@@ -533,7 +533,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: distinct queries matches snapshot for an average-distinct query without dimensions 1`] = `
+exports[`MetricQueryBuilder snapshot: distinct queries > matches snapshot for an average-distinct query without dimensions 1`] = `
 "WITH
   dd_orders_avg_shipping_cost AS (
     SELECT
@@ -578,7 +578,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: distinct queries matches snapshot for both wrapper and transitive-rate metrics selected together 1`] = `
+exports[`MetricQueryBuilder snapshot: distinct queries > matches snapshot for both wrapper and transitive-rate metrics selected together 1`] = `
 "WITH
   dd_transfers_total_corridor_transfers AS (
     SELECT

@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`MetricQueryBuilder snapshot: sort queries matches snapshot for a day-of-week-name sort query 1`] = `
+exports[`MetricQueryBuilder snapshot: sort queries > matches snapshot for a day-of-week-name sort query 1`] = `
 "WITH
   metrics AS (
     SELECT
@@ -32,7 +32,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: sort queries matches snapshot for a month-name sort query 1`] = `
+exports[`MetricQueryBuilder snapshot: sort queries > matches snapshot for a month-name sort query 1`] = `
 "WITH
   metrics AS (
     SELECT

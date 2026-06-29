@@ -289,10 +289,10 @@ describe('DashboardModel', () => {
         tracker.on.update(DashboardViewsTableName).responseOnce([]);
         tracker.on.select(DashboardsTableName).responseOnce('slug');
 
-        jest.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
+        vi.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
             Promise.resolve(expectedDashboard),
         );
-        jest.spyOn(DashboardModel, 'generateUniqueSlug').mockResolvedValue(
+        vi.spyOn(DashboardModel, 'generateUniqueSlug').mockResolvedValue(
             createDashboard.slug,
         );
 
@@ -475,7 +475,7 @@ describe('DashboardModel', () => {
         tracker.on.insert(DashboardTileMarkdownsTableName).responseOnce([]);
         tracker.on.update(DashboardViewsTableName).responseOnce([]);
 
-        jest.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
+        vi.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
             Promise.resolve(expectedDashboard),
         );
 
@@ -583,7 +583,7 @@ describe('DashboardModel', () => {
         tracker.on.insert(DashboardTileChartTableName).responseOnce([]);
         tracker.on.update(DashboardViewsTableName).responseOnce([]);
 
-        jest.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
+        vi.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
             Promise.resolve(expectedDashboard),
         );
 
@@ -660,7 +660,7 @@ describe('DashboardModel', () => {
         tracker.on.insert(DashboardTileChartTableName).responseOnce([]);
         tracker.on.update(DashboardViewsTableName).responseOnce([]);
 
-        jest.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
+        vi.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
             Promise.resolve(expectedDashboard),
         );
 
@@ -777,7 +777,7 @@ describe('DashboardModel', () => {
         tracker.on.insert(DashboardTileChartTableName).responseOnce([]);
         tracker.on.update(DashboardViewsTableName).responseOnce([]);
 
-        jest.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
+        vi.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
             Promise.resolve(expectedDashboard),
         );
 

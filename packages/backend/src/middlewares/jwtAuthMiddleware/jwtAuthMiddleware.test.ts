@@ -6,34 +6,34 @@ import { jwtAuthMiddleware } from './jwtAuthMiddleware';
 describe('Embed Auth Middleware', () => {
     let mockRequest: Partial<express.Request>;
     let mockResponse: Partial<express.Response>;
-    let mockNext: jest.Mock;
+    let mockNext: import('vitest').Mock;
 
     const mockAccount = buildAccount({ accountType: 'jwt' });
     const mockProjectUuid = mockAccount.embed.projectUuid;
     const mockEmbedToken = mockAccount.authentication.source;
 
     const mockEmbedService = {
-        getAccountFromJwt: jest.fn().mockResolvedValue(mockAccount),
+        getAccountFromJwt: vi.fn().mockResolvedValue(mockAccount),
     };
 
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
 
         mockRequest = {
             path: `/api/v1/embed/${mockProjectUuid}/dashboard`,
             query: {},
             headers: {},
             services: {
-                getEmbedService: jest.fn().mockReturnValue(mockEmbedService),
+                getEmbedService: vi.fn().mockReturnValue(mockEmbedService),
             } as unknown as express.Request['services'],
         } as Partial<express.Request>;
 
         mockResponse = {
-            status: jest.fn().mockReturnThis(),
-            json: jest.fn(),
+            status: vi.fn().mockReturnThis(),
+            json: vi.fn(),
         } as Partial<express.Response>;
 
-        mockNext = jest.fn();
+        mockNext = vi.fn();
     });
 
     describe('Successful authentication scenarios', () => {
@@ -89,7 +89,7 @@ describe('Embed Auth Middleware', () => {
 
         it('should call next() when embed service is not available', async () => {
             mockRequest.headers = { [JWT_HEADER_NAME]: mockEmbedToken };
-            mockRequest.services!.getEmbedService = jest
+            mockRequest.services!.getEmbedService = vi
                 .fn()
                 .mockReturnValue(null);
 

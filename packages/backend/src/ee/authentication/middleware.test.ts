@@ -14,7 +14,7 @@ import { isScimAuthenticated } from './middlewares';
 
 describe('SCIM Authentication Middleware', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it('should authenticate valid SCIM token and attach service account', async () => {

@@ -13,14 +13,9 @@ const otherFixture: CachedPatSessionUser = {
     personalAccessToken: { uuid: 'pat-2' } as PersonalAccessToken,
 };
 
-const loadCache = (): PatSessionCacheModule => {
-    let mod: PatSessionCacheModule | undefined;
-    jest.isolateModules(() => {
-        // eslint-disable-next-line global-require, @typescript-eslint/no-require-imports
-        mod = require('./PatSessionCache');
-    });
-    if (!mod) throw new Error('PatSessionCache module failed to load');
-    return mod;
+const loadCache = async (): Promise<PatSessionCacheModule> => {
+    vi.resetModules();
+    return import('./PatSessionCache');
 };
 
 describe('PatSessionCache', () => {
@@ -47,34 +42,34 @@ describe('PatSessionCache', () => {
             process.env.LIGHTDASH_SECRET = 'test-secret';
         });
 
-        it('returns undefined for an unknown token', () => {
-            const { PatSessionCache } = loadCache();
+        it('returns undefined for an unknown token', async () => {
+            const { PatSessionCache } = await loadCache();
             expect(PatSessionCache.get('nope')).toBeUndefined();
         });
 
-        it('round-trips a value via set/get', () => {
-            const { PatSessionCache } = loadCache();
+        it('round-trips a value via set/get', async () => {
+            const { PatSessionCache } = await loadCache();
             PatSessionCache.set('token-a', fixture);
             expect(PatSessionCache.get('token-a')).toEqual(fixture);
         });
 
-        it('isolates entries across distinct tokens', () => {
-            const { PatSessionCache } = loadCache();
+        it('isolates entries across distinct tokens', async () => {
+            const { PatSessionCache } = await loadCache();
             PatSessionCache.set('token-a', fixture);
             PatSessionCache.set('token-b', otherFixture);
             expect(PatSessionCache.get('token-a')).toEqual(fixture);
             expect(PatSessionCache.get('token-b')).toEqual(otherFixture);
         });
 
-        it('overwrites the value when set is called again with the same token', () => {
-            const { PatSessionCache } = loadCache();
+        it('overwrites the value when set is called again with the same token', async () => {
+            const { PatSessionCache } = await loadCache();
             PatSessionCache.set('token-a', fixture);
             PatSessionCache.set('token-a', otherFixture);
             expect(PatSessionCache.get('token-a')).toEqual(otherFixture);
         });
 
-        it('invalidate clears every entry', () => {
-            const { PatSessionCache } = loadCache();
+        it('invalidate clears every entry', async () => {
+            const { PatSessionCache } = await loadCache();
             PatSessionCache.set('token-a', fixture);
             PatSessionCache.set('token-b', otherFixture);
             PatSessionCache.invalidate();
@@ -82,8 +77,8 @@ describe('PatSessionCache', () => {
             expect(PatSessionCache.get('token-b')).toBeUndefined();
         });
 
-        it('does not return entries cached under a different LIGHTDASH_SECRET', () => {
-            const { PatSessionCache } = loadCache();
+        it('does not return entries cached under a different LIGHTDASH_SECRET', async () => {
+            const { PatSessionCache } = await loadCache();
             PatSessionCache.set('token-a', fixture);
             process.env.LIGHTDASH_SECRET = 'rotated-secret';
             expect(PatSessionCache.get('token-a')).toBeUndefined();
@@ -91,17 +86,17 @@ describe('PatSessionCache', () => {
             expect(PatSessionCache.get('token-a')).toEqual(fixture);
         });
 
-        it('expires entries after the 30s TTL', () => {
-            jest.useFakeTimers();
+        it('expires entries after the 30s TTL', async () => {
+            vi.useFakeTimers();
             try {
-                const { PatSessionCache } = loadCache();
+                const { PatSessionCache } = await loadCache();
                 PatSessionCache.set('token-a', fixture);
-                jest.advanceTimersByTime(29_000);
+                vi.advanceTimersByTime(29_000);
                 expect(PatSessionCache.get('token-a')).toEqual(fixture);
-                jest.advanceTimersByTime(2_000);
+                vi.advanceTimersByTime(2_000);
                 expect(PatSessionCache.get('token-a')).toBeUndefined();
             } finally {
-                jest.useRealTimers();
+                vi.useRealTimers();
             }
         });
     });
@@ -112,25 +107,25 @@ describe('PatSessionCache', () => {
             process.env.LIGHTDASH_SECRET = 'test-secret';
         });
 
-        it('set is a no-op', () => {
-            const { PatSessionCache } = loadCache();
+        it('set is a no-op', async () => {
+            const { PatSessionCache } = await loadCache();
             PatSessionCache.set('token-a', fixture);
             expect(PatSessionCache.get('token-a')).toBeUndefined();
         });
 
-        it('get returns undefined', () => {
-            const { PatSessionCache } = loadCache();
+        it('get returns undefined', async () => {
+            const { PatSessionCache } = await loadCache();
             expect(PatSessionCache.get('token-a')).toBeUndefined();
         });
 
-        it('invalidate does not throw', () => {
-            const { PatSessionCache } = loadCache();
+        it('invalidate does not throw', async () => {
+            const { PatSessionCache } = await loadCache();
             expect(() => PatSessionCache.invalidate()).not.toThrow();
         });
 
-        it('only treats the literal string "true" as enabled', () => {
+        it('only treats the literal string "true" as enabled', async () => {
             process.env.EXPERIMENTAL_CACHE = 'TRUE';
-            const { PatSessionCache } = loadCache();
+            const { PatSessionCache } = await loadCache();
             PatSessionCache.set('token-a', fixture);
             expect(PatSessionCache.get('token-a')).toBeUndefined();
         });

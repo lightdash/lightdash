@@ -83,19 +83,32 @@ const makeExplore = (withPreAggs: boolean): Explore =>
 
 const makeDeps = () => {
     const dashboardModel = {
-        getByIdOrSlug: jest.fn<
-            Promise<Dashboard>,
-            [string, { projectUuid?: string }?]
-        >(),
+        getByIdOrSlug:
+            vi.fn<
+                (
+                    uuid: string,
+                    opts?: { projectUuid?: string },
+                ) => Promise<Dashboard>
+            >(),
     };
     const savedChartModel = {
-        get: jest.fn<
-            Promise<SavedChart>,
-            [string, undefined?, { projectUuid: string }?]
+        get: vi.fn<
+            (
+                uuid: string,
+                opts?: undefined,
+                context?: { projectUuid: string },
+            ) => Promise<SavedChart>
         >(),
     };
     const projectService = {
-        getExplore: jest.fn<Promise<Explore>, [Account, string, string]>(),
+        getExplore:
+            vi.fn<
+                (
+                    account: Account,
+                    projectUuid: string,
+                    exploreName: string,
+                ) => Promise<Explore>
+            >(),
     };
     return { dashboardModel, savedChartModel, projectService };
 };
@@ -341,7 +354,7 @@ describe('PreAggregateStrategy.auditDashboard', () => {
     });
 
     it('drops dashboard filter rules whose field is not in the tile explore before calling findMatch', async () => {
-        const findMatchSpy = jest.spyOn(preAggregateUtils, 'findMatch');
+        const findMatchSpy = vi.spyOn(preAggregateUtils, 'findMatch');
         try {
             const deps = makeDeps();
             const offExploreFilter: DashboardFilterRule = {
@@ -428,7 +441,7 @@ describe('PreAggregateStrategy.auditDashboard', () => {
         deps.projectService.getExplore.mockResolvedValue(makeExplore(false));
         const strategy = makeStrategy(deps);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const auditTileSpy = jest.spyOn(strategy as any, 'auditTile');
+        const auditTileSpy = vi.spyOn(strategy as any, 'auditTile');
         await strategy.auditDashboard({
             account,
             projectUuid,

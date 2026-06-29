@@ -6,9 +6,9 @@ import {
 import { DbtManifestProjectAdapter } from './dbtManifestProjectAdapter';
 
 const mockWarehouseClient = {
-    test: jest.fn(),
-    runQuery: jest.fn(),
-    getAdapterType: jest.fn().mockReturnValue('postgres'),
+    test: vi.fn(),
+    runQuery: vi.fn(),
+    getAdapterType: vi.fn().mockReturnValue('postgres'),
 } as unknown as WarehouseClient;
 
 // Valid manifest JSON structure for testing
@@ -46,7 +46,7 @@ const mockProjectAdapter = new DbtManifestProjectAdapter({
     warehouseClient: mockWarehouseClient,
     cachedWarehouse: {
         warehouseCatalog: undefined,
-        onWarehouseCatalogChange: jest.fn(),
+        onWarehouseCatalogChange: vi.fn(),
     },
     dbtVersion: SupportedDbtVersions.V1_8,
     manifest: mockManifestString,
@@ -92,7 +92,7 @@ describe('DbtManifestProjectAdapter', () => {
             warehouseClient: mockWarehouseClient,
             cachedWarehouse: {
                 warehouseCatalog: undefined,
-                onWarehouseCatalogChange: jest.fn(),
+                onWarehouseCatalogChange: vi.fn(),
             },
             dbtVersion: SupportedDbtVersions.V1_8,
             manifest: 'invalid json',
@@ -113,7 +113,7 @@ describe('DbtManifestProjectAdapter', () => {
             warehouseClient: mockWarehouseClient,
             cachedWarehouse: {
                 warehouseCatalog: undefined,
-                onWarehouseCatalogChange: jest.fn(),
+                onWarehouseCatalogChange: vi.fn(),
             },
             dbtVersion: SupportedDbtVersions.V1_8,
             manifest: incompleteManifest,

@@ -2,7 +2,6 @@ import * as mcpSdk from '@ai-sdk/mcp';
 import type { MCPClient } from '@ai-sdk/mcp';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import type { AiAgentModel } from '../../models/AiAgentModel';
-import * as mcpRuntimeClientModule from './AiAgentMcpRuntimeClient';
 import {
     AiAgentMcpRuntimeClient,
     createHttpMcpClient,
@@ -11,9 +10,9 @@ import {
 } from './AiAgentMcpRuntimeClient';
 import type { AiAgentMcpServer } from './types/aiAgent';
 
-jest.mock('@ai-sdk/mcp', () => ({
-    ...jest.requireActual('@ai-sdk/mcp'),
-    createMCPClient: jest.fn(),
+vi.mock('@ai-sdk/mcp', async () => ({
+    ...(await vi.importActual<typeof import('@ai-sdk/mcp')>('@ai-sdk/mcp')),
+    createMCPClient: vi.fn(),
 }));
 
 const getMcpServer = (
@@ -39,9 +38,8 @@ const getMcpServer = (
 });
 
 describe('resolveMcpTools', () => {
-    let createHttpMcpClientSpy: jest.SpiedFunction<typeof createHttpMcpClient>;
     const aiAgentModel = {
-        updateMcpServerRuntimeState: jest.fn(),
+        updateMcpServerRuntimeState: vi.fn(),
     } as unknown as AiAgentModel;
     const runtimeClient = new AiAgentMcpRuntimeClient({
         aiAgentModel,
@@ -54,20 +52,12 @@ describe('resolveMcpTools', () => {
     });
 
     beforeEach(() => {
-        createHttpMcpClientSpy = jest.spyOn(
-            mcpRuntimeClientModule,
-            'createHttpMcpClient',
-        );
-        createHttpMcpClientSpy.mockReset();
-        jest.mocked(aiAgentModel.updateMcpServerRuntimeState).mockReset();
-    });
-
-    afterEach(() => {
-        createHttpMcpClientSpy.mockRestore();
+        vi.mocked(mcpSdk.createMCPClient).mockReset();
+        vi.mocked(aiAgentModel.updateMcpServerRuntimeState).mockReset();
     });
 
     it('keeps healthy MCP tools when another MCP fails', async () => {
-        const close = jest.fn().mockResolvedValue(undefined);
+        const close = vi.fn().mockResolvedValue(undefined);
         const healthyServer = getMcpServer({ name: 'Docs MCP' });
         const brokenServer = getMcpServer({
             uuid: 'broken-server',
@@ -75,29 +65,30 @@ describe('resolveMcpTools', () => {
             url: 'https://broken.example.com/mcp',
         });
 
-        createHttpMcpClientSpy.mockImplementation(
-            async (mcpServer: Parameters<typeof createHttpMcpClient>[0]) => {
-                if (mcpServer.uuid === brokenServer.uuid) {
-                    throw new Error('Connection refused');
-                }
+        vi.mocked(mcpSdk.createMCPClient).mockImplementation(async (config) => {
+            if (
+                'url' in config.transport &&
+                config.transport.url === brokenServer.url
+            ) {
+                throw new Error('Connection refused');
+            }
 
-                return {
-                    serverInfo: {
-                        name: 'Docs MCP',
-                        version: '1.0.0',
-                        icons: [
-                            {
-                                src: '/docs-icon.svg',
-                            },
-                        ],
-                    },
-                    tools: async () => ({
-                        search: { description: 'search tool' },
-                    }),
-                    close,
-                } as unknown as MCPClient;
-            },
-        );
+            return {
+                serverInfo: {
+                    name: 'Docs MCP',
+                    version: '1.0.0',
+                    icons: [
+                        {
+                            src: '/docs-icon.svg',
+                        },
+                    ],
+                },
+                tools: async () => ({
+                    search: { description: 'search tool' },
+                }),
+                close,
+            } as unknown as MCPClient;
+        });
 
         const result = await runtimeClient.resolveTools({
             mcpServers: [healthyServer, brokenServer],
@@ -139,10 +130,10 @@ describe('resolveMcpTools', () => {
     });
 
     it('rejects non-image data URI MCP icons', async () => {
-        const close = jest.fn().mockResolvedValue(undefined);
+        const close = vi.fn().mockResolvedValue(undefined);
         const mcpServer = getMcpServer({ name: 'Docs MCP' });
 
-        createHttpMcpClientSpy.mockResolvedValue({
+        vi.mocked(mcpSdk.createMCPClient).mockResolvedValue({
             serverInfo: {
                 name: 'Docs MCP',
                 version: '1.0.0',
@@ -178,13 +169,13 @@ describe('resolveMcpTools', () => {
     });
 
     it('filters out disabled MCP tools', async () => {
-        const close = jest.fn().mockResolvedValue(undefined);
+        const close = vi.fn().mockResolvedValue(undefined);
         const server = getMcpServer({
             name: 'Lightdash Docs',
             enabledToolNames: ['search_lightdash'],
         });
 
-        createHttpMcpClientSpy.mockResolvedValue({
+        vi.mocked(mcpSdk.createMCPClient).mockResolvedValue({
             serverInfo: {
                 name: 'Lightdash Docs',
                 version: '1.0.0',
@@ -220,7 +211,7 @@ describe('resolveMcpTools', () => {
             connectionStatus: 'not_connected',
         });
 
-        createHttpMcpClientSpy.mockRejectedValue(
+        vi.mocked(mcpSdk.createMCPClient).mockRejectedValue(
             new McpAuthorizationRequiredError(
                 oauthServer.name,
                 oauthServer.uuid,
@@ -260,7 +251,7 @@ describe('resolveMcpTools', () => {
             connectionStatus: null,
         });
 
-        createHttpMcpClientSpy.mockRejectedValue(
+        vi.mocked(mcpSdk.createMCPClient).mockRejectedValue(
             new McpAuthorizationRequiredError(
                 oauthServer.name,
                 oauthServer.uuid,
@@ -302,7 +293,7 @@ describe('resolveMcpTools', () => {
         });
         const server = getMcpServer({ name: 'Slow MCP' });
 
-        createHttpMcpClientSpy.mockImplementation(
+        vi.mocked(mcpSdk.createMCPClient).mockImplementation(
             () =>
                 new Promise<MCPClient>(() => {
                     // never resolves — simulates a hung MCP server
@@ -335,11 +326,11 @@ describe('resolveMcpTools', () => {
                 ai: { copilot: { mcpConnectionTimeoutMs: 20 } },
             } as LightdashConfig,
         });
-        const close = jest.fn().mockResolvedValue(undefined);
+        const close = vi.fn().mockResolvedValue(undefined);
         const server = getMcpServer({ name: 'Slow MCP' });
 
         let resolveConnect: ((client: MCPClient) => void) | undefined;
-        createHttpMcpClientSpy.mockImplementation(
+        vi.mocked(mcpSdk.createMCPClient).mockImplementation(
             () =>
                 new Promise<MCPClient>((resolve) => {
                     resolveConnect = resolve;
@@ -371,11 +362,11 @@ describe('resolveMcpTools', () => {
 
 describe('createHttpMcpClient', () => {
     beforeEach(() => {
-        jest.mocked(mcpSdk.createMCPClient).mockReset();
+        vi.mocked(mcpSdk.createMCPClient).mockReset();
     });
 
     it('normalizes first-time OAuth authorization failures as authorization-required', async () => {
-        jest.mocked(mcpSdk.createMCPClient).mockRejectedValue(
+        vi.mocked(mcpSdk.createMCPClient).mockRejectedValue(
             new Error('MCP HTTP Transport Error: HTTP 401 Unauthorized'),
         );
 
@@ -402,19 +393,17 @@ describe('createHttpMcpClient', () => {
 
     it('wraps transport fetch so a hanging request times out as McpTimeoutError', async () => {
         let transportFetch: typeof globalThis.fetch | undefined;
-        jest.mocked(mcpSdk.createMCPClient).mockImplementation(
-            async (config) => {
-                const { transport } = config;
-                if ('fetch' in transport) {
-                    transportFetch = transport.fetch as typeof globalThis.fetch;
-                }
-                return {
-                    serverInfo: { name: 'Hang MCP', version: '1.0.0' },
-                    tools: async () => ({}),
-                    close: jest.fn().mockResolvedValue(undefined),
-                } as unknown as MCPClient;
-            },
-        );
+        vi.mocked(mcpSdk.createMCPClient).mockImplementation(async (config) => {
+            const { transport } = config;
+            if ('fetch' in transport) {
+                transportFetch = transport.fetch as typeof globalThis.fetch;
+            }
+            return {
+                serverInfo: { name: 'Hang MCP', version: '1.0.0' },
+                tools: async () => ({}),
+                close: vi.fn().mockResolvedValue(undefined),
+            } as unknown as MCPClient;
+        });
 
         await createHttpMcpClient(
             {
@@ -430,7 +419,7 @@ describe('createHttpMcpClient', () => {
 
         expect(transportFetch).toBeDefined();
 
-        const fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementation(
+        const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(
             (_input, init) =>
                 new Promise((_resolve, reject) => {
                     init?.signal?.addEventListener('abort', () => {

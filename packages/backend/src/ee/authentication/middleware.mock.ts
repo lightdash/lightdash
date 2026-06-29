@@ -57,11 +57,11 @@ export const mockRequest = {
         path: '/Users',
     },
     services: {
-        getServiceAccountService: jest.fn().mockReturnValue({
-            authenticateScim: jest.fn().mockResolvedValue(mockServiceAccount),
+        getServiceAccountService: vi.fn().mockReturnValue({
+            authenticateScim: vi.fn().mockResolvedValue(mockServiceAccount),
         }),
-        getUserService: jest.fn().mockReturnValue({
-            getSessionUserForServiceAccount: jest
+        getUserService: vi.fn().mockReturnValue({
+            getSessionUserForServiceAccount: vi
                 .fn()
                 .mockResolvedValue(mockSaSessionUser),
         }),
@@ -74,8 +74,8 @@ export const mockRequestWithInvalidToken = {
         authorization: 'Bearer invalid_token',
     },
     services: {
-        getServiceAccountService: jest.fn().mockReturnValue({
-            authenticateScim: jest.fn().mockResolvedValue(null),
+        getServiceAccountService: vi.fn().mockReturnValue({
+            authenticateScim: vi.fn().mockResolvedValue(null),
         }),
     },
 } as unknown as express.Request;
@@ -100,11 +100,14 @@ export const mockRequestWithMalformedToken = {
 } as unknown as express.Request;
 
 export const mockResponse = {
-    status: jest.fn().mockReturnThis(),
-    json: jest.fn(),
+    status: vi.fn().mockReturnThis(),
+    json: vi.fn(),
 } as unknown as express.Response;
 
-export const mockNext = jest.fn();
+export const mockNext = vi.fn<(error?: any) => void>() as import('vitest').Mock<
+    (error?: any) => void
+> &
+    express.NextFunction;
 
 export class MockScimService extends BaseService {
     // eslint-disable-next-line class-methods-use-this

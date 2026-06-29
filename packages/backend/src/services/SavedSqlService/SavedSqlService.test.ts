@@ -103,14 +103,14 @@ const createdScheduler = {
 };
 
 const savedSqlModel = {
-    getByUuid: jest.fn(async () => sqlChart),
+    getByUuid: vi.fn(async () => sqlChart),
 };
 const schedulerModel = {
-    getSqlChartSchedulers: jest.fn(async () => []),
-    createScheduler: jest.fn(async () => createdScheduler),
+    getSqlChartSchedulers: vi.fn(async () => []),
+    createScheduler: vi.fn(async () => createdScheduler),
 };
 const spacePermissionService = {
-    can: jest.fn(async () => true),
+    can: vi.fn(async () => true),
 };
 
 const newSchedulerPayload = {
@@ -139,7 +139,7 @@ describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {
             spacePermissionService as unknown as SpacePermissionService,
     });
 
-    afterEach(() => jest.clearAllMocks());
+    afterEach(() => vi.clearAllMocks());
 
     describe('getSchedulers', () => {
         it('admin lists all SQL chart schedulers', async () => {

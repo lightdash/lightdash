@@ -16,41 +16,41 @@ const makeDeps = ({
     const deps = {
         siteUrl: 'https://app.lightdash.com',
         model: {
-            getSettings: jest.fn().mockResolvedValue({
+            getSettings: vi.fn().mockResolvedValue({
                 organizationUuid: 'org-1',
                 ...settings,
             }),
-            recordSent: jest.fn().mockResolvedValue('log-1'),
-            recordError: jest.fn().mockResolvedValue(undefined),
+            recordSent: vi.fn().mockResolvedValue('log-1'),
+            recordError: vi.fn().mockResolvedValue(undefined),
         },
         service: {
-            getRecipients: jest.fn().mockResolvedValue(recipients),
+            getRecipients: vi.fn().mockResolvedValue(recipients),
         },
         aiAgentReviewClassifierModel: {
-            getReviewItem: jest.fn().mockResolvedValue({
+            getReviewItem: vi.fn().mockResolvedValue({
                 title: 'Missing metric',
                 primaryRootCause: 'semantic_layer',
             }),
         },
         projectModel: {
-            get: jest.fn().mockResolvedValue({ name: 'Jaffle' }),
+            get: vi.fn().mockResolvedValue({ name: 'Jaffle' }),
         },
         openIdIdentityModel: {
-            findIdentityByUserUuid: jest.fn().mockResolvedValue(slackIdentity),
+            findIdentityByUserUuid: vi.fn().mockResolvedValue(slackIdentity),
         },
         slackClient: {
-            getWebClient: jest.fn().mockResolvedValue({
+            getWebClient: vi.fn().mockResolvedValue({
                 conversations: {
-                    open: jest.fn().mockResolvedValue({
+                    open: vi.fn().mockResolvedValue({
                         ok: true,
                         channel: { id: 'D123' },
                     }),
                 },
             }),
-            postMessage: jest.fn().mockResolvedValue({ ok: true }),
+            postMessage: vi.fn().mockResolvedValue({ ok: true }),
         },
         analytics: {
-            track: jest.fn(),
+            track: vi.fn(),
         },
     };
 

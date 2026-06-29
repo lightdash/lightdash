@@ -105,23 +105,23 @@ const otherUser: SessionUser = {
 // --- Mocks ---
 
 const dashboardModel = {
-    getByIdOrSlug: jest.fn(async () => dashboard),
+    getByIdOrSlug: vi.fn(async () => dashboard),
 };
 
 const commentModel = {
-    getComment: jest.fn(async () => makeCommentRow('owner-uuid')),
-    deleteComment: jest.fn(async () => undefined),
-    createComment: jest.fn(async () => undefined),
-    findCommentsForDashboard: jest.fn(async () => ({})),
-    findUsersThatCommentedInDashboardTile: jest.fn(async () => []),
+    getComment: vi.fn(async () => makeCommentRow('owner-uuid')),
+    deleteComment: vi.fn(async () => undefined),
+    createComment: vi.fn(async () => undefined),
+    findCommentsForDashboard: vi.fn(async () => ({})),
+    findUsersThatCommentedInDashboardTile: vi.fn(async () => []),
 };
 
 const notificationsModel = {
-    createDashboardCommentNotification: jest.fn(async () => undefined),
+    createDashboardCommentNotification: vi.fn(async () => undefined),
 };
 
 const userModel = {
-    getUserDetailsByUuid: jest.fn(async () => ({
+    getUserDetailsByUuid: vi.fn(async () => ({
         userUuid: 'owner-uuid',
         firstName: 'Test',
         lastName: 'User',
@@ -129,15 +129,15 @@ const userModel = {
 };
 
 const spacePermissionService = {
-    can: jest.fn(async () => true),
+    can: vi.fn(async () => true),
 };
 
 describe('CommentService', () => {
     let service: CommentService;
-    let logBypassEventSpy: jest.SpyInstance;
+    let logBypassEventSpy: import('vitest').MockInstance;
 
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         service = new CommentService({
             lightdashConfig: lightdashConfigMock,
             analytics: analyticsMock,
@@ -149,7 +149,7 @@ describe('CommentService', () => {
             spacePermissionService:
                 spacePermissionService as unknown as SpacePermissionService,
         });
-        logBypassEventSpy = jest.spyOn(
+        logBypassEventSpy = vi.spyOn(
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             service as any,
             'logBypassEvent',

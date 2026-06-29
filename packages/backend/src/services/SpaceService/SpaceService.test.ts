@@ -23,7 +23,7 @@ import {
 
 describe('SpaceService', () => {
     let service: SpaceService;
-    const mockGetSpaceAccessContext = jest.fn();
+    const mockGetSpaceAccessContext = vi.fn();
 
     beforeEach(() => {
         mockGetSpaceAccessContext.mockReset();
@@ -45,22 +45,22 @@ describe('SpaceService', () => {
     });
 
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     describe('moveToSpace', () => {
         it('loads the source space scoped to the requested project', async () => {
             const spaceModel = {
-                getSpaceSummary: jest.fn(async () => ({
+                getSpaceSummary: vi.fn(async () => ({
                     uuid: 'spaceUuid',
                     name: 'Space',
                     projectUuid: 'projectUuid',
                     parentSpaceUuid: 'parentSpaceUuid',
                 })),
-                moveToSpace: jest.fn(async () => undefined),
+                moveToSpace: vi.fn(async () => undefined),
             };
             const spacePermissionService = {
-                can: jest.fn(async () => true),
+                can: vi.fn(async () => true),
             };
             const moveService = new SpaceService({
                 analytics: analyticsMock,
@@ -923,25 +923,25 @@ describe('SpaceService', () => {
 
 describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
     const mockSpaceModel = {
-        getSpaceSummary: jest.fn(),
-        isRootSpace: jest.fn(),
-        update: jest.fn(),
-        updateWithCopiedPermissions: jest.fn(),
-        addSpaceAccess: jest.fn(),
-        get: jest.fn(),
-        getSpaceBreadcrumbs: jest.fn(),
-        getSpaceQueries: jest.fn(),
-        getSpaceDashboards: jest.fn(),
-        find: jest.fn(),
+        getSpaceSummary: vi.fn(),
+        isRootSpace: vi.fn(),
+        update: vi.fn(),
+        updateWithCopiedPermissions: vi.fn(),
+        addSpaceAccess: vi.fn(),
+        get: vi.fn(),
+        getSpaceBreadcrumbs: vi.fn(),
+        getSpaceQueries: vi.fn(),
+        getSpaceDashboards: vi.fn(),
+        find: vi.fn(),
     };
     const mockSpacePermissionService = {
-        can: jest.fn(),
-        getAccessibleSpaceUuids: jest.fn(),
-        getSpaceAccessContext: jest.fn(),
-        getAllSpaceAccessContext: jest.fn(),
-        getGroupAccess: jest.fn(),
-        getUserMetadataByUuids: jest.fn(),
-        getInheritedPermissionsToCopy: jest.fn(),
+        can: vi.fn(),
+        getAccessibleSpaceUuids: vi.fn(),
+        getSpaceAccessContext: vi.fn(),
+        getAllSpaceAccessContext: vi.fn(),
+        getGroupAccess: vi.fn(),
+        getUserMetadataByUuids: vi.fn(),
+        getInheritedPermissionsToCopy: vi.fn(),
     };
     const mockUser = createTestUser({
         organizationRole: OrganizationMemberRole.ADMIN,
@@ -950,7 +950,7 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
     let service: SpaceService;
 
     beforeEach(() => {
-        jest.resetAllMocks();
+        vi.resetAllMocks();
 
         service = new SpaceService({
             analytics: analyticsMock,

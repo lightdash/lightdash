@@ -43,19 +43,17 @@ const buildGithubProject = (repository: string) => ({
 });
 
 describe('CiService.getPullRequestChecks', () => {
-    const getPullRequest = jest.fn();
-    const listCheckRunsForRef = jest.fn();
-    const getInstallationToken = jest
+    const getPullRequest = vi.fn();
+    const listCheckRunsForRef = vi.fn();
+    const getInstallationToken = vi
         .fn()
         .mockResolvedValue('installation-token');
-    const getInstallationId = jest.fn().mockResolvedValue('installation-id');
+    const getInstallationId = vi.fn().mockResolvedValue('installation-id');
 
     const buildService = (repository: string) =>
         new CiService({
             projectModel: {
-                get: jest
-                    .fn()
-                    .mockResolvedValue(buildGithubProject(repository)),
+                get: vi.fn().mockResolvedValue(buildGithubProject(repository)),
             } as unknown as ProjectModel,
             githubAppInstallationsModel: {
                 getInstallationId,
@@ -68,7 +66,7 @@ describe('CiService.getPullRequestChecks', () => {
         });
 
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it('refuses to query GitHub when the PR URL points at a different repo', async () => {
@@ -120,20 +118,18 @@ const userWithManageSourceCode: SessionUser = {
 };
 
 describe('CiService.mergePullRequest', () => {
-    const mergePullRequest = jest
+    const mergePullRequest = vi
         .fn()
         .mockResolvedValue({ merged: true, sha: 'merge-sha' });
-    const getInstallationToken = jest
+    const getInstallationToken = vi
         .fn()
         .mockResolvedValue('installation-token');
-    const getInstallationId = jest.fn().mockResolvedValue('installation-id');
+    const getInstallationId = vi.fn().mockResolvedValue('installation-id');
 
     const buildService = (repository: string) =>
         new CiService({
             projectModel: {
-                get: jest
-                    .fn()
-                    .mockResolvedValue(buildGithubProject(repository)),
+                get: vi.fn().mockResolvedValue(buildGithubProject(repository)),
             } as unknown as ProjectModel,
             githubAppInstallationsModel: {
                 getInstallationId,
@@ -145,7 +141,7 @@ describe('CiService.mergePullRequest', () => {
         });
 
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it('throws ForbiddenError without manage:SourceCode', async () => {
@@ -198,19 +194,17 @@ describe('CiService.mergePullRequest', () => {
 });
 
 describe('CiService.getPullRequestDiff', () => {
-    const getPullRequestDiff = jest.fn().mockResolvedValue('pr-diff');
-    const getCommitDiff = jest.fn().mockResolvedValue('commit-diff');
-    const getInstallationToken = jest
+    const getPullRequestDiff = vi.fn().mockResolvedValue('pr-diff');
+    const getCommitDiff = vi.fn().mockResolvedValue('commit-diff');
+    const getInstallationToken = vi
         .fn()
         .mockResolvedValue('installation-token');
-    const getInstallationId = jest.fn().mockResolvedValue('installation-id');
+    const getInstallationId = vi.fn().mockResolvedValue('installation-id');
 
     const buildService = (repository: string) =>
         new CiService({
             projectModel: {
-                get: jest
-                    .fn()
-                    .mockResolvedValue(buildGithubProject(repository)),
+                get: vi.fn().mockResolvedValue(buildGithubProject(repository)),
             } as unknown as ProjectModel,
             githubAppInstallationsModel: {
                 getInstallationId,
@@ -223,7 +217,7 @@ describe('CiService.getPullRequestDiff', () => {
         });
 
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it('returns null and fetches nothing when the PR points at a different repo', async () => {
@@ -275,18 +269,16 @@ describe('CiService.getPullRequestDiff', () => {
 });
 
 describe('CiService.closePullRequest', () => {
-    const closePullRequest = jest.fn().mockResolvedValue({ state: 'closed' });
-    const getInstallationToken = jest
+    const closePullRequest = vi.fn().mockResolvedValue({ state: 'closed' });
+    const getInstallationToken = vi
         .fn()
         .mockResolvedValue('installation-token');
-    const getInstallationId = jest.fn().mockResolvedValue('installation-id');
+    const getInstallationId = vi.fn().mockResolvedValue('installation-id');
 
     const buildService = (repository: string) =>
         new CiService({
             projectModel: {
-                get: jest
-                    .fn()
-                    .mockResolvedValue(buildGithubProject(repository)),
+                get: vi.fn().mockResolvedValue(buildGithubProject(repository)),
             } as unknown as ProjectModel,
             githubAppInstallationsModel: {
                 getInstallationId,
@@ -298,7 +290,7 @@ describe('CiService.closePullRequest', () => {
         });
 
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it('throws ForbiddenError without manage:SourceCode', async () => {

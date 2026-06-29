@@ -3,20 +3,20 @@ import { getPullRequest } from '../../../../clients/github/Github';
 import type { GithubConnection, GithubInstallation } from '../types';
 import { GithubProvider } from './GithubProvider';
 
-jest.mock('../../../../clients/github/Github', () => ({
-    getPullRequest: jest.fn(),
+vi.mock('../../../../clients/github/Github', () => ({
+    getPullRequest: vi.fn(),
 }));
 
-const mockGetPullRequest = getPullRequest as jest.MockedFunction<
+const mockGetPullRequest = getPullRequest as import('vitest').MockedFunction<
     typeof getPullRequest
 >;
 
 const provider = new GithubProvider({
     githubAppInstallationsModel: {} as never,
     githubAppService: {
-        getValidUserToken: jest.fn().mockResolvedValue(undefined),
+        getValidUserToken: vi.fn().mockResolvedValue(undefined),
     } as never,
-    logger: { info: jest.fn(), warn: jest.fn() } as never,
+    logger: { info: vi.fn(), warn: vi.fn() } as never,
 });
 
 const connection: GithubConnection = {
@@ -54,7 +54,7 @@ const adopt = (prUrl: string) =>
     provider.adoptPullRequest({ prUrl, connection, installation });
 
 describe('GithubProvider.adoptPullRequest', () => {
-    beforeEach(() => jest.clearAllMocks());
+    beforeEach(() => vi.clearAllMocks());
 
     it('adopts an open PR in the project repo', async () => {
         mockGetPullRequest.mockResolvedValue(openPr);

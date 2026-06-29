@@ -48,7 +48,7 @@ describe('RolesService', () => {
             mockAdminNotificationService as unknown as AdminNotificationService,
     });
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     describe('duplicateRole', () => {
@@ -360,7 +360,7 @@ describe('RolesService', () => {
     describe('getRolesByOrganizationUuid', () => {
         const organizationUuid = 'test-org-uuid';
         beforeEach(() => {
-            jest.clearAllMocks();
+            vi.clearAllMocks();
             mockRolesModel.getRolesByOrganizationUuid.mockResolvedValue([]);
         });
 
@@ -444,7 +444,7 @@ describe('RolesService', () => {
         const projectUuid = 'test-project-uuid';
 
         beforeEach(() => {
-            jest.clearAllMocks();
+            vi.clearAllMocks();
             mockUserModel.getUserDetailsByUuid.mockResolvedValue({
                 userUuid,
                 firstName: 'Target',

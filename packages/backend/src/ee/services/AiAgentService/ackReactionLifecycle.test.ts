@@ -2,8 +2,12 @@ import { AiAgentService } from './AiAgentService';
 
 // Avoid constructing the real MCP runtime client (and its transitive deps) when
 // we new up the service with mostly-empty mocks below.
-jest.mock('../ai/AiAgentMcpRuntimeClient', () => ({
-    AiAgentMcpRuntimeClient: jest.fn().mockImplementation(() => ({})),
+vi.mock('../ai/AiAgentMcpRuntimeClient', () => ({
+    AiAgentMcpRuntimeClient: vi
+        .fn()
+        .mockImplementation(function AiAgentMcpRuntimeClient() {
+            return {};
+        }),
 }));
 
 const buildSlackPrompt = (overrides: Record<string, unknown> = {}) => ({
@@ -22,16 +26,16 @@ const buildSlackPrompt = (overrides: Record<string, unknown> = {}) => ({
 const buildService = () => {
     const webClient = {
         chat: {
-            postEphemeral: jest.fn().mockResolvedValue(undefined),
+            postEphemeral: vi.fn().mockResolvedValue(undefined),
         },
     };
     const slackClient = {
-        addReaction: jest.fn().mockResolvedValue(undefined),
-        removeReaction: jest.fn().mockResolvedValue(undefined),
-        getWebClient: jest.fn().mockResolvedValue(webClient),
+        addReaction: vi.fn().mockResolvedValue(undefined),
+        removeReaction: vi.fn().mockResolvedValue(undefined),
+        getWebClient: vi.fn().mockResolvedValue(webClient),
     };
     const aiAgentModel = {
-        findSlackPrompt: jest.fn().mockResolvedValue(buildSlackPrompt()),
+        findSlackPrompt: vi.fn().mockResolvedValue(buildSlackPrompt()),
     };
     const service = new AiAgentService({
         slackClient,
@@ -85,17 +89,17 @@ const postMcpOAuthLoginMessages = (
 
 describe('AiAgentService :eyes: ack reaction lifecycle', () => {
     afterEach(() => {
-        jest.restoreAllMocks();
+        vi.restoreAllMocks();
     });
 
     it('adds the :eyes: ack reaction on app_mention', async () => {
         const { service } = buildService();
-        const reactionsAdd = jest.fn().mockResolvedValue({});
+        const reactionsAdd = vi.fn().mockResolvedValue({});
         await service.handleAppMention({
             event: { channel: 'C123', ts: 'ts-1', text: 'hi', user: 'U1' },
             // No teamId -> handler returns right after the early ack reaction.
             context: {},
-            say: jest.fn(),
+            say: vi.fn(),
             client: { reactions: { add: reactionsAdd } },
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any);
@@ -109,7 +113,7 @@ describe('AiAgentService :eyes: ack reaction lifecycle', () => {
 
     it('removes the :eyes: reaction after a successful reply', async () => {
         const { service, slackClient } = buildService();
-        jest.spyOn(
+        vi.spyOn(
             service as unknown as {
                 generateSlackPromptReply: () => Promise<void>;
             },
@@ -128,7 +132,7 @@ describe('AiAgentService :eyes: ack reaction lifecycle', () => {
 
     it('removes the :eyes: reaction after a failed reply', async () => {
         const { service, slackClient } = buildService();
-        jest.spyOn(
+        vi.spyOn(
             service as unknown as {
                 generateSlackPromptReply: () => Promise<void>;
             },
@@ -143,7 +147,7 @@ describe('AiAgentService :eyes: ack reaction lifecycle', () => {
 
     it('does not fail the prompt when reaction cleanup fails', async () => {
         const { service, slackClient } = buildService();
-        jest.spyOn(
+        vi.spyOn(
             service as unknown as {
                 generateSlackPromptReply: () => Promise<void>;
             },
@@ -160,7 +164,7 @@ describe('AiAgentService :eyes: ack reaction lifecycle', () => {
 
     it('posts one MCP OAuth login ephemeral per unavailable OAuth server', async () => {
         const { service, slackClient, webClient } = buildService();
-        const startOAuth = jest
+        const startOAuth = vi
             .spyOn(service, 'startMcpOAuthConnection')
             .mockImplementation(
                 async (_user, _projectUuid, mcpServerUuid) =>

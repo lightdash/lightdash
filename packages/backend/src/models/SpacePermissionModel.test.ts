@@ -16,7 +16,7 @@ describe('SpacePermissionModel', () => {
         // parent_space_uuid recursive CTE instead.
         it('should use recursive CTE on parent_space_uuid, not ltree @> joins', async () => {
             let capturedSql = '';
-            const mockRaw = jest.fn(async (sql: string) => {
+            const mockRaw = vi.fn(async (sql: string) => {
                 capturedSql = sql;
                 return { rows: [] };
             });

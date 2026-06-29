@@ -11,23 +11,23 @@ import { getOrgDeliveryQueueName, SchedulerClient } from './SchedulerClient';
 
 // The constructor eagerly calls makeWorkerUtils() to connect to graphile-worker;
 // stub it so we can construct the client without a database.
-jest.mock('graphile-worker', () => ({
-    makeWorkerUtils: jest
+vi.mock('graphile-worker', () => ({
+    makeWorkerUtils: vi
         .fn()
-        .mockResolvedValue({ addJob: jest.fn(), withPgClient: jest.fn() }),
+        .mockResolvedValue({ addJob: vi.fn(), withPgClient: vi.fn() }),
 }));
 
 const ORG_UUID = 'org-1';
 
-const makeClient = (allowMultiOrgs: boolean, get: jest.Mock) =>
+const makeClient = (allowMultiOrgs: boolean, get: import('vitest').Mock) =>
     new SchedulerClient({
         lightdashConfig: {
             allowMultiOrgs,
             database: { connectionUri: 'postgres://noop' },
         } as unknown as LightdashConfig,
-        analytics: { track: jest.fn() } as unknown as LightdashAnalytics,
+        analytics: { track: vi.fn() } as unknown as LightdashAnalytics,
         schedulerModel: {
-            logSchedulerJob: jest.fn().mockResolvedValue(undefined),
+            logSchedulerJob: vi.fn().mockResolvedValue(undefined),
         } as unknown as SchedulerModel,
         featureFlagModel: { get } as unknown as FeatureFlagModel,
     });
@@ -53,15 +53,15 @@ const traceProperties: TraceTaskBase = {
 const startingDateTime = new Date(2023, 0, 1);
 
 describe('SchedulerClient per-org delivery queue', () => {
-    afterEach(() => jest.restoreAllMocks());
+    afterEach(() => vi.restoreAllMocks());
 
     it('routes recurring deliveries into a per-org queue when multi-org + flag are on', async () => {
-        const get = jest.fn().mockResolvedValue({
+        const get = vi.fn().mockResolvedValue({
             id: FeatureFlags.ScheduledDeliveryPerOrgQueue,
             enabled: true,
         });
         const client = makeClient(true, get);
-        const addJob = jest
+        const addJob = vi
             .spyOn(client, 'addScheduledDeliveryJob')
             .mockResolvedValue({ jobId: 'j1', date: new Date() });
 
@@ -89,12 +89,12 @@ describe('SchedulerClient per-org delivery queue', () => {
     });
 
     it('does not set a queue when the flag is off', async () => {
-        const get = jest.fn().mockResolvedValue({
+        const get = vi.fn().mockResolvedValue({
             id: FeatureFlags.ScheduledDeliveryPerOrgQueue,
             enabled: false,
         });
         const client = makeClient(true, get);
-        const addJob = jest
+        const addJob = vi
             .spyOn(client, 'addScheduledDeliveryJob')
             .mockResolvedValue({ jobId: 'j1', date: new Date() });
 
@@ -112,9 +112,9 @@ describe('SchedulerClient per-org delivery queue', () => {
     });
 
     it('skips the flag lookup entirely on single-tenant instances', async () => {
-        const get = jest.fn();
+        const get = vi.fn();
         const client = makeClient(false, get);
-        const addJob = jest
+        const addJob = vi
             .spyOn(client, 'addScheduledDeliveryJob')
             .mockResolvedValue({ jobId: 'j1', date: new Date() });
 

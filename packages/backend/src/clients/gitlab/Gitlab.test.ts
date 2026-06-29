@@ -1,4 +1,4 @@
-import fetchMock from 'jest-fetch-mock';
+import fetchMock from '../../testing/fetchMock';
 import {
     getBranches,
     getFileContent,
@@ -21,7 +21,7 @@ const treePage = (
 
 describe('GitlabClient.getMergeRequestComments', () => {
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     // GitLab returns notes newest-first (sort=desc). The reader drops system

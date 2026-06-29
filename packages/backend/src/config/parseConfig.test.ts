@@ -24,9 +24,9 @@ import {
     parseOrganizationMemberRoleArray,
 } from './parseConfig';
 
-jest.mock('fs/promises', () => ({
-    readFile: jest.fn(),
-    writeFile: jest.fn(),
+vi.mock('fs/promises', () => ({
+    readFile: vi.fn(),
+    writeFile: vi.fn(),
 }));
 
 beforeEach(() => {
@@ -652,8 +652,8 @@ describe('process.env.LIGHTDASH_IFRAME_EMBEDDING_DOMAINS', () => {
 
     describe('environment variables for API tokens', () => {
         beforeEach(() => {
-            jest.useFakeTimers();
-            jest.setSystemTime(new Date('2025-06-19'));
+            vi.useFakeTimers();
+            vi.setSystemTime(new Date('2025-06-19'));
 
             process.env.LD_SETUP_ADMIN_EMAIL = 'admin@example.com';
             process.env.LD_SETUP_SERVICE_ACCOUNT_EXPIRATION = '0';
@@ -661,7 +661,7 @@ describe('process.env.LIGHTDASH_IFRAME_EMBEDDING_DOMAINS', () => {
         });
 
         afterEach(() => {
-            jest.useRealTimers();
+            vi.useRealTimers();
         });
 
         test('should parse service account token', () => {
@@ -1005,11 +1005,11 @@ describe('parseAndSanitizeSchedulerTasks', () => {
         delete process.env.SCHEDULER_INCLUDE_TASKS;
         delete process.env.SCHEDULER_EXCLUDE_TASKS;
         // Mock console.warn to capture warning messages
-        jest.spyOn(console, 'warn').mockImplementation(() => {});
+        vi.spyOn(console, 'warn').mockImplementation(() => {});
     });
 
     afterEach(() => {
-        jest.restoreAllMocks();
+        vi.restoreAllMocks();
     });
 
     describe('Default behavior', () => {
