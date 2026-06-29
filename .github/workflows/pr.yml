@@ -160,6 +160,7 @@ jobs:
       preview: ${{ (steps.changes.outputs.preview == 'true' && github.event.pull_request.user.login != 'lightdash-renovate-bot[bot]' && !startsWith(github.event.pull_request.title, 'docs')) || contains(github.event.pull_request.body, 'deploy-preview') || contains(github.event.pull_request.body, 'test-all') }}
       frontend: ${{ steps.changes.outputs.frontend == 'true' || contains(github.event.pull_request.body, 'test-frontend') || contains(github.event.pull_request.body, 'test-all') }}
       backend: ${{ steps.changes.outputs.backend == 'true' || contains(github.event.pull_request.body, 'test-backend') || contains(github.event.pull_request.body, 'test-all') }}
+      api_schema: ${{ steps.changes.outputs.api_schema == 'true' }}
       timezone: ${{ steps.changes.outputs.timezone == 'true' || contains(github.event.pull_request.body, 'test-timezone') || contains(github.event.pull_request.body, 'test-all') }}
       cli: ${{ steps.changes.outputs.cli == 'true' || contains(github.event.pull_request.body, 'test-cli') || contains(github.event.pull_request.body, 'test-all') }}
     steps:
@@ -173,6 +174,49 @@ jobs:
         with:
           token: ${{ github.token }}
           filters: .github/file-filters.yml
+
+  openapi-breaking-change-check:
+    if: needs.files-changed.outputs.api_schema == 'true'
+    name: OpenAPI Breaking Change Check
+    runs-on: depot-ubuntu-24.04-4
+    needs: files-changed
+    env:
+      NODE_OPTIONS: "--max-old-space-size=8192"
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Fetch base OpenAPI schema
+        run: |
+          git fetch --no-tags --depth=1 origin "${{ github.event.pull_request.base.ref || 'main' }}"
+          git show FETCH_HEAD:packages/backend/src/generated/swagger.json > /tmp/main-swagger.json
+      - name: Setup Socket Firewall
+        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+          cache-dependency-path: "pnpm-lock.yaml"
+      - name: Install packages
+        run: sfw pnpm install --frozen-lockfile --prefer-offline
+      - name: Generate OpenAPI schema
+        run: pnpm generate-api
+      - name: Check for OpenAPI breaking changes
+        if: ${{ !contains(github.event.pull_request.body, 'allow-api-breaking-change') }}
+        run: |
+          docker run --rm \
+            -v "$PWD:/work" \
+            -v /tmp:/tmp \
+            -w /work \
+            tufin/oasdiff@sha256:1b878e413bfba39a9bbb2ce95d6a2ddf79bacd4eade9420ad422175b011a71c9 \
+            breaking --fail-on ERR /tmp/main-swagger.json packages/backend/src/generated/swagger.json
+      - name: Report allowed OpenAPI breaking changes
+        if: ${{ contains(github.event.pull_request.body, 'allow-api-breaking-change') }}
+        run: echo "Skipping OpenAPI breaking-change check because allow-api-breaking-change is in the PR description."
 
   post-test-selection-comment:
     name: Post Test Selection Comment
