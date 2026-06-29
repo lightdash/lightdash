@@ -186,6 +186,52 @@ test('notes always disclose the blind spot', () => {
     assert.ok(/does NOT/i.test(m.compatibility.notes));
 });
 
+// --- aiReview override (P6) --------------------------------------------------
+
+test('aiReview flips a migration-bearing release to its verdict + adds capability', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: { present: true, count: 1, files: ['x.ts'], ee: false, deletedHistorical: [] },
+        aiReview: {
+            rollingUpdateSafe: true,
+            recommendedStrategy: 'RollingUpdate',
+            summary: 'All migrations additive; verified old code unaffected.',
+        },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, true);
+    assert.strictEqual(m.compatibility.recommendedStrategy, 'RollingUpdate');
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'ai-review']);
+    assert.ok(/AI migration review:/.test(m.compatibility.notes));
+});
+
+test('aiReview "breaking" verdict sets rollingUpdateSafe false', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: { present: true, count: 1, files: ['x.ts'], ee: false, deletedHistorical: [] },
+        aiReview: {
+            rollingUpdateSafe: false,
+            recommendedStrategy: 'Recreate',
+            summary: 'Drops a column the old code still reads.',
+        },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, false);
+    assert.strictEqual(m.compatibility.recommendedStrategy, 'Recreate');
+});
+
+test('aiReview is ignored on a no-migration release (never invents a verdict)', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        aiReview: {
+            rollingUpdateSafe: false,
+            recommendedStrategy: 'Recreate',
+            summary: 'should be ignored',
+        },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, true); // base no-migration value
+    assert.deepStrictEqual(m.capabilities, ['migrations']);
+});
+
 // --- report ------------------------------------------------------------------
 
 if (failures.length > 0) {

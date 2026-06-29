@@ -133,9 +133,27 @@ its cost is bounded.
   doesn't recognise — a behavioural break invisible to operation-shape linting
   (Squawk/Atlas). The two are complementary: a deterministic linter is the floor,
   the AI review is the ceiling.
-- **Cost note:** prompt is re-sent each tool turn (uncached in the prototype) so
-  input tokens accumulate (~120k in / ~6k out for the 4-migration batch). Prompt
-  caching on the migration files + system prompt would cut most of that.
+- **Generator integration:** `gen-release-safety.ts` runs the review when
+  `--ai-review` is passed AND `migrations.present === true` AND `ANTHROPIC_API_KEY`
+  is set (so the release workflow opts in; local runs don't need a key). The
+  verdict folds into `compatibility.rollingUpdateSafe` / `recommendedStrategy`,
+  appends the AI summary to `notes`, and adds `"ai-review"` to `capabilities`.
+  A `null`/degraded review leaves the honest `"unknown"` default — `buildMarker`
+  stays pure (takes the verdict as data) and only applies it when migrations are
+  present, so the AI can never invent a verdict for a no-migration release.
+- **Prompt caching:** the system prompt and the migration-files turn carry
+  `cache_control`, and a single rolling breakpoint moves onto the last block each
+  turn so the growing tool transcript is cached too. Measured effect on the
+  4-migration batch: full-price input fell from ~403k tokens to ~18 (the rest
+  served from cache at ~0.1×), ~10× cheaper per review.
+- **Non-determinism (must document):** the agentic verdict is not reproducible —
+  the same migrations returned `safe`/high on one run and `unknown`/medium on
+  others. This is acceptable *only because of the gating*: variance can cost an
+  unnecessary `Recreate` (over-caution) but, since `unknown → true` requires a
+  high-confidence `safe`, it can never silently clear a breaking change. Operators
+  must treat an AI `safe` as best-effort, not a guarantee — hence the `capabilities`
+  flag and the standing recommendation to add a deterministic SQL-shape linter as
+  the floor underneath it.
 
 ## Known blind spots (must stay documented)
 

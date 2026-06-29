@@ -15,6 +15,7 @@
 import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import { aiMigrationReview } from './ai-migration-review';
 
 export const MARKER_SCHEMA_VERSION = '1';
 
@@ -128,6 +129,18 @@ export interface BuildMarkerInput {
     releaseDate: string;
     /** null when migrations could not be determined (e.g. first release / no prev tag) */
     migrations: MigrationsResult | null;
+    /**
+     * Optional verdict from the gated AI migration review (P6). Applied only when
+     * migrations.present === true. null means the review didn't run or degraded —
+     * leave rollingUpdateSafe at its honest "unknown" default.
+     */
+    aiReview?: AiReviewSummary | null;
+}
+
+export interface AiReviewSummary {
+    rollingUpdateSafe: TriState;
+    recommendedStrategy: ReleaseSafetyMarker['compatibility']['recommendedStrategy'];
+    summary: string;
 }
 
 /**
@@ -136,7 +149,7 @@ export interface BuildMarkerInput {
  * (or unknown) release.
  */
 export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
-    const { version, previousVersion, releaseDate, migrations } = input;
+    const { version, previousVersion, releaseDate, migrations, aiReview } = input;
 
     const present: TriState = migrations ? migrations.present : 'unknown';
 
@@ -166,12 +179,24 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
             `against). Treat as potentially unsafe. ${BLIND_SPOT_NOTE}`;
     }
 
+    const capabilities = ['migrations'];
+
+    // P6: a gated AI review can resolve the "unknown" verdict for a
+    // migration-bearing release. It only ever overrides when migrations are
+    // present (never invents a verdict for a no-migration or first release).
+    if (aiReview && present === true) {
+        rollingUpdateSafe = aiReview.rollingUpdateSafe;
+        recommendedStrategy = aiReview.recommendedStrategy;
+        notes = `AI migration review: ${aiReview.summary} ${BLIND_SPOT_NOTE}`;
+        capabilities.push('ai-review');
+    }
+
     return {
         schemaVersion: MARKER_SCHEMA_VERSION,
         version,
         previousVersion: previousVersion || null,
         releaseDate,
-        capabilities: ['migrations'],
+        capabilities,
         migrations: {
             present,
             count: migrations ? migrations.count : 0,
@@ -252,8 +277,9 @@ function writeAtomic(outPath: string, contents: string): void {
     fs.renameSync(tmp, outPath);
 }
 
-function main(): void {
+async function main(): Promise<void> {
     const args = parseArgs(process.argv.slice(2));
+    const wantAiReview = process.argv.includes('--ai-review');
 
     let migrations: MigrationsResult | null = null;
     if (args.lastTag) {
@@ -272,11 +298,44 @@ function main(): void {
         );
     }
 
+    // P6: gated AI review. Only runs when the cheap detector found migrations
+    // (so ~10% of releases) and a key is present. Any degrade leaves the verdict
+    // at its honest "unknown" — the review can only ever make the marker more
+    // informative, never falsely safe, and never fails the release.
+    let aiReview: AiReviewSummary | null = null;
+    if (wantAiReview && migrations?.present === true && args.lastTag) {
+        const apiKey = process.env.ANTHROPIC_API_KEY;
+        if (!apiKey) {
+            console.warn('[release-safety] --ai-review requested but ANTHROPIC_API_KEY not set; rollingUpdateSafe stays "unknown"');
+        } else {
+            console.warn('[release-safety] running AI migration review...');
+            const r = await aiMigrationReview({
+                apiKey,
+                lastTag: args.lastTag,
+                version: args.version,
+                log: (m) => console.warn(`[ai-review] ${m}`),
+            });
+            if (r) {
+                aiReview = {
+                    rollingUpdateSafe: r.rollingUpdateSafe,
+                    recommendedStrategy: r.recommendedStrategy,
+                    summary: r.summary,
+                };
+                console.warn(
+                    `[release-safety] AI verdict: ${r.modelVerdict}/${r.confidence} (${r.toolCalls} tool calls) -> rollingUpdateSafe=${JSON.stringify(r.rollingUpdateSafe)}`,
+                );
+            } else {
+                console.warn('[release-safety] AI review degraded; rollingUpdateSafe stays "unknown"');
+            }
+        }
+    }
+
     const marker = buildMarker({
         version: args.version,
         previousVersion: args.previousVersion,
         releaseDate: new Date().toISOString(),
         migrations,
+        aiReview,
     });
 
     const json = `${JSON.stringify(marker, null, 2)}\n`;
@@ -291,13 +350,11 @@ const invokedDirectly =
     process.argv[1]?.endsWith('gen-release-safety.ts') === true;
 
 if (invokedDirectly) {
-    try {
-        main();
-    } catch (err) {
-        // Fail loud: never emit a falsely-safe marker.
+    // Fail loud: never emit a falsely-safe marker.
+    main().catch((err) => {
         console.error(
             `[release-safety] FAILED: ${err instanceof Error ? err.message : String(err)}`,
         );
         process.exit(1);
-    }
+    });
 }
