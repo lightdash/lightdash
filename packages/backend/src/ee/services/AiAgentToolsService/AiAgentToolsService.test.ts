@@ -2,6 +2,7 @@ import {
     Account,
     CatalogType,
     Explore,
+    FieldType,
     FilterOperator,
     ForbiddenError,
     JobStatusType,
@@ -50,8 +51,33 @@ const makeExplore = ({
     dimensions?: Record<string, unknown>;
     metrics?: Record<string, unknown>;
     requiredFilters?: NonNullable<Explore['tables'][string]['requiredFilters']>;
-}): Explore =>
-    ({
+}): Explore => {
+    const compiledDimensions = Object.fromEntries(
+        Object.entries(dimensions).map(([fieldName, dimension]) => [
+            fieldName,
+            {
+                fieldType: FieldType.DIMENSION,
+                hidden: false,
+                name: fieldName,
+                table: name,
+                ...(dimension as object),
+            },
+        ]),
+    );
+    const compiledMetrics = Object.fromEntries(
+        Object.entries(metrics).map(([fieldName, metric]) => [
+            fieldName,
+            {
+                fieldType: FieldType.METRIC,
+                hidden: false,
+                name: fieldName,
+                table: name,
+                ...(metric as object),
+            },
+        ]),
+    );
+
+    return {
         name,
         label: name,
         tags,
@@ -64,11 +90,12 @@ const makeExplore = ({
                 requiredAttributes,
                 anyAttributes: {},
                 requiredFilters,
-                dimensions,
-                metrics,
+                dimensions: compiledDimensions,
+                metrics: compiledMetrics,
             },
         },
-    }) as unknown as Explore;
+    } as unknown as Explore;
+};
 
 const makeService = ({
     explores = {},
@@ -312,9 +339,19 @@ describe('AiAgentToolsService', () => {
                     name: 'orders',
                     dimensions: {
                         status: { name: 'status', table: 'orders' },
+                        internal_notes: {
+                            name: 'internal_notes',
+                            table: 'orders',
+                            hidden: true,
+                        },
                     },
                     metrics: {
                         count: { name: 'count', table: 'orders' },
+                        internal_score: {
+                            name: 'internal_score',
+                            table: 'orders',
+                            hidden: true,
+                        },
                     },
                 }),
             },

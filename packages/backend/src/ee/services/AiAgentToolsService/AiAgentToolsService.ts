@@ -14,9 +14,12 @@ import {
     getItemMap,
     getLtreePathFromContentAsCodePath,
     getValidAiQueryLimit,
+    getVisibleFields,
     isDashboardChartTileType,
+    isDimension,
     isExploreError,
     isGitProjectType,
+    isMetric,
     JobStatusType,
     NotFoundError,
     ParameterError,
@@ -283,26 +286,12 @@ export class AiAgentToolsService extends BaseService {
         dimensions: string[];
         metrics: string[];
     } {
-        const dimensions = Object.entries(explore.tables).flatMap(
-            ([tableName, table]) =>
-                Object.values(table.dimensions).map((dimension) =>
-                    getItemId({
-                        table: dimension.table ?? tableName,
-                        name: dimension.name,
-                    }),
-                ),
-        );
-        const metrics = Object.entries(explore.tables).flatMap(
-            ([tableName, table]) =>
-                Object.values(table.metrics).map((metric) =>
-                    getItemId({
-                        table: metric.table ?? tableName,
-                        name: metric.name,
-                    }),
-                ),
-        );
+        const visibleFields = getVisibleFields(explore);
 
-        return { dimensions, metrics };
+        return {
+            dimensions: visibleFields.filter(isDimension).map(getItemId),
+            metrics: visibleFields.filter(isMetric).map(getItemId),
+        };
     }
 
     constructor({

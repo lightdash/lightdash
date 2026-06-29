@@ -7,7 +7,8 @@ import {
     Field,
     FieldType,
     getFilterTypeFromItemType,
-    getItemMap,
+    getItemId,
+    getVisibleFields,
     isDimension,
     isMetric,
     type Dimension,
@@ -117,7 +118,9 @@ const hydrateResolvedSelection = async ({
     }
 
     const explore = await getExplore({ table: selection.exploreName });
-    const itemMap = getItemMap(explore);
+    const itemMap = Object.fromEntries(
+        getVisibleFields(explore).map((field) => [getItemId(field), field]),
+    );
 
     const dimensions = selection.dimensionIds.map((fieldId) => {
         const item = itemMap[fieldId];

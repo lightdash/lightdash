@@ -135,6 +135,17 @@ describe('field discovery descriptions', () => {
             description: longDescription,
             hidden: false,
         };
+        const hiddenDimension = {
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.STRING,
+            name: 'internal_notes',
+            label: 'Internal notes',
+            table: 'tickets',
+            tableLabel: 'Tickets',
+            sql: '${TABLE}.internal_notes',
+            description: 'Internal-only notes.',
+            hidden: true,
+        };
         const explore = {
             name: 'tickets',
             baseTable: 'tickets',
@@ -143,6 +154,7 @@ describe('field discovery descriptions', () => {
                 tickets: {
                     dimensions: {
                         feature_name: featureName,
+                        internal_notes: hiddenDimension,
                     },
                     metrics: {},
                 },
@@ -156,6 +168,7 @@ describe('field discovery descriptions', () => {
         const output = await executeListFields(tool, {
             fields: [
                 { explore: 'tickets', fieldId: 'tickets_feature_name' },
+                { explore: 'tickets', fieldId: 'tickets_internal_notes' },
                 { explore: 'tickets', fieldId: 'tickets_missing' },
             ],
         });
@@ -163,6 +176,9 @@ describe('field discovery descriptions', () => {
 
         expect(result.results[0].field.description).toEqual(longDescription);
         expect(result.results[1].error).toEqual(
+            'Field "tickets_internal_notes" was not found in explore "tickets".',
+        );
+        expect(result.results[2].error).toEqual(
             'Field "tickets_missing" was not found in explore "tickets".',
         );
         expect(output.metadata.lookup?.fields).toEqual([
@@ -170,6 +186,11 @@ describe('field discovery descriptions', () => {
                 explore: 'tickets',
                 fieldId: 'tickets_feature_name',
                 status: 'success',
+            },
+            {
+                explore: 'tickets',
+                fieldId: 'tickets_internal_notes',
+                status: 'error',
             },
             {
                 explore: 'tickets',

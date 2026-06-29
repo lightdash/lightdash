@@ -1,6 +1,6 @@
 import {
-    getItemMap,
-    isField,
+    getItemId,
+    getVisibleFields,
     listFieldsToolDefinition,
     type ToolListFieldsOutput,
 } from '@lightdash/common';
@@ -45,9 +45,14 @@ const lookupFields = async ({
         fields.map(async (request) => {
             try {
                 const explore = await getExploreCached(request.explore);
-                const item = getItemMap(explore)[request.fieldId];
+                const item = Object.fromEntries(
+                    getVisibleFields(explore).map((field) => [
+                        getItemId(field),
+                        field,
+                    ]),
+                )[request.fieldId];
 
-                if (!item || !isField(item)) {
+                if (!item) {
                     return {
                         status: 'error' as const,
                         request,
