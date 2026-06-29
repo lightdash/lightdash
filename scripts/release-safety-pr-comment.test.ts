@@ -63,7 +63,7 @@ const unknownMigrationMarker = (): Marker => baseMarker({
 test('draft PR with unknown verdict => invites marking ready to run the AI review', () => {
     const body = renderPrComment(unknownMigrationMarker(), { draft: true });
     assert.ok(body.includes('Recreate recommended'));
-    assert.ok(/Mark this PR ready for review.*run the AI migration review/s.test(body));
+    assert.ok(/Mark this PR ready for review.*run the AI rolling-update review/s.test(body));
     assert.ok(body.includes('skipped (draft PR — mark ready to run it)'));
     assert.ok(body.includes('2 added'));
 });
@@ -75,7 +75,7 @@ test('ready PR, AI ran and cleared it => Safe, ai-review row shows ran', () => {
         compatibility: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', notes: 'AI migration review: verified additive.' },
     }), { draft: false });
     assert.ok(body.includes('Safe to RollingUpdate'));
-    assert.ok(body.includes('✅ ran — verdict folded into the determination'));
+    assert.ok(body.includes('✅ ran — validated the flagged change(s); verdict folded into the determination'));
     // no "mark ready" nudge once it has actually run
     assert.ok(!/Mark this PR ready/.test(body));
 });
@@ -168,6 +168,38 @@ test('REST + MCP breaking changes are flagged in determination and consequences'
     assert.ok(body.includes('REST API breaking change'));
     assert.ok(body.includes('MCP tool breaking change'));
     assert.ok(/1 breaking change\(s\)/.test(body));
+});
+
+test('API-driven break (no migration) reads as an API change, not a schema change', () => {
+    const body = renderPrComment(baseMarker({
+        capabilities: ['migrations', 'ai-review', 'rest', 'upgrade'],
+        migrations: { present: false, count: 0, files: [], ee: false },
+        compatibility: { rollingUpdateSafe: false, recommendedStrategy: 'Recreate', notes: 'AI rolling-update review: the bundled frontend reads the removed field.' },
+        api: {
+            rest: { checked: true, breaking: true, changes: ['GET /api/v1/saved — response field removed'] },
+            mcp: { checked: false, breaking: false, changes: [] },
+        },
+    }), { draft: false });
+    assert.ok(body.includes('Recreate required'));
+    assert.ok(/breaking API change was flagged/.test(body));
+    // it must NOT claim a schema break / crash loop when there's no migration
+    assert.ok(!/breaking schema change was detected/.test(body));
+    assert.ok(/in-flight consumer/.test(body));
+    assert.ok(body.includes('✅ ran — validated the flagged change(s)'));
+});
+
+test('API-driven unknown (no migration) describes an API change, not schema', () => {
+    const body = renderPrComment(baseMarker({
+        capabilities: ['migrations', 'ai-review', 'mcp', 'upgrade'],
+        migrations: { present: false, count: 0, files: [], ee: false },
+        compatibility: { rollingUpdateSafe: 'unknown', recommendedStrategy: 'Recreate', notes: 'AI rolling-update review: could not determine.' },
+        api: {
+            rest: { checked: false, breaking: false, changes: [] },
+            mcp: { checked: true, breaking: true, changes: ['MCP tool `run_query` input now required'] },
+        },
+    }));
+    assert.ok(body.includes('Recreate recommended'));
+    assert.ok(/carries an API change/.test(body));
 });
 
 test('EE migrations are labelled', () => {
