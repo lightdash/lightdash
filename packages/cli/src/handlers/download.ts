@@ -400,9 +400,9 @@ const readCodeFiles = async <
     GlobalState.log(`Reading ${folder} from ${baseDir}`);
 
     const [major] = process.versions.node.split('.').map(Number);
-    if (major < 22) {
+    if (major < 24) {
         throw new Error(
-            `Node.js v22.0.0 or later is required for this command (current: ${process.version}).`,
+            `Node.js v24.0.0 or later is required for this command (current: ${process.version}).`,
         );
     }
 

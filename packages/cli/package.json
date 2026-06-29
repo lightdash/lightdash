@@ -21,7 +21,7 @@
     "build": "tsc --build tsconfig.json",
     "build:fast": "tsgo --build tsconfig.fast.json",
     "bundle": "ncc build dist/index.js -o bundle -e @duckdb/node-api -e @duckdb/node-bindings -e @duckdb/node-bindings-darwin-arm64 -e @duckdb/node-bindings-darwin-x64 -e @duckdb/node-bindings-linux-arm64 -e @duckdb/node-bindings-linux-x64 -e @duckdb/node-bindings-win32-x64 && bash ./scripts/copy-bundle-assets.sh",
-    "build:binary": "DUCKDB_BINDINGS=node-bindings-darwin-x64,node-bindings-darwin-arm64 pnpm bundle && npx @yao-pkg/pkg bundle/index.js --config pkg.config.json --targets node22-macos-x64,node22-macos-arm64 --output bin/lightdash --compress Brotli",
+    "build:binary": "DUCKDB_BINDINGS=node-bindings-darwin-x64,node-bindings-darwin-arm64 pnpm bundle && npx @yao-pkg/pkg bundle/index.js --config pkg.config.json --targets node24-macos-x64,node24-macos-arm64 --output bin/lightdash --compress Brotli",
     "typecheck": "tsc --project tsconfig.json --noEmit",
     "typecheck:fast": "tsgo --project tsconfig.fast.json --noEmit",
     "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",

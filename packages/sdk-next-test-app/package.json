@@ -15,7 +15,7 @@
         "react-dom": "19.2.0"
     },
     "devDependencies": {
-        "@types/node": "22.13.1",
+        "@types/node": "24.13.2",
         "@types/react": "19.2.2",
         "@types/react-dom": "19.2.2",
         "postcss": "8.5.10",
