@@ -489,11 +489,11 @@ describe('AiAgentAdminService.updateReviewItemAssignee', () => {
 
 describe('AiAgentAdminService issue activity', () => {
     it('records status_changed only when the status actually changes', async () => {
-        const createReviewItemEvent = jest.fn().mockResolvedValue(undefined);
+        const createReviewItemEvent = vi.fn().mockResolvedValue(undefined);
         const service = makeService({
             aiAgentReviewClassifierModel: {
                 createReviewItemEvent,
-                getReviewItem: jest
+                getReviewItem: vi
                     .fn()
                     .mockResolvedValue(makeReviewItem({ status: 'open' })),
             },
@@ -516,11 +516,11 @@ describe('AiAgentAdminService issue activity', () => {
     });
 
     it('does not record status_changed when the status is unchanged', async () => {
-        const createReviewItemEvent = jest.fn().mockResolvedValue(undefined);
+        const createReviewItemEvent = vi.fn().mockResolvedValue(undefined);
         const service = makeService({
             aiAgentReviewClassifierModel: {
                 createReviewItemEvent,
-                getReviewItem: jest
+                getReviewItem: vi
                     .fn()
                     .mockResolvedValue(makeReviewItem({ status: 'open' })),
             },
@@ -541,14 +541,12 @@ describe('AiAgentAdminService issue activity', () => {
     });
 
     it('records assignee_changed when the assignee changes', async () => {
-        const createReviewItemEvent = jest.fn().mockResolvedValue(undefined);
+        const createReviewItemEvent = vi.fn().mockResolvedValue(undefined);
         const service = makeService({
             aiAgentReviewClassifierModel: {
                 createReviewItemEvent,
-                updateReviewItemAssignee: jest
-                    .fn()
-                    .mockResolvedValue(undefined),
-                getReviewItem: jest
+                updateReviewItemAssignee: vi.fn().mockResolvedValue(undefined),
+                getReviewItem: vi
                     .fn()
                     .mockResolvedValue(
                         makeReviewItem({ assignedToUserUuid: null }),
@@ -576,12 +574,12 @@ describe('AiAgentAdminService issue activity', () => {
     it('merges issue + remediation events sorted by occurredAt', async () => {
         const service = makeService({
             aiAgentReviewClassifierModel: {
-                getReviewItem: jest
+                getReviewItem: vi
                     .fn()
                     .mockResolvedValue(
                         makeReviewItem({ remediation: makeRemediation() }),
                     ),
-                listReviewItemEvents: jest.fn().mockResolvedValue([
+                listReviewItemEvents: vi.fn().mockResolvedValue([
                     {
                         uuid: 'i1',
                         fingerprint: 'fingerprint-1',
@@ -591,7 +589,7 @@ describe('AiAgentAdminService issue activity', () => {
                         payload: { rootCause: 'semantic_layer' },
                     },
                 ]),
-                listRemediationEvents: jest.fn().mockResolvedValue([
+                listRemediationEvents: vi.fn().mockResolvedValue([
                     {
                         uuid: 'r1',
                         remediationUuid: REMEDIATION_UUID,
@@ -618,10 +616,10 @@ describe('AiAgentAdminService issue activity', () => {
     it('returns issue events even with no remediation', async () => {
         const service = makeService({
             aiAgentReviewClassifierModel: {
-                getReviewItem: jest
+                getReviewItem: vi
                     .fn()
                     .mockResolvedValue(makeReviewItem({ remediation: null })),
-                listReviewItemEvents: jest.fn().mockResolvedValue([
+                listReviewItemEvents: vi.fn().mockResolvedValue([
                     {
                         uuid: 'i1',
                         fingerprint: 'fingerprint-1',
