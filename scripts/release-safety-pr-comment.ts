@@ -135,12 +135,6 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
             : '⚠️ breaking schema op(s) found'
         : '✅ no breaking shapes found';
 
-    const aiResult = caps.has('ai-review')
-        ? '✅ ran — validated the flagged change(s); verdict folded into the determination above'
-        : opts.draft
-        ? '⏭️ skipped (draft PR — mark ready to run it)'
-        : '⏭️ skipped (nothing flagged to validate — no migration and no API break)';
-
     const apiResult = (s: ApiSurface, missingNote: string): string => {
         if (!s.checked) return `⏭️ not checked (${missingNote})`;
         return s.breaking === true ? `⚠️ ${s.changes.length} breaking change(s)` : '✅ no breaking changes';
@@ -154,16 +148,50 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
         ? `min previous: ${marker.upgrade.minPreviousVersion}`
         : '✅ no required stop';
 
+    // The deterministic DETECTORS — the inputs the verdict is derived from. The AI
+    // rolling-update review is deliberately NOT a row here: it is not a detector,
+    // it's the synthesis step that reads these detectors' flagged output and
+    // produces the determination above (rendered as the "verdict" line below).
     const matrix = [
-        '| Check | Status | Result |',
+        '| Detector | Status | Result |',
         '|---|---|---|',
         row('Migrations', migrationsPresent === 'unknown' ? '⚠️' : '✅ ran', migResult),
         row('SQL-shape linter', caps.has('sql-lint') ? '✅ ran' : '⏭️ n/a', sqlResult),
-        row('AI rolling-update review', caps.has('ai-review') ? '✅ ran' : '⏭️ skipped', aiResult),
         row('REST API (oasdiff)', marker.api.rest.checked ? '✅ ran' : '⏭️ skipped', apiResult(marker.api.rest, 'oasdiff or base spec unavailable')),
         row('MCP tool surface', marker.api.mcp.checked ? '✅ ran' : '⏭️ skipped', apiResult(marker.api.mcp, 'no baseline snapshot')),
         row('Upgrade overrides', caps.has('upgrade') ? '✅ ran' : '⏭️ skipped', upgradeResult),
     ].join('\n');
+
+    // How the verdict above was reached. The determination is the precedence
+    // ladder's output, NOT the AI's alone: the deterministic detectors set a
+    // baseline (a linter-flagged break is ❌ by default), and the AI review then
+    // VALIDATES the flagged change(s) and can override it — it is the only path to
+    // ✅ safe. So attribute the verdict to what the AI actually did (clear /
+    // confirm / couldn't override), or to the deterministic baseline when it
+    // didn't run. The AI is the judgement layer feeding the ladder, not a detector.
+    const anythingFlagged = migrationsPresent === true || restBreaking || mcpBreaking;
+    let verdictLine: string;
+    if (caps.has('ai-review')) {
+        const role = aiClearedLinter
+            ? 'cleared a linter-flagged destructive shape as a safe expand/contract → ✅'
+            : rollingUpdateSafe === true
+            ? 'cleared the flagged change(s) → ✅'
+            : rollingUpdateSafe === false
+            ? lintFlagged
+                ? 'did not clear the SQL-linter floor, which stands → ❌'
+                : 'confirmed a breaking change → ❌'
+            : 'ran but could not conclude, so the deterministic baseline stands → ❓';
+        verdictLine = `🧠 **Verdict** — the detectors below set a deterministic baseline; the AI rolling-update review then validated the flagged change(s) and ${role}. The AI is the only path to ✅ safe — it isn’t a detector.`;
+    } else if (opts.draft) {
+        verdictLine =
+            '🧠 **Verdict** — the detectors below set the baseline; the AI rolling-update review (which validates the flagged change(s) and is the only path to ✅ safe) is skipped on drafts — mark this PR ready to run it.';
+    } else if (anythingFlagged) {
+        verdictLine =
+            '🧠 **Verdict** — a detector flagged a change but the AI rolling-update review did not run or could not conclude, so the determination above is the deterministic baseline from the detectors below.';
+    } else {
+        verdictLine =
+            '🧠 **Verdict** — no detector flagged a change, so the determination above is the deterministic baseline (safe) from the detectors below.';
+    }
 
     // ---- customer-deploy consequence ----------------------------------------
     const consequence: string[] = [];
@@ -233,7 +261,10 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
         baseLine.trimEnd(),
         lines.map((l) => `- ${l}`).join('\n'),
         '',
-        '### Check matrix',
+        verdictLine,
+        '',
+        '### Detector checks',
+        '_The deterministic detectors below set the baseline; the verdict above is the AI review’s judgement of the flagged change(s) on top of it._',
         matrix,
         '',
         '### What would happen on deploy to customers',

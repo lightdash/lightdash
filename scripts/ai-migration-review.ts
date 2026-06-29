@@ -300,6 +300,13 @@ export interface AiReviewOpts {
     restBreaking?: string[];
     /** Deterministic MCP tool-surface breaking changes to validate. */
     mcpBreaking?: string[];
+    /**
+     * Findings the deterministic SQL-shape linter already flagged on the
+     * migrations (rendered strings). Passed so the AI VALIDATES the linter's
+     * specific findings — confirm each is a real break, or clear it as a safe
+     * expand/contract — rather than re-deriving the shape blind from the files.
+     */
+    sqlLintFindings?: string[];
     log?: (msg: string) => void;
 }
 
@@ -309,6 +316,7 @@ function buildInputsText(opts: {
     lastTag: string;
     migrationFiles: string[];
     migrationBlocks: string[];
+    sqlLintFindings: string[];
     restBreaking: string[];
     mcpBreaking: string[];
 }): string {
@@ -316,8 +324,11 @@ function buildInputsText(opts: {
         `Release ${opts.version} since ${opts.lastTag}. Investigate every input below against the ${opts.lastTag} (old) and new code using your tools, then give the JSON verdict.`,
     ];
     if (opts.migrationBlocks.length) {
+        const linterNote = opts.sqlLintFindings.length
+            ? `\n\nThe deterministic SQL-shape linter flagged these shapes as POTENTIALLY breaking — resolve EACH: confirm it's a real break the previous release's code can't survive, or clear it as a safe expand/contract by verifying with grep_old_code that the previous release no longer references the object:\n${opts.sqlLintFindings.map((f) => `- ${f}`).join('\n')}`
+            : '';
         sections.push(
-            `## Migrations (${opts.migrationBlocks.length} added)\n\n${opts.migrationBlocks.join('\n\n')}`,
+            `## Migrations (${opts.migrationBlocks.length} added)${linterNote}\n\n${opts.migrationBlocks.join('\n\n')}`,
         );
     }
     if (opts.restBreaking.length) {
@@ -344,6 +355,7 @@ export async function aiRollingUpdateReview(opts: AiReviewOpts): Promise<AiRevie
     const newRef = opts.newRef ?? 'HEAD';
     const restBreaking = opts.restBreaking ?? [];
     const mcpBreaking = opts.mcpBreaking ?? [];
+    const sqlLintFindings = opts.sqlLintFindings ?? [];
     const paths = addedMigrationPaths(opts.lastTag);
     if (paths.length === 0 && restBreaking.length === 0 && mcpBreaking.length === 0) return null;
 
@@ -367,6 +379,7 @@ export async function aiRollingUpdateReview(opts: AiReviewOpts): Promise<AiRevie
                         lastTag: opts.lastTag,
                         migrationFiles: paths,
                         migrationBlocks: fileBlocks,
+                        sqlLintFindings,
                         restBreaking,
                         mcpBreaking,
                     }),
