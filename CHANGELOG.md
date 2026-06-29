@@ -1,3 +1,17 @@
+## [0.3260.1](https://github.com/lightdash/lightdash/compare/0.3260.0...0.3260.1) (2026-06-29)
+
+
+### Bug Fixes
+
+* **ai-agent:** exclude done items from reviews project badge counts ([#24863](https://github.com/lightdash/lightdash/issues/24863)) ([a7be34a](https://github.com/lightdash/lightdash/commit/a7be34affb265e4d2874125b3c3b9106bdde9fe4)), closes [/linear.app/lightdash/issue/PROD-8553/exclude-done-and-dismissed-reviews-from-project-badge-counts#agent-session-bae52390](https://github.com//linear.app/lightdash/issue/PROD-8553/exclude-done-and-dismissed-reviews-from-project-badge-counts/issues/agent-session-bae52390)
+* **ai-reviews:** suppress intro tour when deep-linking to an open review sidebar ([#24864](https://github.com/lightdash/lightdash/issues/24864)) ([8832cef](https://github.com/lightdash/lightdash/commit/8832cef9cd1d57afff7dda118e698424d59fbd08)), closes [/linear.app/lightdash/issue/PROD-8522/ask-ai-reviews-intro-tour-popovers-misalign-with-side-panel-open#agent-session-410926c1](https://github.com//linear.app/lightdash/issue/PROD-8522/ask-ai-reviews-intro-tour-popovers-misalign-with-side-panel-open/issues/agent-session-410926c1)
+* show disabled "Add tile" button alongside "Add tab" when tab tile limit is reached ([#24861](https://github.com/lightdash/lightdash/issues/24861)) ([155110b](https://github.com/lightdash/lightdash/commit/155110b54337fa1ae9026bfff3229cdc91b412ca))
+
+
+### Performance Improvements
+
+* **pivot:** single-scan pivot SQL for warehouses without CTE materialization ([#24862](https://github.com/lightdash/lightdash/issues/24862)) ([6525318](https://github.com/lightdash/lightdash/commit/6525318577a09d8c18fcb208f32a4876060ed08f))
+
 # [0.3260.0](https://github.com/lightdash/lightdash/compare/0.3259.2...0.3260.0) (2026-06-29)
 
 
