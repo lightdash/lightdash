@@ -146,3 +146,6 @@ AGENTS.md
 
 # release-safety marker is a generated release asset (PROD-8359), never committed
 /release-safety.json
+
+# Superpowers brainstorm scratch
+.superpowers/

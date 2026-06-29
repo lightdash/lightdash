@@ -24,6 +24,7 @@ import {
 import { ProjectContextWritebackModal } from './ProjectContextWritebackModal';
 import {
     shouldShowWritebackBlockedReason,
+    writebackBlockedReasonDescriptions,
     writebackBlockedReasonLabels,
 } from './reviewItemDetails';
 
@@ -32,12 +33,15 @@ type ReviewItemActionsProps = {
     mode?: 'table' | 'drawer';
     /** Suppress the "Open workspace" button (e.g. when it lives elsewhere). */
     hideWorkspaceLink?: boolean;
+    /** Suppress the writeback-blocked note (e.g. when it's rendered elsewhere). */
+    hideBlockedReason?: boolean;
 };
 
 export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
     reviewItem,
     mode = 'table',
     hideWorkspaceLink = false,
+    hideBlockedReason = false,
 }) => {
     const createWriteback = useCreateAiAgentReviewItemWriteback();
     const updateStatus = useUpdateAiAgentReviewItemStatus();
@@ -75,6 +79,11 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
         : current.writebackEligibility.reason;
     const blockedReasonLabel = shouldShowWritebackBlockedReason(blockedReason)
         ? writebackBlockedReasonLabels[blockedReason]
+        : null;
+    const blockedReasonDescription = shouldShowWritebackBlockedReason(
+        blockedReason,
+    )
+        ? (writebackBlockedReasonDescriptions[blockedReason] ?? null)
         : null;
     const previewsDiff = current.primaryRootCause === 'project_context';
 
@@ -265,21 +274,42 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                         )}
                     </Group>
 
-                    {!canCreatePr &&
+                    {!hideBlockedReason &&
+                        !canCreatePr &&
                         !current.linkedPrUrl &&
                         !isWritebackInFlight &&
-                        blockedReasonLabel && (
+                        blockedReasonLabel &&
+                        (mode === 'drawer' ? (
+                            <Group
+                                gap={10}
+                                wrap="nowrap"
+                                align="flex-start"
+                                maw={360}
+                            >
+                                <MantineIcon
+                                    icon={IconInfoCircle}
+                                    size={20}
+                                    stroke={1.6}
+                                    color="ldGray.5"
+                                />
+                                <Stack gap={2}>
+                                    <Text fz="xs" fw={600} c="ldGray.7">
+                                        {blockedReasonLabel}
+                                    </Text>
+                                    {blockedReasonDescription && (
+                                        <Text fz="xs" c="ldGray.6" lh={1.45}>
+                                            {blockedReasonDescription}
+                                        </Text>
+                                    )}
+                                </Stack>
+                            </Group>
+                        ) : (
                             <Tooltip
                                 label={blockedReasonLabel}
                                 withArrow
                                 openDelay={300}
-                                disabled={mode === 'drawer'}
                             >
-                                <Group
-                                    gap={4}
-                                    wrap="nowrap"
-                                    maw={mode === 'drawer' ? 360 : 220}
-                                >
+                                <Group gap={4} wrap="nowrap" maw={220}>
                                     <MantineIcon
                                         icon={IconInfoCircle}
                                         size="xs"
@@ -288,13 +318,13 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                                         fz="xs"
                                         c="ldGray.6"
                                         fw={500}
-                                        lineClamp={mode === 'drawer' ? 3 : 1}
+                                        lineClamp={1}
                                     >
                                         {blockedReasonLabel}
                                     </Text>
                                 </Group>
                             </Tooltip>
-                        )}
+                        ))}
                 </Stack>
             )}
 

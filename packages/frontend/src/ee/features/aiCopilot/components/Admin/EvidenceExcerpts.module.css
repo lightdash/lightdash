@@ -1,0 +1,22 @@
+.excerpts {
+    border-left: 2px solid var(--mantine-color-ldGray-2);
+    padding-left: var(--mantine-spacing-md);
+}
+
+.label {
+    /* Match AiMarkdown's 7px left padding so labels line up with their text. */
+    padding-left: 7px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--mantine-color-ldGray-6);
+}
+
+.label[data-muted] {
+    color: var(--mantine-color-ldGray-5);
+}
+
+/* AiMarkdown owns the body typography; we only dim the secondary
+   (context / tool) sources so the cited user & assistant turns lead. */
+.text[data-muted] {
+    opacity: 0.7;
+}
