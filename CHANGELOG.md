@@ -1,3 +1,10 @@
+## [0.3258.3](https://github.com/lightdash/lightdash/compare/0.3258.2...0.3258.3) (2026-06-29)
+
+
+### Bug Fixes
+
+* deduplicate distinct metrics within selected dimension groups ([#24845](https://github.com/lightdash/lightdash/issues/24845)) ([d7619c5](https://github.com/lightdash/lightdash/commit/d7619c52d5930b946bc5cb31270b7519306d70fa))
+
 ## [0.3258.2](https://github.com/lightdash/lightdash/compare/0.3258.1...0.3258.2) (2026-06-29)
 
 
