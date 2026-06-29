@@ -157,16 +157,15 @@ data "aws_iam_policy_document" "lightdash_microvms" {
     ]
     resources = ["*"]
   }
+  # PassRole for the microVM execution role. No iam:PassedToService condition:
+  # RunMicrovm passes the role to the Lambda MicroVMs service principal, which is
+  # not `lambda.amazonaws.com`, so a condition on it denies the pass. Scoped to
+  # the single execution role ARN, which is sufficient for the testbed.
   statement {
     sid       = "PassExecutionRole"
     effect    = "Allow"
     actions   = ["iam:PassRole"]
     resources = [aws_iam_role.microvm_execution.arn]
-    condition {
-      test     = "StringEquals"
-      variable = "iam:PassedToService"
-      values   = ["lambda.amazonaws.com"]
-    }
   }
   # RunMicrovm must be allowed to attach the ingress/egress network connectors;
   # the AWS-managed connector ARNs are passed via lambda:PassNetworkConnector
