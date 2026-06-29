@@ -575,6 +575,7 @@ describe('AiAgentReviewClassifierModel', () => {
                 .select(AiAgentTurnSignalTableName)
                 .responseOnce([makeTurnSignalRow()]);
             tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
             tracker.on
                 .select(AiAgentReviewRemediationTableName)
                 .responseOnce([]);
@@ -645,6 +646,7 @@ describe('AiAgentReviewClassifierModel', () => {
                     updated_at_age_ms: 0,
                 },
             ]);
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
             tracker.on
                 .select(AiAgentReviewRemediationTableName)
                 .responseOnce([]);
@@ -676,6 +678,7 @@ describe('AiAgentReviewClassifierModel', () => {
                 .select(AiAgentTurnSignalTableName)
                 .responseOnce([makeTurnSignalRow()]);
             tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
             tracker.on
                 .select(AiAgentReviewRemediationTableName)
                 .responseOnce([makeRemediationRow()]);
@@ -701,6 +704,7 @@ describe('AiAgentReviewClassifierModel', () => {
 
         it('filters by overlaid status', async () => {
             tracker.on.select(AiAgentTurnSignalTableName).responseOnce([]);
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
 
             const result = await model.listReviewItems({
                 organizationUuid: ORGANIZATION_UUID,
@@ -752,6 +756,8 @@ describe('AiAgentReviewClassifierModel', () => {
             tracker.on
                 .select(AiAgentReviewItemTableName)
                 .responseOnce(itemRows);
+            // listReviewItems also queries source='manual' rows; none here.
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
             tracker.on
                 .select(AiAgentReviewRemediationTableName)
                 .responseOnce(remediationRows);
