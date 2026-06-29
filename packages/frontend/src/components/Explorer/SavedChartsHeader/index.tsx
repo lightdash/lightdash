@@ -52,6 +52,7 @@ import {
 } from 'react';
 import { useBlocker, useLocation, useNavigate, useParams } from 'react-router';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
+import { CreateIssueMenuItem } from '../../../ee/features/aiCopilot/components/CreateIssue/CreateIssueMenuItem';
 import {
     explorerActions,
     selectHasUnsavedChanges,
@@ -635,12 +636,18 @@ const SavedChartsHeader: FC = () => {
                         >
                             <Menu.Dropdown>
                                 {savedChart && (
-                                    <AskAiAgentMenuItem
-                                        projectUuid={projectUuid}
-                                        chartUuid={savedChart.uuid}
-                                        clickedFrom="saved_chart_header"
-                                        withDivider
-                                    />
+                                    <>
+                                        <AskAiAgentMenuItem
+                                            projectUuid={projectUuid}
+                                            chartUuid={savedChart.uuid}
+                                            clickedFrom="saved_chart_header"
+                                        />
+                                        <CreateIssueMenuItem
+                                            projectUuid={projectUuid}
+                                            chartUuid={savedChart.uuid}
+                                            withDivider
+                                        />
+                                    </>
                                 )}
                                 <Menu.Label>Manage</Menu.Label>
                                 {userCanManageChart &&
