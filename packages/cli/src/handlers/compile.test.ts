@@ -1,20 +1,21 @@
 import fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
+import type { Mock } from 'vitest';
 import * as styles from '../styles';
 import { compile } from './compile';
 
-jest.mock('execa');
-jest.mock('../analytics/analytics');
-jest.mock('../config', () => ({
-    getConfig: jest.fn().mockResolvedValue({ user: null, context: null }),
+vi.mock('execa');
+vi.mock('../analytics/analytics');
+vi.mock('../config', () => ({
+    getConfig: vi.fn().mockResolvedValue({ user: null, context: null }),
 }));
 
 describe('compile', () => {
     let tempDir: string;
 
     beforeEach(async () => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         tempDir = await fs.mkdtemp(
             path.join(os.tmpdir(), 'lightdash-compile-test-'),
         );
@@ -55,7 +56,7 @@ dimensions:
     test('should compile Lightdash YAML project without dbt installed', async () => {
         // Mock analytics to prevent actual tracking
         const { LightdashAnalytics } = await import('../analytics/analytics');
-        (LightdashAnalytics.track as jest.Mock).mockResolvedValue(undefined);
+        (LightdashAnalytics.track as Mock).mockResolvedValue(undefined);
 
         const result = await compile({
             projectDir: tempDir,
@@ -89,7 +90,7 @@ dimensions:
         expect(result.length).toBeGreaterThan(0);
 
         // Analytics should be called even though dbt is not found
-        const trackCalls = (LightdashAnalytics.track as jest.Mock).mock.calls;
+        const trackCalls = (LightdashAnalytics.track as Mock).mock.calls;
 
         expect(LightdashAnalytics.track).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -111,12 +112,14 @@ dimensions:
             (call) => call[0].event === 'compile.started',
         );
         expect(startedCall).toBeDefined();
-        expect(startedCall[0].properties.dbtVersion).toBeUndefined();
+        expect(startedCall![0].properties.dbtVersion).toBeUndefined();
     });
 
     test('should display PARTIAL_SUCCESS with warning messages', () => {
         // Mock console.error to capture output
-        const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+        const consoleSpy = vi
+            .spyOn(console, 'error')
+            .mockImplementation(() => {});
 
         // Partial compilation is now enabled by default
         const originalEnv = process.env.PARTIAL_COMPILATION_ENABLED;
