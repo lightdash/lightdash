@@ -23,9 +23,9 @@ const user = {
     userUuid,
     organizationUuid,
     ability: {
-        can: jest.fn(() => true),
-        cannot: jest.fn(() => false),
-        relevantRuleFor: jest.fn(() => undefined),
+        can: vi.fn(() => true),
+        cannot: vi.fn(() => false),
+        relevantRuleFor: vi.fn(() => undefined),
         rules: [],
     },
 } as unknown as SessionUser;
@@ -73,26 +73,26 @@ const makeExplore = ({
 const makeService = ({
     explores = {},
     userAttributes = {},
-    searchCatalog = jest.fn(),
+    searchCatalog = vi.fn(),
     verifiedFieldUsage = new Map<string, number>(),
-    searchFieldUniqueValues = jest.fn(),
+    searchFieldUniqueValues = vi.fn(),
     projectSpaces = [],
     spaceModel = {
-        hasSpaceWithPathAndUuids: jest.fn().mockResolvedValue(true),
+        hasSpaceWithPathAndUuids: vi.fn().mockResolvedValue(true),
     },
     dashboardService = {},
     savedChartService = {},
     asyncQueryService = {},
     coderService = {},
     aiAgentContentValidation = {},
-    scheduleCompileProject = jest.fn().mockResolvedValue({ jobUuid: 'job-1' }),
-    jobModel = { get: jest.fn() },
+    scheduleCompileProject = vi.fn().mockResolvedValue({ jobUuid: 'job-1' }),
+    jobModel = { get: vi.fn() },
 }: {
     explores?: Record<string, Explore>;
     userAttributes?: Record<string, string[]>;
-    searchCatalog?: jest.Mock;
+    searchCatalog?: import('vitest').Mock;
     verifiedFieldUsage?: Map<string, number>;
-    searchFieldUniqueValues?: jest.Mock;
+    searchFieldUniqueValues?: import('vitest').Mock;
     projectSpaces?: Array<{ uuid: string; path: string }>;
     spaceModel?: Record<string, unknown>;
     dashboardService?: Record<string, unknown>;
@@ -100,25 +100,25 @@ const makeService = ({
     asyncQueryService?: Record<string, unknown>;
     coderService?: Record<string, unknown>;
     aiAgentContentValidation?: Record<string, unknown>;
-    scheduleCompileProject?: jest.Mock;
+    scheduleCompileProject?: import('vitest').Mock;
     jobModel?: Record<string, unknown>;
 } = {}) =>
     new AiAgentToolsService({
         builtInSkills: {
-            getAiAgentSkills: jest.fn(),
-            getAiAgentSkill: jest.fn(),
-            listSkillToolReferences: jest.fn(),
-            readSkillTool: jest.fn(),
-            readSkillToolResource: jest.fn(),
-            listMcpResources: jest.fn(),
-            getMcpResourceBody: jest.fn(),
+            getAiAgentSkills: vi.fn(),
+            getAiAgentSkill: vi.fn(),
+            listSkillToolReferences: vi.fn(),
+            readSkillTool: vi.fn(),
+            readSkillToolResource: vi.fn(),
+            listMcpResources: vi.fn(),
+            getMcpResourceBody: vi.fn(),
         },
         lightdashConfig: {
             siteUrl: 'https://lightdash.example',
             ai: { copilot: { maxQueryLimit: 500 } },
         },
         projectModel: {
-            findExploresFromCache: jest.fn(
+            findExploresFromCache: vi.fn(
                 async (
                     _projectUuid: string,
                     _sortBy: string,
@@ -132,23 +132,23 @@ const makeService = ({
                           )
                         : explores,
             ),
-            getAllByOrganizationUuid: jest.fn().mockResolvedValue([]),
-            get: jest.fn(),
+            getAllByOrganizationUuid: vi.fn().mockResolvedValue([]),
+            get: vi.fn(),
         },
         projectService: {
             searchFieldUniqueValues,
-            getSpaces: jest.fn().mockResolvedValue(projectSpaces),
+            getSpaces: vi.fn().mockResolvedValue(projectSpaces),
             scheduleCompileProject,
         },
         jobModel,
         userAttributesModel: {
-            getAttributeValuesForOrgMember: jest
+            getAttributeValuesForOrgMember: vi
                 .fn()
                 .mockResolvedValue(userAttributes),
         },
         catalogService: { searchCatalog },
         contentVerificationModel: {
-            getVerifiedFieldUsage: jest
+            getVerifiedFieldUsage: vi
                 .fn()
                 .mockResolvedValue(verifiedFieldUsage),
         },
@@ -225,7 +225,7 @@ describe('AiAgentToolsService', () => {
     });
 
     it('adds verified field usage for AI runtime searches but not MCP searches', async () => {
-        const searchCatalog = jest.fn(async ({ catalogSearch }) => ({
+        const searchCatalog = vi.fn(async ({ catalogSearch }) => ({
             data:
                 catalogSearch.type === CatalogType.Table
                     ? [
@@ -300,34 +300,40 @@ describe('AiAgentToolsService', () => {
                 required: true,
             },
         ];
-        const searchCatalog = jest.fn(async ({ catalogSearch }) => ({
-            data:
-                catalogSearch.type === CatalogType.Table
-                    ? [
-                          {
-                              type: CatalogType.Table,
-                              name: 'orders',
-                              label: 'Orders',
-                              description: null,
-                              aiHints: null,
-                              searchRank: 1,
-                              joinedTables: [],
-                          },
-                      ]
-                    : [
-                          {
-                              type: CatalogType.Field,
-                              name: 'created_date',
-                              label: 'Created Date',
-                              tableName: 'orders',
-                              fieldType: 'dimension',
-                              searchRank: 1,
-                              description: null,
-                              chartUsage: 3,
-                          },
-                      ],
-            pagination: undefined,
-        }));
+        const searchCatalog = vi.fn(
+            async ({
+                catalogSearch,
+            }: {
+                catalogSearch: { type: CatalogType };
+            }) => ({
+                data:
+                    catalogSearch.type === CatalogType.Table
+                        ? [
+                              {
+                                  type: CatalogType.Table,
+                                  name: 'orders',
+                                  label: 'Orders',
+                                  description: null,
+                                  aiHints: null,
+                                  searchRank: 1,
+                                  joinedTables: [],
+                              },
+                          ]
+                        : [
+                              {
+                                  type: CatalogType.Field,
+                                  name: 'created_date',
+                                  label: 'Created Date',
+                                  tableName: 'orders',
+                                  fieldType: 'dimension',
+                                  searchRank: 1,
+                                  description: null,
+                                  chartUsage: 3,
+                              },
+                          ],
+                pagination: undefined,
+            }),
+        );
         const service = makeService({
             explores: {
                 orders: makeExplore({
@@ -367,7 +373,7 @@ describe('AiAgentToolsService', () => {
     });
 
     const denySpaceAccessModel = () => ({
-        hasSpaceWithPathAndUuids: jest.fn().mockResolvedValue(false),
+        hasSpaceWithPathAndUuids: vi.fn().mockResolvedValue(false),
     });
 
     const makeDashboardContent = (spaceSlug: string) => ({
@@ -388,7 +394,7 @@ describe('AiAgentToolsService', () => {
     });
 
     it('does not search MCP field values when the field is outside the scoped explore', async () => {
-        const searchFieldUniqueValues = jest.fn();
+        const searchFieldUniqueValues = vi.fn();
         const service = makeService({
             explores: {
                 orders: makeExplore({
@@ -424,12 +430,12 @@ describe('AiAgentToolsService', () => {
     });
 
     it('does not read content outside the scoped agent spaces', async () => {
-        const dashboardService = { getByIdOrSlug: jest.fn() };
+        const dashboardService = { getByIdOrSlug: vi.fn() };
         const service = makeService({
             spaceModel: denySpaceAccessModel(),
             dashboardService,
             coderService: {
-                getDashboards: jest.fn().mockResolvedValue({
+                getDashboards: vi.fn().mockResolvedValue({
                     dashboards: [makeDashboardContent('blocked-space')],
                 }),
             },
@@ -445,10 +451,10 @@ describe('AiAgentToolsService', () => {
     });
 
     it('does not fetch dashboard charts outside the scoped agent spaces', async () => {
-        const getDashboardCharts = jest.fn();
+        const getDashboardCharts = vi.fn();
         const service = makeService({
             dashboardService: {
-                getByIdOrSlug: jest.fn().mockResolvedValue({
+                getByIdOrSlug: vi.fn().mockResolvedValue({
                     spaceUuid: 'blocked-space-uuid',
                 }),
                 getDashboardCharts,
@@ -469,7 +475,7 @@ describe('AiAgentToolsService', () => {
     });
 
     it('fetches dashboard charts inside the scoped agent spaces', async () => {
-        const getDashboardCharts = jest.fn().mockResolvedValue({
+        const getDashboardCharts = vi.fn().mockResolvedValue({
             dashboardName: 'Allowed Dashboard',
             charts: [],
             pagination: {
@@ -481,7 +487,7 @@ describe('AiAgentToolsService', () => {
         });
         const service = makeService({
             dashboardService: {
-                getByIdOrSlug: jest.fn().mockResolvedValue({
+                getByIdOrSlug: vi.fn().mockResolvedValue({
                     spaceUuid: 'allowed-space-uuid',
                 }),
                 getDashboardCharts,
@@ -517,10 +523,10 @@ describe('AiAgentToolsService', () => {
     });
 
     it('does not run saved chart queries outside the scoped agent spaces', async () => {
-        const executeSavedChartQueryAndGetResults = jest.fn();
+        const executeSavedChartQueryAndGetResults = vi.fn();
         const service = makeService({
             savedChartService: {
-                get: jest.fn().mockResolvedValue({
+                get: vi.fn().mockResolvedValue({
                     spaceUuid: 'blocked-space-uuid',
                 }),
             },
@@ -543,7 +549,7 @@ describe('AiAgentToolsService', () => {
     });
 
     it('does not return saved charts outside the scoped agent spaces', async () => {
-        const get = jest.fn().mockResolvedValue({
+        const get = vi.fn().mockResolvedValue({
             uuid: 'blocked-chart-uuid',
             spaceUuid: 'blocked-space-uuid',
         });
@@ -564,7 +570,7 @@ describe('AiAgentToolsService', () => {
             uuid: 'allowed-chart-uuid',
             spaceUuid: 'allowed-space-uuid',
         };
-        const get = jest.fn().mockResolvedValue(savedChart);
+        const get = vi.fn().mockResolvedValue(savedChart);
         const service = makeService({
             savedChartService: { get },
         });
@@ -578,12 +584,12 @@ describe('AiAgentToolsService', () => {
     });
 
     it('runs saved chart queries inside the scoped agent spaces', async () => {
-        const executeSavedChartQueryAndGetResults = jest
+        const executeSavedChartQueryAndGetResults = vi
             .fn()
             .mockResolvedValue({ rows: [] });
         const service = makeService({
             savedChartService: {
-                get: jest.fn().mockResolvedValue({
+                get: vi.fn().mockResolvedValue({
                     spaceUuid: 'allowed-space-uuid',
                 }),
             },
@@ -612,10 +618,10 @@ describe('AiAgentToolsService', () => {
     });
 
     it('does not run dashboard chart queries outside the scoped agent spaces', async () => {
-        const executeDashboardChartQueryAndGetResults = jest.fn();
+        const executeDashboardChartQueryAndGetResults = vi.fn();
         const service = makeService({
             dashboardService: {
-                getByIdOrSlug: jest.fn().mockResolvedValue({
+                getByIdOrSlug: vi.fn().mockResolvedValue({
                     spaceUuid: 'blocked-space-uuid',
                     tiles: [],
                 }),
@@ -639,11 +645,11 @@ describe('AiAgentToolsService', () => {
     });
 
     it('does not create content outside the scoped agent spaces', async () => {
-        const upsertDashboard = jest.fn();
+        const upsertDashboard = vi.fn();
         const service = makeService({
             spaceModel: denySpaceAccessModel(),
             coderService: { upsertDashboard },
-            aiAgentContentValidation: { validateContent: jest.fn() },
+            aiAgentContentValidation: { validateContent: vi.fn() },
         });
         const runtime = service.createRuntime(
             makeRuntimeContext({ spaceAccess: ['allowed-space-uuid'] }),
@@ -659,26 +665,26 @@ describe('AiAgentToolsService', () => {
     });
 
     it('does not edit content into a space outside the scoped agent spaces', async () => {
-        const upsertDashboard = jest.fn();
+        const upsertDashboard = vi.fn();
         const service = makeService({
             spaceModel: denySpaceAccessModel(),
             dashboardService: {
-                getByIdOrSlug: jest
+                getByIdOrSlug: vi
                     .fn()
                     .mockResolvedValue({ uuid: 'dashboard-uuid' }),
             },
             coderService: {
-                getDashboards: jest.fn().mockResolvedValue({
+                getDashboards: vi.fn().mockResolvedValue({
                     dashboards: [makeDashboardContent('allowed-space')],
                 }),
-                getCurrentContentVersionBySlug: jest.fn().mockResolvedValue({
+                getCurrentContentVersionBySlug: vi.fn().mockResolvedValue({
                     versionUuid: 'version-before',
                 }),
                 upsertDashboard,
             },
             aiAgentContentValidation: {
-                validatePatch: jest.fn(),
-                validateContent: jest.fn(),
+                validatePatch: vi.fn(),
+                validateContent: vi.fn(),
             },
         });
         const runtime = service.createRuntime(
@@ -728,18 +734,18 @@ describe('AiAgentToolsService', () => {
     });
 
     it('edits a chart whose stored chartConfig.config is null', async () => {
-        const upsertChart = jest.fn().mockResolvedValue({
+        const upsertChart = vi.fn().mockResolvedValue({
             charts: [{ data: { uuid: 'chart-uuid' } }],
         });
         const service = makeService({
             savedChartService: {
-                get: jest.fn().mockResolvedValue({ uuid: 'chart-uuid' }),
+                get: vi.fn().mockResolvedValue({ uuid: 'chart-uuid' }),
             },
             coderService: {
-                getCharts: jest
+                getCharts: vi
                     .fn()
                     .mockResolvedValue({ charts: [makeChartContent(null)] }),
-                getCurrentContentVersionBySlug: jest
+                getCurrentContentVersionBySlug: vi
                     .fn()
                     .mockResolvedValue({ versionUuid: 'version' }),
                 upsertChart,
@@ -770,14 +776,14 @@ describe('AiAgentToolsService', () => {
 
     describe('syncDbtProject', () => {
         afterEach(() => {
-            jest.restoreAllMocks();
+            vi.restoreAllMocks();
         });
 
         it('returns success when the compile job reaches DONE without polling', async () => {
-            const scheduleCompileProject = jest
+            const scheduleCompileProject = vi
                 .fn()
                 .mockResolvedValue({ jobUuid: 'job-done' });
-            const get = jest.fn().mockResolvedValue({
+            const get = vi.fn().mockResolvedValue({
                 jobStatus: JobStatusType.DONE,
                 steps: [],
             });
@@ -805,7 +811,7 @@ describe('AiAgentToolsService', () => {
         });
 
         it('returns error with joined step errors when the compile fails', async () => {
-            const get = jest.fn().mockResolvedValue({
+            const get = vi.fn().mockResolvedValue({
                 jobStatus: JobStatusType.ERROR,
                 steps: [
                     { stepError: 'dbt compile failed: model x' },
@@ -814,7 +820,7 @@ describe('AiAgentToolsService', () => {
                 ],
             });
             const service = makeService({
-                scheduleCompileProject: jest
+                scheduleCompileProject: vi
                     .fn()
                     .mockResolvedValue({ jobUuid: 'job-err' }),
                 jobModel: { get },
@@ -833,12 +839,12 @@ describe('AiAgentToolsService', () => {
         });
 
         it('falls back to a generic error message when there are no step errors', async () => {
-            const get = jest.fn().mockResolvedValue({
+            const get = vi.fn().mockResolvedValue({
                 jobStatus: JobStatusType.ERROR,
                 steps: [],
             });
             const service = makeService({
-                scheduleCompileProject: jest
+                scheduleCompileProject: vi
                     .fn()
                     .mockResolvedValue({ jobUuid: 'job-err2' }),
                 jobModel: { get },
@@ -856,9 +862,9 @@ describe('AiAgentToolsService', () => {
         });
 
         it('polls while the job is RUNNING and returns success once it is DONE', async () => {
-            jest.useFakeTimers();
+            vi.useFakeTimers();
             try {
-                const get = jest
+                const get = vi
                     .fn()
                     .mockResolvedValueOnce({
                         jobStatus: JobStatusType.RUNNING,
@@ -873,7 +879,7 @@ describe('AiAgentToolsService', () => {
                         steps: [],
                     });
                 const service = makeService({
-                    scheduleCompileProject: jest
+                    scheduleCompileProject: vi
                         .fn()
                         .mockResolvedValue({ jobUuid: 'job-poll' }),
                     jobModel: { get },
@@ -882,26 +888,26 @@ describe('AiAgentToolsService', () => {
                 const promise = service
                     .createRuntime(makeRuntimeContext())
                     .syncDbtProject({ reason: null });
-                await jest.advanceTimersByTimeAsync(6_000);
+                await vi.advanceTimersByTimeAsync(6_000);
                 const result = await promise;
 
                 expect(get.mock.calls.length).toBeGreaterThan(1);
                 expect(result.status).toBe('success');
                 expect(result.jobUuid).toBe('job-poll');
             } finally {
-                jest.useRealTimers();
+                vi.useRealTimers();
             }
         });
 
         it('returns in_progress when the job is still running at the deadline', async () => {
-            jest.useFakeTimers();
+            vi.useFakeTimers();
             try {
-                const get = jest.fn().mockResolvedValue({
+                const get = vi.fn().mockResolvedValue({
                     jobStatus: JobStatusType.RUNNING,
                     steps: [],
                 });
                 const service = makeService({
-                    scheduleCompileProject: jest
+                    scheduleCompileProject: vi
                         .fn()
                         .mockResolvedValue({ jobUuid: 'job-running' }),
                     jobModel: { get },
@@ -912,7 +918,7 @@ describe('AiAgentToolsService', () => {
                     .syncDbtProject({ reason: null });
                 // Advance past the 90s deadline; the loop polls every 2s but
                 // never sees a terminal status, so it must time out.
-                await jest.advanceTimersByTimeAsync(90_000);
+                await vi.advanceTimersByTimeAsync(90_000);
                 const result = await promise;
 
                 expect(result).toEqual({
@@ -922,14 +928,14 @@ describe('AiAgentToolsService', () => {
                         'The dbt project is still syncing — the compile has not finished yet.',
                 });
             } finally {
-                jest.useRealTimers();
+                vi.useRealTimers();
             }
         });
 
         it('propagates a ForbiddenError from scheduleCompileProject without polling', async () => {
-            const get = jest.fn();
+            const get = vi.fn();
             const service = makeService({
-                scheduleCompileProject: jest
+                scheduleCompileProject: vi
                     .fn()
                     .mockRejectedValue(new ForbiddenError()),
                 jobModel: { get },

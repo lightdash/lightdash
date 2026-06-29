@@ -2,7 +2,7 @@ import { DbtModelNode } from '@lightdash/common';
 import { GraphQLClient } from 'graphql-request';
 import { DbtMetadataApiClient } from './DbtMetadataApiClient';
 
-jest.mock('graphql-request');
+vi.mock('graphql-request');
 
 const makeNode = (overrides: Record<string, unknown> = {}) => ({
     resourceType: 'model',
@@ -66,17 +66,20 @@ const createClient = () =>
 
 describe('DbtMetadataApiClient', () => {
     beforeEach(() => {
-        jest.resetAllMocks();
+        vi.resetAllMocks();
     });
 
     describe('Snowflake identifier casing', () => {
         it('should uppercase database, schema, alias, and relation_name for Snowflake', async () => {
-            const mockRequest = jest
+            const mockRequest = vi
                 .fn()
                 .mockResolvedValue(makeApiResponse('snowflake', [makeNode()]));
-            (GraphQLClient as jest.Mock).mockImplementation(() => ({
-                request: mockRequest,
-            }));
+            (GraphQLClient as import('vitest').Mock).mockImplementation(
+                // eslint-disable-next-line prefer-arrow-callback
+                function MockGraphQLClient() {
+                    return { request: mockRequest };
+                },
+            );
 
             const client = createClient();
             const result = await client.getDbtManifest();
@@ -93,16 +96,19 @@ describe('DbtMetadataApiClient', () => {
         });
 
         it('should use model name when alias is empty for Snowflake', async () => {
-            const mockRequest = jest
+            const mockRequest = vi
                 .fn()
                 .mockResolvedValue(
                     makeApiResponse('snowflake', [
                         makeNode({ alias: '', name: 'my_model' }),
                     ]),
                 );
-            (GraphQLClient as jest.Mock).mockImplementation(() => ({
-                request: mockRequest,
-            }));
+            (GraphQLClient as import('vitest').Mock).mockImplementation(
+                // eslint-disable-next-line prefer-arrow-callback
+                function MockGraphQLClient() {
+                    return { request: mockRequest };
+                },
+            );
 
             const client = createClient();
             const result = await client.getDbtManifest();
@@ -119,12 +125,15 @@ describe('DbtMetadataApiClient', () => {
 
     describe('non-Snowflake identifier casing', () => {
         it('should preserve original casing for Postgres', async () => {
-            const mockRequest = jest
+            const mockRequest = vi
                 .fn()
                 .mockResolvedValue(makeApiResponse('postgres', [makeNode()]));
-            (GraphQLClient as jest.Mock).mockImplementation(() => ({
-                request: mockRequest,
-            }));
+            (GraphQLClient as import('vitest').Mock).mockImplementation(
+                // eslint-disable-next-line prefer-arrow-callback
+                function MockGraphQLClient() {
+                    return { request: mockRequest };
+                },
+            );
 
             const client = createClient();
             const result = await client.getDbtManifest();
@@ -141,12 +150,15 @@ describe('DbtMetadataApiClient', () => {
         });
 
         it('should preserve original casing for BigQuery', async () => {
-            const mockRequest = jest
+            const mockRequest = vi
                 .fn()
                 .mockResolvedValue(makeApiResponse('bigquery', [makeNode()]));
-            (GraphQLClient as jest.Mock).mockImplementation(() => ({
-                request: mockRequest,
-            }));
+            (GraphQLClient as import('vitest').Mock).mockImplementation(
+                // eslint-disable-next-line prefer-arrow-callback
+                function MockGraphQLClient() {
+                    return { request: mockRequest };
+                },
+            );
 
             const client = createClient();
             const result = await client.getDbtManifest();

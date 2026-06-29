@@ -1,5 +1,5 @@
-// e2b and ai are ESM-only packages that cannot be required by Jest/CJS.
-// Mock them before importing AppGenerateService.
+// Stub the e2b/ai SDKs before importing AppGenerateService so the tests never
+// reach the real sandbox or model client.
 import {
     ForbiddenError,
     ParameterError,
@@ -7,13 +7,13 @@ import {
 } from '@lightdash/common';
 import { AppGenerateService } from './AppGenerateService';
 
-jest.mock('e2b', () => ({
+vi.mock('e2b', () => ({
     Sandbox: class {},
     CommandExitError: class extends Error {},
     ALL_TRAFFIC: '*',
 }));
-jest.mock('ai', () => ({
-    generateObject: jest.fn(),
+vi.mock('ai', () => ({
+    generateObject: vi.fn(),
 }));
 
 type AppExternalConnectionDoc = {
@@ -33,7 +33,7 @@ type PrivateWithSamples = {
     resolveExternalConnectionSamples: (
         appId: string,
     ) => Promise<AppExternalConnectionDoc[]>;
-    logger: { info: jest.Mock };
+    logger: { info: import('vitest').Mock };
 };
 
 type PrivateWithLink = {
@@ -52,7 +52,7 @@ function buildService() {
     // private writeExternalConnectionSamples method (which uses only
     // this.logger and the sandbox argument). All other deps are stubbed out.
     const featureFlagModel = {
-        get: jest.fn().mockResolvedValue({ enabled: true }),
+        get: vi.fn().mockResolvedValue({ enabled: true }),
     };
     return {
         service: new AppGenerateService({
@@ -81,10 +81,10 @@ function buildService() {
 
 const makeSandbox = () => ({
     commands: {
-        run: jest.fn().mockResolvedValue({ exitCode: 0 }),
+        run: vi.fn().mockResolvedValue({ exitCode: 0 }),
     },
     files: {
-        write: jest.fn().mockResolvedValue(undefined),
+        write: vi.fn().mockResolvedValue(undefined),
     },
 });
 
@@ -135,9 +135,12 @@ describe('AppGenerateService.writeExternalConnectionSamples', () => {
         );
 
         // Weather file contains expected fields
-        const weatherCall = (sandbox.files.write as jest.Mock).mock.calls.find(
-            ([path]: [string]) => path === '/tmp/external-data/weather.json',
+        const weatherCall = (
+            sandbox.files.write as import('vitest').Mock
+        ).mock.calls.find(
+            ([path]) => path === '/tmp/external-data/weather.json',
         );
+        if (!weatherCall) throw new Error('Expected weather sample write');
         const weatherDoc = JSON.parse(weatherCall[1]);
         expect(weatherDoc.howToCall).toContain('weather');
         expect(weatherDoc.howToCall).toContain('externalFetch');
@@ -151,9 +154,10 @@ describe('AppGenerateService.writeExternalConnectionSamples', () => {
         expect(weatherDoc.samples[0].request.method).toBe('GET');
 
         // CRM file has 2 samples
-        const crmCall = (sandbox.files.write as jest.Mock).mock.calls.find(
-            ([path]: [string]) => path === '/tmp/external-data/crm.json',
-        );
+        const crmCall = (
+            sandbox.files.write as import('vitest').Mock
+        ).mock.calls.find(([path]) => path === '/tmp/external-data/crm.json');
+        if (!crmCall) throw new Error('Expected CRM sample write');
         const crmDoc = JSON.parse(crmCall[1]);
         expect(crmDoc.allowedMethods).toEqual(['GET', 'POST']);
         expect(crmDoc.samples).toHaveLength(2);
@@ -189,7 +193,8 @@ describe('AppGenerateService.writeExternalConnectionSamples', () => {
             '/tmp/external-data/weather.json',
             expect.any(String),
         );
-        const call = (sandbox.files.write as jest.Mock).mock.calls[0];
+        const call = (sandbox.files.write as import('vitest').Mock).mock
+            .calls[0];
         const written = JSON.parse(call[1]);
         expect(written.howToCall).toContain('externalFetch');
         expect(written.allowedMethods).toEqual(['GET']);
@@ -215,14 +220,14 @@ describe('AppGenerateService.writeExternalConnectionSamples', () => {
 
 describe('AppGenerateService pipeline external connection samples', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it('calls resolveExternalConnectionSamples during the catalog stage', async () => {
         const sandbox = makeSandbox();
         const { service } = buildService();
 
-        const resolveSpy = jest
+        const resolveSpy = vi
             .spyOn(
                 service as unknown as PrivateWithSamples,
                 'resolveExternalConnectionSamples',
@@ -241,14 +246,14 @@ describe('AppGenerateService pipeline external connection samples', () => {
                 chartReferences: undefined,
                 template: undefined,
             ) => Promise<unknown>;
-            projectModel: { getAllExploresFromCache: jest.Mock };
-            projectParametersModel: { find: jest.Mock };
+            projectModel: { getAllExploresFromCache: import('vitest').Mock };
+            projectParametersModel: { find: import('vitest').Mock };
         };
         privateService.projectModel = {
-            getAllExploresFromCache: jest.fn().mockResolvedValue({}),
+            getAllExploresFromCache: vi.fn().mockResolvedValue({}),
         };
         privateService.projectParametersModel = {
-            find: jest.fn().mockResolvedValue([]),
+            find: vi.fn().mockResolvedValue([]),
         };
 
         await privateService.writeCatalogAndPrompt(
@@ -278,16 +283,16 @@ describe('AppGenerateService.linkExternalConnections', () => {
 
     function setup(opts: { connection?: unknown; canManage: boolean }) {
         const { service } = buildService();
-        const linkToApp = jest.fn().mockResolvedValue(undefined);
+        const linkToApp = vi.fn().mockResolvedValue(undefined);
         (
             service as unknown as { externalConnectionModel: unknown }
         ).externalConnectionModel = {
-            findByUuid: jest
+            findByUuid: vi
                 .fn()
                 .mockResolvedValue(opts.connection ?? sameProjectConn),
             linkToApp,
         };
-        jest.spyOn(
+        vi.spyOn(
             service as unknown as { createAuditedAbility: () => unknown },
             'createAuditedAbility',
         ).mockReturnValue({

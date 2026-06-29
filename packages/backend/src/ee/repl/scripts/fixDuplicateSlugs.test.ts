@@ -8,8 +8,8 @@ import { generateUniqueSlugScopedToProject } from '../../../utils/SlugUtils';
 import { getFixDuplicateSlugsScripts } from './fixDuplicateSlugs';
 import { queryMatcher } from './testUtils';
 
-jest.mock('../../../utils/SlugUtils', () => ({
-    generateUniqueSlugScopedToProject: jest.fn(),
+vi.mock('../../../utils/SlugUtils', () => ({
+    generateUniqueSlugScopedToProject: vi.fn(),
 }));
 
 const clientRepositoryMock = {
@@ -28,7 +28,7 @@ describe('fixDuplicateSlugs', () => {
 
     afterEach(() => {
         tracker.reset();
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     describe('fixDuplicateChartSlugs', () => {
@@ -80,7 +80,7 @@ describe('fixDuplicateSlugs', () => {
 
             // Mock generateUniqueSlugScopedToProject
             (
-                generateUniqueSlugScopedToProject as jest.Mock
+                generateUniqueSlugScopedToProject as import('vitest').Mock
             ).mockResolvedValueOnce('unique-slug');
 
             // Mock the update query
@@ -144,7 +144,7 @@ describe('fixDuplicateSlugs', () => {
 
             // Mock generateUniqueSlugScopedToProject
             (
-                generateUniqueSlugScopedToProject as jest.Mock
+                generateUniqueSlugScopedToProject as import('vitest').Mock
             ).mockResolvedValueOnce('unique-slug');
 
             // Mock the update query
@@ -204,7 +204,7 @@ describe('fixDuplicateSlugs', () => {
                 ]);
 
             // Mock generateUniqueSlugScopedToProject for each duplicate
-            (generateUniqueSlugScopedToProject as jest.Mock)
+            (generateUniqueSlugScopedToProject as import('vitest').Mock)
                 .mockResolvedValueOnce('unique-slug-1')
                 .mockResolvedValueOnce('unique-slug-2');
 

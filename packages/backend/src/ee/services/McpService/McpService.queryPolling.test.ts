@@ -15,30 +15,35 @@ type RegisteredToolCallback = (
 
 const mockRegisteredMcpTools = new Map<string, RegisteredToolCallback>();
 
-jest.mock('@sentry/node', () => ({
-    captureException: jest.fn(),
+vi.mock('@sentry/node', () => ({
+    captureException: vi.fn(),
     getActiveSpan: () => undefined,
     isEnabled: () => false,
     startSpanManual: (_options: unknown, callback: CallableFunction) =>
-        callback({ spanContext: () => ({ spanId: 'span-id' }) }, jest.fn()),
+        callback({ spanContext: () => ({ spanId: 'span-id' }) }, vi.fn()),
     wrapMcpServerWithSentry: (server: unknown) => server,
 }));
 
-jest.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
-    McpServer: jest.fn().mockImplementation(() => ({
-        registerResource: jest.fn(),
-        registerPrompt: jest.fn(),
-        registerTool: jest.fn(
-            (
-                name: string,
-                _config: Record<string, unknown>,
-                callback: RegisteredToolCallback,
-            ) => {
-                mockRegisteredMcpTools.set(name, callback);
-                return {};
-            },
-        ),
-    })),
+vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
+    McpServer: vi.fn().mockImplementation(
+        // eslint-disable-next-line prefer-arrow-callback
+        function MockMcpServer() {
+            return {
+                registerResource: vi.fn(),
+                registerPrompt: vi.fn(),
+                registerTool: vi.fn(
+                    (
+                        name: string,
+                        _config: Record<string, unknown>,
+                        callback: RegisteredToolCallback,
+                    ) => {
+                        mockRegisteredMcpTools.set(name, callback);
+                        return {};
+                    },
+                ),
+            };
+        },
+    ),
 }));
 
 const projectUuid = 'project-uuid';
@@ -77,9 +82,9 @@ const user = {
     userUuid,
     organizationUuid,
     ability: {
-        can: jest.fn(() => true),
-        cannot: jest.fn(() => false),
-        relevantRuleFor: jest.fn(() => undefined),
+        can: vi.fn(() => true),
+        cannot: vi.fn(() => false),
+        relevantRuleFor: vi.fn(() => undefined),
         rules: [],
     },
 };
@@ -126,8 +131,8 @@ const makeExplore = ({
 const extra = {
     signal: new AbortController().signal,
     requestId: 'request-id',
-    sendNotification: jest.fn(),
-    sendRequest: jest.fn(),
+    sendNotification: vi.fn(),
+    sendRequest: vi.fn(),
     authInfo: {
         extra: {
             user,
@@ -222,24 +227,24 @@ const makeMcpService = ({
     verifiedContent?: Record<string, unknown>[];
 } = {}) => {
     const asyncQueryService = {
-        executeAsyncSqlQuery: jest.fn(),
-        executeAsyncMetricQuery: jest.fn(),
-        getAsyncQueryHistory: jest.fn(),
-        getAsyncQueryResults: jest.fn(),
-        getRawAsyncQueryResults: jest.fn(),
-        pollQueryHistoryUntilDeadline: jest.fn(),
+        executeAsyncSqlQuery: vi.fn(),
+        executeAsyncMetricQuery: vi.fn(),
+        getAsyncQueryHistory: vi.fn(),
+        getAsyncQueryResults: vi.fn(),
+        getRawAsyncQueryResults: vi.fn(),
+        pollQueryHistoryUntilDeadline: vi.fn(),
     };
 
     const mcpContextModel = {
-        getContext: jest.fn().mockResolvedValue({ context }),
+        getContext: vi.fn().mockResolvedValue({ context }),
     };
 
     const shareService = {
-        createShareUrl: jest.fn().mockResolvedValue({ nanoid: 'share-id' }),
+        createShareUrl: vi.fn().mockResolvedValue({ nanoid: 'share-id' }),
     };
 
     const projectModel = {
-        findExploresFromCache: jest.fn(
+        findExploresFromCache: vi.fn(
             async (
                 _projectUuid: string,
                 _sortBy: string,
@@ -256,12 +261,12 @@ const makeMcpService = ({
     };
 
     const projectService = {
-        getProject: jest.fn().mockResolvedValue({ organizationUuid }),
-        searchFieldUniqueValues: jest.fn().mockResolvedValue({ results: [] }),
+        getProject: vi.fn().mockResolvedValue({ organizationUuid }),
+        searchFieldUniqueValues: vi.fn().mockResolvedValue({ results: [] }),
     };
 
     const catalogService = {
-        searchCatalog: jest.fn(async ({ catalogSearch }) => ({
+        searchCatalog: vi.fn(async ({ catalogSearch }) => ({
             data:
                 catalogSearch.type === CatalogType.Table
                     ? [
@@ -291,7 +296,7 @@ const makeMcpService = ({
     };
 
     const aiAgentService = {
-        getAgent: jest.fn().mockImplementation(async () => {
+        getAgent: vi.fn().mockImplementation(async () => {
             if (!agent) throw new Error('Agent not mocked');
             return {
                 description: null,
@@ -304,26 +309,26 @@ const makeMcpService = ({
                 ...agent,
             };
         }),
-        getRelevantVerifiedAnswerContextForAgent: jest.fn().mockResolvedValue({
+        getRelevantVerifiedAnswerContextForAgent: vi.fn().mockResolvedValue({
             relevantVerifiedAnswers: [],
         }),
     };
 
     const contentVerificationService = {
-        listVerifiedContent: jest.fn().mockResolvedValue(verifiedContent),
+        listVerifiedContent: vi.fn().mockResolvedValue(verifiedContent),
     };
 
     const searchModel = {
-        searchDashboards: jest.fn().mockResolvedValue(dashboardSearchResults),
-        searchAllCharts: jest.fn().mockResolvedValue(chartSearchResults),
+        searchDashboards: vi.fn().mockResolvedValue(dashboardSearchResults),
+        searchAllCharts: vi.fn().mockResolvedValue(chartSearchResults),
     };
 
     const spaceService = {
-        filterBySpaceAccess: jest.fn(async (_user, content) => content),
+        filterBySpaceAccess: vi.fn(async (_user, content) => content),
     };
 
     const userAttributesModel = {
-        getAttributeValuesForOrgMember: jest.fn().mockResolvedValue({}),
+        getAttributeValuesForOrgMember: vi.fn().mockResolvedValue({}),
     };
 
     const makeToolsRuntime = (runtimeContext: {
@@ -341,8 +346,8 @@ const makeMcpService = ({
             );
 
         return {
-            listExplores: jest.fn(listScopedExplores),
-            getExplore: jest.fn(async ({ table }: { table: string }) => {
+            listExplores: vi.fn(listScopedExplores),
+            getExplore: vi.fn(async ({ table }: { table: string }) => {
                 const scopedExplores = await listScopedExplores();
                 const explore = scopedExplores.find(
                     (scopedExplore) => scopedExplore.name === table,
@@ -350,7 +355,7 @@ const makeMcpService = ({
                 if (!explore) throw new NotFoundError('Explore not found');
                 return explore;
             }),
-            findExplores: jest.fn(async () => {
+            findExplores: vi.fn(async () => {
                 const scopedExplores = await listScopedExplores();
                 return {
                     exploreSearchResults: scopedExplores.map((explore) => ({
@@ -375,8 +380,8 @@ const makeMcpService = ({
                     ],
                 };
             }),
-            findFields: jest.fn(async () => ({ fields: [], pagination: {} })),
-            findContent: jest.fn(async () => ({
+            findFields: vi.fn(async () => ({ fields: [], pagination: {} })),
+            findContent: vi.fn(async () => ({
                 content: [
                     ...dashboardSearchResults.map((dashboard) => ({
                         ...dashboard,
@@ -395,7 +400,7 @@ const makeMcpService = ({
                         runtimeContext.spaceAccess.includes(spaceUuid),
                 ),
             })),
-            searchFieldValues: jest.fn(async (args) => {
+            searchFieldValues: vi.fn(async (args) => {
                 if (args.fieldId === 'orders_hidden') {
                     throw new NotFoundError(`Field not found: ${args.fieldId}`);
                 }
@@ -412,7 +417,7 @@ const makeMcpService = ({
         };
     };
     const aiAgentToolsService = {
-        createRuntime: jest.fn((runtimeContext) =>
+        createRuntime: vi.fn((runtimeContext) =>
             makeToolsRuntime(runtimeContext),
         ),
     };
@@ -421,11 +426,11 @@ const makeMcpService = ({
         aiAgentService,
         aiAgentToolsService,
         aiOrganizationSettingsService: {
-            getSettings: jest.fn().mockResolvedValue({ aiAgentsVisible: true }),
+            getSettings: vi.fn().mockResolvedValue({ aiAgentsVisible: true }),
         },
         aiRouterService: {},
         aiWritebackService: {},
-        analytics: { track: jest.fn() },
+        analytics: { track: vi.fn() },
         asyncQueryService,
         catalogService,
         contentService: {},
@@ -487,17 +492,17 @@ const parseTextResult = (result: unknown) =>
 describe('MCP async query polling', () => {
     beforeEach(() => {
         mockRegisteredMcpTools.clear();
-        jest.spyOn(
+        vi.spyOn(
             McpService as unknown as { getMcpQueryWaitMs: () => number },
             'getMcpQueryWaitMs',
         ).mockReturnValue(0);
-        jest.spyOn(runQueryTool, 'validateRunQueryTool').mockImplementation(
+        vi.spyOn(runQueryTool, 'validateRunQueryTool').mockImplementation(
             () => {},
         );
     });
 
     afterEach(() => {
-        jest.restoreAllMocks();
+        vi.restoreAllMocks();
     });
 
     it('returns running with heartbeatAt from run_sql', async () => {
@@ -568,7 +573,7 @@ describe('MCP async query polling', () => {
             ...user,
             ability: {
                 ...user.ability,
-                cannot: jest.fn(() => true),
+                cannot: vi.fn(() => true),
             },
         };
         const headerProjectUuid = '22222222-2222-4222-8222-222222222222';

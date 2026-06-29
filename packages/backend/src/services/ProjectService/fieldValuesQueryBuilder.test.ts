@@ -9,13 +9,13 @@ import { getFieldValuesMetricQuery } from './fieldValuesQueryBuilder';
 import { validExplore } from './ProjectService.mock';
 
 const mockExploreResolver = {
-    findExploreByTableName: jest.fn(),
-    findJoinAliasExplore: jest.fn(),
+    findExploreByTableName: vi.fn(),
+    findJoinAliasExplore: vi.fn(),
 };
 
 describe('getFieldValuesMetricQuery', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         mockExploreResolver.findExploreByTableName.mockResolvedValue(
             validExplore,
         );

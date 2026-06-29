@@ -1467,7 +1467,7 @@ describe('validateRename', () => {
         toFieldName: undefined,
     };
     beforeEach(() => {
-        console.warn = jest.fn();
+        console.warn = vi.fn();
     });
 
     afterEach(() => {

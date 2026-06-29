@@ -115,10 +115,10 @@ describe('Scheduler model test', () => {
 
         it('uses getSchedulersByUuid when schedulerUuids filter is provided', async () => {
             const model = createModel();
-            const getSchedulersByUuidSpy = jest
+            const getSchedulersByUuidSpy = vi
                 .spyOn(model, 'getSchedulersByUuid')
                 .mockResolvedValue([]);
-            const getSchedulerForProjectSpy = jest
+            const getSchedulerForProjectSpy = vi
                 .spyOn(model, 'getSchedulerForProject')
                 .mockResolvedValue([]);
 
@@ -142,10 +142,10 @@ describe('Scheduler model test', () => {
 
         it('falls back to getSchedulerForProject when no schedulerUuids filter is provided', async () => {
             const model = createModel();
-            const getSchedulersByUuidSpy = jest
+            const getSchedulersByUuidSpy = vi
                 .spyOn(model, 'getSchedulersByUuid')
                 .mockResolvedValue([]);
-            const getSchedulerForProjectSpy = jest
+            const getSchedulerForProjectSpy = vi
                 .spyOn(model, 'getSchedulerForProject')
                 .mockResolvedValue([]);
 

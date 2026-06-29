@@ -42,16 +42,14 @@ describe('PreAggregationDuckDbClient', () => {
             },
         };
         const preAggregateModel = {
-            getActiveMaterialization: jest
+            getActiveMaterialization: vi
                 .fn()
                 .mockResolvedValue(activeMaterialization),
         };
         const projectModel = {
-            getExploreFromCache: jest
-                .fn()
-                .mockResolvedValue(preAggregateExplore),
+            getExploreFromCache: vi.fn().mockResolvedValue(preAggregateExplore),
         };
-        const createDuckdbWarehouseClient = jest
+        const createDuckdbWarehouseClient = vi
             .fn()
             .mockReturnValue(warehouseClientMock as unknown as WarehouseClient);
 
@@ -104,8 +102,8 @@ describe('PreAggregationDuckDbClient', () => {
     };
 
     beforeEach(() => {
-        jest.clearAllMocks();
-        jest.spyOn(ProjectService, '_compileQuery').mockResolvedValue({
+        vi.clearAllMocks();
+        vi.spyOn(ProjectService, '_compileQuery').mockResolvedValue({
             query: 'SELECT * FROM test',
         } as unknown as Awaited<
             ReturnType<typeof ProjectService._compileQuery>
@@ -113,7 +111,7 @@ describe('PreAggregationDuckDbClient', () => {
     });
 
     afterEach(() => {
-        jest.restoreAllMocks();
+        vi.restoreAllMocks();
     });
 
     test('returns unresolved when no active materialization exists', async () => {
@@ -216,7 +214,9 @@ describe('PreAggregationDuckDbClient', () => {
     });
 
     test('logs selected materialization metadata for debugging', async () => {
-        const loggerSpy = jest.spyOn(Logger, 'info').mockImplementation();
+        const loggerSpy = vi
+            .spyOn(Logger, 'info')
+            .mockImplementation(() => Logger);
         const { client } = getClient();
 
         await client.resolve({

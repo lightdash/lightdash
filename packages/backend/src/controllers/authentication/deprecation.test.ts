@@ -8,12 +8,12 @@ import {
     shouldEscalateToError,
 } from './deprecation';
 
-jest.mock('../../logging/logger', () => ({
+vi.mock('../../logging/logger', () => ({
     __esModule: true,
-    default: { warn: jest.fn(), error: jest.fn() },
+    default: { warn: vi.fn(), error: vi.fn() },
 }));
 
-jest.mock('@sentry/node', () => ({ captureException: jest.fn() }));
+vi.mock('@sentry/node', () => ({ captureException: vi.fn() }));
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -51,16 +51,16 @@ describe('getDeprecatedRouteMiddleware', () => {
     const buildResponse = () => {
         const headers: Record<string, string> = {};
         const res = {
-            setHeader: jest.fn((key: string, value: string) => {
+            setHeader: vi.fn((key: string, value: string) => {
                 headers[key] = value;
             }),
         };
         return { res: res as unknown as Response, headers };
     };
     const req = { method: 'GET', path: '/api/v1/old' } as unknown as Request;
-    const next = jest.fn();
+    const next = vi.fn();
 
-    beforeEach(() => jest.clearAllMocks());
+    beforeEach(() => vi.clearAllMocks());
 
     it('sets Deprecation, Sunset and Warning headers', () => {
         const { res, headers } = buildResponse();
@@ -111,7 +111,7 @@ describe('getDeprecatedRouteMiddleware', () => {
         expect(Logger.warn).not.toHaveBeenCalled();
         expect(Sentry.captureException).toHaveBeenCalledTimes(1);
         expect(
-            (Sentry.captureException as jest.Mock).mock.calls[0][0],
+            (Sentry.captureException as import('vitest').Mock).mock.calls[0][0],
         ).toBeInstanceOf(DeprecatedRouteError);
     });
 });

@@ -320,7 +320,7 @@ describe('CoderService', () => {
         });
 
         it('should log an error if a tile slug does not match any UUID', () => {
-            console.error = jest.fn();
+            console.error = vi.fn();
 
             const dashboardAsCode = {
                 filters: {
@@ -524,7 +524,7 @@ describe('CoderService', () => {
         });
 
         it('should log an error and skip a target whose slug does not match a tile', () => {
-            console.error = jest.fn();
+            console.error = vi.fn();
 
             const config = {
                 isDateZoomDisabled: false,
@@ -649,10 +649,10 @@ describe('CoderService', () => {
                 projectModel: {} as AnyType,
                 promoteService: {} as AnyType,
                 savedChartModel: {
-                    find: jest.fn(),
+                    find: vi.fn(),
                 } as AnyType,
                 savedSqlModel: {
-                    find: jest.fn(),
+                    find: vi.fn(),
                 } as AnyType,
                 schedulerClient: {} as AnyType,
                 spaceModel: {} as AnyType,

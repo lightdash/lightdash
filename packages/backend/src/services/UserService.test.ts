@@ -45,74 +45,74 @@ import {
 } from './UserService.mock';
 
 const userModel = {
-    getOpenIdIssuers: jest.fn(async () => []),
-    hasPasswordByEmail: jest.fn(async () => false),
-    findSessionUserByOpenId: jest.fn(async () => undefined),
-    findSessionUserByUUID: jest.fn(async () => sessionUser),
-    getSessionUserFromCacheOrDB: jest.fn(async () => ({
+    getOpenIdIssuers: vi.fn(async () => []),
+    hasPasswordByEmail: vi.fn(async () => false),
+    findSessionUserByOpenId: vi.fn(async () => undefined),
+    findSessionUserByUUID: vi.fn(async () => sessionUser),
+    getSessionUserFromCacheOrDB: vi.fn(async () => ({
         sessionUser,
         cacheHit: false,
     })),
-    createUser: jest.fn(async () => sessionUser),
-    activateUser: jest.fn(async () => sessionUser),
-    getOrganizationsForUser: jest.fn(async () => [sessionUser]),
-    findUserByEmail: jest.fn(async () => undefined),
-    createPendingUser: jest.fn(async () => newUser),
-    findSessionUserByPrimaryEmail: jest.fn(async () => sessionUser),
-    findServiceAccountByUserUuid: jest.fn(async () => undefined),
-    joinOrg: jest.fn(async () => sessionUser),
-    hasUsers: jest.fn(async () => false),
-    updateUser: jest.fn(async () => sessionUser),
+    createUser: vi.fn(async () => sessionUser),
+    activateUser: vi.fn(async () => sessionUser),
+    getOrganizationsForUser: vi.fn(async () => [sessionUser]),
+    findUserByEmail: vi.fn(async () => undefined),
+    createPendingUser: vi.fn(async () => newUser),
+    findSessionUserByPrimaryEmail: vi.fn(async () => sessionUser),
+    findServiceAccountByUserUuid: vi.fn(async () => undefined),
+    joinOrg: vi.fn(async () => sessionUser),
+    hasUsers: vi.fn(async () => false),
+    updateUser: vi.fn(async () => sessionUser),
 };
 
 const openIdIdentityModel = {
-    findIdentitiesByEmail: jest.fn(async () => [openIdIdentity]),
-    createIdentity: jest.fn(async () => {}),
-    updateIdentityByOpenId: jest.fn(async () => {}),
+    findIdentitiesByEmail: vi.fn(async () => [openIdIdentity]),
+    createIdentity: vi.fn(async () => {}),
+    updateIdentityByOpenId: vi.fn(async () => {}),
 };
 
 const emailModel = {
-    getPrimaryEmailStatus: jest.fn(
+    getPrimaryEmailStatus: vi.fn(
         async () =>
             <EmailStatus>{
                 email: 'example',
                 isVerified: true,
             },
     ),
-    verifyUserEmailIfExists: jest.fn(async () => []),
+    verifyUserEmailIfExists: vi.fn(async () => []),
 };
 
 const inviteLinkModel = {
-    getByCode: jest.fn(async () => inviteLink),
-    deleteByCode: jest.fn(async () => undefined),
-    upsert: jest.fn(async () => inviteLink),
+    getByCode: vi.fn(async () => inviteLink),
+    deleteByCode: vi.fn(async () => undefined),
+    upsert: vi.fn(async () => inviteLink),
 };
 
 const emailClient = {
-    sendInviteEmail: jest.fn(),
+    sendInviteEmail: vi.fn(),
 };
 
 const organizationModel = {
-    get: jest.fn(async () => organisation),
-    getAllowedOrgsForDomain: jest.fn(async () => []),
+    get: vi.fn(async () => organisation),
+    getAllowedOrgsForDomain: vi.fn(async () => []),
 };
 
 const projectModel = {
-    getProjectsWithDefaultUserSpaces: jest.fn(async () => []),
-    ensureDefaultUserSpace: jest.fn(async () => undefined),
+    getProjectsWithDefaultUserSpaces: vi.fn(async () => []),
+    ensureDefaultUserSpace: vi.fn(async () => undefined),
 };
 
 const organizationSsoModel = {
-    findEnabledMethodsForEmailDomain: jest.fn(async () => []),
-    findGoogleMethodsForEmailDomain: jest.fn(async () => []),
+    findEnabledMethodsForEmailDomain: vi.fn(async () => []),
+    findGoogleMethodsForEmailDomain: vi.fn(async () => []),
 };
 
 const organizationSettingsModel = {
-    get: jest.fn(async () => ({
+    get: vi.fn(async () => ({
         oidcLinkingEnabled: null,
         oidcToEmailLinkingEnabled: null,
     })),
-    update: jest.fn(),
+    update: vi.fn(),
 };
 
 const createUserService = (lightdashConfig: LightdashConfig) =>
@@ -141,15 +141,15 @@ const createUserService = (lightdashConfig: LightdashConfig) =>
         warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
         projectModel: projectModel as unknown as ProjectModel,
         featureFlagModel: {
-            get: jest.fn(async () => ({
+            get: vi.fn(async () => ({
                 id: 'leave-organization',
                 enabled: true,
             })),
         } as unknown as FeatureFlagModel,
     });
 
-jest.spyOn(analyticsMock, 'track');
-const auditLogSpy = jest
+vi.spyOn(analyticsMock, 'track');
+const auditLogSpy = vi
     .spyOn(winston, 'logAuditEvent')
     .mockImplementation(() => {});
 
@@ -157,7 +157,7 @@ describe('UserService', () => {
     const userService = createUserService(lightdashConfigMock);
 
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     describe('getAccountByUserUuid', () => {
@@ -179,7 +179,7 @@ describe('UserService', () => {
                 },
             });
             (
-                userModel.findServiceAccountByUserUuid as jest.Mock
+                userModel.findServiceAccountByUserUuid as import('vitest').Mock
             ).mockResolvedValueOnce({
                 uuid: 'service-account-uuid',
                 description: 'CI preview',
@@ -244,9 +244,9 @@ describe('UserService', () => {
         });
     });
     test('should previous logged in sso provider', async () => {
-        (userModel.getOpenIdIssuers as jest.Mock).mockImplementationOnce(
-            async () => [OpenIdIdentityIssuerType.OKTA],
-        );
+        (
+            userModel.getOpenIdIssuers as import('vitest').Mock
+        ).mockImplementationOnce(async () => [OpenIdIdentityIssuerType.OKTA]);
 
         const service = createUserService({
             ...lightdashConfigMock,
@@ -269,9 +269,9 @@ describe('UserService', () => {
         });
     });
     test('should not login with previous sso provider if not enabled', async () => {
-        (userModel.getOpenIdIssuers as jest.Mock).mockImplementationOnce(
-            async () => [OpenIdIdentityIssuerType.OKTA],
-        );
+        (
+            userModel.getOpenIdIssuers as import('vitest').Mock
+        ).mockImplementationOnce(async () => [OpenIdIdentityIssuerType.OKTA]);
 
         const service = createUserService({
             ...lightdashConfigMock,
@@ -293,12 +293,12 @@ describe('UserService', () => {
         });
     });
     test('should previous logged in enabled sso provider', async () => {
-        (userModel.getOpenIdIssuers as jest.Mock).mockImplementationOnce(
-            async () => [
-                OpenIdIdentityIssuerType.GOOGLE,
-                OpenIdIdentityIssuerType.OKTA,
-            ],
-        );
+        (
+            userModel.getOpenIdIssuers as import('vitest').Mock
+        ).mockImplementationOnce(async () => [
+            OpenIdIdentityIssuerType.GOOGLE,
+            OpenIdIdentityIssuerType.OKTA,
+        ]);
 
         const service = createUserService({
             ...lightdashConfigMock,
@@ -449,7 +449,7 @@ describe('UserService', () => {
 
         test('no per-org match → instance defaults shown', async () => {
             (
-                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+                organizationSsoModel.findEnabledMethodsForEmailDomain as import('vitest').Mock
             ).mockResolvedValueOnce([]);
 
             const service = createUserService(configWithGoogleEnv);
@@ -462,11 +462,11 @@ describe('UserService', () => {
 
         test('per-org Azure match suppresses instance Google (returning user with password)', async () => {
             (
-                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+                organizationSsoModel.findEnabledMethodsForEmailDomain as import('vitest').Mock
             ).mockResolvedValueOnce([azureMethod]);
-            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
-                true,
-            );
+            (
+                userModel.hasPasswordByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce(true);
 
             const service = createUserService(configWithGoogleEnv);
             expect(await service.getLoginOptions('user@acme.com')).toEqual({
@@ -478,11 +478,11 @@ describe('UserService', () => {
 
         test('per-org Azure match + allow_password=false hides password input', async () => {
             (
-                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+                organizationSsoModel.findEnabledMethodsForEmailDomain as import('vitest').Mock
             ).mockResolvedValueOnce([{ ...azureMethod, allowPassword: false }]);
-            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
-                true,
-            );
+            (
+                userModel.hasPasswordByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce(true);
 
             const service = createUserService(configWithGoogleEnv);
             expect(await service.getLoginOptions('user@acme.com')).toEqual({
@@ -495,11 +495,11 @@ describe('UserService', () => {
 
         test('brand-new user matching per-org Azure → forceRedirect with login_hint', async () => {
             (
-                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+                organizationSsoModel.findEnabledMethodsForEmailDomain as import('vitest').Mock
             ).mockResolvedValueOnce([azureMethod]);
-            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
-                false,
-            );
+            (
+                userModel.hasPasswordByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce(false);
 
             const service = createUserService(configWithGoogleEnv);
             expect(await service.getLoginOptions('newbie@acme.com')).toEqual({
@@ -512,14 +512,14 @@ describe('UserService', () => {
 
         test('multiple per-org matches → both buttons, no forceRedirect', async () => {
             (
-                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+                organizationSsoModel.findEnabledMethodsForEmailDomain as import('vitest').Mock
             ).mockResolvedValueOnce([
                 { ...azureMethod, allowPassword: false },
                 googleMethod,
             ]);
-            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
-                true,
-            );
+            (
+                userModel.hasPasswordByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce(true);
 
             const service = createUserService(configWithGoogleEnv);
             // Lenient password rule: googleMethod.allowPassword=true → password shown
@@ -532,14 +532,14 @@ describe('UserService', () => {
 
         test('multiple per-org matches all allow_password=false → no password input', async () => {
             (
-                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+                organizationSsoModel.findEnabledMethodsForEmailDomain as import('vitest').Mock
             ).mockResolvedValueOnce([
                 { ...azureMethod, allowPassword: false },
                 { ...googleMethod, allowPassword: false },
             ]);
-            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
-                true,
-            );
+            (
+                userModel.hasPasswordByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce(true);
 
             const service = createUserService(configWithGoogleEnv);
             expect(await service.getLoginOptions('user@acme.com')).toEqual({
@@ -552,14 +552,14 @@ describe('UserService', () => {
         test("returning user's prior Google identity is ignored when per-org Azure matches", async () => {
             // Org migrated from instance Google to per-org Azure.
             (
-                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+                organizationSsoModel.findEnabledMethodsForEmailDomain as import('vitest').Mock
             ).mockResolvedValueOnce([azureMethod]);
-            (userModel.getOpenIdIssuers as jest.Mock).mockResolvedValueOnce([
-                OpenIdIdentityIssuerType.GOOGLE,
-            ]);
-            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
-                false,
-            );
+            (
+                userModel.getOpenIdIssuers as import('vitest').Mock
+            ).mockResolvedValueOnce([OpenIdIdentityIssuerType.GOOGLE]);
+            (
+                userModel.hasPasswordByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce(false);
 
             const service = createUserService(configWithGoogleEnv);
             expect(await service.getLoginOptions('user@acme.com')).toEqual({
@@ -574,14 +574,14 @@ describe('UserService', () => {
             // hasPassword=false, only one OIDC option (Azure), no password input
             // ⇒ truly one option ⇒ forceRedirect
             (
-                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+                organizationSsoModel.findEnabledMethodsForEmailDomain as import('vitest').Mock
             ).mockResolvedValueOnce([azureMethod]);
-            (userModel.getOpenIdIssuers as jest.Mock).mockResolvedValueOnce([
-                OpenIdIdentityIssuerType.AZUREAD,
-            ]);
-            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
-                false,
-            );
+            (
+                userModel.getOpenIdIssuers as import('vitest').Mock
+            ).mockResolvedValueOnce([OpenIdIdentityIssuerType.AZUREAD]);
+            (
+                userModel.hasPasswordByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce(false);
 
             const service = createUserService(configWithGoogleEnv);
             expect(await service.getLoginOptions('user@acme.com')).toEqual({
@@ -609,20 +609,22 @@ describe('UserService', () => {
             // Without filtering, an attacker org could redirect this user's
             // SSO flow to their tenant.
             (
-                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+                organizationSsoModel.findEnabledMethodsForEmailDomain as import('vitest').Mock
             ).mockResolvedValueOnce([azureMethod]); // org-1
-            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce({
+            (
+                userModel.findUserByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce({
                 userUuid: 'victim-uuid',
                 email: 'victim@acme.com',
             });
             (
-                userModel.getOrganizationsForUser as jest.Mock
+                userModel.getOrganizationsForUser as import('vitest').Mock
             ).mockResolvedValueOnce([
                 { organizationUuid: 'org-2', organizationName: 'Victim Org' },
             ]);
-            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
-                true,
-            );
+            (
+                userModel.hasPasswordByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce(true);
 
             const service = createUserService(configWithGoogleEnv);
             expect(await service.getLoginOptions('victim@acme.com')).toEqual({
@@ -635,20 +637,22 @@ describe('UserService', () => {
 
         test('existing user in the SAME org → per-org SSO method is kept', async () => {
             (
-                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+                organizationSsoModel.findEnabledMethodsForEmailDomain as import('vitest').Mock
             ).mockResolvedValueOnce([azureMethod]); // org-1
-            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce({
+            (
+                userModel.findUserByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce({
                 userUuid: 'member-uuid',
                 email: 'member@acme.com',
             });
             (
-                userModel.getOrganizationsForUser as jest.Mock
+                userModel.getOrganizationsForUser as import('vitest').Mock
             ).mockResolvedValueOnce([
                 { organizationUuid: 'org-1', organizationName: 'Acme Org' },
             ]);
-            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
-                true,
-            );
+            (
+                userModel.hasPasswordByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce(true);
 
             const service = createUserService(configWithGoogleEnv);
             expect(await service.getLoginOptions('member@acme.com')).toEqual({
@@ -660,14 +664,14 @@ describe('UserService', () => {
 
         test('brand-new user (no Lightdash account) → cross-org filter does not apply, discovery as normal', async () => {
             (
-                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+                organizationSsoModel.findEnabledMethodsForEmailDomain as import('vitest').Mock
             ).mockResolvedValueOnce([azureMethod]);
-            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce(
-                undefined,
-            );
-            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
-                false,
-            );
+            (
+                userModel.findUserByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce(undefined);
+            (
+                userModel.hasPasswordByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce(false);
 
             const service = createUserService(configWithGoogleEnv);
             expect(await service.getLoginOptions('newcomer@acme.com')).toEqual({
@@ -719,11 +723,11 @@ describe('UserService', () => {
 
         test('per-org Okta match suppresses instance Google (returning user with password)', async () => {
             (
-                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+                organizationSsoModel.findEnabledMethodsForEmailDomain as import('vitest').Mock
             ).mockResolvedValueOnce([oktaMethod]);
-            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
-                true,
-            );
+            (
+                userModel.hasPasswordByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce(true);
 
             const service = createUserService(configWithGoogleEnv);
             expect(await service.getLoginOptions('user@acme.com')).toEqual({
@@ -735,11 +739,11 @@ describe('UserService', () => {
 
         test('per-org Okta match + allow_password=false → forceRedirect to /login/okta', async () => {
             (
-                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+                organizationSsoModel.findEnabledMethodsForEmailDomain as import('vitest').Mock
             ).mockResolvedValueOnce([{ ...oktaMethod, allowPassword: false }]);
-            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
-                true,
-            );
+            (
+                userModel.hasPasswordByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce(true);
 
             const service = createUserService(configWithGoogleEnv);
             expect(await service.getLoginOptions('user@acme.com')).toEqual({
@@ -752,14 +756,14 @@ describe('UserService', () => {
 
         test('brand-new user matching per-org Okta → forceRedirect with login_hint', async () => {
             (
-                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+                organizationSsoModel.findEnabledMethodsForEmailDomain as import('vitest').Mock
             ).mockResolvedValueOnce([oktaMethod]);
-            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce(
-                undefined,
-            );
-            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
-                false,
-            );
+            (
+                userModel.findUserByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce(undefined);
+            (
+                userModel.hasPasswordByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce(false);
 
             const service = createUserService(configWithGoogleEnv);
             expect(await service.getLoginOptions('newbie@acme.com')).toEqual({
@@ -772,20 +776,22 @@ describe('UserService', () => {
 
         test('existing user in a DIFFERENT org → per-org Okta method filtered out (cross-org hijack defence)', async () => {
             (
-                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+                organizationSsoModel.findEnabledMethodsForEmailDomain as import('vitest').Mock
             ).mockResolvedValueOnce([oktaMethod]); // org-1
-            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce({
+            (
+                userModel.findUserByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce({
                 userUuid: 'victim-uuid',
                 email: 'victim@acme.com',
             });
             (
-                userModel.getOrganizationsForUser as jest.Mock
+                userModel.getOrganizationsForUser as import('vitest').Mock
             ).mockResolvedValueOnce([
                 { organizationUuid: 'org-2', organizationName: 'Victim Org' },
             ]);
-            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
-                true,
-            );
+            (
+                userModel.hasPasswordByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce(true);
 
             const service = createUserService(configWithGoogleEnv);
             expect(await service.getLoginOptions('victim@acme.com')).toEqual({
@@ -835,11 +841,11 @@ describe('UserService', () => {
 
         test('per-org OIDC match suppresses instance Google (returning user with password)', async () => {
             (
-                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+                organizationSsoModel.findEnabledMethodsForEmailDomain as import('vitest').Mock
             ).mockResolvedValueOnce([oidcMethod]);
-            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
-                true,
-            );
+            (
+                userModel.hasPasswordByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce(true);
 
             const service = createUserService(configWithGoogleEnv);
             expect(await service.getLoginOptions('user@acme.com')).toEqual({
@@ -851,14 +857,14 @@ describe('UserService', () => {
 
         test('brand-new user matching per-org OIDC → forceRedirect to /login/oidc', async () => {
             (
-                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+                organizationSsoModel.findEnabledMethodsForEmailDomain as import('vitest').Mock
             ).mockResolvedValueOnce([oidcMethod]);
-            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce(
-                undefined,
-            );
-            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
-                false,
-            );
+            (
+                userModel.findUserByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce(undefined);
+            (
+                userModel.hasPasswordByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce(false);
 
             const service = createUserService(configWithGoogleEnv);
             expect(await service.getLoginOptions('newbie@acme.com')).toEqual({
@@ -903,11 +909,11 @@ describe('UserService', () => {
 
         test('per-org OneLogin match suppresses instance Google (returning user with password)', async () => {
             (
-                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+                organizationSsoModel.findEnabledMethodsForEmailDomain as import('vitest').Mock
             ).mockResolvedValueOnce([oneLoginMethod]);
-            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
-                true,
-            );
+            (
+                userModel.hasPasswordByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce(true);
 
             const service = createUserService(configWithGoogleEnv);
             expect(await service.getLoginOptions('user@acme.com')).toEqual({
@@ -919,14 +925,14 @@ describe('UserService', () => {
 
         test('brand-new user matching per-org OneLogin → forceRedirect to /login/oneLogin', async () => {
             (
-                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+                organizationSsoModel.findEnabledMethodsForEmailDomain as import('vitest').Mock
             ).mockResolvedValueOnce([oneLoginMethod]);
-            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce(
-                undefined,
-            );
-            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
-                false,
-            );
+            (
+                userModel.findUserByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce(undefined);
+            (
+                userModel.hasPasswordByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce(false);
 
             const service = createUserService(configWithGoogleEnv);
             expect(await service.getLoginOptions('newbie@acme.com')).toEqual({
@@ -980,10 +986,10 @@ describe('UserService', () => {
 
         test('an enabled Google row is shown alongside other per-org SSO (flows through discovery)', async () => {
             (
-                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+                organizationSsoModel.findEnabledMethodsForEmailDomain as import('vitest').Mock
             ).mockResolvedValueOnce([oktaMethod, googleMethod]);
             (
-                organizationSsoModel.findGoogleMethodsForEmailDomain as jest.Mock
+                organizationSsoModel.findGoogleMethodsForEmailDomain as import('vitest').Mock
             ).mockResolvedValueOnce([
                 {
                     organizationUuid: 'org-1',
@@ -991,9 +997,9 @@ describe('UserService', () => {
                     allowPassword: true,
                 },
             ]);
-            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
-                true,
-            );
+            (
+                userModel.hasPasswordByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce(true);
 
             const service = createUserService(configWithGoogleEnv);
             expect(await service.getLoginOptions('user@acme.com')).toEqual({
@@ -1005,10 +1011,10 @@ describe('UserService', () => {
 
         test('org disabled Google (no other SSO) → Google dropped from the new-signup fallback', async () => {
             (
-                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+                organizationSsoModel.findEnabledMethodsForEmailDomain as import('vitest').Mock
             ).mockResolvedValueOnce([]);
             (
-                organizationSsoModel.findGoogleMethodsForEmailDomain as jest.Mock
+                organizationSsoModel.findGoogleMethodsForEmailDomain as import('vitest').Mock
             ).mockResolvedValueOnce([
                 {
                     organizationUuid: 'org-1',
@@ -1016,12 +1022,12 @@ describe('UserService', () => {
                     allowPassword: true,
                 },
             ]);
-            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce(
-                undefined,
-            );
-            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
-                false,
-            );
+            (
+                userModel.findUserByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce(undefined);
+            (
+                userModel.hasPasswordByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce(false);
 
             const service = createUserService(configWithGoogleEnv);
             expect(await service.getLoginOptions('newbie@acme.com')).toEqual({
@@ -1033,10 +1039,10 @@ describe('UserService', () => {
 
         test('returning user with a linked Google identity but org disabled Google → Google hidden', async () => {
             (
-                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+                organizationSsoModel.findEnabledMethodsForEmailDomain as import('vitest').Mock
             ).mockResolvedValueOnce([]);
             (
-                organizationSsoModel.findGoogleMethodsForEmailDomain as jest.Mock
+                organizationSsoModel.findGoogleMethodsForEmailDomain as import('vitest').Mock
             ).mockResolvedValueOnce([
                 {
                     organizationUuid: 'org-1',
@@ -1044,21 +1050,23 @@ describe('UserService', () => {
                     allowPassword: true,
                 },
             ]);
-            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce({
+            (
+                userModel.findUserByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce({
                 userUuid: 'member-uuid',
                 email: 'member@acme.com',
             });
             (
-                userModel.getOrganizationsForUser as jest.Mock
+                userModel.getOrganizationsForUser as import('vitest').Mock
             ).mockResolvedValueOnce([
                 { organizationUuid: 'org-1', organizationName: 'Acme Org' },
             ]);
-            (userModel.getOpenIdIssuers as jest.Mock).mockResolvedValueOnce([
-                OpenIdIdentityIssuerType.GOOGLE,
-            ]);
-            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
-                true,
-            );
+            (
+                userModel.getOpenIdIssuers as import('vitest').Mock
+            ).mockResolvedValueOnce([OpenIdIdentityIssuerType.GOOGLE]);
+            (
+                userModel.hasPasswordByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce(true);
 
             const service = createUserService(configWithGoogleEnv);
             expect(await service.getLoginOptions('member@acme.com')).toEqual({
@@ -1070,10 +1078,10 @@ describe('UserService', () => {
 
         test('disabling policy is ignored for a non-member (cross-org) → Google stays', async () => {
             (
-                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+                organizationSsoModel.findEnabledMethodsForEmailDomain as import('vitest').Mock
             ).mockResolvedValueOnce([]);
             (
-                organizationSsoModel.findGoogleMethodsForEmailDomain as jest.Mock
+                organizationSsoModel.findGoogleMethodsForEmailDomain as import('vitest').Mock
             ).mockResolvedValueOnce([
                 {
                     organizationUuid: 'org-1',
@@ -1081,21 +1089,23 @@ describe('UserService', () => {
                     allowPassword: true,
                 },
             ]);
-            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce({
+            (
+                userModel.findUserByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce({
                 userUuid: 'outsider-uuid',
                 email: 'outsider@acme.com',
             });
             (
-                userModel.getOrganizationsForUser as jest.Mock
+                userModel.getOrganizationsForUser as import('vitest').Mock
             ).mockResolvedValueOnce([
                 { organizationUuid: 'org-2', organizationName: 'Other Org' },
             ]);
-            (userModel.getOpenIdIssuers as jest.Mock).mockResolvedValueOnce([
-                OpenIdIdentityIssuerType.GOOGLE,
-            ]);
-            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
-                true,
-            );
+            (
+                userModel.getOpenIdIssuers as import('vitest').Mock
+            ).mockResolvedValueOnce([OpenIdIdentityIssuerType.GOOGLE]);
+            (
+                userModel.hasPasswordByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce(true);
 
             const service = createUserService(configWithGoogleEnv);
             expect(await service.getLoginOptions('outsider@acme.com')).toEqual({
@@ -1109,7 +1119,7 @@ describe('UserService', () => {
     describe('isLoginMethodAllowed Google per-org opt-out', () => {
         test('allows Google when the domain has no per-org policy', async () => {
             (
-                organizationSsoModel.findGoogleMethodsForEmailDomain as jest.Mock
+                organizationSsoModel.findGoogleMethodsForEmailDomain as import('vitest').Mock
             ).mockResolvedValueOnce([]);
             expect(
                 await userService.isLoginMethodAllowed(
@@ -1121,7 +1131,7 @@ describe('UserService', () => {
 
         test('blocks Google when the owning org disabled it', async () => {
             (
-                organizationSsoModel.findGoogleMethodsForEmailDomain as jest.Mock
+                organizationSsoModel.findGoogleMethodsForEmailDomain as import('vitest').Mock
             ).mockResolvedValueOnce([
                 {
                     organizationUuid: 'org-1',
@@ -1129,9 +1139,9 @@ describe('UserService', () => {
                     allowPassword: true,
                 },
             ]);
-            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce(
-                undefined,
-            );
+            (
+                userModel.findUserByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce(undefined);
             expect(
                 await userService.isLoginMethodAllowed(
                     'user@acme.com',
@@ -1142,7 +1152,7 @@ describe('UserService', () => {
 
         test('allows Google for a non-member even if another org disabled it (cross-org)', async () => {
             (
-                organizationSsoModel.findGoogleMethodsForEmailDomain as jest.Mock
+                organizationSsoModel.findGoogleMethodsForEmailDomain as import('vitest').Mock
             ).mockResolvedValueOnce([
                 {
                     organizationUuid: 'org-1',
@@ -1150,12 +1160,14 @@ describe('UserService', () => {
                     allowPassword: true,
                 },
             ]);
-            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce({
+            (
+                userModel.findUserByEmail as import('vitest').Mock
+            ).mockResolvedValueOnce({
                 userUuid: 'outsider-uuid',
                 email: 'outsider@acme.com',
             });
             (
-                userModel.getOrganizationsForUser as jest.Mock
+                userModel.getOrganizationsForUser as import('vitest').Mock
             ).mockResolvedValueOnce([
                 { organizationUuid: 'org-2', organizationName: 'Other Org' },
             ]);
@@ -1183,18 +1195,20 @@ describe('UserService', () => {
         test('should create user', async () => {
             await userService.loginWithOpenId(openIdUser, undefined, undefined);
             expect(
-                openIdIdentityModel.updateIdentityByOpenId as jest.Mock,
+                openIdIdentityModel.updateIdentityByOpenId as import('vitest').Mock,
             ).toHaveBeenCalledTimes(0);
             expect(
-                openIdIdentityModel.createIdentity as jest.Mock,
+                openIdIdentityModel.createIdentity as import('vitest').Mock,
             ).toHaveBeenCalledTimes(0);
-            expect(userModel.createUser as jest.Mock).toHaveBeenCalledTimes(1);
-            expect(userModel.createUser as jest.Mock).toBeCalledWith(
-                openIdUser,
-            );
-            expect(userModel.activateUser as jest.Mock).toHaveBeenCalledTimes(
-                0,
-            );
+            expect(
+                userModel.createUser as import('vitest').Mock,
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                userModel.createUser as import('vitest').Mock,
+            ).toBeCalledWith(openIdUser);
+            expect(
+                userModel.activateUser as import('vitest').Mock,
+            ).toHaveBeenCalledTimes(0);
         });
         test('should activate invited user', async () => {
             await userService.loginWithOpenId(
@@ -1203,15 +1217,17 @@ describe('UserService', () => {
                 'inviteCode',
             );
             expect(
-                openIdIdentityModel.updateIdentityByOpenId as jest.Mock,
+                openIdIdentityModel.updateIdentityByOpenId as import('vitest').Mock,
             ).toHaveBeenCalledTimes(0);
             expect(
-                openIdIdentityModel.createIdentity as jest.Mock,
+                openIdIdentityModel.createIdentity as import('vitest').Mock,
             ).toHaveBeenCalledTimes(0);
-            expect(userModel.createUser as jest.Mock).toHaveBeenCalledTimes(0);
-            expect(userModel.activateUser as jest.Mock).toHaveBeenCalledTimes(
-                1,
-            );
+            expect(
+                userModel.createUser as import('vitest').Mock,
+            ).toHaveBeenCalledTimes(0);
+            expect(
+                userModel.activateUser as import('vitest').Mock,
+            ).toHaveBeenCalledTimes(1);
         });
         test('should link openid with authenticated user', async () => {
             await userService.loginWithOpenId(
@@ -1220,22 +1236,24 @@ describe('UserService', () => {
                 undefined,
             );
             expect(
-                openIdIdentityModel.updateIdentityByOpenId as jest.Mock,
+                openIdIdentityModel.updateIdentityByOpenId as import('vitest').Mock,
             ).toHaveBeenCalledTimes(0);
             expect(
-                openIdIdentityModel.createIdentity as jest.Mock,
+                openIdIdentityModel.createIdentity as import('vitest').Mock,
             ).toHaveBeenCalledTimes(1);
             expect(
-                openIdIdentityModel.createIdentity as jest.Mock,
+                openIdIdentityModel.createIdentity as import('vitest').Mock,
             ).toHaveBeenCalledWith(
                 expect.objectContaining({
                     userId: authenticatedUser.userId,
                 }),
             );
-            expect(userModel.createUser as jest.Mock).toHaveBeenCalledTimes(0);
-            expect(userModel.activateUser as jest.Mock).toHaveBeenCalledTimes(
-                0,
-            );
+            expect(
+                userModel.createUser as import('vitest').Mock,
+            ).toHaveBeenCalledTimes(0);
+            expect(
+                userModel.activateUser as import('vitest').Mock,
+            ).toHaveBeenCalledTimes(0);
         });
         test('should link openid to an existing user that has another OIDC with the same email', async () => {
             const service = createUserService({
@@ -1247,22 +1265,24 @@ describe('UserService', () => {
             });
             await service.loginWithOpenId(openIdUser, undefined, undefined);
             expect(
-                openIdIdentityModel.updateIdentityByOpenId as jest.Mock,
+                openIdIdentityModel.updateIdentityByOpenId as import('vitest').Mock,
             ).toHaveBeenCalledTimes(0);
             expect(
-                openIdIdentityModel.createIdentity as jest.Mock,
+                openIdIdentityModel.createIdentity as import('vitest').Mock,
             ).toHaveBeenCalledTimes(1);
             expect(
-                openIdIdentityModel.createIdentity as jest.Mock,
+                openIdIdentityModel.createIdentity as import('vitest').Mock,
             ).toHaveBeenCalledWith(
                 expect.objectContaining({
                     userId: sessionUser.userId,
                 }),
             );
-            expect(userModel.createUser as jest.Mock).toHaveBeenCalledTimes(0);
-            expect(userModel.activateUser as jest.Mock).toHaveBeenCalledTimes(
-                0,
-            );
+            expect(
+                userModel.createUser as import('vitest').Mock,
+            ).toHaveBeenCalledTimes(0);
+            expect(
+                userModel.activateUser as import('vitest').Mock,
+            ).toHaveBeenCalledTimes(0);
         });
         test('should link openid to an existing user that has the same verified email', async () => {
             const service = createUserService({
@@ -1274,27 +1294,31 @@ describe('UserService', () => {
             });
             await service.loginWithOpenId(openIdUser, undefined, undefined);
             expect(
-                openIdIdentityModel.updateIdentityByOpenId as jest.Mock,
+                openIdIdentityModel.updateIdentityByOpenId as import('vitest').Mock,
             ).toHaveBeenCalledTimes(0);
             expect(
-                openIdIdentityModel.createIdentity as jest.Mock,
+                openIdIdentityModel.createIdentity as import('vitest').Mock,
             ).toHaveBeenCalledTimes(1);
             expect(
-                openIdIdentityModel.createIdentity as jest.Mock,
+                openIdIdentityModel.createIdentity as import('vitest').Mock,
             ).toHaveBeenCalledWith(
                 expect.objectContaining({
                     userId: sessionUser.userId,
                 }),
             );
-            expect(userModel.createUser as jest.Mock).toHaveBeenCalledTimes(0);
-            expect(userModel.activateUser as jest.Mock).toHaveBeenCalledTimes(
-                0,
-            );
+            expect(
+                userModel.createUser as import('vitest').Mock,
+            ).toHaveBeenCalledTimes(0);
+            expect(
+                userModel.activateUser as import('vitest').Mock,
+            ).toHaveBeenCalledTimes(0);
         });
         test('links via per-org OIDC linking even when the instance env flag is off', async () => {
             // Instance env flags are off (default config); the org opts in
             // through organization_settings.
-            (organizationSettingsModel.get as jest.Mock).mockResolvedValueOnce({
+            (
+                organizationSettingsModel.get as import('vitest').Mock
+            ).mockResolvedValueOnce({
                 oidcLinkingEnabled: true,
                 oidcToEmailLinkingEnabled: false,
             });
@@ -1302,19 +1326,23 @@ describe('UserService', () => {
             await userService.loginWithOpenId(openIdUser, undefined, undefined);
 
             expect(
-                openIdIdentityModel.createIdentity as jest.Mock,
+                openIdIdentityModel.createIdentity as import('vitest').Mock,
             ).toHaveBeenCalledWith(
                 expect.objectContaining({ userId: sessionUser.userId }),
             );
-            expect(userModel.createUser as jest.Mock).toHaveBeenCalledTimes(0);
+            expect(
+                userModel.createUser as import('vitest').Mock,
+            ).toHaveBeenCalledTimes(0);
         });
         test('links via per-org OIDC-to-email linking even when the instance env flag is off', async () => {
             // No matching OIDC identity → the OIDC-linking gate is skipped; the
             // user is matched by verified primary email and the org opts in.
             (
-                openIdIdentityModel.findIdentitiesByEmail as jest.Mock
+                openIdIdentityModel.findIdentitiesByEmail as import('vitest').Mock
             ).mockResolvedValueOnce([]);
-            (organizationSettingsModel.get as jest.Mock).mockResolvedValueOnce({
+            (
+                organizationSettingsModel.get as import('vitest').Mock
+            ).mockResolvedValueOnce({
                 oidcLinkingEnabled: false,
                 oidcToEmailLinkingEnabled: true,
             });
@@ -1322,34 +1350,38 @@ describe('UserService', () => {
             await userService.loginWithOpenId(openIdUser, undefined, undefined);
 
             expect(
-                openIdIdentityModel.createIdentity as jest.Mock,
+                openIdIdentityModel.createIdentity as import('vitest').Mock,
             ).toHaveBeenCalledWith(
                 expect.objectContaining({ userId: sessionUser.userId }),
             );
-            expect(userModel.createUser as jest.Mock).toHaveBeenCalledTimes(0);
+            expect(
+                userModel.createUser as import('vitest').Mock,
+            ).toHaveBeenCalledTimes(0);
         });
         test('should update openid ', async () => {
             // Mock that identity is found for that openid
             (
-                userModel.findSessionUserByOpenId as jest.Mock
+                userModel.findSessionUserByOpenId as import('vitest').Mock
             ).mockImplementationOnce(async () => sessionUser);
 
             await userService.loginWithOpenId(openIdUser, undefined, undefined);
             expect(
-                openIdIdentityModel.updateIdentityByOpenId as jest.Mock,
+                openIdIdentityModel.updateIdentityByOpenId as import('vitest').Mock,
             ).toHaveBeenCalledTimes(1);
             expect(
-                openIdIdentityModel.createIdentity as jest.Mock,
+                openIdIdentityModel.createIdentity as import('vitest').Mock,
             ).toHaveBeenCalledTimes(0);
-            expect(userModel.createUser as jest.Mock).toHaveBeenCalledTimes(0);
-            expect(userModel.activateUser as jest.Mock).toHaveBeenCalledTimes(
-                0,
-            );
+            expect(
+                userModel.createUser as import('vitest').Mock,
+            ).toHaveBeenCalledTimes(0);
+            expect(
+                userModel.activateUser as import('vitest').Mock,
+            ).toHaveBeenCalledTimes(0);
         });
 
         test('should emit allowed audit event on successful OpenID login', async () => {
             (
-                userModel.findSessionUserByOpenId as jest.Mock
+                userModel.findSessionUserByOpenId as import('vitest').Mock
             ).mockImplementationOnce(async () => sessionUser);
 
             await userService.loginWithOpenId(openIdUser, undefined, undefined);
@@ -1391,7 +1423,7 @@ describe('UserService', () => {
         test('should emit denied audit event when password is wrong', async () => {
             const failingUserModel = {
                 ...userModel,
-                getUserByPrimaryEmailAndPassword: jest.fn(async () => {
+                getUserByPrimaryEmailAndPassword: vi.fn(async () => {
                     throw new NotFoundError('wrong password');
                 }),
             };
@@ -1415,16 +1447,16 @@ describe('UserService', () => {
                 organizationAllowedEmailDomainsModel:
                     {} as OrganizationAllowedEmailDomainsModel,
                 organizationSsoModel: {
-                    findOrganizationUuidByProviderAndEmailDomain: jest.fn(
+                    findOrganizationUuidByProviderAndEmailDomain: vi.fn(
                         async () => undefined,
                     ),
                 } as unknown as OrganizationSsoModel,
                 organizationSettingsModel: {
-                    get: jest.fn(async () => ({
+                    get: vi.fn(async () => ({
                         oidcLinkingEnabled: null,
                         oidcToEmailLinkingEnabled: null,
                     })),
-                    update: jest.fn(),
+                    update: vi.fn(),
                 } as unknown as OrganizationSettingsModel,
                 userWarehouseCredentialsModel:
                     {} as UserWarehouseCredentialsModel,
@@ -1432,7 +1464,7 @@ describe('UserService', () => {
                     {} as WarehouseAvailableTablesModel,
                 projectModel: projectModel as unknown as ProjectModel,
                 featureFlagModel: {
-                    get: jest.fn(async () => ({
+                    get: vi.fn(async () => ({
                         id: 'leave-organization',
                         enabled: true,
                     })),
@@ -1442,7 +1474,7 @@ describe('UserService', () => {
             await expect(
                 service.loginWithPassword('user@example.com', 'wrong', {
                     ip: '127.0.0.1',
-                    userAgent: 'jest',
+                    userAgent: 'test',
                 }),
             ).rejects.toThrow();
 
@@ -1457,7 +1489,7 @@ describe('UserService', () => {
                     }),
                     context: expect.objectContaining({
                         ip: '127.0.0.1',
-                        userAgent: 'jest',
+                        userAgent: 'test',
                     }),
                     resource: expect.objectContaining({ type: 'Session' }),
                 }),
@@ -1467,7 +1499,7 @@ describe('UserService', () => {
         test('should emit denied audit event for unknown personal access token', async () => {
             const tokenUserModel = {
                 ...userModel,
-                findSessionUserByPersonalAccessToken: jest.fn(
+                findSessionUserByPersonalAccessToken: vi.fn(
                     async () => undefined,
                 ),
             };
@@ -1491,16 +1523,16 @@ describe('UserService', () => {
                 organizationAllowedEmailDomainsModel:
                     {} as OrganizationAllowedEmailDomainsModel,
                 organizationSsoModel: {
-                    findOrganizationUuidByProviderAndEmailDomain: jest.fn(
+                    findOrganizationUuidByProviderAndEmailDomain: vi.fn(
                         async () => undefined,
                     ),
                 } as unknown as OrganizationSsoModel,
                 organizationSettingsModel: {
-                    get: jest.fn(async () => ({
+                    get: vi.fn(async () => ({
                         oidcLinkingEnabled: null,
                         oidcToEmailLinkingEnabled: null,
                     })),
-                    update: jest.fn(),
+                    update: vi.fn(),
                 } as unknown as OrganizationSettingsModel,
                 userWarehouseCredentialsModel:
                     {} as UserWarehouseCredentialsModel,
@@ -1508,7 +1540,7 @@ describe('UserService', () => {
                     {} as WarehouseAvailableTablesModel,
                 projectModel: projectModel as unknown as ProjectModel,
                 featureFlagModel: {
-                    get: jest.fn(async () => ({
+                    get: vi.fn(async () => ({
                         id: 'leave-organization',
                         enabled: true,
                     })),
@@ -1540,56 +1572,58 @@ describe('UserService', () => {
                 ),
             ).toEqual(inviteLink);
             expect(
-                userModel.createPendingUser as jest.Mock,
+                userModel.createPendingUser as import('vitest').Mock,
             ).toHaveBeenCalledTimes(1);
-            expect(inviteLinkModel.upsert as jest.Mock).toHaveBeenCalledTimes(
-                1,
-            );
+            expect(
+                inviteLinkModel.upsert as import('vitest').Mock,
+            ).toHaveBeenCalledTimes(1);
         });
         test('should send invite when email belongs to user without org', async () => {
-            (userModel.findUserByEmail as jest.Mock).mockImplementationOnce(
-                async () => userWithoutOrg,
-            );
+            (
+                userModel.findUserByEmail as import('vitest').Mock
+            ).mockImplementationOnce(async () => userWithoutOrg);
             expect(
                 await userService.createPendingUserAndInviteLink(
                     sessionUser,
                     inviteUser,
                 ),
             ).toEqual(inviteLink);
-            expect(userModel.joinOrg as jest.Mock).toHaveBeenCalledTimes(1);
             expect(
-                userModel.createPendingUser as jest.Mock,
+                userModel.joinOrg as import('vitest').Mock,
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                userModel.createPendingUser as import('vitest').Mock,
             ).toHaveBeenCalledTimes(0);
-            expect(inviteLinkModel.upsert as jest.Mock).toHaveBeenCalledTimes(
-                1,
-            );
+            expect(
+                inviteLinkModel.upsert as import('vitest').Mock,
+            ).toHaveBeenCalledTimes(1);
         });
         test('should send invite when email belongs to inactive user in same org', async () => {
-            (userModel.findUserByEmail as jest.Mock).mockImplementationOnce(
-                async () => ({
-                    ...userWithoutOrg,
-                    isPending: true,
-                    organizationUuid: sessionUser.organizationUuid,
-                }),
-            );
+            (
+                userModel.findUserByEmail as import('vitest').Mock
+            ).mockImplementationOnce(async () => ({
+                ...userWithoutOrg,
+                isPending: true,
+                organizationUuid: sessionUser.organizationUuid,
+            }));
             await userService.createPendingUserAndInviteLink(
                 sessionUser,
                 inviteUser,
             );
             expect(
-                userModel.createPendingUser as jest.Mock,
+                userModel.createPendingUser as import('vitest').Mock,
             ).toHaveBeenCalledTimes(0);
-            expect(inviteLinkModel.upsert as jest.Mock).toHaveBeenCalledTimes(
-                1,
-            );
+            expect(
+                inviteLinkModel.upsert as import('vitest').Mock,
+            ).toHaveBeenCalledTimes(1);
         });
         test('should throw error when email belongs to user in different org', async () => {
-            (userModel.findUserByEmail as jest.Mock).mockImplementationOnce(
-                async () => ({
-                    ...userWithoutOrg,
-                    organizationUuid: 'anotherOrg',
-                }),
-            );
+            (
+                userModel.findUserByEmail as import('vitest').Mock
+            ).mockImplementationOnce(async () => ({
+                ...userWithoutOrg,
+                organizationUuid: 'anotherOrg',
+            }));
             await expect(
                 userService.createPendingUserAndInviteLink(
                     sessionUser,
@@ -1600,13 +1634,13 @@ describe('UserService', () => {
             );
         });
         test('should throw error when email belongs to an active user in same org', async () => {
-            (userModel.findUserByEmail as jest.Mock).mockImplementationOnce(
-                async () => ({
-                    ...userWithoutOrg,
-                    isActive: true,
-                    organizationUuid: sessionUser.organizationUuid,
-                }),
-            );
+            (
+                userModel.findUserByEmail as import('vitest').Mock
+            ).mockImplementationOnce(async () => ({
+                ...userWithoutOrg,
+                isActive: true,
+                organizationUuid: sessionUser.organizationUuid,
+            }));
             await expect(
                 userService.createPendingUserAndInviteLink(
                     sessionUser,
@@ -1672,7 +1706,7 @@ describe('UserService', () => {
 
         const callOnLogin = async (service: UserService, user: SessionUser) => {
             (
-                userModel.getSessionUserFromCacheOrDB as jest.Mock
+                userModel.getSessionUserFromCacheOrDB as import('vitest').Mock
             ).mockResolvedValueOnce({
                 sessionUser: user,
                 cacheHit: false,
@@ -1703,7 +1737,7 @@ describe('UserService', () => {
             const service = createUserService(lightdashConfigMock);
 
             (
-                projectModel.getProjectsWithDefaultUserSpaces as jest.Mock
+                projectModel.getProjectsWithDefaultUserSpaces as import('vitest').Mock
             ).mockResolvedValueOnce([]);
 
             await callOnLogin(service, makeSessionUser());
@@ -1715,7 +1749,7 @@ describe('UserService', () => {
             const service = createUserService(lightdashConfigMock);
 
             (
-                projectModel.getProjectsWithDefaultUserSpaces as jest.Mock
+                projectModel.getProjectsWithDefaultUserSpaces as import('vitest').Mock
             ).mockResolvedValueOnce([projectWithDefaultSpaces]);
 
             const interactiveViewer = makeSessionUser({
@@ -1744,7 +1778,7 @@ describe('UserService', () => {
             const service = createUserService(lightdashConfigMock);
 
             (
-                projectModel.getProjectsWithDefaultUserSpaces as jest.Mock
+                projectModel.getProjectsWithDefaultUserSpaces as import('vitest').Mock
             ).mockResolvedValueOnce([projectWithDefaultSpaces]);
 
             const viewer = makeSessionUser({
@@ -1768,7 +1802,7 @@ describe('UserService', () => {
             };
 
             (
-                projectModel.getProjectsWithDefaultUserSpaces as jest.Mock
+                projectModel.getProjectsWithDefaultUserSpaces as import('vitest').Mock
             ).mockResolvedValueOnce([projectWithDefaultSpaces, secondProject]);
 
             const editor = makeSessionUser({

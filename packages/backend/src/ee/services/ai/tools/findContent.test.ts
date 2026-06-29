@@ -127,9 +127,9 @@ const makeMockSpace = (): FindContentResult => ({
 describe('getFindContent', () => {
     const createTool = (
         content: FindContentResult[],
-        trackCoverage: jest.Mock = jest.fn(),
+        trackCoverage: import('vitest').Mock = vi.fn(),
     ) => {
-        const mockFindContent = jest.fn().mockResolvedValue({ content });
+        const mockFindContent = vi.fn().mockResolvedValue({ content });
         return {
             tool: getFindContent({
                 findContent: mockFindContent,
@@ -169,7 +169,9 @@ describe('getFindContent', () => {
         });
 
         expect(output.metadata.status).toBe('success');
-        expect(output.result).toContain(`<charts count="${underLimit}">`);
+        expect(output.result).toMatch(
+            new RegExp(`<charts count="${underLimit}"[^>]*>`),
+        );
 
         const chartMatches = output.result.match(/<chart /g);
         expect(chartMatches).toHaveLength(underLimit);
@@ -184,8 +186,10 @@ describe('getFindContent', () => {
             spaceSlug: null,
         });
 
-        expect(output.result).toContain(
-            `<charts count="${DASHBOARD_CHARTS_PREVIEW_COUNT}">`,
+        expect(output.result).toMatch(
+            new RegExp(
+                `<charts count="${DASHBOARD_CHARTS_PREVIEW_COUNT}"[^>]*>`,
+            ),
         );
 
         const chartMatches = output.result.match(/<chart /g);
@@ -199,7 +203,7 @@ describe('getFindContent', () => {
             spaceSlug: null,
         });
 
-        expect(output.result).toContain('<charts count="100">');
+        expect(output.result).toMatch(/<charts count="100"[^>]*>/);
 
         const chartMatches = output.result.match(/<chart /g);
         expect(chartMatches).toHaveLength(DASHBOARD_CHARTS_PREVIEW_COUNT);
@@ -212,7 +216,7 @@ describe('getFindContent', () => {
             spaceSlug: null,
         });
 
-        expect(output.result).toContain('<charts count="1">');
+        expect(output.result).toMatch(/<charts count="1"[^>]*>/);
 
         const chartMatches = output.result.match(/<chart /g);
         expect(chartMatches).toHaveLength(1);
@@ -226,7 +230,7 @@ describe('getFindContent', () => {
         });
 
         expect(output.result.length).toBeLessThan(10_000);
-        expect(output.result).toContain('<charts count="200">');
+        expect(output.result).toMatch(/<charts count="200"[^>]*>/);
 
         const chartMatches = output.result.match(/<chart /g);
         expect(chartMatches).toHaveLength(DASHBOARD_CHARTS_PREVIEW_COUNT);
@@ -303,7 +307,7 @@ describe('getFindContent', () => {
             verification: makeVerification(),
         });
         const unverified = makeMockDashboard(0, { uuid: 'dash-u' });
-        const trackCoverage = jest.fn();
+        const trackCoverage = vi.fn();
         const { tool } = createTool([verified, unverified], trackCoverage);
         await executeFindContent(tool, {
             searchQueries: [{ label: 'revenue dashboards' }],
@@ -320,7 +324,7 @@ describe('getFindContent', () => {
     });
 
     it('reports topResultVerified=false when no verified results are returned', async () => {
-        const trackCoverage = jest.fn();
+        const trackCoverage = vi.fn();
         const { tool } = createTool([makeMockDashboard(0)], trackCoverage);
         await executeFindContent(tool, {
             searchQueries: [{ label: 'q' }],
@@ -339,7 +343,7 @@ describe('getFindContent', () => {
 describe('getGetDashboardCharts', () => {
     it('renders paginated charts with metadata', async () => {
         const charts = [makeMockChart(0), makeMockChart(1), makeMockChart(2)];
-        const mockGetDashboardCharts = jest.fn().mockResolvedValue({
+        const mockGetDashboardCharts = vi.fn().mockResolvedValue({
             dashboardName: 'Sales Dashboard',
             charts,
             pagination: {
@@ -372,7 +376,7 @@ describe('getGetDashboardCharts', () => {
     });
 
     it('defaults page to 1 when not provided', async () => {
-        const mockGetDashboardCharts = jest.fn().mockResolvedValue({
+        const mockGetDashboardCharts = vi.fn().mockResolvedValue({
             dashboardName: 'My Dashboard',
             charts: [makeMockChart(0)],
             pagination: {
@@ -408,7 +412,7 @@ describe('getGetDashboardCharts', () => {
             verification: makeVerification('Dana', 'Lin'),
         });
         const unverifiedSecond = makeMockChart(2, { uuid: 'unverified-c' });
-        const mockGetDashboardCharts = jest.fn().mockResolvedValue({
+        const mockGetDashboardCharts = vi.fn().mockResolvedValue({
             dashboardName: 'Dashboard',
             charts: [unverifiedFirst, verified, unverifiedSecond],
             pagination: {

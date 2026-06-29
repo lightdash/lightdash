@@ -12,18 +12,18 @@ import {
     passwordResetLinkMock,
 } from './EmailClient.mock';
 
-jest.mock('nodemailer', () => ({
-    createTransport: jest.fn(() => ({
-        verify: jest.fn(),
-        sendMail: jest.fn(() => ({ messageId: 'messageId' })),
-        use: jest.fn(),
+vi.mock('nodemailer', () => ({
+    createTransport: vi.fn(() => ({
+        verify: vi.fn(),
+        sendMail: vi.fn(() => ({ messageId: 'messageId' })),
+        use: vi.fn(),
     })),
 }));
 
-jest.mock('fs', () => ({
-    ...jest.requireActual('fs'),
-    readdirSync: jest.fn(() => []),
-    readFileSync: jest.fn(() => ''),
+vi.mock('fs', async () => ({
+    ...(await vi.importActual<typeof import('fs')>('fs')),
+    readdirSync: vi.fn(() => []),
+    readFileSync: vi.fn(() => ''),
 }));
 
 // Mock the SMTPError interface to allow for code property
@@ -41,7 +41,7 @@ class MockNodeMailerSmtpError
 
 describe('EmailClient', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
     describe('Create transporter', () => {
         test('should not create a transporter when there is no smtp configs', async () => {
@@ -89,7 +89,7 @@ describe('EmailClient', () => {
         });
 
         test('should retry email sending on ECONNRESET error', async () => {
-            const mockSendMail = jest
+            const mockSendMail = vi
                 .fn()
                 .mockRejectedValueOnce(
                     new MockNodeMailerSmtpError('read ECONNRESET', {
@@ -98,11 +98,13 @@ describe('EmailClient', () => {
                 )
                 .mockResolvedValueOnce({ messageId: 'test-message-id' });
 
-            (nodemailer.createTransport as jest.Mock).mockReturnValue({
-                verify: jest.fn((callback) => callback()),
+            (
+                nodemailer.createTransport as import('vitest').Mock
+            ).mockReturnValue({
+                verify: vi.fn((callback) => callback()),
                 sendMail: mockSendMail,
-                use: jest.fn(),
-                close: jest.fn(),
+                use: vi.fn(),
+                close: vi.fn(),
             });
 
             const client = new EmailClient({
@@ -116,15 +118,17 @@ describe('EmailClient', () => {
         });
 
         test('should fail after max retries with non-retryable error', async () => {
-            const mockSendMail = jest
+            const mockSendMail = vi
                 .fn()
                 .mockRejectedValue(new Error('Authentication failed'));
 
-            (nodemailer.createTransport as jest.Mock).mockReturnValue({
-                verify: jest.fn((callback) => callback()),
+            (
+                nodemailer.createTransport as import('vitest').Mock
+            ).mockReturnValue({
+                verify: vi.fn((callback) => callback()),
                 sendMail: mockSendMail,
-                use: jest.fn(),
-                close: jest.fn(),
+                use: vi.fn(),
+                close: vi.fn(),
             });
 
             const client = new EmailClient({
@@ -140,19 +144,20 @@ describe('EmailClient', () => {
         });
 
         test('should retry up to 3 times with retryable error and recreate transporter on last retry', async () => {
-            const mockSendMail = jest.fn().mockRejectedValue(
+            const mockSendMail = vi.fn().mockRejectedValue(
                 new MockNodeMailerSmtpError('read ECONNRESET', {
                     code: 'ECONNRESET',
                 }),
             );
 
-            const mockClose = jest.fn();
-            const mockCreateTransport = nodemailer.createTransport as jest.Mock;
+            const mockClose = vi.fn();
+            const mockCreateTransport =
+                nodemailer.createTransport as import('vitest').Mock;
 
             mockCreateTransport.mockReturnValue({
-                verify: jest.fn((callback) => callback()),
+                verify: vi.fn((callback) => callback()),
                 sendMail: mockSendMail,
-                use: jest.fn(),
+                use: vi.fn(),
                 close: mockClose,
             });
 

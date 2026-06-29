@@ -7,22 +7,26 @@ import {
 import jwt from 'jsonwebtoken';
 import { merge } from 'lodash';
 import { lightdashConfig } from '../config/lightdashConfig';
+import Logger from '../logging/logger';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import { decodeLightdashJwt, encodeLightdashJwt } from './lightdashJwt';
 
 // Mock dependencies
-jest.mock('@sentry/node', () => ({
-    captureException: jest.fn(),
+vi.mock('@sentry/node', () => ({
+    captureException: vi.fn(),
 }));
 
-jest.mock('../logging/logger', () => ({
-    error: jest.fn(),
+vi.mock('../logging/logger', () => ({
+    __esModule: true,
+    default: {
+        error: vi.fn(),
+    },
 }));
 
 describe('JwtUtil', () => {
     let encryptionUtil: EncryptionUtil;
     let encodedSecret: Buffer;
-    let mockErrorLogger: jest.Mock;
+    let mockErrorLogger: import('vitest').Mock;
 
     const mockJwtData: CreateEmbedJwt = {
         content: {
@@ -58,11 +62,8 @@ describe('JwtUtil', () => {
         const secret = 'test-secret';
         encodedSecret = encryptionUtil.encrypt(secret);
 
-        // Get the mocked logger and reset it
-        // eslint-disable-next-line
-        const logger = require('../logging/logger');
-        mockErrorLogger = logger.error as jest.Mock;
-        jest.clearAllMocks();
+        mockErrorLogger = Logger.error as import('vitest').Mock;
+        vi.clearAllMocks();
     });
 
     describe('encodeJwt', () => {

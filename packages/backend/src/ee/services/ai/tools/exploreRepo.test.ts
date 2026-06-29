@@ -1,24 +1,24 @@
 import * as Sentry from '@sentry/node';
+import Logger from '../../../../logging/logger';
 import { ShellError } from '../repoFs/bashShell';
 import { getExploreRepo } from './exploreRepo';
 
-jest.mock('@sentry/node', () => ({
-    captureException: jest.fn(),
+vi.mock('@sentry/node', () => ({
+    captureException: vi.fn(),
 }));
 
-jest.mock('../../../../logging/logger', () => ({
+vi.mock('../../../../logging/logger', () => ({
     __esModule: true,
-    default: { error: jest.fn(), info: jest.fn(), debug: jest.fn() },
+    default: { error: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
-const Logger = require('../../../../logging/logger').default;
-
-const captureException = Sentry.captureException as jest.Mock;
+const captureException = Sentry.captureException as import('vitest').Mock;
 
 type ExecuteResult = { result: string; metadata: { status: string } };
 
-const execute = async (exploreRepo: jest.Mock): Promise<ExecuteResult> => {
+const execute = async (
+    exploreRepo: import('vitest').Mock,
+): Promise<ExecuteResult> => {
     const exploreRepoTool = getExploreRepo({ exploreRepo });
     // `tool()` always defines execute for our definition, and it resolves to an
     // object (not a stream); the casts keep TS happy without changing behaviour.
@@ -33,11 +33,11 @@ const execute = async (exploreRepo: jest.Mock): Promise<ExecuteResult> => {
 describe('exploreRepo tool error handling', () => {
     beforeEach(() => {
         captureException.mockClear();
-        Logger.error.mockClear();
+        (Logger.error as import('vitest').Mock).mockClear();
     });
 
     it('returns a successful result unchanged', async () => {
-        const exploreRepo = jest.fn().mockResolvedValue('models/orders.sql');
+        const exploreRepo = vi.fn().mockResolvedValue('models/orders.sql');
         const result = await execute(exploreRepo);
         expect(result).toEqual({
             result: 'models/orders.sql',
@@ -48,7 +48,7 @@ describe('exploreRepo tool error handling', () => {
 
     it('does not page Sentry for an expected ShellError, but logs it', async () => {
         const error = new ShellError('ls: unsupported flag -name');
-        const exploreRepo = jest.fn().mockRejectedValue(error);
+        const exploreRepo = vi.fn().mockRejectedValue(error);
         const result = await execute(exploreRepo);
 
         expect(result.metadata).toEqual({ status: 'error' });
@@ -59,7 +59,7 @@ describe('exploreRepo tool error handling', () => {
 
     it('captures an unexpected error (e.g. GitHub access failure) to Sentry', async () => {
         const error = new Error('GitHub API 403');
-        const exploreRepo = jest.fn().mockRejectedValue(error);
+        const exploreRepo = vi.fn().mockRejectedValue(error);
         const result = await execute(exploreRepo);
 
         expect(result.metadata).toEqual({ status: 'error' });

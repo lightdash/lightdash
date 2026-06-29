@@ -27,10 +27,12 @@ import {
     thresholdLessThanMock,
 } from './SchedulerTask.mock';
 
-jest.mock('@lightdash/common', () => ({
-    ...jest.requireActual('@lightdash/common'),
+vi.mock('@lightdash/common', async () => ({
+    ...(await vi.importActual<typeof import('@lightdash/common')>(
+        '@lightdash/common',
+    )),
     // Skip real backoff delays so the retry loop runs instantly.
-    sleep: jest.fn().mockResolvedValue(undefined),
+    sleep: vi.fn().mockResolvedValue(undefined),
 }));
 
 describe('buildSchedulerLogContext', () => {
@@ -71,7 +73,7 @@ describe('buildSchedulerLogContext', () => {
 
 describe('setSchedulerJobLogContext', () => {
     it('skips the updater entirely when no attribution fields are set', () => {
-        const update = jest.fn();
+        const update = vi.fn();
         setSchedulerJobLogContext({}, update);
         expect(update).not.toHaveBeenCalled();
     });
@@ -477,7 +479,7 @@ describe('evaluateThreshold', () => {
 
 describe('retryTransientGoogleSheetsWrite', () => {
     it('writes once and resolves when the upload succeeds', async () => {
-        const write = jest.fn().mockResolvedValue(undefined);
+        const write = vi.fn().mockResolvedValue(undefined);
 
         await retryTransientGoogleSheetsWrite(write);
 
@@ -485,7 +487,7 @@ describe('retryTransientGoogleSheetsWrite', () => {
     });
 
     it('retries a transient Google error and succeeds without re-running the query', async () => {
-        const write = jest
+        const write = vi
             .fn()
             .mockRejectedValueOnce(new GoogleSheetsTransientError())
             .mockResolvedValueOnce(undefined);
@@ -497,7 +499,7 @@ describe('retryTransientGoogleSheetsWrite', () => {
     });
 
     it('gives up after the max attempts when the transient error persists', async () => {
-        const write = jest.fn().mockRejectedValue(new GoogleSheetsQuotaError());
+        const write = vi.fn().mockRejectedValue(new GoogleSheetsQuotaError());
 
         await expect(retryTransientGoogleSheetsWrite(write)).rejects.toThrow(
             GoogleSheetsQuotaError,
@@ -506,7 +508,7 @@ describe('retryTransientGoogleSheetsWrite', () => {
     });
 
     it('does not retry a non-transient error', async () => {
-        const write = jest
+        const write = vi
             .fn()
             .mockRejectedValue(new ForbiddenError('no access'));
 
@@ -517,12 +519,12 @@ describe('retryTransientGoogleSheetsWrite', () => {
     });
 
     it('reports each upcoming retry attempt via onRetry', async () => {
-        const write = jest
+        const write = vi
             .fn()
             .mockRejectedValueOnce(new GoogleSheetsTransientError())
             .mockRejectedValueOnce(new GoogleSheetsTransientError())
             .mockResolvedValueOnce(undefined);
-        const onRetry = jest.fn().mockResolvedValue(undefined);
+        const onRetry = vi.fn().mockResolvedValue(undefined);
 
         await retryTransientGoogleSheetsWrite(write, onRetry);
 
@@ -602,21 +604,19 @@ describe('uploadGsheetFromQuery — rows branch', () => {
     };
 
     it('calls createNewSheet with payload.title and appendToSheet with payload rows — never calls executeMetricQueryAndGetResults', async () => {
-        const mockCreateNewSheet = jest.fn().mockResolvedValue({
+        const mockCreateNewSheet = vi.fn().mockResolvedValue({
             spreadsheetId: 'sheet-123',
             spreadsheetUrl: 'https://sheets.example.com/sheet-123',
         });
-        const mockAppendToSheet = jest.fn().mockResolvedValue(undefined);
-        const mockGetRefreshToken = jest
-            .fn()
-            .mockResolvedValue('refresh-token');
-        const mockGetAccountByUserUuid = jest.fn().mockResolvedValue({
+        const mockAppendToSheet = vi.fn().mockResolvedValue(undefined);
+        const mockGetRefreshToken = vi.fn().mockResolvedValue('refresh-token');
+        const mockGetAccountByUserUuid = vi.fn().mockResolvedValue({
             user: { id: 'user-1' },
         });
-        const mockLogSchedulerJob = jest.fn().mockResolvedValue(undefined);
-        const mockTrackAccount = jest.fn();
-        const mockTrack = jest.fn();
-        const mockExecuteMetricQueryAndGetResults = jest.fn();
+        const mockLogSchedulerJob = vi.fn().mockResolvedValue(undefined);
+        const mockTrackAccount = vi.fn();
+        const mockTrack = vi.fn();
+        const mockExecuteMetricQueryAndGetResults = vi.fn();
 
         const task = makeTask({
             googleDriveClient: {
@@ -634,7 +634,7 @@ describe('uploadGsheetFromQuery — rows branch', () => {
             >[0]['userService'],
             schedulerService: {
                 logSchedulerJob: mockLogSchedulerJob,
-                updateGsheetExportProgress: jest
+                updateGsheetExportProgress: vi
                     .fn()
                     .mockResolvedValue(undefined),
             } as unknown as ConstructorParameters<

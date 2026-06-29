@@ -20,30 +20,30 @@ import type { SpacePermissionService } from '../SpaceService/SpacePermissionServ
 import { UnfurlService } from './UnfurlService';
 
 const mockFileStorageClient = {
-    isEnabled: jest.fn(),
-    uploadImage: jest.fn(),
-    getFileUrl: jest.fn(),
-    objectExists: jest.fn(),
-    uploadPdf: jest.fn(),
-    uploadTxt: jest.fn(),
-    uploadCsv: jest.fn(),
-    uploadZip: jest.fn(),
-    uploadExcel: jest.fn(),
-    streamResults: jest.fn(),
-    getFileStream: jest.fn(),
-    createUploadStream: jest.fn(),
+    isEnabled: vi.fn(),
+    uploadImage: vi.fn(),
+    getFileUrl: vi.fn(),
+    objectExists: vi.fn(),
+    uploadPdf: vi.fn(),
+    uploadTxt: vi.fn(),
+    uploadCsv: vi.fn(),
+    uploadZip: vi.fn(),
+    uploadExcel: vi.fn(),
+    streamResults: vi.fn(),
+    getFileStream: vi.fn(),
+    createUploadStream: vi.fn(),
     expirationDays: undefined,
 };
 
 const mockSlackUnfurlImageModel = {
-    create: jest.fn(),
-    get: jest.fn(),
-    delete: jest.fn().mockResolvedValue(undefined),
+    create: vi.fn(),
+    get: vi.fn(),
+    delete: vi.fn().mockResolvedValue(undefined),
 };
 
 const mockDownloadFileModel = {
-    createDownloadFile: jest.fn(),
-    getDownloadFile: jest.fn(),
+    createDownloadFile: vi.fn(),
+    getDownloadFile: vi.fn(),
 };
 
 function createService(
@@ -80,7 +80,7 @@ function createService(
 
 describe('UnfurlService', () => {
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     describe('getPreviewSignedUrl', () => {
@@ -136,11 +136,11 @@ describe('UnfurlService', () => {
 
         beforeEach(() => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            jest.spyOn(service as any, 'getUserCookie').mockResolvedValue(
+            vi.spyOn(service as any, 'getUserCookie').mockResolvedValue(
                 'mock-cookie',
             );
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            jest.spyOn(service as any, 'saveScreenshot').mockResolvedValue({
+            vi.spyOn(service as any, 'saveScreenshot').mockResolvedValue({
                 imageBuffer,
                 pdfBuffer: undefined,
             });
@@ -148,7 +148,7 @@ describe('UnfurlService', () => {
 
         const callUnfurlImage = (orgUuid: string | undefined) => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            jest.spyOn(service as any, 'unfurlDetails').mockResolvedValue(
+            vi.spyOn(service as any, 'unfurlDetails').mockResolvedValue(
                 orgUuid
                     ? {
                           title: 'Test',
@@ -229,7 +229,7 @@ describe('UnfurlService', () => {
         const SQL_CHART_UUID = '11111111-2222-3333-4444-555555555555';
 
         it('recognizes a saved SQL Runner URL and rewrites to a minimal URL', async () => {
-            const getBySlug = jest.fn().mockResolvedValue({
+            const getBySlug = vi.fn().mockResolvedValue({
                 savedSqlUuid: SQL_CHART_UUID,
                 name: 'my chart',
                 description: null,
@@ -256,7 +256,7 @@ describe('UnfurlService', () => {
         });
 
         it('also recognizes `/sql-runner/<slug>/edit` and resolves to the same minimal URL', async () => {
-            const getBySlug = jest.fn().mockResolvedValue({
+            const getBySlug = vi.fn().mockResolvedValue({
                 savedSqlUuid: SQL_CHART_UUID,
                 name: 'my chart',
                 description: null,
@@ -278,9 +278,7 @@ describe('UnfurlService', () => {
         });
 
         it('returns isValid: false when the slug does not resolve to a saved chart', async () => {
-            const getBySlug = jest
-                .fn()
-                .mockRejectedValue(new Error('not found'));
+            const getBySlug = vi.fn().mockRejectedValue(new Error('not found'));
             const service = createService({
                 savedSqlModel: { getBySlug } as Partial<SavedSqlModel>,
             });
@@ -293,7 +291,7 @@ describe('UnfurlService', () => {
         });
 
         it('returns isValid: false for `/sql-runner` with no slug (unsaved chart)', async () => {
-            const getBySlug = jest.fn();
+            const getBySlug = vi.fn();
             const service = createService({
                 savedSqlModel: { getBySlug } as Partial<SavedSqlModel>,
             });
@@ -312,7 +310,7 @@ describe('UnfurlService', () => {
         const SQL_CHART_UUID = '11111111-2222-3333-4444-555555555555';
 
         it('returns chart name + description + organizationUuid from saved_sql', async () => {
-            const getByUuid = jest.fn().mockResolvedValue({
+            const getByUuid = vi.fn().mockResolvedValue({
                 savedSqlUuid: SQL_CHART_UUID,
                 name: 'Prompts created over time',
                 description: 'A monthly trend of AI prompts',

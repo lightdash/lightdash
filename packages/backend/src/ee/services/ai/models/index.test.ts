@@ -10,11 +10,11 @@ import { z } from 'zod';
 import { lightdashConfigMock } from '../../../../config/lightdashConfig.mock';
 import { applyStreamingCapability, getDefaultModel, getModel } from './index';
 
-jest.mock('ai', () => {
-    const actual = jest.requireActual('ai');
+vi.mock('ai', async () => {
+    const actual = await vi.importActual<typeof import('ai')>('ai');
     return {
         ...actual,
-        wrapLanguageModel: jest.fn(actual.wrapLanguageModel),
+        wrapLanguageModel: vi.fn(actual.wrapLanguageModel),
     };
 });
 
@@ -65,7 +65,7 @@ describe('getDefaultModel', () => {
 
 describe('getModel', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it('does not wrap the model when the provider supports streaming', () => {
@@ -78,9 +78,7 @@ describe('getModel', () => {
         const { model } = getModel(copilotConfigWithStreaming(false));
 
         expect(wrapLanguageModel).toHaveBeenCalledTimes(1);
-        expect(model).toBe(
-            jest.mocked(wrapLanguageModel).mock.results[0].value,
-        );
+        expect(model).toBe(vi.mocked(wrapLanguageModel).mock.results[0].value);
     });
 });
 

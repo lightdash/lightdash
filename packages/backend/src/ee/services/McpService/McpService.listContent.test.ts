@@ -7,30 +7,35 @@ type RegisteredToolCallback = (
 
 const mockRegisteredMcpTools = new Map<string, RegisteredToolCallback>();
 
-jest.mock('@sentry/node', () => ({
-    captureException: jest.fn(),
+vi.mock('@sentry/node', () => ({
+    captureException: vi.fn(),
     getActiveSpan: () => undefined,
     isEnabled: () => false,
     startSpanManual: (_options: unknown, callback: CallableFunction) =>
-        callback({ spanContext: () => ({ spanId: 'span-id' }) }, jest.fn()),
+        callback({ spanContext: () => ({ spanId: 'span-id' }) }, vi.fn()),
     wrapMcpServerWithSentry: (server: unknown) => server,
 }));
 
-jest.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
-    McpServer: jest.fn().mockImplementation(() => ({
-        registerResource: jest.fn(),
-        registerPrompt: jest.fn(),
-        registerTool: jest.fn(
-            (
-                name: string,
-                _config: Record<string, unknown>,
-                callback: RegisteredToolCallback,
-            ) => {
-                mockRegisteredMcpTools.set(name, callback);
-                return {};
-            },
-        ),
-    })),
+vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
+    McpServer: vi.fn().mockImplementation(
+        // eslint-disable-next-line prefer-arrow-callback
+        function MockMcpServer() {
+            return {
+                registerResource: vi.fn(),
+                registerPrompt: vi.fn(),
+                registerTool: vi.fn(
+                    (
+                        name: string,
+                        _config: Record<string, unknown>,
+                        callback: RegisteredToolCallback,
+                    ) => {
+                        mockRegisteredMcpTools.set(name, callback);
+                        return {};
+                    },
+                ),
+            };
+        },
+    ),
 }));
 
 const projectUuid = 'project-uuid';
@@ -49,9 +54,9 @@ const user = {
     userUuid,
     organizationUuid,
     ability: {
-        can: jest.fn(() => true),
-        cannot: jest.fn(() => false),
-        relevantRuleFor: jest.fn(() => undefined),
+        can: vi.fn(() => true),
+        cannot: vi.fn(() => false),
+        relevantRuleFor: vi.fn(() => undefined),
         rules: [],
     },
 };
@@ -59,8 +64,8 @@ const user = {
 const extra = {
     signal: new AbortController().signal,
     requestId: 'request-id',
-    sendNotification: jest.fn(),
-    sendRequest: jest.fn(),
+    sendNotification: vi.fn(),
+    sendRequest: vi.fn(),
     authInfo: {
         extra: {
             user,
@@ -143,7 +148,7 @@ const makeMcpService = ({
     };
 } = {}) => {
     const aiAgentService = {
-        getAgent: jest.fn().mockImplementation(async () => {
+        getAgent: vi.fn().mockImplementation(async () => {
             if (!agent) throw new Error('Agent not mocked');
             return {
                 description: null,
@@ -161,8 +166,8 @@ const makeMcpService = ({
     const toSpaceSlug = (path: string) =>
         path.replace(/\./g, '/').replace(/_/g, '-');
     const aiAgentToolsService = {
-        createRuntime: jest.fn((runtimeContext: TestRuntimeContext) => ({
-            listContent: jest.fn(async ({ spaceSlug, page }) => {
+        createRuntime: vi.fn((runtimeContext: TestRuntimeContext) => ({
+            listContent: vi.fn(async ({ spaceSlug, page }) => {
                 if (spaceSlug === null) {
                     const visibleSpaces = spaces.filter(
                         (space) =>
@@ -215,19 +220,19 @@ const makeMcpService = ({
     };
 
     const projectService = {
-        getProject: jest.fn().mockResolvedValue({ organizationUuid }),
-        getSpaces: jest.fn().mockResolvedValue(spaces),
+        getProject: vi.fn().mockResolvedValue({ organizationUuid }),
+        getSpaces: vi.fn().mockResolvedValue(spaces),
     };
 
     const service = new McpService({
         aiAgentService,
         aiAgentToolsService,
         aiOrganizationSettingsService: {
-            getSettings: jest.fn().mockResolvedValue({ aiAgentsVisible: true }),
+            getSettings: vi.fn().mockResolvedValue({ aiAgentsVisible: true }),
         },
         aiRouterService: {},
         aiWritebackService: {},
-        analytics: { track: jest.fn() },
+        analytics: { track: vi.fn() },
         asyncQueryService: {},
         catalogService: {},
         contentVerificationService: {},
@@ -245,7 +250,7 @@ const makeMcpService = ({
             siteUrl: 'https://lightdash.example',
         },
         mcpContextModel: {
-            getContext: jest.fn().mockResolvedValue({ context }),
+            getContext: vi.fn().mockResolvedValue({ context }),
         },
         projectModel: {},
         projectService,

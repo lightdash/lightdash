@@ -14,11 +14,11 @@ import type { UserModel } from '../../models/UserModel';
 import type { FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { GithubAppService } from './GithubAppService';
 
-jest.mock('../../clients/github/Github', () => ({
-    getGithubUserAuthorizeUrl: jest
+vi.mock('../../clients/github/Github', () => ({
+    getGithubUserAuthorizeUrl: vi
         .fn()
         .mockReturnValue('https://github.com/login/oauth/authorize'),
-    getOrRefreshToken: jest.fn(),
+    getOrRefreshToken: vi.fn(),
 }));
 
 const organizationUuid = 'org-uuid';
@@ -37,20 +37,20 @@ const user = {
 const buildService = ({
     featureEnabled = true,
     findCredential,
-    deleteCredential = jest.fn(),
-    updateTokens = jest.fn(),
+    deleteCredential = vi.fn(),
+    updateTokens = vi.fn(),
 }: {
     featureEnabled?: boolean;
-    findCredential?: jest.Mock;
-    deleteCredential?: jest.Mock;
-    updateTokens?: jest.Mock;
+    findCredential?: import('vitest').Mock;
+    deleteCredential?: import('vitest').Mock;
+    updateTokens?: import('vitest').Mock;
 } = {}) =>
     new GithubAppService({
         githubAppInstallationsModel:
             {} as unknown as GithubAppInstallationsModel,
         gitUserCredentialsModel: {
             findCredential:
-                findCredential ?? jest.fn().mockResolvedValue(undefined),
+                findCredential ?? vi.fn().mockResolvedValue(undefined),
             deleteCredential,
             updateTokens,
         } as unknown as GitUserCredentialsModel,
@@ -58,13 +58,13 @@ const buildService = ({
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         featureFlagService: {
-            get: jest.fn().mockResolvedValue({ enabled: featureEnabled }),
+            get: vi.fn().mockResolvedValue({ enabled: featureEnabled }),
         } as unknown as FeatureFlagService,
     });
 
 describe('GithubAppService', () => {
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     describe('linkUserRedirect (open redirect protection)', () => {
@@ -102,7 +102,7 @@ describe('GithubAppService', () => {
 
     describe('getAiWritebackAttribution', () => {
         it('reports org/canLink:false without reading the credential when the feature is disabled', async () => {
-            const findCredential = jest.fn();
+            const findCredential = vi.fn();
             const service = buildService({
                 featureEnabled: false,
                 findCredential,
@@ -117,7 +117,7 @@ describe('GithubAppService', () => {
         it('reports personal attribution with the linked login when a credential exists', async () => {
             const service = buildService({
                 featureEnabled: true,
-                findCredential: jest.fn().mockResolvedValue({
+                findCredential: vi.fn().mockResolvedValue({
                     providerLogin: 'octocat',
                     token: 't',
                     refreshToken: 'r',
@@ -135,7 +135,7 @@ describe('GithubAppService', () => {
         it('reports org/canLink:true when the feature is on but no credential is linked', async () => {
             const service = buildService({
                 featureEnabled: true,
-                findCredential: jest.fn().mockResolvedValue(undefined),
+                findCredential: vi.fn().mockResolvedValue(undefined),
             });
 
             const attribution = await service.getAiWritebackAttribution(user);
@@ -144,7 +144,7 @@ describe('GithubAppService', () => {
         });
 
         it('throws ForbiddenError when the caller cannot view their organization', async () => {
-            const findCredential = jest.fn();
+            const findCredential = vi.fn();
             const service = buildService({
                 featureEnabled: true,
                 findCredential,
@@ -172,12 +172,12 @@ describe('GithubAppService', () => {
         };
 
         it('keeps the credential on a transient refresh failure', async () => {
-            const deleteCredential = jest.fn();
+            const deleteCredential = vi.fn();
             const service = buildService({
-                findCredential: jest.fn().mockResolvedValue(credential),
+                findCredential: vi.fn().mockResolvedValue(credential),
                 deleteCredential,
             });
-            (getOrRefreshToken as jest.Mock).mockRejectedValue(
+            (getOrRefreshToken as import('vitest').Mock).mockRejectedValue(
                 Object.assign(new Error('socket hang up'), { status: 503 }),
             );
 
@@ -191,12 +191,12 @@ describe('GithubAppService', () => {
         });
 
         it('deletes the credential when the token is revoked', async () => {
-            const deleteCredential = jest.fn();
+            const deleteCredential = vi.fn();
             const service = buildService({
-                findCredential: jest.fn().mockResolvedValue(credential),
+                findCredential: vi.fn().mockResolvedValue(credential),
                 deleteCredential,
             });
-            (getOrRefreshToken as jest.Mock).mockRejectedValue(
+            (getOrRefreshToken as import('vitest').Mock).mockRejectedValue(
                 Object.assign(new Error('bad refresh token'), {
                     response: {
                         status: 400,

@@ -4467,7 +4467,9 @@ SELECT * FROM group_by_query LIMIT 50`);
         });
 
         test('Should log a warning for unknown field references', () => {
-            const warnSpy = jest.spyOn(Logger, 'warn').mockImplementation();
+            const warnSpy = vi
+                .spyOn(Logger, 'warn')
+                .mockImplementation(() => Logger);
 
             const itemsMap: ItemsMap = {
                 tc_unknown: {
@@ -4571,7 +4573,9 @@ SELECT * FROM group_by_query LIMIT 50`);
         });
 
         test('Should handle table-prefixed unknown references', () => {
-            const warnSpy = jest.spyOn(Logger, 'warn').mockImplementation();
+            const warnSpy = vi
+                .spyOn(Logger, 'warn')
+                .mockImplementation(() => Logger);
 
             const itemsMap: ItemsMap = {
                 tc_missing: {

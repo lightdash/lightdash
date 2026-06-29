@@ -60,7 +60,7 @@ const accessContext = (projectUuid: string = PROJECT_UUID) => ({
 
 const buildService = (
     savedSqlModel: AnyType,
-    getSpacesAccessContext: AnyType = jest.fn(
+    getSpacesAccessContext: AnyType = vi.fn(
         async (_userUuid: string, spaceUuids: string[]) =>
             Object.fromEntries(
                 spaceUuids.map((uuid) => [uuid, accessContext()]),
@@ -71,7 +71,7 @@ const buildService = (
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         projectModel: {
-            get: jest.fn(async () => ({
+            get: vi.fn(async () => ({
                 projectUuid: PROJECT_UUID,
                 organizationUuid: ORG_UUID,
             })),
@@ -89,7 +89,7 @@ const buildService = (
     });
 
 const stubSpace = (service: CoderService, uuid: string = SPACE_UUID) =>
-    jest.spyOn(service, 'getOrCreateSpace').mockResolvedValue({
+    vi.spyOn(service, 'getOrCreateSpace').mockResolvedValue({
         space: { uuid } as AnyType,
         created: false,
     });
@@ -109,13 +109,13 @@ const upsert = (service: CoderService, user: SessionUser) =>
     );
 
 describe('CoderService.upsertSqlChart - permissions', () => {
-    afterEach(() => jest.clearAllMocks());
+    afterEach(() => vi.clearAllMocks());
 
     describe('create (chart does not exist yet)', () => {
         it('throws ForbiddenError with ContentAsCode but not CustomSql', async () => {
             const savedSqlModel = {
-                find: jest.fn(async () => []),
-                create: jest.fn(),
+                find: vi.fn(async () => []),
+                create: vi.fn(),
             };
             const service = buildService(savedSqlModel);
             stubSpace(service);
@@ -129,8 +129,8 @@ describe('CoderService.upsertSqlChart - permissions', () => {
 
         it('throws ForbiddenError with CustomSql but no space create:SavedChart', async () => {
             const savedSqlModel = {
-                find: jest.fn(async () => []),
-                create: jest.fn(),
+                find: vi.fn(async () => []),
+                create: vi.fn(),
             };
             const service = buildService(savedSqlModel);
             stubSpace(service);
@@ -145,8 +145,8 @@ describe('CoderService.upsertSqlChart - permissions', () => {
 
         it('creates the chart with ContentAsCode + CustomSql + create:SavedChart', async () => {
             const savedSqlModel = {
-                find: jest.fn(async () => []),
-                create: jest.fn(async () => ({ savedSqlUuid: 'new-uuid' })),
+                find: vi.fn(async () => []),
+                create: vi.fn(async () => ({ savedSqlUuid: 'new-uuid' })),
             };
             const service = buildService(savedSqlModel);
             stubSpace(service);
@@ -167,11 +167,11 @@ describe('CoderService.upsertSqlChart - permissions', () => {
     describe('update (chart already exists)', () => {
         it('updates the chart with CustomSql + update:SavedChart in its space', async () => {
             const savedSqlModel = {
-                find: jest.fn(async () => [existingRow(SPACE_UUID)]),
-                update: jest.fn(async () => ({
+                find: vi.fn(async () => [existingRow(SPACE_UUID)]),
+                update: vi.fn(async () => ({
                     savedSqlUuid: 'existing-uuid',
                 })),
-                create: jest.fn(),
+                create: vi.fn(),
             };
             const service = buildService(savedSqlModel);
             stubSpace(service, SPACE_UUID);
@@ -190,9 +190,9 @@ describe('CoderService.upsertSqlChart - permissions', () => {
 
         it('throws ForbiddenError on update without update:SavedChart', async () => {
             const savedSqlModel = {
-                find: jest.fn(async () => [existingRow(SPACE_UUID)]),
-                update: jest.fn(),
-                create: jest.fn(),
+                find: vi.fn(async () => [existingRow(SPACE_UUID)]),
+                update: vi.fn(),
+                create: vi.fn(),
             };
             const service = buildService(savedSqlModel);
             stubSpace(service, SPACE_UUID);
@@ -209,11 +209,11 @@ describe('CoderService.upsertSqlChart - permissions', () => {
             // Chart currently lives in OTHER_SPACE_UUID; YAML moves it to SPACE_UUID.
             // User can update in the target space but not the current one.
             const savedSqlModel = {
-                find: jest.fn(async () => [existingRow(OTHER_SPACE_UUID)]),
-                update: jest.fn(),
-                create: jest.fn(),
+                find: vi.fn(async () => [existingRow(OTHER_SPACE_UUID)]),
+                update: vi.fn(),
+                create: vi.fn(),
             };
-            const getSpacesAccessContext = jest.fn(
+            const getSpacesAccessContext = vi.fn(
                 async (_userUuid: string, spaceUuids: string[]) =>
                     Object.fromEntries(
                         spaceUuids.map((uuid) => [

@@ -33,29 +33,29 @@ const adminUser = (): SessionUser => {
 };
 
 type Mocks = {
-    serviceAccountModel: jest.Mocked<ServiceAccountModel>;
-    projectModel: jest.Mocked<ProjectModel>;
-    analytics: jest.Mocked<LightdashAnalytics>;
-    commercialFeatureFlagModel: jest.Mocked<CommercialFeatureFlagModel>;
+    serviceAccountModel: import('vitest').Mocked<ServiceAccountModel>;
+    projectModel: import('vitest').Mocked<ProjectModel>;
+    analytics: import('vitest').Mocked<LightdashAnalytics>;
+    commercialFeatureFlagModel: import('vitest').Mocked<CommercialFeatureFlagModel>;
     lightdashConfig: LightdashConfig;
 };
 
 const buildMocks = (): Mocks => ({
     serviceAccountModel: {
-        create: jest.fn(),
-        delete: jest.fn().mockResolvedValue(undefined),
-        getTokenbyUuid: jest.fn(),
-        update: jest.fn(),
+        create: vi.fn(),
+        delete: vi.fn().mockResolvedValue(undefined),
+        getTokenbyUuid: vi.fn(),
+        update: vi.fn(),
     } as AnyType,
     projectModel: {
-        createServiceAccountProjectAccess: jest.fn(),
-        findInvalidCustomRoleUuids: jest.fn().mockResolvedValue([]),
-        getProjectAccessCountsByServiceAccountUserUuids: jest
+        createServiceAccountProjectAccess: vi.fn(),
+        findInvalidCustomRoleUuids: vi.fn().mockResolvedValue([]),
+        getProjectAccessCountsByServiceAccountUserUuids: vi
             .fn()
             .mockResolvedValue(new Map<string, number>()),
-        setServiceAccountProjectAccess: jest.fn().mockResolvedValue(undefined),
+        setServiceAccountProjectAccess: vi.fn().mockResolvedValue(undefined),
     } as AnyType,
-    analytics: { track: jest.fn() } as AnyType,
+    analytics: { track: vi.fn() } as AnyType,
     commercialFeatureFlagModel: {} as AnyType,
     lightdashConfig: { license: { licenseKey: 'test' } } as AnyType,
 });
@@ -256,12 +256,12 @@ describe('ServiceAccountService.create with projectAccess', () => {
             mocks.serviceAccountModel.delete.mockRejectedValue(cleanupError);
 
             const service = buildService(mocks);
-            const loggerError = jest.fn();
+            const loggerError = vi.fn();
             (service as AnyType).logger = {
                 error: loggerError,
-                info: jest.fn(),
-                warn: jest.fn(),
-                debug: jest.fn(),
+                info: vi.fn(),
+                warn: vi.fn(),
+                debug: vi.fn(),
             };
 
             await expect(

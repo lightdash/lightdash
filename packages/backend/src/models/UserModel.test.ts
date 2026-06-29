@@ -53,7 +53,7 @@ const lightdashConfig = {
 } as unknown as LightdashConfig;
 
 const featureFlagModel = {
-    get: jest.fn(async () => ({ enabled: false })),
+    get: vi.fn(async () => ({ enabled: false })),
 } as unknown as FeatureFlagModel;
 
 const userDetails: DbUserDetails = {
@@ -80,24 +80,24 @@ const userDetails: DbUserDetails = {
 
 const createUserModel = (): TestableUserModel => {
     const model = new UserModel({
-        database: jest.fn() as unknown as Knex,
+        database: vi.fn() as unknown as Knex,
         lightdashConfig,
         featureFlagModel,
     }) as unknown as TestableUserModel;
 
-    model.hasAuthentication = jest.fn(async () => true);
-    model.getUserProjectRoles = jest.fn(async () => []);
-    model.getUserGroupProjectRoles = jest.fn(async () => []);
-    model.findServiceAccountByUserUuid = jest.fn(async (userUuid) => ({
+    model.hasAuthentication = vi.fn(async () => true);
+    model.getUserProjectRoles = vi.fn(async () => []);
+    model.getUserGroupProjectRoles = vi.fn(async () => []);
+    model.findServiceAccountByUserUuid = vi.fn(async (userUuid) => ({
         uuid: 'service-account',
         description: 'Service account',
         scopes: [ServiceAccountScope.SYSTEM_MEMBER],
         organizationUuid: 'org-1',
     }));
-    model.customRoleScopes = jest.fn(async () => ({
+    model.customRoleScopes = vi.fn(async () => ({
         'custom-role': ['view:Dashboard'],
     }));
-    model.applyServiceAccountProjectMemberships = jest.fn(
+    model.applyServiceAccountProjectMemberships = vi.fn(
         async (_userId, userUuid, builder) => {
             Array.from({ length: 125 }, (_, i) => `project-${i}`).forEach(
                 (projectUuid) => {

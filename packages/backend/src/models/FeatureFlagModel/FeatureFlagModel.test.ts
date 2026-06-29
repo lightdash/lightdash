@@ -316,10 +316,10 @@ describe('FeatureFlagModel', () => {
         // lookup. The model must swallow that and resolve to disabled
         // rather than 500ing. Logger.warn is mocked so the expected warning
         // stays out of the test output (and is asserted on instead).
-        let warnSpy: jest.SpyInstance;
+        let warnSpy: import('vitest').MockInstance;
 
         beforeEach(() => {
-            warnSpy = jest.spyOn(Logger, 'warn').mockImplementation();
+            warnSpy = vi.spyOn(Logger, 'warn').mockImplementation(() => Logger);
         });
 
         afterEach(() => {

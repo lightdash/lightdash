@@ -8,9 +8,9 @@ import { SecureFetchError } from '../../../utils/secureFetch/secureFetch';
 import * as secureFetchModule from '../../../utils/secureFetch/secureFetch';
 import { ExternalConnectionService } from './ExternalConnectionService';
 
-jest.mock('../../../utils/secureFetch/secureFetch');
+vi.mock('../../../utils/secureFetch/secureFetch');
 
-const mockSecureFetch = jest.mocked(secureFetchModule.secureFetch);
+const mockSecureFetch = vi.mocked(secureFetchModule.secureFetch);
 
 const baseConnection = (
     overrides: Partial<ExternalConnection> = {},
@@ -59,20 +59,20 @@ function buildService(opts: {
     rateCount?: number;
 }) {
     const externalConnectionModel = {
-        resolveAppAlias: jest.fn().mockResolvedValue(opts.connection),
-        getDecryptedSecret: jest.fn().mockResolvedValue(opts.secret ?? null),
-        incrementRateCounter: jest.fn().mockResolvedValue(opts.rateCount ?? 1),
+        resolveAppAlias: vi.fn().mockResolvedValue(opts.connection),
+        getDecryptedSecret: vi.fn().mockResolvedValue(opts.secret ?? null),
+        incrementRateCounter: vi.fn().mockResolvedValue(opts.rateCount ?? 1),
     };
     const appModel = {
-        getApp: jest.fn().mockResolvedValue(baseApp()),
+        getApp: vi.fn().mockResolvedValue(baseApp()),
     };
     const projectModel = {
-        getSummary: jest.fn().mockResolvedValue({ organizationUuid: 'org-1' }),
+        getSummary: vi.fn().mockResolvedValue({ organizationUuid: 'org-1' }),
     };
     const spacePermissionService = {
-        getSpaceAccessContext: jest.fn().mockResolvedValue({}),
+        getSpaceAccessContext: vi.fn().mockResolvedValue({}),
     };
-    const analytics = { track: jest.fn() };
+    const analytics = { track: vi.fn() };
 
     const service = new ExternalConnectionService({
         externalConnectionModel,
@@ -83,7 +83,7 @@ function buildService(opts: {
     } as never);
 
     // Force the CASL view decision deterministically.
-    jest.spyOn(
+    vi.spyOn(
         service as unknown as { createAuditedAbility: () => unknown },
         'createAuditedAbility',
     ).mockReturnValue({

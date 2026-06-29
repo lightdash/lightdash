@@ -6099,7 +6099,7 @@ describe('relative date metric filters evaluate at query time', () => {
     // Render a predicate the way the explore compiler does (no timezone), at a
     // given time, so it matches the substring baked into compiledSql.
     const bakePredicateAt = (rule: MetricFilterRule, atMs: number): string => {
-        jest.setSystemTime(atMs);
+        vi.setSystemTime(atMs);
         return renderFilterRuleSqlFromField(
             { ...rule, target: { fieldId: getItemId(createdAt) } },
             createdAt,
@@ -6136,7 +6136,7 @@ describe('relative date metric filters evaluate at query time', () => {
     };
 
     const runQueryAt = (explore: Explore, atMs: number): string => {
-        jest.setSystemTime(atMs);
+        vi.setSystemTime(atMs);
         return new MetricQueryBuilder({
             explore,
             compiledMetricQuery: relativeDateMetricQuery,
@@ -6147,8 +6147,8 @@ describe('relative date metric filters evaluate at query time', () => {
         }).compileQuery().query;
     };
 
-    beforeAll(() => jest.useFakeTimers());
-    afterAll(() => jest.useRealTimers());
+    beforeAll(() => vi.useFakeTimers());
+    afterAll(() => vi.useRealTimers());
 
     test('inThePast boundary is swapped for one anchored to query-time now', () => {
         const rule = relativeRule('rdf1', FilterOperator.IN_THE_PAST);
@@ -6333,7 +6333,7 @@ describe('relative date metric filters evaluate at query time', () => {
             ],
         });
 
-        jest.setSystemTime(QUERY_TIME);
+        vi.setSystemTime(QUERY_TIME);
         const nyQuery = new MetricQueryBuilder({
             explore,
             compiledMetricQuery: relativeDateMetricQuery,

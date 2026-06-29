@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`MetricQueryBuilder snapshot: nested aggregate queries matches snapshot for a fanout-protected nested-aggregate query 1`] = `
+exports[`MetricQueryBuilder snapshot: nested aggregate queries > matches snapshot for a fanout-protected nested-aggregate query 1`] = `
 "WITH
   cte_keys_my_table AS (
     SELECT DISTINCT
@@ -81,7 +81,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: nested aggregate queries matches snapshot for a max-by query with raw helper metrics 1`] = `
+exports[`MetricQueryBuilder snapshot: nested aggregate queries > matches snapshot for a max-by query with raw helper metrics 1`] = `
 "WITH
   nested_agg AS (
     SELECT
@@ -133,7 +133,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: nested aggregate queries matches snapshot for a mixed raw-and-aggregate nested query 1`] = `
+exports[`MetricQueryBuilder snapshot: nested aggregate queries > matches snapshot for a mixed raw-and-aggregate nested query 1`] = `
 "WITH
   nested_agg AS (
     SELECT
@@ -192,7 +192,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: nested aggregate queries matches snapshot for a nested-aggregate query with dimensions 1`] = `
+exports[`MetricQueryBuilder snapshot: nested aggregate queries > matches snapshot for a nested-aggregate query with dimensions 1`] = `
 "WITH
   nested_agg AS (
     SELECT
@@ -239,7 +239,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: nested aggregate queries matches snapshot for a transitive nested-aggregate query 1`] = `
+exports[`MetricQueryBuilder snapshot: nested aggregate queries > matches snapshot for a transitive nested-aggregate query 1`] = `
 "WITH
   nested_agg AS (
     SELECT

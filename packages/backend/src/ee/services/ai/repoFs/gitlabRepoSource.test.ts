@@ -7,17 +7,18 @@ import {
 import { createGitlabRepoSource } from './gitlabRepoSource';
 import { type RepoFsTimingCallback } from './repoSourceShared';
 
-jest.mock('../../../../clients/gitlab/Gitlab');
+vi.mock('../../../../clients/gitlab/Gitlab');
 
-const mockGetFileContent = getFileContent as jest.MockedFunction<
+const mockGetFileContent = getFileContent as import('vitest').MockedFunction<
     typeof getFileContent
 >;
-const mockGetRepoTree = getGitlabRepoTree as jest.MockedFunction<
+const mockGetRepoTree = getGitlabRepoTree as import('vitest').MockedFunction<
     typeof getGitlabRepoTree
 >;
-const mockIsRateLimit = isGitlabRateLimitError as jest.MockedFunction<
-    typeof isGitlabRateLimitError
->;
+const mockIsRateLimit =
+    isGitlabRateLimitError as import('vitest').MockedFunction<
+        typeof isGitlabRateLimitError
+    >;
 
 const source = (onTiming?: RepoFsTimingCallback) =>
     createGitlabRepoSource({
@@ -174,7 +175,7 @@ describe('gitlabRepoSource onTiming (metrics hook)', () => {
     });
 
     it('reports outcome=found for a successful read', async () => {
-        const onTiming = jest.fn();
+        const onTiming = vi.fn();
         mockGetFileContent.mockResolvedValue({ content: 'x', sha: 'abc' });
         await source(onTiming).readFile('models/x.sql');
         expect(onTiming).toHaveBeenCalledWith(
@@ -183,7 +184,7 @@ describe('gitlabRepoSource onTiming (metrics hook)', () => {
     });
 
     it('reports outcome=missing for a NotFoundError', async () => {
-        const onTiming = jest.fn();
+        const onTiming = vi.fn();
         mockGetFileContent.mockRejectedValue(new NotFoundError('nope'));
         await source(onTiming).readFile('models/x.sql');
         expect(onTiming).toHaveBeenCalledWith(
@@ -192,7 +193,7 @@ describe('gitlabRepoSource onTiming (metrics hook)', () => {
     });
 
     it('reports a tree timing event on listAllPaths', async () => {
-        const onTiming = jest.fn();
+        const onTiming = vi.fn();
         mockGetRepoTree.mockResolvedValue({ files: [], truncated: false });
         await source(onTiming).listAllPaths();
         expect(onTiming).toHaveBeenCalledWith(

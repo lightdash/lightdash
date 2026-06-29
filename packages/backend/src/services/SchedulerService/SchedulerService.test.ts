@@ -104,12 +104,12 @@ const dashboardSummary = {
 };
 
 const schedulerModel = {
-    getScheduler: jest.fn(async () => chartSchedulerInPrivateSpace),
-    getSchedulerAndTargets: jest.fn(async () => dashboardScheduler),
+    getScheduler: vi.fn(async () => chartSchedulerInPrivateSpace),
+    getSchedulerAndTargets: vi.fn(async () => dashboardScheduler),
 };
 
 const savedChartModel = {
-    getSummary: jest.fn(async () => ({
+    getSummary: vi.fn(async () => ({
         organizationUuid,
         projectUuid,
         spaceUuid: privateSpaceUuid,
@@ -117,18 +117,18 @@ const savedChartModel = {
 };
 
 const dashboardModel = {
-    getByIdOrSlug: jest.fn(async () => dashboardSummary),
+    getByIdOrSlug: vi.fn(async () => dashboardSummary),
 };
 
 const spacePermissionService = {
-    getSpaceAccessContext: jest.fn(async () => ({
+    getSpaceAccessContext: vi.fn(async () => ({
         inheritsFromOrgOrProject: false,
         access: [],
     })),
 };
 
 const schedulerClient = {
-    addScheduledDeliveryJob: jest.fn(async () => ({})),
+    addScheduledDeliveryJob: vi.fn(async () => ({})),
 };
 
 const buildUser = (
@@ -168,7 +168,7 @@ describe('SchedulerService', () => {
     const service = buildService();
 
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     describe('sendSchedulerByUuid', () => {
@@ -277,18 +277,18 @@ describe('SchedulerService', () => {
 
         const buildReassignService = (newOwner: SessionUser) => {
             const projectModel = {
-                getSummary: jest.fn(async () => ({
+                getSummary: vi.fn(async () => ({
                     organizationUuid,
                     projectUuid,
                 })),
             };
             const reassignSchedulerModel = {
-                getSchedulersByUuid: jest.fn(async () => [gsheetsScheduler]),
-                updateOwner: jest.fn(async () => {}),
+                getSchedulersByUuid: vi.fn(async () => [gsheetsScheduler]),
+                updateOwner: vi.fn(async () => {}),
             };
             const userModel = {
-                findSessionUserAndOrgByUuid: jest.fn(async () => newOwner),
-                getRefreshToken: jest.fn(async () => 'refresh-token'),
+                findSessionUserAndOrgByUuid: vi.fn(async () => newOwner),
+                getRefreshToken: vi.fn(async () => 'refresh-token'),
             };
 
             const reassignService = new SchedulerService({

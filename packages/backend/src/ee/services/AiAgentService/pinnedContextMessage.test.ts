@@ -1,8 +1,13 @@
 import { AiPromptContext } from '@lightdash/common';
 import { AiAgentService } from './AiAgentService';
 
-jest.mock('../ai/AiAgentMcpRuntimeClient', () => ({
-    AiAgentMcpRuntimeClient: jest.fn().mockImplementation(() => ({})),
+vi.mock('../ai/AiAgentMcpRuntimeClient', () => ({
+    AiAgentMcpRuntimeClient: vi
+        .fn()
+        // eslint-disable-next-line prefer-arrow-callback
+        .mockImplementation(function MockAiAgentMcpRuntimeClient() {
+            return {};
+        }),
 }));
 
 const buildMessage = (context: AiPromptContext): string => {

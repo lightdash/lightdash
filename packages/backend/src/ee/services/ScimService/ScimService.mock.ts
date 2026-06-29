@@ -127,15 +127,15 @@ export const mockCustomRoles: Role[] = [
 
 // Mock organization member profile model
 const organizationMemberProfileModelMock = {
-    getOrganizationMemberByUuid: jest.fn().mockResolvedValue(mockUser),
-    updateOrganizationMember: jest.fn().mockResolvedValue(mockUser),
-    createOrganizationMembershipByUuid: jest.fn().mockResolvedValue(mockUser),
+    getOrganizationMemberByUuid: vi.fn().mockResolvedValue(mockUser),
+    updateOrganizationMember: vi.fn().mockResolvedValue(mockUser),
+    createOrganizationMembershipByUuid: vi.fn().mockResolvedValue(mockUser),
 } as unknown as OrganizationMemberProfileModel;
 
 // Mock user model
 const userModelMock = {
-    findUserByEmail: jest.fn().mockResolvedValue(undefined),
-    createUser: jest.fn().mockResolvedValue({
+    findUserByEmail: vi.fn().mockResolvedValue(undefined),
+    createUser: vi.fn().mockResolvedValue({
         userId: 1,
         userUuid: mockUser.userUuid,
         firstName: mockUser.firstName,
@@ -144,7 +144,7 @@ const userModelMock = {
         isActive: mockUser.isActive,
         organizationUuid: mockUser.organizationUuid,
     }),
-    updateUser: jest.fn().mockResolvedValue({
+    updateUser: vi.fn().mockResolvedValue({
         userId: 1,
         userUuid: mockUser.userUuid,
         firstName: mockUser.firstName,
@@ -153,18 +153,18 @@ const userModelMock = {
         isActive: mockUser.isActive,
         organizationUuid: mockUser.organizationUuid,
     }),
-    getUserDetailsByUuid: jest.fn().mockResolvedValue(mockUser),
-    getUserProjectRoles: jest.fn().mockResolvedValue([]),
+    getUserDetailsByUuid: vi.fn().mockResolvedValue(mockUser),
+    getUserProjectRoles: vi.fn().mockResolvedValue([]),
 } as unknown as UserModel;
 
 // Mock analytics
 const analyticsMock = {
-    track: jest.fn(),
+    track: vi.fn(),
 } as unknown as LightdashAnalytics;
 
 // Mock email model
 const emailModelMock = {
-    verifyUserEmailIfExists: jest.fn().mockResolvedValue(undefined),
+    verifyUserEmailIfExists: vi.fn().mockResolvedValue(undefined),
 } as unknown as EmailModel;
 
 export const ScimServiceArgumentsMock: ConstructorParameters<
@@ -176,30 +176,28 @@ export const ScimServiceArgumentsMock: ConstructorParameters<
     emailModel: emailModelMock,
     analytics: analyticsMock,
     groupsModel: {
-        removeUserFromAllGroups: jest.fn().mockResolvedValue(2),
+        removeUserFromAllGroups: vi.fn().mockResolvedValue(2),
     } as unknown as GroupsModel,
     serviceAccountModel: {} as ServiceAccountModel,
     commercialFeatureFlagModel: {} as CommercialFeatureFlagModel,
     rolesModel: {
-        removeUserProjectAccess: jest.fn().mockResolvedValue(undefined),
-        removeUserAccessFromAllProjects: jest.fn().mockResolvedValue(3),
-        getRolesByOrganizationUuid: jest
-            .fn()
-            .mockResolvedValue(mockCustomRoles),
-        upsertSystemRoleProjectAccess: jest.fn().mockResolvedValue(undefined),
-        upsertCustomRoleProjectAccess: jest.fn().mockResolvedValue(undefined),
+        removeUserProjectAccess: vi.fn().mockResolvedValue(undefined),
+        removeUserAccessFromAllProjects: vi.fn().mockResolvedValue(3),
+        getRolesByOrganizationUuid: vi.fn().mockResolvedValue(mockCustomRoles),
+        upsertSystemRoleProjectAccess: vi.fn().mockResolvedValue(undefined),
+        upsertCustomRoleProjectAccess: vi.fn().mockResolvedValue(undefined),
         // New unified method used by ScimService to set org and project roles
-        setUserOrgAndProjectRoles: jest.fn().mockResolvedValue(undefined),
+        setUserOrgAndProjectRoles: vi.fn().mockResolvedValue(undefined),
         // Some code paths may still call this directly; keep a mock for safety
-        upsertOrganizationUserRoleAssignment: jest
+        upsertOrganizationUserRoleAssignment: vi
             .fn()
             .mockResolvedValue(undefined),
     } as unknown as RolesModel,
     projectModel: {
-        getAllByOrganizationUuid: jest.fn().mockResolvedValue(mockProjects),
+        getAllByOrganizationUuid: vi.fn().mockResolvedValue(mockProjects),
     } as unknown as ProjectModel,
     openIdIdentityModel: {
-        deleteIdentitiesByEmail: jest.fn().mockResolvedValue(0),
-        deleteIdentitiesByUserUuid: jest.fn().mockResolvedValue(0),
+        deleteIdentitiesByEmail: vi.fn().mockResolvedValue(0),
+        deleteIdentitiesByUserUuid: vi.fn().mockResolvedValue(0),
     } as unknown as OpenIdIdentityModel,
 };

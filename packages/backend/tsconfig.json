@@ -20,7 +20,7 @@
         "moduleResolution": "node10",
         "resolveJsonModule": true,
         "skipLibCheck": true,
-        "types": ["node", "jest", "passport", "express-session"]
+        "types": ["node", "vitest/globals", "passport", "express-session"]
     },
     "files": ["src/@types/express-session.d.ts", "src/@types/express.d.ts"],
     "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.json"],

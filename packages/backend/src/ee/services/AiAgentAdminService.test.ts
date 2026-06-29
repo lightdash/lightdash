@@ -14,10 +14,10 @@ import {
     getAiAgentReviewItemWritebackEligibility,
 } from './AiAgentAdminService';
 
-jest.mock('../../clients/github/Github', () => ({
-    getInstallationToken: jest.fn(),
-    getPullRequest: jest.fn(),
-    getPullRequestComments: jest.fn(),
+vi.mock('../../clients/github/Github', () => ({
+    getInstallationToken: vi.fn(),
+    getPullRequest: vi.fn(),
+    getPullRequestComments: vi.fn(),
 }));
 
 const NOW = new Date('2026-06-08T10:00:00.000Z');
@@ -229,63 +229,55 @@ const makeService = ({
     aiAgentReviewNotificationService?: Record<string, unknown>;
 } = {}) =>
     new AiAgentAdminService({
-        analytics: { track: jest.fn() },
+        analytics: { track: vi.fn() },
         aiAgentModel: {
-            createWebAppThreadWithPrompt: jest.fn().mockResolvedValue({
+            createWebAppThreadWithPrompt: vi.fn().mockResolvedValue({
                 threadUuid: PREVIEW_THREAD_UUID,
                 promptUuid: 'prompt-uuid-1',
             }),
-            updateThreadTitle: jest.fn().mockResolvedValue(undefined),
+            updateThreadTitle: vi.fn().mockResolvedValue(undefined),
             ...aiAgentModel,
         },
         aiAgentReviewClassifierModel: {
-            getReviewRemediation: jest
-                .fn()
-                .mockResolvedValue(makeRemediation()),
-            getReviewItem: jest
+            getReviewRemediation: vi.fn().mockResolvedValue(makeRemediation()),
+            getReviewItem: vi
                 .fn()
                 .mockResolvedValue(makeReviewItem({ title: 'Review revenue' })),
-            setReviewRemediationPreviewThread: jest
+            setReviewRemediationPreviewThread: vi
                 .fn()
                 .mockResolvedValue(undefined),
-            updateReviewRemediationStatus: jest
-                .fn()
-                .mockResolvedValue(undefined),
-            getPromotedFingerprintScope: jest.fn().mockResolvedValue({
+            updateReviewRemediationStatus: vi.fn().mockResolvedValue(undefined),
+            getPromotedFingerprintScope: vi.fn().mockResolvedValue({
                 projectUuid: PROJECT_UUID,
                 agentUuid: AGENT_UUID,
             }),
-            updateReviewItemWritebackProgress: jest
+            updateReviewItemWritebackProgress: vi
                 .fn()
                 .mockResolvedValue(undefined),
-            setReviewItemPrLink: jest.fn().mockResolvedValue(undefined),
-            setReviewRemediationPullRequest: jest
+            setReviewItemPrLink: vi.fn().mockResolvedValue(undefined),
+            setReviewRemediationPullRequest: vi
                 .fn()
                 .mockResolvedValue(undefined),
-            setReviewItemWritebackStatus: jest
-                .fn()
-                .mockResolvedValue(undefined),
-            createRemediationEvent: jest.fn().mockResolvedValue(undefined),
-            listRemediationEvents: jest.fn().mockResolvedValue([]),
-            getThreadWritebackPullRequests: jest
+            setReviewItemWritebackStatus: vi.fn().mockResolvedValue(undefined),
+            createRemediationEvent: vi.fn().mockResolvedValue(undefined),
+            listRemediationEvents: vi.fn().mockResolvedValue([]),
+            getThreadWritebackPullRequests: vi
                 .fn()
                 .mockResolvedValue(
                     new Map([
                         [WORK_THREAD_UUID, [{ prUrl: PR_URL, createdAt: NOW }]],
                     ]),
                 ),
-            findReviewRemediationByWorkThread: jest
-                .fn()
-                .mockResolvedValue(null),
+            findReviewRemediationByWorkThread: vi.fn().mockResolvedValue(null),
             ...aiAgentReviewClassifierModel,
         },
         aiAgentReviewNotificationModel: {
-            getSettings: jest.fn().mockResolvedValue({
+            getSettings: vi.fn().mockResolvedValue({
                 organizationUuid: ORGANIZATION_UUID,
                 enabled: false,
                 slackChannelId: null,
             }),
-            upsertSettings: jest.fn().mockResolvedValue({
+            upsertSettings: vi.fn().mockResolvedValue({
                 organizationUuid: ORGANIZATION_UUID,
                 enabled: true,
                 slackChannelId: 'C123',
@@ -293,43 +285,43 @@ const makeService = ({
             ...aiAgentReviewNotificationModel,
         },
         featureFlagService: {
-            get: jest.fn().mockResolvedValue({ enabled: true }),
+            get: vi.fn().mockResolvedValue({ enabled: true }),
             ...featureFlagService,
         },
         aiOrganizationSettingsService: {
-            isAiAgentReviewsEnabled: jest.fn().mockResolvedValue(true),
+            isAiAgentReviewsEnabled: vi.fn().mockResolvedValue(true),
             ...aiOrganizationSettingsService,
         },
         projectModel: {
-            get: jest.fn().mockRejectedValue(new Error('Project not found')),
-            getPreviewAiAgentUuid: jest
+            get: vi.fn().mockRejectedValue(new Error('Project not found')),
+            getPreviewAiAgentUuid: vi
                 .fn()
                 .mockResolvedValue(PREVIEW_AGENT_UUID),
-            findExploresFromCache: jest.fn().mockResolvedValue({}),
-            getAllByOrganizationUuid: jest.fn().mockResolvedValue([]),
+            findExploresFromCache: vi.fn().mockResolvedValue({}),
+            getAllByOrganizationUuid: vi.fn().mockResolvedValue([]),
             ...projectModel,
         },
         aiAgentService: {
-            generateAgentThreadResponse: jest
+            generateAgentThreadResponse: vi
                 .fn()
                 .mockResolvedValue('Opened a pull request.'),
             ...aiAgentService,
         },
         projectService: {
-            scheduleCompileProject: jest
+            scheduleCompileProject: vi
                 .fn()
                 .mockResolvedValue({ jobUuid: COMPILE_JOB_UUID }),
             ...projectService,
         },
         projectContextService: {},
         pullRequestsModel: {
-            findByProjectAndUrl: jest
+            findByProjectAndUrl: vi
                 .fn()
                 .mockResolvedValue({ pullRequestUuid: 'pull-request-1' }),
             ...pullRequestsModel,
         },
         writebackPreviewService: {
-            createPreviewForPullRequest: jest.fn().mockResolvedValue({
+            createPreviewForPullRequest: vi.fn().mockResolvedValue({
                 previewProjectUuid: PREVIEW_PROJECT_UUID,
                 previewUrl: `${SITE_URL}/projects/${PREVIEW_PROJECT_UUID}/home`,
                 compileJobUuid: COMPILE_JOB_UUID,
@@ -337,36 +329,36 @@ const makeService = ({
             ...writebackPreviewService,
         },
         jobModel: {
-            get: jest.fn().mockResolvedValue({ jobStatus: JobStatusType.DONE }),
+            get: vi.fn().mockResolvedValue({ jobStatus: JobStatusType.DONE }),
             ...jobModel,
         },
         githubAppInstallationsModel: {
-            getInstallationId: jest.fn().mockResolvedValue('installation-1'),
-            findInstallationId: jest.fn().mockResolvedValue(undefined),
+            getInstallationId: vi.fn().mockResolvedValue('installation-1'),
+            findInstallationId: vi.fn().mockResolvedValue(undefined),
             ...githubAppInstallationsModel,
         },
         gitlabAppInstallationsModel: {
-            findInstallationId: jest.fn().mockResolvedValue(undefined),
+            findInstallationId: vi.fn().mockResolvedValue(undefined),
             ...gitlabAppInstallationsModel,
         },
         schedulerClient: {
-            aiAgentReviewRemediationPreview: jest
+            aiAgentReviewRemediationPreview: vi
                 .fn()
                 .mockResolvedValue(undefined),
-            aiAgentReviewRemediationCompile: jest
+            aiAgentReviewRemediationCompile: vi
                 .fn()
                 .mockResolvedValue({ jobId: 'job-1' }),
-            aiAgentReviewRemediationRun: jest
+            aiAgentReviewRemediationRun: vi
                 .fn()
                 .mockResolvedValue({ jobId: 'job-1' }),
             ...schedulerClient,
         },
         userModel: {
-            findSessionUserByUUID: jest.fn().mockResolvedValue(makeAdminUser()),
+            findSessionUserByUUID: vi.fn().mockResolvedValue(makeAdminUser()),
             ...userModel,
         },
         aiAgentReviewNotificationService: {
-            notifyAssigned: jest.fn().mockResolvedValue(undefined),
+            notifyAssigned: vi.fn().mockResolvedValue(undefined),
             ...aiAgentReviewNotificationService,
         },
         lightdashConfig: {
@@ -378,7 +370,7 @@ const makeService = ({
 
 describe('AiAgentAdminService.getPromptActivity', () => {
     it('delegates to the model with bounded days', async () => {
-        const findAdminPromptActivity = jest.fn().mockResolvedValue([
+        const findAdminPromptActivity = vi.fn().mockResolvedValue([
             { date: '2026-06-01', promptCount: 2 },
             { date: '2026-06-02', promptCount: 0 },
         ]);
@@ -401,7 +393,7 @@ describe('AiAgentAdminService.getPromptActivity', () => {
     });
 
     it('rejects non-admin users', async () => {
-        const findAdminPromptActivity = jest.fn();
+        const findAdminPromptActivity = vi.fn();
         const service = makeService({
             aiAgentModel: { findAdminPromptActivity },
         });
@@ -421,7 +413,7 @@ describe('AiAgentAdminService.getPromptActivity', () => {
 
 describe('AiAgentAdminService review access', () => {
     it('allows developers with manage:AiAgent to access reviews', async () => {
-        const listReviewSignals = jest.fn().mockResolvedValue([]);
+        const listReviewSignals = vi.fn().mockResolvedValue([]);
         const service = makeService({
             aiAgentReviewClassifierModel: { listReviewSignals },
         });
@@ -435,7 +427,7 @@ describe('AiAgentAdminService review access', () => {
     });
 
     it('forbids users without manage:AiAgent from reviews', async () => {
-        const listReviewSignals = jest.fn();
+        const listReviewSignals = vi.fn();
         const service = makeService({
             aiAgentReviewClassifierModel: { listReviewSignals },
         });
@@ -454,12 +446,12 @@ describe('AiAgentAdminService review access', () => {
 
 describe('AiAgentAdminService.updateReviewItemAssignee', () => {
     it('notifies the assignee after the model write succeeds', async () => {
-        const notifyAssigned = jest.fn().mockResolvedValue(undefined);
-        const updateReviewItemAssignee = jest.fn().mockResolvedValue(undefined);
+        const notifyAssigned = vi.fn().mockResolvedValue(undefined);
+        const updateReviewItemAssignee = vi.fn().mockResolvedValue(undefined);
         const service = makeService({
             aiAgentReviewClassifierModel: {
                 updateReviewItemAssignee,
-                getReviewItem: jest.fn().mockResolvedValue(
+                getReviewItem: vi.fn().mockResolvedValue(
                     makeReviewItem({
                         organizationUuid: ORGANIZATION_UUID,
                         projectUuid: PROJECT_UUID,
@@ -487,7 +479,7 @@ describe('AiAgentAdminService.updateReviewItemAssignee', () => {
 
 describe('AiAgentAdminService review notification settings', () => {
     it('allows developers to read settings', async () => {
-        const getSettings = jest.fn().mockResolvedValue({
+        const getSettings = vi.fn().mockResolvedValue({
             organizationUuid: ORGANIZATION_UUID,
             enabled: true,
             slackChannelId: 'C123',
@@ -507,7 +499,7 @@ describe('AiAgentAdminService review notification settings', () => {
     });
 
     it('forbids developers from updating settings', async () => {
-        const upsertSettings = jest.fn();
+        const upsertSettings = vi.fn();
         const service = makeService({
             aiAgentReviewNotificationModel: { upsertSettings },
         });
@@ -702,7 +694,7 @@ describe('getAiAgentReviewItemWritebackEligibility', () => {
 
 describe('AiAgentAdminService.updateReviewItemStatus', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it('resolves the linked remediation when the review item is resolved', async () => {
@@ -714,11 +706,11 @@ describe('AiAgentAdminService.updateReviewItemStatus', () => {
             remediation: makeRemediation({ status: 'pr_open' }),
         });
         const aiAgentReviewClassifierModel = {
-            getPromotedFingerprintScope: jest.fn().mockResolvedValue({
+            getPromotedFingerprintScope: vi.fn().mockResolvedValue({
                 projectUuid: PROJECT_UUID,
                 agentUuid: AGENT_UUID,
             }),
-            getReviewItem: jest
+            getReviewItem: vi
                 .fn()
                 .mockResolvedValueOnce(
                     makeReviewItem({
@@ -729,10 +721,8 @@ describe('AiAgentAdminService.updateReviewItemStatus', () => {
                     }),
                 )
                 .mockResolvedValue(resolvedReviewItem),
-            upsertReviewItemState: jest.fn().mockResolvedValue(undefined),
-            updateReviewRemediationStatus: jest
-                .fn()
-                .mockResolvedValue(undefined),
+            upsertReviewItemState: vi.fn().mockResolvedValue(undefined),
+            updateReviewRemediationStatus: vi.fn().mockResolvedValue(undefined),
         };
         const service = makeService({ aiAgentReviewClassifierModel });
 
@@ -754,38 +744,34 @@ describe('AiAgentAdminService.updateReviewItemStatus', () => {
 
 describe('AiAgentAdminService.pollReviewRemediationPreview', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it('creates a seeded preview work thread and links it to the remediation', async () => {
         const aiAgentModel = {
-            createWebAppThreadWithPrompt: jest.fn().mockResolvedValue({
+            createWebAppThreadWithPrompt: vi.fn().mockResolvedValue({
                 threadUuid: PREVIEW_THREAD_UUID,
                 promptUuid: 'prompt-uuid-1',
             }),
-            updateThreadTitle: jest.fn().mockResolvedValue(undefined),
+            updateThreadTitle: vi.fn().mockResolvedValue(undefined),
         };
         const schedulerClient = {
-            aiAgentReviewRemediationRun: jest
+            aiAgentReviewRemediationRun: vi
                 .fn()
                 .mockResolvedValue({ jobId: 'job-1' }),
         };
         const aiAgentReviewClassifierModel = {
-            getReviewRemediation: jest
-                .fn()
-                .mockResolvedValue(makeRemediation()),
-            getReviewItem: jest
+            getReviewRemediation: vi.fn().mockResolvedValue(makeRemediation()),
+            getReviewItem: vi
                 .fn()
                 .mockResolvedValue(makeReviewItem({ title: 'Review revenue' })),
-            setReviewRemediationPreviewThread: jest
+            setReviewRemediationPreviewThread: vi
                 .fn()
                 .mockResolvedValue(undefined),
-            updateReviewRemediationStatus: jest
-                .fn()
-                .mockResolvedValue(undefined),
+            updateReviewRemediationStatus: vi.fn().mockResolvedValue(undefined),
         };
         const projectModel = {
-            getPreviewAiAgentUuid: jest
+            getPreviewAiAgentUuid: vi
                 .fn()
                 .mockResolvedValue(PREVIEW_AGENT_UUID),
         };
@@ -795,7 +781,7 @@ describe('AiAgentAdminService.pollReviewRemediationPreview', () => {
             projectModel,
             schedulerClient,
         });
-        (getPullRequestComments as jest.Mock).mockResolvedValue([
+        (getPullRequestComments as import('vitest').Mock).mockResolvedValue([
             `Preview ready: ${SITE_URL}/projects/${PREVIEW_PROJECT_UUID}/tables`,
         ]);
 
@@ -864,22 +850,22 @@ describe('AiAgentAdminService.pollReviewRemediationPreview', () => {
 
     it('falls back to the flagged prompt text when the verification prompt fails to seed', async () => {
         const aiAgentModel = {
-            createWebAppThreadWithPrompt: jest
+            createWebAppThreadWithPrompt: vi
                 .fn()
                 .mockRejectedValueOnce(new Error('context insert failed'))
                 .mockResolvedValue({
                     threadUuid: PREVIEW_THREAD_UUID,
                     promptUuid: 'prompt-uuid-1',
                 }),
-            updateThreadTitle: jest.fn().mockResolvedValue(undefined),
+            updateThreadTitle: vi.fn().mockResolvedValue(undefined),
         };
         const schedulerClient = {
-            aiAgentReviewRemediationRun: jest
+            aiAgentReviewRemediationRun: vi
                 .fn()
                 .mockResolvedValue({ jobId: 'job-1' }),
         };
         const service = makeService({ aiAgentModel, schedulerClient });
-        (getPullRequestComments as jest.Mock).mockResolvedValue([
+        (getPullRequestComments as import('vitest').Mock).mockResolvedValue([
             `Preview ready: ${SITE_URL}/projects/${PREVIEW_PROJECT_UUID}/tables`,
         ]);
 
@@ -909,36 +895,34 @@ describe('AiAgentAdminService.pollReviewRemediationPreview', () => {
 
     it('links no preview thread when seeding fails and there is no retry prompt', async () => {
         const aiAgentModel = {
-            createWebAppThreadWithPrompt: jest
+            createWebAppThreadWithPrompt: vi
                 .fn()
                 .mockRejectedValue(new Error('context insert failed')),
-            updateThreadTitle: jest.fn().mockResolvedValue(undefined),
+            updateThreadTitle: vi.fn().mockResolvedValue(undefined),
         };
         const schedulerClient = {
-            aiAgentReviewRemediationRun: jest
+            aiAgentReviewRemediationRun: vi
                 .fn()
                 .mockResolvedValue({ jobId: 'job-1' }),
         };
         const aiAgentReviewClassifierModel = {
-            getReviewRemediation: jest
+            getReviewRemediation: vi
                 .fn()
                 .mockResolvedValue(makeRemediation({ retryPrompt: null })),
-            getReviewItem: jest
+            getReviewItem: vi
                 .fn()
                 .mockResolvedValue(makeReviewItem({ title: 'Review revenue' })),
-            setReviewRemediationPreviewThread: jest
+            setReviewRemediationPreviewThread: vi
                 .fn()
                 .mockResolvedValue(undefined),
-            updateReviewRemediationStatus: jest
-                .fn()
-                .mockResolvedValue(undefined),
+            updateReviewRemediationStatus: vi.fn().mockResolvedValue(undefined),
         };
         const service = makeService({
             aiAgentModel,
             aiAgentReviewClassifierModel,
             schedulerClient,
         });
-        (getPullRequestComments as jest.Mock).mockResolvedValue([
+        (getPullRequestComments as import('vitest').Mock).mockResolvedValue([
             `Preview ready: ${SITE_URL}/projects/${PREVIEW_PROJECT_UUID}/tables`,
         ]);
 
@@ -965,12 +949,10 @@ describe('AiAgentAdminService.pollReviewRemediationPreview', () => {
 
     it('marks remediation failed when no preview URL is published in time', async () => {
         const aiAgentReviewClassifierModel = {
-            updateReviewRemediationStatus: jest
-                .fn()
-                .mockResolvedValue(undefined),
+            updateReviewRemediationStatus: vi.fn().mockResolvedValue(undefined),
         };
         const schedulerClient = {
-            aiAgentReviewRemediationPreview: jest
+            aiAgentReviewRemediationPreview: vi
                 .fn()
                 .mockResolvedValue(undefined),
         };
@@ -1004,14 +986,14 @@ describe('AiAgentAdminService.pollReviewRemediationPreview', () => {
 
     it('instructs the verification agent to stay on governed explores', async () => {
         const aiAgentModel = {
-            createWebAppThreadWithPrompt: jest.fn().mockResolvedValue({
+            createWebAppThreadWithPrompt: vi.fn().mockResolvedValue({
                 threadUuid: PREVIEW_THREAD_UUID,
                 promptUuid: 'prompt-uuid-1',
             }),
-            updateThreadTitle: jest.fn().mockResolvedValue(undefined),
+            updateThreadTitle: vi.fn().mockResolvedValue(undefined),
         };
         const service = makeService({ aiAgentModel });
-        (getPullRequestComments as jest.Mock).mockResolvedValue([
+        (getPullRequestComments as import('vitest').Mock).mockResolvedValue([
             `Preview ready: ${SITE_URL}/projects/${PREVIEW_PROJECT_UUID}/tables`,
         ]);
 
@@ -1039,7 +1021,7 @@ describe('AiAgentAdminService.pollReviewRemediationPreview', () => {
 
 describe('AiAgentAdminService.getReviewItemActivity', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     const makeEvent = (eventType: string, payload = {}) => ({
@@ -1053,13 +1035,13 @@ describe('AiAgentAdminService.getReviewItemActivity', () => {
 
     it('returns a writeback live state with the live progress message', async () => {
         const aiAgentReviewClassifierModel = {
-            getReviewItem: jest.fn().mockResolvedValue(
+            getReviewItem: vi.fn().mockResolvedValue(
                 makeReviewItem({
                     prWritebackMessage: 'Reading payments.yml',
                     remediation: makeRemediation({ status: 'running' }),
                 }),
             ),
-            listRemediationEvents: jest
+            listRemediationEvents: vi
                 .fn()
                 .mockResolvedValue([makeEvent('finding_opened')]),
         };
@@ -1076,12 +1058,12 @@ describe('AiAgentAdminService.getReviewItemActivity', () => {
 
     it('returns events with a compiling live state before the preview compiles', async () => {
         const aiAgentReviewClassifierModel = {
-            getReviewItem: jest.fn().mockResolvedValue(
+            getReviewItem: vi.fn().mockResolvedValue(
                 makeReviewItem({
                     remediation: makeRemediation({ status: 'pr_open' }),
                 }),
             ),
-            listRemediationEvents: jest
+            listRemediationEvents: vi
                 .fn()
                 .mockResolvedValue([
                     makeEvent('finding_opened'),
@@ -1101,12 +1083,12 @@ describe('AiAgentAdminService.getReviewItemActivity', () => {
 
     it('returns a verifying live state after the preview compiles', async () => {
         const aiAgentReviewClassifierModel = {
-            getReviewItem: jest.fn().mockResolvedValue(
+            getReviewItem: vi.fn().mockResolvedValue(
                 makeReviewItem({
                     remediation: makeRemediation({ status: 'preview_ready' }),
                 }),
             ),
-            listRemediationEvents: jest
+            listRemediationEvents: vi
                 .fn()
                 .mockResolvedValue([
                     makeEvent('finding_opened'),
@@ -1126,12 +1108,12 @@ describe('AiAgentAdminService.getReviewItemActivity', () => {
 
     it('returns no live state once verification completed or remediation is terminal', async () => {
         const aiAgentReviewClassifierModel = {
-            getReviewItem: jest.fn().mockResolvedValue(
+            getReviewItem: vi.fn().mockResolvedValue(
                 makeReviewItem({
                     remediation: makeRemediation({ status: 'resolved' }),
                 }),
             ),
-            listRemediationEvents: jest
+            listRemediationEvents: vi
                 .fn()
                 .mockResolvedValue([
                     makeEvent('pr_opened'),
@@ -1152,10 +1134,10 @@ describe('AiAgentAdminService.getReviewItemActivity', () => {
 
     it('returns an empty feed when the item has no remediation', async () => {
         const aiAgentReviewClassifierModel = {
-            getReviewItem: jest
+            getReviewItem: vi
                 .fn()
                 .mockResolvedValue(makeReviewItem({ remediation: null })),
-            listRemediationEvents: jest.fn(),
+            listRemediationEvents: vi.fn(),
         };
         const service = makeService({ aiAgentReviewClassifierModel });
 
@@ -1178,11 +1160,11 @@ describe('AiAgentAdminService.getReviewItemActivity', () => {
 
 describe('AiAgentAdminService project-scoped read access', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     const projectModel = {
-        getAllByOrganizationUuid: jest
+        getAllByOrganizationUuid: vi
             .fn()
             .mockResolvedValue([
                 { projectUuid: PROJECT_UUID },
@@ -1192,12 +1174,12 @@ describe('AiAgentAdminService project-scoped read access', () => {
 
     it('lets a project-scoped user read an item in a project they can access', async () => {
         const aiAgentReviewClassifierModel = {
-            getReviewItem: jest
+            getReviewItem: vi
                 .fn()
                 .mockResolvedValue(
                     makeReviewItem({ projectUuid: PROJECT_UUID }),
                 ),
-            listRemediationEvents: jest.fn().mockResolvedValue([]),
+            listRemediationEvents: vi.fn().mockResolvedValue([]),
         };
         const service = makeService({
             aiAgentReviewClassifierModel,
@@ -1214,7 +1196,7 @@ describe('AiAgentAdminService project-scoped read access', () => {
 
     it('forbids a project-scoped user from an item in another project', async () => {
         const aiAgentReviewClassifierModel = {
-            getReviewItem: jest
+            getReviewItem: vi
                 .fn()
                 .mockResolvedValue(
                     makeReviewItem({ projectUuid: OTHER_PROJECT_UUID }),
@@ -1275,19 +1257,19 @@ describe('AiAgentAdminService.runReviewItemWritebackJob', () => {
     };
 
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it('enqueues a compile poll instead of seeding the verification thread inline', async () => {
         const aiAgentModel = {
-            createWebAppThreadWithPrompt: jest.fn(),
-            updateThreadTitle: jest.fn(),
+            createWebAppThreadWithPrompt: vi.fn(),
+            updateThreadTitle: vi.fn(),
         };
         const schedulerClient = {
-            aiAgentReviewRemediationCompile: jest
+            aiAgentReviewRemediationCompile: vi
                 .fn()
                 .mockResolvedValue({ jobId: 'job-1' }),
-            aiAgentReviewRemediationRun: jest
+            aiAgentReviewRemediationRun: vi
                 .fn()
                 .mockResolvedValue({ jobId: 'job-2' }),
         };
@@ -1319,10 +1301,10 @@ describe('AiAgentAdminService.runReviewItemWritebackJob', () => {
 
     it('runs the build-fix thread and records a pr_opened activity event', async () => {
         const aiAgentReviewClassifierModel = {
-            createRemediationEvent: jest.fn().mockResolvedValue(undefined),
+            createRemediationEvent: vi.fn().mockResolvedValue(undefined),
         };
         const aiAgentService = {
-            generateAgentThreadResponse: jest
+            generateAgentThreadResponse: vi
                 .fn()
                 .mockResolvedValue('Opened a pull request.'),
         };
@@ -1361,17 +1343,17 @@ describe('AiAgentAdminService.runReviewItemWritebackJob', () => {
 
     it('re-verifies a remediation in place on retest', async () => {
         const schedulerClient = {
-            aiAgentReviewRemediationCompile: jest
+            aiAgentReviewRemediationCompile: vi
                 .fn()
                 .mockResolvedValue({ jobId: 'job-1' }),
         };
         const projectService = {
-            scheduleCompileProject: jest
+            scheduleCompileProject: vi
                 .fn()
                 .mockResolvedValue({ jobUuid: COMPILE_JOB_UUID }),
         };
         const aiAgentReviewClassifierModel = {
-            getReviewItem: jest.fn().mockResolvedValue(
+            getReviewItem: vi.fn().mockResolvedValue(
                 makeReviewItem({
                     remediation: makeRemediation({
                         previewProjectUuid: PREVIEW_PROJECT_UUID,
@@ -1379,9 +1361,7 @@ describe('AiAgentAdminService.runReviewItemWritebackJob', () => {
                     }),
                 }),
             ),
-            updateReviewRemediationStatus: jest
-                .fn()
-                .mockResolvedValue(undefined),
+            updateReviewRemediationStatus: vi.fn().mockResolvedValue(undefined),
         };
         const service = makeService({
             schedulerClient,
@@ -1425,28 +1405,28 @@ describe('AiAgentAdminService.pollReviewRemediationCompile', () => {
     };
 
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it('seeds the verification thread once the compile job is done', async () => {
         const jobModel = {
-            get: jest.fn().mockResolvedValue({ jobStatus: JobStatusType.DONE }),
+            get: vi.fn().mockResolvedValue({ jobStatus: JobStatusType.DONE }),
         };
         const aiAgentModel = {
-            createWebAppThreadWithPrompt: jest.fn().mockResolvedValue({
+            createWebAppThreadWithPrompt: vi.fn().mockResolvedValue({
                 threadUuid: PREVIEW_THREAD_UUID,
                 promptUuid: 'prompt-uuid-1',
             }),
-            updateThreadTitle: jest.fn().mockResolvedValue(undefined),
+            updateThreadTitle: vi.fn().mockResolvedValue(undefined),
         };
         const schedulerClient = {
-            aiAgentReviewRemediationCompile: jest.fn(),
-            aiAgentReviewRemediationRun: jest
+            aiAgentReviewRemediationCompile: vi.fn(),
+            aiAgentReviewRemediationRun: vi
                 .fn()
                 .mockResolvedValue({ jobId: 'job-1' }),
         };
         const aiAgentReviewClassifierModel = {
-            setReviewRemediationPreviewThread: jest
+            setReviewRemediationPreviewThread: vi
                 .fn()
                 .mockResolvedValue(undefined),
         };
@@ -1478,10 +1458,10 @@ describe('AiAgentAdminService.pollReviewRemediationCompile', () => {
 
     it('records a preview_compiled activity event when the compile lands', async () => {
         const jobModel = {
-            get: jest.fn().mockResolvedValue({ jobStatus: JobStatusType.DONE }),
+            get: vi.fn().mockResolvedValue({ jobStatus: JobStatusType.DONE }),
         };
         const aiAgentReviewClassifierModel = {
-            createRemediationEvent: jest.fn().mockResolvedValue(undefined),
+            createRemediationEvent: vi.fn().mockResolvedValue(undefined),
         };
         const service = makeService({
             jobModel,
@@ -1504,19 +1484,19 @@ describe('AiAgentAdminService.pollReviewRemediationCompile', () => {
 
     it('re-enqueues itself while the compile job is still running', async () => {
         const jobModel = {
-            get: jest
+            get: vi
                 .fn()
                 .mockResolvedValue({ jobStatus: JobStatusType.RUNNING }),
         };
         const aiAgentModel = {
-            createWebAppThreadWithPrompt: jest.fn(),
-            updateThreadTitle: jest.fn(),
+            createWebAppThreadWithPrompt: vi.fn(),
+            updateThreadTitle: vi.fn(),
         };
         const schedulerClient = {
-            aiAgentReviewRemediationCompile: jest
+            aiAgentReviewRemediationCompile: vi
                 .fn()
                 .mockResolvedValue({ jobId: 'job-1' }),
-            aiAgentReviewRemediationRun: jest.fn(),
+            aiAgentReviewRemediationRun: vi.fn(),
         };
         const service = makeService({
             jobModel,
@@ -1536,18 +1516,14 @@ describe('AiAgentAdminService.pollReviewRemediationCompile', () => {
 
     it('fails the remediation when the compile job errors', async () => {
         const jobModel = {
-            get: jest
-                .fn()
-                .mockResolvedValue({ jobStatus: JobStatusType.ERROR }),
+            get: vi.fn().mockResolvedValue({ jobStatus: JobStatusType.ERROR }),
         };
         const schedulerClient = {
-            aiAgentReviewRemediationCompile: jest.fn(),
-            aiAgentReviewRemediationRun: jest.fn(),
+            aiAgentReviewRemediationCompile: vi.fn(),
+            aiAgentReviewRemediationRun: vi.fn(),
         };
         const aiAgentReviewClassifierModel = {
-            updateReviewRemediationStatus: jest
-                .fn()
-                .mockResolvedValue(undefined),
+            updateReviewRemediationStatus: vi.fn().mockResolvedValue(undefined),
         };
         const service = makeService({
             jobModel,
@@ -1571,15 +1547,13 @@ describe('AiAgentAdminService.pollReviewRemediationCompile', () => {
     });
 
     it('fails the remediation when the compile does not finish in time', async () => {
-        const jobModel = { get: jest.fn() };
+        const jobModel = { get: vi.fn() };
         const schedulerClient = {
-            aiAgentReviewRemediationCompile: jest.fn(),
-            aiAgentReviewRemediationRun: jest.fn(),
+            aiAgentReviewRemediationCompile: vi.fn(),
+            aiAgentReviewRemediationRun: vi.fn(),
         };
         const aiAgentReviewClassifierModel = {
-            updateReviewRemediationStatus: jest
-                .fn()
-                .mockResolvedValue(undefined),
+            updateReviewRemediationStatus: vi.fn().mockResolvedValue(undefined),
         };
         const service = makeService({
             jobModel,
@@ -1608,7 +1582,7 @@ describe('AiAgentAdminService.pollReviewRemediationCompile', () => {
 
     it('records a verification_completed event after the remediation run', async () => {
         const aiAgentReviewClassifierModel = {
-            createRemediationEvent: jest.fn().mockResolvedValue(undefined),
+            createRemediationEvent: vi.fn().mockResolvedValue(undefined),
         };
         const service = makeService({ aiAgentReviewClassifierModel });
 
@@ -1635,18 +1609,16 @@ describe('AiAgentAdminService.pollReviewRemediationCompile', () => {
     });
 
     it('does nothing when the remediation is no longer pr_open', async () => {
-        const jobModel = { get: jest.fn() };
+        const jobModel = { get: vi.fn() };
         const schedulerClient = {
-            aiAgentReviewRemediationCompile: jest.fn(),
-            aiAgentReviewRemediationRun: jest.fn(),
+            aiAgentReviewRemediationCompile: vi.fn(),
+            aiAgentReviewRemediationRun: vi.fn(),
         };
         const aiAgentReviewClassifierModel = {
-            getReviewRemediation: jest
+            getReviewRemediation: vi
                 .fn()
                 .mockResolvedValue(makeRemediation({ status: 'resolved' })),
-            updateReviewRemediationStatus: jest
-                .fn()
-                .mockResolvedValue(undefined),
+            updateReviewRemediationStatus: vi.fn().mockResolvedValue(undefined),
         };
         const service = makeService({
             jobModel,

@@ -18,8 +18,8 @@ const executeSyncDbtProject = (tool: SyncDbtProjectTool) =>
 
 describe('getSyncDbtProject', () => {
     it('reports success and includes the message in the model output', async () => {
-        const updateProgress = jest.fn().mockResolvedValue(undefined);
-        const syncDbtProject = jest.fn().mockResolvedValue({
+        const updateProgress = vi.fn().mockResolvedValue(undefined);
+        const syncDbtProject = vi.fn().mockResolvedValue({
             status: 'success',
             jobUuid: 'job-1',
             message:
@@ -38,7 +38,7 @@ describe('getSyncDbtProject', () => {
     });
 
     it('maps an in_progress result to success metadata (not an error)', async () => {
-        const syncDbtProject = jest.fn().mockResolvedValue({
+        const syncDbtProject = vi.fn().mockResolvedValue({
             status: 'in_progress',
             jobUuid: 'job-2',
             message:
@@ -46,7 +46,7 @@ describe('getSyncDbtProject', () => {
         });
         const tool = getSyncDbtProject({
             syncDbtProject,
-            updateProgress: jest.fn().mockResolvedValue(undefined),
+            updateProgress: vi.fn().mockResolvedValue(undefined),
         });
 
         const output = await executeSyncDbtProject(tool);
@@ -56,14 +56,14 @@ describe('getSyncDbtProject', () => {
     });
 
     it('maps an error result to error metadata', async () => {
-        const syncDbtProject = jest.fn().mockResolvedValue({
+        const syncDbtProject = vi.fn().mockResolvedValue({
             status: 'error',
             jobUuid: 'job-3',
             message: 'The dbt project sync failed: boom',
         });
         const tool = getSyncDbtProject({
             syncDbtProject,
-            updateProgress: jest.fn().mockResolvedValue(undefined),
+            updateProgress: vi.fn().mockResolvedValue(undefined),
         });
 
         const output = await executeSyncDbtProject(tool);
@@ -73,12 +73,10 @@ describe('getSyncDbtProject', () => {
     });
 
     it('catches a thrown error and converts it to error metadata', async () => {
-        const syncDbtProject = jest
-            .fn()
-            .mockRejectedValue(new ForbiddenError());
+        const syncDbtProject = vi.fn().mockRejectedValue(new ForbiddenError());
         const tool = getSyncDbtProject({
             syncDbtProject,
-            updateProgress: jest.fn().mockResolvedValue(undefined),
+            updateProgress: vi.fn().mockResolvedValue(undefined),
         });
 
         const output = await executeSyncDbtProject(tool);

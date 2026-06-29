@@ -21,7 +21,7 @@ const account = {
 
 const buildService = (enabledFlags: Set<string>) => {
     const featureFlagService = {
-        get: jest.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
+        get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
             id: featureFlagId,
             enabled: enabledFlags.has(featureFlagId),
         })),

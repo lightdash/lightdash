@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`MCP tool contracts matches the current MCP tool and prompt contract snapshot 1`] = `
+exports[`MCP tool contracts > matches the current MCP tool and prompt contract snapshot 1`] = `
 {
   "prompts": [
     {
@@ -6837,7 +6837,7 @@ Response shape (MCP CallToolResult):
 }
 `;
 
-exports[`MCP tool contracts matches the shared MCP tool definition names snapshot 1`] = `
+exports[`MCP tool contracts > matches the shared MCP tool definition names snapshot 1`] = `
 [
   "find_explores",
   "find_fields",

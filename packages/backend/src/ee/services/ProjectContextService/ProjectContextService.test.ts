@@ -23,21 +23,22 @@ import {
     ProjectContextService,
 } from './ProjectContextService';
 
-jest.mock('../../../clients/github/Github', () => ({
-    getFileContent: jest.fn(),
-    getInstallationToken: jest.fn(),
-    getLastCommit: jest.fn(),
-    createBranch: jest.fn(),
-    createSignedCommitOnBranch: jest.fn(),
-    createPullRequest: jest.fn(),
+vi.mock('../../../clients/github/Github', () => ({
+    getFileContent: vi.fn(),
+    getInstallationToken: vi.fn(),
+    getLastCommit: vi.fn(),
+    createBranch: vi.fn(),
+    createSignedCommitOnBranch: vi.fn(),
+    createPullRequest: vi.fn(),
 }));
 
-const mockGetFileContent = getFileContent as jest.Mock;
-const mockGetInstallationToken = getInstallationToken as jest.Mock;
-const mockGetLastCommit = getLastCommit as jest.Mock;
-const mockCreateBranch = createBranch as jest.Mock;
-const mockCreateSignedCommitOnBranch = createSignedCommitOnBranch as jest.Mock;
-const mockCreatePullRequest = createPullRequest as jest.Mock;
+const mockGetFileContent = getFileContent as import('vitest').Mock;
+const mockGetInstallationToken = getInstallationToken as import('vitest').Mock;
+const mockGetLastCommit = getLastCommit as import('vitest').Mock;
+const mockCreateBranch = createBranch as import('vitest').Mock;
+const mockCreateSignedCommitOnBranch =
+    createSignedCommitOnBranch as import('vitest').Mock;
+const mockCreatePullRequest = createPullRequest as import('vitest').Mock;
 
 const PROJECT_UUID = '00000000-0000-0000-0000-000000000001';
 const ORG_UUID = '00000000-0000-0000-0000-000000000002';
@@ -91,8 +92,8 @@ const makeService = (overrides: {
 }) => {
     let cachedEntries = overrides.initialEntries ?? existingEntries();
     const projectModel = {
-        get: jest.fn().mockResolvedValue(overrides.project ?? githubProject),
-        getSummary: jest.fn().mockResolvedValue(
+        get: vi.fn().mockResolvedValue(overrides.project ?? githubProject),
+        getSummary: vi.fn().mockResolvedValue(
             overrides.projectSummary ?? {
                 organizationUuid: ORG_UUID,
                 projectUuid: PROJECT_UUID,
@@ -101,7 +102,7 @@ const makeService = (overrides: {
         ),
     } as unknown as ProjectModel;
     const githubAppInstallationsModel = {
-        findInstallationId: jest
+        findInstallationId: vi
             .fn()
             .mockResolvedValue(
                 'installationId' in overrides
@@ -110,7 +111,7 @@ const makeService = (overrides: {
             ),
     } as unknown as GithubAppInstallationsModel;
     const projectContextModel = {
-        replaceEntriesForProject: jest.fn(
+        replaceEntriesForProject: vi.fn(
             async (_projectUuid: string, entries: ProjectContextEntry[]) => {
                 cachedEntries = entries;
             },
@@ -125,7 +126,7 @@ const makeService = (overrides: {
 };
 
 beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockGetInstallationToken.mockResolvedValue('token-1');
 });
 

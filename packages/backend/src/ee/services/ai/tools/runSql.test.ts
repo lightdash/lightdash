@@ -9,8 +9,8 @@ type RunSqlOutput = {
 type MakeToolOptions = {
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
-    waitForSqlApproval?: jest.Mock;
-    recordSqlApproval?: jest.Mock;
+    waitForSqlApproval?: import('vitest').Mock;
+    recordSqlApproval?: import('vitest').Mock;
     maxQueryLimit?: number;
 };
 
@@ -45,24 +45,24 @@ const makePrompt = (): AiWebAppPrompt => ({
 const makeTool = ({
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
-    waitForSqlApproval = jest.fn().mockResolvedValue('approved'),
-    recordSqlApproval = jest.fn().mockResolvedValue(true),
+    waitForSqlApproval = vi.fn().mockResolvedValue('approved'),
+    recordSqlApproval = vi.fn().mockResolvedValue(true),
     maxQueryLimit = 5000,
 }: MakeToolOptions = {}) => {
     const dependencies = {
-        updateProgress: jest.fn().mockResolvedValue(undefined),
-        runSqlJob: jest.fn().mockResolvedValue({
+        updateProgress: vi.fn().mockResolvedValue(undefined),
+        runSqlJob: vi.fn().mockResolvedValue({
             rows: [{ answer: 1 }],
             columns: ['answer'],
             rowCount: 1,
         }),
-        getPrompt: jest.fn().mockResolvedValue(makePrompt()),
-        sendFile: jest.fn().mockResolvedValue(undefined),
-        updateSlackMessage: jest.fn().mockResolvedValue(undefined),
+        getPrompt: vi.fn().mockResolvedValue(makePrompt()),
+        sendFile: vi.fn().mockResolvedValue(undefined),
+        updateSlackMessage: vi.fn().mockResolvedValue(undefined),
         siteUrl: 'https://lightdash.example',
         waitForSqlApproval,
         recordSqlApproval,
-        storeToolResults: jest.fn().mockResolvedValue(undefined),
+        storeToolResults: vi.fn().mockResolvedValue(undefined),
         autoApproveSql,
         autoApproveSqlUserUuid,
         maxQueryLimit,
@@ -139,7 +139,7 @@ describe('getRunSql', () => {
     });
 
     it('does not open another approval wait after approval times out', async () => {
-        const waitForSqlApproval = jest.fn().mockResolvedValue('timeout');
+        const waitForSqlApproval = vi.fn().mockResolvedValue('timeout');
         const { tool, dependencies } = makeTool({ waitForSqlApproval });
 
         const firstOutput = await executeRunSql(tool, 'tool-call-1');

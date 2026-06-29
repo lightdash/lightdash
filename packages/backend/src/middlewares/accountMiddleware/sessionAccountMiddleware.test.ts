@@ -10,10 +10,10 @@ describe('sessionAccountMiddleware', () => {
         headers: {},
     } as express.Request;
     const mockResponse = {} as express.Response;
-    const mockNext = jest.fn();
+    const mockNext = vi.fn();
 
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     describe('when req.user is not present', () => {

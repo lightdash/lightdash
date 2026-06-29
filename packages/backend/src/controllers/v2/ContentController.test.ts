@@ -27,8 +27,8 @@ const buildSessionUser = (): SessionUser => ({
     createdAt: new Date('2024-01-01'),
     updatedAt: new Date('2024-01-01'),
     ability: {
-        can: jest.fn(),
-        cannot: jest.fn(),
+        can: vi.fn(),
+        cannot: vi.fn(),
     } as unknown as MemberAbility,
     abilityRules: [],
 });
@@ -54,11 +54,11 @@ const buildJwtAccount = ({
     }) as unknown as Account;
 
 const buildController = () => {
-    const find = jest.fn().mockResolvedValue({ data: [] });
+    const find = vi.fn().mockResolvedValue({ data: [] });
     const controller = new ContentController({
         getContentService: () => ({ find }),
     } as unknown as ConstructorParameters<typeof ContentController>[0]);
-    controller.setStatus = jest.fn();
+    controller.setStatus = vi.fn();
 
     return { controller, find };
 };

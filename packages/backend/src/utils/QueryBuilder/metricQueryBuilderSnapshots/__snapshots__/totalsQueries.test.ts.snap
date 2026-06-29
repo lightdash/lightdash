@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`MetricQueryBuilder snapshot: totals queries matches snapshot for a dependent total-calculation query 1`] = `
+exports[`MetricQueryBuilder snapshot: totals queries > matches snapshot for a dependent total-calculation query 1`] = `
 "WITH
   metrics AS (
     SELECT
@@ -49,7 +49,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: totals queries matches snapshot for a pivoted totals query 1`] = `
+exports[`MetricQueryBuilder snapshot: totals queries > matches snapshot for a pivoted totals query 1`] = `
 "WITH
   metrics AS (
     SELECT
@@ -103,7 +103,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: totals queries matches snapshot for a row-total query using pivot dimensions 1`] = `
+exports[`MetricQueryBuilder snapshot: totals queries > matches snapshot for a row-total query using pivot dimensions 1`] = `
 "WITH
   metrics AS (
     SELECT
@@ -148,7 +148,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: totals queries matches snapshot for a row-total query without pivot metadata 1`] = `
+exports[`MetricQueryBuilder snapshot: totals queries > matches snapshot for a row-total query without pivot metadata 1`] = `
 "WITH
   metrics AS (
     SELECT
@@ -170,7 +170,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: totals queries matches snapshot for an average-metric total query 1`] = `
+exports[`MetricQueryBuilder snapshot: totals queries > matches snapshot for an average-metric total query 1`] = `
 "WITH
   metrics AS (
     SELECT

@@ -59,14 +59,14 @@ const nonAdminUser = {
 };
 
 const contentVerificationModel = {
-    verify: jest.fn(async () => undefined),
-    unverify: jest.fn(async () => undefined),
-    getByContent: jest.fn(
+    verify: vi.fn(async () => undefined),
+    unverify: vi.fn(async () => undefined),
+    getByContent: vi.fn(
         async (): Promise<ContentVerificationInfo | null> => null,
     ),
 };
 
-jest.spyOn(analyticsMock, 'track');
+vi.spyOn(analyticsMock, 'track');
 
 const buildService = () =>
     new CoderService({
@@ -116,11 +116,11 @@ const callSync = (
 
 describe('CoderService - syncVerification', () => {
     let service: CoderService;
-    let warnSpy: jest.SpyInstance;
+    let warnSpy: import('vitest').MockInstance;
 
     beforeEach(() => {
         service = buildService();
-        warnSpy = jest
+        warnSpy = vi
             .spyOn(
                 (service as unknown as { logger: { warn: () => void } }).logger,
                 'warn',
@@ -129,7 +129,7 @@ describe('CoderService - syncVerification', () => {
     });
 
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it('no-ops when verified is undefined', async () => {

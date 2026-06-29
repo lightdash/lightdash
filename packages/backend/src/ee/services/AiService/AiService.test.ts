@@ -12,16 +12,16 @@ describe('AiService', () => {
 
     const createService = () => {
         const dashboardModel = {
-            getByIdOrSlug: jest.fn().mockRejectedValue(new Error('stop')),
+            getByIdOrSlug: vi.fn().mockRejectedValue(new Error('stop')),
         };
 
         const service = new AiService({
             analytics: {
-                track: jest.fn(),
+                track: vi.fn(),
             },
             dashboardModel,
             dashboardSummaryModel: {
-                getByDashboardUuid: jest.fn(),
+                getByDashboardUuid: vi.fn(),
             },
             savedChartModel: {},
             projectService: {},
@@ -29,7 +29,7 @@ describe('AiService', () => {
             openAi: {},
             lightdashConfig: lightdashConfigMock,
             featureFlagService: {
-                get: jest.fn().mockResolvedValue({ enabled: true }),
+                get: vi.fn().mockResolvedValue({ enabled: true }),
             },
         } as unknown as ConstructorParameters<typeof AiService>[0]);
 

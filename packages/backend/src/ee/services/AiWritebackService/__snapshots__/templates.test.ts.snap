@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`buildSystemPrompt — warehouse skill guidance matches the snapshot for a no-skill warehouse (duckdb) 1`] = `
+exports[`buildSystemPrompt — warehouse skill guidance > matches the snapshot for a no-skill warehouse (duckdb) 1`] = `
 "You are an autonomous coding agent working inside a checkout of a git repository.
 
 - You are working on the Lightdash project "Jaffle shop", which is
@@ -74,7 +74,7 @@ If you did not change any files, skip these steps entirely and do not emit the
 blocks."
 `;
 
-exports[`buildSystemPrompt — warehouse skill guidance matches the snapshot for a representative warehouse (postgres) 1`] = `
+exports[`buildSystemPrompt — warehouse skill guidance > matches the snapshot for a representative warehouse (postgres) 1`] = `
 "You are an autonomous coding agent working inside a checkout of a git repository.
 
 - You are working on the Lightdash project "Jaffle shop", which is

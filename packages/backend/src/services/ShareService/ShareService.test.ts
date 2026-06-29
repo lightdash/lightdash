@@ -14,8 +14,8 @@ import {
 } from './ShareService.mock';
 
 const shareModel = {
-    createSharedUrl: jest.fn(async () => SampleShareUrl),
-    getSharedUrl: jest.fn(async () => SampleShareUrl),
+    createSharedUrl: vi.fn(async () => SampleShareUrl),
+    getSharedUrl: vi.fn(async () => SampleShareUrl),
 };
 
 describe('share', () => {
@@ -26,7 +26,7 @@ describe('share', () => {
     });
 
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it('Should save sharedUrl', async () => {
@@ -45,9 +45,9 @@ describe('share', () => {
     });
 
     it('Should get saved sharedUrl without params', async () => {
-        (shareModel.getSharedUrl as jest.Mock).mockImplementationOnce(
-            async () => ShareUrlWithoutParams,
-        );
+        (
+            shareModel.getSharedUrl as import('vitest').Mock
+        ).mockImplementationOnce(async () => ShareUrlWithoutParams);
 
         expect(
             await shareService.getShareUrl(

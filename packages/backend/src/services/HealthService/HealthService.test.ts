@@ -8,19 +8,19 @@ import { OrganizationSettingsModel } from '../../models/OrganizationSettingsMode
 import { HealthService } from './HealthService';
 import { BaseResponse, userMock } from './HealthService.mock';
 
-jest.mock('../../version', () => ({
+vi.mock('../../version', () => ({
     VERSION: '0.1.0',
 }));
 
 const organizationModel = {
-    hasOrgs: jest.fn(async () => true),
+    hasOrgs: vi.fn(async () => true),
 };
-jest.mock('../../clients/DockerHub/DockerHub', () => ({
-    getDockerHubVersion: jest.fn(() => '0.2.7'),
+vi.mock('../../clients/DockerHub/DockerHub', () => ({
+    getDockerHubVersion: vi.fn(() => '0.2.7'),
 }));
 
 const migrationModel = {
-    getMigrationStatus: jest.fn(() => ({
+    getMigrationStatus: vi.fn(() => ({
         isComplete: true,
         currentVersion: 'example',
     })),
@@ -28,7 +28,7 @@ const migrationModel = {
 
 // No per-org overrides — effective limits fall back to the instance defaults.
 const organizationSettingsModel = {
-    get: jest.fn(async () => ({ queryLimit: null, csvCellsLimit: null })),
+    get: vi.fn(async () => ({ queryLimit: null, csvCellsLimit: null })),
 };
 
 describe('health', () => {
@@ -41,7 +41,7 @@ describe('health', () => {
     });
 
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     beforeEach(() => {
@@ -56,7 +56,7 @@ describe('health', () => {
         );
     });
     it('Should return last version as undefined when fails fetch', async () => {
-        (getDockerHubVersion as jest.Mock).mockImplementationOnce(
+        (getDockerHubVersion as import('vitest').Mock).mockImplementationOnce(
             () => undefined,
         );
 
@@ -98,9 +98,9 @@ describe('health', () => {
         });
     });
     it('Should return requiresOrgRegistration true if there are no orgs in DB', async () => {
-        (organizationModel.hasOrgs as jest.Mock).mockImplementationOnce(
-            async () => false,
-        );
+        (
+            organizationModel.hasOrgs as import('vitest').Mock
+        ).mockImplementationOnce(async () => false);
 
         expect(await healthService.getHealthState(undefined)).toEqual({
             ...BaseResponse,
@@ -124,7 +124,7 @@ describe('health', () => {
 
         it('throws when the DB is unmigrated and the check runs', async () => {
             (
-                migrationModel.getMigrationStatus as jest.Mock
+                migrationModel.getMigrationStatus as import('vitest').Mock
             ).mockImplementationOnce(() => ({
                 status: -1,
                 currentVersion: 'example',

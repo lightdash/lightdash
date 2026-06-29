@@ -59,12 +59,10 @@ describe('DeployService', () => {
 
         const service = new DeployService({
             deploySessionModel: {
-                createSession: jest
-                    .fn()
-                    .mockResolvedValue('deploy-session-uuid'),
+                createSession: vi.fn().mockResolvedValue('deploy-session-uuid'),
             },
             projectModel: {
-                getWithSensitiveFields: jest.fn().mockResolvedValue({
+                getWithSensitiveFields: vi.fn().mockResolvedValue({
                     projectUuid: 'preview-project-uuid',
                     organizationUuid: 'org-uuid',
                     upstreamProjectUuid: 'upstream-project-uuid',

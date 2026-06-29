@@ -37,11 +37,10 @@ import {
     PR_TITLE_OPEN,
 } from './constants';
 
-// e2b (and the GitHub client → octokit) are ESM-only and break Jest's parser.
-// Stub the modules so the import graph stays CJS; the run() tests drive the
-// fakes, the unit tests below never reach them.
-jest.mock('e2b', () => ({
-    Sandbox: { create: jest.fn(), connect: jest.fn() },
+// Stub e2b and the GitHub/octokit client so the run() tests drive fakes and the
+// unit tests below never reach the real SDKs.
+vi.mock('e2b', () => ({
+    Sandbox: { create: vi.fn(), connect: vi.fn() },
     CommandExitError: class CommandExitError extends Error {},
     TimeoutError: class TimeoutError extends Error {},
     ALL_TRAFFIC: 'all',
@@ -49,26 +48,28 @@ jest.mock('e2b', () => ({
 // The service talks to a SandboxProvider, never a concrete SDK. Keep the real
 // error classes (the service branches on them with instanceof) but stub the
 // factory so the run() tests inject a fake provider over the fake sandbox.
-jest.mock('../SandboxRuntime', () => ({
-    ...jest.requireActual('../SandboxRuntime'),
-    createSandboxProvider: jest.fn(),
+vi.mock('../SandboxRuntime', async () => ({
+    ...(await vi.importActual<typeof import('../SandboxRuntime')>(
+        '../SandboxRuntime',
+    )),
+    createSandboxProvider: vi.fn(),
 }));
-jest.mock('../../../clients/github/Github', () => ({
-    createBranch: jest.fn().mockResolvedValue(undefined),
-    createPullRequest: jest.fn(),
-    createSignedCommitOnBranch: jest
+vi.mock('../../../clients/github/Github', () => ({
+    createBranch: vi.fn().mockResolvedValue(undefined),
+    createPullRequest: vi.fn(),
+    createSignedCommitOnBranch: vi
         .fn()
         .mockResolvedValue({ oid: 'sha-7', url: 'https://github.com/c/o' }),
-    getAppBotIdentity: jest.fn(),
-    getAuthenticatedUser: jest.fn(),
-    getBranchHeadSha: jest.fn(),
-    getInstallationToken: jest.fn(),
-    getOrRefreshToken: jest.fn(),
-    getRepoDefaultBranch: jest.fn(),
-    getRepoTree: jest.fn(),
-    listReposAccessibleToInstallation: jest.fn(),
-    listReposAccessibleToUser: jest.fn(),
-    updatePullRequest: jest.fn().mockResolvedValue(undefined),
+    getAppBotIdentity: vi.fn(),
+    getAuthenticatedUser: vi.fn(),
+    getBranchHeadSha: vi.fn(),
+    getInstallationToken: vi.fn(),
+    getOrRefreshToken: vi.fn(),
+    getRepoDefaultBranch: vi.fn(),
+    getRepoTree: vi.fn(),
+    listReposAccessibleToInstallation: vi.fn(),
+    listReposAccessibleToUser: vi.fn(),
+    updatePullRequest: vi.fn().mockResolvedValue(undefined),
 }));
 
 const ORG = 'org-1';
@@ -83,18 +84,18 @@ const LANDED = { commitSha: 'sha-7', additions: 5, deletions: 2 };
 const buildService = (overrides: Record<string, AnyType> = {}) =>
     new AiWritebackService({
         lightdashConfig: { gitlab: {} } as AnyType,
-        analytics: { track: jest.fn() } as AnyType,
-        projectModel: { get: jest.fn() } as AnyType,
-        featureFlagModel: { get: jest.fn() } as AnyType,
+        analytics: { track: vi.fn() } as AnyType,
+        projectModel: { get: vi.fn() } as AnyType,
+        featureFlagModel: { get: vi.fn() } as AnyType,
         githubAppInstallationsModel: {} as AnyType,
         githubAppService: {
-            getValidUserToken: jest.fn().mockResolvedValue(undefined),
+            getValidUserToken: vi.fn().mockResolvedValue(undefined),
         } as AnyType,
         gitlabAppInstallationsModel: {} as AnyType,
-        aiWritebackThreadModel: { findByAiThreadUuid: jest.fn() } as AnyType,
+        aiWritebackThreadModel: { findByAiThreadUuid: vi.fn() } as AnyType,
         pullRequestsModel: {} as AnyType,
-        ciService: { mergePullRequest: jest.fn() } as AnyType,
-        projectService: { scheduleCompileProject: jest.fn() } as AnyType,
+        ciService: { mergePullRequest: vi.fn() } as AnyType,
+        projectService: { scheduleCompileProject: vi.fn() } as AnyType,
         ...overrides,
     });
 
@@ -103,12 +104,12 @@ const buildService = (overrides: Record<string, AnyType> = {}) =>
 const fakeProvider = (overrides: AnyType = {}): AnyType => ({
     provider: PullRequestProvider.GITHUB,
     supportsPreviewDeploy: true,
-    resolveConnection: jest.fn(),
-    resolveInstallation: jest.fn(),
-    getCloneTarget: jest.fn(),
-    openPullRequest: jest.fn().mockResolvedValue({ prUrl: PR_7, ...LANDED }),
-    updatePullRequest: jest.fn().mockResolvedValue({ ...LANDED }),
-    adoptPullRequest: jest.fn(),
+    resolveConnection: vi.fn(),
+    resolveInstallation: vi.fn(),
+    getCloneTarget: vi.fn(),
+    openPullRequest: vi.fn().mockResolvedValue({ prUrl: PR_7, ...LANDED }),
+    updatePullRequest: vi.fn().mockResolvedValue({ ...LANDED }),
+    adoptPullRequest: vi.fn(),
     ...overrides,
 });
 
@@ -149,7 +150,7 @@ describe('AiWritebackService.applyAgentChanges', () => {
     const setup = () => {
         const service = buildService();
         const provider = fakeProvider();
-        const record = jest
+        const record = vi
             .spyOn(service as AnyType, 'recordWritebackPullRequest')
             .mockResolvedValue(undefined);
         return {
@@ -177,7 +178,7 @@ describe('AiWritebackService.applyAgentChanges', () => {
             user: { userUuid: 'u1' },
             projectUuid: 'p1',
             aiThreadUuid: undefined,
-            setStage: jest.fn(),
+            setStage: vi.fn(),
             prTitle: 'T',
             prDescription: 'D',
             ...args,
@@ -340,7 +341,7 @@ describe('AiWritebackService.prepareTurn', () => {
     it('rejects when the AI writeback feature flag is disabled', async () => {
         const service = buildService({
             featureFlagModel: {
-                get: jest.fn().mockResolvedValue({ enabled: false }),
+                get: vi.fn().mockResolvedValue({ enabled: false }),
             } as AnyType,
         });
         await expect(prepareTurn(service, userWithOrg(true))).rejects.toThrow(
@@ -351,10 +352,10 @@ describe('AiWritebackService.prepareTurn', () => {
     it('rejects when the user cannot manage source code', async () => {
         const service = buildService({
             featureFlagModel: {
-                get: jest.fn().mockResolvedValue({ enabled: true }),
+                get: vi.fn().mockResolvedValue({ enabled: true }),
             } as AnyType,
             projectModel: {
-                get: jest.fn().mockResolvedValue(githubProject()),
+                get: vi.fn().mockResolvedValue(githubProject()),
             } as AnyType,
         });
         await expect(prepareTurn(service, userWithOrg(false))).rejects.toThrow(
@@ -365,13 +366,13 @@ describe('AiWritebackService.prepareTurn', () => {
     it('resolves a fresh turn context for a permitted user', async () => {
         const service = buildService({
             featureFlagModel: {
-                get: jest.fn().mockResolvedValue({ enabled: true }),
+                get: vi.fn().mockResolvedValue({ enabled: true }),
             } as AnyType,
             projectModel: {
-                get: jest.fn().mockResolvedValue(githubProject()),
+                get: vi.fn().mockResolvedValue(githubProject()),
             } as AnyType,
             aiWritebackThreadModel: {
-                findByAiThreadUuid: jest.fn().mockResolvedValue(null),
+                findByAiThreadUuid: vi.fn().mockResolvedValue(null),
             } as AnyType,
         });
         await expect(
@@ -395,17 +396,17 @@ describe('AiWritebackService.prepareTurn', () => {
     it('resolves the project `latest` dbt version to the newest supported version', async () => {
         const service = buildService({
             featureFlagModel: {
-                get: jest.fn().mockResolvedValue({ enabled: true }),
+                get: vi.fn().mockResolvedValue({ enabled: true }),
             } as AnyType,
             projectModel: {
-                get: jest
+                get: vi
                     .fn()
                     .mockResolvedValue(
                         githubProject(DbtVersionOptionLatest.LATEST),
                     ),
             } as AnyType,
             aiWritebackThreadModel: {
-                findByAiThreadUuid: jest.fn().mockResolvedValue(null),
+                findByAiThreadUuid: vi.fn().mockResolvedValue(null),
             } as AnyType,
         });
         await expect(
@@ -418,17 +419,17 @@ describe('AiWritebackService.prepareTurn', () => {
     it('clamps a project pinned below the supported range to the oldest installed version', async () => {
         const service = buildService({
             featureFlagModel: {
-                get: jest.fn().mockResolvedValue({ enabled: true }),
+                get: vi.fn().mockResolvedValue({ enabled: true }),
             } as AnyType,
             projectModel: {
-                get: jest
+                get: vi
                     .fn()
                     .mockResolvedValue(
                         githubProject(SupportedDbtVersions.V1_5),
                     ),
             } as AnyType,
             aiWritebackThreadModel: {
-                findByAiThreadUuid: jest.fn().mockResolvedValue(null),
+                findByAiThreadUuid: vi.fn().mockResolvedValue(null),
             } as AnyType,
         });
         await expect(
@@ -441,13 +442,13 @@ describe('AiWritebackService.prepareTurn', () => {
     it('resolves a GitLab connection with its host for a GitLab project', async () => {
         const service = buildService({
             featureFlagModel: {
-                get: jest.fn().mockResolvedValue({ enabled: true }),
+                get: vi.fn().mockResolvedValue({ enabled: true }),
             } as AnyType,
             projectModel: {
-                get: jest.fn().mockResolvedValue(gitlabProject()),
+                get: vi.fn().mockResolvedValue(gitlabProject()),
             } as AnyType,
             aiWritebackThreadModel: {
-                findByAiThreadUuid: jest.fn().mockResolvedValue(null),
+                findByAiThreadUuid: vi.fn().mockResolvedValue(null),
             } as AnyType,
         });
         await expect(
@@ -489,21 +490,21 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
     ): AnyType => ({
         sandboxId: 'sbx-1',
         files: {
-            write: jest.fn().mockResolvedValue(undefined),
-            read: jest.fn().mockResolvedValue('model contents'),
-            remove: jest.fn().mockResolvedValue(undefined),
+            write: vi.fn().mockResolvedValue(undefined),
+            read: vi.fn().mockResolvedValue('model contents'),
+            remove: vi.fn().mockResolvedValue(undefined),
         },
         git: {
-            clone: jest.fn().mockResolvedValue(undefined),
-            status: jest
+            clone: vi.fn().mockResolvedValue(undefined),
+            status: vi
                 .fn()
                 .mockResolvedValue({ hasChanges, currentBranch: 'main' }),
-            add: jest.fn().mockResolvedValue(undefined),
-            commit: jest.fn().mockResolvedValue(undefined),
-            createBranch: jest.fn().mockResolvedValue(undefined),
+            add: vi.fn().mockResolvedValue(undefined),
+            commit: vi.fn().mockResolvedValue(undefined),
+            createBranch: vi.fn().mockResolvedValue(undefined),
         },
         commands: {
-            run: jest.fn(async (command: string, opts: AnyType) => {
+            run: vi.fn(async (command: string, opts: AnyType) => {
                 if (command.includes('claude')) {
                     opts?.onStdout?.(
                         `${JSON.stringify({
@@ -521,7 +522,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                 return { exitCode: 0, stdout: '' };
             }),
         },
-        pause: jest.fn().mockResolvedValue(undefined),
+        pause: vi.fn().mockResolvedValue(undefined),
     });
 
     // A fake SandboxProvider over the fake sandbox. create/connect hand back the
@@ -535,10 +536,10 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             warmPool: false,
             persistence: 'memory',
         },
-        create: jest.fn(),
-        connect: jest.fn(),
-        destroy: jest.fn().mockResolvedValue(undefined),
-        pause: jest.fn().mockResolvedValue(undefined),
+        create: vi.fn(),
+        connect: vi.fn(),
+        destroy: vi.fn().mockResolvedValue(undefined),
+        pause: vi.fn().mockResolvedValue(undefined),
     };
 
     const runService = (sandbox: AnyType) => {
@@ -554,14 +555,14 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                 aiWriteback: { anthropicApiKey: 'anthropic-key' },
             } as AnyType,
             featureFlagModel: {
-                get: jest.fn(({ featureFlagId }: AnyType) =>
+                get: vi.fn(({ featureFlagId }: AnyType) =>
                     Promise.resolve({
                         enabled: featureFlagId === FeatureFlags.AiWriteback,
                     }),
                 ),
             } as AnyType,
             projectModel: {
-                get: jest.fn().mockResolvedValue({
+                get: vi.fn().mockResolvedValue({
                     organizationUuid: ORG,
                     name: 'Analytics',
                     dbtConnection: {
@@ -576,19 +577,19 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                 }),
             } as AnyType,
             githubAppInstallationsModel: {
-                getInstallationId: jest.fn().mockResolvedValue('inst-1'),
-                findInstallationId: jest.fn().mockResolvedValue('inst-1'),
-                getAuth: jest
+                getInstallationId: vi.fn().mockResolvedValue('inst-1'),
+                findInstallationId: vi.fn().mockResolvedValue('inst-1'),
+                getAuth: vi
                     .fn()
                     .mockResolvedValue({ token: 'oauth', refreshToken: 'r' }),
-                updateAuth: jest.fn().mockResolvedValue(undefined),
+                updateAuth: vi.fn().mockResolvedValue(undefined),
             } as AnyType,
             aiWritebackThreadModel: {
-                findByAiThreadUuid: jest.fn().mockResolvedValue(null),
-                create: jest.fn().mockResolvedValue(undefined),
+                findByAiThreadUuid: vi.fn().mockResolvedValue(null),
+                create: vi.fn().mockResolvedValue(undefined),
             } as AnyType,
             pullRequestsModel: {
-                findOrCreate: jest
+                findOrCreate: vi
                     .fn()
                     .mockResolvedValue({ pullRequestUuid: 'pr-uuid' }),
             } as AnyType,
@@ -602,27 +603,31 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
     };
 
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         fakeSandboxProvider.destroy.mockResolvedValue(undefined);
         fakeSandboxProvider.pause.mockResolvedValue(undefined);
-        (createSandboxProvider as jest.Mock).mockReturnValue(
+        (createSandboxProvider as import('vitest').Mock).mockReturnValue(
             fakeSandboxProvider,
         );
-        (getInstallationToken as jest.Mock).mockResolvedValue('install-token');
-        (getOrRefreshToken as jest.Mock).mockResolvedValue({
+        (getInstallationToken as import('vitest').Mock).mockResolvedValue(
+            'install-token',
+        );
+        (getOrRefreshToken as import('vitest').Mock).mockResolvedValue({
             token: 'oauth',
             refreshToken: 'r',
         });
-        (getAuthenticatedUser as jest.Mock).mockResolvedValue({
+        (getAuthenticatedUser as import('vitest').Mock).mockResolvedValue({
             login: 'octocat',
             id: 1,
         });
-        (getAppBotIdentity as jest.Mock).mockResolvedValue({
+        (getAppBotIdentity as import('vitest').Mock).mockResolvedValue({
             login: 'lightdash-bot',
             id: 2,
         });
-        (getBranchHeadSha as jest.Mock).mockResolvedValue('base-oid');
-        (createPullRequest as jest.Mock).mockResolvedValue({
+        (getBranchHeadSha as import('vitest').Mock).mockResolvedValue(
+            'base-oid',
+        );
+        (createPullRequest as import('vitest').Mock).mockResolvedValue({
             html_url: PR_7,
         });
     });
@@ -646,10 +651,11 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
 
         // The compile wrapper pins `dbt` to the project's version venv (V1_9)
         // and still strips secrets from the compile child's environment.
-        const wrapperWrite = (sandbox.files.write as jest.Mock).mock.calls.find(
-            ([path]) => path === COMPILE_WRAPPER_PATH,
-        );
+        const wrapperWrite = (
+            sandbox.files.write as import('vitest').Mock
+        ).mock.calls.find(([path]) => path === COMPILE_WRAPPER_PATH);
         expect(wrapperWrite).toBeDefined();
+        if (!wrapperWrite) throw new Error('Expected compile wrapper write');
         expect(wrapperWrite[1]).toContain('PATH="/usr/local/dbt1.9/bin:$PATH"');
         expect(wrapperWrite[1]).toContain('-u ANTHROPIC_API_KEY');
     });
@@ -731,15 +737,15 @@ describe('AiWritebackService repo read access', () => {
 
     const buildWithInstallation = (project: AnyType = githubProject()) => {
         const githubAppService = {
-            getValidUserToken: jest.fn().mockResolvedValue(undefined),
+            getValidUserToken: vi.fn().mockResolvedValue(undefined),
         } as AnyType;
         const service = buildService({
             projectModel: {
-                get: jest.fn().mockResolvedValue(project),
+                get: vi.fn().mockResolvedValue(project),
             } as AnyType,
             githubAppService,
         });
-        const resolveInstallation = jest.spyOn(
+        const resolveInstallation = vi.spyOn(
             (service as AnyType).githubProvider,
             'resolveInstallation',
         );
@@ -755,7 +761,7 @@ describe('AiWritebackService repo read access', () => {
     };
 
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     describe('getRepoReadAccess (dbt project repo, provider-tagged)', () => {
@@ -780,7 +786,7 @@ describe('AiWritebackService repo read access', () => {
 
         it('returns gitlab-tagged access (with hostDomain) for a GitLab dbt connection', async () => {
             const { service } = buildWithInstallation(gitlabProject());
-            jest.spyOn(
+            vi.spyOn(
                 (service as AnyType).gitlabProvider,
                 'resolveInstallation',
             ).mockResolvedValue({
@@ -829,7 +835,9 @@ describe('AiWritebackService repo read access', () => {
 
         it('listRepos lists repos for the resolved installation and maps the shape', async () => {
             const { service } = buildWithInstallation();
-            (listReposAccessibleToInstallation as jest.Mock).mockResolvedValue([
+            (
+                listReposAccessibleToInstallation as import('vitest').Mock
+            ).mockResolvedValue([
                 {
                     owner: 'lightdash',
                     repo: 'lightdash',
@@ -862,10 +870,12 @@ describe('AiWritebackService repo read access', () => {
 
         it('unions the linked user repos with the org repos (org wins on collision)', async () => {
             const { service, githubAppService } = buildWithInstallation();
-            (githubAppService.getValidUserToken as jest.Mock).mockResolvedValue(
-                'user-token',
-            );
-            (listReposAccessibleToUser as jest.Mock).mockResolvedValue([
+            (
+                githubAppService.getValidUserToken as import('vitest').Mock
+            ).mockResolvedValue('user-token');
+            (
+                listReposAccessibleToUser as import('vitest').Mock
+            ).mockResolvedValue([
                 {
                     owner: 'me',
                     repo: 'personal',
@@ -879,7 +889,9 @@ describe('AiWritebackService repo read access', () => {
                     private: true,
                 },
             ]);
-            (listReposAccessibleToInstallation as jest.Mock).mockResolvedValue([
+            (
+                listReposAccessibleToInstallation as import('vitest').Mock
+            ).mockResolvedValue([
                 {
                     owner: 'acme',
                     repo: 'shared',
@@ -920,10 +932,12 @@ describe('AiWritebackService repo read access', () => {
 
         it('resolveRepoAccess falls back to the installation token for a repo outside the union', async () => {
             const { service } = buildWithInstallation();
-            (listReposAccessibleToInstallation as jest.Mock).mockResolvedValue(
-                [],
+            (
+                listReposAccessibleToInstallation as import('vitest').Mock
+            ).mockResolvedValue([]);
+            (getRepoDefaultBranch as import('vitest').Mock).mockResolvedValue(
+                'develop',
             );
-            (getRepoDefaultBranch as jest.Mock).mockResolvedValue('develop');
 
             const access = await service.getInstallationRepoReadAccess({
                 user: userWithOrg(true),
@@ -976,13 +990,13 @@ describe('AiWritebackService.mergePullRequest', () => {
     };
 
     const setup = (overrides: Record<string, AnyType> = {}) => {
-        const mergePullRequest = jest
+        const mergePullRequest = vi
             .fn()
             .mockResolvedValue({ merged: true, sha: 'sha-7' });
-        const scheduleCompileProject = jest
+        const scheduleCompileProject = vi
             .fn()
             .mockResolvedValue({ jobUuid: 'job-1' });
-        const get = jest.fn().mockResolvedValue(gitProject());
+        const get = vi.fn().mockResolvedValue(gitProject());
         const service = buildService({
             projectModel: { get } as AnyType,
             ciService: { mergePullRequest } as AnyType,
@@ -1008,7 +1022,7 @@ describe('AiWritebackService.mergePullRequest', () => {
     it('does not schedule a recompile when the PR was not merged', async () => {
         const { service, scheduleCompileProject, get } = setup({
             ciService: {
-                mergePullRequest: jest
+                mergePullRequest: vi
                     .fn()
                     .mockResolvedValue({ merged: false, sha: null }),
             } as AnyType,
@@ -1022,7 +1036,7 @@ describe('AiWritebackService.mergePullRequest', () => {
     it('skips the recompile for a non-git project', async () => {
         const { service, scheduleCompileProject } = setup({
             projectModel: {
-                get: jest.fn().mockResolvedValue(nonGitProject()),
+                get: vi.fn().mockResolvedValue(nonGitProject()),
             } as AnyType,
         });
         const result = await service.mergePullRequest(mergeArgs);
@@ -1033,7 +1047,7 @@ describe('AiWritebackService.mergePullRequest', () => {
     it('still returns the merge result when scheduling the recompile fails', async () => {
         const { service } = setup({
             projectService: {
-                scheduleCompileProject: jest
+                scheduleCompileProject: vi
                     .fn()
                     .mockRejectedValue(new Error('scheduler down')),
             } as AnyType,
@@ -1047,7 +1061,7 @@ describe('AiWritebackService.mergePullRequest', () => {
     const userWithOrg = { userUuid: 'u1', organizationUuid: ORG } as AnyType;
 
     it('tracks ai_writeback.merged with the parsed PR context on a successful git merge', async () => {
-        const track = jest.fn();
+        const track = vi.fn();
         const { service } = setup({ analytics: { track } as AnyType });
         await service.mergePullRequest({ ...mergeArgs, user: userWithOrg });
         expect(track).toHaveBeenCalledTimes(1);
@@ -1068,11 +1082,11 @@ describe('AiWritebackService.mergePullRequest', () => {
     });
 
     it('tracks the merge with compileScheduled=false for a non-git project', async () => {
-        const track = jest.fn();
+        const track = vi.fn();
         const { service } = setup({
             analytics: { track } as AnyType,
             projectModel: {
-                get: jest.fn().mockResolvedValue(nonGitProject()),
+                get: vi.fn().mockResolvedValue(nonGitProject()),
             } as AnyType,
         });
         await service.mergePullRequest({ ...mergeArgs, user: userWithOrg });
@@ -1087,11 +1101,11 @@ describe('AiWritebackService.mergePullRequest', () => {
     });
 
     it('does not track ai_writeback.merged when the PR was not merged', async () => {
-        const track = jest.fn();
+        const track = vi.fn();
         const { service } = setup({
             analytics: { track } as AnyType,
             ciService: {
-                mergePullRequest: jest
+                mergePullRequest: vi
                     .fn()
                     .mockResolvedValue({ merged: false, sha: null }),
             } as AnyType,
@@ -1101,7 +1115,7 @@ describe('AiWritebackService.mergePullRequest', () => {
     });
 
     it('leaves owner/repo/pullNumber null when the PR URL is not a github.com link', async () => {
-        const track = jest.fn();
+        const track = vi.fn();
         const { service } = setup({ analytics: { track } as AnyType });
         await service.mergePullRequest({
             ...mergeArgs,

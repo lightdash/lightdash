@@ -76,16 +76,16 @@ const editorUser = {
 };
 
 const dashboardModel = {
-    getByIdOrSlug: jest.fn(async () => dashboardData),
+    getByIdOrSlug: vi.fn(async () => dashboardData),
 };
 
 const contentVerificationModel = {
-    verify: jest.fn(async () => undefined),
-    unverify: jest.fn(async () => undefined),
-    getByContent: jest.fn(async () => verificationInfo),
+    verify: vi.fn(async () => undefined),
+    unverify: vi.fn(async () => undefined),
+    getByContent: vi.fn(async () => verificationInfo),
 };
 
-jest.spyOn(analyticsMock, 'track');
+vi.spyOn(analyticsMock, 'track');
 
 describe('DashboardService - Content Verification', () => {
     const service = new DashboardService({
@@ -99,12 +99,12 @@ describe('DashboardService - Content Verification', () => {
         searchModel: {} as unknown as SearchModel,
         schedulerService: {} as unknown as SchedulerService,
         savedChartModel: {
-            getInfoForAvailableFilters: jest.fn(async () => []),
+            getInfoForAvailableFilters: vi.fn(async () => []),
         } as unknown as SavedChartModel,
         savedSqlModel: {} as unknown as SavedSqlModel,
         savedChartService: {} as unknown as SavedChartService,
         projectModel: {
-            getCachedExploreNames: jest.fn(async () => []),
+            getCachedExploreNames: vi.fn(async () => []),
         } as unknown as ProjectModel,
         slackClient: {} as unknown as SlackClient,
         schedulerClient: {} as unknown as SchedulerClient,
@@ -116,7 +116,7 @@ describe('DashboardService - Content Verification', () => {
     });
 
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     describe('CASL authorization', () => {

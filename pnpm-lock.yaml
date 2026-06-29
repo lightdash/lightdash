@@ -673,9 +673,6 @@ importers:
       eslint-plugin-jsdoc:
         specifier: 62.5.0
         version: 62.5.0(eslint@8.57.1)
-      jest-fetch-mock:
-        specifier: 3.0.3
-        version: 3.0.3(encoding@0.1.13)
       knex-mock-client:
         specifier: 1.11.0
         version: 1.11.0(knex@2.5.1(pg@8.13.1))
@@ -11705,9 +11702,6 @@ packages:
     resolution: {integrity: sha512-DOSwCRqXirTOyheM+4d5YZOrWcdu0LNZ87ewUoywbcb2XR4wKgqiG8vNeYwhjFMbEkfju7wx2GYH0P2gevGvFw==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
 
-  jest-fetch-mock@3.0.3:
-    resolution: {integrity: sha512-Ux1nWprtLrdrH4XwE7O7InRY6psIi3GOsqNESJgMJ+M5cv4A8Lh7SN9d2V2kKRZ8ebAfcd1LNyZguAOb6JiDqw==}
-
   jest-get-type@29.6.3:
     resolution: {integrity: sha512-zrteXnqYxfQh7l5FHyL38jL39di8H8rHoecLH3JNxH3BwOrBsNeabdap5e0I23lD4HHI8W5VFBZqG4Eaq5LNcw==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
@@ -14169,9 +14163,6 @@ packages:
     peerDependenciesMeta:
       bluebird:
         optional: true
-
-  promise-polyfill@8.2.0:
-    resolution: {integrity: sha512-k/TC0mIcPVF6yHhUvwAp7cvL6I2fFV7TzF1DuGPI8mBh4QQazf36xCKEHKTZKRysEoTQoQdKyP25J8MPJp7j5g==}
 
   promise-retry@2.0.1:
     resolution: {integrity: sha512-y+WKFlBR8BGXnsNlIHFGPZmyDf3DFMoLhaflAnyZgV6rG6xu+JwesTo2Q9R6XwYmtmwAFCkAk3e35jEdoeh/3g==}
@@ -29782,13 +29773,6 @@ snapshots:
       jest-mock: 29.7.0
       jest-util: 29.7.0
 
-  jest-fetch-mock@3.0.3(encoding@0.1.13):
-    dependencies:
-      cross-fetch: 3.1.8(encoding@0.1.13)
-      promise-polyfill: 8.2.0
-    transitivePeerDependencies:
-      - encoding
-
   jest-get-type@29.6.3: {}
 
   jest-haste-map@29.7.0:
@@ -32719,8 +32703,6 @@ snapshots:
       tdigest: 0.1.2
 
   promise-inflight@1.0.1: {}
-
-  promise-polyfill@8.2.0: {}
 
   promise-retry@2.0.1:
     dependencies:

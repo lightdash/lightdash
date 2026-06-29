@@ -29,38 +29,43 @@ type RegisteredMcpPrompt = {
 const mockRegisteredMcpTools: RegisteredMcpTool[] = [];
 const mockRegisteredMcpPrompts: RegisteredMcpPrompt[] = [];
 
-jest.mock('@sentry/node', () => ({
+vi.mock('@sentry/node', () => ({
     getActiveSpan: () => undefined,
     wrapMcpServerWithSentry: (server: unknown) => server,
 }));
 
-jest.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
-    McpServer: jest.fn().mockImplementation(() => ({
-        server: {
-            registerCapabilities: jest.fn(),
+vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
+    McpServer: vi.fn().mockImplementation(
+        // eslint-disable-next-line prefer-arrow-callback
+        function MockMcpServer() {
+            return {
+                server: {
+                    registerCapabilities: vi.fn(),
+                },
+                registerResource: vi.fn(),
+                registerPrompt: vi.fn(
+                    (
+                        name: string,
+                        config: RegisteredMcpPrompt['config'],
+                        _callback: unknown,
+                    ) => {
+                        mockRegisteredMcpPrompts.push({ name, config });
+                        return {};
+                    },
+                ),
+                registerTool: vi.fn(
+                    (
+                        name: string,
+                        config: RegisteredMcpTool['config'],
+                        _callback: unknown,
+                    ) => {
+                        mockRegisteredMcpTools.push({ name, config });
+                        return {};
+                    },
+                ),
+            };
         },
-        registerResource: jest.fn(),
-        registerPrompt: jest.fn(
-            (
-                name: string,
-                config: RegisteredMcpPrompt['config'],
-                _callback: unknown,
-            ) => {
-                mockRegisteredMcpPrompts.push({ name, config });
-                return {};
-            },
-        ),
-        registerTool: jest.fn(
-            (
-                name: string,
-                config: RegisteredMcpTool['config'],
-                _callback: unknown,
-            ) => {
-                mockRegisteredMcpTools.push({ name, config });
-                return {};
-            },
-        ),
-    })),
+    ),
 }));
 
 const schemaToJson = (
@@ -81,7 +86,7 @@ const schemaToJson = (
 const makeMcpService = (): McpService =>
     new McpService({
         aiAgentService: {},
-        aiAgentToolsService: { createRuntime: jest.fn() },
+        aiAgentToolsService: { createRuntime: vi.fn() },
         aiOrganizationSettingsService: {},
         aiRouterService: {},
         aiWritebackService: {},

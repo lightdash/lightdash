@@ -3,7 +3,7 @@ import { createOrganizationNameResolver } from './organizationNameResolver';
 
 describe('createOrganizationNameResolver', () => {
     it('returns the organization name on first lookup', async () => {
-        const get = jest
+        const get = vi
             .fn()
             .mockResolvedValue({ organizationUuid: 'uuid-1', name: 'Acme' });
         const resolve = createOrganizationNameResolver({ get });
@@ -13,7 +13,7 @@ describe('createOrganizationNameResolver', () => {
     });
 
     it('caches successful lookups within the TTL', async () => {
-        const get = jest
+        const get = vi
             .fn()
             .mockResolvedValue({ organizationUuid: 'uuid-1', name: 'Acme' });
         let mockNow = 1_000;
@@ -30,7 +30,7 @@ describe('createOrganizationNameResolver', () => {
     });
 
     it('refreshes the cache after the TTL expires', async () => {
-        const get = jest
+        const get = vi
             .fn()
             .mockResolvedValueOnce({
                 organizationUuid: 'uuid-1',
@@ -54,7 +54,7 @@ describe('createOrganizationNameResolver', () => {
     });
 
     it('returns undefined and caches the miss when the org is not found', async () => {
-        const get = jest
+        const get = vi
             .fn()
             .mockRejectedValue(new NotFoundError('No organization found'));
         const resolve = createOrganizationNameResolver({ get });
@@ -66,7 +66,7 @@ describe('createOrganizationNameResolver', () => {
     });
 
     it('returns undefined for an empty uuid without calling the model', async () => {
-        const get = jest.fn();
+        const get = vi.fn();
         const resolve = createOrganizationNameResolver({ get });
 
         await expect(resolve('')).resolves.toBeUndefined();
@@ -78,7 +78,7 @@ describe('createOrganizationNameResolver', () => {
             organizationUuid: string;
             name: string;
         }) => void;
-        const get = jest.fn().mockReturnValue(
+        const get = vi.fn().mockReturnValue(
             new Promise((res) => {
                 resolveGet = res;
             }),

@@ -1,14 +1,17 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
+    // formula's Peggy parser is generated (gitignored) to src/grammar/parser.js, not dist/.
+    // Vitest imports formula from source, so it must be a cached output — otherwise a Turbo
+    // cache-hit on a fresh runner restores everything except the parser and backend tests fail.
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", "build/**"],
+      "outputs": ["dist/**", "build/**", "src/grammar/parser.js"],
       "cache": true
     },
     "build:fast": {
       "dependsOn": ["^build:fast"],
-      "outputs": ["dist/**", "build/**"],
+      "outputs": ["dist/**", "build/**", "src/grammar/parser.js"],
       "cache": true
     },
     "typecheck": {

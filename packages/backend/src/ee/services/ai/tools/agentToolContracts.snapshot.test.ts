@@ -59,8 +59,8 @@ const sharedAgentToolDefinitionNames = agentToolDefinitions.map(
 );
 
 const makeAgentTools = () => {
-    const noop = jest.fn();
-    const noopAsync = jest.fn().mockResolvedValue(undefined);
+    const noop = vi.fn();
+    const noopAsync = vi.fn().mockResolvedValue(undefined);
 
     return {
         describeWarehouseTable: getDescribeWarehouseTable({

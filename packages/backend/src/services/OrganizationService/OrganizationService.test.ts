@@ -20,14 +20,14 @@ import { OrganizationService } from './OrganizationService';
 import { organization, user } from './OrganizationService.mock';
 
 const projectModel = {
-    hasProjects: jest.fn(async () => true),
-    getProjectGroupAccesses: jest.fn(),
+    hasProjects: vi.fn(async () => true),
+    getProjectGroupAccesses: vi.fn(),
 };
 const organizationModel = {
-    get: jest.fn(async () => organization),
+    get: vi.fn(async () => organization),
 };
 const organizationMemberProfileModel = {
-    getOrganizationMembersAndGroups: jest.fn(),
+    getOrganizationMembersAndGroups: vi.fn(),
 };
 
 describe('organization service', () => {
@@ -47,7 +47,7 @@ describe('organization service', () => {
     });
 
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     beforeEach(() => {
@@ -65,9 +65,9 @@ describe('organization service', () => {
     });
     it('Should return needsProject true if there are no projects in DB', async () => {
         const account = buildAccount({ accountType: 'session' });
-        (projectModel.hasProjects as jest.Mock).mockImplementationOnce(
-            async () => false,
-        );
+        (
+            projectModel.hasProjects as import('vitest').Mock
+        ).mockImplementationOnce(async () => false);
         expect(await organizationService.get(account)).toEqual({
             ...organization,
             needsProject: true,
