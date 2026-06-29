@@ -1,3 +1,10 @@
+## [0.3259.2](https://github.com/lightdash/lightdash/compare/0.3259.1...0.3259.2) (2026-06-29)
+
+
+### Bug Fixes
+
+* **sandbox:** lazy-load dockerode and dedupe ssh2 to fix flaky jest SIGSEGV ([#24818](https://github.com/lightdash/lightdash/issues/24818)) ([0d0bfd9](https://github.com/lightdash/lightdash/commit/0d0bfd989fd867c61484e749884a0be936efe836))
+
 ## [0.3259.1](https://github.com/lightdash/lightdash/compare/0.3259.0...0.3259.1) (2026-06-29)
 
 
