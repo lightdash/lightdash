@@ -4,7 +4,6 @@ import {
     smoothStream,
     stepCountIs,
     streamText,
-    tool,
     type CallSettings,
     type LanguageModel,
     type ModelMessage,
@@ -13,13 +12,14 @@ import {
 import Logger from '../../../../../logging/logger';
 import { getFindExplores } from '../../tools/findExplores';
 import { getFindFields } from '../../tools/findFields';
+import { getListExplores } from '../../tools/listExplores';
 import { getListFields } from '../../tools/listFields';
-import { getMcpListExplores } from '../../tools/mcpListExplores';
+import { getSubmitDiscoverFieldsResult } from '../../tools/submitDiscoverFieldsResult';
 import { stringifyToolJson } from '../../tools/toolOutputFormat';
 import type { AiAgentArgs, AiAgentDependencies } from '../../types/aiAgent';
 import { AgentContext } from '../../utils/AgentContext';
 import { getAgentTelemetryConfig } from '../telemetry';
-import { DiscoverFieldsInput, discoverFieldsSelectionSchemaV2 } from './schema';
+import { DiscoverFieldsInput } from './schema';
 import { getDiscoverFieldsSystemPrompt } from './systemPrompt';
 
 const SUBAGENT_STEP_CAP = 50;
@@ -55,44 +55,37 @@ export type DiscoverFieldsAgentArgs = {
     >;
 };
 
-const submitResult = tool({
-    description:
-        'Submit final discovery selectors. Call this as your LAST step. For resolved, pass only exploreName, ordered dimensionIds, ordered metricIds, rationale, and uncertainties; use uncertainties: null when selection was straightforward. The parent rehydrates exact field/explore details.',
-    inputSchema: discoverFieldsSelectionSchemaV2,
-    execute: async (input) => ({
-        result: stringifyToolJson(input),
-        structuredResult: input,
-        metadata: { status: 'success' as const },
-    }),
-});
-
 export type DiscoverFieldsSubagentTools = {
-    listExplores: ReturnType<typeof getMcpListExplores>;
+    listExplores: ReturnType<typeof getListExplores>;
     findExplores: ReturnType<typeof getFindExplores>;
     findFields: ReturnType<typeof getFindFields>;
     listFields: ReturnType<typeof getListFields>;
-    submitResult: typeof submitResult;
+    submitResult: ReturnType<typeof getSubmitDiscoverFieldsResult>;
 };
 
-const isPersistableToolOutput = (
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const hasPersistableToolResult = (
     output: unknown,
 ): output is {
-    result: string;
+    result: unknown;
     metadata?: Record<string, unknown> | null;
-} =>
-    typeof output === 'object' &&
-    output !== null &&
-    'result' in output &&
-    typeof output.result === 'string';
+} => isRecord(output) && 'result' in output;
 
-const normalizePersistedToolResult = (
+const stringifyPersistedResult = (result: unknown): string =>
+    typeof result === 'string' ? result : stringifyToolJson(result);
+
+const toPersistedToolResult = (
     toolName: string,
     output: unknown,
 ): { result: string; metadata?: Record<string, unknown> | null } => {
-    if (isPersistableToolOutput(output)) {
+    if (hasPersistableToolResult(output)) {
+        const metadata = isRecord(output.metadata) ? output.metadata : null;
+
         return {
-            result: output.result,
-            metadata: output.metadata,
+            result: stringifyPersistedResult(output.result),
+            metadata,
         };
     }
 
@@ -111,7 +104,7 @@ export const runDiscoverFieldsAgent = (
     args: DiscoverFieldsAgentArgs,
     dependencies: DiscoverFieldsAgentDependencies,
 ): DiscoverFieldsAgentHandle => {
-    const listExplores = getMcpListExplores({
+    const listExplores = getListExplores({
         listExplores: dependencies.listExplores,
     });
 
@@ -130,6 +123,8 @@ export const runDiscoverFieldsAgent = (
     const listFields = getListFields({
         getExplore: dependencies.getExplore,
     });
+
+    const submitResult = getSubmitDiscoverFieldsResult();
 
     const messages: ModelMessage[] = [
         getDiscoverFieldsSystemPrompt({
@@ -189,7 +184,7 @@ export const runDiscoverFieldsAgent = (
                 return;
             }
             if (chunk.type === 'tool-result') {
-                const output = normalizePersistedToolResult(
+                const output = toPersistedToolResult(
                     chunk.toolName,
                     chunk.output,
                 );
@@ -217,6 +212,12 @@ export const runDiscoverFieldsAgent = (
 
     return {
         stream,
+        /**
+         * Waits for in-flight subagent persistence writes to settle. Call this
+         * after the stream has been fully consumed but before yielding the
+         * final parent tool output, so the parent's result row never commits
+         * before its children.
+         */
         flushPersistence: async () => {
             await Promise.allSettled(inflightWrites);
         },

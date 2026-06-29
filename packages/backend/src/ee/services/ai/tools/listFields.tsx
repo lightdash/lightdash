@@ -9,7 +9,10 @@ import type { GetExploreFn } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { fieldToJson, toRenderableField } from './fieldOutput';
-import { stringifyToolJson } from './toolOutputFormat';
+import {
+    stringifyToolJson,
+    type StructuredToolResult,
+} from './toolOutputFormat';
 
 type Dependencies = {
     getExplore: GetExploreFn;
@@ -111,10 +114,15 @@ export type ListFieldsStructuredResult = ReturnType<
     typeof getStructuredResponse
 >;
 
+type ListFieldsSuccessOutput = ToolListFieldsOutput &
+    StructuredToolResult<ListFieldsStructuredResult>;
+type ListFieldsErrorOutput = ToolListFieldsOutput;
+type ListFieldsOutput = ListFieldsSuccessOutput | ListFieldsErrorOutput;
+
 export const getListFields = ({ getExplore }: Dependencies) =>
     tool({
         ...toolDefinition,
-        execute: async (args) => {
+        execute: async (args): Promise<ListFieldsOutput> => {
             try {
                 const results = await lookupFields({
                     getExplore,
@@ -136,14 +144,14 @@ export const getListFields = ({ getExplore }: Dependencies) =>
                             })),
                         },
                     },
-                } as ToolListFieldsOutput;
+                } satisfies ListFieldsSuccessOutput;
             } catch (error) {
                 return {
                     result: toolErrorHandler(error, 'Error listing fields.'),
                     metadata: {
                         status: 'error' as const,
                     },
-                };
+                } satisfies ListFieldsErrorOutput;
             }
         },
         toModelOutput: ({ output }) => toModelOutput(output),

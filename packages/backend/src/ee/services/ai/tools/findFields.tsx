@@ -12,7 +12,10 @@ import type {
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { fieldToJson } from './fieldOutput';
-import { stringifyToolJson } from './toolOutputFormat';
+import {
+    stringifyToolJson,
+    type StructuredToolResult,
+} from './toolOutputFormat';
 
 type Dependencies = {
     getExplore: GetExploreFn;
@@ -63,6 +66,11 @@ export type FindFieldsStructuredResult = ReturnType<
     typeof getStructuredResponse
 >;
 
+type FindFieldsSuccessOutput = ToolFindFieldsOutput &
+    StructuredToolResult<FindFieldsStructuredResult>;
+type FindFieldsErrorOutput = ToolFindFieldsOutput;
+type FindFieldsOutput = FindFieldsSuccessOutput | FindFieldsErrorOutput;
+
 export const getFindFields = ({
     getExplore,
     findFields,
@@ -71,7 +79,7 @@ export const getFindFields = ({
 }: Dependencies) =>
     tool({
         ...toolDefinition,
-        execute: async (args) => {
+        execute: async (args): Promise<FindFieldsOutput> => {
             try {
                 const searchLabels = args.fieldSearchQueries
                     .map((q) => `"${q.label}"`)
@@ -132,7 +140,7 @@ export const getFindFields = ({
                             ),
                         },
                     },
-                } as ToolFindFieldsOutput;
+                } satisfies FindFieldsSuccessOutput;
             } catch (error) {
                 return {
                     result: toolErrorHandler(
@@ -144,7 +152,7 @@ export const getFindFields = ({
                     metadata: {
                         status: 'error',
                     },
-                };
+                } satisfies FindFieldsErrorOutput;
             }
         },
         toModelOutput: ({ output }) => toModelOutput(output),

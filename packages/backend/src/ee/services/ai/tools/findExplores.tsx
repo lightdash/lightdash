@@ -9,7 +9,10 @@ import type {
 } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-import { stringifyToolJson } from './toolOutputFormat';
+import {
+    stringifyToolJson,
+    type StructuredToolResult,
+} from './toolOutputFormat';
 
 type Dependencies = {
     findExplores: FindExploresFn;
@@ -40,13 +43,18 @@ export type FindExploresStructuredResult = ReturnType<
     typeof getExploreStructuredResponse
 >;
 
+type FindExploresSuccessOutput = ToolFindExploresOutput &
+    StructuredToolResult<FindExploresStructuredResult>;
+type FindExploresErrorOutput = ToolFindExploresOutput;
+type FindExploresOutput = FindExploresSuccessOutput | FindExploresErrorOutput;
+
 export const getFindExplores = ({
     findExplores,
     updateProgress,
 }: Dependencies) =>
     tool({
         ...toolDefinition,
-        execute: async (args) => {
+        execute: async (args): Promise<FindExploresOutput> => {
             try {
                 await updateProgress(
                     `Searching explores matching query: "${args.searchQuery}"...`,
@@ -68,14 +76,14 @@ export const getFindExplores = ({
                         status: 'success',
                         ranking: structuredResult,
                     },
-                } as ToolFindExploresOutput;
+                } satisfies FindExploresSuccessOutput;
             } catch (error) {
                 return {
                     result: toolErrorHandler(error, `Error listing explores.`),
                     metadata: {
                         status: 'error',
                     },
-                };
+                } satisfies FindExploresErrorOutput;
             }
         },
         toModelOutput: ({ output }) => toModelOutput(output),

@@ -118,8 +118,8 @@ import { getFindContent } from '../ai/tools/findContent';
 import { getFindExplores } from '../ai/tools/findExplores';
 import { getFindFields } from '../ai/tools/findFields';
 import { getListContent } from '../ai/tools/listContent';
+import { getListExplores } from '../ai/tools/listExplores';
 import { getListFields } from '../ai/tools/listFields';
-import { getMcpListExplores } from '../ai/tools/mcpListExplores';
 import { getReadContent } from '../ai/tools/readContent';
 import { validateRunQueryTool } from '../ai/tools/runQuery';
 import { getSearchFieldValues } from '../ai/tools/searchFieldValues';
@@ -1348,7 +1348,7 @@ export class McpService extends BaseService {
                         projectUuid,
                     );
 
-                    const listExploresTool = getMcpListExplores({
+                    const listExploresTool = getListExplores({
                         listExplores: toolsRuntime.listExplores,
                     });
 

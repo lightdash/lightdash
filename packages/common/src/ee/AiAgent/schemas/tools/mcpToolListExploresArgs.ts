@@ -13,7 +13,7 @@ Usage Tips:
 - Returns explore metadata without field details for quick overview
 `;
 
-// MCP-only tool - no type field needed
+// No arguments needed; project/user context comes from the runtime.
 export const mcpToolListExploresArgsSchema = z.object({});
 
 export type McpToolListExploresArgs = z.infer<
