@@ -143,6 +143,7 @@ export const getFormValuesFromScheduler = (
     aiConfig?: AiSchedulerConfig | null,
 ): SchedulerFormValues => {
     const options = schedulerData.options;
+    const agentConfig = aiConfig?.type === 'agent' ? aiConfig : null;
 
     const formOptions = { ...DEFAULT_VALUES.options };
 
@@ -207,11 +208,11 @@ export const getFormValuesFromScheduler = (
         thresholds: schedulerData.thresholds,
         notificationFrequency: schedulerData.notificationFrequency,
         includeLinks: schedulerData.includeLinks !== false,
-        agentUuid: aiConfig?.agentUuid ?? null,
-        prompt: aiConfig?.prompt ?? DEFAULT_AI_PROMPT,
-        sourceThreadUuid: aiConfig?.sourceThreadUuid ?? null,
-        includeSourceThread: aiConfig?.includeSourceThread ?? false,
-        includeRunHistory: aiConfig?.includeRunHistory ?? false,
+        agentUuid: agentConfig?.agentUuid ?? null,
+        prompt: agentConfig?.prompt ?? DEFAULT_AI_PROMPT,
+        sourceThreadUuid: agentConfig?.sourceThreadUuid ?? null,
+        includeSourceThread: agentConfig?.includeSourceThread ?? false,
+        includeRunHistory: agentConfig?.includeRunHistory ?? false,
     };
 };
 

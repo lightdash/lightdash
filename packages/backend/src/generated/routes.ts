@@ -10624,25 +10624,85 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AiSchedulerConfig: {
+    AiSchedulerConfigBase: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                includeRunHistory: { dataType: 'boolean', required: true },
-                includeSourceThread: { dataType: 'boolean', required: true },
-                sourceThreadUuid: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
                 prompt: { dataType: 'string', required: true },
-                agentUuid: { dataType: 'string', required: true },
                 schedulerUuid: { dataType: 'string', required: true },
             },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiSchedulerAgentConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'AiSchedulerConfigBase' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        includeRunHistory: {
+                            dataType: 'boolean',
+                            required: true,
+                        },
+                        includeSourceThread: {
+                            dataType: 'boolean',
+                            required: true,
+                        },
+                        sourceThreadUuid: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        agentUuid: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['agent'],
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiSchedulerResourceConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'AiSchedulerConfigBase' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        type: {
+                            dataType: 'enum',
+                            enums: ['resource'],
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiSchedulerConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'AiSchedulerAgentConfig' },
+                { ref: 'AiSchedulerResourceConfig' },
+            ],
             validators: {},
         },
     },
@@ -10671,39 +10731,80 @@ const models: TsoaRoute.Models = {
         type: { ref: 'ApiSuccess_AiSchedulerConfig-or-null_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_AiSchedulerConfig.Exclude_keyofAiSchedulerConfig.schedulerUuid__': {
+    'Pick_AiSchedulerAgentConfig.Exclude_keyofAiSchedulerAgentConfig.schedulerUuid__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    type: {
+                        dataType: 'enum',
+                        enums: ['agent'],
+                        required: true,
+                    },
+                    prompt: { dataType: 'string', required: true },
+                    agentUuid: { dataType: 'string', required: true },
+                    sourceThreadUuid: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                    includeSourceThread: {
+                        dataType: 'boolean',
+                        required: true,
+                    },
+                    includeRunHistory: { dataType: 'boolean', required: true },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_AiSchedulerAgentConfig.schedulerUuid_': {
         dataType: 'refAlias',
         type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                agentUuid: { dataType: 'string', required: true },
-                prompt: { dataType: 'string', required: true },
-                sourceThreadUuid: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                includeSourceThread: { dataType: 'boolean', required: true },
-                includeRunHistory: { dataType: 'boolean', required: true },
-            },
+            ref: 'Pick_AiSchedulerAgentConfig.Exclude_keyofAiSchedulerAgentConfig.schedulerUuid__',
             validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_AiSchedulerConfig.schedulerUuid_': {
+    'Pick_AiSchedulerResourceConfig.Exclude_keyofAiSchedulerResourceConfig.schedulerUuid__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    type: {
+                        dataType: 'enum',
+                        enums: ['resource'],
+                        required: true,
+                    },
+                    prompt: { dataType: 'string', required: true },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_AiSchedulerResourceConfig.schedulerUuid_': {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_AiSchedulerConfig.Exclude_keyofAiSchedulerConfig.schedulerUuid__',
+            ref: 'Pick_AiSchedulerResourceConfig.Exclude_keyofAiSchedulerResourceConfig.schedulerUuid__',
             validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     UpsertAiSchedulerConfig: {
         dataType: 'refAlias',
-        type: { ref: 'Omit_AiSchedulerConfig.schedulerUuid_', validators: {} },
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'Omit_AiSchedulerAgentConfig.schedulerUuid_' },
+                { ref: 'Omit_AiSchedulerResourceConfig.schedulerUuid_' },
+            ],
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiRouter: {
@@ -47310,12 +47411,7 @@ export function RegisterRoutes(app: Router) {
         string,
         TsoaRoute.ParameterSchema
     > = {
-        _req: {
-            in: 'request',
-            name: '_req',
-            required: true,
-            dataType: 'object',
-        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
         schedulerUuid: {
             in: 'path',
             name: 'schedulerUuid',
@@ -47376,12 +47472,7 @@ export function RegisterRoutes(app: Router) {
         string,
         TsoaRoute.ParameterSchema
     > = {
-        _req: {
-            in: 'request',
-            name: '_req',
-            required: true,
-            dataType: 'object',
-        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
         schedulerUuid: {
             in: 'path',
             name: 'schedulerUuid',
@@ -47448,12 +47539,7 @@ export function RegisterRoutes(app: Router) {
         string,
         TsoaRoute.ParameterSchema
     > = {
-        _req: {
-            in: 'request',
-            name: '_req',
-            required: true,
-            dataType: 'object',
-        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
         schedulerUuid: {
             in: 'path',
             name: 'schedulerUuid',

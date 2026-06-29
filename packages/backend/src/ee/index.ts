@@ -119,6 +119,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     schedulerService: repository.getSchedulerService(),
                     aiAgentService:
                         repository.getAiAgentService<AiAgentService>(),
+                    lightdashConfig,
                 }),
             projectContextService: ({ models }) =>
                 new ProjectContextService({

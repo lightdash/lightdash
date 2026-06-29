@@ -1,4 +1,5 @@
 import {
+    getErrorMessage,
     getMetricsFromItemsMap,
     getTableCalculationsFromItemsMap,
     isNumericItem,
@@ -28,6 +29,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import DocumentationHelpButton from '../../../components/DocumentationHelpButton';
 import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useUser from '../../../hooks/user/useUser';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -85,6 +87,7 @@ const useSchedulerFormModal = ({
 }: UseSchedulerFormModalProps) => {
     const isEditMode = !!schedulerUuid;
     const queryClient = useQueryClient();
+    const { showToastError } = useToaster();
 
     // For edit mode - fetch existing scheduler
     const scheduler = useScheduler(schedulerUuid ?? '', {
@@ -93,7 +96,9 @@ const useSchedulerFormModal = ({
 
     const aiConfig = useAiSchedulerConfig(schedulerUuid);
     const sourceThreadUuid =
-        aiConfig.data?.sourceThreadUuid ??
+        (aiConfig.data?.type === 'agent'
+            ? aiConfig.data.sourceThreadUuid
+            : null) ??
         initialFormValues?.sourceThreadUuid ??
         null;
 
@@ -296,19 +301,30 @@ const useSchedulerFormModal = ({
                 : (await createMutation.mutateAsync({ resourceUuid, data }))
                       .schedulerUuid;
 
-            if (values.agentUuid) {
-                await upsertAiSchedulerConfig(savedSchedulerUuid, {
-                    agentUuid: values.agentUuid,
-                    prompt: values.prompt,
-                    sourceThreadUuid: values.includeSourceThread
-                        ? values.sourceThreadUuid
-                        : null,
-                    includeSourceThread: values.includeSourceThread,
-                    includeRunHistory: values.includeRunHistory,
+            // The scheduler itself saved (success toast already shown by the
+            // mutation); the AI-config save is separate, so surface its own
+            // failure instead of letting it reject silently.
+            try {
+                if (values.agentUuid) {
+                    await upsertAiSchedulerConfig(savedSchedulerUuid, {
+                        type: 'agent',
+                        agentUuid: values.agentUuid,
+                        prompt: values.prompt,
+                        sourceThreadUuid: values.includeSourceThread
+                            ? values.sourceThreadUuid
+                            : null,
+                        includeSourceThread: values.includeSourceThread,
+                        includeRunHistory: values.includeRunHistory,
+                    });
+                } else if (isEditMode) {
+                    // Cleared the agent → detach any existing config.
+                    await deleteAiSchedulerConfig(savedSchedulerUuid);
+                }
+            } catch (e) {
+                showToastError({
+                    title: 'Delivery saved, but its AI settings could not be saved',
+                    subtitle: getErrorMessage(e),
                 });
-            } else if (isEditMode) {
-                // Cleared the agent → detach any existing config.
-                await deleteAiSchedulerConfig(savedSchedulerUuid);
             }
             await queryClient.invalidateQueries([
                 AI_SCHEDULER_CONFIG_KEY,
@@ -321,6 +337,7 @@ const useSchedulerFormModal = ({
             createMutation,
             resourceUuid,
             formResource?.type,
+            showToastError,
             queryClient,
         ],
     );

@@ -1,16 +1,26 @@
 import { subject } from '@casl/ability';
 import {
+    assertUnreachable,
     ForbiddenError,
+    getErrorMessage,
     type AiPromptContextInput,
     type AiSchedulerConfig,
+    type AiSchedulerResourceConfig,
+    type SchedulerAndTargets,
     type SessionUser,
     type UpsertAiSchedulerConfig,
 } from '@lightdash/common';
+import { LightdashConfig } from '../../config/parseConfig';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../../services/BaseService';
 import { SchedulerService } from '../../services/SchedulerService/SchedulerService';
-import { AiSchedulerModel } from '../models/AiSchedulerModel';
+import {
+    AiSchedulerModel,
+    type AiSchedulerAgentConfigInternal,
+} from '../models/AiSchedulerModel';
+import { generateScheduledResourceReport } from './ai/agents/scheduledResourceReportGenerator';
+import { getModel } from './ai/models';
 import { AiAgentService } from './AiAgentService/AiAgentService';
 
 type Dependencies = {
@@ -19,6 +29,7 @@ type Dependencies = {
     userModel: UserModel;
     schedulerService: SchedulerService;
     aiAgentService: AiAgentService;
+    lightdashConfig: LightdashConfig;
 };
 
 // Joins a (read-only) OSS scheduler with its EE ai_scheduler config and runs
@@ -34,6 +45,8 @@ export class AiSchedulerService extends BaseService {
 
     private readonly aiAgentService: AiAgentService;
 
+    private readonly lightdashConfig: LightdashConfig;
+
     constructor(deps: Dependencies) {
         super({ serviceName: 'AiSchedulerService' });
         this.aiSchedulerModel = deps.aiSchedulerModel;
@@ -41,6 +54,7 @@ export class AiSchedulerService extends BaseService {
         this.userModel = deps.userModel;
         this.schedulerService = deps.schedulerService;
         this.aiAgentService = deps.aiAgentService;
+        this.lightdashConfig = deps.lightdashConfig;
     }
 
     // Managing a delivery's AI config requires the same `manage` permission as
@@ -76,7 +90,12 @@ export class AiSchedulerService extends BaseService {
         schedulerUuid: string,
     ): Promise<AiSchedulerConfig | null> {
         await this.assertCanManageScheduler(user, schedulerUuid);
-        return this.aiSchedulerModel.find(schedulerUuid);
+        const config = await this.aiSchedulerModel.find(schedulerUuid);
+        if (!config || config.type === 'resource') {
+            return config;
+        }
+        const { reportThreadUuid, ...publicConfig } = config;
+        return publicConfig;
     }
 
     async upsertConfig(
@@ -88,8 +107,14 @@ export class AiSchedulerService extends BaseService {
             user,
             schedulerUuid,
         );
-        // Throws ForbiddenError if the user can't access the agent.
-        await this.aiAgentService.getAgent(user, config.agentUuid, projectUuid);
+        if (config.type === 'agent') {
+            // Throws ForbiddenError if the user can't access the agent.
+            await this.aiAgentService.getAgent(
+                user,
+                config.agentUuid,
+                projectUuid,
+            );
+        }
         await this.aiSchedulerModel.upsert(schedulerUuid, config);
     }
 
@@ -101,7 +126,7 @@ export class AiSchedulerService extends BaseService {
         await this.aiSchedulerModel.remove(schedulerUuid);
     }
 
-    // The agent's report for a delivery, or null when it has no AI config.
+    // The AI report for a delivery, or null when it has no AI config.
     async generateScheduledReport(
         schedulerUuid: string,
         organizationUuid: string,
@@ -118,6 +143,30 @@ export class AiSchedulerService extends BaseService {
             organizationUuid,
         );
 
+        switch (config.type) {
+            case 'agent':
+                return this.generateAgentReport(
+                    user,
+                    schedulerUuid,
+                    config,
+                    scheduler,
+                );
+            case 'resource':
+                return this.generateResourceReport(config, scheduler);
+            default:
+                return assertUnreachable(
+                    config,
+                    'Unknown ai scheduler config type',
+                );
+        }
+    }
+
+    private async generateAgentReport(
+        user: SessionUser,
+        schedulerUuid: string,
+        config: AiSchedulerAgentConfigInternal,
+        scheduler: SchedulerAndTargets,
+    ): Promise<string | null> {
         const context: AiPromptContextInput = [];
         if (scheduler.savedChartUuid) {
             context.push({
@@ -138,21 +187,84 @@ export class AiSchedulerService extends BaseService {
             });
         }
 
-        const thread = await this.aiAgentService.createAgentThread(
+        const threadUuid = await this.resolveReportThread(
             user,
-            config.agentUuid,
-            {
-                prompt: config.prompt,
-                context: context.length ? context : undefined,
-            },
+            schedulerUuid,
+            config,
+            context.length ? context : undefined,
         );
-        if (!thread) {
+        if (!threadUuid) {
             return null;
         }
 
         return this.aiAgentService.generateAgentThreadResponse(user, {
             agentUuid: config.agentUuid,
-            threadUuid: thread.uuid,
+            threadUuid,
         });
+    }
+
+    // Agentless: a fast model writes the message from the prompt alone.
+    private async generateResourceReport(
+        config: AiSchedulerResourceConfig,
+        scheduler: SchedulerAndTargets,
+    ): Promise<string | null> {
+        const modelOptions = getModel(this.lightdashConfig.ai.copilot, {
+            enableReasoning: false,
+            useFastModel: true,
+        });
+        const resource = scheduler.dashboardUuid
+            ? `dashboard "${scheduler.name}"`
+            : `chart "${scheduler.name}"`;
+        return generateScheduledResourceReport(modelOptions, {
+            prompt: config.prompt,
+            resource,
+        });
+    }
+
+    // The thread the agent runs this report in. With run history enabled, runs
+    // share one thread so the agent sees prior deliveries; otherwise each run is
+    // a fresh thread. A remembered thread that's gone or now belongs to another
+    // agent self-heals by starting a new one.
+    private async resolveReportThread(
+        user: SessionUser,
+        schedulerUuid: string,
+        config: AiSchedulerAgentConfigInternal,
+        context: AiPromptContextInput | undefined,
+    ): Promise<string | null> {
+        const body = { prompt: config.prompt, context };
+
+        if (config.includeRunHistory && config.reportThreadUuid) {
+            try {
+                await this.aiAgentService.createAgentThreadMessage(
+                    user,
+                    config.agentUuid,
+                    config.reportThreadUuid,
+                    body,
+                );
+                return config.reportThreadUuid;
+            } catch (e) {
+                this.logger.warn(
+                    `Could not continue report thread ${config.reportThreadUuid} for scheduler ${schedulerUuid}, starting a new one: ${getErrorMessage(
+                        e,
+                    )}`,
+                );
+            }
+        }
+
+        const thread = await this.aiAgentService.createAgentThread(
+            user,
+            config.agentUuid,
+            body,
+        );
+        if (!thread) {
+            return null;
+        }
+        if (config.includeRunHistory) {
+            await this.aiSchedulerModel.setReportThread(
+                schedulerUuid,
+                thread.uuid,
+            );
+        }
+        return thread.uuid;
     }
 }

@@ -488,16 +488,32 @@ export type ApiSchedulerAndTargetsResponse = {
 };
 
 // A delivery's AI config — kept out of Scheduler so the core type stays AI-free.
-export type AiSchedulerConfig = {
+type AiSchedulerConfigBase = {
     schedulerUuid: string;
-    agentUuid: string;
     prompt: string;
+};
+
+// Runs the prompt through an AI agent, which pulls in the delivery's content.
+export type AiSchedulerAgentConfig = AiSchedulerConfigBase & {
+    type: 'agent';
+    agentUuid: string;
     sourceThreadUuid: string | null;
     includeSourceThread: boolean;
     includeRunHistory: boolean;
 };
 
-export type UpsertAiSchedulerConfig = Omit<AiSchedulerConfig, 'schedulerUuid'>;
+// Runs the prompt against a fast model over the delivery's resource directly.
+export type AiSchedulerResourceConfig = AiSchedulerConfigBase & {
+    type: 'resource';
+};
+
+export type AiSchedulerConfig =
+    | AiSchedulerAgentConfig
+    | AiSchedulerResourceConfig;
+
+export type UpsertAiSchedulerConfig =
+    | Omit<AiSchedulerAgentConfig, 'schedulerUuid'>
+    | Omit<AiSchedulerResourceConfig, 'schedulerUuid'>;
 
 export type ApiAiSchedulerConfigResponse = ApiSuccess<AiSchedulerConfig | null>;
 

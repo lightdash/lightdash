@@ -1294,14 +1294,6 @@ export default class SchedulerTask {
                 throw new Error('Slack app is not configured');
             }
 
-            const report = await this.getScheduledReport(
-                schedulerUuid,
-                notification.organizationUuid,
-            );
-            if (report) {
-                scheduler.message = report;
-            }
-
             const {
                 format,
                 savedChartUuid,
@@ -4239,6 +4231,27 @@ export default class SchedulerTask {
                     pageByChannel.slack ??
                     pageByChannel.msteams ??
                     pageByChannel.googlechat;
+            }
+
+            // AI deliveries: generate the agent's report once and reuse it as the
+            // message for every channel. Best-effort — a failure here must not
+            // block the delivery, so we fall back to the configured message.
+            if (scheduler.format !== SchedulerFormat.GSHEETS) {
+                try {
+                    const report = await this.getScheduledReport(
+                        schedulerUuid,
+                        schedulerPayload.organizationUuid,
+                    );
+                    if (report) {
+                        scheduler.message = report;
+                    }
+                } catch (e) {
+                    Logger.error(
+                        `Failed to generate AI report for scheduler ${schedulerUuid}: ${getErrorMessage(
+                            e,
+                        )}`,
+                    );
+                }
             }
 
             const scheduledJobs =

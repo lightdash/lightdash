@@ -15,13 +15,16 @@ export async function up(knex: Knex): Promise<void> {
             .references('scheduler_uuid')
             .inTable(SCHEDULER_TABLE)
             .onDelete('CASCADE');
+        table.text('type').notNullable().checkIn(['agent', 'resource']);
+        // Null for 'resource' deliveries, which run on a fast model with no agent.
         table
             .uuid('agent_uuid')
-            .notNullable()
+            .nullable()
             .references('ai_agent_uuid')
             .inTable(AI_AGENT_TABLE)
             .onDelete('CASCADE')
             .index();
+        table.check(`(type = 'agent') = (agent_uuid IS NOT NULL)`);
         table.text('prompt').notNullable();
         table
             .uuid('source_thread_uuid')
@@ -32,6 +35,14 @@ export async function up(knex: Knex): Promise<void> {
             .index();
         table.boolean('include_source_thread').notNullable().defaultTo(true);
         table.boolean('include_run_history').notNullable().defaultTo(false);
+        // Thread an agent delivery builds on across runs for "include run history".
+        table
+            .uuid('report_thread_uuid')
+            .nullable()
+            .references('ai_thread_uuid')
+            .inTable(AI_THREAD_TABLE)
+            .onDelete('SET NULL')
+            .index();
         table.timestamp('created_at').notNullable().defaultTo(knex.fn.now());
         table.timestamp('updated_at').notNullable().defaultTo(knex.fn.now());
     });
