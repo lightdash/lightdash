@@ -28,6 +28,7 @@ import {
     useRef,
     useState,
     type FC,
+    type MutableRefObject,
     type ReactNode,
 } from 'react';
 import useHealth from '../../../../hooks/health/useHealth';
@@ -65,6 +66,8 @@ type Props = Omit<MultiSelectProps, 'data' | 'onChange'> & {
     showNullOption?: boolean;
     includeNull?: boolean;
     onIncludeNullChange?: (includeNull: boolean) => void;
+    commitPendingValueRef?: MutableRefObject<(() => boolean) | undefined>;
+    onPendingValueChange?: (hasPendingValue: boolean) => void;
 };
 
 // Single value component that mimics a single select behavior - maxSelectedValues={1} behaves weirdly so we don't use it.
@@ -142,6 +145,8 @@ const FilterStringAutoComplete: FC<Props> = ({
     showNullOption,
     includeNull,
     onIncludeNullChange,
+    commitPendingValueRef,
+    onPendingValueChange,
     ...rest
 }) => {
     // The "(null)" option is only meaningful for multi-value filters.
@@ -322,6 +327,33 @@ const FilterStringAutoComplete: FC<Props> = ({
             }
         },
         [handleAdd, handleResetSearch, search],
+    );
+
+    useEffect(() => {
+        if (!commitPendingValueRef) return undefined;
+
+        commitPendingValueRef.current = () => {
+            if (search === '') return false;
+
+            handleAdd(search);
+            handleResetSearch();
+            return true;
+        };
+
+        return () => {
+            commitPendingValueRef.current = undefined;
+        };
+    }, [commitPendingValueRef, handleAdd, handleResetSearch, search]);
+
+    useEffect(() => {
+        onPendingValueChange?.(search !== '');
+    }, [onPendingValueChange, search]);
+
+    useEffect(
+        () => () => {
+            onPendingValueChange?.(false);
+        },
+        [onPendingValueChange],
     );
 
     const ValueComponent = useCallback(

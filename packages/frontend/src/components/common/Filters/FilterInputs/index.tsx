@@ -5,6 +5,7 @@ import {
     type FilterableItem,
 } from '@lightdash/common';
 import { type PopoverProps } from '@mantine/core';
+import { type MutableRefObject } from 'react';
 import BooleanFilterInputs from './BooleanFilterInputs';
 import DateFilterInputs from './DateFilterInputs';
 import DefaultFilterInputs from './DefaultFilterInputs';
@@ -16,6 +17,8 @@ export type FilterInputsProps<T extends BaseFilterRule> = {
     onChange: (value: T) => void;
     disabled?: boolean;
     popoverProps?: Omit<PopoverProps, 'children'>;
+    commitPendingValueRef?: MutableRefObject<(() => boolean) | undefined>;
+    onPendingValueChange?: (hasPendingValue: boolean) => void;
 };
 
 const FilterInputComponent = <T extends BaseFilterRule>(
