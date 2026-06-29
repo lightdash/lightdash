@@ -3,12 +3,12 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", "build/**"],
+      "outputs": ["dist/**", "build/**", "src/grammar/parser.js"],
       "cache": true
     },
     "build:fast": {
       "dependsOn": ["^build:fast"],
-      "outputs": ["dist/**", "build/**"],
+      "outputs": ["dist/**", "build/**", "src/grammar/parser.js"],
       "cache": true
     },
     "typecheck": {
