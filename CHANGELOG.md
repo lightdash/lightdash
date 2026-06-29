@@ -1,3 +1,10 @@
+# [0.3260.0](https://github.com/lightdash/lightdash/compare/0.3259.2...0.3260.0) (2026-06-29)
+
+
+### Features
+
+* add portable pivot series download option ([#24860](https://github.com/lightdash/lightdash/issues/24860)) ([7ae5094](https://github.com/lightdash/lightdash/commit/7ae5094a0c8d2d783fb6c6590e31e4090bc63e4e))
+
 ## [0.3259.2](https://github.com/lightdash/lightdash/compare/0.3259.1...0.3259.2) (2026-06-29)
 
 
