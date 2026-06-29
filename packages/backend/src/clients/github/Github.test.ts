@@ -5,7 +5,8 @@ vi.mock('@octokit/rest');
 
 const mockGetTree = vi.fn();
 (Octokit as unknown as import('vitest').Mock).mockImplementation(
-    function Octokit() {
+    // eslint-disable-next-line prefer-arrow-callback
+    function MockOctokit() {
         return {
             rest: { git: { getTree: mockGetTree } },
             hook: { after: vi.fn(), error: vi.fn() },

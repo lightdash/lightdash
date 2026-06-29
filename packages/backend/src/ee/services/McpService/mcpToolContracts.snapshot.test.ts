@@ -35,34 +35,37 @@ vi.mock('@sentry/node', () => ({
 }));
 
 vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
-    McpServer: vi.fn().mockImplementation(function McpServer() {
-        return {
-            server: {
-                registerCapabilities: vi.fn(),
-            },
-            registerResource: vi.fn(),
-            registerPrompt: vi.fn(
-                (
-                    name: string,
-                    config: RegisteredMcpPrompt['config'],
-                    _callback: unknown,
-                ) => {
-                    mockRegisteredMcpPrompts.push({ name, config });
-                    return {};
+    McpServer: vi.fn().mockImplementation(
+        // eslint-disable-next-line prefer-arrow-callback
+        function MockMcpServer() {
+            return {
+                server: {
+                    registerCapabilities: vi.fn(),
                 },
-            ),
-            registerTool: vi.fn(
-                (
-                    name: string,
-                    config: RegisteredMcpTool['config'],
-                    _callback: unknown,
-                ) => {
-                    mockRegisteredMcpTools.push({ name, config });
-                    return {};
-                },
-            ),
-        };
-    }),
+                registerResource: vi.fn(),
+                registerPrompt: vi.fn(
+                    (
+                        name: string,
+                        config: RegisteredMcpPrompt['config'],
+                        _callback: unknown,
+                    ) => {
+                        mockRegisteredMcpPrompts.push({ name, config });
+                        return {};
+                    },
+                ),
+                registerTool: vi.fn(
+                    (
+                        name: string,
+                        config: RegisteredMcpTool['config'],
+                        _callback: unknown,
+                    ) => {
+                        mockRegisteredMcpTools.push({ name, config });
+                        return {};
+                    },
+                ),
+            };
+        },
+    ),
 }));
 
 const schemaToJson = (

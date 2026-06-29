@@ -104,9 +104,14 @@ export const mockResponse = {
     json: vi.fn(),
 } as unknown as express.Response;
 
-export const mockNext = vi.fn<(error?: any) => void>() as import('vitest').Mock<
-    (error?: any) => void
-> &
+type MockNextError = {
+    status?: string;
+    message?: string;
+};
+
+export const mockNext = vi.fn<
+    (error: MockNextError) => void
+>() as import('vitest').Mock<(error: MockNextError) => void> &
     express.NextFunction;
 
 export class MockScimService extends BaseService {

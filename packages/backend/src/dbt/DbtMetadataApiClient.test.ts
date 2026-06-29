@@ -75,7 +75,8 @@ describe('DbtMetadataApiClient', () => {
                 .fn()
                 .mockResolvedValue(makeApiResponse('snowflake', [makeNode()]));
             (GraphQLClient as import('vitest').Mock).mockImplementation(
-                function GraphQLClient() {
+                // eslint-disable-next-line prefer-arrow-callback
+                function MockGraphQLClient() {
                     return { request: mockRequest };
                 },
             );
@@ -103,7 +104,8 @@ describe('DbtMetadataApiClient', () => {
                     ]),
                 );
             (GraphQLClient as import('vitest').Mock).mockImplementation(
-                function GraphQLClient() {
+                // eslint-disable-next-line prefer-arrow-callback
+                function MockGraphQLClient() {
                     return { request: mockRequest };
                 },
             );
@@ -127,7 +129,8 @@ describe('DbtMetadataApiClient', () => {
                 .fn()
                 .mockResolvedValue(makeApiResponse('postgres', [makeNode()]));
             (GraphQLClient as import('vitest').Mock).mockImplementation(
-                function GraphQLClient() {
+                // eslint-disable-next-line prefer-arrow-callback
+                function MockGraphQLClient() {
                     return { request: mockRequest };
                 },
             );
@@ -151,7 +154,8 @@ describe('DbtMetadataApiClient', () => {
                 .fn()
                 .mockResolvedValue(makeApiResponse('bigquery', [makeNode()]));
             (GraphQLClient as import('vitest').Mock).mockImplementation(
-                function GraphQLClient() {
+                // eslint-disable-next-line prefer-arrow-callback
+                function MockGraphQLClient() {
                     return { request: mockRequest };
                 },
             );

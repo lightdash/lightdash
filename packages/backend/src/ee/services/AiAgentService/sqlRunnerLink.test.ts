@@ -3,7 +3,8 @@ import { AiAgentService } from './AiAgentService';
 vi.mock('../ai/AiAgentMcpRuntimeClient', () => ({
     AiAgentMcpRuntimeClient: vi
         .fn()
-        .mockImplementation(function AiAgentMcpRuntimeClient() {
+        // eslint-disable-next-line prefer-arrow-callback
+        .mockImplementation(function MockAiAgentMcpRuntimeClient() {
             return {};
         }),
 }));

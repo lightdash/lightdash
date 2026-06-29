@@ -25,22 +25,25 @@ vi.mock('@sentry/node', () => ({
 }));
 
 vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
-    McpServer: vi.fn().mockImplementation(function McpServer() {
-        return {
-            registerResource: vi.fn(),
-            registerPrompt: vi.fn(),
-            registerTool: vi.fn(
-                (
-                    name: string,
-                    _config: Record<string, unknown>,
-                    callback: RegisteredToolCallback,
-                ) => {
-                    mockRegisteredMcpTools.set(name, callback);
-                    return {};
-                },
-            ),
-        };
-    }),
+    McpServer: vi.fn().mockImplementation(
+        // eslint-disable-next-line prefer-arrow-callback
+        function MockMcpServer() {
+            return {
+                registerResource: vi.fn(),
+                registerPrompt: vi.fn(),
+                registerTool: vi.fn(
+                    (
+                        name: string,
+                        _config: Record<string, unknown>,
+                        callback: RegisteredToolCallback,
+                    ) => {
+                        mockRegisteredMcpTools.set(name, callback);
+                        return {};
+                    },
+                ),
+            };
+        },
+    ),
 }));
 
 const projectUuid = 'project-uuid';

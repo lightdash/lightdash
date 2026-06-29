@@ -105,7 +105,36 @@ export const mockNewRole: Role = {
     updatedAt: new Date('2024-01-02'),
 };
 
-export const mockRolesModel: Record<string, any> = {
+type MockFn = import('vitest').Mock<(...args: unknown[]) => unknown>;
+
+type MockRolesModel = {
+    getRoleByUuid: MockFn;
+    getRoleWithScopesByUuid: MockFn;
+    createRole: MockFn;
+    addScopesToRole: MockFn;
+    getRolesByOrganizationUuid: MockFn;
+    getRolesWithScopesByOrganizationUuid: MockFn;
+    updateRole: MockFn;
+    deleteRole: MockFn;
+    removeScopeFromRole: MockFn;
+    getOrganizationRoleAssignments: MockFn;
+    getOrganizationAdmins: MockFn;
+    upsertOrganizationUserRoleAssignment: MockFn;
+    upsertSystemRoleProjectAccess: MockFn;
+    upsertCustomRoleProjectAccess: MockFn;
+    upsertSystemRoleGroupAccess: MockFn;
+    upsertCustomRoleGroupAccess: MockFn;
+    unassignCustomRoleFromUser: MockFn;
+    assignRoleToGroup: MockFn;
+    unassignRoleFromGroup: MockFn;
+    getProjectAccess: MockFn;
+    getProjectAccessByUserUuid: MockFn;
+    getGroupProjectAccess: MockFn;
+    removeUserProjectAccess: MockFn;
+    db: { transaction: MockFn };
+};
+
+export const mockRolesModel: MockRolesModel = {
     getRoleByUuid: vi.fn(),
     getRoleWithScopesByUuid: vi.fn(),
     createRole: vi.fn(),
@@ -142,25 +171,25 @@ export const mockRolesModel: Record<string, any> = {
     },
 };
 
-export const mockAnalytics: Record<string, any> = {
+export const mockAnalytics: Record<string, MockFn> = {
     track: vi.fn(),
 };
 
-export const mockUserModel: Record<string, any> = {
+export const mockUserModel: Record<string, MockFn> = {
     getUserDetailsByUuid: vi.fn().mockResolvedValue({
         firstName: 'Test',
         lastName: 'User',
     }),
 };
 
-export const mockOrganizationModel: Record<string, any> = {
+export const mockOrganizationModel: Record<string, MockFn> = {
     get: vi.fn().mockResolvedValue({
         organizationUuid: 'test-org-uuid',
         name: 'Test Organization',
     }),
 };
 
-export const mockProjectModel: Record<string, any> = {
+export const mockProjectModel: Record<string, MockFn> = {
     getSummary: vi.fn().mockResolvedValue({
         projectUuid: 'test-project-uuid',
         organizationUuid: 'test-org-uuid',
@@ -171,14 +200,14 @@ export const mockProjectModel: Record<string, any> = {
     ]),
 };
 
-export const mockGroupsModel: Record<string, any> = {
+export const mockGroupsModel: Record<string, MockFn> = {
     getGroup: vi.fn().mockResolvedValue({
         groupUuid: 'test-group-uuid',
         name: 'Test Group',
     }),
 };
 
-export const mockAdminNotificationService: Record<string, any> = {
+export const mockAdminNotificationService: Record<string, MockFn> = {
     notifyOrgAdminRoleChange: vi.fn().mockResolvedValue(undefined),
     notifyProjectAdminRoleChange: vi.fn().mockResolvedValue(undefined),
 };

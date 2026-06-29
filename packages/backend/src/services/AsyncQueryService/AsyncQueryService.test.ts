@@ -131,9 +131,12 @@ vi.mock('@lightdash/warehouses', async () => ({
     ...(await vi.importActual<typeof import('@lightdash/warehouses')>(
         '@lightdash/warehouses',
     )),
-    SshTunnel: vi.fn(function SshTunnel() {
-        return mockSshTunnel;
-    }),
+    SshTunnel: vi.fn().mockImplementation(
+        // eslint-disable-next-line prefer-arrow-callback
+        function MockSshTunnel() {
+            return mockSshTunnel;
+        },
+    ),
 }));
 
 const warehouseCredentialsMock = {
@@ -1453,7 +1456,7 @@ describe('AsyncQueryService', () => {
     describe('executeAsyncMetricQuery', () => {
         test('tags warehouse queries with the originating data app from the request context', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
-            service.getExploreWithUserAccessControls = jest
+            service.getExploreWithUserAccessControls = vi
                 .fn()
                 .mockResolvedValue({
                     explore: validExplore,
@@ -1462,11 +1465,11 @@ describe('AsyncQueryService', () => {
                         intrinsicUserAttributes: {},
                     },
                 });
-            (service as AnyType).getWarehouseCredentials = jest
+            (service as AnyType).getWarehouseCredentials = vi
                 .fn()
                 .mockResolvedValue(warehouseClientMock.credentials);
-            service.combineParameters = jest.fn().mockResolvedValue(undefined);
-            (service as AnyType).prepareMetricQueryAsyncQueryArgs = jest
+            service.combineParameters = vi.fn().mockResolvedValue(undefined);
+            (service as AnyType).prepareMetricQueryAsyncQueryArgs = vi
                 .fn()
                 .mockResolvedValue({
                     sql: 'SELECT * FROM test',
@@ -1482,7 +1485,7 @@ describe('AsyncQueryService', () => {
                     },
                     availableParameterDefinitions: {},
                 });
-            service['executeAsyncQuery'] = jest.fn().mockResolvedValue({
+            service['executeAsyncQuery'] = vi.fn().mockResolvedValue({
                 queryUuid: 'queryUuid',
                 cacheMetadata: {
                     cacheHit: false,
@@ -3699,14 +3702,14 @@ describe('AsyncQueryService', () => {
         test('passes savedChart.pivotConfig.columns as pivotDimensions to prepareMetricQueryAsyncQueryArgs', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
                 savedChartModel: {
-                    get: jest.fn(async () => bigNumberChart),
+                    get: vi.fn(async () => bigNumberChart),
                 } as unknown as SavedChartModel,
                 analyticsModel: {
-                    addChartViewEvent: jest.fn(async () => {}),
+                    addChartViewEvent: vi.fn(async () => {}),
                 } as unknown as AnalyticsModel,
             });
 
-            service.getExploreWithUserAccessControls = jest
+            service.getExploreWithUserAccessControls = vi
                 .fn()
                 .mockResolvedValue({
                     explore: validExplore,
@@ -3715,15 +3718,15 @@ describe('AsyncQueryService', () => {
                         intrinsicUserAttributes: {},
                     },
                 });
-            (service as AnyType).getWarehouseCredentials = jest
+            (service as AnyType).getWarehouseCredentials = vi
                 .fn()
                 .mockResolvedValue(warehouseClientMock.credentials);
-            service.combineParameters = jest.fn().mockResolvedValue(undefined);
-            (service as AnyType).getMetricQueryFields = jest
+            service.combineParameters = vi.fn().mockResolvedValue(undefined);
+            (service as AnyType).getMetricQueryFields = vi
                 .fn()
                 .mockResolvedValue({ fields: {} });
 
-            const prepareSpy = jest.fn().mockResolvedValue({
+            const prepareSpy = vi.fn().mockResolvedValue({
                 sql: 'SELECT 1',
                 fields: {},
                 warnings: [],
@@ -3739,7 +3742,7 @@ describe('AsyncQueryService', () => {
             });
             (service as AnyType).prepareMetricQueryAsyncQueryArgs = prepareSpy;
 
-            service['executeAsyncQuery'] = jest.fn().mockResolvedValue({
+            service['executeAsyncQuery'] = vi.fn().mockResolvedValue({
                 queryUuid: 'queryUuid',
                 cacheMetadata: { cacheHit: false },
             });

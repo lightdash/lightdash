@@ -109,12 +109,13 @@ vi.mock('worker_threads', async () => {
     >('@lightdash/common');
     return {
         Worker: vi.fn().mockImplementation(
-            (
+            // eslint-disable-next-line prefer-arrow-callback
+            function MockWorker(
                 _path: string,
                 options: {
                     workerData: { rows: unknown[]; itemMap: unknown };
                 },
-            ) => {
+            ) {
                 const { rows, itemMap } = options.workerData;
                 const result = formatRows(rows, itemMap);
                 return {
@@ -136,10 +137,15 @@ vi.mock('worker_threads', async () => {
 });
 
 vi.mock('@lightdash/warehouses', () => ({
-    SshTunnel: vi.fn(() => ({
-        connect: vi.fn(() => warehouseClientMock.credentials),
-        disconnect: vi.fn(),
-    })),
+    SshTunnel: vi.fn().mockImplementation(
+        // eslint-disable-next-line prefer-arrow-callback
+        function MockSshTunnel() {
+            return {
+                connect: vi.fn(() => warehouseClientMock.credentials),
+                disconnect: vi.fn(),
+            };
+        },
+    ),
     exchangeDatabricksOAuthCredentials: vi.fn(),
     refreshDatabricksOAuthToken: vi.fn(),
     DATABRICKS_DEFAULT_OAUTH_CLIENT_ID: 'default-client-id',
