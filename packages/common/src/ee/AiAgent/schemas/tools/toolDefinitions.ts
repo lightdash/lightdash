@@ -96,11 +96,13 @@ import {
     toolFindDashboardsOutputSchema,
 } from './toolFindDashboardsArgs';
 import {
+    mcpFindExploresStructuredOutputSchema,
     TOOL_FIND_EXPLORES_DESCRIPTION,
     toolFindExploresArgsSchemaV3,
     toolFindExploresOutputSchema,
 } from './toolFindExploresArgs';
 import {
+    mcpFindFieldsStructuredOutputSchema,
     TOOL_FIND_FIELDS_DESCRIPTION,
     toolFindFieldsArgsSchema,
     toolFindFieldsOutputSchema,
@@ -323,7 +325,10 @@ export const findExploresToolDefinition = defineTool({
     availability: ['agent', 'mcp'],
     inputSchema: toolFindExploresArgsSchemaV3,
     agent: { outputSchema: toolFindExploresOutputSchema },
-    mcp: { annotations: readOnlyAnnotations },
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpFindExploresStructuredOutputSchema,
+    },
 });
 
 export const findFieldsToolDefinition = defineTool({
@@ -333,7 +338,10 @@ export const findFieldsToolDefinition = defineTool({
     availability: ['agent', 'mcp'],
     inputSchema: toolFindFieldsArgsSchema,
     agent: { outputSchema: toolFindFieldsOutputSchema },
-    mcp: { annotations: readOnlyAnnotations },
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpFindFieldsStructuredOutputSchema,
+    },
 });
 
 export const searchSemanticLayerToolDefinition = defineTool({

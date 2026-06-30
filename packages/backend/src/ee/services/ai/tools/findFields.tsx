@@ -9,6 +9,7 @@ import {
     getFilterTypeFromItemType,
     getItemId,
     isEmojiIcon,
+    type McpFindFieldsStructuredOutput,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
@@ -98,11 +99,15 @@ const formatField = (
     };
 };
 
-const getFieldsText = (
-    args: Awaited<ReturnType<FindFieldFn>> & { searchQuery: string },
+type FindFieldsSearchQueryResult = Awaited<ReturnType<FindFieldFn>> & {
+    searchQuery: string;
+};
+
+const buildFindFieldsSearchResult = (
+    args: FindFieldsSearchQueryResult,
     toolDescriptionMaxChars: number,
     explore?: Explore,
-) => ({
+): McpFindFieldsStructuredOutput['searchResults'][number] => ({
     searchQuery: args.searchQuery,
     page: args.pagination?.page ?? null,
     pageSize: args.pagination?.pageSize ?? null,
@@ -110,6 +115,24 @@ const getFieldsText = (
     totalResults: args.pagination?.totalResults ?? null,
     fields: args.fields.map((field) =>
         formatField(field, toolDescriptionMaxChars, explore),
+    ),
+});
+
+export const buildFindFieldsStructuredContent = ({
+    fieldSearchQueryResults,
+    toolDescriptionMaxChars,
+    explore,
+}: {
+    fieldSearchQueryResults: FindFieldsSearchQueryResult[];
+    toolDescriptionMaxChars: number;
+    explore?: Explore;
+}): McpFindFieldsStructuredOutput => ({
+    searchResults: fieldSearchQueryResults.map((fieldSearchQueryResult) =>
+        buildFindFieldsSearchResult(
+            fieldSearchQueryResult,
+            toolDescriptionMaxChars,
+            explore,
+        ),
     ),
 });
 
@@ -151,17 +174,14 @@ export const getFindFields = ({
                     }),
                 );
 
-                const searchResults = fieldSearchQueryResults.map(
-                    (fieldSearchQueryResult) =>
-                        getFieldsText(
-                            fieldSearchQueryResult,
-                            toolDescriptionMaxChars,
-                            explore,
-                        ),
-                );
+                const structuredContent = buildFindFieldsStructuredContent({
+                    fieldSearchQueryResults,
+                    toolDescriptionMaxChars,
+                    explore,
+                });
 
                 return {
-                    result: formatToolJsonOutput({ searchResults }),
+                    result: formatToolJsonOutput(structuredContent),
                     metadata: {
                         status: 'success',
                         ranking: {

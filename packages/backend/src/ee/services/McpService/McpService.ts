@@ -114,13 +114,14 @@ import {
 import { getCreateContent } from '../ai/tools/createContent';
 import { getEditContent } from '../ai/tools/editContent';
 import { getFindContent } from '../ai/tools/findContent';
-import { getFindExplores } from '../ai/tools/findExplores';
-import { getFindFields } from '../ai/tools/findFields';
+import { buildFindExploresStructuredContent } from '../ai/tools/findExplores';
+import { buildFindFieldsStructuredContent } from '../ai/tools/findFields';
 import { getListContent } from '../ai/tools/listContent';
 import { getMcpListExplores } from '../ai/tools/mcpListExplores';
 import { getReadContent } from '../ai/tools/readContent';
 import { validateRunQueryTool } from '../ai/tools/runQuery';
 import { getSearchFieldValues } from '../ai/tools/searchFieldValues';
+import { formatToolJsonOutput } from '../ai/tools/toolOutputFormat';
 import { getPivotedResults } from '../ai/utils/getPivotedResults';
 import {
     expandMetricsWithPopAdditionalMetrics,
@@ -173,8 +174,6 @@ export enum McpToolName {
 
 // Skills-over-MCP extension identifier (SEP-2640).
 const MCP_SKILLS_EXTENSION_NAME = 'io.modelcontextprotocol/skills';
-
-const structuredToolContentSchema = z.record(z.string(), z.unknown());
 
 const mcpRunAiWritebackTool = runAiWritebackToolDefinition.for('mcp');
 const mcpGetLightdashVersionTool = getLightdashVersionToolDefinition.for('mcp');
@@ -475,46 +474,14 @@ export class McpService extends BaseService {
     static async streamToolResult<T extends { result: string }>(
         result: T | AsyncIterable<T>,
     ) {
-        const { resultText } = await McpService.streamToolResponse(result);
-        return resultText;
-    }
-
-    private static parseToolStructuredContent(
-        toolResult: string,
-    ): Record<string, unknown> | undefined {
-        try {
-            const parsed: unknown = JSON.parse(toolResult);
-            const structuredContent =
-                structuredToolContentSchema.safeParse(parsed);
-            return structuredContent.success
-                ? structuredContent.data
-                : undefined;
-        } catch {
-            return undefined;
-        }
-    }
-
-    static async streamToolResponse<T extends { result: string }>(
-        result: T | AsyncIterable<T>,
-    ): Promise<{
-        resultText: string;
-        structuredContent?: Record<string, unknown>;
-    }> {
-        let resultText = '';
-
         if (Symbol.asyncIterator in result) {
+            let out = '';
             for await (const chunk of result) {
-                resultText += chunk.result;
+                out += chunk.result;
             }
-        } else {
-            resultText = result.result;
+            return out;
         }
-
-        return {
-            resultText,
-            structuredContent:
-                McpService.parseToolStructuredContent(resultText),
-        };
+        return result.result;
     }
 
     private static getMcpQueryWaitMs(
@@ -1353,6 +1320,7 @@ export class McpService extends BaseService {
                 title: mcpFindExploresTool.title,
                 description: mcpFindExploresTool.description,
                 inputSchema: mcpFindExploresTool.inputSchema.shape,
+                outputSchema: mcpFindExploresTool.outputSchema.shape,
                 annotations: mcpFindExploresTool.annotations,
             },
             async (args, extra) => {
@@ -1360,7 +1328,6 @@ export class McpService extends BaseService {
                 const { user } = McpService.getAccount(ctx);
 
                 const projectUuid = await this.resolveProjectUuid(ctx);
-                const argsWithProject = { ...args, projectUuid };
 
                 this.trackToolCall(ctx, McpToolName.FIND_EXPLORES, projectUuid);
 
@@ -1368,28 +1335,19 @@ export class McpService extends BaseService {
                     ctx,
                     projectUuid,
                 );
-                const availableExplores = await toolsRuntime.listExplores();
-
-                const findExploresTool = getFindExplores({
-                    findExplores: toolsRuntime.findExplores,
-                    updateProgress: async () => {}, // No-op for MCP context
-                    fieldSearchSize: 200,
+                const { exploreSearchResults, topMatchingFields } =
+                    await toolsRuntime.findExplores({
+                        fieldSearchSize: 200,
+                        searchQuery: args.searchQuery,
+                    });
+                const structuredContent = buildFindExploresStructuredContent({
+                    searchQuery: args.searchQuery,
+                    exploreSearchResults,
+                    topMatchingFields,
                     toolDescriptionMaxChars:
                         this.lightdashConfig.ai.copilot.toolDescriptionMaxChars,
                 });
-                const result = await findExploresTool.execute!(
-                    {
-                        ...argsWithProject,
-                        searchQuery: args.searchQuery,
-                    },
-                    {
-                        toolCallId: '',
-                        messages: [],
-                        experimental_context: { availableExplores },
-                    },
-                );
-                const { resultText, structuredContent } =
-                    await McpService.streamToolResponse(result);
+                const resultText = formatToolJsonOutput(structuredContent);
                 const metadata = await this.getActiveContextMetadata(ctx);
 
                 const verifiedAnswerContext = metadata.agentUuid
@@ -1416,7 +1374,7 @@ export class McpService extends BaseService {
                     ctx,
                     `${resultText}${verifiedAnswersText}`,
                     {
-                        ...(structuredContent ?? {}),
+                        ...structuredContent,
                         relevantVerifiedAnswers:
                             verifiedAnswerContext.relevantVerifiedAnswers,
                     },
@@ -1431,13 +1389,13 @@ export class McpService extends BaseService {
                 title: mcpFindFieldsTool.title,
                 description: mcpFindFieldsTool.description,
                 inputSchema: mcpFindFieldsTool.inputSchema.shape,
+                outputSchema: mcpFindFieldsTool.outputSchema.shape,
                 annotations: mcpFindFieldsTool.annotations,
             },
             async (args, extra) => {
                 const ctx = getMcpContext(extra);
 
                 const projectUuid = await this.resolveProjectUuid(ctx);
-                const argsWithProject = { ...args, projectUuid };
 
                 this.trackToolCall(ctx, McpToolName.FIND_FIELDS, projectUuid);
 
@@ -1446,24 +1404,34 @@ export class McpService extends BaseService {
                     projectUuid,
                 );
 
-                const findFieldsTool = getFindFields({
-                    getExplore: toolsRuntime.getExplore,
-                    findFields: toolsRuntime.findFields,
-                    updateProgress: async () => {}, // No-op for MCP context
-                    pageSize: 15,
+                const explore = await toolsRuntime.getExplore({
+                    table: args.table,
+                });
+                const fieldSearchQueryResults = await Promise.all(
+                    args.fieldSearchQueries.map(async (fieldSearchQuery) => {
+                        const result = await toolsRuntime.findFields({
+                            table: args.table,
+                            fieldSearchQuery,
+                            page: args.page ?? 1,
+                            pageSize: 15,
+                            explore,
+                        });
+                        return {
+                            searchQuery: fieldSearchQuery.label,
+                            ...result,
+                        };
+                    }),
+                );
+                const structuredContent = buildFindFieldsStructuredContent({
+                    fieldSearchQueryResults,
                     toolDescriptionMaxChars:
                         this.lightdashConfig.ai.copilot.toolDescriptionMaxChars,
+                    explore,
                 });
-                const result = await findFieldsTool.execute!(argsWithProject, {
-                    toolCallId: '',
-                    messages: [],
-                });
-                const { resultText, structuredContent } =
-                    await McpService.streamToolResponse(result);
 
                 return this.buildScopedResponse(
                     ctx,
-                    resultText,
+                    formatToolJsonOutput(structuredContent),
                     structuredContent,
                     projectUuid,
                 );

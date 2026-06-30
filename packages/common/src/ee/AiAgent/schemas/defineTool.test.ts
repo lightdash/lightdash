@@ -182,6 +182,8 @@ describe('defineTool', () => {
             .sort();
 
         expect(structuredMcpToolNames).toEqual([
+            'find_explores',
+            'find_fields',
             'get_query_result',
             'list_skills',
             'read_skill',

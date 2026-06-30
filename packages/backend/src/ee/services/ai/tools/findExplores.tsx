@@ -1,4 +1,7 @@
-import { findExploresToolDefinition } from '@lightdash/common';
+import {
+    findExploresToolDefinition,
+    type McpFindExploresStructuredOutput,
+} from '@lightdash/common';
 import { tool } from 'ai';
 import type {
     FindExploresFn,
@@ -18,7 +21,7 @@ type Dependencies = {
 
 const toolDefinition = findExploresToolDefinition.for('agent');
 
-const generateExploreResponse = ({
+export const buildFindExploresStructuredContent = ({
     searchQuery,
     exploreSearchResults,
     topMatchingFields,
@@ -26,7 +29,7 @@ const generateExploreResponse = ({
 }: Awaited<ReturnType<FindExploresFn>> & {
     searchQuery: string;
     toolDescriptionMaxChars: number;
-}) => {
+}): McpFindExploresStructuredOutput => {
     const exploreCount = exploreSearchResults?.length ?? 0;
     const fieldCount = topMatchingFields?.length ?? 0;
 
@@ -47,7 +50,7 @@ const generateExploreResponse = ({
             ? 'No field-level matches either.'
             : "Per-field matches across all explores. Each field's `exploreName` shows where it lives — pick the explore whose fields can answer the user's question.";
 
-    return formatToolJsonOutput({
+    return {
         searchQuery,
         description:
             "Two-pass catalog search whose goal is to identify the single explore for a follow-up query: a query runs against exactly one explore, so the chosen explore must contain the fields needed to answer the user's question. `searchResults` lists explores whose name/label/description/aiHints matched the query. `topMatchingFields` lists individual fields whose name/label/description matched, across all explores — use it to identify or disambiguate the explore to dig into when no explore matched directly, or when several matched.",
@@ -89,7 +92,7 @@ const generateExploreResponse = ({
                     usageInVerifiedCharts: field.verifiedChartUsage ?? 0,
                 })) ?? [],
         },
-    });
+    };
 };
 export const getFindExplores = ({
     findExplores,
@@ -111,13 +114,15 @@ export const getFindExplores = ({
                         searchQuery: args.searchQuery,
                     });
 
+                const structuredContent = buildFindExploresStructuredContent({
+                    searchQuery: args.searchQuery,
+                    exploreSearchResults,
+                    topMatchingFields,
+                    toolDescriptionMaxChars,
+                });
+
                 return {
-                    result: generateExploreResponse({
-                        searchQuery: args.searchQuery,
-                        exploreSearchResults,
-                        topMatchingFields,
-                        toolDescriptionMaxChars,
-                    }),
+                    result: formatToolJsonOutput(structuredContent),
                     metadata: {
                         status: 'success',
                         ranking: {

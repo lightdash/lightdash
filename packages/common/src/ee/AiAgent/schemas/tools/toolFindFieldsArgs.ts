@@ -57,6 +57,39 @@ export const findFieldsRankingMetadataSchema = z.object({
     ),
 });
 
+export const mcpFindFieldsStructuredOutputSchema = z.object({
+    searchResults: z.array(
+        z.object({
+            searchQuery: z.string(),
+            page: z.number().nullable(),
+            pageSize: z.number().nullable(),
+            totalPageCount: z.number().nullable(),
+            totalResults: z.number().nullable(),
+            fields: z.array(
+                z.object({
+                    type: z.string(),
+                    baseTable: z.string(),
+                    name: z.string(),
+                    fieldId: z.string(),
+                    fieldType: z.string(),
+                    fieldFilterType: z.string(),
+                    searchRank: z.number().nullable().optional(),
+                    chartUsage: z.number().nullable().optional(),
+                    usageInVerifiedCharts: z.number(),
+                    isFromJoinedTable: z.boolean(),
+                    caseSensitiveFilters: z.boolean().nullable(),
+                    note: z.string().nullable(),
+                    label: z.string(),
+                    aiHints: z.array(z.string()),
+                    description: z.string().nullable(),
+                    categories: z.array(z.string()),
+                    emoji: z.string().nullable(),
+                }),
+            ),
+        }),
+    ),
+});
+
 export const toolFindFieldsOutputSchema = z.object({
     result: z.string(),
     metadata: baseOutputMetadataSchema.extend({
@@ -66,4 +99,7 @@ export const toolFindFieldsOutputSchema = z.object({
 
 export type ToolFindFieldsArgs = z.infer<typeof toolFindFieldsArgsSchema>;
 export type ToolFindFieldsArgsTransformed = ToolFindFieldsArgs;
+export type McpFindFieldsStructuredOutput = z.infer<
+    typeof mcpFindFieldsStructuredOutputSchema
+>;
 export type ToolFindFieldsOutput = z.infer<typeof toolFindFieldsOutputSchema>;
