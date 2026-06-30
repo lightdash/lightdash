@@ -101,7 +101,7 @@ const buildSemanticLayerWritebackPrompt = (
         targetLines.length > 0
             ? `Target(s) to edit:\n${targetLines.join('\n')}`
             : null,
-        'Apply the change by updating field descriptions, ai_hint, or labels, or by adding a missing model, join, dimension, or metric as appropriate. Do not change SQL logic or unrelated fields. If the data needed to answer this is genuinely not present in the warehouse/dbt project and cannot be exposed by a semantic-layer edit, do not fabricate fields or invent data — open no pull request and report that upstream dbt modeling or ingestion is required. Otherwise open a pull request describing the change and referencing this review finding.',
+        'Apply the change by updating field descriptions, ai_hint, or labels, or by adding a missing model, join, dimension, or metric as appropriate. Put routing and disambiguation directives — "use this field when…" steering, join recipes, and negative cross-model caveats like "NOT suitable for…, use the other model instead" — in ai_hint (model or field level), never in a description: a description defines what a field is, while an ai_hint tells the agent when to choose it over a similar one. Do not change SQL logic or unrelated fields. If the data needed to answer this is genuinely not present in the warehouse/dbt project and cannot be exposed by a semantic-layer edit, do not fabricate fields or invent data — open no pull request and report that upstream dbt modeling or ingestion is required. Otherwise open a pull request describing the change and referencing this review finding.',
     ].filter((section): section is string => section !== null);
 
     return {
