@@ -51,12 +51,11 @@ export const appsDownloadHandler = async (
             ? `?version=${options.appVersion}`
             : '';
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const code = (await lightdashApi<any>({
+        const code = await lightdashApi<DataAppCode>({
             method: 'GET',
             url: `/api/v1/ee/projects/${projectUuid}/apps/${appUuid}/code${versionQuery}`,
             body: undefined,
-        })) as DataAppCode;
+        });
 
         await writeBundleToDir(targetDir, code);
 
