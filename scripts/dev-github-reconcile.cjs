@@ -78,9 +78,18 @@ async function gh(url, opts = {}) {
 }
 
 async function listInstallations() {
-  const res = await gh('/app/installations');
-  if (!res.ok) throw new Error(`GET /app/installations -> ${res.status}`);
-  return res.json();
+  // The shared dev App has 100+ installations; the API defaults to 30 per page,
+  // so without pagination YOUR account can fall beyond page 1 and look "not installed".
+  const all = [];
+  for (let page = 1; ; page += 1) {
+    const res = await gh(`/app/installations?per_page=100&page=${page}`);
+    if (!res.ok) throw new Error(`GET /app/installations -> ${res.status}`);
+    const batch = await res.json();
+    if (!Array.isArray(batch) || batch.length === 0) break;
+    all.push(...batch);
+    if (batch.length < 100) break;
+  }
+  return all;
 }
 async function pickInstallation() {
   const list = await listInstallations();
@@ -111,7 +120,7 @@ async function orgUuid(client) {
 async function stepInstallation(client) {
   const secret = need('RUNNING_SECRET');
   const org = await orgUuid(client);
-  const live = await gh('/app/installations').then((r) => r.json());
+  const live = await listInstallations();
   const liveIds = new Set((Array.isArray(live) ? live : []).map((i) => String(i.id)));
 
   const existing = await client.query(
