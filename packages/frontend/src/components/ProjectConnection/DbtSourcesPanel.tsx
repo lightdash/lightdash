@@ -31,6 +31,7 @@ import MantineIcon from '../common/MantineIcon';
 import { dbtDefaults } from './DbtForms/defaultValues';
 import { dbtFormValidators } from './DbtForms/validators';
 import DbtSettingsForm from './DbtSettingsForm';
+import classes from './DbtSourcesPanel.module.css';
 import { FormProvider, useForm } from './formContext';
 import { ProjectFormProvider } from './ProjectFormProvider';
 
@@ -176,9 +177,12 @@ const DbtSourcesPanel: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     }
 
     return (
-        <Card withBorder shadow="xs" padding="lg">
+        <Card withBorder shadow="xs" padding="lg" className={classes.card}>
+            <div className={classes.ribbon}>
+                <span>Experimental</span>
+            </div>
             <Stack spacing="md">
-                <Group position="apart" align="flex-start">
+                <Group position="apart" align="flex-start" pr={64}>
                     <div>
                         <Title order={5}>Additional dbt sources</Title>
                         <Text size="sm" color="dimmed">
