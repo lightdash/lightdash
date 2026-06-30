@@ -897,6 +897,34 @@ export type UpdateProjectDbtSource = {
     dbtConnection?: DbtProjectConfig | null;
 };
 
+/**
+ * Non-sensitive view of a dbt source for API responses — never includes the
+ * decrypted connection (which holds credentials). The primary source is
+ * synthesised from the project's own dbt_connection.
+ */
+export type ProjectDbtSourceSummary = {
+    projectDbtSourceUuid: string;
+    name: string;
+    isPrimary: boolean;
+    precedence: number;
+    type: DbtProjectType | null;
+};
+
+export type ApiCreateProjectDbtSource = {
+    name: string;
+    dbtConnection: DbtProjectConfig;
+};
+
+export type ApiProjectDbtSourcesResponse = {
+    status: 'ok';
+    results: ProjectDbtSourceSummary[];
+};
+
+export type ApiProjectDbtSourceResponse = {
+    status: 'ok';
+    results: ProjectDbtSourceSummary;
+};
+
 export const isGitProjectType = (
     connection: DbtProjectConfig,
 ): connection is
