@@ -121,7 +121,6 @@ export type AiAgentArgs = AnyAiModel & {
     warehouseType: WarehouseTypes | null;
     warehouseSchema: string | null;
     availableSkills: AiAgentSkillReference[];
-    enableAgentRevamp: boolean;
 
     findExploresFieldSearchSize: number;
     findFieldsPageSize: number;

@@ -197,12 +197,6 @@ export const AiAgentFormSetup = ({
     const isGroupsEnabled =
         userGroupsFeatureFlagQuery.isSuccess &&
         userGroupsFeatureFlagQuery.data.enabled;
-    const agentRevampFeatureFlagQuery = useServerFeatureFlag(
-        FeatureFlags.AiAgentRevamp,
-    );
-    const isAgentRevampEnabled =
-        agentRevampFeatureFlagQuery.isSuccess &&
-        agentRevampFeatureFlagQuery.data.enabled;
 
     const handlePersistedMcpServerChange = useCallback(
         (value: string[]) => {
@@ -763,53 +757,48 @@ export const AiAgentFormSetup = ({
                                     }
                                 }}
                             />
-                            {isAgentRevampEnabled && (
-                                <Switch
-                                    variant="subtle"
-                                    label={
-                                        <Group gap="xs">
-                                            <Text fz="sm" fw={500}>
-                                                Allow agent to manage Lightdash
-                                                content
-                                            </Text>
-                                            <Tooltip
-                                                label="Requires data access to be enabled. Only works for users with content-as-code access (admins and developers)."
-                                                withArrow
-                                                withinPortal
-                                                multiline
-                                                position="right"
-                                                maw="300px"
-                                            >
+                            <Switch
+                                variant="subtle"
+                                label={
+                                    <Group gap="xs">
+                                        <Text fz="sm" fw={500}>
+                                            Allow agent to manage Lightdash
+                                            content
+                                        </Text>
+                                        <Tooltip
+                                            label="Requires data access to be enabled. Only works for users with content-as-code access (admins and developers)."
+                                            withArrow
+                                            withinPortal
+                                            multiline
+                                            position="right"
+                                            maw="300px"
+                                        >
+                                            <MantineIcon
+                                                icon={IconInfoCircle}
+                                            />
+                                        </Tooltip>
+                                        <Badge
+                                            color="indigo"
+                                            radius="sm"
+                                            variant="light"
+                                            leftSection={
                                                 <MantineIcon
-                                                    icon={IconInfoCircle}
+                                                    icon={IconSparkles}
                                                 />
-                                            </Tooltip>
-                                            <Badge
-                                                color="indigo"
-                                                radius="sm"
-                                                variant="light"
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconSparkles}
-                                                    />
-                                                }
-                                            >
-                                                Beta
-                                            </Badge>
-                                        </Group>
-                                    }
-                                    description={
-                                        'Agent can build new dashboards and charts and update existing ones — add or rearrange tiles, organize tabs, change filters, and more.'
-                                    }
-                                    {...form.getInputProps(
-                                        'enableContentTools',
-                                        {
-                                            type: 'checkbox',
-                                        },
-                                    )}
-                                    disabled={!form.values.enableDataAccess}
-                                />
-                            )}
+                                            }
+                                        >
+                                            Beta
+                                        </Badge>
+                                    </Group>
+                                }
+                                description={
+                                    'Agent can build new dashboards and charts and update existing ones — add or rearrange tiles, organize tabs, change filters, and more.'
+                                }
+                                {...form.getInputProps('enableContentTools', {
+                                    type: 'checkbox',
+                                })}
+                                disabled={!form.values.enableDataAccess}
+                            />
                         </Stack>
                     </Paper>
 

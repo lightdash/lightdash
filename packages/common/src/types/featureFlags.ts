@@ -109,10 +109,7 @@ export enum FeatureFlags {
     AiAutopilot = 'ai-autopilot',
 
     /**
-     * Enable AI agent revamp features including built-in skills, the
-     * loadSkill tool, and content tools like readContent/editContent/createContent.
-     * When enabled, these replace older dashboard-specific content lookup
-     * tools in the agent tool surface.
+     * @deprecated Rolled out to all customers. Keep for persisted feature flag config only.
      */
     AiAgentRevamp = 'ai-agent-revamp',
 
