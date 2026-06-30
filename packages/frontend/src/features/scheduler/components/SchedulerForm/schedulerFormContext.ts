@@ -143,7 +143,7 @@ export const getFormValuesFromScheduler = (
     aiConfig?: AiSchedulerConfig | null,
 ): SchedulerFormValues => {
     const options = schedulerData.options;
-    const agentConfig = aiConfig?.type === 'agent' ? aiConfig : null;
+    const agentConfig = aiConfig?.type === 'agentPrompt' ? aiConfig : null;
 
     const formOptions = { ...DEFAULT_VALUES.options };
 

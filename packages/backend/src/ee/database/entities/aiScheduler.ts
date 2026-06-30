@@ -4,7 +4,7 @@ export const AiSchedulerTableName = 'ai_scheduler';
 
 export type DbAiScheduler = {
     scheduler_uuid: string;
-    type: 'agent' | 'resource';
+    type: 'agentPrompt' | 'savedContent';
     agent_uuid: string | null;
     prompt: string;
     source_thread_uuid: string | null;

@@ -96,7 +96,7 @@ const useSchedulerFormModal = ({
 
     const aiConfig = useAiSchedulerConfig(schedulerUuid);
     const sourceThreadUuid =
-        (aiConfig.data?.type === 'agent'
+        (aiConfig.data?.type === 'agentPrompt'
             ? aiConfig.data.sourceThreadUuid
             : null) ??
         initialFormValues?.sourceThreadUuid ??
@@ -307,7 +307,7 @@ const useSchedulerFormModal = ({
             try {
                 if (values.agentUuid) {
                     await upsertAiSchedulerConfig(savedSchedulerUuid, {
-                        type: 'agent',
+                        type: 'agentPrompt',
                         agentUuid: values.agentUuid,
                         prompt: values.prompt,
                         sourceThreadUuid: values.includeSourceThread

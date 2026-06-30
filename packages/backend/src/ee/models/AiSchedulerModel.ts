@@ -1,7 +1,7 @@
 import {
     UnexpectedDatabaseError,
-    type AiSchedulerAgentConfig,
-    type AiSchedulerResourceConfig,
+    type AiSchedulerAgentPromptConfig,
+    type AiSchedulerSavedContentConfig,
     type UpsertAiSchedulerConfig,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -12,18 +12,19 @@ import {
 
 // Server-only view: adds the persistent report thread the worker builds on
 // across runs. Kept out of the API-facing AiSchedulerConfig.
-export type AiSchedulerAgentConfigInternal = AiSchedulerAgentConfig & {
-    reportThreadUuid: string | null;
-};
+export type AiSchedulerAgentPromptConfigInternal =
+    AiSchedulerAgentPromptConfig & {
+        reportThreadUuid: string | null;
+    };
 
 export type AiSchedulerConfigInternal =
-    | AiSchedulerAgentConfigInternal
-    | AiSchedulerResourceConfig;
+    | AiSchedulerAgentPromptConfigInternal
+    | AiSchedulerSavedContentConfig;
 
 const fromRow = (row: DbAiScheduler): AiSchedulerConfigInternal => {
-    if (row.type === 'resource') {
+    if (row.type === 'savedContent') {
         return {
-            type: 'resource',
+            type: 'savedContent',
             schedulerUuid: row.scheduler_uuid,
             prompt: row.prompt,
         };
@@ -34,7 +35,7 @@ const fromRow = (row: DbAiScheduler): AiSchedulerConfigInternal => {
         );
     }
     return {
-        type: 'agent',
+        type: 'agentPrompt',
         schedulerUuid: row.scheduler_uuid,
         agentUuid: row.agent_uuid,
         prompt: row.prompt,
@@ -46,9 +47,9 @@ const fromRow = (row: DbAiScheduler): AiSchedulerConfigInternal => {
 };
 
 const toRow = (config: UpsertAiSchedulerConfig) =>
-    config.type === 'agent'
+    config.type === 'agentPrompt'
         ? {
-              type: 'agent' as const,
+              type: 'agentPrompt' as const,
               agent_uuid: config.agentUuid,
               prompt: config.prompt,
               source_thread_uuid: config.sourceThreadUuid,
@@ -56,7 +57,7 @@ const toRow = (config: UpsertAiSchedulerConfig) =>
               include_run_history: config.includeRunHistory,
           }
         : {
-              type: 'resource' as const,
+              type: 'savedContent' as const,
               agent_uuid: null,
               prompt: config.prompt,
               source_thread_uuid: null,

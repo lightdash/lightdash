@@ -5,7 +5,7 @@ import {
     getErrorMessage,
     type AiPromptContextInput,
     type AiSchedulerConfig,
-    type AiSchedulerResourceConfig,
+    type AiSchedulerSavedContentConfig,
     type SchedulerAndTargets,
     type SessionUser,
     type UpsertAiSchedulerConfig,
@@ -17,9 +17,9 @@ import { BaseService } from '../../services/BaseService';
 import { SchedulerService } from '../../services/SchedulerService/SchedulerService';
 import {
     AiSchedulerModel,
-    type AiSchedulerAgentConfigInternal,
+    type AiSchedulerAgentPromptConfigInternal,
 } from '../models/AiSchedulerModel';
-import { generateScheduledResourceReport } from './ai/agents/scheduledResourceReportGenerator';
+import { generateScheduledSavedContentReport } from './ai/agents/scheduledSavedContentReportGenerator';
 import { getModel } from './ai/models';
 import { AiAgentService } from './AiAgentService/AiAgentService';
 
@@ -91,7 +91,7 @@ export class AiSchedulerService extends BaseService {
     ): Promise<AiSchedulerConfig | null> {
         await this.assertCanManageScheduler(user, schedulerUuid);
         const config = await this.aiSchedulerModel.find(schedulerUuid);
-        if (!config || config.type === 'resource') {
+        if (!config || config.type === 'savedContent') {
             return config;
         }
         const { reportThreadUuid, ...publicConfig } = config;
@@ -107,7 +107,7 @@ export class AiSchedulerService extends BaseService {
             user,
             schedulerUuid,
         );
-        if (config.type === 'agent') {
+        if (config.type === 'agentPrompt') {
             // Throws ForbiddenError if the user can't access the agent.
             await this.aiAgentService.getAgent(
                 user,
@@ -144,15 +144,15 @@ export class AiSchedulerService extends BaseService {
         );
 
         switch (config.type) {
-            case 'agent':
+            case 'agentPrompt':
                 return this.generateAgentReport(
                     user,
                     schedulerUuid,
                     config,
                     scheduler,
                 );
-            case 'resource':
-                return this.generateResourceReport(config, scheduler);
+            case 'savedContent':
+                return this.generateSavedContentReport(config, scheduler);
             default:
                 return assertUnreachable(
                     config,
@@ -164,7 +164,7 @@ export class AiSchedulerService extends BaseService {
     private async generateAgentReport(
         user: SessionUser,
         schedulerUuid: string,
-        config: AiSchedulerAgentConfigInternal,
+        config: AiSchedulerAgentPromptConfigInternal,
         scheduler: SchedulerAndTargets,
     ): Promise<string | null> {
         const context: AiPromptContextInput = [];
@@ -204,20 +204,20 @@ export class AiSchedulerService extends BaseService {
     }
 
     // Agentless: a fast model writes the message from the prompt alone.
-    private async generateResourceReport(
-        config: AiSchedulerResourceConfig,
+    private async generateSavedContentReport(
+        config: AiSchedulerSavedContentConfig,
         scheduler: SchedulerAndTargets,
     ): Promise<string | null> {
         const modelOptions = getModel(this.lightdashConfig.ai.copilot, {
             enableReasoning: false,
             useFastModel: true,
         });
-        const resource = scheduler.dashboardUuid
+        const content = scheduler.dashboardUuid
             ? `dashboard "${scheduler.name}"`
             : `chart "${scheduler.name}"`;
-        return generateScheduledResourceReport(modelOptions, {
+        return generateScheduledSavedContentReport(modelOptions, {
             prompt: config.prompt,
-            resource,
+            content,
         });
     }
 
@@ -228,7 +228,7 @@ export class AiSchedulerService extends BaseService {
     private async resolveReportThread(
         user: SessionUser,
         schedulerUuid: string,
-        config: AiSchedulerAgentConfigInternal,
+        config: AiSchedulerAgentPromptConfigInternal,
         context: AiPromptContextInput | undefined,
     ): Promise<string | null> {
         const body = { prompt: config.prompt, context };

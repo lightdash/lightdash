@@ -493,27 +493,27 @@ type AiSchedulerConfigBase = {
     prompt: string;
 };
 
-// Runs the prompt through an AI agent, which pulls in the delivery's content.
-export type AiSchedulerAgentConfig = AiSchedulerConfigBase & {
-    type: 'agent';
+// Runs the prompt through a defined AI agent, which pulls in the delivery's content.
+export type AiSchedulerAgentPromptConfig = AiSchedulerConfigBase & {
+    type: 'agentPrompt';
     agentUuid: string;
     sourceThreadUuid: string | null;
     includeSourceThread: boolean;
     includeRunHistory: boolean;
 };
 
-// Runs the prompt against a fast model over the delivery's resource directly.
-export type AiSchedulerResourceConfig = AiSchedulerConfigBase & {
-    type: 'resource';
+// Runs the prompt against a fast model over the delivery's saved content directly.
+export type AiSchedulerSavedContentConfig = AiSchedulerConfigBase & {
+    type: 'savedContent';
 };
 
 export type AiSchedulerConfig =
-    | AiSchedulerAgentConfig
-    | AiSchedulerResourceConfig;
+    | AiSchedulerAgentPromptConfig
+    | AiSchedulerSavedContentConfig;
 
 export type UpsertAiSchedulerConfig =
-    | Omit<AiSchedulerAgentConfig, 'schedulerUuid'>
-    | Omit<AiSchedulerResourceConfig, 'schedulerUuid'>;
+    | Omit<AiSchedulerAgentPromptConfig, 'schedulerUuid'>
+    | Omit<AiSchedulerSavedContentConfig, 'schedulerUuid'>;
 
 export type ApiAiSchedulerConfigResponse = ApiSuccess<AiSchedulerConfig | null>;
 

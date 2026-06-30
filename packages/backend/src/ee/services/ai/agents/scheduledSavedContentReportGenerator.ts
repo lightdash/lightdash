@@ -1,9 +1,9 @@
 import { generateText } from 'ai';
 import { GeneratorModelOptions } from '../models/types';
 
-export async function generateScheduledResourceReport(
+export async function generateScheduledSavedContentReport(
     modelOptions: GeneratorModelOptions,
-    { prompt, resource }: { prompt: string; resource: string },
+    { prompt, content }: { prompt: string; content: string },
 ): Promise<string> {
     const result = await generateText({
         model: modelOptions.model,
@@ -12,7 +12,7 @@ export async function generateScheduledResourceReport(
         messages: [
             {
                 role: 'system',
-                content: `You write the message body for a scheduled delivery of ${resource}. Be concise and factual, and follow the user's instructions about what to report.`,
+                content: `You write the message body for a scheduled delivery of ${content}. Be concise and factual, and follow the user's instructions about what to report.`,
             },
             {
                 role: 'user',

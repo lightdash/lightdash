@@ -15,8 +15,11 @@ export async function up(knex: Knex): Promise<void> {
             .references('scheduler_uuid')
             .inTable(SCHEDULER_TABLE)
             .onDelete('CASCADE');
-        table.text('type').notNullable().checkIn(['agent', 'resource']);
-        // Null for 'resource' deliveries, which run on a fast model with no agent.
+        table
+            .text('type')
+            .notNullable()
+            .checkIn(['agentPrompt', 'savedContent']);
+        // Null for 'savedContent' deliveries, which run on a fast model with no agent.
         table
             .uuid('agent_uuid')
             .nullable()
@@ -24,7 +27,7 @@ export async function up(knex: Knex): Promise<void> {
             .inTable(AI_AGENT_TABLE)
             .onDelete('CASCADE')
             .index();
-        table.check(`(type = 'agent') = (agent_uuid IS NOT NULL)`);
+        table.check(`(type = 'agentPrompt') = (agent_uuid IS NOT NULL)`);
         table.text('prompt').notNullable();
         table
             .uuid('source_thread_uuid')
