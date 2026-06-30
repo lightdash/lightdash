@@ -1,3 +1,10 @@
+# [0.3262.0](https://github.com/lightdash/lightdash/compare/0.3261.1...0.3262.0) (2026-06-30)
+
+
+### Features
+
+* **ai:** standardized OTel attribution on every AI call (ZAP-558) ([#24911](https://github.com/lightdash/lightdash/issues/24911)) ([4a80022](https://github.com/lightdash/lightdash/commit/4a80022779b4693bbfcac8e3529697cc40c4dd5e))
+
 ## [0.3261.1](https://github.com/lightdash/lightdash/compare/0.3261.0...0.3261.1) (2026-06-30)
 
 
