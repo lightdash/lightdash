@@ -1596,7 +1596,7 @@ export type AppRuntimeConfig = {
     /**
      * Which sandbox backend the data-app pipeline launches sandboxes on.
      * `e2b` keeps today's hosted path; `docker` runs a plain local container
-     * (dev / self-host testbed — see SandboxRuntime/DESIGN.md);
+     * (dev / self-host testbed — see docs/sandbox-runtime.md);
      * `lambda-microvm` runs AWS Lambda MicroVMs (native suspend/resume).
      * Later: kubernetes | ecs | microsandbox.
      */

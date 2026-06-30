@@ -1,7 +1,8 @@
 /**
  * Provider-neutral sandbox runtime interfaces. Application code (AppGenerateService,
  * AiWritebackService) depends on these instead of the concrete `e2b` SDK, so the
- * same feature code runs on any backend (E2B, local Docker, …). See DESIGN.md.
+ * same feature code runs on any backend (E2B, local Docker, …).
+ * See docs/sandbox-runtime.md.
  */
 
 /** A minimal logger surface (structurally compatible with winston's Logger). */

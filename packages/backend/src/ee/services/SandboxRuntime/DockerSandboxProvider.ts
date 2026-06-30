@@ -225,7 +225,7 @@ class DockerSandboxHandle implements SandboxHandle {
  * Local-dev provider backing each sandbox with a plain Docker container reached
  * over the Docker socket. The simplest backend that exercises every layer of the
  * abstraction with zero external services — `runc` isolation only, so it is
- * gated to non-production. See DESIGN.md §8.
+ * gated to non-production. See docs/sandbox-runtime.md.
  */
 export class DockerSandboxProvider implements SandboxProvider {
     readonly capabilities: SandboxCapabilities = { pauseResume: false };

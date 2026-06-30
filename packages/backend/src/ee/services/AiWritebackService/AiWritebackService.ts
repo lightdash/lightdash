@@ -924,7 +924,7 @@ export class AiWritebackService extends BaseService {
      * The sandbox manager over the provider selected by `SANDBOX_PROVIDER`
      * (e2b | docker). Memoized — the feature talks only to the manager for
      * lifecycle and to the returned {@link SandboxHandle} for the data plane.
-     * See SandboxRuntime/DESIGN.md.
+     * See docs/sandbox-runtime.md.
      */
     private getSandboxManager(): SandboxManager {
         if (!this.sandboxManager) {

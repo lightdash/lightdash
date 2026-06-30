@@ -407,7 +407,7 @@ export class AppGenerateService extends BaseService {
      * (e2b | docker). Memoized — the feature talks only to the manager for
      * lifecycle (acquire/resume/suspend/destroy via the stable `sandbox_uuid`)
      * and to the returned {@link SandboxHandle} for the data plane.
-     * See SandboxRuntime/DESIGN.md.
+     * See docs/sandbox-runtime.md.
      */
     private getSandboxManager(): SandboxManager {
         if (!this.sandboxManager) {
