@@ -3150,7 +3150,13 @@ export class ProjectService extends BaseService {
                 jobStatus: JobStatusType.RUNNING,
             });
             timings.testAdapter.start = performance.now();
-            const { adapter, sshTunnel } = await this.jobModel.tryJobStep(
+            const {
+                adapter: primaryAdapter,
+                sshTunnel,
+                warehouseCredentials,
+                cachedWarehouse,
+                dbtVersionOption,
+            } = await this.jobModel.tryJobStep(
                 job.jobUuid,
                 JobStepType.TESTING_ADAPTOR,
                 async () =>
@@ -3160,32 +3166,52 @@ export class ProjectService extends BaseService {
                     ),
             );
             timings.testAdapter.end = performance.now();
+            // Source git clones built only to read manifests for the merge.
+            const manifestFetchAdapters: ProjectAdapter[] = [];
             if (updatedProject.dbtConnection.type !== DbtProjectType.NONE) {
                 await this.jobModel.tryJobStep(
                     job.jobUuid,
                     JobStepType.COMPILING,
                     async () => {
+                        // Merge additional dbt sources (flag-gated, N=0
+                        // short-circuit) so "Test & deploy" yields the same
+                        // combined explore set as "Refresh dbt".
+                        let compileAdapter = primaryAdapter;
                         try {
+                            compileAdapter = await this.resolveCompileAdapter({
+                                projectUuid,
+                                organizationUuid: user.organizationUuid,
+                                userUuid: user.userUuid,
+                                primary: {
+                                    adapter: primaryAdapter,
+                                    warehouseCredentials,
+                                    cachedWarehouse,
+                                    dbtVersionOption,
+                                },
+                                manifestFetchAdapters,
+                            });
                             const trackingParams = {
                                 projectUuid,
                                 organizationUuid: user.organizationUuid,
                                 userUuid: user.userUuid,
                             };
                             timings.compileExplores.start = performance.now();
-                            const explores = await adapter.compileAllExplores(
-                                trackingParams,
-                                false, // loadSources
-                                this.lightdashConfig.partialCompilation.enabled,
-                            );
+                            const explores =
+                                await compileAdapter.compileAllExplores(
+                                    trackingParams,
+                                    false, // loadSources
+                                    this.lightdashConfig.partialCompilation
+                                        .enabled,
+                                );
                             timings.compileExplores.end = performance.now();
                             timings.getConfig.start = performance.now();
                             const lightdashProjectConfig =
-                                await adapter.getLightdashProjectConfig(
+                                await compileAdapter.getLightdashProjectConfig(
                                     trackingParams,
                                 );
                             const projectContext =
                                 await this.getProjectContextFromAdapter({
-                                    adapter,
+                                    adapter: compileAdapter,
                                     user,
                                     organizationUuid: user.organizationUuid,
                                 });
@@ -3243,8 +3269,22 @@ export class ProjectService extends BaseService {
                             });
                             timings.cacheExplores.end = performance.now();
                         } finally {
-                            await adapter.destroy();
+                            await compileAdapter.destroy();
                             await sshTunnel.disconnect();
+                            // Clean up the per-source git clones used only to
+                            // read manifests for the merge.
+                            await Promise.all(
+                                manifestFetchAdapters.map((manifestAdapter) =>
+                                    manifestAdapter
+                                        .destroy()
+                                        .catch((destroyError) => {
+                                            this.logger.warn(
+                                                'Failed to destroy a dbt source adapter after manifest merge',
+                                                { error: destroyError },
+                                            );
+                                        }),
+                                ),
+                            );
                         }
                     },
                 );
@@ -3346,6 +3386,9 @@ export class ProjectService extends BaseService {
     ): Promise<{
         adapter: ProjectAdapter;
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
+        warehouseCredentials: CreateWarehouseCredentials;
+        cachedWarehouse: CachedWarehouse;
+        dbtVersionOption: DbtVersionOption;
     }> {
         const sshTunnel = new SshTunnel(data.warehouseConnection);
         await sshTunnel.connect();
@@ -3353,14 +3396,17 @@ export class ProjectService extends BaseService {
             data.dbtConnection,
             _user.organizationUuid,
         );
+        const warehouseCredentials = sshTunnel.overrideCredentials;
+        const cachedWarehouse: CachedWarehouse = {
+            warehouseCatalog: undefined,
+            onWarehouseCatalogChange: () => {},
+        };
+        const dbtVersionOption = data.dbtVersion || DefaultSupportedDbtVersion;
         const adapter = await projectAdapterFromConfig(
             dbtConnection,
-            sshTunnel.overrideCredentials,
-            {
-                warehouseCatalog: undefined,
-                onWarehouseCatalogChange: () => {},
-            },
-            data.dbtVersion || DefaultSupportedDbtVersion,
+            warehouseCredentials,
+            cachedWarehouse,
+            dbtVersionOption,
             this.analytics,
         );
         try {
@@ -3371,7 +3417,13 @@ export class ProjectService extends BaseService {
             await sshTunnel.disconnect();
             throw e;
         }
-        return { adapter, sshTunnel };
+        return {
+            adapter,
+            sshTunnel,
+            warehouseCredentials,
+            cachedWarehouse,
+            dbtVersionOption,
+        };
     }
 
     async previewDataTimezone(
@@ -3869,7 +3921,61 @@ export class ProjectService extends BaseService {
             shared.cachedWarehouse,
             shared.dbtVersionOption,
             this.analytics,
+            // Keep the primary source's lightdash.config.yml / project_context.yml
+            // (spotlight categories, table_groups, parameters, AI context). The
+            // primary clone is alive until the caller destroys manifestFetchAdapters
+            // after compile, so the merged adapter can read these during compile.
+            primary.adapter.dbtProjectDir,
         );
+    }
+
+    /**
+     * Resolve the adapter to compile a project with. When the MultiDbtSources
+     * flag is on and the project has additional sources, returns a merged
+     * manifest adapter (the union of every source); otherwise returns the
+     * primary adapter unchanged (N=0 short-circuit / regression firewall).
+     * Source git clones are pushed onto `manifestFetchAdapters` for the caller
+     * to destroy. Shared by both compile entry points (compileProject /
+     * testAndCompileProject) so "Refresh dbt" and "Test & deploy" merge alike.
+     */
+    private async resolveCompileAdapter({
+        projectUuid,
+        organizationUuid,
+        userUuid,
+        primary,
+        manifestFetchAdapters,
+    }: {
+        projectUuid: string;
+        organizationUuid: string | undefined;
+        userUuid: string;
+        primary: {
+            adapter: ProjectAdapter;
+            warehouseCredentials: CreateWarehouseCredentials;
+            cachedWarehouse: CachedWarehouse;
+            dbtVersionOption: DbtVersionOption;
+        };
+        manifestFetchAdapters: ProjectAdapter[];
+    }): Promise<ProjectAdapter> {
+        const { enabled: multiDbtSourcesEnabled } =
+            await this.featureFlagModel.get({
+                featureFlagId: FeatureFlags.MultiDbtSources,
+                user: { userUuid, organizationUuid },
+            });
+        if (!multiDbtSourcesEnabled) {
+            return primary.adapter;
+        }
+        const sources =
+            await this.projectDbtSourcesModel.getSources(projectUuid);
+        if (sources.length === 0) {
+            return primary.adapter;
+        }
+        return this.buildMergedManifestAdapter({
+            projectUuid,
+            organizationUuid,
+            primary,
+            sources,
+            manifestFetchAdapters,
+        });
     }
 
     static updateExploreWithDateZoom(
@@ -6028,27 +6134,13 @@ export class ProjectService extends BaseService {
             // compiling, so cross-source ref()/joins resolve and the explore set is
             // the union of all sources. A project with zero registered sources runs
             // the unchanged single-source path (N=0 short-circuit / regression firewall).
-            const { enabled: multiDbtSourcesEnabled } =
-                await this.featureFlagModel.get({
-                    featureFlagId: FeatureFlags.MultiDbtSources,
-                    user: {
-                        userUuid: user.userUuid,
-                        organizationUuid: project.organizationUuid,
-                    },
-                });
-            if (multiDbtSourcesEnabled) {
-                const sources =
-                    await this.projectDbtSourcesModel.getSources(projectUuid);
-                if (sources.length > 0) {
-                    adapter = await this.buildMergedManifestAdapter({
-                        projectUuid,
-                        organizationUuid: project.organizationUuid,
-                        primary: buildResult,
-                        sources,
-                        manifestFetchAdapters,
-                    });
-                }
-            }
+            adapter = await this.resolveCompileAdapter({
+                projectUuid,
+                organizationUuid: project.organizationUuid,
+                userUuid: user.userUuid,
+                primary: buildResult,
+                manifestFetchAdapters,
+            });
             const packages = await adapter.getDbtPackages();
             const trackingParams = {
                 projectUuid,
