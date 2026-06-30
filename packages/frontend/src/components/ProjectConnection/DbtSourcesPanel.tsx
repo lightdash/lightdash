@@ -182,7 +182,7 @@ const DbtSourcesPanel: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                 <span>Beta</span>
             </div>
             <Stack spacing="md">
-                <Group position="apart" align="flex-start" pr={64}>
+                <Group position="apart" align="flex-start" pr={44}>
                     <div>
                         <Title order={5}>Additional dbt sources</Title>
                         <Text size="sm" color="dimmed">

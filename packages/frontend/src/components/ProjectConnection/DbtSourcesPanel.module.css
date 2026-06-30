@@ -8,8 +8,8 @@
     position: absolute;
     top: -1px;
     right: -1px;
-    width: 116px;
-    height: 116px;
+    width: 74px;
+    height: 74px;
     overflow: hidden;
     pointer-events: none;
     z-index: 2;
@@ -17,16 +17,16 @@
 
 .ribbon span {
     position: absolute;
-    top: 28px;
-    right: -34px;
+    top: 13px;
+    right: -25px;
     display: block;
-    width: 160px;
-    padding: 5px 0;
+    width: 96px;
+    padding: 3px 0;
     transform: rotate(45deg);
     background: linear-gradient(135deg, #f9a03f 0%, #e8590c 100%);
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
     color: #fff;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 700;
     line-height: 1;
     letter-spacing: 0.1em;
