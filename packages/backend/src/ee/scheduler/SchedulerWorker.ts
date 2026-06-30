@@ -431,6 +431,8 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     helpers.job,
                     APP_GENERATE_TIMEOUT_MS,
                     async (_job, e) => {
+                        // trackTimeoutFailure is typed to AppGeneratePipelineJobPayload and
+                        // cannot accept AppBuildFromSourceJobPayload, so omitted here.
                         await this.appGenerateService.markError(
                             payload.appUuid,
                             payload.version,

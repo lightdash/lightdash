@@ -6484,6 +6484,15 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         const { client, bucket } = this.getS3Client();
 
         let sandbox: SandboxHandle | undefined;
+        const heartbeat = setInterval(() => {
+            void this.appModel
+                .touchVersionIfInProgress(appUuid, version)
+                .catch((e) => {
+                    this.logger.warn(
+                        `App ${appUuid}: heartbeat failed: ${getErrorMessage(e)}`,
+                    );
+                });
+        }, HEARTBEAT_INTERVAL_MS);
         try {
             const advanced = await this.advanceStage(
                 appUuid,
@@ -6561,6 +6570,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         } catch (err) {
             await this.markError(appUuid, version, err, 'Build failed');
         } finally {
+            clearInterval(heartbeat);
             if (sandbox !== undefined) {
                 await this.pauseSandbox(sandbox, appUuid);
             }
