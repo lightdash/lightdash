@@ -18,9 +18,20 @@ export const writeBundleToDir = async (
         'utf-8',
     );
 
+    const resolvedRoot = path.resolve(dir);
     await Promise.all(
         code.files.map(async (file) => {
-            const filePath = path.join(dir, file.path);
+            const filePath = path.resolve(dir, file.path);
+            // Defense-in-depth: never write outside the target directory, even
+            // if the server returns a traversal path.
+            if (
+                filePath !== resolvedRoot &&
+                !filePath.startsWith(resolvedRoot + path.sep)
+            ) {
+                throw new Error(
+                    `Refusing to write file outside the target directory: ${file.path}`,
+                );
+            }
             await fs.mkdir(path.dirname(filePath), { recursive: true });
             await fs.writeFile(
                 filePath,

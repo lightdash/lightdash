@@ -35,3 +35,25 @@ it('writes then reads back an identical bundle', async () => {
     const read = await readBundleFromDir(dir);
     expect(read).toEqual(bundle);
 });
+
+it('refuses to write a file whose path escapes the target directory', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-app-'));
+    await expect(
+        writeBundleToDir(dir, {
+            ...bundle,
+            files: [
+                {
+                    path: '../escape.js',
+                    contentBase64: Buffer.from('x').toString('base64'),
+                },
+            ],
+        }),
+    ).rejects.toThrow(/outside the target directory/);
+});
+
+it('writes a manifest-only bundle with no files', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-app-'));
+    await writeBundleToDir(dir, { ...bundle, files: [] });
+    const read = await readBundleFromDir(dir);
+    expect(read).toEqual({ ...bundle, files: [] });
+});
