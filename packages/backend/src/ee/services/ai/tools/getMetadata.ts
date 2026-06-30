@@ -21,6 +21,11 @@ const flatHint = (hint?: string | string[]): string =>
 const collapse = (text: string, max = 240): string =>
     text.replace(/\s+/g, ' ').trim().slice(0, max);
 
+// Field descriptions carry critical info (allowed values, units, semantics), so
+// they get a generous cap — a tight one silently truncates them and misleads the
+// agent. Safe here: this tool only renders the few fields explicitly requested.
+const FIELD_DESCRIPTION_MAX = 2000;
+
 const renderExplore = (explore: Explore): string => {
     const baseTable = explore.tables[explore.baseTable];
     const dimensionCount = Object.values(baseTable?.dimensions ?? {}).filter(
@@ -90,10 +95,12 @@ const renderField = (
         lines.push(`  case-sensitive filters: ${field.caseSensitive ?? true}`);
     }
     if (field.description) {
-        lines.push(`  description: ${collapse(field.description)}`);
+        lines.push(
+            `  description: ${collapse(field.description, FIELD_DESCRIPTION_MAX)}`,
+        );
     }
     const hint = flatHint(field.aiHint);
-    if (hint) lines.push(`  hint: ${collapse(hint)}`);
+    if (hint) lines.push(`  hint: ${collapse(hint, FIELD_DESCRIPTION_MAX)}`);
     return lines.join('\n');
 };
 
