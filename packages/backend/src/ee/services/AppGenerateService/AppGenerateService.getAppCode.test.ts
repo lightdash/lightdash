@@ -176,6 +176,7 @@ function buildService(overrides: {
         projectService: {} as never,
         promoteService: {} as never,
         externalConnectionModel: {} as never,
+        sandboxRegistryModel: {} as never,
     });
 
     if (s3ClientOverride) {

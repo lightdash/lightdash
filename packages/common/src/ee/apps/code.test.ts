@@ -43,6 +43,24 @@ describe('validateDataAppCode', () => {
             }),
         ).toThrow();
     });
+    it.each(['.', './index.html', 'src/.', 'src//index.html', 'src/'])(
+        'throws when a file path has an unsafe segment (%s)',
+        (badPath) => {
+            expect(() =>
+                validateDataAppCode({
+                    manifest: valid.manifest,
+                    files: [{ path: badPath, contentBase64: '' }],
+                }),
+            ).toThrow();
+        },
+    );
+    it('accepts a dotfile as a valid path', () => {
+        const withDotfile: DataAppCode = {
+            manifest: valid.manifest,
+            files: [{ path: '.gitignore', contentBase64: '' }],
+        };
+        expect(validateDataAppCode(withDotfile)).toEqual(withDotfile);
+    });
     it('throws on non-object inputs', () => {
         expect(() => validateDataAppCode(null)).toThrow();
         expect(() => validateDataAppCode('not-a-bundle')).toThrow();

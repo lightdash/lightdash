@@ -517,7 +517,7 @@ export class AppGenerateController extends BaseController {
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/{appUuid}/code')
+    @Get('/{appUuid}/download')
     @OperationId('getAppCode')
     async getAppCode(
         @Request() req: express.Request,

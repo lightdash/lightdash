@@ -39,11 +39,18 @@ export type ApiImportAppCodeResponse = ApiSuccess<{
     action: 'create' | 'append';
 }>;
 
-const isSafeRelPath = (p: string): boolean =>
-    typeof p === 'string' &&
-    p.length > 0 &&
-    !p.startsWith('/') &&
-    !p.split('/').includes('..');
+const isSafeRelPath = (p: string): boolean => {
+    if (typeof p !== 'string' || p.length === 0 || p.startsWith('/'))
+        return false;
+    // Every segment must be a real filename: no empty segments (leading,
+    // trailing, or double slashes) and no '.'/'..' directory references.
+    return p
+        .split('/')
+        .every(
+            (segment) =>
+                segment.length > 0 && segment !== '.' && segment !== '..',
+        );
+};
 
 export function validateDataAppCode(value: unknown): DataAppCode {
     const v = value as Partial<DataAppCode>;

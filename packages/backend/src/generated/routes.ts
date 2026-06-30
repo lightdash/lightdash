@@ -47381,7 +47381,7 @@ export function RegisterRoutes(app: Router) {
         version: { in: 'query', name: 'version', dataType: 'double' },
     };
     app.get(
-        '/api/v1/ee/projects/:projectUuid/apps/:appUuid/code',
+        '/api/v1/ee/projects/:projectUuid/apps/:appUuid/download',
         ...fetchMiddlewares<RequestHandler>(AppGenerateController),
         ...fetchMiddlewares<RequestHandler>(
             AppGenerateController.prototype.getAppCode,

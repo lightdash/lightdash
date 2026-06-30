@@ -1,9 +1,33 @@
-import { type DataAppCode, type DataAppManifest } from '@lightdash/common';
+import {
+    generateSlug,
+    getErrorMessage,
+    validateDataAppCode,
+    type DataAppCode,
+    type DataAppManifest,
+} from '@lightdash/common';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import * as YAML from 'yaml';
 
 const MANIFEST_FILENAME = 'lightdash-app.yml';
+
+/**
+ * Derives a collision-safe folder name for a data app.
+ * Uses the slugified app name. If that slug is already taken by another app,
+ * appends the first 8 characters of the app's UUID to disambiguate.
+ */
+export const appFolderName = (
+    name: string,
+    appUuid: string,
+    takenFolders: Set<string>,
+): string => {
+    const slug = generateSlug(name);
+    if (!takenFolders.has(slug)) {
+        return slug;
+    }
+    const suffixed = `${slug}-${appUuid.slice(0, 8)}`;
+    return suffixed;
+};
 
 export const writeBundleToDir = async (
     dir: string,
@@ -79,10 +103,17 @@ export const readBundleFromDir = async (dir: string): Promise<DataAppCode> => {
         path.join(dir, MANIFEST_FILENAME),
         'utf-8',
     );
-    const manifest = YAML.parse(manifestRaw) as DataAppManifest;
+    let manifest: DataAppManifest;
+    try {
+        manifest = YAML.parse(manifestRaw) as DataAppManifest;
+    } catch (err) {
+        throw new Error(
+            `Could not parse ${MANIFEST_FILENAME}: ${getErrorMessage(err)}`,
+        );
+    }
 
     const files = await collectFiles(dir, dir);
     files.sort((a, b) => a.path.localeCompare(b.path));
 
-    return { manifest, files };
+    return validateDataAppCode({ manifest, files });
 };
