@@ -20,6 +20,7 @@ import FormCollapseButton from './FormCollapseButton';
 import { useFormContext } from './formContext';
 import FormSection from './Inputs/FormSection';
 import { MultiKeyValuePairsInput } from './Inputs/MultiKeyValuePairsInput';
+import { useProjectFormContext } from './useProjectFormContext';
 import { AthenaSchemaInput } from './WarehouseForms/AthenaForm';
 import { BigQuerySchemaInput } from './WarehouseForms/BigQueryForm';
 import { ClickhouseSchemaInput } from './WarehouseForms/ClickhouseForm';
@@ -40,6 +41,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
     defaultType,
 }) => {
     const form = useFormContext();
+    const { isDbtSource } = useProjectFormContext();
     const selectedWarehouse = form.values.warehouse?.type;
 
     const type: DbtProjectType =
@@ -56,24 +58,31 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
         setIsAdvancedSettingsOpen((open) => !open);
     const { health } = useApp();
     const options = useMemo(() => {
+        // Additional dbt sources are git-only: the merge clones and compiles
+        // each source, so non-git types (none/local/manifest/dbt Cloud) don't
+        // apply.
         const enabledTypes = [
             DbtProjectType.GITHUB,
             DbtProjectType.GITLAB,
             DbtProjectType.BITBUCKET,
             DbtProjectType.AZURE_DEVOPS,
-            DbtProjectType.NONE,
-            DbtProjectType.MANIFEST,
-            DbtProjectType.DBT_CLOUD_IDE,
         ];
-        if (health.data?.localDbtEnabled) {
-            enabledTypes.push(DbtProjectType.DBT);
+        if (!isDbtSource) {
+            enabledTypes.push(
+                DbtProjectType.NONE,
+                DbtProjectType.MANIFEST,
+                DbtProjectType.DBT_CLOUD_IDE,
+            );
+            if (health.data?.localDbtEnabled) {
+                enabledTypes.push(DbtProjectType.DBT);
+            }
         }
 
         return enabledTypes.map((value) => ({
             value,
             label: DbtProjectTypeLabels[value],
         }));
-    }, [health]);
+    }, [health, isDbtSource]);
 
     const DbtForm = useMemo(() => {
         switch (type) {
@@ -206,8 +215,13 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                                     disabled={disabled}
                                     placeholder="prod"
                                 />
-                                {/* This WarehouseSchemaInput extra options will be provided in the organization warehouse credentials form */}
-                                {form.values
+                                {/* The schema is a warehouse-credential field; an
+                                additional dbt source shares the project's
+                                warehouse, so it's inherited rather than set per
+                                source. Also hidden when org warehouse credentials
+                                provide it. */}
+                                {isDbtSource ||
+                                form.values
                                     .organizationWarehouseCredentialsUuid ? null : (
                                     <WarehouseSchemaInput disabled={disabled} />
                                 )}

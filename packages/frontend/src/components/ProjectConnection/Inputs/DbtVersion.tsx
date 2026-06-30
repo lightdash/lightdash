@@ -7,12 +7,19 @@ import {
 import { Select } from '@mantine/core';
 import React, { type FC } from 'react';
 import { useFormContext } from '../formContext';
+import { useProjectFormContext } from '../useProjectFormContext';
 
 const DbtVersionSelect: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
     const form = useFormContext();
+    const { isDbtSource } = useProjectFormContext();
     const field = form.getInputProps('dbtVersion');
+
+    // Additional dbt sources inherit the project's dbt version.
+    if (isDbtSource) {
+        return null;
+    }
 
     return (
         <Select

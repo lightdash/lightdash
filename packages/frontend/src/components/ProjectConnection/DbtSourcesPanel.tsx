@@ -1,6 +1,9 @@
 import {
     DbtProjectType,
+    DefaultSupportedDbtVersion,
     FeatureFlags,
+    WarehouseTypes,
+    type CreateWarehouseCredentials,
     type ProjectDbtSourceSummary,
 } from '@lightdash/common';
 import {
@@ -10,14 +13,12 @@ import {
     Group,
     Loader,
     Modal,
-    Select,
     Stack,
     Text,
     TextInput,
     Title,
     Tooltip,
 } from '@mantine/core';
-import { useForm } from '@mantine/form';
 import { IconDatabase, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import {
@@ -26,8 +27,12 @@ import {
     useProjectDbtSources,
 } from '../../hooks/useProjectDbtSources';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
-import { useGitHubRepositories } from '../common/GithubIntegration/hooks/useGithubIntegration';
 import MantineIcon from '../common/MantineIcon';
+import { dbtDefaults } from './DbtForms/defaultValues';
+import { dbtFormValidators } from './DbtForms/validators';
+import DbtSettingsForm from './DbtSettingsForm';
+import { FormProvider, useForm } from './formContext';
+import { ProjectFormProvider } from './ProjectFormProvider';
 
 const DbtSourceRow: FC<{
     source: ProjectDbtSourceSummary;
@@ -77,21 +82,22 @@ const AddDbtSourceModal: FC<{
     onClose: () => void;
 }> = ({ projectUuid, opened, onClose }) => {
     const createMutation = useCreateProjectDbtSourceMutation(projectUuid);
-    const { data: repositories } = useGitHubRepositories();
     const form = useForm({
         initialValues: {
             name: '',
-            repository: '',
-            branch: 'main',
-            projectSubPath: '/',
+            dbt: { ...dbtDefaults.formValues[DbtProjectType.GITHUB] },
+            // Sources share the project's warehouse; the schema input is hidden
+            // for sources so this is only here to satisfy the form shape.
+            warehouse: {
+                type: WarehouseTypes.POSTGRES,
+            } as CreateWarehouseCredentials,
+            dbtVersion: DefaultSupportedDbtVersion,
         },
         validate: {
             name: (value) => (value.trim() ? null : 'Name is required'),
-            repository: (value) =>
-                /^[^/\s]+\/[^/\s]+$/.test(value.trim())
-                    ? null
-                    : 'Use the form owner/repository',
+            dbt: dbtFormValidators,
         },
+        validateInputOnBlur: true,
     });
 
     const handleClose = () => {
@@ -100,77 +106,54 @@ const AddDbtSourceModal: FC<{
     };
 
     return (
-        <Modal opened={opened} onClose={handleClose} title="Add a dbt source">
-            <form
-                onSubmit={form.onSubmit((values) => {
-                    createMutation.mutate(
-                        {
-                            name: values.name.trim(),
-                            dbtConnection: {
-                                type: DbtProjectType.GITHUB,
-                                authorization_method: 'installation_id',
-                                repository: values.repository.trim(),
-                                branch: values.branch.trim(),
-                                project_sub_path: values.projectSubPath.trim(),
-                            },
-                        },
-                        { onSuccess: handleClose },
-                    );
-                })}
-            >
-                <Stack spacing="md">
-                    <Text size="sm" color="dimmed">
-                        Connect a GitHub dbt project. It uses this
-                        organization's GitHub App installation.
-                    </Text>
-                    <TextInput
-                        label="Name"
-                        placeholder="e.g. marketing-dbt"
-                        required
-                        {...form.getInputProps('name')}
-                    />
-                    {repositories && repositories.length > 0 ? (
-                        <Select
-                            label="Repository"
-                            placeholder="Select a repository"
-                            searchable
-                            required
-                            data={repositories.map((repo) => ({
-                                value: repo.fullName,
-                                label: repo.fullName,
-                            }))}
-                            {...form.getInputProps('repository')}
-                        />
-                    ) : (
-                        <TextInput
-                            label="Repository"
-                            placeholder="owner/repository"
-                            required
-                            {...form.getInputProps('repository')}
-                        />
-                    )}
-                    <TextInput
-                        label="Branch"
-                        required
-                        {...form.getInputProps('branch')}
-                    />
-                    <TextInput
-                        label="Project subdirectory"
-                        {...form.getInputProps('projectSubPath')}
-                    />
-                    <Group position="right">
-                        <Button variant="default" onClick={handleClose}>
-                            Cancel
-                        </Button>
-                        <Button
-                            type="submit"
-                            loading={createMutation.isLoading}
-                        >
-                            Add source
-                        </Button>
-                    </Group>
-                </Stack>
-            </form>
+        <Modal
+            opened={opened}
+            onClose={handleClose}
+            title="Add a dbt source"
+            size="lg"
+        >
+            <FormProvider form={form}>
+                <ProjectFormProvider isDbtSource>
+                    <form
+                        onSubmit={form.onSubmit((values) => {
+                            createMutation.mutate(
+                                {
+                                    name: values.name.trim(),
+                                    dbtConnection: values.dbt,
+                                },
+                                { onSuccess: handleClose },
+                            );
+                        })}
+                    >
+                        <Stack spacing="md">
+                            <Text size="sm" color="dimmed">
+                                Connect another git-backed dbt project. Its
+                                models are merged with the primary source on
+                                every deploy and preview, using the project's
+                                warehouse and dbt version.
+                            </Text>
+                            <TextInput
+                                label="Name"
+                                placeholder="e.g. marketing-dbt"
+                                required
+                                {...form.getInputProps('name')}
+                            />
+                            <DbtSettingsForm disabled={false} />
+                            <Group position="right" mt="sm">
+                                <Button variant="default" onClick={handleClose}>
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    loading={createMutation.isLoading}
+                                >
+                                    Add source
+                                </Button>
+                            </Group>
+                        </Stack>
+                    </form>
+                </ProjectFormProvider>
+            </FormProvider>
         </Modal>
     );
 };
