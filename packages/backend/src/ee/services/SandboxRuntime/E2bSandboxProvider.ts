@@ -222,4 +222,10 @@ export class E2bSandboxProvider implements SandboxProvider {
         }
         return this.connect(ref.sandboxId);
     }
+
+    // eslint-disable-next-line class-methods-use-this
+    async deleteSnapshot(_ref: SnapshotRef): Promise<void> {
+        // The paused sandbox IS the snapshot; destroy(sandboxId) reclaims it, so
+        // there is no separate blob to delete here.
+    }
 }

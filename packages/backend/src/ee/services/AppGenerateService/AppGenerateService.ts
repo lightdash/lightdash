@@ -416,9 +416,14 @@ export class AppGenerateService extends BaseService {
                 e2bApiKey: this.lightdashConfig.appRuntime.e2bApiKey,
                 dockerImage: this.lightdashConfig.appRuntime.sandboxDockerImage,
                 lambdaMicroVm: this.lightdashConfig.appRuntime.lambdaMicroVm,
-                snapshotStore: new S3SnapshotStore({
-                    lightdashConfig: this.lightdashConfig,
-                }),
+                // Object-store snapshots are Docker-only; native-pause providers
+                // never touch S3, so don't construct a client for them.
+                snapshotStore:
+                    this.lightdashConfig.appRuntime.sandboxProvider === 'docker'
+                        ? new S3SnapshotStore({
+                              lightdashConfig: this.lightdashConfig,
+                          })
+                        : null,
                 registryModel: this.sandboxRegistryModel,
                 logger: this.logger,
                 idleTimeoutMs:

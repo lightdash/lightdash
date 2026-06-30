@@ -29,8 +29,12 @@ export interface CreateSandboxProviderOptions {
     dockerImage: string;
     /** Required when `provider === 'lambda-microvm'`; ignored otherwise. */
     lambdaMicroVm: LambdaMicroVmProviderConfig | null;
-    /** Backing store for object-store snapshots (used by the Docker provider). */
-    snapshotStore: SnapshotStore;
+    /**
+     * Backing store for object-store snapshots. Required only by the Docker
+     * provider; native-pause providers (E2B, Lambda) keep the snapshot in the
+     * provider and pass `null` so no S3 client is constructed on those paths.
+     */
+    snapshotStore: SnapshotStore | null;
     logger: SandboxLogger;
 }
 
@@ -50,6 +54,11 @@ export const createSandboxProvider = (
             }
             return new E2bSandboxProvider(options.e2bApiKey);
         case 'docker':
+            if (!options.snapshotStore) {
+                throw new MissingConfigError(
+                    'Docker sandbox provider requires an object store for snapshots',
+                );
+            }
             return new DockerSandboxProvider(
                 options.dockerImage,
                 options.logger,
@@ -88,7 +97,8 @@ export interface CreateSandboxManagerOptions {
     e2bApiKey: string | null;
     dockerImage: string;
     lambdaMicroVm: LambdaMicroVmProviderConfig | null;
-    snapshotStore: SnapshotStore;
+    /** Forwarded to the provider; Docker-only (null on native-pause paths). */
+    snapshotStore: SnapshotStore | null;
     registryModel: SandboxRegistryStore;
     logger: SandboxLogger;
     idleTimeoutMs: number;
@@ -113,7 +123,6 @@ export const createSandboxManager = (
     return new SandboxManager({
         provider,
         providerKind: options.provider,
-        snapshotStore: options.snapshotStore,
         registryModel: options.registryModel,
         logger: options.logger,
         idleTimeoutMs: options.idleTimeoutMs,

@@ -272,6 +272,12 @@ export class LambdaMicroVmSandboxProvider implements SandboxProvider {
         return this.connect(ref.microVmId);
     }
 
+    // eslint-disable-next-line class-methods-use-this
+    async deleteSnapshot(_ref: SnapshotRef): Promise<void> {
+        // The suspended microVM IS the snapshot; destroy(microVmId) →
+        // TerminateMicrovm reclaims it, so there is no separate blob to delete.
+    }
+
     /** Resume a suspended microVM (or accept a running one); reject terminal ones. */
     private async ensureRunning(
         microVmId: string,

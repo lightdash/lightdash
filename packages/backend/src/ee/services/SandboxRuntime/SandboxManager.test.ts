@@ -3,7 +3,6 @@ import {
     SandboxManager,
     type SandboxRegistryStore,
 } from './SandboxManager';
-import { type SnapshotStore } from './SnapshotStore';
 import {
     type PersistentWorkspace,
     type SandboxCapabilities,
@@ -54,6 +53,7 @@ const makeProvider = (
                     : { kind: 's3-tar', key: 'sandboxes/sb-1/snapshot.tar.gz' },
             ),
         resume: vi.fn().mockResolvedValue(makeHandle('live-restored')),
+        deleteSnapshot: vi.fn().mockResolvedValue(undefined),
     } as unknown as import('vitest').Mocked<SandboxProvider>;
 };
 
@@ -69,21 +69,13 @@ const makeRegistry = (): import('vitest').Mocked<SandboxRegistryStore> =>
         findExpiredSuspended: vi.fn().mockResolvedValue([]),
     }) as unknown as import('vitest').Mocked<SandboxRegistryStore>;
 
-const makeStore = (): import('vitest').Mocked<SnapshotStore> => ({
-    put: vi.fn().mockResolvedValue(undefined),
-    get: vi.fn(),
-    delete: vi.fn().mockResolvedValue(undefined),
-});
-
 const makeManager = (
     provider: import('vitest').Mocked<SandboxProvider>,
     registry: import('vitest').Mocked<SandboxRegistryStore>,
-    store: import('vitest').Mocked<SnapshotStore>,
 ) =>
     new SandboxManager({
         provider,
         providerKind: provider.capabilities.pauseResume ? 'e2b' : 'docker',
-        snapshotStore: store,
         registryModel: registry,
         logger,
         idleTimeoutMs: 1000,
@@ -94,7 +86,7 @@ describe('SandboxManager', () => {
     it('acquire creates a sandbox and registers it', async () => {
         const provider = makeProvider(false);
         const registry = makeRegistry();
-        const manager = makeManager(provider, registry, makeStore());
+        const manager = makeManager(provider, registry);
 
         const { sandboxUuid, handle } = await manager.acquire({
             spec,
@@ -120,7 +112,7 @@ describe('SandboxManager', () => {
         const registry = makeRegistry();
         const insertError = new Error('registry insert failed');
         registry.create.mockRejectedValueOnce(insertError);
-        const manager = makeManager(provider, registry, makeStore());
+        const manager = makeManager(provider, registry);
 
         await expect(
             manager.acquire({
@@ -142,7 +134,7 @@ describe('SandboxManager', () => {
         const insertError = new Error('registry insert failed');
         registry.create.mockRejectedValueOnce(insertError);
         provider.destroy.mockRejectedValueOnce(new Error('destroy failed'));
-        const manager = makeManager(provider, registry, makeStore());
+        const manager = makeManager(provider, registry);
 
         await expect(
             manager.acquire({
@@ -159,7 +151,7 @@ describe('SandboxManager', () => {
         it('object-store backend snapshots then destroys the container', async () => {
             const provider = makeProvider(false);
             const registry = makeRegistry();
-            const manager = makeManager(provider, registry, makeStore());
+            const manager = makeManager(provider, registry);
 
             await manager.suspend({
                 sandboxUuid: 'sb-1',
@@ -169,10 +161,7 @@ describe('SandboxManager', () => {
 
             expect(provider.persist).toHaveBeenCalledWith(
                 expect.objectContaining({ sandboxId: 'live-1' }),
-                {
-                    workspace,
-                    snapshotKey: 'sandboxes/sb-1/snapshot.tar.gz',
-                },
+                { workspace },
             );
             expect(provider.destroy).toHaveBeenCalledWith('live-1');
             expect(registry.markSuspended).toHaveBeenCalledWith('sb-1', {
@@ -187,7 +176,7 @@ describe('SandboxManager', () => {
         it('native-pause backend keeps the sandbox alive', async () => {
             const provider = makeProvider(true);
             const registry = makeRegistry();
-            const manager = makeManager(provider, registry, makeStore());
+            const manager = makeManager(provider, registry);
 
             await manager.suspend({
                 sandboxUuid: 'sb-1',
@@ -217,7 +206,7 @@ describe('SandboxManager', () => {
                 workspace,
                 lastActivityAt: new Date(0),
             });
-            const manager = makeManager(provider, registry, makeStore());
+            const manager = makeManager(provider, registry);
 
             await manager.suspendByUuid('sb-1');
 
@@ -245,14 +234,17 @@ describe('SandboxManager', () => {
                 workspace,
                 lastActivityAt: new Date(0),
             });
-            const store = makeStore();
-            const manager = makeManager(provider, registry, store);
+            const manager = makeManager(provider, registry);
 
             await manager.suspendByUuid('sb-1');
 
             expect(provider.connect).not.toHaveBeenCalled();
             expect(provider.persist).not.toHaveBeenCalled();
-            expect(store.delete).toHaveBeenCalledWith('k');
+            // Storage cleanup is delegated to the provider, not the Manager.
+            expect(provider.deleteSnapshot).toHaveBeenCalledWith({
+                kind: 's3-tar',
+                key: 'k',
+            });
             expect(registry.deleteBySandboxUuid).toHaveBeenCalledWith('sb-1');
         });
 
@@ -260,7 +252,7 @@ describe('SandboxManager', () => {
             const provider = makeProvider(false);
             const registry = makeRegistry();
             registry.findBySandboxUuid.mockResolvedValue(null);
-            const manager = makeManager(provider, registry, makeStore());
+            const manager = makeManager(provider, registry);
 
             await manager.suspendByUuid('sb-1');
 
@@ -282,7 +274,7 @@ describe('SandboxManager', () => {
                 workspace,
                 lastActivityAt: new Date(0),
             });
-            const manager = makeManager(provider, registry, makeStore());
+            const manager = makeManager(provider, registry);
 
             const handle = await manager.resume({ sandboxUuid: 'sb-1', spec });
 
@@ -304,7 +296,6 @@ describe('SandboxManager', () => {
             // same E2B sandbox (no object storage involved).
             const provider = makeProvider(true);
             const registry = makeRegistry();
-            const store = makeStore();
             registry.findBySandboxUuid.mockResolvedValue({
                 sandboxUuid: 'sb-1',
                 organizationUuid: 'org-1',
@@ -314,16 +305,16 @@ describe('SandboxManager', () => {
                 workspace,
                 lastActivityAt: new Date(0),
             });
-            const manager = makeManager(provider, registry, store);
+            const manager = makeManager(provider, registry);
 
             const handle = await manager.resume({ sandboxUuid: 'sb-1', spec });
 
+            // The paused VM is the snapshot — resume goes straight through the
+            // provider with no object storage (the Manager holds no store).
             expect(provider.resume).toHaveBeenCalledWith(
                 { kind: 'e2b-paused', sandboxId: 'e2b-live-1' },
                 spec,
             );
-            // The paused VM is the snapshot — resume must not read from S3.
-            expect(store.get).not.toHaveBeenCalled();
             expect(registry.markRunning).toHaveBeenCalledWith(
                 'sb-1',
                 'live-restored',
@@ -335,7 +326,7 @@ describe('SandboxManager', () => {
             const provider = makeProvider(false);
             const registry = makeRegistry();
             registry.findBySandboxUuid.mockResolvedValue(null);
-            const manager = makeManager(provider, registry, makeStore());
+            const manager = makeManager(provider, registry);
 
             await expect(
                 manager.resume({ sandboxUuid: 'sb-1', spec }),
@@ -355,8 +346,7 @@ describe('SandboxManager', () => {
             workspace,
             lastActivityAt: new Date(0),
         });
-        const store = makeStore();
-        const manager = makeManager(provider, registry, store);
+        const manager = makeManager(provider, registry);
 
         await manager.destroy({
             sandboxUuid: 'sb-1',
@@ -364,7 +354,11 @@ describe('SandboxManager', () => {
         });
 
         expect(provider.destroy).toHaveBeenCalledWith('live-1');
-        expect(store.delete).toHaveBeenCalledWith('k');
+        // Storage cleanup is delegated to the provider, not the Manager.
+        expect(provider.deleteSnapshot).toHaveBeenCalledWith({
+            kind: 's3-tar',
+            key: 'k',
+        });
         expect(registry.deleteBySandboxUuid).toHaveBeenCalledWith('sb-1');
     });
 
@@ -404,16 +398,18 @@ describe('SandboxManager', () => {
                 workspace,
                 lastActivityAt: new Date(0),
             });
-            const store = makeStore();
-            const manager = makeManager(provider, registry, store);
+            const manager = makeManager(provider, registry);
 
             const result = await manager.reapIdle();
 
             // Idle orphan: reconnected, persisted, destroyed.
             expect(provider.connect).toHaveBeenCalledWith('live-idle');
             expect(provider.persist).toHaveBeenCalledTimes(1);
-            // Expired snapshot GC'd.
-            expect(store.delete).toHaveBeenCalledWith('old');
+            // Expired snapshot GC'd via the provider.
+            expect(provider.deleteSnapshot).toHaveBeenCalledWith({
+                kind: 's3-tar',
+                key: 'old',
+            });
             expect(result).toEqual({ suspended: 1, gced: 1 });
         });
     });

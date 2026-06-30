@@ -1,6 +1,6 @@
 import type Docker from 'dockerode';
 import type { Container } from 'dockerode';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { posix } from 'node:path';
 import { Writable } from 'node:stream';
 import { SandboxCommandError, SandboxTimeoutError } from './errors';
@@ -421,13 +421,16 @@ export class DockerSandboxProvider implements SandboxProvider {
      * paths so resume restores them to the same absolute locations. The tarball
      * is staged to a file and read back as raw bytes (never piped through the
      * string-typed `commands.run` stdout, which would corrupt binary content).
+     * The object-store key is generated here — the key is an opaque storage
+     * detail the provider owns and returns in the ref (the Manager never sees it).
      * Does not stop the container — the caller destroys it after persisting.
      */
     async persist(
         handle: SandboxHandle,
         options: PersistOptions,
     ): Promise<SnapshotRef> {
-        const { workspace, snapshotKey } = options;
+        const { workspace } = options;
+        const snapshotKey = `sandboxes/${randomUUID()}/snapshot.tar.gz`;
         const archivePath = `/tmp/.ld-snapshot-${randomBytes(4).toString(
             'hex',
         )}.tar.gz`;
@@ -482,5 +485,16 @@ export class DockerSandboxProvider implements SandboxProvider {
             `Docker sandbox ${handle.sandboxId} resumed from ${ref.key}`,
         );
         return handle;
+    }
+
+    /**
+     * Delete the snapshot blob backing an s3-tar ref. The Manager calls this on
+     * destroy/GC; storage cleanup lives here next to the tar/untar that wrote it.
+     */
+    async deleteSnapshot(ref: SnapshotRef): Promise<void> {
+        if (ref.kind !== 's3-tar') {
+            return;
+        }
+        await this.snapshotStore.delete(ref.key);
     }
 }

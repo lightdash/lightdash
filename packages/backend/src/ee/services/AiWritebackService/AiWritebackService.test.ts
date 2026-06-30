@@ -556,6 +556,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             .fn()
             .mockResolvedValue({ kind: 'e2b-paused', sandboxId: 'sb-test' }),
         resume: vi.fn(),
+        deleteSnapshot: vi.fn().mockResolvedValue(undefined),
     };
 
     const runService = (sandbox: AnyType) => {
@@ -634,7 +635,6 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                 new SandboxManager({
                     provider: fakeSandboxProvider as AnyType,
                     providerKind: 'e2b',
-                    snapshotStore: opts.snapshotStore,
                     registryModel: opts.registryModel,
                     logger: opts.logger,
                     idleTimeoutMs: opts.idleTimeoutMs ?? 0,
