@@ -42,6 +42,7 @@ import useLeafletMapConfig, {
 import { useTileFallback } from '../../hooks/leaflet/useTileFallback';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import { createMultiColorScale } from '../../utils/colorUtils';
+import { resolveRequestUrl } from '../../utils/request';
 import Callout from '../common/Callout';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -602,7 +603,9 @@ const SimpleMap: FC<SimpleMapProps> = memo(
 
             const loadGeoJson = async () => {
                 try {
-                    const response = await fetch(mapConfig.geoJsonUrl!);
+                    const response = await fetch(
+                        resolveRequestUrl(mapConfig.geoJsonUrl!),
+                    );
                     const data = await response.json();
 
                     // Convert TopoJSON to GeoJSON if needed
