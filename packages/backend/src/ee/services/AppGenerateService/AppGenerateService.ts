@@ -100,6 +100,7 @@ import {
     type SandboxSpec,
 } from '../SandboxRuntime';
 import { assertCanViewApp as assertUserCanViewApp } from './appAuthz';
+import { contentTypeForPath } from './appCode';
 import {
     classifyClaudeCliFailure,
     ClaudeGenerationError,
@@ -6353,24 +6354,6 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     }
 
     private static getContentType(filePath: string): string {
-        const ext = filePath.split('.').pop()?.toLowerCase();
-        const mimeTypes: Record<string, string> = {
-            html: 'text/html',
-            js: 'application/javascript',
-            css: 'text/css',
-            json: 'application/json',
-            png: 'image/png',
-            jpg: 'image/jpeg',
-            jpeg: 'image/jpeg',
-            gif: 'image/gif',
-            svg: 'image/svg+xml',
-            ico: 'image/x-icon',
-            woff: 'font/woff',
-            woff2: 'font/woff2',
-            ttf: 'font/ttf',
-            eot: 'application/vnd.ms-fontobject',
-            map: 'application/json',
-        };
-        return mimeTypes[ext ?? ''] ?? 'application/octet-stream';
+        return contentTypeForPath(filePath);
     }
 }
