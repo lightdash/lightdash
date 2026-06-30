@@ -379,6 +379,7 @@ export function useAiAgentThreadStreamMutation() {
                             case 'tool-findExplores':
                             case 'tool-findFields':
                             case 'tool-grepFields':
+                            case 'tool-getMetadata':
                             case 'tool-findDashboards':
                             case 'tool-findContent':
                             case 'tool-findCharts':

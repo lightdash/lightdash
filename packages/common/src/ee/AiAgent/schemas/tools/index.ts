@@ -4,6 +4,7 @@ export * from './toolBuiltInSkillArgs';
 export * from './toolQueryResultSchemas';
 export * from './toolDiscoverFieldsArgs';
 export * from './toolGrepFieldsArgs';
+export * from './toolGetMetadataArgs';
 export * from './toolEditContentArgs';
 export * from './toolGenerateHashesArgs';
 export * from './toolGenerateUuidsArgs';

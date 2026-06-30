@@ -32,6 +32,7 @@ import { getGenerateUuids } from '../tools/generateUuids';
 import { getGenerateVisualization } from '../tools/generateVisualization';
 import { getGetDashboardCharts } from '../tools/getDashboardCharts';
 import { getGetKnowledgeDocumentContent } from '../tools/getKnowledgeDocumentContent';
+import { getGetMetadata } from '../tools/getMetadata';
 import { getGetProjectInfo } from '../tools/getProjectInfo';
 import { getGrepFields } from '../tools/grepFields';
 import {
@@ -308,6 +309,12 @@ const getAgentTools = (
           })
         : null;
 
+    // Companion to grepFields: rich detail for the explores/fields the agent
+    // selected (joined tables, required filters, filter types, hints).
+    const getMetadata = args.enableGrepFields
+        ? getGetMetadata({ availableExplores })
+        : null;
+
     const findContent = getFindContent({
         findContent: dependencies.findContent,
         siteUrl: args.siteUrl,
@@ -513,8 +520,10 @@ const getAgentTools = (
 
     const tools: ToolSet = {
         findContent,
-        // grepFields replaces discoverFields when the ai-grep-fields flag is on.
+        // grepFields replaces discoverFields when the ai-grep-fields flag is on,
+        // with getMetadata as its rich-detail companion.
         ...(grepFields ? { grepFields } : { discoverFields }),
+        ...(getMetadata ? { getMetadata } : {}),
         analyzeFieldImpact,
         ...(args.enableSearchSemanticLayer ? { searchSemanticLayer } : {}),
         listProjects,
