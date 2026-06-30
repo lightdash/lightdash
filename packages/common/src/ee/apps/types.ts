@@ -595,3 +595,21 @@ export type ApiListDataAppVizsResponse = ApiSuccess<
     KnexPaginatedData<DataAppViz[]>
 >;
 export type ApiGetDataAppVizResponse = ApiSuccess<DataAppViz>;
+
+// postMessage type the host uses to push render context into the sandboxed
+// iframe over the existing app SDK bridge (no new transport).
+export const APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE =
+    'lightdash:sdk:data-app-viz-context';
+
+// postMessage type the iframe posts on mount (via the SDK's useVizContext) to
+// ask the host to push the current context — the renderer may mount after the
+// host's first push, so this handshake replaces blind timed re-sends.
+export const APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE =
+    'lightdash:sdk:viz-context-request';
+
+// Host-owned render context pushed into a data app viz: field name → bound query
+// field id, plus the host-fetched result rows the renderer reads.
+export type DataAppVizContext = {
+    fieldMapping: Record<string, string>;
+    rows: Record<string, unknown>[];
+};
