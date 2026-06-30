@@ -1,3 +1,10 @@
+## [0.3262.2](https://github.com/lightdash/lightdash/compare/0.3262.1...0.3262.2) (2026-06-30)
+
+
+### Bug Fixes
+
+* validate liquid parameter keys ([#24913](https://github.com/lightdash/lightdash/issues/24913)) ([7512411](https://github.com/lightdash/lightdash/commit/751241171691fe7d0e5db5f8ea51436673fc47cb))
+
 ## [0.3262.1](https://github.com/lightdash/lightdash/compare/0.3262.0...0.3262.1) (2026-06-30)
 
 
