@@ -1,3 +1,14 @@
+# [0.3268.0](https://github.com/lightdash/lightdash/compare/0.3267.0...0.3268.0) (2026-06-30)
+
+
+### Features
+
+* **ai-agents:** add getMetadata tool as grepFields' rich-detail companion ([#24944](https://github.com/lightdash/lightdash/issues/24944)) ([120470f](https://github.com/lightdash/lightdash/commit/120470fd03c9921dd150a0f6c01bc6357f623f2e))
+* **ai-agents:** add grepFields tool for deterministic field discovery ([#24934](https://github.com/lightdash/lightdash/issues/24934)) ([8afb3e6](https://github.com/lightdash/lightdash/commit/8afb3e619c6908c3e440570de447c287d96d1992)), closes [#24935](https://github.com/lightdash/lightdash/issues/24935)
+* **ai-agents:** cut discovery round-trips with pre-grep seed + FTS fallback ([#24935](https://github.com/lightdash/lightdash/issues/24935)) ([dc47cc1](https://github.com/lightdash/lightdash/commit/dc47cc16f9139bbdee227196cef795f90b0eb39b)), closes [#24934](https://github.com/lightdash/lightdash/issues/24934) [#24934](https://github.com/lightdash/lightdash/issues/24934)
+* **ai-agents:** rank verified content first in grep field discovery ([#24936](https://github.com/lightdash/lightdash/issues/24936)) ([beae4ee](https://github.com/lightdash/lightdash/commit/beae4ee037a7814eb2b46b8d6ba1a6a757a205cd)), closes [#24935](https://github.com/lightdash/lightdash/issues/24935) [#24935](https://github.com/lightdash/lightdash/issues/24935)
+* **data-apps:** data lineage — link rendered values to their queries [GLITCH-532] ([#24946](https://github.com/lightdash/lightdash/issues/24946)) ([89eb9d5](https://github.com/lightdash/lightdash/commit/89eb9d54dbcdacaeea4a6c938900ae209684172f))
+
 # [0.3267.0](https://github.com/lightdash/lightdash/compare/0.3266.0...0.3267.0) (2026-06-30)
 
 
