@@ -6,7 +6,7 @@ import {
     OrganizationMemberRole,
     type SessionUser,
 } from '@lightdash/common';
-import { Readable } from 'node:stream';
+import { pack } from 'tar-stream';
 import { assertCanViewApp } from './appAuthz';
 import { AppGenerateService } from './AppGenerateService';
 
@@ -30,6 +30,41 @@ const APP_UUID = 'app-uuid-1234';
 const PROJECT_UUID = 'project-uuid-5678';
 const ORG_UUID = 'org-uuid-abcd';
 const VERSION = 3;
+
+const SOURCE_FILES = [
+    { name: 'src/App.jsx', content: 'export default function App() {}' },
+    { name: 'src/lib/theme.ts', content: 'export const theme = {};' },
+];
+
+/** Build a real tar buffer containing SOURCE_FILES using tar-stream pack(). */
+async function buildSourceTar(): Promise<Buffer> {
+    return new Promise<Buffer>((resolve, reject) => {
+        const p = pack();
+        const chunks: Buffer[] = [];
+        p.on('data', (c: Buffer) => chunks.push(c));
+        p.on('end', () => resolve(Buffer.concat(chunks)));
+        p.on('error', reject);
+
+        const addEntries = (
+            files: typeof SOURCE_FILES,
+            index: number,
+        ): void => {
+            if (index >= files.length) {
+                p.finalize();
+                return;
+            }
+            const file = files[index];
+            p.entry({ name: file.name }, file.content, (err) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+                addEntries(files, index + 1);
+            });
+        };
+        addEntries(SOURCE_FILES, 0);
+    });
+}
 
 const fakeApp = {
     app_id: APP_UUID,
@@ -72,46 +107,29 @@ const fakeUser: SessionUser = {
     timezone: null,
 };
 
-// Two fake files in S3
-const FAKE_FILES = [
-    { key: `apps/${APP_UUID}/versions/${VERSION}/index.html`, body: 'hello' },
-    {
-        key: `apps/${APP_UUID}/versions/${VERSION}/assets/app.js`,
-        body: 'world',
-    },
-];
-
 type FakeCommand = {
     constructor: { name: string };
     input: Record<string, unknown>;
 };
 
-/** Build a fake S3 client whose send() returns list then get responses. */
-function makeFakeS3() {
-    const prefix = `apps/${APP_UUID}/versions/${VERSION}/`;
-    let listCallCount = 0;
+/** Build a fake S3 client that returns a tar body for the source.tar key. */
+function makeFakeS3(tarBuffer: Buffer, expectedVersion: number = VERSION) {
+    const sourceTarKey = `apps/${APP_UUID}/versions/${expectedVersion}/source.tar`;
 
     const send = vi.fn(async (command: FakeCommand) => {
         const cmdName = command.constructor.name;
 
-        if (cmdName === 'ListObjectsV2Command') {
-            listCallCount += 1;
-            if (listCallCount > 1) {
-                return { Contents: [], IsTruncated: false };
-            }
-            return {
-                Contents: FAKE_FILES.map((f) => ({ Key: f.key })),
-                IsTruncated: false,
-            };
-        }
-
         if (cmdName === 'GetObjectCommand') {
             const key = command.input.Key as string;
-            const file = FAKE_FILES.find((f) => f.key === key);
-            const body = file ? file.body : '';
-            return {
-                Body: Readable.from([Buffer.from(body)]),
-            };
+            if (key === sourceTarKey) {
+                const { Readable } = await import('node:stream');
+                return { Body: Readable.from([tarBuffer]) };
+            }
+            const err = Object.assign(new Error('NoSuchKey'), {
+                name: 'NoSuchKey',
+                Code: 'NoSuchKey',
+            });
+            throw err;
         }
 
         throw new Error(`Unexpected command: ${cmdName}`);
@@ -121,7 +139,6 @@ function makeFakeS3() {
         client: { send } as never,
         bucket: 'test-bucket',
         send,
-        prefix,
     };
 }
 
@@ -174,12 +191,18 @@ function buildService(overrides: {
 // ── tests ─────────────────────────────────────────────────────────────────────
 
 describe('AppGenerateService.getAppCode', () => {
+    let sourceTarBuffer: Buffer;
+
+    beforeAll(async () => {
+        sourceTarBuffer = await buildSourceTar();
+    });
+
     beforeEach(() => {
         vi.mocked(assertCanViewApp).mockResolvedValue(undefined);
     });
 
-    it('returns a DataAppCode with manifest and files for the latest ready version', async () => {
-        const fakeS3 = makeFakeS3();
+    it('returns a DataAppCode with manifest and extracted source files for the latest ready version', async () => {
+        const fakeS3 = makeFakeS3(sourceTarBuffer);
         const appModel = {
             getApp: vi.fn().mockResolvedValue(fakeApp),
             getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
@@ -199,55 +222,34 @@ describe('AppGenerateService.getAppCode', () => {
         expect(typeof result.manifest.downloadedAt).toBe('string');
         expect(result.manifest.codeVersion).toBe(1);
 
-        // files
+        // files — exactly the two source entries
         expect(result.files).toHaveLength(2);
-        const indexFile = result.files.find((f) => f.path === 'index.html');
-        expect(indexFile).toBeDefined();
-        expect(Buffer.from(indexFile!.contentBase64, 'base64').toString()).toBe(
-            'hello',
+
+        const appFile = result.files.find((f) => f.path === 'src/App.jsx');
+        expect(appFile).toBeDefined();
+        expect(Buffer.from(appFile!.contentBase64, 'base64').toString()).toBe(
+            'export default function App() {}',
         );
-        const jsFile = result.files.find((f) => f.path === 'assets/app.js');
-        expect(jsFile).toBeDefined();
-        expect(Buffer.from(jsFile!.contentBase64, 'base64').toString()).toBe(
-            'world',
+
+        const themeFile = result.files.find(
+            (f) => f.path === 'src/lib/theme.ts',
+        );
+        expect(themeFile).toBeDefined();
+        expect(Buffer.from(themeFile!.contentBase64, 'base64').toString()).toBe(
+            'export const theme = {};',
         );
     });
 
     it('uses the provided version number instead of latest ready', async () => {
         const EXPLICIT_VERSION = 7;
-        const prefix7 = `apps/${APP_UUID}/versions/${EXPLICIT_VERSION}/`;
-        const files7 = [{ key: `${prefix7}index.html`, body: 'v7-hello' }];
-        let lc = 0;
-        const send7 = vi.fn(async (command: FakeCommand) => {
-            const cmdName = command.constructor.name;
-            if (cmdName === 'ListObjectsV2Command') {
-                lc += 1;
-                if (lc > 1) return { Contents: [], IsTruncated: false };
-                return {
-                    Contents: files7.map((f) => ({ Key: f.key })),
-                    IsTruncated: false,
-                };
-            }
-            if (cmdName === 'GetObjectCommand') {
-                const key = command.input.Key as string;
-                const file = files7.find((f) => f.key === key);
-                return {
-                    Body: Readable.from([Buffer.from(file?.body ?? '')]),
-                };
-            }
-            throw new Error(`Unexpected: ${cmdName}`);
-        });
-        const fakeS37 = {
-            client: { send: send7 } as never,
-            bucket: 'test-bucket',
-        };
+        const fakeS3 = makeFakeS3(sourceTarBuffer, EXPLICIT_VERSION);
 
         const appModel = {
             getApp: vi.fn().mockResolvedValue(fakeApp),
             getLatestReadyVersion: vi.fn(),
         };
 
-        const svc = buildService({ appModel, s3ClientOverride: fakeS37 });
+        const svc = buildService({ appModel, s3ClientOverride: fakeS3 });
         const result = await svc.getAppCode(
             fakeUser,
             PROJECT_UUID,
@@ -257,67 +259,7 @@ describe('AppGenerateService.getAppCode', () => {
 
         expect(result.manifest.version).toBe(EXPLICIT_VERSION);
         expect(appModel.getLatestReadyVersion).not.toHaveBeenCalled();
-        expect(result.files).toHaveLength(1);
-    });
-
-    it('fetches all files across two S3 pages (pagination loop)', async () => {
-        const prefix = `apps/${APP_UUID}/versions/${VERSION}/`;
-        const page1Key = `${prefix}index.html`;
-        const page2Key = `${prefix}assets/app.js`;
-
-        const sendPaged = vi.fn(async (command: FakeCommand) => {
-            const cmdName = command.constructor.name;
-
-            if (cmdName === 'ListObjectsV2Command') {
-                const token = command.input.ContinuationToken as
-                    | string
-                    | undefined;
-                if (!token) {
-                    return {
-                        IsTruncated: true,
-                        NextContinuationToken: 'tok',
-                        Contents: [{ Key: page1Key }],
-                    };
-                }
-                return {
-                    IsTruncated: false,
-                    Contents: [{ Key: page2Key }],
-                };
-            }
-
-            if (cmdName === 'GetObjectCommand') {
-                const key = command.input.Key as string;
-                const body = key === page1Key ? 'hello' : 'world';
-                return { Body: Readable.from([Buffer.from(body)]) };
-            }
-
-            throw new Error(`Unexpected command: ${cmdName}`);
-        });
-
-        const fakeS3Paged = {
-            client: { send: sendPaged } as never,
-            bucket: 'test-bucket',
-        };
-        const appModel = {
-            getApp: vi.fn().mockResolvedValue(fakeApp),
-            getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
-        };
-
-        const svc = buildService({ appModel, s3ClientOverride: fakeS3Paged });
-        const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID);
-
-        // Both pages' files must appear — dropping the loop would yield only one.
         expect(result.files).toHaveLength(2);
-        const indexFile = result.files.find((f) => f.path === 'index.html');
-        expect(indexFile).toBeDefined();
-        expect(Buffer.from(indexFile!.contentBase64, 'base64').toString()).toBe(
-            'hello',
-        );
-        const jsFile = result.files.find((f) => f.path === 'assets/app.js');
-        expect(jsFile).toBeDefined();
-        expect(Buffer.from(jsFile!.contentBase64, 'base64').toString()).toBe(
-            'world',
-        );
     });
 
     it('throws NotFoundError when no ready version exists and version is omitted', async () => {
@@ -330,6 +272,28 @@ describe('AppGenerateService.getAppCode', () => {
             appModel,
             s3ClientOverride: { client: {} as never, bucket: 'b' },
         });
+
+        await expect(
+            svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID),
+        ).rejects.toThrow(NotFoundError);
+    });
+
+    it('throws NotFoundError when the source.tar object does not exist in S3', async () => {
+        const send = vi.fn(async (_command: FakeCommand) => {
+            const err = Object.assign(new Error('NoSuchKey'), {
+                name: 'NoSuchKey',
+                Code: 'NoSuchKey',
+            });
+            throw err;
+        });
+        const fakeS3 = { client: { send } as never, bucket: 'test-bucket' };
+
+        const appModel = {
+            getApp: vi.fn().mockResolvedValue(fakeApp),
+            getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
+        };
+
+        const svc = buildService({ appModel, s3ClientOverride: fakeS3 });
 
         await expect(
             svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID),
