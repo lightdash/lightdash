@@ -37,6 +37,7 @@ import {
     PR_TITLE_CLOSE,
     PR_TITLE_OPEN,
 } from './constants';
+import { WritebackGitNotConnectedError } from './errors';
 
 // Stub e2b and the GitHub/octokit client so the run() tests drive fakes and the
 // unit tests below never reach the real SDKs.
@@ -636,6 +637,42 @@ describe('AiWritebackService dbt source targeting', () => {
             kind: 'resolved',
             candidate: { sourceUuid: null, isPrimary: true },
         });
+    });
+
+    it('drops a non-git primary but still targets git-backed additional sources', async () => {
+        const service = serviceWithSources([marketingSource()]);
+        const result = await (service as AnyType).resolveDbtTarget({
+            projectUuid: 'p1',
+            // Local (non-git) primary — cannot be a writeback target.
+            project: {
+                projectUuid: 'p1',
+                dbtConnection: { type: DbtProjectType.DBT },
+            },
+            prompt: 'add a metric',
+            dbtSourceUuid: undefined,
+            existingRow: null,
+        });
+        // Only the git-backed additional source remains, so it's the sole target.
+        expect(result).toMatchObject({
+            kind: 'resolved',
+            candidate: { sourceUuid: 'src-marketing', isPrimary: false },
+        });
+    });
+
+    it('rejects when no git-backed source exists at all', async () => {
+        const service = serviceWithSources([]);
+        await expect(
+            (service as AnyType).resolveDbtTarget({
+                projectUuid: 'p1',
+                project: {
+                    projectUuid: 'p1',
+                    dbtConnection: { type: DbtProjectType.DBT },
+                },
+                prompt: 'add a metric',
+                dbtSourceUuid: undefined,
+                existingRow: null,
+            }),
+        ).rejects.toThrow(WritebackGitNotConnectedError);
     });
 
     it('run() returns a selection request without starting a sandbox', async () => {

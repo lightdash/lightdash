@@ -1714,24 +1714,29 @@ export class AiWritebackService extends BaseService {
 
     /**
      * Build the candidate dbt sources a writeback run can target: the project's
-     * primary dbt connection (always present, precedence 0) plus any additional
-     * `project_dbt_sources` that are git-backed (the only ones writeback can
-     * open a PR against). A project with no additional sources yields just the
-     * primary — the unchanged single-source path.
+     * primary dbt connection (precedence 0) plus any additional
+     * `project_dbt_sources`, keeping only the git-backed ones — GitHub/GitLab
+     * are the only sources writeback can open a PR against. A non-git primary
+     * (e.g. a local `dbt` or dbt-cloud project) is therefore dropped, but its
+     * git-backed additional sources are still targetable. A project with no
+     * additional sources yields just the primary — the single-source path.
      */
     private async listDbtTargetCandidates(
         projectUuid: string,
         project: { projectUuid: string; dbtConnection: DbtProjectConfig },
     ): Promise<DbtTargetCandidate[]> {
-        const primary: DbtTargetCandidate = {
-            sourceUuid: null,
-            // The primary's client-facing id is the project uuid — the same id
-            // the project's dbt-sources list synthesises for it.
-            optionUuid: project.projectUuid,
-            name: 'Project dbt connection',
-            isPrimary: true,
-            connection: project.dbtConnection,
-        };
+        const primary: DbtTargetCandidate | null =
+            AiWritebackService.isWritebackTargetable(project.dbtConnection.type)
+                ? {
+                      sourceUuid: null,
+                      // The primary's client-facing id is the project uuid — the
+                      // same id the project's dbt-sources list synthesises for it.
+                      optionUuid: project.projectUuid,
+                      name: 'Project dbt connection',
+                      isPrimary: true,
+                      connection: project.dbtConnection,
+                  }
+                : null;
         const additional =
             await this.projectDbtSourcesModel.getSources(projectUuid);
         const extra = additional.flatMap<DbtTargetCandidate>((dbtSource) =>
@@ -1750,7 +1755,7 @@ export class AiWritebackService extends BaseService {
                   ]
                 : [],
         );
-        return [primary, ...extra];
+        return primary ? [primary, ...extra] : extra;
     }
 
     /**
@@ -1782,6 +1787,16 @@ export class AiWritebackService extends BaseService {
             projectUuid,
             project,
         );
+
+        // No git-backed source anywhere (non-git primary, no git additional
+        // sources) — there's nothing to open a PR against. Mirror the connection
+        // gate getGitProvider enforced when the primary was the only target.
+        if (candidates.length === 0) {
+            throw new WritebackGitNotConnectedError(
+                null,
+                `AI writeback requires a GitHub or GitLab dbt source, but this project ("${project.dbtConnection.type}") has none`,
+            );
+        }
 
         if (existingRow) {
             const bound = candidates.find(
