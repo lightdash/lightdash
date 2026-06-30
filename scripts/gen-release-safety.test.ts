@@ -10,6 +10,7 @@ import {
     detectMigrations,
     GitChange,
     MARKER_SCHEMA_VERSION,
+    ownExpandContractFloor,
 } from './gen-release-safety';
 
 let passed = 0;
@@ -600,6 +601,107 @@ test('all phases compose: capabilities ordered migrations, sql-lint, ai-review, 
     assert.strictEqual(m.api.rest.breaking, true);
     assert.strictEqual(m.api.mcp.checked, true);
     assert.strictEqual(m.upgrade.requiredStop, true);
+});
+
+// --- carriedFloor (forward-carried high-water mark) --------------------------
+
+test('carriedFloor sets the floor on a release with no own floor + claims "upgrade"', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: noMig,
+        carriedFloor: { minPreviousVersion: '0.3260.0', sourceVersion: '0.3265.0', kind: 'minPrevious' },
+    });
+    assert.strictEqual(m.upgrade.minPreviousVersion, '0.3260.0');
+    assert.strictEqual(m.upgrade.requiredStop, false);
+    assert.ok(m.capabilities.includes('upgrade'));
+    assert.ok(/0\.3265\.0/.test(m.upgrade.note ?? ''));
+});
+
+test('carriedFloor RAISES a lower human-declared floor (an in-between hazard wins)', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: noMig,
+        upgrade: { consulted: true, minPreviousVersion: '0.3200.0', requiredStop: false, note: 'declared' },
+        carriedFloor: { minPreviousVersion: '0.3260.0', sourceVersion: '0.3265.0', kind: 'minPrevious' },
+    });
+    assert.strictEqual(m.upgrade.minPreviousVersion, '0.3260.0'); // raised, not 0.3200.0
+    assert.ok(/0\.3265\.0/.test(m.upgrade.note ?? ''));
+    assert.ok(/declared/.test(m.upgrade.note ?? '')); // prior note preserved
+});
+
+test('carriedFloor does NOT lower a higher existing floor', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: noMig,
+        upgrade: { consulted: true, minPreviousVersion: '0.3290.0', requiredStop: false, note: 'declared' },
+        carriedFloor: { minPreviousVersion: '0.3260.0', sourceVersion: '0.3265.0', kind: 'minPrevious' },
+    });
+    assert.strictEqual(m.upgrade.minPreviousVersion, '0.3290.0'); // unchanged
+    assert.strictEqual(m.upgrade.note, 'declared'); // note untouched
+});
+
+test('a required-stop carriedFloor yields a required-stop note; own requiredStop preserved', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: noMig,
+        upgrade: { consulted: true, minPreviousVersion: null, requiredStop: true, note: 'this release is also a stop' },
+        carriedFloor: { minPreviousVersion: '0.3280.0', sourceVersion: '0.3280.0', kind: 'requiredStop' },
+    });
+    assert.strictEqual(m.upgrade.minPreviousVersion, '0.3280.0');
+    assert.strictEqual(m.upgrade.requiredStop, true); // own stop preserved
+    assert.ok(/required stop/i.test(m.upgrade.note ?? ''));
+});
+
+// --- ownExpandContractFloor (persisted-floor source of truth) ----------------
+
+test('ownExpandContractFloor returns the traced expand floor when present', () => {
+    const f = ownExpandContractFloor({
+        migrations: migPresent,
+        sqlLint: { ran: true, breaking: true, findings: ['drop-column'] },
+        aiReview: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', summary: 'cleared' },
+        expandContractFloor: '0.3240.0',
+        previousVersion: '0.3260.2',
+    });
+    assert.strictEqual(f, '0.3240.0');
+});
+
+test('ownExpandContractFloor falls back to previousVersion with no traced floor', () => {
+    const f = ownExpandContractFloor({
+        migrations: migPresent,
+        sqlLint: { ran: true, breaking: true, findings: ['drop-column'] },
+        aiReview: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', summary: 'cleared' },
+        previousVersion: '0.3260.2',
+    });
+    assert.strictEqual(f, '0.3260.2');
+});
+
+test('ownExpandContractFloor is null unless linter-flagged AND AI-cleared AND migration present', () => {
+    const cleared = { rollingUpdateSafe: true as const, recommendedStrategy: 'RollingUpdate' as const, summary: '' };
+    const breaking = { ran: true, breaking: true, findings: ['x'] };
+    // linter clean → null
+    assert.strictEqual(ownExpandContractFloor({ migrations: migPresent, sqlLint: { ran: true, breaking: false, findings: [] }, aiReview: cleared, previousVersion: '0.3260.2' }), null);
+    // AI not "safe" → null
+    assert.strictEqual(ownExpandContractFloor({ migrations: migPresent, sqlLint: breaking, aiReview: { rollingUpdateSafe: false, recommendedStrategy: 'Recreate', summary: '' }, previousVersion: '0.3260.2' }), null);
+    // no migration → null
+    assert.strictEqual(ownExpandContractFloor({ migrations: noMig, sqlLint: breaking, aiReview: cleared, previousVersion: '0.3260.2' }), null);
+    // first release (no previousVersion, no traced floor) → null
+    assert.strictEqual(ownExpandContractFloor({ migrations: migPresent, sqlLint: breaking, aiReview: cleared, previousVersion: null }), null);
+});
+
+test('NO DRIFT: ownExpandContractFloor equals the floor buildMarker advertises', () => {
+    // Same inputs, no human override and no carried floor → the persisted floor
+    // (ownExpandContractFloor) must equal what the marker shows, or operators get a
+    // floor in the committed file that disagrees with the published marker.
+    const input = {
+        ...base,
+        migrations: migPresent,
+        sqlLint: { ran: true, breaking: true, findings: ['drop-column'] },
+        aiReview: { rollingUpdateSafe: true as const, recommendedStrategy: 'RollingUpdate' as const, summary: 'cleared' },
+        expandContractFloor: '0.3240.0',
+    };
+    const m = buildMarker(input);
+    assert.strictEqual(ownExpandContractFloor(input), m.upgrade.minPreviousVersion);
+    assert.strictEqual(ownExpandContractFloor(input), '0.3240.0');
 });
 
 // --- report ------------------------------------------------------------------
