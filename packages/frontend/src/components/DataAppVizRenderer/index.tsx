@@ -39,6 +39,12 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         hasSignaledScreenshotReady.current = true;
     }, [onScreenshotReady]);
 
+    // Fetch every page so the renderer gets all rows — surfaces that don't
+    // auto-fetch (dashboard tiles) would otherwise push a partial result.
+    useEffect(() => {
+        resultsData?.setFetchAll(true);
+    }, [resultsData]);
+
     const config = isDataAppVizVisualizationConfig(visualizationConfig)
         ? visualizationConfig.chartConfig.validConfig
         : undefined;
