@@ -76,6 +76,7 @@ import AppPromptEditor, {
 import {
     AttachButton,
     InspectButton,
+    InspectDataButton,
     ModelPicker,
     ScreenshotButton,
     SelectedDashboardSection,
@@ -191,6 +192,11 @@ type AppPreviewProps = {
     onInspectorAvailabilityChange?: (available: boolean) => void;
     onScreenshotAvailabilityChange?: (available: boolean) => void;
     onInspectorCancelled?: () => void;
+    lineageEnabled?: boolean;
+    onLineageAvailabilityChange?: (available: boolean) => void;
+    onLineageSelected?: (event: { queryUuid: string }) => void;
+    lineageHighlightQueryUuid?: string | null;
+    onLineageCancelled?: () => void;
 };
 
 const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
@@ -207,6 +213,11 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
             onInspectorAvailabilityChange,
             onScreenshotAvailabilityChange,
             onInspectorCancelled,
+            lineageEnabled,
+            onLineageAvailabilityChange,
+            onLineageSelected,
+            lineageHighlightQueryUuid,
+            onLineageCancelled,
         },
         ref,
     ) => {
@@ -258,6 +269,11 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
                 onInspectorAvailabilityChange={onInspectorAvailabilityChange}
                 onScreenshotAvailabilityChange={onScreenshotAvailabilityChange}
                 onInspectorCancelled={onInspectorCancelled}
+                lineageEnabled={lineageEnabled}
+                onLineageAvailabilityChange={onLineageAvailabilityChange}
+                onLineageSelected={onLineageSelected}
+                lineageHighlightQueryUuid={lineageHighlightQueryUuid}
+                onLineageCancelled={onLineageCancelled}
                 capabilities={{ gsheetExport: true }}
             />
         );
@@ -493,6 +509,14 @@ const AppGenerate: FC = () => {
     // Screenshot button stays hidden — they keep working as before.
     const [screenshotAvailable, setScreenshotAvailable] = useState(false);
     const [isCapturingScreenshot, setIsCapturingScreenshot] = useState(false);
+    const [lineageEnabled, setLineageEnabled] = useState(false);
+    const [lineageAvailable, setLineageAvailable] = useState(false);
+    const [hoveredQueryUuid, setHoveredQueryUuid] = useState<string | null>(
+        null,
+    );
+    const [focusedQueryUuid, setFocusedQueryUuid] = useState<string | null>(
+        null,
+    );
     const previewRef = useRef<AppIframePreviewHandle>(null);
     const {
         queries: trackedQueries,
@@ -522,6 +546,17 @@ const AppGenerate: FC = () => {
     // every render of this page.
     const handleInspectorCancelled = useCallback(() => {
         setInspectorEnabled(false);
+    }, []);
+    const handleLineageSelected = useCallback(
+        (event: { queryUuid: string }) => {
+            setQueriesPanelHidden(false);
+            setFocusedQueryUuid(event.queryUuid);
+        },
+        [],
+    );
+
+    const handleLineageCancelled = useCallback(() => {
+        setLineageEnabled(false);
     }, []);
     const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
     // Pre-build clarification round: captured submission args that we need
@@ -604,6 +639,10 @@ const AppGenerate: FC = () => {
         setInspectorAvailable(false);
         setScreenshotAvailable(false);
         setIsCapturingScreenshot(false);
+        setLineageEnabled(false);
+        setLineageAvailable(false);
+        setHoveredQueryUuid(null);
+        setFocusedQueryUuid(null);
         setSelectedTemplate(null);
         setThemeChipOverride(null);
         setPendingClarification(null);
@@ -2679,12 +2718,31 @@ const AppGenerate: FC = () => {
                                             />
                                             <InspectButton
                                                 enabled={inspectorEnabled}
-                                                onToggle={() =>
-                                                    setInspectorEnabled(
-                                                        (v) => !v,
-                                                    )
-                                                }
+                                                onToggle={() => {
+                                                    setInspectorEnabled((v) => {
+                                                        const next = !v;
+                                                        if (next)
+                                                            setLineageEnabled(
+                                                                false,
+                                                            );
+                                                        return next;
+                                                    });
+                                                }}
                                                 disabled={!inspectorAvailable}
+                                            />
+                                            <InspectDataButton
+                                                enabled={lineageEnabled}
+                                                onToggle={() => {
+                                                    setLineageEnabled((v) => {
+                                                        const next = !v;
+                                                        if (next)
+                                                            setInspectorEnabled(
+                                                                false,
+                                                            );
+                                                        return next;
+                                                    });
+                                                }}
+                                                disabled={!lineageAvailable}
                                             />
                                             <ModelPicker
                                                 value={selectedModel}
@@ -2905,6 +2963,19 @@ const AppGenerate: FC = () => {
                                         onInspectorCancelled={
                                             handleInspectorCancelled
                                         }
+                                        lineageEnabled={lineageEnabled}
+                                        onLineageAvailabilityChange={
+                                            setLineageAvailable
+                                        }
+                                        onLineageSelected={
+                                            handleLineageSelected
+                                        }
+                                        lineageHighlightQueryUuid={
+                                            hoveredQueryUuid
+                                        }
+                                        onLineageCancelled={
+                                            handleLineageCancelled
+                                        }
                                     />
                                 ) : (
                                     <Box className={classes.previewEmpty}>
@@ -2924,6 +2995,8 @@ const AppGenerate: FC = () => {
                                         onDismiss={() =>
                                             setQueriesPanelHidden(true)
                                         }
+                                        onHoverQuery={setHoveredQueryUuid}
+                                        focusedQueryUuid={focusedQueryUuid}
                                     />
                                 )}
                             </Box>
