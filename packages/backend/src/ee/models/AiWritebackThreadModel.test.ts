@@ -6,15 +6,15 @@ type AnyType = any; // eslint-disable-line @typescript-eslint/no-explicit-any
 // Build a model whose knex `client` exposes a mocked connection so the
 // session-level advisory lock can be exercised without a real database.
 const buildModel = (locked: boolean) => {
-    const query = jest.fn().mockImplementation((sql: string) => {
+    const query = vi.fn().mockImplementation((sql: string) => {
         if (sql.includes('pg_try_advisory_lock')) {
             return Promise.resolve({ rows: [{ locked }] });
         }
         return Promise.resolve({ rows: [{ pg_advisory_unlock: true }] });
     });
     const connection = { query };
-    const acquireConnection = jest.fn().mockResolvedValue(connection);
-    const releaseConnection = jest.fn().mockResolvedValue(undefined);
+    const acquireConnection = vi.fn().mockResolvedValue(connection);
+    const releaseConnection = vi.fn().mockResolvedValue(undefined);
     const database = {
         client: { acquireConnection, releaseConnection },
     } as unknown as Knex;
@@ -65,11 +65,11 @@ describe('AiWritebackThreadModel.acquireWorkstreamLock', () => {
     });
 
     it('releases the connection if the lock query throws', async () => {
-        const query = jest.fn().mockRejectedValue(new Error('db down'));
-        const releaseConnection = jest.fn().mockResolvedValue(undefined);
+        const query = vi.fn().mockRejectedValue(new Error('db down'));
+        const releaseConnection = vi.fn().mockResolvedValue(undefined);
         const database = {
             client: {
-                acquireConnection: jest.fn().mockResolvedValue({ query }),
+                acquireConnection: vi.fn().mockResolvedValue({ query }),
                 releaseConnection,
             },
         } as unknown as Knex;
