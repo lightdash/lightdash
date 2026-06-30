@@ -31,3 +31,10 @@
     flex-grow: 1;
     overflow: hidden;
 }
+
+.secondaryText {
+    color: light-dark(
+        var(--mantine-color-ldGray-6),
+        var(--mantine-color-ldGray-7)
+    );
+}

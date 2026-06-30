@@ -19,6 +19,13 @@
     padding: 0;
 }
 
+.groupLabel {
+    color: light-dark(
+        var(--mantine-color-ldGray-6),
+        var(--mantine-color-ldGray-7)
+    );
+}
+
 .accordionContent {
     padding: var(--mantine-spacing-xs);
 }
