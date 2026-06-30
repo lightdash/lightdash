@@ -40,6 +40,7 @@ import {
     type CompiledExploreJoin,
     type CompiledTable,
     type DataAppClaudeModel,
+    type DataAppCode,
     type DataAppTemplate,
     type EmbedProjectApp,
     type Explore,
@@ -100,7 +101,12 @@ import {
     type SandboxSpec,
 } from '../SandboxRuntime';
 import { assertCanViewApp as assertUserCanViewApp } from './appAuthz';
-import { contentTypeForPath } from './appCode';
+import {
+    buildManifest,
+    contentTypeForPath,
+    s3KeyToRelPath,
+    versionPrefix,
+} from './appCode';
 import {
     classifyClaudeCliFailure,
     ClaudeGenerationError,
@@ -6355,5 +6361,92 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
 
     private static getContentType(filePath: string): string {
         return contentTypeForPath(filePath);
+    }
+
+    /**
+     * Read all artifacts for a specific (or latest ready) built app version from
+     * S3 and return them as a base64-encoded bundle together with a manifest.
+     */
+    async getAppCode(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+        version?: number,
+    ): Promise<DataAppCode> {
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertCanViewApp(user, app);
+
+        let resolvedVersion: number;
+        if (version !== undefined) {
+            resolvedVersion = version;
+        } else {
+            const latestReady = await this.appModel.getLatestReadyVersion(
+                app.app_id,
+            );
+            if (!latestReady) {
+                throw new NotFoundError(
+                    `Data app has no ready version yet: ${appUuid}`,
+                );
+            }
+            resolvedVersion = latestReady.version;
+        }
+
+        const { client: s3Client, bucket } = this.getS3Client();
+        const prefix = versionPrefix(appUuid, resolvedVersion);
+
+        // Paginate through all objects under the version prefix
+        const allKeys: string[] = [];
+        let continuationToken: string | undefined;
+        /* eslint-disable no-await-in-loop */
+        do {
+            const listResponse = await s3Client.send(
+                new ListObjectsV2Command({
+                    Bucket: bucket,
+                    Prefix: prefix,
+                    ContinuationToken: continuationToken,
+                }),
+            );
+            const pageKeys = (listResponse.Contents ?? [])
+                .map((obj) => obj.Key)
+                .filter((key): key is string => typeof key === 'string');
+            allKeys.push(...pageKeys);
+            continuationToken = listResponse.IsTruncated
+                ? listResponse.NextContinuationToken
+                : undefined;
+        } while (continuationToken);
+        /* eslint-enable no-await-in-loop */
+
+        // Fetch each object and base64-encode its contents
+        const files = await Promise.all(
+            allKeys.map(async (key) => {
+                const response = await s3Client.send(
+                    new GetObjectCommand({ Bucket: bucket, Key: key }),
+                );
+                const stream = response.Body as Readable;
+                const chunks: Buffer[] = [];
+                for await (const chunk of stream) {
+                    chunks.push(
+                        Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk),
+                    );
+                }
+                const buf = Buffer.concat(chunks);
+                return {
+                    path: s3KeyToRelPath(key, prefix),
+                    contentBase64: buf.toString('base64'),
+                };
+            }),
+        );
+
+        const manifest = buildManifest({
+            appUuid,
+            projectUuid,
+            version: resolvedVersion,
+            name: app.name,
+            description: app.description,
+            template: app.template,
+            downloadedAt: new Date().toISOString(),
+        });
+
+        return { manifest, files };
     }
 }
