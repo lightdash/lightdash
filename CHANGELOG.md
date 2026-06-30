@@ -1,3 +1,10 @@
+## [0.3270.1](https://github.com/lightdash/lightdash/compare/0.3270.0...0.3270.1) (2026-06-30)
+
+
+### Bug Fixes
+
+* **mcp:** annotate context tool writes ([#24966](https://github.com/lightdash/lightdash/issues/24966)) ([b40eb2a](https://github.com/lightdash/lightdash/commit/b40eb2af59feaec563072f18dd2e9375f63eae6a))
+
 # [0.3270.0](https://github.com/lightdash/lightdash/compare/0.3269.0...0.3270.0) (2026-06-30)
 
 
