@@ -145,6 +145,7 @@ describe('MCP tool contracts', () => {
                 name === McpToolName.RUN_METRIC_QUERY ? 'runQuery' : null,
             title: config.title,
             description: config.description,
+            annotations: config.annotations,
             inputSchema: schemaToJson(config.inputSchema),
             ...(config.outputSchema
                 ? { outputSchema: schemaToJson(config.outputSchema) }

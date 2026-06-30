@@ -282,6 +282,12 @@ const writeAnnotations: McpToolAnnotations = {
     idempotentHint: false,
 };
 
+const contextWriteAnnotations: McpToolAnnotations = {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: true,
+};
+
 const emptyInputSchema = z.object({});
 
 const routeAgentArgsSchema = z.object({
@@ -874,7 +880,7 @@ export const setProjectToolDefinition = defineTool({
         projectUuid: z.string(),
         tags: z.array(z.string()).optional(),
     }),
-    mcp: { annotations: readOnlyAnnotations },
+    mcp: { annotations: contextWriteAnnotations },
 });
 
 export const getCurrentProjectToolDefinition = defineTool({
@@ -921,7 +927,7 @@ export const setAgentToolDefinition = defineTool({
     inputSchema: z.object({
         agentUuid: z.string(),
     }),
-    mcp: { annotations: readOnlyAnnotations },
+    mcp: { annotations: contextWriteAnnotations },
 });
 
 export const clearAgentToolDefinition = defineTool({
@@ -931,7 +937,7 @@ export const clearAgentToolDefinition = defineTool({
         "Clear the active AI agent from context. After clearing, tool calls will no longer be scoped to a specific agent's explores, tags, or instructions. The active project is preserved.",
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
-    mcp: { annotations: readOnlyAnnotations },
+    mcp: { annotations: contextWriteAnnotations },
 });
 
 export const getCurrentAgentToolDefinition = defineTool({

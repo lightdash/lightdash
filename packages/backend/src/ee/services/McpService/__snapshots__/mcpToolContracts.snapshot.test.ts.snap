@@ -86,6 +86,11 @@ Use table calculations for:
   "tools": [
     {
       "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true,
+      },
       "description": "Get the current Lightdash version",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -98,6 +103,11 @@ Use table calculations for:
     },
     {
       "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true,
+      },
       "description": "Tool: listExplores
 
 Purpose:
@@ -120,6 +130,11 @@ Usage Tips:
     },
     {
       "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true,
+      },
       "description": "Tool: findExplores
 
 Purpose:
@@ -153,6 +168,11 @@ Output:
     },
     {
       "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true,
+      },
       "description": "Tool: "findFields"
 
 Purpose:
@@ -207,6 +227,11 @@ Usage tips:
     },
     {
       "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true,
+      },
       "description": "Tool: "findContent"
 Purpose:
 Finds spaces, charts, or dashboards by name or description within a project, returning detailed information about each.
@@ -256,6 +281,11 @@ Usage tips:
     },
     {
       "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true,
+      },
       "description": "Tool: "listContent"
 Purpose:
 Lists accessible Lightdash content in a project as a browsable hierarchy.
@@ -286,6 +316,11 @@ Usage tips:
     },
     {
       "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true,
+      },
       "description": "Read a dashboard or chart as JSON using its slug. Call this before editing.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -316,6 +351,11 @@ Usage tips:
     },
     {
       "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "readOnlyHint": false,
+      },
       "description": "Create a new dashboard or chart, consult the skills for the required fields. Returns the created content with the final persisted slug.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -492,6 +532,11 @@ Usage tips:
     },
     {
       "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "readOnlyHint": false,
+      },
       "description": "Edit a dashboard or chart by applying a patch to its JSON, then validate before persisting",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -528,6 +573,11 @@ Usage tips:
     },
     {
       "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true,
+      },
       "description": "List all accessible projects in the organization. Projects contain explores, fields, and content. Use this to discover available projects before calling set_project to select one as the active context for subsequent operations.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -540,6 +590,11 @@ Usage tips:
     },
     {
       "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": false,
+      },
       "description": "Set the active project for all subsequent MCP operations. Most tools (list_explores, find_fields, run_metric_query, etc.) require an active project. Setting a project clears any previously selected agent, since agents are scoped to a project. After setting a project, prefer route_agent to auto-select the best agent for each request; use list_agents and set_agent only for manual override.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -565,6 +620,11 @@ Usage tips:
     },
     {
       "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true,
+      },
       "description": "Get the currently active project and its configuration. Returns the project UUID, name, and any selected tags. Use this to verify context before calling data tools.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -577,6 +637,11 @@ Usage tips:
     },
     {
       "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true,
+      },
       "description": "List accessible AI agents for the active project. Optionally filter by project UUID. Each agent is pre-configured with specific explores, tags, verified questions, and instructions that define its domain expertise. Prefer route_agent for automatic selection; use this tool when you need to inspect candidates or choose one manually before calling set_agent.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -593,6 +658,11 @@ Usage tips:
     },
     {
       "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "readOnlyHint": false,
+      },
       "description": "Automatically select and activate the best AI agent for a user request within the active project. Call this at the start of each new user request after setting project context. Returns routing metadata plus the selected agent context; use set_agent only when you want to override the automatic choice manually.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -725,6 +795,11 @@ Usage tips:
     },
     {
       "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": false,
+      },
       "description": "Manually set the active AI agent for the active project. Prefer route_agent for default automatic selection; use this when you need to override that choice explicitly. Returns the agent's full context including: explores it has access to, space restrictions, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Use this context to guide subsequent tool calls — prefer the agent's explores when calling find_explores/find_fields, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -744,6 +819,11 @@ Usage tips:
     },
     {
       "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": false,
+      },
       "description": "Clear the active AI agent from context. After clearing, tool calls will no longer be scoped to a specific agent's explores, tags, or instructions. The active project is preserved.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -756,6 +836,11 @@ Usage tips:
     },
     {
       "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true,
+      },
       "description": "Get the currently active AI agent with its full context: explores it has access to, space restrictions, verified questions (curated example queries), and custom instructions. The active agent is usually established by route_agent; use this to inspect the current automatic or manually overridden selection before making data queries.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -768,6 +853,11 @@ Usage tips:
     },
     {
       "agentName": "runQuery",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true,
+      },
       "description": "Execute a metric query.
 
 This tool returns metric query data only. If the user asked for a visual, or if a chart would make the answer easier to understand than raw rows alone, call render_chart after run_metric_query returns done.
@@ -4104,6 +4194,11 @@ Empty array or null: single partition (calculations across all rows)., ",
     },
     {
       "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true,
+      },
       "description": "Render a chart for a completed query result in MCP App-capable clients.
 
 Use this after a query tool or get_query_result returns done and the user wants a visual chart. This tool does not start, poll, or rerun the query. If the query is still running, call get_query_result first. Pass the exact queryUuid that run_metric_query (or get_query_result) returned for this query in the current conversation — it is included in that tool's response as a \`queryUuid: <id>\` text block. Never invent, guess, or reuse a queryUuid from a different query or session; an unknown id fails with "not found". Lightdash loads the completed metric query from query history.
@@ -4281,6 +4376,11 @@ Response shape (MCP CallToolResult):
     },
     {
       "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true,
+      },
       "description": "Tool: searchFieldValues
 
 Purpose:
@@ -6048,6 +6148,11 @@ Usage Tips:
     },
     {
       "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true,
+      },
       "description": "Execute an arbitrary SQL query against the project's data warehouse and return the results. Successful results can be linked from the final answer with [Open in SQL Runner](#sql-runner-link).
 
 Use this tool when the user wants to run a custom SQL query that doesn't fit the explore-based metric query model.
@@ -6204,6 +6309,11 @@ Notes:
     },
     {
       "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true,
+      },
       "description": "Poll for the result of a long-running MCP query started by run_sql or run_metric_query.
 
 Use this tool when run_sql or run_metric_query returns a running result. Clients with structured output see this as structuredContent.result.status = "running"; text-only clients should extract the queryUuid from the content text.
@@ -6404,6 +6514,11 @@ Notes:
     },
     {
       "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true,
+      },
       "description": "List all verified charts and dashboards in the active project. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Requires an active project set via set_project. Each item includes contentType (chart or dashboard), contentUuid, name, space, and verification metadata (who verified it and when).",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -6416,6 +6531,11 @@ Notes:
     },
     {
       "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true,
+      },
       "description": "List Lightdash built-in skills available to this MCP server. Use this when the client does not expose MCP resources directly.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -6521,6 +6641,11 @@ Notes:
     },
     {
       "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true,
+      },
       "description": "Read the main SKILL.md instructions for a Lightdash built-in skill. Call list_skills first to discover available skill names.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -6635,6 +6760,11 @@ Notes:
     },
     {
       "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true,
+      },
       "description": "Read a supporting resource file for a Lightdash built-in skill. Use the resource path returned by list_skills.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -6758,6 +6888,11 @@ Notes:
     },
     {
       "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "readOnlyHint": false,
+      },
       "description": "Tool: run_ai_writeback
 
 Purpose:
