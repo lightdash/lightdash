@@ -17,6 +17,7 @@ const SEARCH_TOOLS = new Set([
     'findExplores',
     'findFields',
     'discoverFields',
+    'grepFields',
     'searchSemanticLayer',
     'searchFieldValues',
     'findContent',

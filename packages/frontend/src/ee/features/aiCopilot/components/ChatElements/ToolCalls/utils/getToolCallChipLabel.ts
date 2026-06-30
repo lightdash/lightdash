@@ -1,5 +1,6 @@
 import type {
     DiscoverFieldsInput,
+    ToolGrepFieldsArgs,
     ToolDashboardArgs,
     ToolDescribeWarehouseTableArgs,
     ToolFindChartsArgs,
@@ -85,6 +86,12 @@ export const getToolCallChipLabel = (
         case 'discoverFields': {
             const args = toolArgs as DiscoverFieldsInput;
             return args.userQuery ?? null;
+        }
+        case 'grepFields': {
+            const args = toolArgs as ToolGrepFieldsArgs;
+            return args.patterns?.length
+                ? args.patterns.map((p) => `/${p}/`).join(' ')
+                : null;
         }
         case 'findContent': {
             const args = toolArgs as ToolFindContentArgs;

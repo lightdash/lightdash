@@ -378,6 +378,7 @@ export function useAiAgentThreadStreamMutation() {
                             case 'tool-generateTimeSeriesVizConfig':
                             case 'tool-findExplores':
                             case 'tool-findFields':
+                            case 'tool-grepFields':
                             case 'tool-findDashboards':
                             case 'tool-findContent':
                             case 'tool-findCharts':

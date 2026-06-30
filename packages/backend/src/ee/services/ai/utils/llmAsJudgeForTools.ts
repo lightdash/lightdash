@@ -18,6 +18,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     searchSemanticLayer: 'search_semantic_layer',
     analyzeFieldImpact: 'analyze_field_impact',
     discoverFields: 'discover_fields',
+    grepFields: 'grep_fields',
     searchFieldValues: 'search_field_values',
     findContent: 'find_content',
     listContent: 'list_content',

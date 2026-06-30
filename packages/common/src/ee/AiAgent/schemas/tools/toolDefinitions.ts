@@ -56,6 +56,11 @@ import {
     toolDiscoverFieldsOutputSchema,
 } from './toolDiscoverFieldsArgs';
 import {
+    GREP_FIELDS_DESCRIPTION,
+    grepFieldsInputSchema,
+    toolGrepFieldsOutputSchema,
+} from './toolGrepFieldsArgs';
+import {
     TOOL_DISCOVER_REPOS_DESCRIPTION,
     toolDiscoverReposArgsSchema,
     toolDiscoverReposOutputSchema,
@@ -443,6 +448,15 @@ export const discoverFieldsToolDefinition = defineTool({
     availability: ['agent'],
     inputSchema: discoverFieldsInputSchema,
     agent: { outputSchema: toolDiscoverFieldsOutputSchema },
+});
+
+export const grepFieldsToolDefinition = defineTool({
+    name: 'grepFields',
+    title: 'Grep fields',
+    description: GREP_FIELDS_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: grepFieldsInputSchema,
+    agent: { outputSchema: toolGrepFieldsOutputSchema },
 });
 
 export const generateDashboardToolDefinition = defineTool({
@@ -949,6 +963,7 @@ type AgentToolDefinitionsByName = {
     runQuery: typeof runQueryToolDefinition;
     runSql: typeof runSqlToolDefinition;
     discoverFields: typeof discoverFieldsToolDefinition;
+    grepFields: typeof grepFieldsToolDefinition;
     generateDashboard: typeof generateDashboardToolDefinition;
     generateHashes: typeof generateHashesToolDefinition;
     generateUuids: typeof generateUuidsToolDefinition;
@@ -994,6 +1009,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     runQuery: runQueryToolDefinition,
     runSql: runSqlToolDefinition,
     discoverFields: discoverFieldsToolDefinition,
+    grepFields: grepFieldsToolDefinition,
     generateDashboard: generateDashboardToolDefinition,
     generateHashes: generateHashesToolDefinition,
     generateUuids: generateUuidsToolDefinition,
@@ -1041,6 +1057,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     getQueryResultToolDefinition,
     renderChartToolDefinition,
     discoverFieldsToolDefinition,
+    grepFieldsToolDefinition,
     generateDashboardToolDefinition,
     generateHashesToolDefinition,
     generateUuidsToolDefinition,

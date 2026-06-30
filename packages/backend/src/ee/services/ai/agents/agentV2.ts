@@ -45,6 +45,7 @@ import { getReadPinnedThread } from '../tools/readPinnedThread';
 import { getRunContentQuery } from '../tools/runContentQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
+import { getGrepFields } from '../tools/grepFields';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
 import { getSetupPreviewDeploy } from '../tools/setupPreviewDeploy';
@@ -246,6 +247,12 @@ const getAgentTools = (
             storeToolResults: dependencies.storeToolResults,
         },
     );
+
+    // Experimental swap: when on, the main agent greps the in-memory annotated
+    // explores itself instead of delegating to the discoverFields sub-agent.
+    const grepFields = args.enableGrepFields
+        ? getGrepFields({ availableExplores })
+        : null;
 
     const findContent = getFindContent({
         findContent: dependencies.findContent,
@@ -455,7 +462,8 @@ const getAgentTools = (
 
     const tools: ToolSet = {
         findContent,
-        discoverFields,
+        // grepFields replaces discoverFields when the ai-grep-fields flag is on.
+        ...(grepFields ? { grepFields } : { discoverFields }),
         analyzeFieldImpact,
         ...(args.enableSearchSemanticLayer ? { searchSemanticLayer } : {}),
         listProjects,
@@ -593,6 +601,7 @@ const getAgentMessages = (
             enableRepoDiscovery: args.enableRepoDiscovery,
             repoFsRoot: args.repoFsRoot,
             repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
+            enableGrepFields: args.enableGrepFields,
             enableContentTools:
                 args.enableAgentRevamp &&
                 args.enableDataAccess &&

@@ -1,5 +1,6 @@
 import type {
     DiscoverFieldsInput,
+    ToolGrepFieldsArgs,
     ToolTableVizArgs,
     ToolTimeSeriesArgs,
     ToolVerticalBarArgs,
@@ -41,6 +42,7 @@ import { DashboardChartsToolCallDescription } from './DashboardChartsToolCallDes
 import { DashboardToolCallDescription } from './DashboardToolCallDescription';
 import { DescribeWarehouseTableToolCallDescription } from './DescribeWarehouseTableToolCallDescription';
 import { DiscoverFieldsToolCallDescription } from './DiscoverFieldsToolCallDescription';
+import { GrepFieldsToolCallDescription } from './GrepFieldsToolCallDescription';
 import { ExploreToolCallDescription } from './ExploreToolCallDescription';
 import { FieldImpactToolCallDescription } from './FieldImpactToolCallDescription';
 import { FieldSearchToolCallDescription } from './FieldSearchToolCallDescription';
@@ -112,6 +114,14 @@ export const ToolCallDescription: FC<{
             return (
                 <DiscoverFieldsToolCallDescription
                     userQuery={discoverFieldsArgs.userQuery}
+                />
+            );
+        case 'grepFields':
+            const grepFieldsArgs = toolCall.toolArgs as ToolGrepFieldsArgs;
+            return (
+                <GrepFieldsToolCallDescription
+                    patterns={grepFieldsArgs.patterns ?? []}
+                    exploreName={grepFieldsArgs.exploreName}
                 />
             );
         case 'searchFieldValues':
