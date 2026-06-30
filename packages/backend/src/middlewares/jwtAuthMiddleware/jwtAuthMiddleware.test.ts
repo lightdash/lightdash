@@ -54,6 +54,33 @@ describe('Embed Auth Middleware', () => {
             expect(mockRequest.account).toBe(mockAccount);
             expect(mockNext).toHaveBeenCalledWith();
         });
+
+        it.each([
+            { query: { projectUuid: mockProjectUuid } },
+            { query: { projectUuids: [mockProjectUuid] } },
+        ])(
+            'authenticates against the path project when query params include a different project UUID: $query',
+            async ({ query }) => {
+                const victimProjectUuid = 'victim-project-uuid';
+                mockRequest.path = `/api/v1/embed/${victimProjectUuid}/dashboard`;
+                mockRequest.query = query;
+                mockRequest.headers = { [JWT_HEADER_NAME]: mockEmbedToken };
+
+                await jwtAuthMiddleware(
+                    mockRequest as express.Request,
+                    mockResponse as express.Response,
+                    mockNext,
+                );
+
+                expect(mockEmbedService.getAccountFromJwt).toHaveBeenCalledWith(
+                    victimProjectUuid,
+                    mockEmbedToken,
+                );
+                expect(mockRequest.project).toEqual({
+                    projectUuid: victimProjectUuid,
+                });
+            },
+        );
     });
 
     describe('Fallback to regular auth scenarios', () => {
@@ -211,26 +238,32 @@ describe('Embed Auth Middleware', () => {
             },
         );
 
-        it('should extract project UUID from projectUuids query param', async () => {
-            mockRequest.path = '/api/v2/content';
-            mockRequest.query = { projectUuids: [mockProjectUuid] };
-            mockRequest.headers = { [JWT_HEADER_NAME]: mockEmbedToken };
+        it.each([
+            { query: { projectUuid: mockProjectUuid } },
+            { query: { projectUuids: [mockProjectUuid] } },
+        ])(
+            'should extract project UUID from query params when the path has no project UUID: $query',
+            async ({ query }) => {
+                mockRequest.path = '/api/v2/content';
+                mockRequest.query = query;
+                mockRequest.headers = { [JWT_HEADER_NAME]: mockEmbedToken };
 
-            await jwtAuthMiddleware(
-                mockRequest as express.Request,
-                mockResponse as express.Response,
-                mockNext,
-            );
+                await jwtAuthMiddleware(
+                    mockRequest as express.Request,
+                    mockResponse as express.Response,
+                    mockNext,
+                );
 
-            expect(mockEmbedService.getAccountFromJwt).toHaveBeenCalledWith(
-                mockProjectUuid,
-                mockEmbedToken,
-            );
-            expect(mockRequest.project).toEqual({
-                projectUuid: mockProjectUuid,
-            });
-            expect(mockRequest.account).toBe(mockAccount);
-        });
+                expect(mockEmbedService.getAccountFromJwt).toHaveBeenCalledWith(
+                    mockProjectUuid,
+                    mockEmbedToken,
+                );
+                expect(mockRequest.project).toEqual({
+                    projectUuid: mockProjectUuid,
+                });
+                expect(mockRequest.account).toBe(mockAccount);
+            },
+        );
 
         it('should handle paths without embed segment', async () => {
             mockRequest.path = '/api/v1/some-other-path';
