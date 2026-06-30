@@ -126,27 +126,19 @@ export interface SandboxGit {
  */
 export interface SandboxHandle {
     readonly sandboxId: string;
-    /**
-     * Persist + suspend the sandbox so it can be resumed later. Capability-gated:
-     * providers without a native pause (Docker) treat this as a no-op.
-     */
-    pause(): Promise<void>;
     readonly commands: SandboxCommands;
     readonly files: SandboxFiles;
     readonly git: SandboxGit;
 }
 
-export type SandboxIsolation = 'microvm' | 'gvisor' | 'container';
-export type SandboxPersistence = 'memory' | 'volume' | 'objectstore';
-
 export interface SandboxCapabilities {
-    isolation: SandboxIsolation;
-    /** true only where a native memory snapshot exists (E2B). */
+    /**
+     * true where the backend has a native memory snapshot (E2B, Lambda MicroVMs):
+     * `persist` suspends in place and the suspended sandbox IS the snapshot. false
+     * where there is none (Docker): `persist` tars the workspace to object storage
+     * and the container is destroyed. The only capability the Manager branches on.
+     */
     pauseResume: boolean;
-    /** can it actually enforce SandboxSpec.egress? */
-    egressAllowlist: boolean;
-    warmPool: boolean;
-    persistence: SandboxPersistence;
 }
 
 export interface SandboxSpec {
@@ -200,8 +192,6 @@ export interface SandboxProvider {
     connect(sandboxId: string): Promise<SandboxHandle>;
     /** Permanently destroy a sandbox. No error if it is already gone. */
     destroy(sandboxId: string): Promise<void>;
-    /** Pause a sandbox by id (capability-gated; no-op where unsupported). */
-    pause(sandboxId: string): Promise<void>;
     /**
      * Snapshot a sandbox so it can be resumed later. Native-pause providers
      * (E2B) suspend in memory and ignore {@link PersistOptions}; object-store

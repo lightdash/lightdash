@@ -19,8 +19,8 @@ type Dependencies = {
 
 /**
  * Knex-backed sandbox registry. Implements {@link SandboxRegistryStore} so the
- * SandboxManager (and the reaper) stay decoupled from the table. jsonb columns
- * are written stringified and read back as parsed objects by node-pg.
+ * SandboxManager stays decoupled from the table. jsonb columns are written
+ * stringified and read back as parsed objects by node-pg.
  */
 export class SandboxRegistryModel implements SandboxRegistryStore {
     private database: Knex;
@@ -37,7 +37,6 @@ export class SandboxRegistryModel implements SandboxRegistryStore {
             providerSandboxId: row.provider_sandbox_id,
             snapshotRef: row.snapshot_ref,
             workspace: row.workspace,
-            lastActivityAt: row.last_activity_at,
         };
     }
 
@@ -87,7 +86,6 @@ export class SandboxRegistryModel implements SandboxRegistryStore {
             .update({
                 status: 'running',
                 provider_sandbox_id: providerSandboxId,
-                last_activity_at: this.database.fn.now(),
                 updated_at: this.database.fn.now(),
             });
     }
@@ -102,16 +100,6 @@ export class SandboxRegistryModel implements SandboxRegistryStore {
                 status: 'suspended',
                 provider_sandbox_id: input.providerSandboxId,
                 snapshot_ref: JSON.stringify(input.snapshotRef),
-                last_activity_at: this.database.fn.now(),
-                updated_at: this.database.fn.now(),
-            });
-    }
-
-    async touch(sandboxUuid: string): Promise<void> {
-        await this.database(SandboxRegistryTableName)
-            .where('sandbox_uuid', sandboxUuid)
-            .update({
-                last_activity_at: this.database.fn.now(),
                 updated_at: this.database.fn.now(),
             });
     }
@@ -120,25 +108,5 @@ export class SandboxRegistryModel implements SandboxRegistryStore {
         await this.database(SandboxRegistryTableName)
             .where('sandbox_uuid', sandboxUuid)
             .delete();
-    }
-
-    async findIdleRunning(olderThan: Date): Promise<SandboxRegistryRecord[]> {
-        const rows = await this.database<SandboxRegistryTable>(
-            SandboxRegistryTableName,
-        )
-            .where('status', 'running')
-            .where('last_activity_at', '<', olderThan);
-        return rows.map(SandboxRegistryModel.mapRow);
-    }
-
-    async findExpiredSuspended(
-        olderThan: Date,
-    ): Promise<SandboxRegistryRecord[]> {
-        const rows = await this.database<SandboxRegistryTable>(
-            SandboxRegistryTableName,
-        )
-            .where('status', 'suspended')
-            .where('last_activity_at', '<', olderThan);
-        return rows.map(SandboxRegistryModel.mapRow);
     }
 }

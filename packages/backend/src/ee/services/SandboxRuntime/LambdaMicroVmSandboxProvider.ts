@@ -170,16 +170,10 @@ class LambdaMicroVmSandboxHandle implements SandboxHandle {
     constructor(
         readonly sandboxId: string,
         channel: LambdaExecChannel,
-        private readonly suspendSelf: () => Promise<void>,
     ) {
         this.commands = channel.commands;
         this.files = channel.files;
         this.git = createGitOverCommands(channel.commands, channel.files);
-    }
-
-    // Native suspend IS the snapshot (memory+disk+processes).
-    async pause(): Promise<void> {
-        await this.suspendSelf();
     }
 }
 
@@ -191,16 +185,7 @@ class LambdaMicroVmSandboxHandle implements SandboxHandle {
  * Lambda ships no native exec SDK.
  */
 export class LambdaMicroVmSandboxProvider implements SandboxProvider {
-    readonly capabilities: SandboxCapabilities = {
-        isolation: 'microvm',
-        pauseResume: true,
-        persistence: 'memory',
-        // MVP routes egress through the managed open `INTERNET_EGRESS` connector,
-        // so the provider cannot enforce `SandboxSpec.egress`. A custom VPC egress
-        // connector (later hardening) is what flips this to `true`.
-        egressAllowlist: false,
-        warmPool: false,
-    };
+    readonly capabilities: SandboxCapabilities = { pauseResume: true };
 
     constructor(
         private readonly controlPlane: MicrovmControlPlane,
@@ -243,10 +228,6 @@ export class LambdaMicroVmSandboxProvider implements SandboxProvider {
     async destroy(microVmId: string): Promise<void> {
         await this.controlPlane.terminateMicrovm(microVmId);
         this.logger.info(`Lambda microVM terminated (id=${microVmId})`);
-    }
-
-    async pause(microVmId: string): Promise<void> {
-        await this.controlPlane.suspendMicrovm(microVmId);
     }
 
     // Native in-memory suspend IS the snapshot: the suspended microVM keeps RAM,
@@ -345,8 +326,6 @@ export class LambdaMicroVmSandboxProvider implements SandboxProvider {
         const channel = new LambdaExecChannel(endpoint, () =>
             this.controlPlane.createAuthToken(microVmId),
         );
-        return new LambdaMicroVmSandboxHandle(microVmId, channel, () =>
-            this.controlPlane.suspendMicrovm(microVmId),
-        );
+        return new LambdaMicroVmSandboxHandle(microVmId, channel);
     }
 }

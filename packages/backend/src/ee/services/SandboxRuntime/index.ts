@@ -101,8 +101,6 @@ export interface CreateSandboxManagerOptions {
     snapshotStore: SnapshotStore | null;
     registryModel: SandboxRegistryStore;
     logger: SandboxLogger;
-    idleTimeoutMs: number;
-    snapshotRetentionMs: number;
 }
 
 /**
@@ -125,7 +123,5 @@ export const createSandboxManager = (
         providerKind: options.provider,
         registryModel: options.registryModel,
         logger: options.logger,
-        idleTimeoutMs: options.idleTimeoutMs,
-        snapshotRetentionMs: options.snapshotRetentionMs,
     });
 };

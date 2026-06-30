@@ -99,10 +99,7 @@ const buildService = (overrides: Record<string, AnyType> = {}) =>
             findBySandboxUuid: vi.fn().mockResolvedValue(null),
             markRunning: vi.fn().mockResolvedValue(undefined),
             markSuspended: vi.fn().mockResolvedValue(undefined),
-            touch: vi.fn().mockResolvedValue(undefined),
             deleteBySandboxUuid: vi.fn().mockResolvedValue(undefined),
-            findIdleRunning: vi.fn().mockResolvedValue([]),
-            findExpiredSuspended: vi.fn().mockResolvedValue([]),
         } as AnyType,
         pullRequestsModel: {} as AnyType,
         ciService: { mergePullRequest: vi.fn() } as AnyType,
@@ -534,24 +531,16 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                 return { exitCode: 0, stdout: '' };
             }),
         },
-        pause: vi.fn().mockResolvedValue(undefined),
     });
 
     // A fake SandboxProvider over the fake sandbox. create/connect hand back the
-    // sandbox; destroy/pause are the control-plane calls the service makes to
-    // tear the sandbox down or keep it warm.
+    // sandbox; destroy/persist are the control-plane calls the service makes to
+    // tear the sandbox down or suspend it.
     const fakeSandboxProvider = {
-        capabilities: {
-            isolation: 'microvm',
-            pauseResume: true,
-            egressAllowlist: true,
-            warmPool: false,
-            persistence: 'memory',
-        },
+        capabilities: { pauseResume: true },
         create: vi.fn(),
         connect: vi.fn(),
         destroy: vi.fn().mockResolvedValue(undefined),
-        pause: vi.fn().mockResolvedValue(undefined),
         persist: vi
             .fn()
             .mockResolvedValue({ kind: 'e2b-paused', sandboxId: 'sb-test' }),
@@ -571,8 +560,6 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                     sandboxProvider: 'e2b',
                     sandboxAiWritebackDockerImage:
                         'lightdash-ai-writeback:local',
-                    sandboxIdleTimeoutMs: 30 * 60 * 1000,
-                    sandboxSnapshotRetentionMs: 7 * 24 * 60 * 60 * 1000,
                 },
                 aiWriteback: { anthropicApiKey: 'anthropic-key' },
             } as AnyType,
@@ -627,7 +614,6 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         fakeSandboxProvider.destroy.mockResolvedValue(undefined);
-        fakeSandboxProvider.pause.mockResolvedValue(undefined);
         // Wrap the fake provider in a real SandboxManager, threading the
         // service's own fake registry model through.
         (createSandboxManager as import('vitest').Mock).mockImplementation(
@@ -637,8 +623,6 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                     providerKind: 'e2b',
                     registryModel: opts.registryModel,
                     logger: opts.logger,
-                    idleTimeoutMs: opts.idleTimeoutMs ?? 0,
-                    snapshotRetentionMs: opts.snapshotRetentionMs ?? 0,
                 }),
         );
         (getInstallationToken as import('vitest').Mock).mockResolvedValue(
@@ -679,7 +663,6 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         });
         expect(createPullRequest).toHaveBeenCalledTimes(1);
         expect(fakeSandboxProvider.destroy).toHaveBeenCalledTimes(1);
-        expect(sandbox.pause).not.toHaveBeenCalled();
 
         // The compile wrapper pins `dbt` to the project's version venv (V1_9)
         // and still strips secrets from the compile child's environment.
