@@ -1,6 +1,5 @@
+import { type ExternalConnectionMethod } from '@lightdash/common';
 import {
-    ActionIcon,
-    Button,
     Divider,
     Group,
     MultiSelect,
@@ -8,14 +7,18 @@ import {
     PasswordInput,
     Select,
     Stack,
-    Text,
     TextInput,
 } from '@mantine-8/core';
 import { type UseFormReturnType } from '@mantine/form';
-import { IconPlus, IconTrash } from '@tabler/icons-react';
-import { type FC } from 'react';
-import MantineIcon from '../../common/MantineIcon';
-import classes from './ExternalConnectionForm.module.css';
+import { type FC, useState } from 'react';
+import { MethodsField } from '../../../features/externalConnections/components/MethodsField';
+import { PathRulesField } from '../../../features/externalConnections/components/PathRulesField';
+import {
+    type PathMode,
+    type PathPrefix,
+} from '../../../features/externalConnections/utils/pathRules';
+import FormCollapseButton from '../../ProjectConnection/FormCollapseButton';
+import FormSection from '../../ProjectConnection/Inputs/FormSection';
 
 export type ExternalConnectionFormValues = {
     name: string;
@@ -24,8 +27,9 @@ export type ExternalConnectionFormValues = {
     secret: string;
     apiKeyName: string;
     apiKeyLocation: 'header' | 'query';
-    allowedMethods: ('GET' | 'POST')[];
-    allowedPathPrefixes: string[];
+    allowedMethods: ExternalConnectionMethod[];
+    pathMode: PathMode;
+    allowedPathPrefixes: PathPrefix[];
     allowedContentTypes: string[];
     responseMaxBytes: number;
     requestMaxBytes: number;
@@ -57,6 +61,7 @@ export const ExternalConnectionForm: FC<Props> = ({
 }) => {
     const { type, allowedMethods } = form.values;
     const allowsPost = allowedMethods.includes('POST');
+    const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
     const secretPlaceholder =
         hasSecret && type !== 'none'
             ? '•••• set (leave blank to keep current)'
@@ -124,100 +129,79 @@ export const ExternalConnectionForm: FC<Props> = ({
 
             <Divider label="Request policy" labelPosition="left" />
 
-            <MultiSelect
-                required
+            <MethodsField
                 label="Allowed methods"
+                value={allowedMethods}
+                onChange={(value) =>
+                    form.setFieldValue('allowedMethods', value)
+                }
+                error={form.errors.allowedMethods}
                 disabled={disabled}
-                data={[
-                    { value: 'GET', label: 'GET' },
-                    { value: 'POST', label: 'POST' },
-                ]}
-                {...form.getInputProps('allowedMethods')}
             />
 
-            <Stack gap={4}>
-                <Text fz="sm" fw={500}>
-                    Allowed path prefixes
-                </Text>
-                {form.values.allowedPathPrefixes.map((_prefix, index) => (
-                    <div key={index} className={classes.pathPrefixRow}>
-                        <TextInput
-                            w="100%"
-                            placeholder="/v1/"
+            <PathRulesField
+                label="Allowed paths"
+                mode={form.values.pathMode}
+                onModeChange={(mode) => form.setFieldValue('pathMode', mode)}
+                prefixes={form.values.allowedPathPrefixes}
+                onPrefixesChange={(prefixes) =>
+                    form.setFieldValue('allowedPathPrefixes', prefixes)
+                }
+                error={form.errors.allowedPathPrefixes}
+                disabled={disabled}
+            />
+
+            <FormSection name="advanced" isOpen={isAdvancedOpen}>
+                <Stack gap="sm" mt="xs">
+                    <MultiSelect
+                        label="Allowed response content types"
+                        disabled={disabled}
+                        data={CONTENT_TYPE_OPTIONS}
+                        searchable
+                        {...form.getInputProps('allowedContentTypes')}
+                    />
+
+                    <Group grow align="flex-start">
+                        <NumberInput
+                            label="Response max bytes"
+                            min={0}
                             disabled={disabled}
-                            {...form.getInputProps(
-                                `allowedPathPrefixes.${index}`,
-                            )}
+                            {...form.getInputProps('responseMaxBytes')}
                         />
-                        <ActionIcon
-                            color="red"
-                            variant="subtle"
+                        {allowsPost && (
+                            <NumberInput
+                                label="Request max bytes"
+                                min={0}
+                                disabled={disabled}
+                                {...form.getInputProps('requestMaxBytes')}
+                            />
+                        )}
+                    </Group>
+
+                    <Group grow align="flex-start">
+                        <NumberInput
+                            label="Timeout (ms)"
+                            min={0}
                             disabled={disabled}
-                            onClick={() =>
-                                form.removeListItem(
-                                    'allowedPathPrefixes',
-                                    index,
-                                )
-                            }
-                        >
-                            <MantineIcon icon={IconTrash} />
-                        </ActionIcon>
-                    </div>
-                ))}
-                <Button
-                    variant="subtle"
-                    size="compact-sm"
-                    leftSection={<MantineIcon icon={IconPlus} />}
-                    disabled={disabled}
-                    onClick={() =>
-                        form.insertListItem('allowedPathPrefixes', '')
-                    }
-                >
-                    Add path prefix
-                </Button>
-            </Stack>
-
-            <MultiSelect
-                label="Allowed response content types"
-                disabled={disabled}
-                data={CONTENT_TYPE_OPTIONS}
-                searchable
-                {...form.getInputProps('allowedContentTypes')}
-            />
-
-            <Group grow align="flex-start">
-                <NumberInput
-                    label="Response max bytes"
-                    min={0}
-                    disabled={disabled}
-                    {...form.getInputProps('responseMaxBytes')}
-                />
-                {allowsPost && (
-                    <NumberInput
-                        label="Request max bytes"
-                        min={0}
-                        disabled={disabled}
-                        {...form.getInputProps('requestMaxBytes')}
-                    />
-                )}
-            </Group>
-
-            <Group grow align="flex-start">
-                <NumberInput
-                    label="Timeout (ms)"
-                    min={0}
-                    disabled={disabled}
-                    {...form.getInputProps('timeoutMs')}
-                />
-                {allowsPost && (
-                    <NumberInput
-                        label="Rate limit (per minute)"
-                        min={0}
-                        disabled={disabled}
-                        {...form.getInputProps('rateLimitPerMinute')}
-                    />
-                )}
-            </Group>
+                            {...form.getInputProps('timeoutMs')}
+                        />
+                        {allowsPost && (
+                            <NumberInput
+                                label="Rate limit (per minute)"
+                                min={0}
+                                disabled={disabled}
+                                {...form.getInputProps('rateLimitPerMinute')}
+                            />
+                        )}
+                    </Group>
+                </Stack>
+            </FormSection>
+            <FormCollapseButton
+                isSectionOpen={isAdvancedOpen}
+                onClick={() => setIsAdvancedOpen((open) => !open)}
+            >
+                Advanced settings
+            </FormCollapseButton>
         </Stack>
     );
 };
