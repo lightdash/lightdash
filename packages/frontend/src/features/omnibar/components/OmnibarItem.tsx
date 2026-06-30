@@ -79,11 +79,11 @@ const OmnibarItem: FC<Props> = ({
                 </Group>
 
                 {item.contextLabel ? (
-                    <Text size="xs" truncate c="dimmed">
+                    <Text size="xs" truncate className={classes.secondaryText}>
                         {item.contextLabel}
                     </Text>
                 ) : item.description || item.typeLabel ? (
-                    <Text size="xs" truncate c="dimmed">
+                    <Text size="xs" truncate className={classes.secondaryText}>
                         {item.typeLabel}
                         {item.typeLabel && item.description ? <> · </> : null}
                         {item.description}

@@ -65,7 +65,7 @@ const OmnibarItemGroups: FC<Props> = ({
             {groupedItems.map(([groupType, groupItems], groupIndex) => (
                 <Accordion.Item key={groupType} value={groupType}>
                     <Accordion.Control>
-                        <Text c="dimmed" fw={500} fz="xs">
+                        <Text className={classes.groupLabel} fw={500} fz="xs">
                             {getSearchItemLabel(groupType)}
                         </Text>
                     </Accordion.Control>
