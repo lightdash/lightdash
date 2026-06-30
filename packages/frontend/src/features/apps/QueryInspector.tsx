@@ -22,7 +22,7 @@ import {
     IconTrash,
     IconX,
 } from '@tabler/icons-react';
-import { useCallback, useRef, useState, type FC } from 'react';
+import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import type { QueryEvent } from './hooks/useAppSdkBridge';
@@ -56,6 +56,12 @@ type Props = {
      *  until queries arrive; the preview passes `false` so once opened from
      *  the menu the panel remains visible. */
     hideWhenEmpty?: boolean;
+    /** Called with the queryUuid when a row is hovered, and null on leave.
+     *  The parent forwards this to the iframe to outline matching elements. */
+    onHoverQuery?: (queryUuid: string | null) => void;
+    /** When set, the matching row auto-expands, scrolls into view, and flashes.
+     *  Driven by element→query lineage selection from the parent. */
+    focusedQueryUuid?: string | null;
 };
 
 const statusColor = (status: TrackedQuery['status']): string => {
@@ -109,15 +115,34 @@ const buildExploreUrl = (
     return `${pathname}?${search}`;
 };
 
-const QueryRow: FC<{ query: TrackedQuery; projectUuid: string }> = ({
-    query,
-    projectUuid,
-}) => {
+const QueryRow: FC<{
+    query: TrackedQuery;
+    projectUuid: string;
+    onHover?: (queryUuid: string | null) => void;
+    focused?: boolean;
+}> = ({ query, projectUuid, onHover, focused }) => {
     const [expanded, setExpanded] = useState(false);
     const [jsonExpanded, setJsonExpanded] = useState(false);
+    const rowRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (focused) {
+            setExpanded(true);
+            rowRef.current?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'nearest',
+            });
+        }
+    }, [focused]);
 
     return (
-        <Box className={classes.queryRow}>
+        <Box
+            ref={rowRef}
+            className={`${classes.queryRow}${focused ? ` ${classes.queryRowFocused}` : ''}`}
+            data-query-uuid={query.queryUuid ?? undefined}
+            onMouseEnter={() => query.queryUuid && onHover?.(query.queryUuid)}
+            onMouseLeave={() => onHover?.(null)}
+        >
             <Group
                 gap="xs"
                 wrap="nowrap"
@@ -357,6 +382,8 @@ const QueryInspector: FC<Props> = ({
     defaultCollapsed = true,
     onDismiss,
     hideWhenEmpty = true,
+    onHoverQuery,
+    focusedQueryUuid,
 }) => {
     const [collapsed, setCollapsed] = useState(defaultCollapsed);
     const [height, setHeight] = useState(DEFAULT_HEIGHT);
@@ -509,6 +536,11 @@ const QueryInspector: FC<Props> = ({
                                     key={q.queryUuid ?? q.id}
                                     query={q}
                                     projectUuid={projectUuid}
+                                    onHover={onHoverQuery}
+                                    focused={
+                                        focusedQueryUuid != null &&
+                                        q.queryUuid === focusedQueryUuid
+                                    }
                                 />
                             ))
                         )}
