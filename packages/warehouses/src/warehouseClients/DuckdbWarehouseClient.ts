@@ -276,6 +276,11 @@ const BLOCKED_STATEMENT_TYPES_INTERNAL_SQL = new Set([
 const BLOCKED_FUNCTION_PATTERN =
     /\b(current_setting|duckdb_settings|duckdb_secrets)\s*\(/i;
 
+const BLOCKED_USER_SQL_FILE_FUNCTION_PATTERN =
+    /\b(read_(?:blob|csv(?:_auto)?|json(?:_auto|_objects(?:_auto)?)?|ndjson(?:_auto|_objects(?:_auto)?)?|parquet|text|xlsx))\s*\(/i;
+
+const BLOCKED_USER_SQL_FILE_TABLE_PATTERN = /\b(?:from|join)\s+'[^']*'/i;
+
 export type DuckdbWarehouseClientArgs = {
     databasePath?: string;
     s3Config?: DuckdbS3SessionConfig;
@@ -1423,6 +1428,24 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         }
     }
 
+    private static validateUserSqlFileAccess(sql: string): void {
+        const stripped = DuckdbWarehouseClient.stripSqlComments(sql);
+        const functionMatch = stripped.match(
+            BLOCKED_USER_SQL_FILE_FUNCTION_PATTERN,
+        );
+        if (functionMatch) {
+            throw new Error(
+                `SQL validation error: function '${functionMatch[1]}' is not allowed`,
+            );
+        }
+
+        if (BLOCKED_USER_SQL_FILE_TABLE_PATTERN.test(stripped)) {
+            throw new Error(
+                'SQL validation error: file table paths are not allowed',
+            );
+        }
+    }
+
     private async validateUserSql(
         db: DuckdbConnection,
         sql: string,
@@ -1451,6 +1474,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         }
 
         DuckdbWarehouseClient.validateSqlFunctions(sql);
+        DuckdbWarehouseClient.validateUserSqlFileAccess(sql);
     }
 
     private async validateInternalSql(

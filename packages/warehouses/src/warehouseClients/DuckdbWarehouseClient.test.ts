@@ -660,6 +660,57 @@ describe('DuckdbWarehouseClient', () => {
             },
         );
 
+        it.each([
+            'read_csv',
+            'read_csv_auto',
+            'read_json',
+            'read_json_auto',
+            'read_json_objects',
+            'read_json_objects_auto',
+            'read_ndjson',
+            'read_ndjson_auto',
+            'read_ndjson_objects',
+            'read_ndjson_objects_auto',
+            'read_parquet',
+            'read_text',
+            'read_blob',
+            'read_xlsx',
+        ])('should reject user queries with %s()', async (blockedFunction) => {
+            const streamMock = vi.fn(async () =>
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            );
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock),
+            );
+
+            const client = new DuckdbWarehouseClient();
+            await expect(
+                client.runQuery(`SELECT * FROM ${blockedFunction}('/tmp/a')`),
+            ).rejects.toThrow(
+                `SQL validation error: function '${blockedFunction}' is not allowed`,
+            );
+            expect(streamMock).not.toHaveBeenCalled();
+        });
+
+        it('should reject user queries that use file table paths', async () => {
+            const streamMock = vi.fn(async () =>
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            );
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock),
+            );
+
+            const client = new DuckdbWarehouseClient();
+            await expect(
+                client.runQuery("SELECT * FROM '/tmp/data.parquet'"),
+            ).rejects.toThrow(
+                'SQL validation error: file table paths are not allowed',
+            );
+            expect(streamMock).not.toHaveBeenCalled();
+        });
+
         it('should ignore blocked functions inside SQL comments', async () => {
             const streamMock = vi.fn(async () =>
                 getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
@@ -673,6 +724,22 @@ describe('DuckdbWarehouseClient', () => {
             // Should NOT throw because current_setting is in a comment
             const result = await client.runQuery(
                 "SELECT 1 -- current_setting('s3_secret_access_key')",
+            );
+            expect(result.rows).toEqual([{ val: 1 }]);
+        });
+
+        it('should ignore blocked file readers inside SQL comments', async () => {
+            const streamMock = vi.fn(async () =>
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            );
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock),
+            );
+
+            const client = new DuckdbWarehouseClient();
+            const result = await client.runQuery(
+                "SELECT 1 -- SELECT * FROM read_parquet('/tmp/data.parquet')",
             );
             expect(result.rows).toEqual([{ val: 1 }]);
         });
@@ -695,6 +762,23 @@ describe('DuckdbWarehouseClient', () => {
             );
             expect(runMock).toHaveBeenCalledWith(
                 "COPY table TO 's3://bucket/data.parquet' (FORMAT PARQUET)",
+            );
+        });
+
+        it('should allow internal SQL to read staged files', async () => {
+            const streamMock = vi.fn();
+            const runMock = vi.fn();
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock, runMock),
+            );
+
+            const client = new DuckdbWarehouseClient();
+            await client.runSql(
+                "CREATE TABLE staged AS SELECT * FROM read_parquet('s3://bucket/data.parquet')",
+            );
+            expect(runMock).toHaveBeenCalledWith(
+                "CREATE TABLE staged AS SELECT * FROM read_parquet('s3://bucket/data.parquet')",
             );
         });
 
