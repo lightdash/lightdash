@@ -39,7 +39,7 @@ const fakeApp = {
     created_by_user_uuid: 'user-uuid',
     name: 'My App',
     description: 'A test app',
-    template: null as null,
+    template: null,
 };
 
 const fakeAppVersion = {
@@ -242,11 +242,9 @@ describe('AppGenerateService.getAppCode', () => {
             bucket: 'test-bucket',
         };
 
-        const fakeVersionRow = { ...fakeAppVersion, version: EXPLICIT_VERSION };
         const appModel = {
             getApp: vi.fn().mockResolvedValue(fakeApp),
             getLatestReadyVersion: vi.fn(),
-            getVersion: vi.fn().mockResolvedValue(fakeVersionRow),
         };
 
         const svc = buildService({ appModel, s3ClientOverride: fakeS37 });
@@ -260,6 +258,66 @@ describe('AppGenerateService.getAppCode', () => {
         expect(result.manifest.version).toBe(EXPLICIT_VERSION);
         expect(appModel.getLatestReadyVersion).not.toHaveBeenCalled();
         expect(result.files).toHaveLength(1);
+    });
+
+    it('fetches all files across two S3 pages (pagination loop)', async () => {
+        const prefix = `apps/${APP_UUID}/versions/${VERSION}/`;
+        const page1Key = `${prefix}index.html`;
+        const page2Key = `${prefix}assets/app.js`;
+
+        const sendPaged = vi.fn(async (command: FakeCommand) => {
+            const cmdName = command.constructor.name;
+
+            if (cmdName === 'ListObjectsV2Command') {
+                const token = command.input.ContinuationToken as
+                    | string
+                    | undefined;
+                if (!token) {
+                    return {
+                        IsTruncated: true,
+                        NextContinuationToken: 'tok',
+                        Contents: [{ Key: page1Key }],
+                    };
+                }
+                return {
+                    IsTruncated: false,
+                    Contents: [{ Key: page2Key }],
+                };
+            }
+
+            if (cmdName === 'GetObjectCommand') {
+                const key = command.input.Key as string;
+                const body = key === page1Key ? 'hello' : 'world';
+                return { Body: Readable.from([Buffer.from(body)]) };
+            }
+
+            throw new Error(`Unexpected command: ${cmdName}`);
+        });
+
+        const fakeS3Paged = {
+            client: { send: sendPaged } as never,
+            bucket: 'test-bucket',
+        };
+        const appModel = {
+            getApp: vi.fn().mockResolvedValue(fakeApp),
+            getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
+        };
+
+        const svc = buildService({ appModel, s3ClientOverride: fakeS3Paged });
+        const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID);
+
+        // Both pages' files must appear — dropping the loop would yield only one.
+        expect(result.files).toHaveLength(2);
+        const indexFile = result.files.find((f) => f.path === 'index.html');
+        expect(indexFile).toBeDefined();
+        expect(Buffer.from(indexFile!.contentBase64, 'base64').toString()).toBe(
+            'hello',
+        );
+        const jsFile = result.files.find((f) => f.path === 'assets/app.js');
+        expect(jsFile).toBeDefined();
+        expect(Buffer.from(jsFile!.contentBase64, 'base64').toString()).toBe(
+            'world',
+        );
     });
 
     it('throws NotFoundError when no ready version exists and version is omitted', async () => {
