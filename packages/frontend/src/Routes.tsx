@@ -1,4 +1,5 @@
 import { Stack } from '@mantine/core';
+import { type FC } from 'react';
 import { Navigate, Outlet, type RouteObject } from 'react-router';
 import AppRoute from './components/AppRoute';
 import ProjectLayout from './components/common/ProjectLayout';
@@ -270,6 +271,23 @@ const DASHBOARD_LIST_ROUTES: RouteObject[] = [
 ];
 
 // Dashboard view routes (use handle.navBarFixed=false for non-fixed NavBar)
+// Both dashboard routes (`:mode?` and `:mode/tabs/:tabUuid?`) must resolve to the
+// SAME Component identity. Otherwise navigating between them (e.g. adding the first
+// tab navigates `/edit` -> `/edit/tabs/:uuid`) swaps the component type at the Outlet
+// and React remounts DashboardProvider, discarding unsaved tabs.
+let DashboardRouteComponent: FC | undefined;
+const loadDashboardRoute = async () => {
+    if (!DashboardRouteComponent) {
+        const { default: Dashboard } = await import('./pages/Dashboard');
+        DashboardRouteComponent = () => (
+            <TrackPage name={PageName.DASHBOARD}>
+                <Dashboard />
+            </TrackPage>
+        );
+    }
+    return { Component: DashboardRouteComponent };
+};
+
 const DASHBOARD_VIEW_ROUTES: RouteObject[] = [
     {
         path: 'dashboards/:dashboardUuid',
@@ -278,31 +296,11 @@ const DASHBOARD_VIEW_ROUTES: RouteObject[] = [
             {
                 path: ':mode?',
                 index: false,
-                lazy: async () => {
-                    const { default: Dashboard } =
-                        await import('./pages/Dashboard');
-                    return {
-                        Component: () => (
-                            <TrackPage name={PageName.DASHBOARD}>
-                                <Dashboard />
-                            </TrackPage>
-                        ),
-                    };
-                },
+                lazy: loadDashboardRoute,
             },
             {
                 path: ':mode/tabs/:tabUuid?',
-                lazy: async () => {
-                    const { default: Dashboard } =
-                        await import('./pages/Dashboard');
-                    return {
-                        Component: () => (
-                            <TrackPage name={PageName.DASHBOARD}>
-                                <Dashboard />
-                            </TrackPage>
-                        ),
-                    };
-                },
+                lazy: loadDashboardRoute,
             },
         ],
     },
