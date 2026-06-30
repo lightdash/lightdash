@@ -35,4 +35,32 @@ describe('validateDataAppCode', () => {
             }),
         ).toThrow();
     });
+    it('throws when a file path is absolute (leading slash)', () => {
+        expect(() =>
+            validateDataAppCode({
+                manifest: valid.manifest,
+                files: [{ path: '/etc/passwd', contentBase64: '' }],
+            }),
+        ).toThrow();
+    });
+    it('throws on non-object inputs', () => {
+        expect(() => validateDataAppCode(null)).toThrow();
+        expect(() => validateDataAppCode('not-a-bundle')).toThrow();
+    });
+    it('throws when a file entry is null', () => {
+        expect(() =>
+            validateDataAppCode({
+                manifest: valid.manifest,
+                files: [null],
+            }),
+        ).toThrow('Invalid app bundle: file entry is not an object');
+    });
+    it('throws when a file entry is a string', () => {
+        expect(() =>
+            validateDataAppCode({
+                manifest: valid.manifest,
+                files: ['not-an-object'],
+            }),
+        ).toThrow('Invalid app bundle: file entry is not an object');
+    });
 });

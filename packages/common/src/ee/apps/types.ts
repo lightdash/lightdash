@@ -1,22 +1,6 @@
 import { type ApiSuccess, type ApiSuccessEmpty } from '../../types/api/success';
 import { type KnexPaginateArgs } from '../../types/knex-paginate';
 import { type MetricQuery } from '../../types/metricQuery';
-import type { DataAppCode } from './code';
-
-export type ApiGetAppCodeResponse = ApiSuccess<DataAppCode>;
-
-export type ImportAppCodeRequestBody = {
-    code: DataAppCode;
-    // when present and the app exists in the target project -> append a version; otherwise create a new app
-    targetAppUuid?: string;
-    spaceUuid?: string;
-};
-
-export type ApiImportAppCodeResponse = ApiSuccess<{
-    appUuid: string;
-    version: number;
-    action: 'create' | 'append';
-}>;
 
 /**
  * Ordered pipeline stages. Index position determines progression — used to

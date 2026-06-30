@@ -1,3 +1,4 @@
+import { type ApiSuccess } from '../../types/api/success';
 import { type DataAppTemplate } from './types';
 
 export const currentDataAppCodeVersion = 1 as const;
@@ -23,6 +24,21 @@ export type DataAppCode = {
     files: DataAppCodeFile[];
 };
 
+export type ApiGetAppCodeResponse = ApiSuccess<DataAppCode>;
+
+export type ImportAppCodeRequestBody = {
+    code: DataAppCode;
+    // when present and the app exists in the target project -> append a version; otherwise create a new app
+    targetAppUuid?: string;
+    spaceUuid?: string;
+};
+
+export type ApiImportAppCodeResponse = ApiSuccess<{
+    appUuid: string;
+    version: number;
+    action: 'create' | 'append';
+}>;
+
 const isSafeRelPath = (p: string): boolean =>
     typeof p === 'string' &&
     p.length > 0 &&
@@ -38,6 +54,8 @@ export function validateDataAppCode(value: unknown): DataAppCode {
     if (!Array.isArray(v.files))
         throw new Error('Invalid app bundle: missing files');
     for (const f of v.files) {
+        if (!f || typeof f !== 'object')
+            throw new Error('Invalid app bundle: file entry is not an object');
         if (!isSafeRelPath(f?.path))
             throw new Error(
                 `Invalid app bundle: unsafe file path "${f?.path}"`,
