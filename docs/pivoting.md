@@ -32,14 +32,14 @@ Everything below hangs off this split.
 
 ## Pipeline at a glance
 
-| Stage | What happens | Key file(s) | Authoritative deep dive |
-|-------|--------------|-------------|--------------------------|
-| 1. Config | A chart's config becomes a SQL execution spec (`PivotConfiguration`). | `packages/common/src/pivot/derivePivotConfigFromChart.ts`, `packages/common/src/types/pivot.ts` | (self-documented in code comments) |
-| 2. SQL generation | Wraps the base query; tags each row with `row_index` / `column_index` via `DENSE_RANK()`. Still flat rows out. | `packages/backend/src/utils/QueryBuilder/PivotQueryBuilder.ts` | [`QueryBuilder/CLAUDE.md`](../packages/backend/src/utils/QueryBuilder/CLAUDE.md) (three CTE modes, anchor system) |
-| 3. Execute + transform | Streams warehouse rows to S3 as JSONL; **spreads** value columns into wide columns keyed by the group-by values. | `AsyncQueryService.runQueryAndTransformRows`, `packages/backend/src/services/AsyncQueryService/getPivotedColumns.ts` | [`AsyncQueryService/CLAUDE.md`](../packages/backend/src/services/AsyncQueryService/CLAUDE.md) |
-| 4. Reshape | Turns the flat pivoted rows into the `PivotData` matrix, then flattens it for the table. | `packages/common/src/pivot/pivotQueryResults.ts` (`convertSqlPivotedRowsToPivotData`, `retrofitData`) | [`PivotTable/CLAUDE.md`](../packages/frontend/src/components/common/PivotTable/CLAUDE.md) |
-| 5. Render | Renders `PivotData` / `pivotColumnInfo` as a TanStack table. | `packages/frontend/src/components/common/PivotTable/index.tsx` | [`PivotTable/CLAUDE.md`](../packages/frontend/src/components/common/PivotTable/CLAUDE.md) |
-| 6. CSV export (side-path) | Reloads the JSONL and exports CSV using the same pivot metadata — a parallel consumer, not part of the render path. | `packages/backend/src/services/PivotTableService/PivotTableService.ts` | — |
+| Stage                     | What happens                                                                                                        | Key file(s)                                                                                                          | Authoritative deep dive                                                                                           |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| 1. Config                 | A chart's config becomes a SQL execution spec (`PivotConfiguration`).                                               | `packages/common/src/pivot/derivePivotConfigFromChart.ts`, `packages/common/src/types/pivot.ts`                      | (self-documented in code comments)                                                                                |
+| 2. SQL generation         | Wraps the base query; tags each row with `row_index` / `column_index` via `DENSE_RANK()`. Still flat rows out.      | `packages/backend/src/utils/QueryBuilder/PivotQueryBuilder.ts`                                                       | [`QueryBuilder/CLAUDE.md`](../packages/backend/src/utils/QueryBuilder/CLAUDE.md) (three CTE modes, anchor system) |
+| 3. Execute + transform    | Streams warehouse rows to S3 as JSONL; **spreads** value columns into wide columns keyed by the group-by values.    | `AsyncQueryService.runQueryAndTransformRows`, `packages/backend/src/services/AsyncQueryService/getPivotedColumns.ts` | [`AsyncQueryService/CLAUDE.md`](../packages/backend/src/services/AsyncQueryService/CLAUDE.md)                     |
+| 4. Reshape                | Turns the flat pivoted rows into the `PivotData` matrix, then flattens it for the table.                            | `packages/common/src/pivot/pivotQueryResults.ts` (`convertSqlPivotedRowsToPivotData`, `retrofitData`)                | [`PivotTable/CLAUDE.md`](../packages/frontend/src/components/common/PivotTable/CLAUDE.md)                         |
+| 5. Render                 | Renders `PivotData` / `pivotColumnInfo` as a TanStack table.                                                        | `packages/frontend/src/components/common/PivotTable/index.tsx`                                                       | [`PivotTable/CLAUDE.md`](../packages/frontend/src/components/common/PivotTable/CLAUDE.md)                         |
+| 6. CSV export (side-path) | Reloads the JSONL and exports CSV using the same pivot metadata — a parallel consumer, not part of the render path. | `packages/backend/src/services/PivotTableService/PivotTableService.ts`                                               | —                                                                                                                 |
 
 **Second config entry point:** the SQL Runner builds a `PivotConfiguration`
 directly from its own viz config (`packages/common/src/types/sqlRunner.ts`),
@@ -67,12 +67,12 @@ FROM base_query
 **Flat rows returned by the warehouse** (still one row per index×column — nothing
 is spread yet):
 
-| order_date | status | revenue_sum | row_index | column_index | total_columns |
-|------------|--------|-------------|-----------|--------------|---------------|
-| 2026-01-01 | completed | 100 | 1 | 1 | 2 |
-| 2026-01-01 | shipped | 40 | 1 | 2 | 2 |
-| 2026-01-02 | completed | 80 | 2 | 1 | 2 |
-| 2026-01-02 | shipped | 60 | 2 | 2 | 2 |
+| order_date | status    | revenue_sum | row_index | column_index | total_columns |
+| ---------- | --------- | ----------- | --------- | ------------ | ------------- |
+| 2026-01-01 | completed | 100         | 1         | 1            | 2             |
+| 2026-01-01 | shipped   | 40          | 1         | 2            | 2             |
+| 2026-01-02 | completed | 80          | 2         | 1            | 2             |
+| 2026-01-02 | shipped   | 60          | 2         | 2            | 2             |
 
 **Phase 2 — spread (Stage 3).** `runQueryAndTransformRows` groups the rows sharing
 a `row_index` and emits one wide row when `row_index` changes. The value column
@@ -91,10 +91,10 @@ rows into `PivotData`: each `status` value becomes a column header, each
 **Rendered pivot table (Stage 5).** The frontend renders the pivot values
 (`status`) as the column headers:
 
-|            | **completed** | **shipped** |
-|------------|--------------:|------------:|
-| **2026-01-01** | 100 | 40 |
-| **2026-01-02** | 80  | 60 |
+|                | **completed** | **shipped** |
+| -------------- | ------------: | ----------: |
+| **2026-01-01** |           100 |          40 |
+| **2026-01-02** |            80 |          60 |
 
 ## Mini-glossary
 
@@ -109,9 +109,9 @@ Cross-cutting terms only — fuller definitions live in the linked package docs.
 - **`indexColumn` / `groupByColumns` / `valuesColumns`** — the row dimensions, the
   pivot (column) dimensions, and the metrics/aggregations being spread.
 - **`sortOnlyColumns` & `sortOnlyDimensions` vs `passthroughDimensions`** — the
-  most-confused trio. The first two carry *hidden, sorted* fields through SQL so
+  most-confused trio. The first two carry _hidden, sorted_ fields through SQL so
   they influence ordering without being displayed; `passthroughDimensions` carry
-  *hidden, non-sorted* fields through `GROUP BY` so richText/image templates can
+  _hidden, non-sorted_ fields through `GROUP BY` so richText/image templates can
   still reference them.
 - **`metricsAsRows`** — layout flag; when true, metrics fan out down the rows
   instead of across the columns (affects the column-count math).
@@ -125,6 +125,7 @@ Cross-cutting terms only — fuller definitions live in the linked package docs.
 ## Related docs
 
 Deep dives (authoritative — update these, not this file):
+
 - [`packages/backend/src/utils/QueryBuilder/CLAUDE.md`](../packages/backend/src/utils/QueryBuilder/CLAUDE.md) — SQL generation, CTE modes, anchors.
 - [`packages/frontend/src/components/common/PivotTable/CLAUDE.md`](../packages/frontend/src/components/common/PivotTable/CLAUDE.md) — `PivotData` structure and rendering.
 - [`packages/backend/src/services/AsyncQueryService/CLAUDE.md`](../packages/backend/src/services/AsyncQueryService/CLAUDE.md) — async execution and S3 streaming.
