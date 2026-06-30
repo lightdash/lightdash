@@ -34,6 +34,12 @@ import { getGetDashboardCharts } from '../tools/getDashboardCharts';
 import { getGetKnowledgeDocumentContent } from '../tools/getKnowledgeDocumentContent';
 import { getGetProjectInfo } from '../tools/getProjectInfo';
 import { getGrepFields } from '../tools/grepFields';
+import {
+    buildFieldIndex,
+    extractKeywords,
+    renderCandidateBlock,
+    selectCandidateFields,
+} from '../tools/grepFieldsIndex';
 import { getImproveContext } from '../tools/improveContext';
 import { getListContent } from '../tools/listContent';
 import { getListKnowledgeDocuments } from '../tools/listKnowledgeDocuments';
@@ -90,6 +96,48 @@ const withToolHints = (
         typeof lastUser.content === 'string'
             ? `${lastUser.content}${hint}`
             : [...lastUser.content, { type: 'text' as const, text: hint }];
+    return [
+        ...messageHistory.slice(0, lastUserIndex),
+        { ...lastUser, content: updatedContent } as ModelMessage,
+        ...messageHistory.slice(lastUserIndex + 1),
+    ];
+};
+
+/**
+ * Zero-LLM discovery seed: deterministically grep the catalog for the latest
+ * user question's keywords and append the candidate fields to that message, so
+ * the agent often has the right fields on its first turn and can skip the
+ * discovery round-trip. Advisory only — the agent still verifies and can grep
+ * for itself. Appended to the (uncached) user message, never the system prompt.
+ */
+const withPreGrepCandidates = (
+    messageHistory: ModelMessage[],
+    availableExplores: Explore[],
+): ModelMessage[] => {
+    const lastUserIndex = messageHistory.findLastIndex(
+        (m) => m.role === 'user',
+    );
+    if (lastUserIndex === -1) return messageHistory;
+    const lastUser = messageHistory[lastUserIndex];
+    if (lastUser.role !== 'user') return messageHistory;
+    const userText =
+        typeof lastUser.content === 'string'
+            ? lastUser.content
+            : lastUser.content
+                  .map((part) => (part.type === 'text' ? part.text : ''))
+                  .join(' ');
+    const keywords = extractKeywords(userText);
+    if (keywords.length === 0) return messageHistory;
+    const candidates = selectCandidateFields(
+        buildFieldIndex(availableExplores),
+        keywords,
+    );
+    if (candidates.length === 0) return messageHistory;
+    const seed = `\n\n${renderCandidateBlock(candidates)}`;
+    const updatedContent =
+        typeof lastUser.content === 'string'
+            ? `${lastUser.content}${seed}`
+            : [...lastUser.content, { type: 'text' as const, text: seed }];
     return [
         ...messageHistory.slice(0, lastUserIndex),
         { ...lastUser, content: updatedContent } as ModelMessage,
@@ -251,7 +299,10 @@ const getAgentTools = (
     // Experimental swap: when on, the main agent greps the in-memory annotated
     // explores itself instead of delegating to the discoverFields sub-agent.
     const grepFields = args.enableGrepFields
-        ? getGrepFields({ availableExplores })
+        ? getGrepFields({
+              availableExplores,
+              findExplores: dependencies.findExplores,
+          })
         : null;
 
     const findContent = getFindContent({
@@ -575,7 +626,12 @@ const getAgentMessages = (
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger('Agent Messages', 'Getting agent messages.');
 
-    const messageHistory = withToolHints(args.messageHistory, args.toolHints);
+    const messageHistory = args.enableGrepFields
+        ? withPreGrepCandidates(
+              withToolHints(args.messageHistory, args.toolHints),
+              availableExplores,
+          )
+        : withToolHints(args.messageHistory, args.toolHints);
 
     // Project context is loaded on demand via the loadProjectContext tool; the
     // system prompt only advertises that it exists (when enabled + non-empty).
