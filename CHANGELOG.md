@@ -1,3 +1,11 @@
+# [0.3264.0](https://github.com/lightdash/lightdash/compare/0.3263.2...0.3264.0) (2026-06-30)
+
+
+### Features
+
+* **sandbox:** real pausing via persist/resume + registry/manager (writeback) ([#24793](https://github.com/lightdash/lightdash/issues/24793)) ([4bcb08b](https://github.com/lightdash/lightdash/commit/4bcb08b40d626b7b4390327cd8625a3db0ad72e9))
+* save app thumbnail ([#24812](https://github.com/lightdash/lightdash/issues/24812)) ([f377057](https://github.com/lightdash/lightdash/commit/f3770576b8d0dc9cc8a44f70f5c1e459cba703a2))
+
 ## [0.3263.2](https://github.com/lightdash/lightdash/compare/0.3263.1...0.3263.2) (2026-06-30)
 
 
