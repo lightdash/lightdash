@@ -17,12 +17,15 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { aiRollingUpdateReview } from './ai-migration-review';
 import { lintMigrations, renderFindings, SqlLintFinding } from './sql-migration-lint';
-import { findExpandFloor } from './expand-version';
+import { compareVersions, findExpandFloor } from './expand-version';
 import { diffRestApi } from './rest-api-diff';
 import { diffMcpTools } from './mcp-tools-diff';
 import {
+    CarriedFloor,
+    carriedUpgradeFloor,
     DEFAULT_OVERRIDES_PATH,
     loadUpgradeOverrides,
+    recordDerivedFloor,
     resolveUpgrade,
     UpgradeResolution,
 } from './upgrade-overrides';
@@ -178,6 +181,15 @@ export interface BuildMarkerInput {
      * committed overrides file was present). null leaves the honest stub.
      */
     upgrade?: UpgradeResolution | null;
+    /**
+     * Optional forward-carried upgrade floor (high-water mark) computed from the
+     * committed overrides across ALL releases <= this one. Only ever RAISES
+     * upgrade.minPreviousVersion (never lowers — the safe direction), so a single
+     * marker is sufficient for a version-skip: an operator reading only this marker
+     * still cannot be told "safe from anywhere" when an in-between release dropped
+     * something their old pods use. null/absent leaves the per-release floor as-is.
+     */
+    carriedFloor?: CarriedFloor | null;
 }
 
 export interface AiReviewSummary {
@@ -192,6 +204,39 @@ export interface SqlLintSummary {
     breaking: boolean;
     /** Pre-rendered finding strings for the marker note. */
     findings: string[];
+}
+
+/**
+ * PURE. The upgrade floor THIS release contributes on its own: non-null ONLY when
+ * the AI cleared a linter-flagged destructive change as the safe "contract" step
+ * of an expand/contract (it verified the previous release no longer references the
+ * dropped object). Returns the git-traced expand version when available (more
+ * permissive, still provably safe), else the conservative previousVersion.
+ *
+ * Single source of truth shared by `buildMarker` (sets the live floor on this
+ * release's marker) and the IO shell (persists it into the committed overrides so
+ * FUTURE releases carry it forward — they cannot re-derive it without re-running
+ * the AI). Keeping one function means the persisted value can never drift from the
+ * value the marker advertises.
+ */
+export function ownExpandContractFloor(input: {
+    migrations: MigrationsResult | null;
+    sqlLint?: SqlLintSummary | null;
+    aiReview?: AiReviewSummary | null;
+    expandContractFloor?: string | null;
+    previousVersion: string | null;
+}): string | null {
+    const present: TriState = input.migrations
+        ? input.migrations.present
+        : 'unknown';
+    const linterFlagged = Boolean(
+        input.sqlLint?.ran && input.sqlLint.breaking && present === true,
+    );
+    const cleared = Boolean(
+        linterFlagged && input.aiReview && input.aiReview.rollingUpdateSafe === true,
+    );
+    if (!cleared) return null;
+    return input.expandContractFloor || input.previousVersion || null;
 }
 
 /**
@@ -287,12 +332,17 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
     // only ever make the marker MORE accurate, never downgrade a deterministic
     // break to "unknown". It never applies on a first release or on a release with
     // nothing flagged (no migration AND no API break).
-    // True when the AI cleared a linter-flagged destructive change as the safe
-    // "contract" step of an expand/contract — the verdict it reached by verifying
-    // the PREVIOUS release (previousVersion) no longer uses the object.
-    const aiClearedExpandContract = Boolean(
-        linterFlagged && aiReview && aiReview.rollingUpdateSafe === true,
-    );
+    // The floor THIS release contributes on its own — non-null only when the AI
+    // cleared a linter-flagged destructive change as the safe "contract" step of an
+    // expand/contract (verified the PREVIOUS release no longer uses the object).
+    // Computed via the shared helper so the IO shell persists the EXACT same value.
+    const ownFloor = ownExpandContractFloor({
+        migrations,
+        sqlLint,
+        aiReview,
+        expandContractFloor: input.expandContractFloor,
+        previousVersion,
+    });
     if (aiReview && (present === true || nonMigrationHazard)) {
         capabilities.push('ai-review');
         if (aiReview.rollingUpdateSafe !== 'unknown') {
@@ -351,11 +401,12 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
     // safe value (the release we actually checked); the author can lower it via the
     // overrides file if the "expand" shipped earlier. A human-authored
     // minPreviousVersion (from the overrides file) always wins.
-    if (aiClearedExpandContract && upgrade.minPreviousVersion === null && (input.expandContractFloor || previousVersion)) {
-        // Prefer the git-traced expand version (earliest release the app stopped
-        // using the object — provably safe and more permissive); fall back to the
-        // conservative previousVersion (the single release the AI verified).
-        const floor = input.expandContractFloor || previousVersion!;
+    if (ownFloor && upgrade.minPreviousVersion === null) {
+        // ownFloor already prefers the git-traced expand version (earliest release
+        // the app stopped using the object — provably safe and more permissive) and
+        // falls back to the conservative previousVersion (the single release the AI
+        // verified). A human-authored minPreviousVersion (set above) always wins.
+        const floor = ownFloor;
         const traced = Boolean(input.expandContractFloor);
         upgrade = {
             minPreviousVersion: floor,
@@ -365,6 +416,36 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
                 : `Auto-derived: the AI verified the change is safe via expand/contract from ${floor}. ` +
                   `Upgrading from an earlier release is NOT verified — set a lower minPreviousVersion in ` +
                   `release-safety.overrides.json if the app stopped using the object before then.`,
+        };
+        upgradeKnown = true;
+    }
+
+    // Forward-carry the high-water-mark floor across releases. A hazardous change
+    // declared in ANY release at or before this one — a minPreviousVersion floor,
+    // or a required stop — constrains how far back a DIRECT upgrade to this release
+    // may start. Take the most restrictive (highest) floor so a single marker is
+    // safe for a version-skip: an operator reading only this marker can't be told
+    // "safe from anywhere" when an in-between release dropped something their old
+    // pods still use. This only ever RAISES the floor (never lowers it): the
+    // per-release floor above can be undercut by an in-between hazard, never the
+    // reverse — so it can over-constrain (annoying) but never falsely free a skip.
+    const carried = input.carriedFloor;
+    if (
+        carried?.minPreviousVersion &&
+        (upgrade.minPreviousVersion === null ||
+            compareVersions(carried.minPreviousVersion, upgrade.minPreviousVersion) >
+                0)
+    ) {
+        const floor = carried.minPreviousVersion;
+        const src = carried.sourceVersion;
+        const carriedNote =
+            carried.kind === 'requiredStop'
+                ? `Release ${src} is a required stop — upgrade from ${floor} or later; an older version cannot skip directly past it.`
+                : `An earlier release${src ? ` (${src})` : ''} requires upgrading from ${floor} or later — a change on the path is not safe to skip past from an older version.`;
+        upgrade = {
+            minPreviousVersion: floor,
+            requiredStop: upgrade.requiredStop,
+            note: upgrade.note ? `${carriedNote} ${upgrade.note}` : carriedNote,
         };
         upgradeKnown = true;
     }
@@ -606,6 +687,10 @@ async function main(): Promise<void> {
     // never silently drop a maintainer's declared required-stop.
     const overrides = loadUpgradeOverrides(args.overrides);
     const upgrade = resolveUpgrade(overrides, args.version);
+    // Forward-carried floor: the high-water mark of every floor / required stop
+    // declared in any release at or before this one, so the marker is self-
+    // sufficient for a version-skip (see buildMarker's carriedFloor fold).
+    const carriedFloor = carriedUpgradeFloor(overrides, args.version);
 
     const marker = buildMarker({
         version: args.version,
@@ -618,7 +703,31 @@ async function main(): Promise<void> {
         restApi,
         mcpApi,
         upgrade,
+        carriedFloor,
     });
+
+    // Persist THIS release's own auto-derived expand/contract floor into the
+    // committed overrides so EVERY future release carries it forward automatically
+    // (carriedUpgradeFloor) — no maintainer action, and no need to re-run the AI on
+    // historical releases. Same kill-switch as the asset: while dark we never touch
+    // the repo. Write-if-absent, so a hand-authored floor always wins. The file is
+    // committed by @semantic-release/git (see release.config.js); an unchanged file
+    // (no new floor, or already recorded) is a no-op in that commit.
+    const ownFloor = ownExpandContractFloor({
+        migrations,
+        sqlLint,
+        aiReview,
+        expandContractFloor,
+        previousVersion: args.previousVersion,
+    });
+    if (markerEnabled && ownFloor) {
+        const wrote = recordDerivedFloor(args.overrides, args.version, ownFloor);
+        console.warn(
+            wrote
+                ? `[release-safety] recorded upgrade floor in ${args.overrides}: ${args.version} -> minPreviousVersion ${ownFloor}`
+                : `[release-safety] upgrade floor for ${args.version} already declared in ${args.overrides}; left as-is`,
+        );
+    }
 
     const json = `${JSON.stringify(marker, null, 2)}\n`;
     // Always print the marker (CI logs + the PR preview workflow read this); only

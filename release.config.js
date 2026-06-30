@@ -78,6 +78,11 @@ module.exports = {
                     'packages/warehouses/package.json',
                     'packages/query-sdk/package.json',
                     'packages/frontend/sdk/package.json',
+                    // PROD-8359: when the marker generator auto-records this
+                    // release's expand/contract upgrade floor, the change to this
+                    // committed file ships in the release commit so future releases
+                    // carry the floor forward. Unchanged (the common case) → no-op.
+                    'release-safety.overrides.json',
                 ],
                 message:
                     'chore(release): ${nextRelease.version} \n\n${nextRelease.notes}',
