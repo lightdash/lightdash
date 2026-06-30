@@ -1,3 +1,12 @@
 .banner {
     z-index: var(--mantine-z-index-app);
 }
+
+.backLink {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    font-family: inherit;
+}
