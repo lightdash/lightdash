@@ -567,6 +567,37 @@ describe('external-fetch branch', () => {
         );
     });
 
+    it('routes lightdash:lineage:selected to onLineageSelected with the queryUuid', () => {
+        const onLineageSelected = vi.fn();
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        renderHook(() =>
+            useAppSdkBridge(
+                iframeRef,
+                window.location.origin,
+                PROJECT_UUID,
+                APP_UUID,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                onLineageSelected,
+            ),
+        );
+
+        dispatchFetchMessage({
+            type: 'lightdash:lineage:selected',
+            queryUuid: 'q-9',
+        });
+
+        expect(onLineageSelected).toHaveBeenCalledWith({ queryUuid: 'q-9' });
+    });
+
     it('rejects external-fetch messages from a spoofed sender (wrong source AND wrong origin)', async () => {
         // Security invariant: the bridge guard checks BOTH event.source
         // (must match iframeRef.current.contentWindow) AND event.origin

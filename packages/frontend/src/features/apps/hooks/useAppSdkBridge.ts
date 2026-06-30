@@ -186,6 +186,8 @@ export function useAppSdkBridge(
      * will receive an error response for those requests.
      */
     capabilities?: { gsheetExport?: boolean },
+    onLineageAvailable?: () => void,
+    onLineageSelected?: (event: { queryUuid: string }) => void,
 ) {
     // Embed mode adapts the bridge's outgoing fetches in two ways:
     //   - Attaches the embed JWT header in lieu of session cookies
@@ -239,6 +241,20 @@ export function useAppSdkBridge(
                 const label = typeof data.label === 'string' ? data.label : '';
                 if (label && onElementSelected) {
                     onElementSelected({ label });
+                }
+                return;
+            }
+
+            if (data?.type === 'lightdash:lineage:available') {
+                onLineageAvailable?.();
+                return;
+            }
+
+            if (data?.type === 'lightdash:lineage:selected') {
+                const queryUuid =
+                    typeof data.queryUuid === 'string' ? data.queryUuid : '';
+                if (queryUuid && onLineageSelected) {
+                    onLineageSelected({ queryUuid });
                 }
                 return;
             }
@@ -665,6 +681,8 @@ export function useAppSdkBridge(
             embedToken,
             embedProjectUuid,
             capabilities,
+            onLineageAvailable,
+            onLineageSelected,
             health.data,
             user.data,
         ],
@@ -701,9 +719,36 @@ export function useAppSdkBridge(
         );
     }, [iframeRef]);
 
+    const enableLineage = useCallback(() => {
+        iframeRef.current?.contentWindow?.postMessage(
+            { type: 'lightdash:lineage:enable' },
+            '*',
+        );
+    }, [iframeRef]);
+
+    const disableLineage = useCallback(() => {
+        iframeRef.current?.contentWindow?.postMessage(
+            { type: 'lightdash:lineage:disable' },
+            '*',
+        );
+    }, [iframeRef]);
+
+    const highlightLineage = useCallback(
+        (queryUuid: string | null) => {
+            iframeRef.current?.contentWindow?.postMessage(
+                { type: 'lightdash:lineage:highlight', queryUuid },
+                '*',
+            );
+        },
+        [iframeRef],
+    );
+
     return {
         handleIframeLoad,
         enableInspector,
         disableInspector,
+        enableLineage,
+        disableLineage,
+        highlightLineage,
     };
 }
