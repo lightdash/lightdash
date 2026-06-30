@@ -36,7 +36,7 @@ export const WizardTestStep: FC<Props> = ({
     saveSample,
     onSaveSampleChange,
 }) => {
-    const [path, setPath] = useState('/');
+    const [path, setPath] = useState('');
     const testMutation = useTestConnectionConfig();
 
     const handleTest = async () => {
