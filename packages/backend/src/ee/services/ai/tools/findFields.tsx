@@ -9,11 +9,12 @@ import {
     getFilterTypeFromItemType,
     getItemId,
     isEmojiIcon,
-    type McpFindFieldsStructuredOutput,
+    type FindFieldsResult,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
-    FindFieldFn,
+    FindFieldsFn,
+    FindFieldsSearchQueryResult,
     GetExploreFn,
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
@@ -24,7 +25,7 @@ import { formatToolJsonOutput } from './toolOutputFormat';
 
 type Dependencies = {
     getExplore: GetExploreFn;
-    findFields: FindFieldFn;
+    findFields: FindFieldsFn;
     updateProgress: UpdateProgressFn;
     pageSize: number;
     toolDescriptionMaxChars: number;
@@ -34,7 +35,7 @@ const toolDefinition = findFieldsToolDefinition.for('agent');
 
 const getFieldCaseSensitive = (
     catalogField: CatalogField,
-    explore?: Explore,
+    explore: Explore,
 ): boolean | undefined => {
     if (
         catalogField.fieldType !== FieldType.DIMENSION ||
@@ -44,11 +45,11 @@ const getFieldCaseSensitive = (
     }
 
     const dimension =
-        explore?.tables[catalogField.tableName]?.dimensions[catalogField.name];
+        explore.tables[catalogField.tableName]?.dimensions[catalogField.name];
 
     return (
         dimension?.caseSensitive ??
-        explore?.caseSensitive ??
+        explore.caseSensitive ??
         DEFAULT_FILTER_CASE_SENSITIVE
     );
 };
@@ -56,10 +57,9 @@ const getFieldCaseSensitive = (
 const formatField = (
     catalogField: CatalogField,
     toolDescriptionMaxChars: number,
-    explore?: Explore,
+    explore: Explore,
 ) => {
     const isFromJoinedTable =
-        explore &&
         catalogField.tableName !== explore.baseTable &&
         explore.joinedTables.some(
             (join) => join.table === catalogField.tableName,
@@ -81,12 +81,11 @@ const formatField = (
         searchRank: catalogField.searchRank,
         chartUsage: catalogField.chartUsage,
         usageInVerifiedCharts: catalogField.verifiedChartUsage ?? 0,
-        isFromJoinedTable: Boolean(isFromJoinedTable),
+        isFromJoinedTable,
         caseSensitiveFilters: caseSensitiveFilters ?? null,
-        note:
-            isFromJoinedTable && explore
-                ? `This field is from the "${catalogField.tableName}" table, which is joined to the "${explore.name}" explore. You can use this field in queries and filters just like fields from the base table.`
-                : null,
+        note: isFromJoinedTable
+            ? `This field is from the "${catalogField.tableName}" table, which is joined to the "${explore.name}" explore. You can use this field in queries and filters just like fields from the base table.`
+            : null,
         label: catalogField.label,
         aiHints: aiHints ?? [],
         description: catalogField.description
@@ -99,24 +98,31 @@ const formatField = (
     };
 };
 
-type FindFieldsSearchQueryResult = Awaited<ReturnType<FindFieldFn>> & {
-    searchQuery: string;
-};
-
 const buildFindFieldsSearchResult = (
     args: FindFieldsSearchQueryResult,
     toolDescriptionMaxChars: number,
-    explore?: Explore,
-): McpFindFieldsStructuredOutput['searchResults'][number] => ({
-    searchQuery: args.searchQuery,
-    page: args.pagination?.page ?? null,
-    pageSize: args.pagination?.pageSize ?? null,
-    totalPageCount: args.pagination?.totalPageCount ?? null,
-    totalResults: args.pagination?.totalResults ?? null,
-    fields: args.fields.map((field) =>
-        formatField(field, toolDescriptionMaxChars, explore),
-    ),
-});
+    explore: Explore,
+): FindFieldsResult['searchResults'][number] => {
+    if (args.status === 'error') {
+        return {
+            status: 'error',
+            searchQuery: args.searchQuery,
+            error: args.error,
+        };
+    }
+
+    return {
+        status: 'success',
+        searchQuery: args.searchQuery,
+        page: args.pagination?.page ?? null,
+        pageSize: args.pagination?.pageSize ?? null,
+        totalPageCount: args.pagination?.totalPageCount ?? null,
+        totalResults: args.pagination?.totalResults ?? null,
+        fields: args.fields.map((field) =>
+            formatField(field, toolDescriptionMaxChars, explore),
+        ),
+    };
+};
 
 export const buildFindFieldsStructuredContent = ({
     fieldSearchQueryResults,
@@ -125,8 +131,8 @@ export const buildFindFieldsStructuredContent = ({
 }: {
     fieldSearchQueryResults: FindFieldsSearchQueryResult[];
     toolDescriptionMaxChars: number;
-    explore?: Explore;
-}): McpFindFieldsStructuredOutput => ({
+    explore: Explore;
+}) => ({
     searchResults: fieldSearchQueryResults.map((fieldSearchQueryResult) =>
         buildFindFieldsSearchResult(
             fieldSearchQueryResult,
@@ -158,21 +164,13 @@ export const getFindFields = ({
 
                 const explore = await getExplore({ table: args.table });
 
-                const fieldSearchQueryResults = await Promise.all(
-                    args.fieldSearchQueries.map(async (fieldSearchQuery) => {
-                        const result = await findFields({
-                            table: args.table,
-                            fieldSearchQuery,
-                            page: args.page ?? 1,
-                            pageSize,
-                            explore,
-                        });
-                        return {
-                            searchQuery: fieldSearchQuery.label,
-                            ...result,
-                        };
-                    }),
-                );
+                const fieldSearchQueryResults = await findFields({
+                    table: args.table,
+                    fieldSearchQueries: args.fieldSearchQueries,
+                    page: args.page ?? 1,
+                    pageSize,
+                    explore,
+                });
 
                 const structuredContent = buildFindFieldsStructuredContent({
                     fieldSearchQueryResults,
@@ -186,23 +184,41 @@ export const getFindFields = ({
                         status: 'success',
                         ranking: {
                             searchQueries: fieldSearchQueryResults.map(
-                                (fieldSearchQueryResult) => ({
-                                    label: fieldSearchQueryResult.searchQuery,
-                                    results: fieldSearchQueryResult.fields.map(
-                                        (field) => ({
-                                            name: field.name,
-                                            label: field.label,
-                                            tableName: field.tableName,
-                                            fieldType: field.fieldType,
-                                            searchRank: field.searchRank,
-                                            chartUsage: field.chartUsage,
-                                            verifiedChartUsage:
-                                                field.verifiedChartUsage,
-                                        }),
-                                    ),
-                                    pagination:
-                                        fieldSearchQueryResult.pagination,
-                                }),
+                                (fieldSearchQueryResult) => {
+                                    if (
+                                        fieldSearchQueryResult.status ===
+                                        'error'
+                                    ) {
+                                        return {
+                                            status: 'error',
+                                            label: fieldSearchQueryResult.searchQuery,
+                                            error: fieldSearchQueryResult.error,
+                                            results: [],
+                                        };
+                                    }
+
+                                    return {
+                                        status: 'success',
+                                        label: fieldSearchQueryResult.searchQuery,
+                                        results:
+                                            fieldSearchQueryResult.fields.map(
+                                                (field) => ({
+                                                    name: field.name,
+                                                    label: field.label,
+                                                    tableName: field.tableName,
+                                                    fieldType: field.fieldType,
+                                                    searchRank:
+                                                        field.searchRank,
+                                                    chartUsage:
+                                                        field.chartUsage,
+                                                    verifiedChartUsage:
+                                                        field.verifiedChartUsage,
+                                                }),
+                                            ),
+                                        pagination:
+                                            fieldSearchQueryResult.pagination,
+                                    };
+                                },
                             ),
                         },
                     },

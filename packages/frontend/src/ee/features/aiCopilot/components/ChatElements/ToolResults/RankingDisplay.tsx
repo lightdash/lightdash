@@ -53,70 +53,81 @@ export const RankingDisplay: React.FC<{
                             <Text fw={500} size="xs" c="dark" mb="xs">
                                 Search: "{query.label}"
                             </Text>
-                            {query.pagination && (
-                                <Text size="xs" c="dimmed" mb="xs">
-                                    Page {query.pagination.page} of{' '}
-                                    {query.pagination.totalPageCount} (
-                                    {query.pagination.totalResults} total
-                                    results)
+                            {query.status === 'error' ? (
+                                <Text size="xs" c="red" mb="xs">
+                                    {query.error}
                                 </Text>
+                            ) : (
+                                <>
+                                    {query.pagination && (
+                                        <Text size="xs" c="dimmed" mb="xs">
+                                            Page {query.pagination.page} of{' '}
+                                            {query.pagination.totalPageCount} (
+                                            {query.pagination.totalResults}{' '}
+                                            total results)
+                                        </Text>
+                                    )}
+                                    <RankingTable<FieldResult>
+                                        columns={[
+                                            {
+                                                header: 'Field',
+                                                render: (field) => (
+                                                    <Box>
+                                                        <TableCellText>
+                                                            {field.label}
+                                                        </TableCellText>
+                                                        <TableCellText dimmed>
+                                                            {field.name}
+                                                        </TableCellText>
+                                                    </Box>
+                                                ),
+                                            },
+                                            {
+                                                header: 'Table',
+                                                render: (field) => (
+                                                    <TableCellText>
+                                                        {field.tableName}
+                                                    </TableCellText>
+                                                ),
+                                            },
+                                            {
+                                                header: 'Type',
+                                                render: (field) => (
+                                                    <TableCellText>
+                                                        {field.fieldType}
+                                                    </TableCellText>
+                                                ),
+                                            },
+                                            {
+                                                header: 'Rank',
+                                                render: (field) => (
+                                                    <TableCellText>
+                                                        {field.searchRank !==
+                                                            null &&
+                                                        field.searchRank !==
+                                                            undefined
+                                                            ? field.searchRank.toFixed(
+                                                                  3,
+                                                              )
+                                                            : 'N/A'}
+                                                    </TableCellText>
+                                                ),
+                                            },
+                                            {
+                                                header: 'Usage',
+                                                render: (field) => (
+                                                    <TableCellText>
+                                                        {field.chartUsage ??
+                                                            'N/A'}
+                                                    </TableCellText>
+                                                ),
+                                            },
+                                        ]}
+                                        data={query.results}
+                                        maxHeight={300}
+                                    />
+                                </>
                             )}
-                            <RankingTable<FieldResult>
-                                columns={[
-                                    {
-                                        header: 'Field',
-                                        render: (field) => (
-                                            <Box>
-                                                <TableCellText>
-                                                    {field.label}
-                                                </TableCellText>
-                                                <TableCellText dimmed>
-                                                    {field.name}
-                                                </TableCellText>
-                                            </Box>
-                                        ),
-                                    },
-                                    {
-                                        header: 'Table',
-                                        render: (field) => (
-                                            <TableCellText>
-                                                {field.tableName}
-                                            </TableCellText>
-                                        ),
-                                    },
-                                    {
-                                        header: 'Type',
-                                        render: (field) => (
-                                            <TableCellText>
-                                                {field.fieldType}
-                                            </TableCellText>
-                                        ),
-                                    },
-                                    {
-                                        header: 'Rank',
-                                        render: (field) => (
-                                            <TableCellText>
-                                                {field.searchRank !== null &&
-                                                field.searchRank !== undefined
-                                                    ? field.searchRank.toFixed(
-                                                          3,
-                                                      )
-                                                    : 'N/A'}
-                                            </TableCellText>
-                                        ),
-                                    },
-                                    {
-                                        header: 'Usage',
-                                        render: (field) => (
-                                            <TableCellText>
-                                                {field.chartUsage ?? 'N/A'}
-                                            </TableCellText>
-                                        ),
-                                    },
-                                ]}
-                                data={query.results}
-                                maxHeight={300}
-                            />
                         </Box>
                     ))}
                 </Stack>

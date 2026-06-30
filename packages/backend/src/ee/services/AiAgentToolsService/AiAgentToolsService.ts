@@ -10,6 +10,7 @@ import {
     filterExploreByTags,
     ForbiddenError,
     getContentAsCodePathFromLtreePath,
+    getErrorMessage,
     getItemMap,
     getLtreePathFromContentAsCodePath,
     getValidAiQueryLimit,
@@ -72,6 +73,7 @@ import {
     FindContentSpaceMetadata,
     FindExploresFn,
     FindFieldFn,
+    FindFieldsFn,
     GetDashboardChartsFn,
     GetExploreFn,
     GetProjectInfoFn,
@@ -127,12 +129,41 @@ export type AiAgentToolsRuntimeContext = {
     agentUuid?: string;
 };
 
+export type McpRuntimeSuccess<TData> = {
+    status: 'success';
+    data: TData;
+};
+
+export type McpRuntimeError = {
+    status: 'error';
+    error: unknown;
+};
+
+export type McpRuntimeResult<TData> =
+    | McpRuntimeSuccess<TData>
+    | McpRuntimeError;
+
+export const unwrapMcpRuntimeResult = <TData>(
+    result: McpRuntimeResult<TData>,
+): TData => {
+    if (result.status === 'error') {
+        throw result.error;
+    }
+    return result.data;
+};
+
+type FindExploresRuntimeResult = Awaited<ReturnType<FindExploresFn>>;
+
+type FindFieldsRuntimeResult = Awaited<ReturnType<FindFieldsFn>>;
+
+type GetExploreRuntimeResult = Awaited<ReturnType<GetExploreFn>>;
+
 export type AiAgentToolsRuntime = {
     listExplores: ListExploresFn;
     getExplore: GetExploreFn;
     findExplores: FindExploresFn;
     getVerifiedFieldUsage: GetVerifiedFieldUsageFn;
-    findFields: FindFieldFn;
+    findFields: FindFieldsFn;
     findContent: FindContentFn;
     searchFieldValues: SearchFieldValuesFn;
     searchSemanticLayer: SearchSemanticLayerFn;
@@ -160,6 +191,21 @@ export type AiAgentToolsRuntime = {
     listProjects: ListProjectsFn;
     getProjectInfo: GetProjectInfoFn;
     loadSkill: LoadAgentSkillFn;
+};
+
+export type McpAiAgentToolsRuntime = Omit<
+    AiAgentToolsRuntime,
+    'getExplore' | 'findExplores' | 'findFields'
+> & {
+    getExplore: (
+        args: Parameters<GetExploreFn>[0],
+    ) => Promise<McpRuntimeResult<GetExploreRuntimeResult>>;
+    findExplores: (
+        args: Parameters<FindExploresFn>[0],
+    ) => Promise<McpRuntimeResult<FindExploresRuntimeResult>>;
+    findFields: (
+        args: Parameters<FindFieldsFn>[0],
+    ) => Promise<McpRuntimeResult<FindFieldsRuntimeResult>>;
 };
 
 type BuiltInSkillsClient = Pick<
@@ -421,8 +467,16 @@ export class AiAgentToolsService extends BaseService {
         return explore;
     }
 
-    createRuntime(context: AiAgentToolsRuntimeContext): AiAgentToolsRuntime {
-        return {
+    createRuntime(
+        context: AiAgentToolsRuntimeContext & { source: 'mcp' },
+    ): McpAiAgentToolsRuntime;
+    createRuntime(
+        context: AiAgentToolsRuntimeContext & { source: 'ai_agent' },
+    ): AiAgentToolsRuntime;
+    createRuntime(
+        context: AiAgentToolsRuntimeContext,
+    ): AiAgentToolsRuntime | McpAiAgentToolsRuntime {
+        const runtime: AiAgentToolsRuntime = {
             listExplores: () => this.listExplores(context),
             getExplore: (args) => this.getExploreForRuntime(context, args),
             findExplores: (args) => this.findExplores(context, args),
@@ -465,6 +519,54 @@ export class AiAgentToolsService extends BaseService {
             getProjectInfo: () => this.getProjectInfo(context),
             loadSkill: (name) => this.loadAgentSkill(name),
         };
+
+        return context.source === 'mcp'
+            ? this.withMcpRuntimeResults(runtime)
+            : runtime;
+    }
+
+    private withMcpRuntimeResults(
+        runtime: AiAgentToolsRuntime,
+    ): McpAiAgentToolsRuntime {
+        return {
+            ...runtime,
+            getExplore: this.withMcpRuntimeResult(
+                'get_explore',
+                runtime.getExplore,
+            ),
+            findExplores: this.withMcpRuntimeResult(
+                'find_explores',
+                runtime.findExplores,
+            ),
+            findFields: this.withMcpRuntimeResult(
+                'find_fields',
+                runtime.findFields,
+            ),
+        };
+    }
+
+    private withMcpRuntimeResult<TArgs extends unknown[], TData>(
+        toolName: string,
+        run: (...args: TArgs) => Promise<TData>,
+    ) {
+        return (...args: TArgs) =>
+            this.runMcpRuntimeTool(toolName, () => run(...args));
+    }
+
+    private async runMcpRuntimeTool<TData>(
+        toolName: string,
+        getData: () => Promise<TData>,
+    ): Promise<McpRuntimeResult<TData>> {
+        try {
+            return { status: 'success', data: await getData() };
+        } catch (error) {
+            const message = getErrorMessage(error);
+            this.logger.error(
+                `[AiAgentToolsService] Error in MCP ${toolName}: ${message}`,
+                { error },
+            );
+            return { status: 'error', error };
+        }
     }
 
     private listExplores(
@@ -591,10 +693,45 @@ export class AiAgentToolsService extends BaseService {
 
     private findFields(
         context: AiAgentToolsRuntimeContext,
+        args: Parameters<FindFieldsFn>[0],
+    ): ReturnType<FindFieldsFn> {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(context)}.findFields`,
+            args,
+            async () =>
+                Promise.all(
+                    args.fieldSearchQueries.map(async (fieldSearchQuery) => {
+                        try {
+                            const result = await this.findField(context, {
+                                table: args.table,
+                                fieldSearchQuery,
+                                page: args.page,
+                                pageSize: args.pageSize,
+                                explore: args.explore,
+                            });
+                            return {
+                                status: 'success',
+                                searchQuery: fieldSearchQuery.label,
+                                ...result,
+                            };
+                        } catch (error) {
+                            return {
+                                status: 'error',
+                                searchQuery: fieldSearchQuery.label,
+                                error: getErrorMessage(error),
+                            };
+                        }
+                    }),
+                ),
+        );
+    }
+
+    private findField(
+        context: AiAgentToolsRuntimeContext,
         args: Parameters<FindFieldFn>[0],
     ): ReturnType<FindFieldFn> {
         return wrapSentryTransaction(
-            `${AiAgentToolsService.transactionPrefix(context)}.findFields`,
+            `${AiAgentToolsService.transactionPrefix(context)}.findField`,
             args,
             async () => {
                 const { data: catalogItems, pagination } =

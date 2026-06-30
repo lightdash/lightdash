@@ -96,13 +96,13 @@ import {
     toolFindDashboardsOutputSchema,
 } from './toolFindDashboardsArgs';
 import {
-    mcpFindExploresStructuredOutputSchema,
+    findExploresResultSchema,
     TOOL_FIND_EXPLORES_DESCRIPTION,
     toolFindExploresArgsSchemaV3,
     toolFindExploresOutputSchema,
 } from './toolFindExploresArgs';
 import {
-    mcpFindFieldsStructuredOutputSchema,
+    findFieldsResultSchema,
     TOOL_FIND_FIELDS_DESCRIPTION,
     toolFindFieldsArgsSchema,
     toolFindFieldsOutputSchema,
@@ -327,7 +327,7 @@ export const findExploresToolDefinition = defineTool({
     agent: { outputSchema: toolFindExploresOutputSchema },
     mcp: {
         annotations: readOnlyAnnotations,
-        structuredContentSchema: mcpFindExploresStructuredOutputSchema,
+        structuredContentSchema: findExploresResultSchema,
     },
 });
 
@@ -340,7 +340,7 @@ export const findFieldsToolDefinition = defineTool({
     agent: { outputSchema: toolFindFieldsOutputSchema },
     mcp: {
         annotations: readOnlyAnnotations,
-        structuredContentSchema: mcpFindFieldsStructuredOutputSchema,
+        structuredContentSchema: findFieldsResultSchema,
     },
 });
 

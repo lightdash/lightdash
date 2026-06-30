@@ -89,7 +89,7 @@ export const findExploresRankingMetadataSchema = z.object({
         .optional(),
 });
 
-export const mcpFindExploresRequiredFilterSchema = z.object({
+export const findExploresRequiredFilterSchema = z.object({
     fieldId: z.string(),
     fieldRef: z.string(),
     tableName: z.string(),
@@ -99,7 +99,7 @@ export const mcpFindExploresRequiredFilterSchema = z.object({
     required: z.boolean(),
 });
 
-export const mcpFindExploresRelevantVerifiedAnswerSchema = z.object({
+export const findExploresRelevantVerifiedAnswerSchema = z.object({
     artifactVersionUuid: z.string(),
     chartConfig: z.record(z.unknown()),
     artifactType: z.enum(['chart', 'dashboard']),
@@ -109,7 +109,7 @@ export const mcpFindExploresRelevantVerifiedAnswerSchema = z.object({
     similarity: z.number(),
 });
 
-export const mcpFindExploresStructuredOutputSchema = z.object({
+export const findExploresResultSchema = z.object({
     searchQuery: z.string(),
     description: z.string(),
     searchResults: z.object({
@@ -119,7 +119,7 @@ export const mcpFindExploresStructuredOutputSchema = z.object({
             z.object({
                 name: z.string(),
                 label: z.string(),
-                searchRank: z.string(),
+                searchRank: z.number().nullable(),
                 description: z.string().nullable(),
                 aiHints: z.array(z.string()),
                 joinedTables: z.object({
@@ -127,7 +127,7 @@ export const mcpFindExploresStructuredOutputSchema = z.object({
                     note: z.string().nullable(),
                     tables: z.array(z.string()),
                 }),
-                requiredFilters: z.array(mcpFindExploresRequiredFilterSchema),
+                requiredFilters: z.array(findExploresRequiredFilterSchema),
             }),
         ),
     }),
@@ -140,14 +140,14 @@ export const mcpFindExploresStructuredOutputSchema = z.object({
                 label: z.string(),
                 exploreName: z.string(),
                 fieldType: z.string(),
-                searchRank: z.string(),
+                searchRank: z.number().nullable(),
                 usageInCharts: z.number(),
                 usageInVerifiedCharts: z.number(),
             }),
         ),
     }),
     relevantVerifiedAnswers: z
-        .array(mcpFindExploresRelevantVerifiedAnswerSchema)
+        .array(findExploresRelevantVerifiedAnswerSchema)
         .optional(),
 });
 
@@ -169,9 +169,7 @@ export type ToolFindExploresArgsV3 = z.infer<
 >;
 export type ToolFindExploresArgs = z.infer<typeof toolFindExploresArgsSchemaV3>;
 export type ToolFindExploresArgsTransformed = ToolFindExploresArgs;
-export type McpFindExploresStructuredOutput = z.infer<
-    typeof mcpFindExploresStructuredOutputSchema
->;
+export type FindExploresResult = z.infer<typeof findExploresResultSchema>;
 export type ToolFindExploresOutput = z.infer<
     typeof toolFindExploresOutputSchema
 >;

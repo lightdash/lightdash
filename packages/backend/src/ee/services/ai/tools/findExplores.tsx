@@ -1,7 +1,4 @@
-import {
-    findExploresToolDefinition,
-    type McpFindExploresStructuredOutput,
-} from '@lightdash/common';
+import { findExploresToolDefinition } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
     FindExploresFn,
@@ -29,7 +26,7 @@ export const buildFindExploresStructuredContent = ({
 }: Awaited<ReturnType<FindExploresFn>> & {
     searchQuery: string;
     toolDescriptionMaxChars: number;
-}): McpFindExploresStructuredOutput => {
+}) => {
     const exploreCount = exploreSearchResults?.length ?? 0;
     const fieldCount = topMatchingFields?.length ?? 0;
 
@@ -61,7 +58,7 @@ export const buildFindExploresStructuredContent = ({
                 exploreSearchResults?.map((result) => ({
                     name: result.name,
                     label: result.label,
-                    searchRank: result.searchRank?.toFixed(3) ?? 'N/A',
+                    searchRank: result.searchRank ?? null,
                     description: result.description
                         ? truncate(result.description, toolDescriptionMaxChars)
                         : null,
@@ -87,7 +84,7 @@ export const buildFindExploresStructuredContent = ({
                     label: field.label,
                     exploreName: field.tableName,
                     fieldType: field.fieldType,
-                    searchRank: field.searchRank?.toFixed(3) ?? 'N/A',
+                    searchRank: field.searchRank ?? null,
                     usageInCharts: field.chartUsage ?? 0,
                     usageInVerifiedCharts: field.verifiedChartUsage ?? 0,
                 })) ?? [],

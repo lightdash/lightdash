@@ -13,7 +13,10 @@ import {
 } from '@lightdash/common';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
-import { AiAgentToolsService } from './AiAgentToolsService';
+import {
+    AiAgentToolsService,
+    type AiAgentToolsRuntimeContext,
+} from './AiAgentToolsService';
 
 const organizationUuid = 'organization-uuid';
 const projectUuid = 'project-uuid';
@@ -170,12 +173,16 @@ const makeService = ({
         asyncQueryService,
     } as unknown as ConstructorParameters<typeof AiAgentToolsService>[0]);
 
-const makeRuntimeContext = (
-    overrides: Partial<
-        Parameters<AiAgentToolsService['createRuntime']>[0]
-    > = {},
-): Parameters<AiAgentToolsService['createRuntime']>[0] =>
-    ({
+function makeRuntimeContext(
+    overrides: Partial<AiAgentToolsRuntimeContext> & { source: 'mcp' },
+): AiAgentToolsRuntimeContext & { source: 'mcp' };
+function makeRuntimeContext(
+    overrides?: Partial<AiAgentToolsRuntimeContext> & { source?: 'ai_agent' },
+): AiAgentToolsRuntimeContext & { source: 'ai_agent' };
+function makeRuntimeContext(
+    overrides: Partial<AiAgentToolsRuntimeContext> = {},
+): AiAgentToolsRuntimeContext {
+    return {
         user,
         account,
         organizationUuid,
@@ -186,7 +193,8 @@ const makeRuntimeContext = (
         tags: null,
         spaceAccess: null,
         ...overrides,
-    }) as Parameters<AiAgentToolsService['createRuntime']>[0];
+    };
+}
 
 describe('AiAgentToolsService', () => {
     it('filters explores by tags and merged user attribute overrides', async () => {
@@ -284,9 +292,102 @@ describe('AiAgentToolsService', () => {
             fieldSearchSize: 50,
             searchQuery: 'orders',
         });
-        expect(mcpResults.topMatchingFields?.[0]).not.toHaveProperty(
-            'verifiedChartUsage',
+        expect(mcpResults.status).toBe('success');
+        if (mcpResults.status === 'success') {
+            expect(mcpResults.data.topMatchingFields?.[0]).not.toHaveProperty(
+                'verifiedChartUsage',
+            );
+        }
+    });
+
+    it('returns MCP runtime errors from findExplores instead of throwing', async () => {
+        const service = makeService({
+            explores: { orders: makeExplore({ name: 'orders' }) },
+            searchCatalog: vi
+                .fn()
+                .mockRejectedValue(new Error('Catalog failed')),
+        });
+        const runtime = service.createRuntime(
+            makeRuntimeContext({
+                source: 'mcp',
+                catalogSearchContext: CatalogSearchContext.MCP,
+                defaultQueryExecutionContext:
+                    QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+            }),
         );
+
+        const result = await runtime.findExplores({
+            fieldSearchSize: 50,
+            searchQuery: 'orders',
+        });
+
+        expect(result.status).toBe('error');
+        if (result.status !== 'error') {
+            throw new Error('Expected explore search to fail');
+        }
+        expect(result.error).toEqual(new Error('Catalog failed'));
+    });
+
+    it('returns MCP runtime errors from getExplore instead of throwing', async () => {
+        const service = makeService();
+        const runtime = service.createRuntime(
+            makeRuntimeContext({
+                source: 'mcp',
+                catalogSearchContext: CatalogSearchContext.MCP,
+                defaultQueryExecutionContext:
+                    QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+            }),
+        );
+
+        const result = await runtime.getExplore({ table: 'orders' });
+
+        expect(result.status).toBe('error');
+        if (result.status !== 'error') {
+            throw new Error('Expected explore lookup to fail');
+        }
+        expect(result.error).toBeInstanceOf(NotFoundError);
+    });
+
+    it('returns MCP runtime per-query errors from findFields instead of throwing', async () => {
+        const service = makeService({
+            explores: { orders: makeExplore({ name: 'orders' }) },
+            searchCatalog: vi
+                .fn()
+                .mockRejectedValue(new Error('Catalog failed')),
+        });
+        const runtime = service.createRuntime(
+            makeRuntimeContext({
+                source: 'mcp',
+                catalogSearchContext: CatalogSearchContext.MCP,
+                defaultQueryExecutionContext:
+                    QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+            }),
+        );
+        const exploreResult = await runtime.getExplore({ table: 'orders' });
+        expect(exploreResult.status).toBe('success');
+        if (exploreResult.status !== 'success') {
+            throw new Error('Expected explore lookup to succeed');
+        }
+
+        const result = await runtime.findFields({
+            table: 'orders',
+            fieldSearchQueries: [{ label: 'orders count' }],
+            page: 1,
+            pageSize: 15,
+            explore: exploreResult.data,
+        });
+
+        expect(result.status).toBe('success');
+        if (result.status !== 'success') {
+            throw new Error('Expected field search to return partial results');
+        }
+        expect(result.data).toEqual([
+            {
+                status: 'error',
+                searchQuery: 'orders count',
+                error: 'Catalog failed',
+            },
+        ]);
     });
 
     it('adds required filters to AI runtime explore search metadata only', async () => {

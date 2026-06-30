@@ -321,7 +321,10 @@ Output:
                       "type": "array",
                     },
                     "searchRank": {
-                      "type": "string",
+                      "type": [
+                        "number",
+                        "null",
+                      ],
                     },
                   },
                   "required": [
@@ -368,7 +371,10 @@ Output:
                       "type": "string",
                     },
                     "searchRank": {
-                      "type": "string",
+                      "type": [
+                        "number",
+                        "null",
+                      ],
                     },
                     "usageInCharts": {
                       "type": "number",
@@ -475,146 +481,176 @@ Usage tips:
         "properties": {
           "searchResults": {
             "items": {
-              "additionalProperties": false,
-              "properties": {
-                "fields": {
-                  "items": {
-                    "additionalProperties": false,
-                    "properties": {
-                      "aiHints": {
-                        "items": {
-                          "type": "string",
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "fields": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "aiHints": {
+                            "items": {
+                              "type": "string",
+                            },
+                            "type": "array",
+                          },
+                          "baseTable": {
+                            "type": "string",
+                          },
+                          "caseSensitiveFilters": {
+                            "type": [
+                              "boolean",
+                              "null",
+                            ],
+                          },
+                          "categories": {
+                            "items": {
+                              "type": "string",
+                            },
+                            "type": "array",
+                          },
+                          "chartUsage": {
+                            "type": [
+                              "number",
+                              "null",
+                            ],
+                          },
+                          "description": {
+                            "type": [
+                              "string",
+                              "null",
+                            ],
+                          },
+                          "emoji": {
+                            "type": [
+                              "string",
+                              "null",
+                            ],
+                          },
+                          "fieldFilterType": {
+                            "type": "string",
+                          },
+                          "fieldId": {
+                            "type": "string",
+                          },
+                          "fieldType": {
+                            "type": "string",
+                          },
+                          "isFromJoinedTable": {
+                            "type": "boolean",
+                          },
+                          "label": {
+                            "type": "string",
+                          },
+                          "name": {
+                            "type": "string",
+                          },
+                          "note": {
+                            "type": [
+                              "string",
+                              "null",
+                            ],
+                          },
+                          "searchRank": {
+                            "type": [
+                              "number",
+                              "null",
+                            ],
+                          },
+                          "type": {
+                            "type": "string",
+                          },
+                          "usageInVerifiedCharts": {
+                            "type": "number",
+                          },
                         },
-                        "type": "array",
-                      },
-                      "baseTable": {
-                        "type": "string",
-                      },
-                      "caseSensitiveFilters": {
-                        "type": [
-                          "boolean",
-                          "null",
+                        "required": [
+                          "type",
+                          "baseTable",
+                          "name",
+                          "fieldId",
+                          "fieldType",
+                          "fieldFilterType",
+                          "usageInVerifiedCharts",
+                          "isFromJoinedTable",
+                          "caseSensitiveFilters",
+                          "note",
+                          "label",
+                          "aiHints",
+                          "description",
+                          "categories",
+                          "emoji",
                         ],
+                        "type": "object",
                       },
-                      "categories": {
-                        "items": {
-                          "type": "string",
-                        },
-                        "type": "array",
-                      },
-                      "chartUsage": {
-                        "type": [
-                          "number",
-                          "null",
-                        ],
-                      },
-                      "description": {
-                        "type": [
-                          "string",
-                          "null",
-                        ],
-                      },
-                      "emoji": {
-                        "type": [
-                          "string",
-                          "null",
-                        ],
-                      },
-                      "fieldFilterType": {
-                        "type": "string",
-                      },
-                      "fieldId": {
-                        "type": "string",
-                      },
-                      "fieldType": {
-                        "type": "string",
-                      },
-                      "isFromJoinedTable": {
-                        "type": "boolean",
-                      },
-                      "label": {
-                        "type": "string",
-                      },
-                      "name": {
-                        "type": "string",
-                      },
-                      "note": {
-                        "type": [
-                          "string",
-                          "null",
-                        ],
-                      },
-                      "searchRank": {
-                        "type": [
-                          "number",
-                          "null",
-                        ],
-                      },
-                      "type": {
-                        "type": "string",
-                      },
-                      "usageInVerifiedCharts": {
-                        "type": "number",
-                      },
+                      "type": "array",
                     },
-                    "required": [
-                      "type",
-                      "baseTable",
-                      "name",
-                      "fieldId",
-                      "fieldType",
-                      "fieldFilterType",
-                      "usageInVerifiedCharts",
-                      "isFromJoinedTable",
-                      "caseSensitiveFilters",
-                      "note",
-                      "label",
-                      "aiHints",
-                      "description",
-                      "categories",
-                      "emoji",
-                    ],
-                    "type": "object",
+                    "page": {
+                      "type": [
+                        "number",
+                        "null",
+                      ],
+                    },
+                    "pageSize": {
+                      "type": [
+                        "number",
+                        "null",
+                      ],
+                    },
+                    "searchQuery": {
+                      "type": "string",
+                    },
+                    "status": {
+                      "const": "success",
+                      "type": "string",
+                    },
+                    "totalPageCount": {
+                      "type": [
+                        "number",
+                        "null",
+                      ],
+                    },
+                    "totalResults": {
+                      "type": [
+                        "number",
+                        "null",
+                      ],
+                    },
                   },
-                  "type": "array",
-                },
-                "page": {
-                  "type": [
-                    "number",
-                    "null",
+                  "required": [
+                    "status",
+                    "searchQuery",
+                    "page",
+                    "pageSize",
+                    "totalPageCount",
+                    "totalResults",
+                    "fields",
                   ],
+                  "type": "object",
                 },
-                "pageSize": {
-                  "type": [
-                    "number",
-                    "null",
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                    },
+                    "searchQuery": {
+                      "type": "string",
+                    },
+                    "status": {
+                      "const": "error",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                    "searchQuery",
+                    "error",
                   ],
+                  "type": "object",
                 },
-                "searchQuery": {
-                  "type": "string",
-                },
-                "totalPageCount": {
-                  "type": [
-                    "number",
-                    "null",
-                  ],
-                },
-                "totalResults": {
-                  "type": [
-                    "number",
-                    "null",
-                  ],
-                },
-              },
-              "required": [
-                "searchQuery",
-                "page",
-                "pageSize",
-                "totalPageCount",
-                "totalResults",
-                "fields",
               ],
-              "type": "object",
             },
             "type": "array",
           },

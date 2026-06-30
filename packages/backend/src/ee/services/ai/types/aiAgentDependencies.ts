@@ -89,16 +89,41 @@ export type FindExploresFn = (args: {
 // Used to rank verified/governed fields first in grep discovery.
 export type GetVerifiedFieldUsageFn = () => Promise<Map<string, number>>;
 
+export type FindFieldResult = {
+    fields: CatalogField[];
+    pagination: Pagination | undefined;
+};
+
 export type FindFieldFn = (
     args: KnexPaginateArgs & {
         table: ToolFindFieldsArgs['table'];
         fieldSearchQuery: ToolFindFieldsArgs['fieldSearchQueries'][number];
         explore: Explore;
     },
-) => Promise<{
-    fields: CatalogField[];
-    pagination: Pagination | undefined;
-}>;
+) => Promise<FindFieldResult>;
+
+export type FindFieldsSearchQuerySuccess = FindFieldResult & {
+    status: 'success';
+    searchQuery: string;
+};
+
+export type FindFieldsSearchQueryError = {
+    status: 'error';
+    searchQuery: string;
+    error: string;
+};
+
+export type FindFieldsSearchQueryResult =
+    | FindFieldsSearchQuerySuccess
+    | FindFieldsSearchQueryError;
+
+export type FindFieldsFn = (
+    args: KnexPaginateArgs & {
+        table: ToolFindFieldsArgs['table'];
+        fieldSearchQueries: ToolFindFieldsArgs['fieldSearchQueries'];
+        explore: Explore;
+    },
+) => Promise<FindFieldsSearchQueryResult[]>;
 
 export type SearchSemanticLayerFn = (args: {
     searchQuery: string | null;

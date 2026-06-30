@@ -23,6 +23,7 @@ import {
     ForbiddenError,
     getCurrentAgentToolDefinition,
     getCurrentProjectToolDefinition,
+    getErrorMessage,
     getItemLabelWithoutTableName,
     getItemMap,
     getLightdashVersionToolDefinition,
@@ -129,8 +130,9 @@ import {
 } from '../ai/utils/populateCustomMetricsSQL';
 import { AiAgentService } from '../AiAgentService/AiAgentService';
 import {
-    AiAgentToolsRuntime,
     AiAgentToolsService,
+    McpAiAgentToolsRuntime,
+    unwrapMcpRuntimeResult,
 } from '../AiAgentToolsService/AiAgentToolsService';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { AiRouterService } from '../AiRouterService/AiRouterService';
@@ -554,9 +556,11 @@ export class McpService extends BaseService {
         userAttributeOverrides: UserAttributeValueMap | undefined;
     }> {
         const toolsRuntime = await this.getToolsRuntime(ctx, projectUuid);
-        const explore = await toolsRuntime.getExplore({
-            table: queryTool.queryConfig.exploreName,
-        });
+        const explore = unwrapMcpRuntimeResult(
+            await toolsRuntime.getExplore({
+                table: queryTool.queryConfig.exploreName,
+            }),
+        );
 
         // Full validation including groupBy, axis, and tableCalcs
         validateRunQueryTool(queryTool, explore);
@@ -598,7 +602,7 @@ export class McpService extends BaseService {
     private async getToolsRuntime(
         context: McpProtocolContext,
         projectUuid: string,
-    ): Promise<AiAgentToolsRuntime> {
+    ): Promise<McpAiAgentToolsRuntime> {
         const { user, account, organizationUuid } =
             McpService.getAccount(context);
 
@@ -653,9 +657,11 @@ export class McpService extends BaseService {
         metricQuery: MetricQuery;
     }) {
         const toolsRuntime = await this.getToolsRuntime(ctx, projectUuid);
-        const explore = await toolsRuntime.getExplore({
-            table: metricQuery.exploreName,
-        });
+        const explore = unwrapMcpRuntimeResult(
+            await toolsRuntime.getExplore({
+                table: metricQuery.exploreName,
+            }),
+        );
         McpService.assertMetricQueryFieldsInExplore(metricQuery, explore);
     }
 
@@ -1331,68 +1337,62 @@ export class McpService extends BaseService {
 
                 this.trackToolCall(ctx, McpToolName.FIND_EXPLORES, projectUuid);
 
-                try {
-                    const toolsRuntime = await this.getToolsRuntime(
-                        ctx,
-                        projectUuid,
-                    );
-                    const { exploreSearchResults, topMatchingFields } =
-                        await toolsRuntime.findExplores({
-                            fieldSearchSize: 200,
-                            searchQuery: args.searchQuery,
-                        });
-                    const structuredContent =
-                        buildFindExploresStructuredContent({
-                            searchQuery: args.searchQuery,
-                            exploreSearchResults,
-                            topMatchingFields,
-                            toolDescriptionMaxChars:
-                                this.lightdashConfig.ai.copilot
-                                    .toolDescriptionMaxChars,
-                        });
-                    const resultText = formatToolJsonOutput(structuredContent);
-                    const metadata = await this.getActiveContextMetadata(ctx);
-
-                    const verifiedAnswerContext = metadata.agentUuid
-                        ? await this.aiAgentService.getRelevantVerifiedAnswerContextForAgent(
-                              user,
-                              {
-                                  projectUuid,
-                                  agentUuid: metadata.agentUuid,
-                                  searchQuery: args.searchQuery,
-                              },
-                          )
-                        : { relevantVerifiedAnswers: [] };
-
-                    const verifiedAnswersText =
-                        verifiedAnswerContext.relevantVerifiedAnswers.length > 0
-                            ? `\n\n<verifiedAnswers count="${verifiedAnswerContext.relevantVerifiedAnswers.length}">\n${JSON.stringify(
-                                  verifiedAnswerContext.relevantVerifiedAnswers,
-                                  null,
-                                  2,
-                              )}\n</verifiedAnswers>`
-                            : '';
-
-                    return await this.buildScopedResponse(
-                        ctx,
-                        `${resultText}${verifiedAnswersText}`,
-                        {
-                            ...structuredContent,
-                            relevantVerifiedAnswers:
-                                verifiedAnswerContext.relevantVerifiedAnswers,
-                        },
-                        projectUuid,
-                    );
-                } catch (e) {
-                    const errorMessage =
-                        e instanceof Error ? e.message : String(e);
-                    this.logger.error(
-                        `[McpService] Error in find_explores tool: ${errorMessage}`,
-                    );
+                const toolsRuntime = await this.getToolsRuntime(
+                    ctx,
+                    projectUuid,
+                );
+                const runtimeResult = await toolsRuntime.findExplores({
+                    fieldSearchSize: 200,
+                    searchQuery: args.searchQuery,
+                });
+                if (runtimeResult.status === 'error') {
                     return mcpFindExploresTool.result.error(
-                        `Error finding explores: ${errorMessage}`,
+                        `Error finding explores: ${getErrorMessage(runtimeResult.error)}`,
                     );
                 }
+
+                const { exploreSearchResults, topMatchingFields } =
+                    runtimeResult.data;
+                const structuredContent = buildFindExploresStructuredContent({
+                    searchQuery: args.searchQuery,
+                    exploreSearchResults,
+                    topMatchingFields,
+                    toolDescriptionMaxChars:
+                        this.lightdashConfig.ai.copilot.toolDescriptionMaxChars,
+                });
+                const resultText = formatToolJsonOutput(structuredContent);
+                const metadata = await this.getActiveContextMetadata(ctx);
+
+                const verifiedAnswerContext = metadata.agentUuid
+                    ? await this.aiAgentService.getRelevantVerifiedAnswerContextForAgent(
+                          user,
+                          {
+                              projectUuid,
+                              agentUuid: metadata.agentUuid,
+                              searchQuery: args.searchQuery,
+                          },
+                      )
+                    : { relevantVerifiedAnswers: [] };
+
+                const verifiedAnswersText =
+                    verifiedAnswerContext.relevantVerifiedAnswers.length > 0
+                        ? `\n\n<verifiedAnswers count="${verifiedAnswerContext.relevantVerifiedAnswers.length}">\n${JSON.stringify(
+                              verifiedAnswerContext.relevantVerifiedAnswers,
+                              null,
+                              2,
+                          )}\n</verifiedAnswers>`
+                        : '';
+
+                return this.buildScopedResponse(
+                    ctx,
+                    `${resultText}${verifiedAnswersText}`,
+                    {
+                        ...structuredContent,
+                        relevantVerifiedAnswers:
+                            verifiedAnswerContext.relevantVerifiedAnswers,
+                    },
+                    projectUuid,
+                );
             },
         );
 
@@ -1412,56 +1412,47 @@ export class McpService extends BaseService {
 
                 this.trackToolCall(ctx, McpToolName.FIND_FIELDS, projectUuid);
 
-                try {
-                    const toolsRuntime = await this.getToolsRuntime(
-                        ctx,
-                        projectUuid,
-                    );
-
-                    const explore = await toolsRuntime.getExplore({
-                        table: args.table,
-                    });
-                    const fieldSearchQueryResults = await Promise.all(
-                        args.fieldSearchQueries.map(
-                            async (fieldSearchQuery) => {
-                                const result = await toolsRuntime.findFields({
-                                    table: args.table,
-                                    fieldSearchQuery,
-                                    page: args.page ?? 1,
-                                    pageSize: 15,
-                                    explore,
-                                });
-                                return {
-                                    searchQuery: fieldSearchQuery.label,
-                                    ...result,
-                                };
-                            },
-                        ),
-                    );
-                    const structuredContent = buildFindFieldsStructuredContent({
-                        fieldSearchQueryResults,
-                        toolDescriptionMaxChars:
-                            this.lightdashConfig.ai.copilot
-                                .toolDescriptionMaxChars,
-                        explore,
-                    });
-
-                    return await this.buildScopedResponse(
-                        ctx,
-                        formatToolJsonOutput(structuredContent),
-                        structuredContent,
-                        projectUuid,
-                    );
-                } catch (e) {
-                    const errorMessage =
-                        e instanceof Error ? e.message : String(e);
-                    this.logger.error(
-                        `[McpService] Error in find_fields tool: ${errorMessage}`,
-                    );
+                const toolsRuntime = await this.getToolsRuntime(
+                    ctx,
+                    projectUuid,
+                );
+                const exploreResult = await toolsRuntime.getExplore({
+                    table: args.table,
+                });
+                if (exploreResult.status === 'error') {
                     return mcpFindFieldsTool.result.error(
-                        `Error finding fields: ${errorMessage}`,
+                        `Error finding fields: ${getErrorMessage(exploreResult.error)}`,
                     );
                 }
+
+                const runtimeResult = await toolsRuntime.findFields({
+                    table: args.table,
+                    fieldSearchQueries: args.fieldSearchQueries,
+                    page: args.page ?? 1,
+                    pageSize: 15,
+                    explore: exploreResult.data,
+                });
+                if (runtimeResult.status === 'error') {
+                    return mcpFindFieldsTool.result.error(
+                        `Error finding fields: ${getErrorMessage(runtimeResult.error)}`,
+                    );
+                }
+
+                const fieldSearchQueryResults = runtimeResult.data;
+
+                const structuredContent = buildFindFieldsStructuredContent({
+                    fieldSearchQueryResults,
+                    toolDescriptionMaxChars:
+                        this.lightdashConfig.ai.copilot.toolDescriptionMaxChars,
+                    explore: exploreResult.data,
+                });
+
+                return this.buildScopedResponse(
+                    ctx,
+                    formatToolJsonOutput(structuredContent),
+                    structuredContent,
+                    projectUuid,
+                );
             },
         );
 
