@@ -30,6 +30,13 @@ export interface ProjectAdapter {
 
     getDbtPackages(): Promise<DbtPackages | undefined>;
 
+    /**
+     * Fetch this source's compiled dbt manifest without compiling explores. Used
+     * by the multiple-dbt-sources merge to combine each source's manifest before
+     * a single compile.
+     */
+    getDbtManifest(): Promise<DbtRpcGetManifestResults>;
+
     test(): Promise<void>;
 
     destroy(): Promise<void>;
