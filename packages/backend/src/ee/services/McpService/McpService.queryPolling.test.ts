@@ -415,7 +415,7 @@ const makeMcpService = ({
     };
 
     const featureFlagService = {
-        get: jest.fn().mockResolvedValue({ enabled: jsonRendererEnabled }),
+        get: vi.fn().mockResolvedValue({ enabled: jsonRendererEnabled }),
     };
 
     const service = new McpService({

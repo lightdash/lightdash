@@ -47,7 +47,7 @@ const longDescription = `Important grain and usage notes. ${'x'.repeat(
 describe('field discovery descriptions', () => {
     it('does not truncate explore descriptions and includes compact field ids only', async () => {
         const tool = getFindExplores({
-            findExplores: jest.fn().mockResolvedValue({
+            findExplores: vi.fn().mockResolvedValue({
                 exploreSearchResults: [
                     {
                         name: 'tickets',
@@ -63,7 +63,7 @@ describe('field discovery descriptions', () => {
                     },
                 ],
             }),
-            updateProgress: jest.fn().mockResolvedValue(undefined),
+            updateProgress: vi.fn().mockResolvedValue(undefined),
         });
 
         const output = await executeFindExplores(tool, {
@@ -91,8 +91,8 @@ describe('field discovery descriptions', () => {
         };
 
         const tool = getFindFields({
-            getExplore: jest.fn().mockResolvedValue(explore),
-            findFields: jest.fn().mockResolvedValue({
+            getExplore: vi.fn().mockResolvedValue(explore),
+            findFields: vi.fn().mockResolvedValue({
                 fields: [
                     {
                         name: 'feature_name',
@@ -108,7 +108,7 @@ describe('field discovery descriptions', () => {
                 pagination: undefined,
             }),
             pageSize: 30,
-            updateProgress: jest.fn().mockResolvedValue(undefined),
+            updateProgress: vi.fn().mockResolvedValue(undefined),
         });
 
         const output = await executeFindFields(tool, {
@@ -162,7 +162,7 @@ describe('field discovery descriptions', () => {
         };
 
         const tool = getListFields({
-            getExplore: jest.fn().mockResolvedValue(explore),
+            getExplore: vi.fn().mockResolvedValue(explore),
         });
 
         const output = await executeListFields(tool, {

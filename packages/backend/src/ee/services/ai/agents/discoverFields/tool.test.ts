@@ -6,17 +6,18 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import type { UIMessageChunk } from 'ai';
+import type { Mock } from 'vitest';
 import { runDiscoverFieldsAgent } from './agent';
 import type { DiscoverFieldsSelectionV2 } from './schema';
 import { getDiscoverFields } from './tool';
 
-jest.mock('@sentry/node', () => ({
-    captureException: jest.fn(),
-    getActiveSpan: jest.fn(() => undefined),
+vi.mock('@sentry/node', () => ({
+    captureException: vi.fn(),
+    getActiveSpan: vi.fn(() => undefined),
 }));
 
-jest.mock('./agent', () => ({
-    runDiscoverFieldsAgent: jest.fn(),
+vi.mock('./agent', () => ({
+    runDiscoverFieldsAgent: vi.fn(),
 }));
 
 type DiscoverFieldsTool = ReturnType<typeof getDiscoverFields>;
@@ -102,18 +103,18 @@ const makeUiMessageStream = (selection: DiscoverFieldsSelectionV2) => {
 };
 
 const mockSubagentSelection = (selection: DiscoverFieldsSelectionV2) => {
-    jest.mocked(runDiscoverFieldsAgent).mockReturnValue({
+    vi.mocked(runDiscoverFieldsAgent).mockReturnValue({
         stream: {
             toUIMessageStream: () => makeUiMessageStream(selection),
         },
-        flushPersistence: jest.fn().mockResolvedValue(undefined),
+        flushPersistence: vi.fn().mockResolvedValue(undefined),
     } as unknown as ReturnType<typeof runDiscoverFieldsAgent>);
 };
 
 const makeTool = ({
-    getExplore = jest.fn().mockResolvedValue(makeExplore()),
+    getExplore = vi.fn().mockResolvedValue(makeExplore()),
 }: {
-    getExplore?: jest.Mock;
+    getExplore?: Mock;
 } = {}): DiscoverFieldsTool =>
     getDiscoverFields(
         {
@@ -136,13 +137,13 @@ const makeTool = ({
             },
         },
         {
-            findExplores: jest.fn(),
-            findFields: jest.fn(),
+            findExplores: vi.fn(),
+            findFields: vi.fn(),
             getExplore,
-            listExplores: jest.fn(),
-            storeToolCall: jest.fn().mockResolvedValue(undefined),
-            storeToolResults: jest.fn().mockResolvedValue(undefined),
-            updateProgress: jest.fn().mockResolvedValue(undefined),
+            listExplores: vi.fn(),
+            storeToolCall: vi.fn().mockResolvedValue(undefined),
+            storeToolResults: vi.fn().mockResolvedValue(undefined),
+            updateProgress: vi.fn().mockResolvedValue(undefined),
         } as never,
     );
 
@@ -162,7 +163,7 @@ const executeTool = async (tool: DiscoverFieldsTool) => {
 
 describe('discoverFields recoverable handoff errors', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it('does not capture empty resolved selections to Sentry', async () => {
@@ -214,7 +215,7 @@ describe('discoverFields recoverable handoff errors', () => {
         mockSubagentSelection(makeResolvedSelection());
 
         const outputs = await executeTool(
-            makeTool({ getExplore: jest.fn().mockRejectedValue(error) }),
+            makeTool({ getExplore: vi.fn().mockRejectedValue(error) }),
         );
 
         expect(outputs.at(-1)?.metadata).toEqual({ status: 'error' });
