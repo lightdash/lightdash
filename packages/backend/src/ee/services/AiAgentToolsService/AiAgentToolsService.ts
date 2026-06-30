@@ -76,6 +76,7 @@ import {
     GetExploreFn,
     GetProjectInfoFn,
     GetSavedChartFn,
+    GetVerifiedFieldUsageFn,
     ListContentFn,
     ListExploresFn,
     ListKnowledgeDocumentsFn,
@@ -130,6 +131,7 @@ export type AiAgentToolsRuntime = {
     listExplores: ListExploresFn;
     getExplore: GetExploreFn;
     findExplores: FindExploresFn;
+    getVerifiedFieldUsage: GetVerifiedFieldUsageFn;
     findFields: FindFieldFn;
     findContent: FindContentFn;
     searchFieldValues: SearchFieldValuesFn;
@@ -424,6 +426,7 @@ export class AiAgentToolsService extends BaseService {
             listExplores: () => this.listExplores(context),
             getExplore: (args) => this.getExploreForRuntime(context, args),
             findExplores: (args) => this.findExplores(context, args),
+            getVerifiedFieldUsage: () => this.getVerifiedFieldUsage(context),
             findFields: (args) => this.findFields(context, args),
             findContent: (args) => this.findContent(context, args),
             searchFieldValues: (args) => this.searchFieldValues(context, args),

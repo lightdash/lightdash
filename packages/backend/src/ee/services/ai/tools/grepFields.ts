@@ -15,6 +15,9 @@ type Dependencies = {
     availableExplores: Explore[];
     // FTS catalog search, reused as a fuzzy fallback when literal grep is dry.
     findExplores: FindExploresFn;
+    // Verified-chart usage per field (`table_field::fieldType`), used to rank
+    // verified/governed fields first within the grep results.
+    verifiedFieldUsage: Map<string, number>;
 };
 
 // Turn the regex patterns into a plain-keyword query for the FTS fallback.
@@ -55,8 +58,10 @@ const renderHits = (
     hits: FieldEntry[],
     requiredFiltersByExplore: Map<string, string>,
 ): string => {
+    // Verified/governed fields first, then the rest in index order.
+    const ordered = [...hits].sort((a, b) => b.verifiedUsage - a.verifiedUsage);
     const byExplore = new Map<string, FieldEntry[]>();
-    for (const m of hits.slice(0, MAX_PER_PATTERN)) {
+    for (const m of ordered.slice(0, MAX_PER_PATTERN)) {
         const list = byExplore.get(m.exploreName) ?? [];
         list.push(m);
         byExplore.set(m.exploreName, list);
@@ -65,6 +70,7 @@ const renderHits = (
         .map(([exploreName, fields]) => {
             const lines = fields
                 .map((f) => {
+                    const verified = f.verifiedUsage > 0 ? ' ✓verified' : '';
                     const desc = f.description
                         ? ` — ${f.description
                               .replace(/\s+/g, ' ')
@@ -75,7 +81,7 @@ const renderHits = (
                               .replace(/\s+/g, ' ')
                               .slice(0, 160)})`
                         : '';
-                    return `  ${f.path}  [${f.kind} ${f.type}] ${f.label}${desc}${hint}`;
+                    return `  ${f.path}  [${f.kind} ${f.type}]${verified} ${f.label}${desc}${hint}`;
                 })
                 .join('\n');
             const requiredFilters = requiredFiltersByExplore.get(exploreName);
@@ -117,10 +123,13 @@ const renderPattern = (
 export const getGrepFields = ({
     availableExplores,
     findExplores,
+    verifiedFieldUsage,
 }: Dependencies) => {
     let index: FieldEntry[] | null = null;
     const getIndex = () => {
-        if (index === null) index = buildFieldIndex(availableExplores);
+        if (index === null) {
+            index = buildFieldIndex(availableExplores, verifiedFieldUsage);
+        }
         return index;
     };
 

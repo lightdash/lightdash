@@ -33,6 +33,7 @@ import {
     GetProjectInfoFn,
     GetPromptFn,
     GetSavedChartFn,
+    GetVerifiedFieldUsageFn,
     IsPromptInterruptedFn,
     ListContentFn,
     ListExploresFn,
@@ -166,6 +167,7 @@ export type AiAgentDependencies = {
     validateContent: ValidateContentFn;
     getDashboardCharts: GetDashboardChartsFn;
     findExplores: FindExploresFn;
+    getVerifiedFieldUsage: GetVerifiedFieldUsageFn;
     findFields: FindFieldFn;
     searchSemanticLayer: SearchSemanticLayerFn;
     analyzeFieldImpact: AnalyzeFieldImpactFn;
