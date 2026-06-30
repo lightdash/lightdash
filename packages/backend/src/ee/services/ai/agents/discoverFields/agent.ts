@@ -1,4 +1,4 @@
-import { Explore } from '@lightdash/common';
+import type { BaseOutputMetadata, Explore } from '@lightdash/common';
 import {
     hasToolCall,
     smoothStream,
@@ -65,25 +65,36 @@ export type DiscoverFieldsSubagentTools = {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null && !Array.isArray(value);
 
+type PersistableToolMetadata = BaseOutputMetadata & Record<string, unknown>;
+
+type PersistableToolResult = {
+    result: string;
+    metadata: PersistableToolMetadata;
+};
+
+const isPersistableToolMetadata = (
+    metadata: unknown,
+): metadata is PersistableToolMetadata =>
+    isRecord(metadata) &&
+    (metadata.status === 'success' || metadata.status === 'error');
+
 const hasPersistableToolResult = (
     output: unknown,
-): output is {
-    result: string;
-    metadata?: Record<string, unknown> | null;
-} => isRecord(output) && typeof output.result === 'string';
+): output is PersistableToolResult =>
+    isRecord(output) &&
+    typeof output.result === 'string' &&
+    isPersistableToolMetadata(output.metadata);
 
-const toPersistedToolResult = (
-    output: unknown,
-): { result: string; metadata?: Record<string, unknown> | null } => {
+const toPersistedToolResult = (output: unknown): PersistableToolResult => {
     if (!hasPersistableToolResult(output)) {
         throw new Error(
-            'Discovery subagent tool output must include a string result.',
+            'Discovery subagent tool output must include a string result and success/error metadata.',
         );
     }
 
     return {
         result: output.result,
-        metadata: isRecord(output.metadata) ? output.metadata : null,
+        metadata: output.metadata,
     };
 };
 
