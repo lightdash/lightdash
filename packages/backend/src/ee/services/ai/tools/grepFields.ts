@@ -1,9 +1,10 @@
-import { type Explore, grepFieldsToolDefinition } from '@lightdash/common';
+import { grepFieldsToolDefinition, type Explore } from '@lightdash/common';
 import { tool } from 'ai';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import {
     buildFieldIndex,
     compileMatcher,
+    summarizeRequiredFilters,
     type FieldEntry,
 } from './grepFieldsIndex';
 
@@ -16,7 +17,10 @@ type Dependencies = {
 // Per-pattern cap so a batch of broad patterns can't flood the context.
 const MAX_PER_PATTERN = 40;
 
-const renderHits = (hits: FieldEntry[]): string => {
+const renderHits = (
+    hits: FieldEntry[],
+    requiredFiltersByExplore: Map<string, string>,
+): string => {
     const byExplore = new Map<string, FieldEntry[]>();
     for (const m of hits.slice(0, MAX_PER_PATTERN)) {
         const list = byExplore.get(m.exploreName) ?? [];
@@ -40,15 +44,23 @@ const renderHits = (hits: FieldEntry[]): string => {
                     return `  ${f.path}  [${f.kind} ${f.type}] ${f.label}${desc}${hint}`;
                 })
                 .join('\n');
-            return `  ${exploreName} (${
+            const requiredFilters = requiredFiltersByExplore.get(exploreName);
+            const header = `  ${exploreName} (${
                 fields[0]?.exploreLabel ?? exploreName
-            })\n${lines}`;
+            })`;
+            return requiredFilters
+                ? `${header}\n  ${requiredFilters}\n${lines}`
+                : `${header}\n${lines}`;
         })
         .join('\n');
 };
 
 // One block per pattern so the agent sees which angle matched what.
-const renderPattern = (pattern: string, hits: FieldEntry[]): string => {
+const renderPattern = (
+    pattern: string,
+    hits: FieldEntry[],
+    requiredFiltersByExplore: Map<string, string>,
+): string => {
     if (hits.length === 0) {
         return `/${pattern}/ — no matches.`;
     }
@@ -58,7 +70,7 @@ const renderPattern = (pattern: string, hits: FieldEntry[]): string => {
             : '';
     return `/${pattern}/ — ${hits.length} match${
         hits.length === 1 ? '' : 'es'
-    }${capped}:\n${renderHits(hits)}`;
+    }${capped}:\n${renderHits(hits, requiredFiltersByExplore)}`;
 };
 
 /**
@@ -75,6 +87,12 @@ export const getGrepFields = ({ availableExplores }: Dependencies) => {
         return index;
     };
 
+    const requiredFiltersByExplore = new Map<string, string>();
+    for (const explore of availableExplores) {
+        const summary = summarizeRequiredFilters(explore);
+        if (summary) requiredFiltersByExplore.set(explore.name, summary);
+    }
+
     return tool({
         ...toolDefinition,
         execute: async ({ patterns, exploreName }) => {
@@ -87,12 +105,14 @@ export const getGrepFields = ({ availableExplores }: Dependencies) => {
                 const blocks = patterns.map((pattern) => {
                     const matches = compileMatcher(pattern);
                     const hits = scoped.filter((e) => matches(e.haystack));
-                    return renderPattern(pattern, hits);
+                    return renderPattern(
+                        pattern,
+                        hits,
+                        requiredFiltersByExplore,
+                    );
                 });
                 const anyHit = blocks.some((b) => !b.includes('— no matches.'));
-                const scope = exploreName
-                    ? ` in explore "${exploreName}"`
-                    : '';
+                const scope = exploreName ? ` in explore "${exploreName}"` : '';
                 return {
                     result: anyHit
                         ? blocks.join('\n\n')

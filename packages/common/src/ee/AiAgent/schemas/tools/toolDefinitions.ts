@@ -56,11 +56,6 @@ import {
     toolDiscoverFieldsOutputSchema,
 } from './toolDiscoverFieldsArgs';
 import {
-    GREP_FIELDS_DESCRIPTION,
-    grepFieldsInputSchema,
-    toolGrepFieldsOutputSchema,
-} from './toolGrepFieldsArgs';
-import {
     TOOL_DISCOVER_REPOS_DESCRIPTION,
     toolDiscoverReposArgsSchema,
     toolDiscoverReposOutputSchema,
@@ -139,6 +134,11 @@ import {
     TOOL_GET_QUERY_RESULT_DESCRIPTION,
     toolGetQueryResultArgsSchema,
 } from './toolGetQueryResultArgs';
+import {
+    GREP_FIELDS_DESCRIPTION,
+    grepFieldsInputSchema,
+    toolGrepFieldsOutputSchema,
+} from './toolGrepFieldsArgs';
 import {
     TOOL_IMPROVE_CONTEXT_DESCRIPTION,
     toolImproveContextArgsSchema,

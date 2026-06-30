@@ -1,8 +1,37 @@
-import { type Explore } from '@lightdash/common';
+import {
+    convertFieldRefToFieldId,
+    isJoinModelRequiredFilter,
+    type Explore,
+} from '@lightdash/common';
 
 /** aiHint can be a string or string[]; flatten to one space-joined string. */
 const flatHint = (hint?: string | string[]): string =>
-    Array.isArray(hint) ? hint.join(' ') : hint ?? '';
+    Array.isArray(hint) ? hint.join(' ') : (hint ?? '');
+
+/**
+ * One-line summary of an explore's required filters, or null if none. Any query
+ * against the explore must apply these — surfacing it keeps grepFields from
+ * losing the signal findExplores used to carry.
+ */
+export const summarizeRequiredFilters = (explore: Explore): string | null => {
+    const filters = explore.tables[explore.baseTable]?.requiredFilters ?? [];
+    if (filters.length === 0) return null;
+    const parts = filters.map((filter) => {
+        const tableName = isJoinModelRequiredFilter(filter)
+            ? filter.target.tableName
+            : explore.baseTable;
+        const fieldId = convertFieldRefToFieldId(
+            filter.target.fieldRef,
+            tableName,
+        );
+        const values =
+            filter.values && filter.values.length > 0
+                ? ` ${JSON.stringify(filter.values)}`
+                : '';
+        return `${fieldId} ${filter.operator}${values}`;
+    });
+    return `⚠ required filters (must be applied): ${parts.join('; ')}`;
+};
 
 /** One greppable "file": a field flattened with its searchable annotations. */
 export type FieldEntry = {
@@ -37,31 +66,32 @@ export const buildFieldIndex = (explores: Explore[]): FieldEntry[] => {
                 ),
             ];
             for (const [kind, field] of fields) {
-                if (field.hidden) continue;
-                const fieldId = `${field.table}_${field.name}`;
-                const description = field.description ?? '';
-                const aiHint = flatHint(field.aiHint);
-                const annotations = [
-                    fieldId,
-                    field.label,
-                    description,
-                    aiHint,
-                    ...(field.tags ?? []),
-                    exploreHints,
-                ]
-                    .filter(Boolean)
-                    .join('\n');
-                entries.push({
-                    exploreName: explore.name,
-                    exploreLabel: explore.label,
-                    path: `${explore.name}/${fieldId}`,
-                    kind,
-                    type: String(field.type),
-                    label: field.label,
-                    description,
-                    aiHint,
-                    haystack: annotations.toLowerCase(),
-                });
+                if (!field.hidden) {
+                    const fieldId = `${field.table}_${field.name}`;
+                    const description = field.description ?? '';
+                    const aiHint = flatHint(field.aiHint);
+                    const annotations = [
+                        fieldId,
+                        field.label,
+                        description,
+                        aiHint,
+                        ...(field.tags ?? []),
+                        exploreHints,
+                    ]
+                        .filter(Boolean)
+                        .join('\n');
+                    entries.push({
+                        exploreName: explore.name,
+                        exploreLabel: explore.label,
+                        path: `${explore.name}/${fieldId}`,
+                        kind,
+                        type: String(field.type),
+                        label: field.label,
+                        description,
+                        aiHint,
+                        haystack: annotations.toLowerCase(),
+                    });
+                }
             }
         }
     }
