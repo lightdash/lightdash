@@ -821,7 +821,7 @@ describe('MCP async query polling', () => {
         expect(result).toMatchObject({
             content: [
                 expect.objectContaining({
-                    text: expect.stringContaining('name="orders"'),
+                    text: expect.stringContaining('"name": "orders"'),
                 }),
                 expect.objectContaining({
                     text: expect.stringContaining('Active agent: Agent'),

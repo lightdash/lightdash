@@ -19,7 +19,7 @@ import type {
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { truncate } from '../utils/truncation';
-import { xmlBuilder } from '../xmlBuilder';
+import { formatToolJsonOutput } from './toolOutputFormat';
 
 type Dependencies = {
     getExplore: GetExploreFn;
@@ -52,7 +52,7 @@ const getFieldCaseSensitive = (
     );
 };
 
-const renderField = (
+const formatField = (
     catalogField: CatalogField,
     toolDescriptionMaxChars: number,
     explore?: Explore,
@@ -67,82 +67,51 @@ const renderField = (
 
     const aiHints = convertToAiHints(catalogField.aiHints ?? undefined);
 
-    return (
-        <field
-            type={catalogField.fieldType}
-            baseTable={catalogField.tableName}
-            name={catalogField.name}
-            fieldId={getItemId({
-                name: catalogField.name,
-                table: catalogField.tableName,
-            })}
-            fieldType={catalogField.fieldValueType}
-            fieldFilterType={getFilterTypeFromItemType(
-                catalogField.fieldValueType,
-            )}
-            searchRank={catalogField.searchRank}
-            chartUsage={catalogField.chartUsage}
-            usageInVerifiedCharts={catalogField.verifiedChartUsage ?? 0}
-            isFromJoinedTable={isFromJoinedTable}
-            {...(caseSensitiveFilters === undefined
-                ? {}
-                : { caseSensitiveFilters })}
-        >
-            {isFromJoinedTable && explore && (
-                <note>
-                    This field is from the "{catalogField.tableName}" table,
-                    which is joined to the "{explore.name}" explore. You can use
-                    this field in queries and filters just like fields from the
-                    base table.
-                </note>
-            )}
-            <label>{catalogField.label}</label>
-            {aiHints && aiHints.length > 0 ? (
-                <aihints>
-                    {aiHints.map((hint) => (
-                        <hint>{hint}</hint>
-                    ))}
-                </aihints>
-            ) : null}
-            {catalogField.description && (
-                <description>
-                    {truncate(
-                        catalogField.description,
-                        toolDescriptionMaxChars,
-                    )}
-                </description>
-            )}
-            {catalogField.categories && catalogField.categories.length > 0 ? (
-                <categories>
-                    {catalogField.categories.map((c) => (
-                        <category>{c.name}</category>
-                    ))}
-                </categories>
-            ) : null}
-            {isEmojiIcon(catalogField.icon) ? (
-                <emoji>{catalogField.icon.unicode}</emoji>
-            ) : null}
-        </field>
-    );
+    return {
+        type: catalogField.fieldType,
+        baseTable: catalogField.tableName,
+        name: catalogField.name,
+        fieldId: getItemId({
+            name: catalogField.name,
+            table: catalogField.tableName,
+        }),
+        fieldType: catalogField.fieldValueType,
+        fieldFilterType: getFilterTypeFromItemType(catalogField.fieldValueType),
+        searchRank: catalogField.searchRank,
+        chartUsage: catalogField.chartUsage,
+        usageInVerifiedCharts: catalogField.verifiedChartUsage ?? 0,
+        isFromJoinedTable: Boolean(isFromJoinedTable),
+        caseSensitiveFilters: caseSensitiveFilters ?? null,
+        note:
+            isFromJoinedTable && explore
+                ? `This field is from the "${catalogField.tableName}" table, which is joined to the "${explore.name}" explore. You can use this field in queries and filters just like fields from the base table.`
+                : null,
+        label: catalogField.label,
+        aiHints: aiHints ?? [],
+        description: catalogField.description
+            ? truncate(catalogField.description, toolDescriptionMaxChars)
+            : null,
+        categories: catalogField.categories?.map((c) => c.name) ?? [],
+        emoji: isEmojiIcon(catalogField.icon)
+            ? catalogField.icon.unicode
+            : null,
+    };
 };
 
 const getFieldsText = (
     args: Awaited<ReturnType<FindFieldFn>> & { searchQuery: string },
     toolDescriptionMaxChars: number,
     explore?: Explore,
-) => (
-    <searchresult
-        searchQuery={args.searchQuery}
-        page={args.pagination?.page}
-        pageSize={args.pagination?.pageSize}
-        totalPageCount={args.pagination?.totalPageCount}
-        totalResults={args.pagination?.totalResults}
-    >
-        {args.fields.map((field) =>
-            renderField(field, toolDescriptionMaxChars, explore),
-        )}
-    </searchresult>
-);
+) => ({
+    searchQuery: args.searchQuery,
+    page: args.pagination?.page ?? null,
+    pageSize: args.pagination?.pageSize ?? null,
+    totalPageCount: args.pagination?.totalPageCount ?? null,
+    totalResults: args.pagination?.totalResults ?? null,
+    fields: args.fields.map((field) =>
+        formatField(field, toolDescriptionMaxChars, explore),
+    ),
+});
 
 export const getFindFields = ({
     getExplore,
@@ -182,20 +151,17 @@ export const getFindFields = ({
                     }),
                 );
 
-                const fieldsText = fieldSearchQueryResults
-                    .map((fieldSearchQueryResult) =>
+                const searchResults = fieldSearchQueryResults.map(
+                    (fieldSearchQueryResult) =>
                         getFieldsText(
                             fieldSearchQueryResult,
                             toolDescriptionMaxChars,
                             explore,
                         ),
-                    )
-                    .join('\n\n');
+                );
 
                 return {
-                    result: (
-                        <searchresults>{fieldsText}</searchresults>
-                    ).toString(),
+                    result: formatToolJsonOutput({ searchResults }),
                     metadata: {
                         status: 'success',
                         ranking: {
