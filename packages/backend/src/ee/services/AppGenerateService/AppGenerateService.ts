@@ -27,6 +27,7 @@ import {
     ParameterError,
     QueryExecutionContext,
     type AnonymousAccount,
+    type AppBuildFromSourceJobPayload,
     type AppChartReference,
     type AppClarification,
     type AppDashboardReference,
@@ -6474,5 +6475,95 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         });
 
         return { manifest, files };
+    }
+
+    async runBuildFromSourcePipeline(
+        payload: AppBuildFromSourceJobPayload,
+    ): Promise<void> {
+        const { appUuid, version } = payload;
+        const { client, bucket } = this.getS3Client();
+
+        let sandbox: SandboxHandle | undefined;
+        try {
+            const advanced = await this.advanceStage(
+                appUuid,
+                version,
+                'sandbox',
+                'Setting up build environment',
+            );
+            if (!advanced) {
+                return;
+            }
+
+            const result = await this.createSandbox(appUuid);
+            sandbox = result.sandbox;
+            await this.appModel.updateSandboxId(appUuid, sandbox.sandboxId);
+
+            await this.restoreSourceFromS3(
+                sandbox,
+                client,
+                bucket,
+                appUuid,
+                version,
+            );
+
+            const buildAdvanced = await this.advanceStage(
+                appUuid,
+                version,
+                'building',
+                'Building your app',
+            );
+            if (!buildAdvanced) {
+                return;
+            }
+
+            const build = await this.runBuild(sandbox, appUuid);
+            if (build.exitCode !== 0) {
+                await this.markError(
+                    appUuid,
+                    version,
+                    build.stderr || build.stdout,
+                    'Build failed',
+                );
+                return;
+            }
+
+            const packageAdvanced = await this.advanceStage(
+                appUuid,
+                version,
+                'packaging',
+                'Packaging your app',
+            );
+            if (!packageAdvanced) {
+                return;
+            }
+
+            const { distTar, sourceTar } = await this.packageArtifacts(
+                sandbox,
+                appUuid,
+            );
+            await this.uploadToS3(
+                client,
+                bucket,
+                appUuid,
+                version,
+                distTar,
+                sourceTar,
+            );
+
+            await this.appModel.updateVersionStatusIfInProgress(
+                appUuid,
+                version,
+                'ready',
+                null,
+                null,
+            );
+        } catch (err) {
+            await this.markError(appUuid, version, err, 'Build failed');
+        } finally {
+            if (sandbox !== undefined) {
+                await this.pauseSandbox(sandbox, appUuid);
+            }
+        }
     }
 }

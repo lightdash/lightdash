@@ -412,6 +412,34 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     },
                 );
             },
+            [EE_SCHEDULER_TASKS.APP_BUILD_FROM_SOURCE]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        EE_SCHEDULER_TASKS.APP_BUILD_FROM_SOURCE,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.appGenerateService.runBuildFromSourcePipeline(
+                                payload,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    APP_GENERATE_TIMEOUT_MS,
+                    async (_job, e) => {
+                        await this.appGenerateService.markError(
+                            payload.appUuid,
+                            payload.version,
+                            e,
+                            'Build timed out. Please try again.',
+                        );
+                    },
+                );
+            },
             [EE_SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: async () => {
                 await this.appGenerateService.sweepStaleLocks();
             },
