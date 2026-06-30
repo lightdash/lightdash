@@ -2074,6 +2074,23 @@
                 "required": ["path"],
                 "type": "object"
             },
+            "ApiTestExternalConnectionConfigRequest": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiTestExternalConnectionRequest"
+                    },
+                    {
+                        "properties": {
+                            "config": {
+                                "$ref": "#/components/schemas/CreateExternalConnection"
+                            }
+                        },
+                        "required": ["config"],
+                        "type": "object"
+                    }
+                ],
+                "description": "Test an unsaved connection config (incl. plaintext secret) before creating\nit. Runs through the same SSRF-guarded proxy core, persisting nothing."
+            },
             "ExternalConnectionSampleRequest": {
                 "properties": {
                     "body": {},

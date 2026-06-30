@@ -4,6 +4,7 @@ import {
     type ApiListExternalConnectionSamplesResponse,
     type ApiSaveExternalConnectionSampleRequest,
     type ApiSaveExternalConnectionSampleResponse,
+    type ApiTestExternalConnectionConfigRequest,
     type ApiTestExternalConnectionRequest,
     type ApiTestExternalConnectionResponse,
     type CreateExternalConnection,
@@ -363,6 +364,41 @@ export class ExternalConnectionController extends BaseController {
             req.account,
             projectUuid,
             connectionUuid,
+            {
+                method: body.method,
+                path: body.path,
+                query: body.query,
+                body: body.body,
+            },
+        );
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Test an unsaved connection config (incl. plaintext secret) before
+     * creating it. Runs through the same proxy core, persisting nothing.
+     * Admin-only.
+     * @summary Test an external connection config
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('external-connections/test-config')
+    @OperationId('testExternalConnectionConfig')
+    async testExternalConnectionConfig(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: ApiTestExternalConnectionConfigRequest,
+    ): Promise<ApiTestExternalConnectionResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.getService().testConfig(
+            req.account,
+            projectUuid,
+            body.config,
             {
                 method: body.method,
                 path: body.path,

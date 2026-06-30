@@ -14,7 +14,6 @@ import {
 import { type UseFormReturnType } from '@mantine/form';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { ExfilWarningCallout } from '../../../features/externalConnections/components/ExfilWarningCallout';
 import MantineIcon from '../../common/MantineIcon';
 import classes from './ExternalConnectionForm.module.css';
 
@@ -56,7 +55,7 @@ export const ExternalConnectionForm: FC<Props> = ({
     disabled,
     hasSecret,
 }) => {
-    const { type, allowedMethods, origin } = form.values;
+    const { type, allowedMethods } = form.values;
     const allowsPost = allowedMethods.includes('POST');
     const secretPlaceholder =
         hasSecret && type !== 'none'
@@ -65,11 +64,6 @@ export const ExternalConnectionForm: FC<Props> = ({
 
     return (
         <Stack gap="sm">
-            <ExfilWarningCallout
-                origin={origin}
-                allowedMethods={allowedMethods}
-            />
-
             <TextInput
                 required
                 label="Name"

@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    EXTERNAL_CONNECTION_DEFAULTS,
     ForbiddenError,
     NotFoundError,
     ParameterError,
@@ -935,6 +936,86 @@ export class ExternalConnectionService extends BaseService {
                   );
 
         const result = await this.executeExternalFetch(conn, secret, {
+            method,
+            path: req.path,
+            query: req.query,
+            body: req.body,
+        });
+        return result.response;
+    }
+
+    /**
+     * Admin-only "Test connection config". Runs a single request through the
+     * SAME validation + SSRF-guarded fetch core the runtime proxy uses, but
+     * against an UNSAVED config (including the caller-supplied plaintext
+     * secret) — persisting nothing. Lets the onboarding wizard verify a
+     * connection before it is created.
+     */
+    async testConfig(
+        account: RegisteredAccount,
+        projectUuid: string,
+        data: CreateExternalConnection,
+        req: {
+            method?: ExternalConnectionMethod;
+            path: string;
+            query?: Record<string, string>;
+            body?: unknown;
+        },
+    ): Promise<ExternalFetchResponse> {
+        // Derive the org from the project — never trust the caller — so an org
+        // admin cannot test against another org's project.
+        const organizationUuid =
+            await this.externalConnectionModel.getProjectOrganizationUuid(
+                projectUuid,
+            );
+        if (!organizationUuid) {
+            throw new NotFoundError('Project not found');
+        }
+        this.assertCanManage(account, projectUuid, organizationUuid);
+
+        // Same validation create runs, so a test can never exercise a config we
+        // would refuse to store (SSRF guard, auth invariants, bounded limits).
+        validateExternalConnectionConfig(data, Boolean(data.secret));
+
+        const method: ExternalConnectionMethod = req.method ?? 'GET';
+        if (!data.allowedMethods.includes(method)) {
+            throw new ParameterError(
+                `Method ${method} is not allowed by this connection`,
+            );
+        }
+
+        // In-memory connection — never persisted. Numeric limits fall back to
+        // the same defaults create applies, since the proxy core reads them.
+        const connection: ExternalConnection = {
+            externalConnectionUuid: 'unsaved',
+            projectUuid,
+            organizationUuid,
+            name: data.name,
+            type: data.type,
+            origin: data.origin,
+            allowedPathPrefixes: data.allowedPathPrefixes,
+            allowedMethods: data.allowedMethods,
+            allowedContentTypes: data.allowedContentTypes,
+            responseMaxBytes:
+                data.responseMaxBytes ??
+                EXTERNAL_CONNECTION_DEFAULTS.responseMaxBytes,
+            requestMaxBytes:
+                data.requestMaxBytes ??
+                EXTERNAL_CONNECTION_DEFAULTS.requestMaxBytes,
+            timeoutMs: data.timeoutMs ?? EXTERNAL_CONNECTION_DEFAULTS.timeoutMs,
+            rateLimitPerMinute: data.rateLimitPerMinute ?? null,
+            apiKeyName: data.apiKeyName ?? null,
+            apiKeyLocation: data.apiKeyLocation ?? null,
+            hasSecret: Boolean(data.secret),
+            createdByUserUuid: null,
+            updatedByUserUuid: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        };
+
+        const secret = data.type === 'none' ? null : (data.secret ?? null);
+
+        const result = await this.executeExternalFetch(connection, secret, {
             method,
             path: req.path,
             query: req.query,
