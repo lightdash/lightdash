@@ -18,7 +18,10 @@ import {
     type UIMessage,
 } from 'ai';
 import { fieldToJson, toRenderableField } from '../../tools/fieldOutput';
-import { stringifyToolJson } from '../../tools/toolOutputFormat';
+import {
+    stringifyToolJson,
+    type StructuredToolResult,
+} from '../../tools/toolOutputFormat';
 import type { AiAgentArgs } from '../../types/aiAgent';
 import { getExploreRequiredFilters } from '../../utils/requiredFilters';
 import { toModelOutput } from '../../utils/toModelOutput';
@@ -280,16 +283,33 @@ const getToolTraceSignature = (message: UIMessage): string =>
         })
         .join('|');
 
+type DiscoverFieldsStructuredResult = ReturnType<typeof getStructuredResult>;
+
+type DiscoverFieldsSuccessOutput = ToolDiscoverFieldsOutput &
+    StructuredToolResult<DiscoverFieldsStructuredResult>;
+
+type DiscoverFieldsStreamingOutput = {
+    result: string;
+    metadata: {
+        status: 'streaming';
+        streamingMessage: UIMessage;
+    };
+};
+
+type DiscoverFieldsOutput =
+    | ToolDiscoverFieldsOutput
+    | DiscoverFieldsSuccessOutput
+    | DiscoverFieldsStreamingOutput;
+
 const getStreamingToolOutput = (
     streamingMessage: UIMessage,
-): ToolDiscoverFieldsOutput =>
-    ({
-        result: '',
-        metadata: {
-            status: 'streaming' as const,
-            streamingMessage,
-        },
-    }) as unknown as ToolDiscoverFieldsOutput;
+): DiscoverFieldsStreamingOutput => ({
+    result: '',
+    metadata: {
+        status: 'streaming',
+        streamingMessage,
+    },
+});
 
 const extractSelectionFromSubmitResult = (
     message: UIMessage | undefined,
@@ -337,7 +357,10 @@ type ToolArgs = {
 export const getDiscoverFields = (args: ToolArgs, dependencies: Dependencies) =>
     tool({
         ...discoverFieldsTool,
-        async *execute(input, { toolCallId, abortSignal }) {
+        async *execute(
+            input,
+            { toolCallId, abortSignal },
+        ): AsyncGenerator<DiscoverFieldsOutput> {
             try {
                 const { stream, flushPersistence } = runDiscoverFieldsAgent(
                     {
@@ -401,7 +424,7 @@ export const getDiscoverFields = (args: ToolArgs, dependencies: Dependencies) =>
                     metadata: {
                         status: 'success' as const,
                     },
-                } as ToolDiscoverFieldsOutput;
+                } satisfies DiscoverFieldsSuccessOutput;
             } catch (error) {
                 yield {
                     result: toolErrorHandler(

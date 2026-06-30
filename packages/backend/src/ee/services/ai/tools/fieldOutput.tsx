@@ -3,12 +3,13 @@ import {
     DEFAULT_FILTER_CASE_SENSITIVE,
     DimensionType,
     Explore,
-    Field,
     FieldType,
     getFilterTypeFromItemType,
     getItemId,
     isEmojiIcon,
     type CatalogField,
+    type Dimension,
+    type Metric,
 } from '@lightdash/common';
 
 export type RenderableField = Pick<
@@ -63,13 +64,13 @@ export const getIsFromJoinedTable = (
     );
 
 export const toRenderableField = (
-    field: Field & { aiHint?: string | string[] },
+    field: Dimension | Metric,
 ): RenderableField => ({
     name: field.name,
     label: field.label,
     tableName: field.table,
     fieldType: field.fieldType,
-    fieldValueType: field.type as RenderableField['fieldValueType'],
+    fieldValueType: field.type,
     description: field.description,
     aiHints: convertToAiHints(field.aiHint) ?? null,
 });

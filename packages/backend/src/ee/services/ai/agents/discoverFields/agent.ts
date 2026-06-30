@@ -167,7 +167,7 @@ export const runDiscoverFieldsAgent = (
                             promptUuid: args.promptUuid,
                             toolCallId: chunk.toolCallId,
                             toolName: chunk.toolName,
-                            toolArgs: (chunk.input as object) ?? {},
+                            toolArgs: isRecord(chunk.input) ? chunk.input : {},
                             parentToolCallId: args.parentToolCallId,
                         })
                         .catch((err) => {
