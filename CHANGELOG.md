@@ -1,3 +1,10 @@
+# [0.3269.0](https://github.com/lightdash/lightdash/compare/0.3268.0...0.3269.0) (2026-06-30)
+
+
+### Features
+
+* **ci:** use TS7 fast paths in PR checks ([#24930](https://github.com/lightdash/lightdash/issues/24930)) ([7bf1007](https://github.com/lightdash/lightdash/commit/7bf1007bb48f7c3867a2998764fa908a463392a6))
+
 # [0.3268.0](https://github.com/lightdash/lightdash/compare/0.3267.0...0.3268.0) (2026-06-30)
 
 
