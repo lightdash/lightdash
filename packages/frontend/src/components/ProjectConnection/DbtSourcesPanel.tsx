@@ -1,4 +1,8 @@
-import { FeatureFlags, type ProjectDbtSourceSummary } from '@lightdash/common';
+import {
+    DbtProjectType,
+    FeatureFlags,
+    type ProjectDbtSourceSummary,
+} from '@lightdash/common';
 import {
     Badge,
     Button,
@@ -7,11 +11,14 @@ import {
     Modal,
     Stack,
     Text,
+    TextInput,
     Title,
 } from '@mantine/core';
-import { IconDatabase, IconTrash } from '@tabler/icons-react';
+import { useForm } from '@mantine/form';
+import { IconDatabase, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import {
+    useCreateProjectDbtSourceMutation,
     useDeleteProjectDbtSourceMutation,
     useProjectDbtSources,
 } from '../../hooks/useProjectDbtSources';
@@ -51,14 +58,104 @@ const DbtSourceRow: FC<{
     </Card>
 );
 
+const AddDbtSourceModal: FC<{
+    projectUuid: string;
+    opened: boolean;
+    onClose: () => void;
+}> = ({ projectUuid, opened, onClose }) => {
+    const createMutation = useCreateProjectDbtSourceMutation(projectUuid);
+    const form = useForm({
+        initialValues: {
+            name: '',
+            repository: '',
+            branch: 'main',
+            projectSubPath: '/',
+        },
+        validate: {
+            name: (value) => (value.trim() ? null : 'Name is required'),
+            repository: (value) =>
+                /^[^/\s]+\/[^/\s]+$/.test(value.trim())
+                    ? null
+                    : 'Use the form owner/repository',
+        },
+    });
+
+    const handleClose = () => {
+        form.reset();
+        onClose();
+    };
+
+    return (
+        <Modal opened={opened} onClose={handleClose} title="Add a dbt source">
+            <form
+                onSubmit={form.onSubmit((values) => {
+                    createMutation.mutate(
+                        {
+                            name: values.name.trim(),
+                            dbtConnection: {
+                                type: DbtProjectType.GITHUB,
+                                authorization_method: 'installation_id',
+                                repository: values.repository.trim(),
+                                branch: values.branch.trim(),
+                                project_sub_path: values.projectSubPath.trim(),
+                            },
+                        },
+                        { onSuccess: handleClose },
+                    );
+                })}
+            >
+                <Stack spacing="md">
+                    <Text size="sm" color="dimmed">
+                        Connect a GitHub dbt project. It uses this
+                        organization's GitHub App installation.
+                    </Text>
+                    <TextInput
+                        label="Name"
+                        placeholder="e.g. marketing-dbt"
+                        required
+                        {...form.getInputProps('name')}
+                    />
+                    <TextInput
+                        label="Repository"
+                        placeholder="owner/repository"
+                        required
+                        {...form.getInputProps('repository')}
+                    />
+                    <TextInput
+                        label="Branch"
+                        required
+                        {...form.getInputProps('branch')}
+                    />
+                    <TextInput
+                        label="Project subdirectory"
+                        {...form.getInputProps('projectSubPath')}
+                    />
+                    <Group position="right">
+                        <Button variant="default" onClick={handleClose}>
+                            Cancel
+                        </Button>
+                        <Button
+                            type="submit"
+                            loading={createMutation.isLoading}
+                        >
+                            Add source
+                        </Button>
+                    </Group>
+                </Stack>
+            </form>
+        </Modal>
+    );
+};
+
 const DbtSourcesPanel: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const { data: flag } = useServerFeatureFlag(FeatureFlags.MultiDbtSources);
     const { data: sources } = useProjectDbtSources(projectUuid);
     const deleteMutation = useDeleteProjectDbtSourceMutation(projectUuid);
     const [sourceToRemove, setSourceToRemove] =
         useState<ProjectDbtSourceSummary | null>(null);
+    const [isAddOpen, setIsAddOpen] = useState(false);
 
-    // N=0 short-circuit on the UI: only show the panel when the feature is on.
+    // Only show the panel when the feature is on.
     if (!flag?.enabled) {
         return null;
     }
@@ -66,14 +163,22 @@ const DbtSourcesPanel: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     return (
         <Card withBorder shadow="xs" padding="lg">
             <Stack spacing="md">
-                <div>
-                    <Title order={5}>Additional dbt sources</Title>
-                    <Text size="sm" color="dimmed">
-                        Connect more dbt projects to this Lightdash project.
-                        Their models are merged with the primary source on every
-                        deploy and preview.
-                    </Text>
-                </div>
+                <Group position="apart" align="flex-start">
+                    <div>
+                        <Title order={5}>Additional dbt sources</Title>
+                        <Text size="sm" color="dimmed">
+                            Connect more dbt projects to this Lightdash project.
+                            Their models are merged with the primary source on
+                            every deploy and preview.
+                        </Text>
+                    </div>
+                    <Button
+                        leftIcon={<MantineIcon icon={IconPlus} />}
+                        onClick={() => setIsAddOpen(true)}
+                    >
+                        Add source
+                    </Button>
+                </Group>
 
                 <Stack spacing="xs">
                     {(sources ?? []).map((source) => (
@@ -90,6 +195,12 @@ const DbtSourcesPanel: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     ))}
                 </Stack>
             </Stack>
+
+            <AddDbtSourceModal
+                projectUuid={projectUuid}
+                opened={isAddOpen}
+                onClose={() => setIsAddOpen(false)}
+            />
 
             <Modal
                 opened={sourceToRemove !== null}
