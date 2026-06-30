@@ -1,3 +1,10 @@
+## [0.3263.1](https://github.com/lightdash/lightdash/compare/0.3263.0...0.3263.1) (2026-06-30)
+
+
+### Bug Fixes
+
+* **ai:** add missing/normalize required filter metadata ([#24918](https://github.com/lightdash/lightdash/issues/24918)) ([a33f0df](https://github.com/lightdash/lightdash/commit/a33f0df5fc2985c3a90f1157378cc588dd0c3239))
+
 # [0.3263.0](https://github.com/lightdash/lightdash/compare/0.3262.2...0.3263.0) (2026-06-30)
 
 
