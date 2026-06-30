@@ -91,6 +91,7 @@ import { getModel } from '../ai/models';
 import { getAiCallTelemetry } from '../ai/utils/aiCallTelemetry';
 import {
     createSandboxProvider,
+    S3SnapshotStore,
     SandboxCommandError,
     type SandboxHandle,
     type SandboxProvider,
@@ -388,6 +389,9 @@ export class AppGenerateService extends BaseService {
                 provider: this.lightdashConfig.appRuntime.sandboxProvider,
                 e2bApiKey: this.lightdashConfig.appRuntime.e2bApiKey,
                 dockerImage: this.lightdashConfig.appRuntime.sandboxDockerImage,
+                snapshotStore: new S3SnapshotStore({
+                    lightdashConfig: this.lightdashConfig,
+                }),
                 logger: this.logger,
             });
         }

@@ -4,6 +4,7 @@ import { randomBytes } from 'node:crypto';
 import { posix } from 'node:path';
 import { Writable } from 'node:stream';
 import { SandboxCommandError, SandboxTimeoutError } from './errors';
+import { type SnapshotStore } from './SnapshotStore';
 import {
     type CommandResult,
     type GitAddTarget,
@@ -11,6 +12,7 @@ import {
     type GitCommitOptions,
     type GitPushOptions,
     type GitStatus,
+    type PersistOptions,
     type RunOptions,
     type SandboxCapabilities,
     type SandboxGit,
@@ -18,6 +20,7 @@ import {
     type SandboxLogger,
     type SandboxProvider,
     type SandboxSpec,
+    type SnapshotRef,
 } from './types';
 
 const SANDBOX_LABEL = 'com.lightdash.sandbox';
@@ -29,6 +32,14 @@ const SANDBOX_NAME_PREFIX = 'lightdash-sandbox';
 
 /** Single-quote a path for safe interpolation into a `/bin/sh -c` string. */
 const shQuote = (value: string): string => `'${value.replace(/'/g, `'\\''`)}'`;
+
+/**
+ * Strip the leading slash so a `tar -C / <path>` archives `home/user/repo`
+ * rather than `/home/user/repo`, letting `tar -x -C /` restore it to the exact
+ * same absolute location on resume.
+ */
+const toArchiveRelative = (absolutePath: string): string =>
+    absolutePath.replace(/^\/+/, '');
 
 /**
  * Build a `git -c http.extraHeader=...` prefix carrying HTTPS basic-auth
@@ -333,6 +344,7 @@ export class DockerSandboxProvider implements SandboxProvider {
     constructor(
         private readonly image: string,
         private readonly logger: SandboxLogger,
+        private readonly snapshotStore: SnapshotStore,
     ) {
         if (process.env.NODE_ENV === 'production') {
             throw new Error(
@@ -401,5 +413,70 @@ export class DockerSandboxProvider implements SandboxProvider {
         this.logger.debug(
             `Docker sandbox ${sandboxId}: provider pause is a no-op`,
         );
+    }
+
+    /**
+     * Tar the declared workspace inside the container and push it to the
+     * snapshot store. The archive is built `-C /` from slash-relative include
+     * paths so resume restores them to the same absolute locations. The tarball
+     * is staged to a file and read back as raw bytes (never piped through the
+     * string-typed `commands.run` stdout, which would corrupt binary content).
+     * Does not stop the container — the caller destroys it after persisting.
+     */
+    async persist(
+        handle: SandboxHandle,
+        options: PersistOptions,
+    ): Promise<SnapshotRef> {
+        const { workspace, snapshotKey } = options;
+        const archivePath = `/tmp/.ld-snapshot-${randomBytes(4).toString(
+            'hex',
+        )}.tar.gz`;
+        const excludeFlags = workspace.exclude
+            .map((pattern) => `--exclude=${shQuote(pattern)}`)
+            .join(' ');
+        const includeArgs = workspace.include
+            .map((path) => shQuote(toArchiveRelative(path)))
+            .join(' ');
+        await handle.commands.run(
+            `tar czf ${shQuote(archivePath)} ${excludeFlags} -C / ${includeArgs}`,
+        );
+        try {
+            const archive = await handle.files.readBytes(archivePath);
+            await this.snapshotStore.put(snapshotKey, archive);
+        } finally {
+            await handle.files.remove(archivePath);
+        }
+        this.logger.info(
+            `Docker sandbox ${handle.sandboxId} persisted to ${snapshotKey} (${workspace.include.length} path(s))`,
+        );
+        return { kind: 's3-tar', key: snapshotKey };
+    }
+
+    /**
+     * Recreate a fresh container from `spec`, then download the snapshot tarball
+     * and extract it `-C /` so the workspace lands back at its original paths.
+     * The new container has a new id — the caller (Manager) records it.
+     */
+    async resume(ref: SnapshotRef, spec: SandboxSpec): Promise<SandboxHandle> {
+        if (ref.kind !== 's3-tar') {
+            throw new Error(
+                `DockerSandboxProvider cannot resume a snapshot of kind '${ref.kind}'`,
+            );
+        }
+        const handle = await this.create(spec);
+        const archivePath = `/tmp/.ld-restore-${randomBytes(4).toString(
+            'hex',
+        )}.tar.gz`;
+        const archive = await this.snapshotStore.get(ref.key);
+        await handle.files.write(archivePath, archive);
+        try {
+            await handle.commands.run(`tar xzf ${shQuote(archivePath)} -C /`);
+        } finally {
+            await handle.files.remove(archivePath);
+        }
+        this.logger.info(
+            `Docker sandbox ${handle.sandboxId} resumed from ${ref.key}`,
+        );
+        return handle;
     }
 }

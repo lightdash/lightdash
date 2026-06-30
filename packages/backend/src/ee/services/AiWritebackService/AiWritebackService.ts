@@ -46,14 +46,18 @@ import type { GithubAppService } from '../../../services/GithubAppService/Github
 import type { ProjectService } from '../../../services/ProjectService/ProjectService';
 import type {
     AiWritebackThreadModel,
-    AiWritebackThreadWithPrUrl,
+    ResumableWritebackThread,
 } from '../../models/AiWritebackThreadModel';
+import type { SandboxRegistryModel } from '../../models/SandboxRegistryModel';
 import {
-    createSandboxProvider,
+    createSandboxManager,
+    S3SnapshotStore,
     SandboxCommandError,
+    SandboxExpiredError,
+    SandboxManager,
     SandboxTimeoutError,
+    type PersistentWorkspace,
     type SandboxHandle,
-    type SandboxProvider,
     type SandboxSpec,
 } from '../SandboxRuntime';
 import {
@@ -121,6 +125,14 @@ import {
 
 export type { AiWritebackRunArgs, AiWritebackSource } from './types';
 
+// What to snapshot between turns: the whole cloned repo at CWD (working tree +
+// .git feature branch + the agent's .claude session dir), minus re-derivable
+// deps. Resume restores this tarball, so no re-clone is needed.
+const WRITEBACK_WORKSPACE: PersistentWorkspace = {
+    include: [CWD],
+    exclude: ['node_modules'],
+};
+
 // Maps the applied-changes outcome to the PR action surfaced to the user: a
 // fresh PR is 'opened', a resumed thread or adopted pasted-link PR is
 // 'updated', and no PR touched is null.
@@ -142,6 +154,7 @@ type AiWritebackServiceDeps = {
     githubAppService: GithubAppService;
     gitlabAppInstallationsModel: GitlabAppInstallationsModel;
     aiWritebackThreadModel: AiWritebackThreadModel;
+    sandboxRegistryModel: SandboxRegistryModel;
     pullRequestsModel: PullRequestsModel;
     prometheusMetrics?: PrometheusMetrics;
     ciService: CiService;
@@ -232,6 +245,8 @@ export class AiWritebackService extends BaseService {
 
     private readonly aiWritebackThreadModel: AiWritebackThreadModel;
 
+    private readonly sandboxRegistryModel: SandboxRegistryModel;
+
     private readonly pullRequestsModel: PullRequestsModel;
 
     private readonly prometheusMetrics?: PrometheusMetrics;
@@ -247,7 +262,7 @@ export class AiWritebackService extends BaseService {
     private readonly projectService: ProjectService;
 
     /** Memoized sandbox provider (e2b | docker), selected by SANDBOX_PROVIDER. */
-    private sandboxProvider: SandboxProvider | undefined;
+    private sandboxManager: SandboxManager | undefined;
 
     constructor({
         lightdashConfig,
@@ -258,6 +273,7 @@ export class AiWritebackService extends BaseService {
         githubAppService,
         gitlabAppInstallationsModel,
         aiWritebackThreadModel,
+        sandboxRegistryModel,
         pullRequestsModel,
         prometheusMetrics,
         ciService,
@@ -269,6 +285,7 @@ export class AiWritebackService extends BaseService {
         this.projectModel = projectModel;
         this.featureFlagModel = featureFlagModel;
         this.aiWritebackThreadModel = aiWritebackThreadModel;
+        this.sandboxRegistryModel = sandboxRegistryModel;
         this.pullRequestsModel = pullRequestsModel;
         this.prometheusMetrics = prometheusMetrics;
         this.githubAppService = githubAppService;
@@ -904,22 +921,41 @@ export class AiWritebackService extends BaseService {
     }
 
     /**
-     * The sandbox provider selected by `SANDBOX_PROVIDER` (e2b | docker).
-     * Memoized — the feature talks only to this provider, never to a concrete
-     * sandbox SDK. See SandboxRuntime/DESIGN.md.
+     * The sandbox manager over the provider selected by `SANDBOX_PROVIDER`
+     * (e2b | docker). Memoized — the feature talks only to the manager for
+     * lifecycle and to the returned {@link SandboxHandle} for the data plane.
+     * See SandboxRuntime/DESIGN.md.
      */
-    private getSandboxProvider(): SandboxProvider {
-        if (!this.sandboxProvider) {
-            this.sandboxProvider = createSandboxProvider({
+    private getSandboxManager(): SandboxManager {
+        if (!this.sandboxManager) {
+            this.sandboxManager = createSandboxManager({
                 provider: this.lightdashConfig.appRuntime.sandboxProvider,
                 e2bApiKey: this.lightdashConfig.appRuntime.e2bApiKey,
                 dockerImage:
                     this.lightdashConfig.appRuntime
                         .sandboxAiWritebackDockerImage,
+                snapshotStore: new S3SnapshotStore({
+                    lightdashConfig: this.lightdashConfig,
+                }),
+                registryModel: this.sandboxRegistryModel,
                 logger: this.logger,
+                idleTimeoutMs:
+                    this.lightdashConfig.appRuntime.sandboxIdleTimeoutMs,
+                snapshotRetentionMs:
+                    this.lightdashConfig.appRuntime.sandboxSnapshotRetentionMs,
             });
         }
-        return this.sandboxProvider;
+        return this.sandboxManager;
+    }
+
+    private buildSandboxSpec(): SandboxSpec {
+        return {
+            templateRef: this.getSandboxTemplateRef(),
+            timeoutMs: SANDBOX_TIMEOUT_MS,
+            egress: {
+                allow: ['api.anthropic.com', 'github.com', 'gitlab.com'],
+            },
+        };
     }
 
     /**
@@ -954,51 +990,67 @@ export class AiWritebackService extends BaseService {
     }
 
     private async createSandbox(
+        organizationUuid: string,
         projectUuid: string,
-    ): Promise<{ sandbox: SandboxHandle; durationMs: number }> {
+    ): Promise<{
+        sandboxUuid: string;
+        sandbox: SandboxHandle;
+        durationMs: number;
+    }> {
         const start = performance.now();
-        const templateRef = this.getSandboxTemplateRef();
-        const spec: SandboxSpec = {
-            templateRef,
-            timeoutMs: SANDBOX_TIMEOUT_MS,
-            egress: {
-                allow: ['api.anthropic.com', 'github.com', 'gitlab.com'],
-            },
-        };
-        const sandbox = await this.getSandboxProvider().create(spec);
+        const spec = this.buildSandboxSpec();
+        const { sandboxUuid, handle } = await this.getSandboxManager().acquire({
+            spec,
+            organizationUuid,
+            projectUuid,
+            workspace: WRITEBACK_WORKSPACE,
+        });
         const durationMs = AiWritebackService.elapsed(start);
         this.logger.info('AI writeback sandbox created', {
             event: 'ai_writeback.sandbox.created',
-            sandboxId: sandbox.sandboxId,
+            sandboxId: handle.sandboxId,
+            sandboxUuid,
             projectUuid,
-            template: templateRef,
+            template: spec.templateRef,
             durationMs,
         });
         this.prometheusMetrics?.observeAiWritebackSandboxCreateDuration(
             durationMs,
         );
-        return { sandbox, durationMs };
+        return { sandboxUuid, sandbox: handle, durationMs };
     }
 
-    private async pauseSandbox(
+    /**
+     * End-of-turn suspend: snapshot the workspace and (on object-store
+     * backends) destroy the container. Best-effort — a pause failure is logged
+     * but never fails the run.
+     */
+    private async suspendSandbox(
+        sandboxUuid: string,
         sandbox: SandboxHandle,
         projectUuid: string,
     ): Promise<void> {
         try {
             const start = performance.now();
-            await sandbox.pause();
+            await this.getSandboxManager().suspend({
+                sandboxUuid,
+                handle: sandbox,
+                workspace: WRITEBACK_WORKSPACE,
+            });
             const durationMs = AiWritebackService.elapsed(start);
-            this.logger.info('AI writeback sandbox paused', {
+            this.logger.info('AI writeback sandbox suspended', {
                 event: 'ai_writeback.sandbox.lifecycle',
                 action: 'paused',
                 sandboxId: sandbox.sandboxId,
+                sandboxUuid,
                 projectUuid,
                 durationMs,
             });
         } catch (error) {
-            this.logger.warn('AI writeback failed to pause sandbox', {
+            this.logger.warn('AI writeback failed to suspend sandbox', {
                 event: 'ai_writeback.sandbox.pause_failed',
                 sandboxId: sandbox.sandboxId,
+                sandboxUuid,
                 projectUuid,
                 errorMessage: getErrorMessage(error),
             });
@@ -1006,16 +1058,20 @@ export class AiWritebackService extends BaseService {
     }
 
     private async resumeSandbox(
-        sandboxId: string,
+        sandboxUuid: string,
         projectUuid: string,
     ): Promise<{ sandbox: SandboxHandle; durationMs: number }> {
         const start = performance.now();
-        const sandbox = await this.getSandboxProvider().connect(sandboxId);
+        const sandbox = await this.getSandboxManager().resume({
+            sandboxUuid,
+            spec: this.buildSandboxSpec(),
+        });
         const durationMs = AiWritebackService.elapsed(start);
         this.logger.info('AI writeback sandbox resumed', {
             event: 'ai_writeback.sandbox.lifecycle',
             action: 'resumed',
             sandboxId: sandbox.sandboxId,
+            sandboxUuid,
             projectUuid,
             durationMs,
         });
@@ -1181,8 +1237,9 @@ export class AiWritebackService extends BaseService {
         };
 
         let sandbox: SandboxHandle | undefined;
+        let sandboxUuid: string | undefined;
         // Default to preserving a resumed sandbox through failures — its
-        // sandbox_id is referenced by an ai_writeback_thread row and killing
+        // sandbox_uuid is referenced by an ai_writeback_thread row and killing
         // it would poison the row for every future turn. Fresh turns have no
         // such row, so the default kill is fine.
         let pauseOnExit = turn.isResume;
@@ -1201,7 +1258,8 @@ export class AiWritebackService extends BaseService {
                       })
                     : null;
 
-            sandbox = await this.acquireSandbox({
+            ({ sandbox, sandboxUuid } = await this.acquireSandbox({
+                organizationUuid: turn.organizationUuid,
                 projectUuid,
                 cloneTarget: turn.provider.getCloneTarget(
                     turn.gitConnection,
@@ -1210,7 +1268,7 @@ export class AiWritebackService extends BaseService {
                 existingRow: turn.existingRow,
                 adoptBranch: adoptedPr?.headRef ?? null,
                 setStage,
-            });
+            }));
 
             setStage('agent');
             const repoContext = await this.gatherRepoContext(
@@ -1311,6 +1369,7 @@ export class AiWritebackService extends BaseService {
 
             const applied = await this.applyAgentChanges({
                 sandbox,
+                sandboxUuid,
                 installation,
                 hasChanges,
                 adoptedPr,
@@ -1393,8 +1452,13 @@ export class AiWritebackService extends BaseService {
             tracker.failed(failureStage, error);
             throw error;
         } finally {
-            if (sandbox) {
-                await this.releaseSandbox(sandbox, pauseOnExit, projectUuid);
+            if (sandbox && sandboxUuid) {
+                await this.releaseSandbox(
+                    sandboxUuid,
+                    sandbox,
+                    pauseOnExit,
+                    projectUuid,
+                );
             }
         }
     }
@@ -1443,9 +1507,22 @@ export class AiWritebackService extends BaseService {
 
         // Resume only when both the caller supplied a thread uuid AND we
         // have a stored sandbox for it. Otherwise we start fresh.
-        const existingRow = aiThreadUuid
+        const storedRow = aiThreadUuid
             ? await this.aiWritebackThreadModel.findByAiThreadUuid(aiThreadUuid)
             : null;
+        // A null `sandbox_uuid` means an old pod inserted this row mid-rollout
+        // (it set the legacy `sandbox_id` column the new code no longer reads),
+        // so there's no resumable registry sandbox. Clear the stale row and
+        // start fresh rather than carry an unresumable pointer.
+        if (storedRow && storedRow.sandbox_uuid === null) {
+            await this.aiWritebackThreadModel.deleteByAiThreadUuid(
+                storedRow.ai_thread_uuid,
+            );
+        }
+        const existingRow =
+            storedRow && storedRow.sandbox_uuid !== null
+                ? { ...storedRow, sandbox_uuid: storedRow.sandbox_uuid }
+                : null;
 
         // A thread is bound to its first PR. If that PR has since been merged or
         // closed (from the chat card or directly on the host), editing it again
@@ -1567,34 +1644,42 @@ export class AiWritebackService extends BaseService {
      * agent edits on top of the existing PR.
      */
     private async acquireSandbox({
+        organizationUuid,
         projectUuid,
         cloneTarget,
         existingRow,
         adoptBranch,
         setStage,
     }: {
+        organizationUuid: string;
         projectUuid: string;
         cloneTarget: CloneTarget;
-        existingRow: AiWritebackThreadWithPrUrl | null;
+        existingRow: ResumableWritebackThread | null;
         adoptBranch: string | null;
         setStage: SetStage;
-    }): Promise<SandboxHandle> {
+    }): Promise<{ sandbox: SandboxHandle; sandboxUuid: string }> {
         setStage('sandbox');
 
         if (existingRow) {
             try {
                 const { sandbox } = await this.resumeSandbox(
-                    existingRow.sandbox_id,
+                    existingRow.sandbox_uuid,
                     projectUuid,
                 );
-                return sandbox;
+                return { sandbox, sandboxUuid: existingRow.sandbox_uuid };
             } catch (error) {
-                // The persisted sandbox is gone (reaped by E2B, or some other
-                // permanent failure). Clear the row so the next turn starts
-                // fresh instead of looping on the same dead reference.
+                // The persisted sandbox is gone (snapshot GC'd, reaped, or some
+                // other permanent failure). GC the dead registry row and clear
+                // the conversation row so the next turn starts fresh instead of
+                // looping on the same dead reference.
                 this.logger.warn(
-                    `AiWriteback: failed to resume sandbox ${existingRow.sandbox_id} — clearing conversation row (ai_thread_uuid=${existingRow.ai_thread_uuid}): ${getErrorMessage(error)}`,
+                    `AiWriteback: failed to resume sandbox ${existingRow.sandbox_uuid} — clearing conversation row (ai_thread_uuid=${existingRow.ai_thread_uuid}): ${getErrorMessage(error)}`,
                 );
+                if (!(error instanceof SandboxExpiredError)) {
+                    await this.getSandboxManager().destroy({
+                        sandboxUuid: existingRow.sandbox_uuid,
+                    });
+                }
                 await this.aiWritebackThreadModel.deleteByAiThreadUuid(
                     existingRow.ai_thread_uuid,
                 );
@@ -1604,7 +1689,10 @@ export class AiWritebackService extends BaseService {
             }
         }
 
-        const { sandbox } = await this.createSandbox(projectUuid);
+        const { sandbox, sandboxUuid } = await this.createSandbox(
+            organizationUuid,
+            projectUuid,
+        );
 
         setStage('clone');
         // Clone over HTTPS with the access token as the password (provider-
@@ -1625,7 +1713,7 @@ export class AiWritebackService extends BaseService {
                 Date.now() - cloneStartedAt
             }ms)`,
         );
-        return sandbox;
+        return { sandbox, sandboxUuid };
     }
 
     /**
@@ -2100,6 +2188,7 @@ export class AiWritebackService extends BaseService {
      */
     private async applyAgentChanges({
         sandbox,
+        sandboxUuid,
         installation,
         hasChanges,
         adoptedPr,
@@ -2113,6 +2202,7 @@ export class AiWritebackService extends BaseService {
         prSummary,
     }: {
         sandbox: SandboxHandle;
+        sandboxUuid: string;
         installation: GitInstallation;
         hasChanges: boolean;
         adoptedPr: AdoptedPullRequest | null;
@@ -2176,7 +2266,7 @@ export class AiWritebackService extends BaseService {
                     projectUuid,
                     user,
                     aiThreadUuid,
-                    sandbox,
+                    sandboxUuid,
                     prUrl: targetPrUrl,
                     summary: prSummary,
                 });
@@ -2217,7 +2307,7 @@ export class AiWritebackService extends BaseService {
             projectUuid,
             user,
             aiThreadUuid,
-            sandbox,
+            sandboxUuid,
             prUrl,
             summary: prSummary,
         });
@@ -2273,7 +2363,7 @@ export class AiWritebackService extends BaseService {
         projectUuid,
         user,
         aiThreadUuid,
-        sandbox,
+        sandboxUuid,
         prUrl,
         summary,
     }: {
@@ -2281,7 +2371,7 @@ export class AiWritebackService extends BaseService {
         projectUuid: string;
         user: SessionUser;
         aiThreadUuid: string | undefined;
-        sandbox: SandboxHandle;
+        sandboxUuid: string;
         prUrl: string;
         summary: string | null;
     }): Promise<void> {
@@ -2301,29 +2391,34 @@ export class AiWritebackService extends BaseService {
         if (aiThreadUuid) {
             await this.aiWritebackThreadModel.create({
                 aiThreadUuid,
-                sandboxId: sandbox.sandboxId,
+                sandboxUuid,
                 pullRequestUuid: pullRequest.pullRequestUuid,
             });
         }
     }
 
     /**
-     * Final sandbox disposition. Pause to preserve it for the next turn, or
-     * kill (with a soft-fail log) to free resources for non-resumable runs.
+     * Final sandbox disposition. Suspend (snapshot + pause/destroy) to preserve
+     * it for the next turn, or destroy (with a soft-fail log) to free resources
+     * and GC the snapshot for non-resumable runs.
      */
     private async releaseSandbox(
+        sandboxUuid: string,
         sandbox: SandboxHandle,
         shouldPause: boolean,
         projectUuid: string,
     ): Promise<void> {
         if (shouldPause) {
-            await this.pauseSandbox(sandbox, projectUuid);
+            await this.suspendSandbox(sandboxUuid, sandbox, projectUuid);
             return;
         }
         // destroy() is a no-op if the sandbox is already gone and never throws
         // for that, but guard the whole call so cleanup can't fail the run.
         try {
-            await this.getSandboxProvider().destroy(sandbox.sandboxId);
+            await this.getSandboxManager().destroy({
+                sandboxUuid,
+                handle: sandbox,
+            });
         } catch (error) {
             this.logger.warn(
                 `AiWriteback: failed to destroy sandbox ${sandbox.sandboxId}: ${getErrorMessage(

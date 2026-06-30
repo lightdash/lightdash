@@ -375,6 +375,8 @@ export const lightdashConfigMock: LightdashConfig = {
         sandboxProvider: 'e2b',
         sandboxDockerImage: 'lightdash-sandbox:local',
         sandboxAiWritebackDockerImage: 'lightdash-ai-writeback:local',
+        sandboxIdleTimeoutMs: 30 * 60 * 1000,
+        sandboxSnapshotRetentionMs: 7 * 24 * 60 * 60 * 1000,
     },
     enabledFeatureFlags: new Set<string>(),
     disabledFeatureFlags: new Set<string>(),
