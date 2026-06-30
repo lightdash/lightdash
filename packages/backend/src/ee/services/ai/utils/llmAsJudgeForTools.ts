@@ -19,6 +19,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     analyzeFieldImpact: 'analyze_field_impact',
     discoverFields: 'discover_fields',
     grepFields: 'grep_fields',
+    getMetadata: 'get_metadata',
     searchFieldValues: 'search_field_values',
     findContent: 'find_content',
     listContent: 'list_content',

@@ -126,6 +126,11 @@ import {
     toolGetKnowledgeDocumentContentOutputSchema,
 } from './toolGetKnowledgeDocumentContentArgs';
 import {
+    GET_METADATA_DESCRIPTION,
+    getMetadataInputSchema,
+    toolGetMetadataOutputSchema,
+} from './toolGetMetadataArgs';
+import {
     TOOL_GET_PROJECT_INFO_DESCRIPTION,
     toolGetProjectInfoArgsSchema,
     toolGetProjectInfoOutputSchema,
@@ -457,6 +462,15 @@ export const grepFieldsToolDefinition = defineTool({
     availability: ['agent'],
     inputSchema: grepFieldsInputSchema,
     agent: { outputSchema: toolGrepFieldsOutputSchema },
+});
+
+export const getMetadataToolDefinition = defineTool({
+    name: 'getMetadata',
+    title: 'Get metadata',
+    description: GET_METADATA_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: getMetadataInputSchema,
+    agent: { outputSchema: toolGetMetadataOutputSchema },
 });
 
 export const generateDashboardToolDefinition = defineTool({
@@ -964,6 +978,7 @@ type AgentToolDefinitionsByName = {
     runSql: typeof runSqlToolDefinition;
     discoverFields: typeof discoverFieldsToolDefinition;
     grepFields: typeof grepFieldsToolDefinition;
+    getMetadata: typeof getMetadataToolDefinition;
     generateDashboard: typeof generateDashboardToolDefinition;
     generateHashes: typeof generateHashesToolDefinition;
     generateUuids: typeof generateUuidsToolDefinition;
@@ -1010,6 +1025,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     runSql: runSqlToolDefinition,
     discoverFields: discoverFieldsToolDefinition,
     grepFields: grepFieldsToolDefinition,
+    getMetadata: getMetadataToolDefinition,
     generateDashboard: generateDashboardToolDefinition,
     generateHashes: generateHashesToolDefinition,
     generateUuids: generateUuidsToolDefinition,
@@ -1058,6 +1074,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     renderChartToolDefinition,
     discoverFieldsToolDefinition,
     grepFieldsToolDefinition,
+    getMetadataToolDefinition,
     generateDashboardToolDefinition,
     generateHashesToolDefinition,
     generateUuidsToolDefinition,
