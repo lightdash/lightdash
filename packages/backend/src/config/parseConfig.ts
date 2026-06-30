@@ -1615,22 +1615,24 @@ export type AppRuntimeConfig = {
      */
     sandboxAiWritebackDockerImage: string;
     /**
-     * How long a *running* sandbox can be idle before the reaper suspends it.
-     * A crash safety net only — in steady state every turn suspends its own
-     * sandbox, so nothing sits idle. Defaults to 30 minutes.
+     * How long a *running* sandbox can be idle before the backend suspends it.
+     * Feeds the native-pause provider's own idle policy (Lambda MicroVMs'
+     * AWS-side auto-suspend); ignored by E2B (which has its own timeout) and
+     * Docker. Defaults to 30 minutes.
      */
     sandboxIdleTimeoutMs: number;
     /**
-     * How long a *suspended* sandbox snapshot is kept (resumable) before the
-     * reaper GCs it. Defaults to 7 days.
+     * How long a *suspended* sandbox snapshot is kept (resumable) before it is
+     * reclaimed. Feeds the native-pause provider's idle policy (Lambda MicroVMs'
+     * AWS-side auto-terminate). Defaults to 7 days.
      */
     sandboxSnapshotRetentionMs: number;
     /**
      * Static config the `lambda-microvm` sandbox provider needs (region, IAM
      * execution role, network connectors, idle policy). Idle/suspended durations
      * are derived from `sandboxIdleTimeoutMs`/`sandboxSnapshotRetentionMs` so the
-     * AWS-side `idlePolicy` (auto-suspend / auto-terminate) mirrors the reaper's
-     * windows. Always populated (with defaults); only read when the provider is
+     * AWS-side `idlePolicy` (auto-suspend / auto-terminate) governs idle expiry.
+     * Always populated (with defaults); only read when the provider is
      * `lambda-microvm`.
      */
     lambdaMicroVm: {

@@ -32,19 +32,12 @@ const makeHandle = (sandboxId: string): SandboxHandle =>
 const makeProvider = (
     pauseResume: boolean,
 ): import('vitest').Mocked<SandboxProvider> => {
-    const capabilities: SandboxCapabilities = {
-        isolation: pauseResume ? 'microvm' : 'container',
-        pauseResume,
-        egressAllowlist: false,
-        warmPool: false,
-        persistence: pauseResume ? 'memory' : 'objectstore',
-    };
+    const capabilities: SandboxCapabilities = { pauseResume };
     return {
         capabilities,
         create: vi.fn().mockResolvedValue(makeHandle('live-1')),
         connect: vi.fn().mockResolvedValue(makeHandle('live-reconnect')),
         destroy: vi.fn().mockResolvedValue(undefined),
-        pause: vi.fn().mockResolvedValue(undefined),
         persist: vi
             .fn()
             .mockResolvedValue(
@@ -63,10 +56,7 @@ const makeRegistry = (): import('vitest').Mocked<SandboxRegistryStore> =>
         findBySandboxUuid: vi.fn().mockResolvedValue(null),
         markRunning: vi.fn().mockResolvedValue(undefined),
         markSuspended: vi.fn().mockResolvedValue(undefined),
-        touch: vi.fn().mockResolvedValue(undefined),
         deleteBySandboxUuid: vi.fn().mockResolvedValue(undefined),
-        findIdleRunning: vi.fn().mockResolvedValue([]),
-        findExpiredSuspended: vi.fn().mockResolvedValue([]),
     }) as unknown as import('vitest').Mocked<SandboxRegistryStore>;
 
 const makeManager = (
@@ -78,8 +68,6 @@ const makeManager = (
         providerKind: provider.capabilities.pauseResume ? 'e2b' : 'docker',
         registryModel: registry,
         logger,
-        idleTimeoutMs: 1000,
-        snapshotRetentionMs: 5000,
     });
 
 describe('SandboxManager', () => {
@@ -204,7 +192,6 @@ describe('SandboxManager', () => {
                 providerSandboxId: 'live-running',
                 snapshotRef: null,
                 workspace,
-                lastActivityAt: new Date(0),
             });
             const manager = makeManager(provider, registry);
 
@@ -232,7 +219,6 @@ describe('SandboxManager', () => {
                 providerSandboxId: null,
                 snapshotRef: { kind: 's3-tar', key: 'k' },
                 workspace,
-                lastActivityAt: new Date(0),
             });
             const manager = makeManager(provider, registry);
 
@@ -272,7 +258,6 @@ describe('SandboxManager', () => {
                 providerSandboxId: null,
                 snapshotRef: { kind: 's3-tar', key: 'k' },
                 workspace,
-                lastActivityAt: new Date(0),
             });
             const manager = makeManager(provider, registry);
 
@@ -303,7 +288,6 @@ describe('SandboxManager', () => {
                 providerSandboxId: 'e2b-live-1',
                 snapshotRef: { kind: 'e2b-paused', sandboxId: 'e2b-live-1' },
                 workspace,
-                lastActivityAt: new Date(0),
             });
             const manager = makeManager(provider, registry);
 
@@ -344,7 +328,6 @@ describe('SandboxManager', () => {
             providerSandboxId: null,
             snapshotRef: { kind: 's3-tar', key: 'k' },
             workspace,
-            lastActivityAt: new Date(0),
         });
         const manager = makeManager(provider, registry);
 
@@ -360,57 +343,5 @@ describe('SandboxManager', () => {
             key: 'k',
         });
         expect(registry.deleteBySandboxUuid).toHaveBeenCalledWith('sb-1');
-    });
-
-    describe('reapIdle', () => {
-        it('suspends idle running sandboxes and GCs expired snapshots', async () => {
-            const provider = makeProvider(false);
-            const registry = makeRegistry();
-            registry.findIdleRunning.mockResolvedValue([
-                {
-                    sandboxUuid: 'idle-1',
-                    organizationUuid: 'org-1',
-                    projectUuid: 'proj-1',
-                    providerSandboxId: 'live-idle',
-                    snapshotRef: null,
-                    workspace,
-                    lastActivityAt: new Date(0),
-                },
-            ]);
-            registry.findExpiredSuspended.mockResolvedValue([
-                {
-                    sandboxUuid: 'expired-1',
-                    organizationUuid: 'org-1',
-                    projectUuid: 'proj-1',
-                    providerSandboxId: null,
-                    snapshotRef: { kind: 's3-tar', key: 'old' },
-                    workspace,
-                    lastActivityAt: new Date(0),
-                },
-            ]);
-            // destroy() re-reads the row; return the expired one for its lookup.
-            registry.findBySandboxUuid.mockResolvedValue({
-                sandboxUuid: 'expired-1',
-                organizationUuid: 'org-1',
-                projectUuid: 'proj-1',
-                providerSandboxId: null,
-                snapshotRef: { kind: 's3-tar', key: 'old' },
-                workspace,
-                lastActivityAt: new Date(0),
-            });
-            const manager = makeManager(provider, registry);
-
-            const result = await manager.reapIdle();
-
-            // Idle orphan: reconnected, persisted, destroyed.
-            expect(provider.connect).toHaveBeenCalledWith('live-idle');
-            expect(provider.persist).toHaveBeenCalledTimes(1);
-            // Expired snapshot GC'd via the provider.
-            expect(provider.deleteSnapshot).toHaveBeenCalledWith({
-                kind: 's3-tar',
-                key: 'old',
-            });
-            expect(result).toEqual({ suspended: 1, gced: 1 });
-        });
     });
 });

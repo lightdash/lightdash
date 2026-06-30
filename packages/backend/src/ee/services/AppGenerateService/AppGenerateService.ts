@@ -426,10 +426,6 @@ export class AppGenerateService extends BaseService {
                         : null,
                 registryModel: this.sandboxRegistryModel,
                 logger: this.logger,
-                idleTimeoutMs:
-                    this.lightdashConfig.appRuntime.sandboxIdleTimeoutMs,
-                snapshotRetentionMs:
-                    this.lightdashConfig.appRuntime.sandboxSnapshotRetentionMs,
             });
         }
         return this.sandboxManager;

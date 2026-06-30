@@ -17,7 +17,6 @@ export type DbSandboxRegistry = {
     status: SandboxRegistryStatus;
     snapshot_ref: SnapshotRef | null;
     workspace: PersistentWorkspace;
-    last_activity_at: Date;
     created_at: Date;
     updated_at: Date;
 };
@@ -36,11 +35,7 @@ export type SandboxRegistryTable = Knex.CompositeTableType<
     Partial<
         Pick<
             DbSandboxRegistry,
-            | 'provider_sandbox_id'
-            | 'status'
-            | 'snapshot_ref'
-            | 'last_activity_at'
-            | 'updated_at'
+            'provider_sandbox_id' | 'status' | 'snapshot_ref' | 'updated_at'
         >
     >
 >;

@@ -4,14 +4,10 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { posix } from 'node:path';
 import { Writable } from 'node:stream';
 import { SandboxCommandError, SandboxTimeoutError } from './errors';
+import { createGitOverCommands, shQuote } from './gitOverCommands';
 import { type SnapshotStore } from './SnapshotStore';
 import {
     type CommandResult,
-    type GitAddTarget,
-    type GitCloneOptions,
-    type GitCommitOptions,
-    type GitPushOptions,
-    type GitStatus,
     type PersistOptions,
     type RunOptions,
     type SandboxCapabilities,
@@ -30,9 +26,6 @@ const SANDBOX_LABEL = 'com.lightdash.sandbox';
  * `adjective_surname`. A short random suffix keeps each name unique. */
 const SANDBOX_NAME_PREFIX = 'lightdash-sandbox';
 
-/** Single-quote a path for safe interpolation into a `/bin/sh -c` string. */
-const shQuote = (value: string): string => `'${value.replace(/'/g, `'\\''`)}'`;
-
 /**
  * Strip the leading slash so a `tar -C / <path>` archives `home/user/repo`
  * rather than `/home/user/repo`, letting `tar -x -C /` restore it to the exact
@@ -40,17 +33,6 @@ const shQuote = (value: string): string => `'${value.replace(/'/g, `'\\''`)}'`;
  */
 const toArchiveRelative = (absolutePath: string): string =>
     absolutePath.replace(/^\/+/, '');
-
-/**
- * Build a `git -c http.extraHeader=...` prefix carrying HTTPS basic-auth
- * credentials. Passed per-invocation (never written to the repo's `.git/config`),
- * so it matches E2B's non-storing default — the cloned remote URL stays clean.
- * The same pattern GitHub Actions uses for token-authenticated checkouts.
- */
-const gitAuthPrefix = (username: string, password: string): string => {
-    const token = Buffer.from(`${username}:${password}`).toString('base64');
-    return `git -c ${shQuote(`http.extraHeader=AUTHORIZATION: basic ${token}`)}`;
-};
 
 const toEnvList = (
     envs: Record<string, string> | undefined,
@@ -63,16 +45,7 @@ class DockerSandboxHandle implements SandboxHandle {
     constructor(
         private readonly container: Container,
         readonly sandboxId: string,
-        private readonly logger: SandboxLogger,
     ) {}
-
-    // Docker has no native pause/resume snapshot — leaving the container
-    // running is the resumable state (see DESIGN.md §5.5). No-op by design.
-    async pause(): Promise<void> {
-        this.logger.debug(
-            `Docker sandbox ${this.sandboxId}: pause is a no-op (container left running)`,
-        );
-    }
 
     /**
      * Run an exec to completion, returning raw stdout/stderr buffers and the
@@ -242,86 +215,10 @@ class DockerSandboxHandle implements SandboxHandle {
         },
     };
 
-    // Git over `commands.run` with the system git binary. `commands.run` throws
-    // SandboxCommandError on a non-zero exit, so each operation fails loudly the
-    // way the E2B helper does. Credentials are supplied per-invocation via an
-    // auth header and never persisted to the repo (see `gitAuthPrefix`).
-    readonly git: SandboxGit = {
-        clone: async (url: string, options: GitCloneOptions): Promise<void> => {
-            const flags = [
-                options.depth !== undefined ? `--depth ${options.depth}` : '',
-                options.branch !== undefined
-                    ? `--branch ${shQuote(options.branch)}`
-                    : '',
-            ]
-                .filter(Boolean)
-                .join(' ');
-            await this.commands.run(
-                `${gitAuthPrefix(options.username, options.password)} clone ${flags} ${shQuote(url)} ${shQuote(options.path)}`,
-                options.timeoutMs !== undefined
-                    ? { timeoutMs: options.timeoutMs }
-                    : undefined,
-            );
-        },
-        status: async (path: string): Promise<GitStatus> => {
-            const branch = (
-                await this.commands.run(
-                    `git -C ${shQuote(path)} rev-parse --abbrev-ref HEAD`,
-                )
-            ).stdout.trim();
-            const porcelain = (
-                await this.commands.run(
-                    `git -C ${shQuote(path)} status --porcelain`,
-                )
-            ).stdout;
-            return {
-                // `rev-parse --abbrev-ref HEAD` prints `HEAD` on a detached head.
-                currentBranch: branch && branch !== 'HEAD' ? branch : null,
-                hasChanges: porcelain.trim().length > 0,
-            };
-        },
-        createBranch: async (path: string, branch: string): Promise<void> => {
-            await this.commands.run(
-                `git -C ${shQuote(path)} checkout -b ${shQuote(branch)}`,
-            );
-        },
-        add: async (path: string, target: GitAddTarget): Promise<void> => {
-            const spec =
-                'all' in target
-                    ? '-A'
-                    : `-- ${target.files.map(shQuote).join(' ')}`;
-            await this.commands.run(`git -C ${shQuote(path)} add ${spec}`);
-        },
-        commit: async (
-            path: string,
-            message: string,
-            options: GitCommitOptions,
-        ): Promise<void> => {
-            // Pass the message through a temp file (-F) so arbitrary content —
-            // newlines, quotes, co-author trailers — survives without shell
-            // quoting. user.* is set per-invocation so author == committer,
-            // matching the E2B helper's commit identity.
-            const msgPath = `/tmp/.ld-commit-msg-${randomBytes(4).toString('hex')}`;
-            await this.files.write(msgPath, message);
-            try {
-                await this.commands.run(
-                    `git -C ${shQuote(path)} ` +
-                        `-c user.name=${shQuote(options.authorName)} ` +
-                        `-c user.email=${shQuote(options.authorEmail)} ` +
-                        `commit -F ${shQuote(msgPath)}`,
-                );
-            } finally {
-                await this.files.remove(msgPath);
-            }
-        },
-        push: async (path: string, options: GitPushOptions): Promise<void> => {
-            const upstream = options.setUpstream ? '-u ' : '';
-            await this.commands.run(
-                `${gitAuthPrefix(options.username, options.password)} -C ${shQuote(path)} ` +
-                    `push ${upstream}${shQuote(options.remote)} ${shQuote(options.branch)}`,
-            );
-        },
-    };
+    // Git over the system git binary, via the shared `commands`/`files` helper
+    // (the same one the Lambda provider uses). Credentials are passed
+    // per-invocation and never persisted to the repo.
+    readonly git: SandboxGit = createGitOverCommands(this.commands, this.files);
 }
 
 /**
@@ -331,13 +228,7 @@ class DockerSandboxHandle implements SandboxHandle {
  * gated to non-production. See DESIGN.md §8.
  */
 export class DockerSandboxProvider implements SandboxProvider {
-    readonly capabilities: SandboxCapabilities = {
-        isolation: 'container',
-        pauseResume: false,
-        egressAllowlist: false,
-        warmPool: false,
-        persistence: 'objectstore',
-    };
+    readonly capabilities: SandboxCapabilities = { pauseResume: false };
 
     private docker: Docker | undefined;
 
@@ -378,7 +269,7 @@ export class DockerSandboxProvider implements SandboxProvider {
         this.logger.info(
             `Docker sandbox created (id=${container.id}, image=${this.image})`,
         );
-        return new DockerSandboxHandle(container, container.id, this.logger);
+        return new DockerSandboxHandle(container, container.id);
     }
 
     async connect(sandboxId: string): Promise<SandboxHandle> {
@@ -386,7 +277,7 @@ export class DockerSandboxProvider implements SandboxProvider {
         const container = docker.getContainer(sandboxId);
         // Throws if the container no longer exists — callers fall back to create.
         await container.inspect();
-        return new DockerSandboxHandle(container, sandboxId, this.logger);
+        return new DockerSandboxHandle(container, sandboxId);
     }
 
     async destroy(sandboxId: string): Promise<void> {
@@ -406,13 +297,6 @@ export class DockerSandboxProvider implements SandboxProvider {
                 );
             }
         }
-    }
-
-    // No native pause: the running container is itself the resumable state.
-    async pause(sandboxId: string): Promise<void> {
-        this.logger.debug(
-            `Docker sandbox ${sandboxId}: provider pause is a no-op`,
-        );
     }
 
     /**

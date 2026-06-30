@@ -49,10 +49,6 @@ class E2bSandboxHandle implements SandboxHandle {
         return this.sandbox.sandboxId;
     }
 
-    async pause(): Promise<void> {
-        await this.sandbox.pause();
-    }
-
     readonly commands = {
         run: async (
             command: string,
@@ -163,13 +159,7 @@ class E2bSandboxHandle implements SandboxHandle {
  * reference implementation and the managed default.
  */
 export class E2bSandboxProvider implements SandboxProvider {
-    readonly capabilities: SandboxCapabilities = {
-        isolation: 'microvm',
-        pauseResume: true,
-        egressAllowlist: true,
-        warmPool: false,
-        persistence: 'memory',
-    };
+    readonly capabilities: SandboxCapabilities = { pauseResume: true };
 
     constructor(private readonly apiKey: string) {}
 
@@ -199,10 +189,6 @@ export class E2bSandboxProvider implements SandboxProvider {
         await Sandbox.kill(sandboxId, { apiKey: this.apiKey });
     }
 
-    async pause(sandboxId: string): Promise<void> {
-        await Sandbox.pause(sandboxId, { apiKey: this.apiKey });
-    }
-
     // Native in-memory pause IS the snapshot: the paused sandbox keeps RAM, disk
     // and live processes, so the declared workspace is irrelevant here. The ref
     // is just the sandboxId to reconnect to.
@@ -210,7 +196,7 @@ export class E2bSandboxProvider implements SandboxProvider {
         handle: SandboxHandle,
         _options: PersistOptions,
     ): Promise<SnapshotRef> {
-        await this.pause(handle.sandboxId);
+        await Sandbox.pause(handle.sandboxId, { apiKey: this.apiKey });
         return { kind: 'e2b-paused', sandboxId: handle.sandboxId };
     }
 
