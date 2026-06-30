@@ -10,6 +10,7 @@ import {
     Group,
     Loader,
     Modal,
+    Select,
     Stack,
     Text,
     TextInput,
@@ -25,6 +26,7 @@ import {
     useProjectDbtSources,
 } from '../../hooks/useProjectDbtSources';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
+import { useGitHubRepositories } from '../common/GithubIntegration/hooks/useGithubIntegration';
 import MantineIcon from '../common/MantineIcon';
 
 const DbtSourceRow: FC<{
@@ -75,6 +77,7 @@ const AddDbtSourceModal: FC<{
     onClose: () => void;
 }> = ({ projectUuid, opened, onClose }) => {
     const createMutation = useCreateProjectDbtSourceMutation(projectUuid);
+    const { data: repositories } = useGitHubRepositories();
     const form = useForm({
         initialValues: {
             name: '',
@@ -126,12 +129,26 @@ const AddDbtSourceModal: FC<{
                         required
                         {...form.getInputProps('name')}
                     />
-                    <TextInput
-                        label="Repository"
-                        placeholder="owner/repository"
-                        required
-                        {...form.getInputProps('repository')}
-                    />
+                    {repositories && repositories.length > 0 ? (
+                        <Select
+                            label="Repository"
+                            placeholder="Select a repository"
+                            searchable
+                            required
+                            data={repositories.map((repo) => ({
+                                value: repo.fullName,
+                                label: repo.fullName,
+                            }))}
+                            {...form.getInputProps('repository')}
+                        />
+                    ) : (
+                        <TextInput
+                            label="Repository"
+                            placeholder="owner/repository"
+                            required
+                            {...form.getInputProps('repository')}
+                        />
+                    )}
                     <TextInput
                         label="Branch"
                         required
