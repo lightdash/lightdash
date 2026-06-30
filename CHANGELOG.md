@@ -1,3 +1,10 @@
+# [0.3266.0](https://github.com/lightdash/lightdash/compare/0.3265.2...0.3266.0) (2026-06-30)
+
+
+### Features
+
+* add external connection onboarding wizard (GLITCH-544) ([#24933](https://github.com/lightdash/lightdash/issues/24933)) ([07da4ac](https://github.com/lightdash/lightdash/commit/07da4ac9f61451144cac02f420abff1c6a413a6b))
+
 ## [0.3265.2](https://github.com/lightdash/lightdash/compare/0.3265.1...0.3265.2) (2026-06-30)
 
 
