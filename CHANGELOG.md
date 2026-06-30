@@ -1,3 +1,15 @@
+# [0.3263.0](https://github.com/lightdash/lightdash/compare/0.3262.2...0.3263.0) (2026-06-30)
+
+
+### Bug Fixes
+
+* **dashboard:** keep one route Component so adding the first tab persists ([#24921](https://github.com/lightdash/lightdash/issues/24921)) ([84d2531](https://github.com/lightdash/lightdash/commit/84d2531e94db0245753c61e1f8fd5b2ab8b585be)), closes [#24493](https://github.com/lightdash/lightdash/issues/24493)
+
+
+### Features
+
+* block file reader functions and table paths in user SQL for DuckDB ([#24919](https://github.com/lightdash/lightdash/issues/24919)) ([aedf194](https://github.com/lightdash/lightdash/commit/aedf1940d4d7d6bdf5f5a0de6dec9d0a6656e4f9))
+
 ## [0.3262.2](https://github.com/lightdash/lightdash/compare/0.3262.1...0.3262.2) (2026-06-30)
 
 
