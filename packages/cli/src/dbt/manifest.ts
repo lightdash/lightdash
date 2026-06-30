@@ -1,13 +1,15 @@
-import {
-    DbtManifest,
-    DbtNode,
-    DbtRawModelNode,
-    getErrorMessage,
-} from '@lightdash/common';
+import { DbtManifest, getErrorMessage } from '@lightdash/common';
 import { promises as fs } from 'fs';
 import fetch from 'node-fetch';
 import * as path from 'path';
 import globalState from '../globalState';
+
+// The merge core moved to @lightdash/common (server + CLI share one implementation);
+// re-exported here so existing CLI imports of combineManifests are unchanged.
+export {
+    combineManifests,
+    type CombineManifestsResult,
+} from '@lightdash/common';
 
 export type LoadManifestArgs = {
     targetDir: string;
@@ -71,45 +73,4 @@ export const loadCombineManifest = async (
         return loadManifestFromUrl(pathOrUrl);
     }
     return loadManifestFromFile(path.resolve(pathOrUrl));
-};
-
-export type CombineManifestsResult = {
-    manifest: DbtManifest;
-    addedModelIds: string[];
-};
-
-/**
- * Merge model nodes from `external` into `primary`. Nodes already present in
- * `primary` keep their primary version (primary wins on conflict). Returns the
- * combined manifest and the unique_ids of model nodes pulled in from the
- * external manifest, so callers can mark them as compiled.
- *
- * Only external models with `compiled === true` are reported in
- * `addedModelIds` — non-compiled nodes are still merged into `nodes` so join
- * lookups by name keep working, but they are not turned into explores.
- *
- * Metrics, docs, and metadata are taken from `primary` only.
- */
-export const combineManifests = (
-    primary: DbtManifest,
-    external: DbtManifest,
-): CombineManifestsResult => {
-    const mergedNodes: Record<string, DbtNode> = { ...external.nodes };
-    Object.assign(mergedNodes, primary.nodes);
-
-    const addedModelIds: string[] = [];
-    Object.entries(external.nodes).forEach(([id, node]) => {
-        if (
-            !(id in primary.nodes) &&
-            node.resource_type === 'model' &&
-            (node as DbtRawModelNode).compiled === true
-        ) {
-            addedModelIds.push(id);
-        }
-    });
-
-    return {
-        manifest: { ...primary, nodes: mergedNodes },
-        addedModelIds,
-    };
 };
