@@ -4290,7 +4290,7 @@ Usage Tips:
 - Specify the table and field you want to search values for
 - Query parameter: use it to narrow down the search to matching values
 - Optionally add filters to further restrict the results
-- Results are returned as a list of unique field values (limited to 100)
+- Results are returned as a list of unique field values (limited to 50). Use the query parameter to find values beyond this cap.
 ",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",

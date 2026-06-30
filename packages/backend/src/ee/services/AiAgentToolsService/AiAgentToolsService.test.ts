@@ -393,6 +393,43 @@ describe('AiAgentToolsService', () => {
         },
     });
 
+    it('searches agent field values with a capped limit and passes the query through', async () => {
+        const searchFieldUniqueValues = vi
+            .fn()
+            .mockResolvedValue({ results: ['shipped', 'pending'] });
+        const service = makeService({
+            explores: {
+                orders: makeExplore({
+                    name: 'orders',
+                    dimensions: {
+                        status: {
+                            name: 'status',
+                            table: 'orders',
+                            type: 'string',
+                        },
+                    },
+                }),
+            },
+            searchFieldUniqueValues,
+        });
+        const runtime = service.createRuntime(makeRuntimeContext());
+
+        const results = await runtime.searchFieldValues({
+            table: 'orders',
+            fieldId: 'orders_status',
+            query: 'shi',
+        });
+
+        expect(results).toEqual(['shipped', 'pending']);
+        expect(searchFieldUniqueValues).toHaveBeenCalledTimes(1);
+        const callArgs = searchFieldUniqueValues.mock.calls[0];
+        // 5th positional arg is the search term, 6th is the limit. The agent
+        // caps results to 50 (parity with the app's filter autocomplete) rather
+        // than the previous 100.
+        expect(callArgs[4]).toBe('shi');
+        expect(callArgs[5]).toBe(50);
+    });
+
     it('does not search MCP field values when the field is outside the scoped explore', async () => {
         const searchFieldUniqueValues = vi.fn();
         const service = makeService({

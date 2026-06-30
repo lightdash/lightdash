@@ -111,6 +111,12 @@ const CONTENT_AS_CODE_TYPE_LABELS = {
     chart: 'Chart',
 } as const satisfies Record<ContentAsCodeType, string>;
 
+// Max distinct field values returned to the agent per search. Kept in line with
+// the app's filter autocomplete (`MAX_AUTOCOMPLETE_RESULTS = 50`): the agent
+// only needs a representative sample to build filters, and a smaller cap means
+// less to sort/transfer warehouse-side and fewer tokens for the model to read.
+const AI_FIELD_VALUE_SEARCH_LIMIT = 50;
+
 export type AiAgentToolsSource = 'ai_agent' | 'mcp';
 
 export type AiAgentToolsRuntimeContext = {
@@ -1734,7 +1740,7 @@ export class AiAgentToolsService extends BaseService {
                         args.table,
                         args.fieldId,
                         args.query,
-                        100,
+                        AI_FIELD_VALUE_SEARCH_LIMIT,
                         andFilters,
                         false,
                         undefined,
