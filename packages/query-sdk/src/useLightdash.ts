@@ -27,6 +27,16 @@ import type {
     UnderlyingDataResult,
 } from './types';
 
+export type LineageProps = { 'data-ld-query'?: string };
+
+/**
+ * Props an app spreads onto the root element of a query-bound block so the
+ * Lightdash parent can trace a clicked element back to its query.
+ * Empty (spread-safe) until the query has a queryUuid.
+ */
+export const buildLineageProps = (queryUuid: string | null): LineageProps =>
+    queryUuid ? { 'data-ld-query': queryUuid } : {};
+
 const noopFormat: FormatFunction = (_row, _fieldId) => '';
 
 type UseLightdashResult = {
@@ -46,6 +56,8 @@ type UseLightdashResult = {
     refetch: () => void;
     /** Async query UUID for the source query, once loaded. */
     queryUuid: string | null;
+    /** Spread onto the root element of this query's UI block to enable data lineage. */
+    lineage: LineageProps;
     /** Fetch raw rows behind an aggregated metric value from this query result. */
     getUnderlyingData: (
         options: UnderlyingDataOptions,
@@ -95,6 +107,8 @@ export function useLightdash(query: QueryBuilder): UseLightdashResult {
     const refetch = useCallback(() => {
         setFetchCount((c) => c + 1);
     }, []);
+
+    const lineage = useMemo(() => buildLineageProps(queryUuid), [queryUuid]);
 
     useEffect(() => {
         let cancelled = false;
@@ -189,6 +203,7 @@ export function useLightdash(query: QueryBuilder): UseLightdashResult {
         error,
         refetch,
         queryUuid,
+        lineage,
         getUnderlyingData,
         downloadUnderlyingData,
         downloadResults,

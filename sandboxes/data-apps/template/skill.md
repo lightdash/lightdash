@@ -333,6 +333,11 @@ query('orders').label('KPI Summary').metrics(['total_revenue', 'order_count']).l
 
 The query inspector shows for each query: the label, status, row count, duration, explore name, dimensions, and metrics. If present, it also shows table calculations and additional metrics. Write clear labels so users can match each inspector entry to the component it powers.
 
+**Spread `lineage` on each query block** — `useLightdash` returns a `lineage`
+prop bag; spread it onto the root element of the card/table/chart that renders
+that query (e.g. `<Card {...lineage}>`). This lets users click a value to see
+which query produced it. One spread per query block is enough.
+
 ### Table calculations
 
 Table calculations are computed columns evaluated after the warehouse query returns. They can reference dimensions and metrics using `${table.field}` syntax in their SQL expression.
