@@ -261,10 +261,16 @@ export class AiAgentDocumentService extends BaseService {
             user,
             body,
         );
-        const modelOptions = getModel(this.lightdashConfig.ai.copilot, {
-            enableReasoning: false,
-            useFastModel: true,
-        });
+        const modelOptions = {
+            ...getModel(this.lightdashConfig.ai.copilot, {
+                enableReasoning: false,
+                useFastModel: true,
+            }),
+            telemetry: {
+                organizationUuid,
+                userUuid: user.userUuid,
+            },
+        };
         let summary: AiAgentDocument['summary'];
         try {
             summary = await generateDocumentSummary(modelOptions, {

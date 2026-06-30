@@ -86,6 +86,7 @@ import type { SpacePermissionService } from '../../../services/SpaceService/Spac
 import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { getModel } from '../ai/models';
+import { getAiCallTelemetry } from '../ai/utils/aiCallTelemetry';
 import {
     createSandboxProvider,
     SandboxCommandError,
@@ -3310,6 +3311,13 @@ export class AppGenerateService extends BaseService {
                 model: modelOptions.model,
                 ...modelOptions.callOptions,
                 providerOptions: modelOptions.providerOptions,
+                experimental_telemetry: getAiCallTelemetry({
+                    functionId: 'clarifyApp',
+                    feature: 'data-app',
+                    organizationUuid,
+                    projectUuid,
+                    userUuid: user.userUuid,
+                }),
                 schema: clarifySchema,
                 abortSignal: AbortSignal.timeout(CLARIFY_TIMEOUT_MS),
                 messages: [

@@ -55,6 +55,8 @@ export type DiscoverFieldsAgentArgs = {
         | 'agentSettings'
         | 'threadUuid'
         | 'promptUuid'
+        | 'organizationId'
+        | 'userId'
         | 'telemetryEnabled'
         | 'model'
     >;
@@ -141,6 +143,7 @@ export const runDiscoverFieldsAgent = (
         experimental_telemetry: getAgentTelemetryConfig(
             'discoverFieldsSubagent',
             args.telemetry,
+            'agent-subtask',
         ),
         onChunk: ({ chunk }) => {
             if (chunk.type === 'tool-call') {

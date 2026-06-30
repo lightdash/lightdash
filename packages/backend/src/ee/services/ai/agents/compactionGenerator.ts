@@ -1,5 +1,6 @@
 import { generateText } from 'ai';
 import { GeneratorModelOptions } from '../models/types';
+import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
 
 export async function generateCompactionSummary(
     modelOptions: GeneratorModelOptions,
@@ -15,6 +16,11 @@ export async function generateCompactionSummary(
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
+        experimental_telemetry: getGeneratorTelemetry(
+            modelOptions,
+            'generateCompactionSummary',
+            'compaction',
+        ),
         messages: [
             {
                 role: 'system',

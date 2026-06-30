@@ -1,5 +1,6 @@
 import { generateObject, LanguageModel } from 'ai';
 import { z } from 'zod';
+import { getAiCallTelemetry } from '../utils/aiCallTelemetry';
 
 const ProjectRoutingSchema = z.object({
     reasoning: z
@@ -41,6 +42,10 @@ export async function routeProjectForSlack(
 
     const result = await generateObject({
         model,
+        experimental_telemetry: getAiCallTelemetry({
+            functionId: 'routeProjectForSlack',
+            feature: 'project-router',
+        }),
         schema: ProjectRoutingSchema,
         messages: [
             {

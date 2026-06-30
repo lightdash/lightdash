@@ -10,6 +10,7 @@ import { generateObject } from 'ai';
 import { z } from 'zod';
 import Logger from '../../../../logging/logger';
 import { GeneratorModelOptions } from '../models/types';
+import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
 import {
     CustomFormatSchema,
     sanitizeCustomFormat,
@@ -343,6 +344,11 @@ export async function generateFormulaTableCalculation(
             model: modelOptions.model,
             ...modelOptions.callOptions,
             providerOptions: modelOptions.providerOptions,
+            experimental_telemetry: getGeneratorTelemetry(
+                modelOptions,
+                'generateFormulaTableCalculation',
+                'formula-table-calc',
+            ),
             schema: FormulaTableCalculationSchema,
             messages: [
                 { role: 'system', content: systemPrompt },

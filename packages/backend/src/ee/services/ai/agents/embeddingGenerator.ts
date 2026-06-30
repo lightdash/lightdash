@@ -4,6 +4,7 @@ import { LightdashConfig } from '../../../../config/parseConfig';
 import { getAzureProvider } from '../models/azure-openai-gpt-4.1';
 import { getBedrockEmbeddingModel } from '../models/bedrock';
 import { getOpenAIEmbeddingModel } from '../models/openai-embedding';
+import { getAiCallTelemetry } from '../utils/aiCallTelemetry';
 
 const EMBEDDING_DIMENSIONS = 1536;
 
@@ -76,13 +77,11 @@ export async function generateEmbedding(
     let { embedding } = await embed({
         model,
         value: trimmedText,
-        experimental_telemetry: {
+        experimental_telemetry: getAiCallTelemetry({
             functionId: 'generateEmbedding',
-            isEnabled: true,
-            recordInputs: false,
-            recordOutputs: false,
-            metadata,
-        },
+            feature: 'embedding',
+            extra: metadata,
+        }),
         // TODO :: provider options to set dimensions
     });
 

@@ -5,8 +5,10 @@ import type {
     BetaManagedAgentsAgent,
 } from '@anthropic-ai/sdk/resources/beta/agents';
 import { ParameterError } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import type { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
+import { traceSpan } from '../../tracing/tracing';
 import {
     getManagedAgentConfigHash,
     renderManagedAgentConfig,
@@ -287,6 +289,42 @@ export class ManagedAgentClient {
         sessionId: string;
         slackSummary: string | null;
     }> {
+        // Managed-agent sessions run on Anthropic's Agents API (not the Vercel
+        // AI SDK), so they need a manual span to show up in tracing alongside
+        // the auto-instrumented AI-SDK calls. Token usage isn't surfaced in the
+        // session event stream — attribution + latency only for now.
+        return traceSpan(
+            {
+                name: 'managed_agent.session',
+                op: 'ai.managed_agent',
+                attributes: {
+                    feature: 'managed-agent',
+                    'gen_ai.system': 'anthropic',
+                    'lightdash.resource_name': sessionConfig.resourceName,
+                    'lightdash.project_name': projectName,
+                },
+            },
+            (span) =>
+                this.runManagedAgentSession(
+                    sessionConfig,
+                    projectName,
+                    onCustomToolUse,
+                    span,
+                    onSessionCreated,
+                ),
+        );
+    }
+
+    private async runManagedAgentSession(
+        sessionConfig: ManagedAgentSessionConfig,
+        projectName: string,
+        onCustomToolUse: CustomToolHandler,
+        span: Sentry.Span,
+        onSessionCreated?: (sessionId: string) => void,
+    ): Promise<{
+        sessionId: string;
+        slackSummary: string | null;
+    }> {
         const client = this.getAnthropicClient();
         const { agentId, environmentId, vaultId } =
             await this.ensureAgentAndEnvironment(client, sessionConfig);
@@ -299,6 +337,10 @@ export class ManagedAgentClient {
         });
 
         Logger.info(`[ManagedAgent] Session created: ${session.id}`);
+        span.setAttributes({
+            'gen_ai.agent.id': agentId,
+            'gen_ai.session.id': session.id,
+        });
         onSessionCreated?.(session.id);
 
         const stream = await client.beta.sessions.events.stream(session.id);

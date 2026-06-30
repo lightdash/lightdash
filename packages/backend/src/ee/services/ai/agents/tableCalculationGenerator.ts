@@ -13,6 +13,7 @@ import {
 import { generateObject } from 'ai';
 import { z } from 'zod';
 import { GeneratorModelOptions } from '../models/types';
+import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
 
 export const CustomFormatSchema = z.object({
     type: z
@@ -264,6 +265,11 @@ export async function generateTableCalculation(
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
+        experimental_telemetry: getGeneratorTelemetry(
+            modelOptions,
+            'generateTableCalculation',
+            'table-calc',
+        ),
         schema: TableCalculationSchema,
         messages: [
             {

@@ -1586,10 +1586,9 @@ export class AiAgentService extends BaseService {
                     thread: threadContext ?? undefined,
                 },
                 {
-                    organizationId: organizationUuid,
-                    projectId: projectUuid,
-                    agentId: agentUuid,
-                    mode: threadContext ? 'post-response' : 'empty-state',
+                    organizationUuid,
+                    projectUuid,
+                    agentUuid,
                 },
             );
 
@@ -3924,11 +3923,18 @@ export class AiAgentService extends BaseService {
             return latestCompaction ?? null;
         }
 
-        const compactionModel = getModel(this.lightdashConfig.ai.copilot, {
-            provider: prompt.modelConfig?.modelProvider as AnyType,
-            modelName: prompt.modelConfig?.modelName,
-            useFastModel: true,
-        });
+        const compactionModel = {
+            ...getModel(this.lightdashConfig.ai.copilot, {
+                provider: prompt.modelConfig?.modelProvider as AnyType,
+                modelName: prompt.modelConfig?.modelName,
+                useFastModel: true,
+            }),
+            telemetry: {
+                organizationUuid: user.organizationUuid ?? null,
+                threadUuid,
+                promptUuid: previousPrompt.ai_prompt_uuid,
+            },
+        };
 
         const serializedInput =
             Compaction.serializeConversation(messagesToCompact);
@@ -4571,10 +4577,18 @@ export class AiAgentService extends BaseService {
                 });
 
             // Use fast model for title generation (lightweight task)
-            const modelOptions = getModel(this.lightdashConfig.ai.copilot, {
-                enableReasoning: false,
-                useFastModel: true,
-            });
+            const modelOptions = {
+                ...getModel(this.lightdashConfig.ai.copilot, {
+                    enableReasoning: false,
+                    useFastModel: true,
+                }),
+                telemetry: {
+                    organizationUuid: user.organizationUuid ?? null,
+                    agentUuid,
+                    threadUuid,
+                    userUuid: user.userUuid,
+                },
+            };
 
             // Generate title using the dedicated title generator
             const title = await generateTitleFromMessages(
