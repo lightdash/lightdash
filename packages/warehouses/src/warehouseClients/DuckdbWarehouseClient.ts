@@ -1450,6 +1450,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         db: DuckdbConnection,
         sql: string,
     ): Promise<void> {
+        DuckdbWarehouseClient.validateUserSqlFileAccess(sql);
+
         const extracted = await db.extractStatements(sql);
 
         if (extracted.count === 0) {
@@ -1474,7 +1476,6 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         }
 
         DuckdbWarehouseClient.validateSqlFunctions(sql);
-        DuckdbWarehouseClient.validateUserSqlFileAccess(sql);
     }
 
     private async validateInternalSql(
