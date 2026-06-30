@@ -1,17 +1,19 @@
 import {
     convertFieldRefToFieldId,
     isJoinModelRequiredFilter,
+    type CompiledTable,
+    type Explore,
     type ModelRequiredFilterRule,
 } from '@lightdash/common';
 import type { AiAgentRequiredFilterMetadata } from '../types/aiAgentDependencies';
 
-export const getRequiredFilterMetadata = (
+const getRequiredFilterMetadata = (
     filter: ModelRequiredFilterRule,
-    fallbackTableName: string,
+    baseTableName: string,
 ): AiAgentRequiredFilterMetadata => {
     const tableName = isJoinModelRequiredFilter(filter)
         ? filter.target.tableName
-        : fallbackTableName;
+        : baseTableName;
 
     return {
         fieldId: convertFieldRefToFieldId(filter.target.fieldRef, tableName),
@@ -24,15 +26,8 @@ export const getRequiredFilterMetadata = (
     };
 };
 
-type ExploreRequiredFiltersSource = {
-    baseTable: string;
-    tables: Record<
-        string,
-        | {
-              requiredFilters?: ModelRequiredFilterRule[];
-          }
-        | undefined
-    >;
+type ExploreRequiredFiltersSource = Pick<Explore, 'baseTable'> & {
+    tables: Record<string, Pick<CompiledTable, 'requiredFilters'> | undefined>;
 };
 
 export const getExploreRequiredFilters = (
