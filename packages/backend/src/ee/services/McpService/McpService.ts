@@ -174,6 +174,8 @@ export enum McpToolName {
 // Skills-over-MCP extension identifier (SEP-2640).
 const MCP_SKILLS_EXTENSION_NAME = 'io.modelcontextprotocol/skills';
 
+const structuredToolContentSchema = z.record(z.string(), z.unknown());
+
 const mcpRunAiWritebackTool = runAiWritebackToolDefinition.for('mcp');
 const mcpGetLightdashVersionTool = getLightdashVersionToolDefinition.for('mcp');
 const mcpListExploresTool = listExploresToolDefinition.for('mcp');
@@ -473,14 +475,46 @@ export class McpService extends BaseService {
     static async streamToolResult<T extends { result: string }>(
         result: T | AsyncIterable<T>,
     ) {
-        if (Symbol.asyncIterator in result) {
-            let out = '';
-            for await (const chunk of result) {
-                out += chunk.result;
-            }
-            return out;
+        const { resultText } = await McpService.streamToolResponse(result);
+        return resultText;
+    }
+
+    private static parseToolStructuredContent(
+        toolResult: string,
+    ): Record<string, unknown> | undefined {
+        try {
+            const parsed: unknown = JSON.parse(toolResult);
+            const structuredContent =
+                structuredToolContentSchema.safeParse(parsed);
+            return structuredContent.success
+                ? structuredContent.data
+                : undefined;
+        } catch {
+            return undefined;
         }
-        return result.result;
+    }
+
+    static async streamToolResponse<T extends { result: string }>(
+        result: T | AsyncIterable<T>,
+    ): Promise<{
+        resultText: string;
+        structuredContent?: Record<string, unknown>;
+    }> {
+        let resultText = '';
+
+        if (Symbol.asyncIterator in result) {
+            for await (const chunk of result) {
+                resultText += chunk.result;
+            }
+        } else {
+            resultText = result.result;
+        }
+
+        return {
+            resultText,
+            structuredContent:
+                McpService.parseToolStructuredContent(resultText),
+        };
     }
 
     private static getMcpQueryWaitMs(
@@ -1354,7 +1388,8 @@ export class McpService extends BaseService {
                         experimental_context: { availableExplores },
                     },
                 );
-                const resultText = await McpService.streamToolResult(result);
+                const { resultText, structuredContent } =
+                    await McpService.streamToolResponse(result);
                 const metadata = await this.getActiveContextMetadata(ctx);
 
                 const verifiedAnswerContext = metadata.agentUuid
@@ -1380,7 +1415,11 @@ export class McpService extends BaseService {
                 return this.buildScopedResponse(
                     ctx,
                     `${resultText}${verifiedAnswersText}`,
-                    verifiedAnswerContext,
+                    {
+                        ...(structuredContent ?? {}),
+                        relevantVerifiedAnswers:
+                            verifiedAnswerContext.relevantVerifiedAnswers,
+                    },
                     projectUuid,
                 );
             },
@@ -1419,11 +1458,13 @@ export class McpService extends BaseService {
                     toolCallId: '',
                     messages: [],
                 });
+                const { resultText, structuredContent } =
+                    await McpService.streamToolResponse(result);
 
                 return this.buildScopedResponse(
                     ctx,
-                    await McpService.streamToolResult(result),
-                    undefined,
+                    resultText,
+                    structuredContent,
                     projectUuid,
                 );
             },

@@ -681,7 +681,48 @@ describe('MCP async query polling', () => {
         expect(getTextResult(result)).toContain('Revenue by month');
         expect(result).toMatchObject({
             structuredContent: {
+                searchQuery: 'Show me revenue by month',
+                searchResults: expect.objectContaining({
+                    results: expect.any(Array),
+                }),
+                topMatchingFields: {
+                    count: 1,
+                    fields: [
+                        expect.objectContaining({
+                            name: 'orders_count',
+                            exploreName: 'orders',
+                        }),
+                    ],
+                },
                 relevantVerifiedAnswers: [relevantVerifiedAnswer],
+            },
+        });
+    });
+
+    it('returns structured field search content in find_fields', async () => {
+        makeMcpService();
+
+        const result = await getToolCallback(McpToolName.FIND_FIELDS)(
+            {
+                table: 'orders',
+                fieldSearchQueries: [{ label: 'orders count' }],
+            },
+            extra,
+        );
+
+        expect(result).toMatchObject({
+            content: [
+                expect.objectContaining({
+                    text: expect.stringContaining('"searchResults"'),
+                }),
+            ],
+            structuredContent: {
+                searchResults: [
+                    expect.objectContaining({
+                        searchQuery: 'orders count',
+                        fields: [],
+                    }),
+                ],
             },
         });
     });
