@@ -105,6 +105,18 @@ export const MODEL_PRESETS: {
     ],
     anthropic: [
         {
+            name: 'claude-sonnet-5',
+            provider: 'anthropic',
+            modelId: 'claude-sonnet-5',
+            displayName: 'Claude Sonnet 5',
+            description: 'Newest Sonnet model balancing speed and intelligence',
+            contextWindowTokens: 200000,
+            supportsReasoning: true,
+            reasoningStyle: 'adaptive',
+            callOptions: {},
+            providerOptions: undefined,
+        },
+        {
             name: 'claude-opus-4-7',
             provider: 'anthropic',
             modelId: 'claude-opus-4-7',
