@@ -7,8 +7,9 @@ mechanics live in package-level `CLAUDE.md` files. This doc maps the whole
 pipeline from one place so you can find your way around, then drill into the
 authoritative source for each stage.
 
-Keep this file thin. When the deep mechanics change, update the linked `CLAUDE.md`
-— not this overview.
+This file is the high-level overview — keep it at that altitude. The detailed
+mechanics live in the linked `CLAUDE.md` files; update those when the internals
+change.
 
 ## The one idea: pivoting is two-phase
 
@@ -124,7 +125,7 @@ Cross-cutting terms only — fuller definitions live in the linked package docs.
 
 ## Related docs
 
-Deep dives (authoritative — update these, not this file):
+Deep dives — the authoritative source for each stage's detailed mechanics:
 
 - [`packages/backend/src/utils/QueryBuilder/CLAUDE.md`](../packages/backend/src/utils/QueryBuilder/CLAUDE.md) — SQL generation, CTE modes, anchors.
 - [`packages/frontend/src/components/common/PivotTable/CLAUDE.md`](../packages/frontend/src/components/common/PivotTable/CLAUDE.md) — `PivotData` structure and rendering.
