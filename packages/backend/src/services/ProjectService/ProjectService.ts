@@ -3877,21 +3877,46 @@ export class ProjectService extends BaseService {
 
         const built = await Promise.all(
             compilableSources.map(async (source) => {
-                const sourceAdapter = await this.buildSourceAdapter(
-                    source.dbtConnection,
-                    organizationUuid,
-                    shared,
-                );
-                const { manifest } = await sourceAdapter.getDbtManifest();
-                return {
-                    sourceAdapter,
-                    name: source.name,
-                    precedence: source.precedence,
-                    manifest,
-                };
+                // Name the source (and repo) in any failure so the user can tell
+                // which one to fix — the raw git error only mentions a temp dir.
+                const repoSuffix =
+                    'repository' in source.dbtConnection &&
+                    source.dbtConnection.repository
+                        ? ` (${source.dbtConnection.repository})`
+                        : '';
+                let sourceAdapter: ProjectAdapter;
+                try {
+                    sourceAdapter = await this.buildSourceAdapter(
+                        source.dbtConnection,
+                        organizationUuid,
+                        shared,
+                    );
+                } catch (e) {
+                    throw new ParameterError(
+                        `Failed to connect dbt source "${source.name}"${repoSuffix}: ${getErrorMessage(
+                            e,
+                        )}`,
+                    );
+                }
+                // Push before fetching the manifest so the caller's cleanup
+                // destroys this clone even if the fetch below throws.
+                manifestFetchAdapters.push(sourceAdapter);
+                try {
+                    const { manifest } = await sourceAdapter.getDbtManifest();
+                    return {
+                        name: source.name,
+                        precedence: source.precedence,
+                        manifest,
+                    };
+                } catch (e) {
+                    throw new ParameterError(
+                        `Failed to load dbt source "${source.name}"${repoSuffix}: ${getErrorMessage(
+                            e,
+                        )}`,
+                    );
+                }
             }),
         );
-        built.forEach((b) => manifestFetchAdapters.push(b.sourceAdapter));
 
         const manifestSources: ManifestSource[] = [
             { name: 'primary', precedence: 0, manifest: primaryManifest },
