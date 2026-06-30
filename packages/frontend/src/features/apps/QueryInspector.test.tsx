@@ -1,6 +1,6 @@
 // QueryInspector.test.tsx
 import { MantineProvider } from '@mantine-8/core';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render } from '@testing-library/react';
 import QueryInspector from './QueryInspector';
 
 const baseQuery = {
@@ -49,9 +49,51 @@ describe('QueryInspector lineage hooks', () => {
         expect(onHoverQuery).toHaveBeenCalledWith(null);
     });
 
-    it('expands the focused query so its UUID is visible', () => {
-        Element.prototype.scrollIntoView = vi.fn();
-        renderInspector({ focusedQueryUuid: 'q-1' });
-        expect(screen.getByText('q-1')).toBeInTheDocument();
+    describe('focus reveal', () => {
+        // jsdom does not implement scrollIntoView; install a vi.fn() on the
+        // prototype for the duration of each test and clean it up afterwards
+        // so it does not bleed into other suites.
+        let scrollIntoViewMock: ReturnType<typeof vi.fn>;
+
+        beforeEach(() => {
+            scrollIntoViewMock = vi.fn();
+            Object.defineProperty(Element.prototype, 'scrollIntoView', {
+                configurable: true,
+                writable: true,
+                value: scrollIntoViewMock,
+            });
+        });
+
+        afterEach(() => {
+            delete (Element.prototype as Partial<Element>).scrollIntoView;
+        });
+
+        it('scrolls the focused row into view with smooth behavior', () => {
+            renderInspector({
+                focusedQueryUuid: 'q-1',
+                defaultCollapsed: false,
+            });
+            expect(scrollIntoViewMock).toHaveBeenCalledWith({
+                behavior: 'smooth',
+                block: 'nearest',
+            });
+        });
+
+        it('does NOT scroll when focusedQueryUuid does not match any row', () => {
+            renderInspector({
+                focusedQueryUuid: 'does-not-exist',
+                defaultCollapsed: false,
+            });
+            expect(scrollIntoViewMock).not.toHaveBeenCalled();
+        });
+
+        it('applies the focused CSS class to the matching row', () => {
+            renderInspector({
+                focusedQueryUuid: 'q-1',
+                defaultCollapsed: false,
+            });
+            const row = document.querySelector('[data-query-uuid="q-1"]')!;
+            expect(row.className).toMatch(/queryRowFocused/);
+        });
     });
 });
