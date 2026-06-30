@@ -21,20 +21,11 @@ export async function up(knex: Knex): Promise<void> {
             // only one primary per project (partial unique index below).
             tableBuilder.boolean('is_primary').notNullable().defaultTo(false);
             tableBuilder.integer('precedence').notNullable().defaultTo(0);
-            // Per-source dbt connection: nullable because a CLI-only source has no
-            // git connection (it uploads compiled manifests directly).
+            // Per-source dbt connection (git/dbt-cloud), encrypted with the same
+            // EncryptionUtil as projects.dbt_connection. The source is recompiled
+            // from this connection at deploy/preview time.
             tableBuilder.text('dbt_connection_type').nullable();
-            tableBuilder.binary('dbt_connection').nullable(); // encrypted, same EncryptionUtil as projects
-            // Where the source's latest compiled manifest lives: 'inline' (in
-            // dbt_connection) or 's3' (manifest_s3_key). Revived from #24323.
-            tableBuilder
-                .text('manifest_source_type')
-                .notNullable()
-                .defaultTo('inline');
-            tableBuilder.text('manifest_s3_key').nullable();
-            tableBuilder
-                .timestamp('manifest_updated_at', { useTz: false })
-                .nullable();
+            tableBuilder.binary('dbt_connection').nullable();
             tableBuilder
                 .timestamp('created_at', { useTz: false })
                 .notNullable()

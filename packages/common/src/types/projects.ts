@@ -866,19 +866,12 @@ export type DbtProjectConfig =
     | DbtManifestProjectConfig;
 
 /**
- * Where a dbt source's latest compiled manifest lives: 'inline' (in the
- * encrypted connection, legacy MANIFEST behaviour) or 's3' (a single object
- * referenced by an S3 key). See `project_dbt_sources`.
- */
-export type DbtManifestSourceType = 'inline' | 's3';
-
-/**
  * One dbt source connected to a project (PROD-7484 multiple dbt sources). The
  * project's own `dbt_connection` is the primary source (precedence 0); when a
  * project has no source rows it runs the single-source path unchanged (N=0
- * short-circuit). `dbtConnection` is the decrypted per-source connection and is
- * null for a source that only uploads compiled manifests (no live connection to
- * recompile from).
+ * short-circuit). `dbtConnection` is the decrypted per-source connection; the
+ * source is recompiled from it at deploy/preview time and its manifest merged
+ * with the others.
  */
 export type ProjectDbtSource = {
     projectDbtSourceUuid: string;
@@ -887,9 +880,6 @@ export type ProjectDbtSource = {
     isPrimary: boolean;
     precedence: number;
     dbtConnection: DbtProjectConfig | null;
-    manifestSourceType: DbtManifestSourceType;
-    manifestS3Key: string | null;
-    manifestUpdatedAt: Date | null;
     createdAt: Date;
     updatedAt: Date;
 };

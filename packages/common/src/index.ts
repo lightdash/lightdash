@@ -228,7 +228,6 @@ export type {
     DbtGitlabProjectConfig,
     DbtLocalProjectConfig,
     DbtManifestProjectConfig,
-    DbtManifestSourceType,
     DbtNoneProjectConfig,
     DbtProjectCompilerBase,
     DbtProjectConfig,

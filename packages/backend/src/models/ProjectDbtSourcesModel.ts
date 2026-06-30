@@ -76,9 +76,6 @@ export class ProjectDbtSourcesModel {
             isPrimary: row.is_primary,
             precedence: row.precedence,
             dbtConnection: this.decryptConnection(row.dbt_connection),
-            manifestSourceType: row.manifest_source_type,
-            manifestS3Key: row.manifest_s3_key,
-            manifestUpdatedAt: row.manifest_updated_at,
             createdAt: row.created_at,
             updatedAt: row.updated_at,
         };
@@ -131,8 +128,6 @@ export class ProjectDbtSourcesModel {
                 precedence: data.precedence,
                 dbt_connection_type: data.dbtConnection?.type ?? null,
                 dbt_connection: this.encryptConnection(data.dbtConnection),
-                manifest_source_type: 'inline',
-                manifest_s3_key: null,
             })
             .returning('*');
         return this.convertRow(row);
