@@ -179,7 +179,7 @@ const DbtSourcesPanel: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     return (
         <Card withBorder shadow="xs" padding="lg" className={classes.card}>
             <div className={classes.ribbon}>
-                <span>Experimental</span>
+                <span>Beta</span>
             </div>
             <Stack spacing="md">
                 <Group position="apart" align="flex-start" pr={64}>
