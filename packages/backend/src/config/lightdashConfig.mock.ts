@@ -375,6 +375,13 @@ export const lightdashConfigMock: LightdashConfig = {
         sandboxProvider: 'e2b',
         sandboxDockerImage: 'lightdash-sandbox:local',
         sandboxAiWritebackDockerImage: 'lightdash-ai-writeback:local',
+        otel: {
+            enabled: false,
+            endpoint: '',
+            protocol: 'http/protobuf',
+            exportIntervalMs: 1000,
+            auth: { type: 'none' },
+        },
     },
     enabledFeatureFlags: new Set<string>(),
     disabledFeatureFlags: new Set<string>(),

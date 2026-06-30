@@ -1613,7 +1613,35 @@ export type AppRuntimeConfig = {
      * `lightdash-ai-writeback:local`).
      */
     sandboxAiWritebackDockerImage: string;
+    /**
+     * Claude Code OpenTelemetry tracing for data-app builds. When enabled, the
+     * `claude` CLI in the sandbox exports OTLP traces (a span per LLM request /
+     * tool call) to `endpoint`, nested under the backend's `DataApp.generate`
+     * parent span. The endpoint/protocol/interval are generic OTLP settings;
+     * `auth` selects how export headers are minted (see `gcpOtelAuth.ts`).
+     */
+    otel: DataAppOtelConfig;
 };
+
+export type DataAppOtelConfig = {
+    enabled: boolean;
+    /** OTLP collector endpoint the sandbox exports traces to. */
+    endpoint: string;
+    /** OTEL_EXPORTER_OTLP_PROTOCOL value (e.g. `http/protobuf`, `grpc`). */
+    protocol: string;
+    /** OTEL_TRACES_EXPORT_INTERVAL (ms) — short so spans flush before teardown. */
+    exportIntervalMs: number;
+    /**
+     * How OTLP export auth headers are resolved per build. `none` exports with
+     * no auth headers; `gcp` mints a fresh bearer token at execute time. Keep
+     * provider-specific behaviour out of this config — it only selects a path.
+     */
+    auth: DataAppOtelAuthConfig;
+};
+
+export type DataAppOtelAuthConfig =
+    | { type: 'none' }
+    | { type: 'gcp'; quotaProjectId: string | null };
 
 export type IntercomConfig = {
     appId: string;
@@ -1777,6 +1805,29 @@ export type SmtpConfig = {
 
 const DEFAULT_JOB_TIMEOUT = 1000 * 60 * 10; // 10 minutes
 
+const parseDataAppOtelConfig = (): DataAppOtelConfig => {
+    const exportIntervalMs = Number(
+        process.env.DATA_APP_OTEL_EXPORT_INTERVAL_MS || '1000',
+    );
+    return {
+        enabled: process.env.DATA_APP_OTEL_TRACES_ENABLED === 'true',
+        endpoint: process.env.DATA_APP_OTEL_EXPORTER_ENDPOINT || '',
+        protocol:
+            process.env.DATA_APP_OTEL_EXPORTER_PROTOCOL || 'http/protobuf',
+        exportIntervalMs: Number.isFinite(exportIntervalMs)
+            ? exportIntervalMs
+            : 1000,
+        auth:
+            process.env.DATA_APP_OTEL_AUTH === 'gcp'
+                ? {
+                      type: 'gcp',
+                      quotaProjectId:
+                          process.env.DATA_APP_OTEL_GCP_QUOTA_PROJECT || null,
+                  }
+                : { type: 'none' },
+    };
+};
+
 const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
     const enabled = process.env.APPS_RUNTIME_ENABLED === 'true';
     const appsBucket = process.env.APPS_S3_BUCKET;
@@ -1844,6 +1895,7 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         sandboxAiWritebackDockerImage:
             process.env.SANDBOX_AI_WRITEBACK_DOCKER_IMAGE ||
             'lightdash-ai-writeback:local',
+        otel: parseDataAppOtelConfig(),
     };
 };
 
