@@ -25,7 +25,9 @@ export const isGenericOidcPassportStrategyAvailableToUse =
 
 const createOpenIdUserFromProfile = (
     profile: PassportProfile & {
+        email_verified?: boolean;
         _json?: {
+            email_verified?: boolean;
             given_name?: string;
             family_name?: string;
             [key: string]: unknown;
@@ -37,6 +39,8 @@ const createOpenIdUserFromProfile = (
 ) => {
     const email = profile.emails?.[0]?.value || profile.email;
     const subject = profile.id || profile.sub;
+    const emailVerified =
+        profile.email_verified ?? profile._json?.email_verified;
 
     if (!email) {
         Logger.error(
@@ -46,6 +50,18 @@ const createOpenIdUserFromProfile = (
         );
         return done(null, false, {
             message: 'Authentication failed: missing email in OpenID profile.',
+        });
+    }
+
+    if (emailVerified === false) {
+        Logger.error(
+            `Authentication failed: email is not verified in OpenID profile. ${JSON.stringify(
+                profile,
+            )}`,
+        );
+        return done(null, false, {
+            message:
+                'Authentication failed: email is not verified in OpenID profile.',
         });
     }
 
