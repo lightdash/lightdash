@@ -7181,11 +7181,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 })),
             ),
         });
-        const { enabled: agentRevampEnabled } =
-            await this.featureFlagService.get({
-                user,
-                featureFlagId: FeatureFlags.AiAgentRevamp,
-            });
         const { enabled: searchSemanticLayerEnabled } =
             await this.featureFlagService.get({
                 user,
@@ -7306,8 +7301,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             promptProject.dbtConnection.type !== DbtProjectType.GITLAB;
 
         const canUseContentTools =
-            agentRevampEnabled &&
             agentSettings.enableContentTools &&
+            agentSettings.enableDataAccess &&
             hasTrustedPromptUserIdentity &&
             this.createAuditedAbility(user).can(
                 'manage',
@@ -7384,7 +7379,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             warehouseType,
             warehouseSchema,
             availableSkills,
-            enableAgentRevamp: agentRevampEnabled,
 
             findExploresFieldSearchSize: 200,
             findFieldsPageSize: 30,

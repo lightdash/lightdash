@@ -448,10 +448,7 @@ const getAgentTools = (
           })
         : null;
 
-    const enableContentTools =
-        args.enableAgentRevamp &&
-        args.enableDataAccess &&
-        args.enableContentTools;
+    const enableContentTools = args.enableDataAccess && args.enableContentTools;
 
     const tools: ToolSet = {
         findContent,
@@ -594,9 +591,7 @@ const getAgentMessages = (
             repoFsRoot: args.repoFsRoot,
             repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
             enableContentTools:
-                args.enableAgentRevamp &&
-                args.enableDataAccess &&
-                args.enableContentTools,
+                args.enableDataAccess && args.enableContentTools,
             canRunSql: args.canRunSql,
             warehouseType: args.warehouseType,
             warehouseSchema: args.warehouseSchema,
