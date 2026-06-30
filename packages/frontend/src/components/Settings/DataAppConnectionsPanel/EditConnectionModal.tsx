@@ -7,6 +7,10 @@ import { useForm } from '@mantine/form';
 import { IconPencil } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useUpdateExternalConnection } from '../../../features/externalConnections/hooks/useUpdateExternalConnection';
+import {
+    derivePathRules,
+    resolvePathPrefixes,
+} from '../../../features/externalConnections/utils/pathRules';
 import MantineModal, {
     type MantineModalProps,
 } from '../../common/MantineModal';
@@ -30,6 +34,7 @@ const EditConnectionModalContent: FC<Props> = ({
     connection,
 }) => {
     const { mutateAsync, isLoading: isSaving } = useUpdateExternalConnection();
+    const pathRules = derivePathRules(connection.allowedPathPrefixes);
     const form = useForm<ExternalConnectionFormValues>({
         initialValues: {
             name: connection.name,
@@ -39,7 +44,8 @@ const EditConnectionModalContent: FC<Props> = ({
             apiKeyName: connection.apiKeyName ?? '',
             apiKeyLocation: connection.apiKeyLocation ?? 'header',
             allowedMethods: connection.allowedMethods,
-            allowedPathPrefixes: connection.allowedPathPrefixes,
+            pathMode: pathRules.mode,
+            allowedPathPrefixes: pathRules.prefixes,
             allowedContentTypes: connection.allowedContentTypes,
             responseMaxBytes: connection.responseMaxBytes,
             requestMaxBytes: connection.requestMaxBytes,
@@ -53,6 +59,17 @@ const EditConnectionModalContent: FC<Props> = ({
                 value.startsWith('https://')
                     ? null
                     : 'Origin must start with https://',
+            allowedMethods: (value) =>
+                value.length === 0 ? 'Select at least one method' : null,
+            allowedPathPrefixes: (value, values) => {
+                if (values.pathMode !== 'restricted') return null;
+                const nonEmpty = value
+                    .map((p) => p.value.trim())
+                    .filter(Boolean);
+                return nonEmpty.length === 0
+                    ? 'Add at least one path, or allow all paths'
+                    : null;
+            },
         },
     });
 
@@ -62,8 +79,9 @@ const EditConnectionModalContent: FC<Props> = ({
             origin: values.origin,
             type: values.type,
             allowedMethods: values.allowedMethods,
-            allowedPathPrefixes: values.allowedPathPrefixes.filter(
-                (p) => p.trim().length > 0,
+            allowedPathPrefixes: resolvePathPrefixes(
+                values.pathMode,
+                values.allowedPathPrefixes,
             ),
             allowedContentTypes: values.allowedContentTypes,
             responseMaxBytes: values.responseMaxBytes,
