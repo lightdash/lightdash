@@ -1,3 +1,10 @@
+## [0.3261.1](https://github.com/lightdash/lightdash/compare/0.3261.0...0.3261.1) (2026-06-30)
+
+
+### Bug Fixes
+
+* prioritize path project UUID over query params in JWT auth middleware ([#24908](https://github.com/lightdash/lightdash/issues/24908)) ([7550edd](https://github.com/lightdash/lightdash/commit/7550eddd14dfbdbc297d70ddbbb3dc8613274b64))
+
 # [0.3261.0](https://github.com/lightdash/lightdash/compare/0.3260.2...0.3261.0) (2026-06-29)
 
 
