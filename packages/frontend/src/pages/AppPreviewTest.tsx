@@ -65,6 +65,17 @@ export default function AppPreviewTest() {
 
     const [queriesPanelHidden, setQueriesPanelHidden] = useState(true);
 
+    // Data-lineage ("Inspect data"): click a value to reveal the query behind
+    // it; hover a query row to highlight where it renders.
+    const [lineageEnabled, setLineageEnabled] = useState(false);
+    const [lineageAvailable, setLineageAvailable] = useState(false);
+    const [hoveredQueryUuid, setHoveredQueryUuid] = useState<string | null>(
+        null,
+    );
+    const [focusedQueryUuid, setFocusedQueryUuid] = useState<string | null>(
+        null,
+    );
+
     // Query tracking from the preview iframe. The panel is opt-in (hidden by
     // default in preview because most viewers aren't technical), but we wire
     // up the SDK bridge callback unconditionally so queries that run before
@@ -82,6 +93,22 @@ export default function AppPreviewTest() {
         setInvalidateCache(true);
         clearQueries();
     }, [clearQueries]);
+
+    const handleToggleLineage = useCallback(
+        () => setLineageEnabled((v) => !v),
+        [],
+    );
+    const handleLineageSelected = useCallback(
+        (event: { queryUuid: string }) => {
+            setQueriesPanelHidden(false);
+            setFocusedQueryUuid(event.queryUuid);
+        },
+        [],
+    );
+    const handleLineageCancelled = useCallback(
+        () => setLineageEnabled(false),
+        [],
+    );
 
     const previewOrigin = usePreviewOrigin();
 
@@ -237,6 +264,11 @@ export default function AppPreviewTest() {
                     invalidateCache={invalidateCache}
                     onQueryEvent={handleQueryEvent}
                     capabilities={{ gsheetExport: true }}
+                    lineageEnabled={lineageEnabled}
+                    onLineageAvailabilityChange={setLineageAvailable}
+                    onLineageSelected={handleLineageSelected}
+                    lineageHighlightQueryUuid={hoveredQueryUuid}
+                    onLineageCancelled={handleLineageCancelled}
                 />
                 {!queriesPanelHidden && (
                     <QueryInspector
@@ -246,6 +278,11 @@ export default function AppPreviewTest() {
                         defaultCollapsed={false}
                         hideWhenEmpty={false}
                         onDismiss={() => setQueriesPanelHidden(true)}
+                        onHoverQuery={setHoveredQueryUuid}
+                        focusedQueryUuid={focusedQueryUuid}
+                        lineageEnabled={lineageEnabled}
+                        lineageAvailable={lineageAvailable}
+                        onToggleLineage={handleToggleLineage}
                     />
                 )}
             </Box>
