@@ -281,6 +281,18 @@ const BLOCKED_USER_SQL_FILE_FUNCTION_PATTERN =
 
 const BLOCKED_USER_SQL_FILE_TABLE_PATTERN = /\b(?:from|join)\s+'[^']*'/i;
 
+const buildMotherduckConnectionString = ({
+    database,
+    token,
+}: Pick<CreateDuckdbMotherduckCredentials, 'database' | 'token'>): string => {
+    const params = new URLSearchParams({
+        motherduck_token: token,
+        saas_mode: 'true',
+    });
+
+    return `md:${encodeURIComponent(database)}?${params.toString()}`;
+};
+
 export type DuckdbWarehouseClientArgs = {
     databasePath?: string;
     s3Config?: DuckdbS3SessionConfig;
@@ -382,7 +394,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                     'MotherDuck token is required for DuckDB warehouse connections',
                 );
             }
-            this.databasePath = `md:${effectiveCredentials.database}?motherduck_token=${token}`;
+            this.databasePath = buildMotherduckConnectionString({
+                database: effectiveCredentials.database,
+                token,
+            });
         }
 
         this.resourceLimits = options?.resourceLimits;

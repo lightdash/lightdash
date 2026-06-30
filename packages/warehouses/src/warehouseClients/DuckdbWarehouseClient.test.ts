@@ -860,15 +860,28 @@ describe('DuckdbWarehouseClient', () => {
 
     it.each([
         {
-            name: 'pass token in connection string for MotherDuck',
+            name: 'pass encoded token in SaaS-mode connection string for MotherDuck',
             credentials: {
                 type: WarehouseTypes.DUCKDB as const,
                 connectionType: DuckdbConnectionType.MOTHERDUCK as const,
                 database: 'my_database',
                 schema: 'main',
+                token: 'my_motherduck_token+with=symbols',
+            },
+            expectedPath:
+                'md:my_database?motherduck_token=my_motherduck_token%2Bwith%3Dsymbols&saas_mode=true',
+        },
+        {
+            name: 'encode MotherDuck database names before adding connection parameters',
+            credentials: {
+                type: WarehouseTypes.DUCKDB as const,
+                connectionType: DuckdbConnectionType.MOTHERDUCK as const,
+                database: 'analytics?motherduck_token=other&saas_mode=false',
+                schema: 'main',
                 token: 'my_motherduck_token',
             },
-            expectedPath: 'md:my_database?motherduck_token=my_motherduck_token',
+            expectedPath:
+                'md:analytics%3Fmotherduck_token%3Dother%26saas_mode%3Dfalse?motherduck_token=my_motherduck_token&saas_mode=true',
         },
     ])('should $name', async ({ credentials, expectedPath }) => {
         const runMock = vi.fn();
