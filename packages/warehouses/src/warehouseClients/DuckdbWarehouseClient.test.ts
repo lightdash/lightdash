@@ -679,9 +679,12 @@ describe('DuckdbWarehouseClient', () => {
             const streamMock = vi.fn(async () =>
                 getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
             );
+            const extractStatementsMock = createMockExtractStatements();
 
             createInstanceMock.mockResolvedValue(
-                createMockConnection(streamMock),
+                createMockConnection(streamMock, vi.fn(), {
+                    extractStatements: extractStatementsMock,
+                }),
             );
 
             const client = new DuckdbWarehouseClient();
@@ -690,6 +693,7 @@ describe('DuckdbWarehouseClient', () => {
             ).rejects.toThrow(
                 `SQL validation error: function '${blockedFunction}' is not allowed`,
             );
+            expect(extractStatementsMock).not.toHaveBeenCalled();
             expect(streamMock).not.toHaveBeenCalled();
         });
 
@@ -898,17 +902,17 @@ describe('DuckdbWarehouseClient', () => {
         await client.runQuery('SELECT 1 AS id');
 
         expect(createInstanceMock).toHaveBeenCalledWith(expectedPath);
-        expect(runMock).toHaveBeenCalledWith(
-            'SET allow_community_extensions = false;',
+        expect(runMock).not.toHaveBeenCalledWith(
+            expect.stringContaining('allow_community_extensions'),
         );
-        expect(runMock).toHaveBeenCalledWith(
-            'SET autoinstall_known_extensions = false;',
+        expect(runMock).not.toHaveBeenCalledWith(
+            expect.stringContaining('autoinstall_known_extensions'),
         );
-        expect(runMock).toHaveBeenCalledWith(
-            'SET autoload_known_extensions = false;',
+        expect(runMock).not.toHaveBeenCalledWith(
+            expect.stringContaining('autoload_known_extensions'),
         );
-        expect(runMock).toHaveBeenCalledWith(
-            'SET allow_unredacted_secrets = false;',
+        expect(runMock).not.toHaveBeenCalledWith(
+            expect.stringContaining('allow_unredacted_secrets'),
         );
     });
 

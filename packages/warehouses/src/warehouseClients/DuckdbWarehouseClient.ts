@@ -1264,7 +1264,6 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         const connectMs = performance.now() - connectStart;
 
         try {
-            await DuckdbWarehouseClient.hardenInstance(connection);
             const queryStart = performance.now();
             const result = await callback(connection);
             const queryMs = performance.now() - queryStart;
@@ -1465,6 +1464,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         db: DuckdbConnection,
         sql: string,
     ): Promise<void> {
+        DuckdbWarehouseClient.validateSqlFunctions(sql);
         DuckdbWarehouseClient.validateUserSqlFileAccess(sql);
 
         const extracted = await db.extractStatements(sql);
@@ -1489,8 +1489,6 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         } finally {
             stmt.destroySync();
         }
-
-        DuckdbWarehouseClient.validateSqlFunctions(sql);
     }
 
     private async validateInternalSql(
