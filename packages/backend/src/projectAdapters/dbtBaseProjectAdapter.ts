@@ -98,6 +98,12 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     }
 
     public async getDbtManifest(): Promise<DbtRpcGetManifestResults> {
+        // Install dependencies first (same as compileAllExplores) — a git source's
+        // `dbt ls` fails without its packages installed.
+        if (this.dbtClient.installDeps !== undefined) {
+            Logger.debug('Install dependencies');
+            await this.dbtClient.installDeps();
+        }
         Logger.debug(`Get dbt manifest`);
         return this.dbtClient.getDbtManifest();
     }
