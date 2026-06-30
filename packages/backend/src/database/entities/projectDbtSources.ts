@@ -47,6 +47,7 @@ type UpdateDbProjectDbtSource = Partial<
         | 'manifest_source_type'
         | 'manifest_s3_key'
         | 'manifest_updated_at'
+        | 'updated_at'
     >
 >;
 
