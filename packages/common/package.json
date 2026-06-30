@@ -11,7 +11,7 @@
   ],
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
-  "types": "dist/types/index.d.ts",
+  "types": "dist/esm/index.d.ts",
   "scripts": {
     "dev": "tsc --build --watch --preserveWatchOutput --incremental ./tsconfig.build.json",
     "dev:fast": "tsgo --build --watch --preserveWatchOutput ./tsconfig.build.fast.json",

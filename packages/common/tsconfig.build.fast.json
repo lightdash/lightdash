@@ -6,9 +6,6 @@
         },
         {
             "path": "./tsconfig.cjs.fast.json"
-        },
-        {
-            "path": "./tsconfig.types.fast.json"
         }
     ]
 }

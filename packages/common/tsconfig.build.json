@@ -6,9 +6,6 @@
         },
         {
             "path": "./tsconfig.cjs.json"
-        },
-        {
-            "path": "./tsconfig.types.json"
         }
     ]
 }
