@@ -1,7 +1,9 @@
 import {
+    DATA_APP_VIZ_TEMPLATE,
     NotFoundError,
     ProjectType,
     type AppVersionResources,
+    type DataAppVizSchema,
     type KnexPaginateArgs,
     type KnexPaginatedData,
 } from '@lightdash/common';
@@ -532,6 +534,102 @@ export class AppModel {
             .where({ project_uuid: projectUuid })
             .whereNull('deleted_at')
             .select('*');
+    }
+
+    // Derived table of each app's latest ready version number, for joining the
+    // latest ready version's schema onto a data app viz.
+    private latestReadyVersions() {
+        return this.database(AppVersionsTableName)
+            .select('app_id')
+            .max({ version: 'version' })
+            .where('status', 'ready')
+            .groupBy('app_id')
+            .as('lrv');
+    }
+
+    private joinLatestReadyVersion(
+        query: Knex.QueryBuilder,
+    ): Knex.QueryBuilder {
+        return query
+            .leftJoin(
+                this.latestReadyVersions(),
+                `${AppsTableName}.app_id`,
+                'lrv.app_id',
+            )
+            .leftJoin(AppVersionsTableName, function joinVersion() {
+                this.on(
+                    `${AppsTableName}.app_id`,
+                    `${AppVersionsTableName}.app_id`,
+                ).andOn('lrv.version', `${AppVersionsTableName}.version`);
+            });
+    }
+
+    /**
+     * A page of the project's bindable data app vizs — only those whose latest
+     * ready version has generated a schema, so pagination counts are exact.
+     */
+    async listDataAppVisualizations(
+        projectUuid: string,
+        paginateArgs?: KnexPaginateArgs,
+    ): Promise<
+        KnexPaginatedData<(DbApp & { viz_schema: DataAppVizSchema })[]>
+    > {
+        const query = this.joinLatestReadyVersion(this.database(AppsTableName))
+            .where({
+                [`${AppsTableName}.project_uuid`]: projectUuid,
+                [`${AppsTableName}.template`]: DATA_APP_VIZ_TEMPLATE,
+            })
+            .whereNull(`${AppsTableName}.deleted_at`)
+            .whereNotNull(`${AppVersionsTableName}.viz_schema`)
+            .select<(DbApp & { viz_schema: DataAppVizSchema })[]>(
+                `${AppsTableName}.*`,
+                `${AppVersionsTableName}.viz_schema`,
+            )
+            .orderBy(`${AppsTableName}.created_at`, 'desc');
+        return KnexPaginate.paginate(query, paginateArgs);
+    }
+
+    /**
+     * Fetch a single data app viz by id, with its organization uuid (for the
+     * view permission check) and latest schema. Undefined when the id is not a
+     * data app viz in this project.
+     */
+    async findVisualizationApp(
+        dataAppVizUuid: string,
+        projectUuid: string,
+    ): Promise<
+        | (DbApp & {
+              organization_uuid: string;
+              viz_schema: DataAppVizSchema | null;
+          })
+        | undefined
+    > {
+        return this.joinLatestReadyVersion(this.database(AppsTableName))
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_uuid`,
+                `${AppsTableName}.project_uuid`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .where(`${AppsTableName}.app_id`, dataAppVizUuid)
+            .andWhere(`${AppsTableName}.project_uuid`, projectUuid)
+            .andWhere(`${AppsTableName}.template`, DATA_APP_VIZ_TEMPLATE)
+            .whereNull(`${AppsTableName}.deleted_at`)
+            .select<
+                (DbApp & {
+                    organization_uuid: string;
+                    viz_schema: DataAppVizSchema | null;
+                })[]
+            >(
+                `${AppsTableName}.*`,
+                `${OrganizationTableName}.organization_uuid`,
+                `${AppVersionsTableName}.viz_schema`,
+            )
+            .first();
     }
 
     /**

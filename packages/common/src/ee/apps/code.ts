@@ -10,6 +10,8 @@ export type DataAppManifest = {
     version: number;
     name: string;
     description: string;
+    // The app's stored template flavor (includes data_app_viz); null for
+    // "Custom" or apps predating template persistence.
     template: Exclude<DataAppTemplate, 'custom'> | null;
     downloadedAt: string; // ISO
 };

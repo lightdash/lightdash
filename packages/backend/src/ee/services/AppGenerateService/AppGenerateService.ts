@@ -44,11 +44,15 @@ import {
     type DataAppClaudeModel,
     type DataAppCode,
     type DataAppTemplate,
+    type DataAppViz,
+    type DataAppVizSchema,
     type EmbedProjectApp,
     type Explore,
     type ExternalConnectionMethod,
     type ExternalConnectionSample,
     type ImportAppCodeRequestBody,
+    type KnexPaginateArgs,
+    type KnexPaginatedData,
     type LightdashProjectParameter,
     type PromoteAppAction,
     type PromoteAppDiff,
@@ -5393,6 +5397,70 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         }
         const apps = await this.appModel.listAppsByProject(projectUuid);
         return apps.map((app) => ({ appUuid: app.app_id, name: app.name }));
+    }
+
+    private static mapDataAppViz(
+        app: DbApp & { viz_schema: DataAppVizSchema | null },
+    ): DataAppViz {
+        return {
+            dataAppVizUuid: app.app_id,
+            name: app.name,
+            description: app.description,
+            projectUuid: app.project_uuid,
+            spaceUuid: app.space_uuid,
+            schema: app.viz_schema,
+            createdAt: app.created_at,
+            createdByUserUuid: app.created_by_user_uuid,
+        };
+    }
+
+    async listDataAppVisualizations(
+        user: SessionUser,
+        projectUuid: string,
+        paginateArgs?: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<DataAppViz[]>> {
+        await this.assertDataAppsEnabled(user);
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('DataApp', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError('Insufficient permissions');
+        }
+        const { data, pagination } =
+            await this.appModel.listDataAppVisualizations(
+                projectUuid,
+                paginateArgs,
+            );
+        return { data: data.map(AppGenerateService.mapDataAppViz), pagination };
+    }
+
+    async getDataAppVisualization(
+        user: SessionUser,
+        projectUuid: string,
+        dataAppVizUuid: string,
+    ): Promise<DataAppViz> {
+        await this.assertDataAppsEnabled(user);
+        const dataAppViz = await this.appModel.findVisualizationApp(
+            dataAppVizUuid,
+            projectUuid,
+        );
+        if (!dataAppViz) {
+            throw new NotFoundError(
+                `Data app visualization not found: ${dataAppVizUuid}`,
+            );
+        }
+        await this.assertCanViewApp(user, {
+            project_uuid: dataAppViz.project_uuid,
+            space_uuid: dataAppViz.space_uuid,
+            organization_uuid: dataAppViz.organization_uuid,
+            created_by_user_uuid: dataAppViz.created_by_user_uuid,
+        });
+        return AppGenerateService.mapDataAppViz(dataAppViz);
     }
 
     async listMyApps(

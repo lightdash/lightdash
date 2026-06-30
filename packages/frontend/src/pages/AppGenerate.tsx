@@ -934,7 +934,9 @@ const AppGenerate: FC = () => {
         ? selectedTemplate
         : appPersistedTemplate;
     const displayTemplate: DataAppTemplate | null =
-        candidateTemplate && candidateTemplate !== 'custom'
+        candidateTemplate &&
+        candidateTemplate !== 'custom' &&
+        candidateTemplate !== 'data_app_viz'
             ? candidateTemplate
             : null;
     // New-app empty screen: arch + composer, centered, no preview/split yet.

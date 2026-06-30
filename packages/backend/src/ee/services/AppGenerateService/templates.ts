@@ -43,6 +43,10 @@ export const getTemplateInstructions = (
             return PDF_REPORT_INSTRUCTIONS;
         case 'custom':
             return null;
+        case 'data_app_viz':
+            // The viz starter injects its own prompt + schema request separately,
+            // not a generic starter-instruction block.
+            return null;
         default:
             return assertUnreachable(
                 template,
