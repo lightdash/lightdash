@@ -26,6 +26,7 @@ import {
     NotFoundError,
     ParameterError,
     QueryExecutionContext,
+    validateDataAppCode,
     type AnonymousAccount,
     type AppBuildFromSourceJobPayload,
     type AppChartReference,
@@ -47,6 +48,7 @@ import {
     type Explore,
     type ExternalConnectionMethod,
     type ExternalConnectionSample,
+    type ImportAppCodeRequestBody,
     type LightdashProjectParameter,
     type PromoteAppAction,
     type PromoteAppDiff,
@@ -57,7 +59,7 @@ import { generateObject } from 'ai';
 import { Knex } from 'knex';
 import { performance } from 'node:perf_hooks';
 import { PassThrough, Readable } from 'node:stream';
-import { extract, type Headers } from 'tar-stream';
+import { extract, pack as tarPack, type Headers } from 'tar-stream';
 import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
@@ -6475,6 +6477,141 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         });
 
         return { manifest, files };
+    }
+
+    async importAppCode(
+        user: SessionUser,
+        projectUuid: string,
+        body: ImportAppCodeRequestBody,
+    ): Promise<{
+        appUuid: string;
+        version: number;
+        action: 'create' | 'append';
+    }> {
+        await this.assertDataAppsEnabled(user);
+
+        const code = validateDataAppCode(body.code);
+        if (!code.files.some((f) => f.path.startsWith('src/'))) {
+            throw new ParameterError('bundle has no src/ files to build');
+        }
+
+        // Determine mode: append to existing app or create new one
+        const existingApp = body.targetAppUuid
+            ? await this.appModel.findApp(body.targetAppUuid, projectUuid)
+            : undefined;
+        const action: 'create' | 'append' =
+            existingApp !== undefined ? 'append' : 'create';
+
+        const organizationUuid = await this.getProjectOrgUuid(projectUuid);
+
+        let newAppUuid: string;
+        let newVersion: number;
+
+        if (action === 'append' && existingApp !== undefined) {
+            await this.assertCanManageApp(
+                user,
+                existingApp,
+                'You do not have access to update this app',
+            );
+            newAppUuid = existingApp.app_id;
+            const latestVersion = await this.appModel.getLatestVersion(
+                existingApp.app_id,
+            );
+            newVersion = (latestVersion?.version ?? 0) + 1;
+            await this.appModel.createVersion(
+                existingApp.app_id,
+                { version: newVersion, prompt: '' },
+                'pending',
+                user.userUuid,
+                AppGenerateService.buildCopiedResources(null),
+            );
+        } else {
+            this.assertDataAppAbility(
+                user,
+                'create',
+                organizationUuid,
+                projectUuid,
+                'Insufficient permissions to create data apps',
+            );
+            if (body.spaceUuid) {
+                const spaceContext =
+                    await this.spacePermissionService.getSpaceAccessContext(
+                        user.userUuid,
+                        body.spaceUuid,
+                    );
+                this.assertDataAppAbility(
+                    user,
+                    'manage',
+                    organizationUuid,
+                    projectUuid,
+                    'Insufficient permissions to create a data app in this space',
+                    spaceContext,
+                );
+            }
+            newVersion = 1;
+            const { app } = await this.appModel.createWithVersion(
+                {
+                    project_uuid: projectUuid,
+                    created_by_user_uuid: user.userUuid,
+                    name: code.manifest.name,
+                    description: code.manifest.description,
+                    template: code.manifest.template,
+                    space_uuid: body.spaceUuid ?? null,
+                },
+                { version: newVersion, prompt: '' },
+                'pending',
+                AppGenerateService.buildCopiedResources(null),
+            );
+            newAppUuid = app.app_id;
+        }
+
+        // Re-tar the source files into a single source.tar Buffer
+        const sourceTar = await new Promise<Buffer>((resolve, reject) => {
+            const packer = tarPack();
+            const chunks: Buffer[] = [];
+            packer.on('data', (chunk: Buffer) => chunks.push(chunk));
+            packer.on('end', () => resolve(Buffer.concat(chunks)));
+            packer.on('error', reject);
+
+            const addNext = (index: number): void => {
+                if (index >= code.files.length) {
+                    packer.finalize();
+                    return;
+                }
+                const file = code.files[index];
+                const content = Buffer.from(file.contentBase64, 'base64');
+                packer.entry({ name: file.path }, content, (err) => {
+                    if (err) {
+                        reject(err);
+                        return;
+                    }
+                    addNext(index + 1);
+                });
+            };
+            addNext(0);
+        });
+
+        // Store source.tar in S3
+        const { client, bucket } = this.getS3Client();
+        await client.send(
+            new PutObjectCommand({
+                Bucket: bucket,
+                Key: `${versionPrefix(newAppUuid, newVersion)}source.tar`,
+                Body: sourceTar,
+                ContentType: 'application/x-tar',
+            }),
+        );
+
+        // Enqueue the build-only pipeline
+        await this.schedulerClient.appBuildFromSource({
+            appUuid: newAppUuid,
+            version: newVersion,
+            projectUuid,
+            organizationUuid: user.organizationUuid!,
+            userUuid: user.userUuid,
+        });
+
+        return { appUuid: newAppUuid, version: newVersion, action };
     }
 
     async runBuildFromSourcePipeline(
