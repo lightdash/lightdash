@@ -7,6 +7,7 @@ import {
     ApiContentResponse,
     ApiDashboardAsCodeListResponse,
     ApiDashboardValidationResponse,
+    ApiImportAppCodeResponse,
     ApiSqlChartAsCodeListResponse,
     assertUnreachable,
     AuthorizationError,
@@ -34,7 +35,12 @@ import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig, setAnswer } from '../config';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
-import { appFolderName, writeBundleToDir } from './apps/appCodeFiles';
+import {
+    appFolderName,
+    buildImportBody,
+    readBundleFromDir,
+    writeBundleToDir,
+} from './apps/appCodeFiles';
 import {
     checkLightdashVersion,
     lightdashApi,
@@ -1801,6 +1807,105 @@ export const uploadHandler = async (
             changes = dashboardChanges;
             dashboardTotal = total;
         }
+
+        // Upload data apps (enterprise, opt-in via --apps, fire-and-forget)
+        const appsOption = options.apps;
+        const shouldUploadApps =
+            appsOption !== null &&
+            appsOption !== false &&
+            appsOption !== undefined;
+
+        if (shouldUploadApps) {
+            const filterUuids: Set<string> | null =
+                Array.isArray(appsOption) && appsOption.length > 0
+                    ? new Set(appsOption)
+                    : null;
+
+            const baseDir = getDownloadFolder(options.path);
+            const appsDir = path.join(baseDir, 'apps');
+
+            let appFolderEntries: import('fs').Dirent[];
+            try {
+                appFolderEntries = await fs.readdir(appsDir, {
+                    withFileTypes: true,
+                });
+            } catch (err) {
+                if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+                    GlobalState.log(
+                        styles.warning(
+                            `No apps directory found at ${appsDir}. Run 'lightdash download --apps' first.`,
+                        ),
+                    );
+                    appFolderEntries = [];
+                } else {
+                    throw err;
+                }
+            }
+
+            const subDirs = appFolderEntries.filter((e) => e.isDirectory());
+
+            if (subDirs.length === 0) {
+                GlobalState.log(
+                    styles.warning(`No app folders found in ${appsDir}.`),
+                );
+            }
+
+            for (const subDir of subDirs) {
+                const folderPath = path.join(appsDir, subDir.name);
+                try {
+                    // eslint-disable-next-line no-await-in-loop
+                    const code = await readBundleFromDir(folderPath);
+
+                    if (
+                        filterUuids &&
+                        !filterUuids.has(code.manifest.appUuid)
+                    ) {
+                        GlobalState.debug(
+                            `Skipping app folder "${subDir.name}" (uuid ${code.manifest.appUuid} not in filter)`,
+                        );
+                        // eslint-disable-next-line no-continue
+                        continue;
+                    }
+
+                    const body = buildImportBody(code, projectId, {});
+
+                    // eslint-disable-next-line no-await-in-loop
+                    const { appUuid, version, action } = await lightdashApi<
+                        ApiImportAppCodeResponse['results']
+                    >({
+                        method: 'POST',
+                        url: `/api/v1/ee/projects/${projectId}/apps/upload`,
+                        body: JSON.stringify(body),
+                    });
+
+                    const actionLabel =
+                        action === 'create' ? 'created' : 'updated';
+                    GlobalState.log(
+                        styles.success(
+                            `Uploaded "${code.manifest.name}" — ${actionLabel} v${version} (${appUuid}). Building in the background; the app will show "building" until the server finishes.`,
+                        ),
+                    );
+                } catch (appErr) {
+                    if (
+                        appErr instanceof LightdashError &&
+                        appErr.statusCode === 404
+                    ) {
+                        GlobalState.log(
+                            styles.error(
+                                `App folder "${subDir.name}": data apps are not enabled on this instance, or the app was not found.`,
+                            ),
+                        );
+                    } else {
+                        GlobalState.log(
+                            styles.error(
+                                `Failed to upload app folder "${subDir.name}": ${getErrorMessage(appErr)}`,
+                            ),
+                        );
+                    }
+                }
+            }
+        }
+
         const end = Date.now();
 
         await LightdashAnalytics.track({

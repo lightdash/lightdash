@@ -102,6 +102,7 @@ function buildService() {
         projectService: {} as never,
         promoteService: {} as never,
         externalConnectionModel: {} as never,
+        sandboxRegistryModel: {} as never,
     });
 
     // Stub ability checks to allow everything

@@ -47497,7 +47497,7 @@ export function RegisterRoutes(app: Router) {
         },
     };
     app.post(
-        '/api/v1/ee/projects/:projectUuid/apps/code',
+        '/api/v1/ee/projects/:projectUuid/apps/upload',
         ...fetchMiddlewares<RequestHandler>(AppGenerateController),
         ...fetchMiddlewares<RequestHandler>(
             AppGenerateController.prototype.importAppCode,

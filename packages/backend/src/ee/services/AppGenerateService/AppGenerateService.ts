@@ -6622,10 +6622,11 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     async runBuildFromSourcePipeline(
         payload: AppBuildFromSourceJobPayload,
     ): Promise<void> {
-        const { appUuid, version } = payload;
+        const { appUuid, version, organizationUuid, projectUuid } = payload;
         const { client, bucket } = this.getS3Client();
 
         let sandbox: SandboxHandle | undefined;
+        let sandboxUuid: string | undefined;
         const heartbeat = setInterval(() => {
             void this.appModel
                 .touchVersionIfInProgress(appUuid, version)
@@ -6646,9 +6647,14 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 return;
             }
 
-            const result = await this.createSandbox(appUuid);
+            const result = await this.createSandbox(
+                appUuid,
+                organizationUuid,
+                projectUuid,
+            );
             sandbox = result.sandbox;
-            await this.appModel.updateSandboxId(appUuid, sandbox.sandboxId);
+            sandboxUuid = result.sandboxUuid;
+            await this.appModel.updateSandboxUuid(appUuid, sandboxUuid);
 
             await this.restoreSourceFromS3(
                 sandbox,
@@ -6713,8 +6719,8 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             await this.markError(appUuid, version, err, 'Build failed');
         } finally {
             clearInterval(heartbeat);
-            if (sandbox !== undefined) {
-                await this.pauseSandbox(sandbox, appUuid);
+            if (sandbox !== undefined && sandboxUuid !== undefined) {
+                await this.suspendSandbox(sandboxUuid, sandbox, appUuid);
             }
         }
     }

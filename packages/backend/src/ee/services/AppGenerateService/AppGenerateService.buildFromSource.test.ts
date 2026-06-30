@@ -30,7 +30,7 @@ type ServiceWithPrivates = {
     runBuild: ReturnType<typeof vi.fn>;
     packageArtifacts: ReturnType<typeof vi.fn>;
     uploadToS3: ReturnType<typeof vi.fn>;
-    pauseSandbox: ReturnType<typeof vi.fn>;
+    suspendSandbox: ReturnType<typeof vi.fn>;
     markError: ReturnType<typeof vi.fn>;
 };
 
@@ -55,7 +55,7 @@ const makePayload = (): AppBuildFromSourceJobPayload => ({
 function buildService() {
     const appModel = {
         updateVersionStatusIfInProgress: vi.fn().mockResolvedValue(true),
-        updateSandboxId: vi.fn().mockResolvedValue(undefined),
+        updateSandboxUuid: vi.fn().mockResolvedValue(undefined),
     };
 
     const raw = new AppGenerateService({
@@ -79,6 +79,7 @@ function buildService() {
         projectService: {} as never,
         promoteService: {} as never,
         externalConnectionModel: {} as never,
+        sandboxRegistryModel: {} as never,
     });
 
     const service = raw as unknown as ServiceWithPrivates;
@@ -87,9 +88,11 @@ function buildService() {
         client: {},
         bucket: 'test-bucket',
     });
-    service.createSandbox = vi
-        .fn()
-        .mockResolvedValue({ sandbox: fakeSandbox, durationMs: 100 });
+    service.createSandbox = vi.fn().mockResolvedValue({
+        sandbox: fakeSandbox,
+        sandboxUuid: 'sandbox-uuid-123',
+        durationMs: 100,
+    });
     service.restoreSourceFromS3 = vi.fn().mockResolvedValue(50);
     service.packageArtifacts = vi.fn().mockResolvedValue({
         distTar: Buffer.from('dist'),
@@ -97,7 +100,7 @@ function buildService() {
         durationMs: 200,
     });
     service.uploadToS3 = vi.fn().mockResolvedValue(100);
-    service.pauseSandbox = vi.fn().mockResolvedValue(undefined);
+    service.suspendSandbox = vi.fn().mockResolvedValue(undefined);
     service.markError = vi.fn().mockResolvedValue(true);
 
     return { service, appModel };

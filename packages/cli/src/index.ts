@@ -813,6 +813,10 @@ program
     )
     .option('--validate', 'Validate charts and dashboards after upload', false)
     .option('--gzip', 'Enable gzip compression for request bodies', false)
+    .option(
+        '--apps [appUuids...]',
+        'Include data apps (enterprise). Optionally limit to specific app UUIDs; default: all app folders on disk.',
+    )
     .action(uploadHandler);
 
 program

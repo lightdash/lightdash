@@ -545,7 +545,7 @@ export class AppGenerateController extends BaseController {
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Post('/code')
+    @Post('/upload')
     @OperationId('importAppCode')
     async importAppCode(
         @Request() req: express.Request,
