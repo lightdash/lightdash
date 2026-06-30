@@ -86,6 +86,19 @@
     }
 }
 
+.queryRowFocused {
+    animation: queryRowFlash 1.2s ease-out;
+}
+
+@keyframes queryRowFlash {
+    0% {
+        background-color: rgba(124, 58, 237, 0.18);
+    }
+    100% {
+        background-color: transparent;
+    }
+}
+
 .queryHeader {
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
     cursor: pointer;

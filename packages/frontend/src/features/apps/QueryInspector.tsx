@@ -18,11 +18,12 @@ import {
     IconChevronRight,
     IconCopy,
     IconDatabase,
+    IconDatabaseSearch,
     IconExternalLink,
     IconTrash,
     IconX,
 } from '@tabler/icons-react';
-import { useCallback, useRef, useState, type FC } from 'react';
+import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import type { QueryEvent } from './hooks/useAppSdkBridge';
@@ -56,6 +57,17 @@ type Props = {
      *  until queries arrive; the preview passes `false` so once opened from
      *  the menu the panel remains visible. */
     hideWhenEmpty?: boolean;
+    /** Data-lineage ("Inspect data") toggle rendered in the panel header.
+     *  When `onToggleLineage` is omitted, the toggle is hidden. */
+    lineageEnabled?: boolean;
+    lineageAvailable?: boolean;
+    onToggleLineage?: () => void;
+    /** Called with the queryUuid when a row is hovered, and null on leave.
+     *  The parent forwards this to the iframe to outline matching elements. */
+    onHoverQuery?: (queryUuid: string | null) => void;
+    /** When set, the matching row auto-expands, scrolls into view, and flashes.
+     *  Driven by element→query lineage selection from the parent. */
+    focusedQueryUuid?: string | null;
 };
 
 const statusColor = (status: TrackedQuery['status']): string => {
@@ -109,15 +121,34 @@ const buildExploreUrl = (
     return `${pathname}?${search}`;
 };
 
-const QueryRow: FC<{ query: TrackedQuery; projectUuid: string }> = ({
-    query,
-    projectUuid,
-}) => {
+const QueryRow: FC<{
+    query: TrackedQuery;
+    projectUuid: string;
+    onHover?: (queryUuid: string | null) => void;
+    focused?: boolean;
+}> = ({ query, projectUuid, onHover, focused }) => {
     const [expanded, setExpanded] = useState(false);
     const [jsonExpanded, setJsonExpanded] = useState(false);
+    const rowRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (focused) {
+            setExpanded(true);
+            rowRef.current?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'nearest',
+            });
+        }
+    }, [focused]);
 
     return (
-        <Box className={classes.queryRow}>
+        <Box
+            ref={rowRef}
+            className={`${classes.queryRow}${focused ? ` ${classes.queryRowFocused}` : ''}`}
+            data-query-uuid={query.queryUuid ?? undefined}
+            onMouseEnter={() => query.queryUuid && onHover?.(query.queryUuid)}
+            onMouseLeave={() => onHover?.(null)}
+        >
             <Group
                 gap="xs"
                 wrap="nowrap"
@@ -357,6 +388,11 @@ const QueryInspector: FC<Props> = ({
     defaultCollapsed = true,
     onDismiss,
     hideWhenEmpty = true,
+    onHoverQuery,
+    focusedQueryUuid,
+    lineageEnabled,
+    lineageAvailable,
+    onToggleLineage,
 }) => {
     const [collapsed, setCollapsed] = useState(defaultCollapsed);
     const [height, setHeight] = useState(DEFAULT_HEIGHT);
@@ -409,6 +445,17 @@ const QueryInspector: FC<Props> = ({
         [onClear],
     );
 
+    // Auto-uncollapse the panel when a matching focused query arrives so
+    // the focused row is not hidden inside a closed collapse region.
+    useEffect(() => {
+        if (
+            focusedQueryUuid != null &&
+            queries.some((q) => q.queryUuid === focusedQueryUuid)
+        ) {
+            setCollapsed(false);
+        }
+    }, [focusedQueryUuid, queries]);
+
     // Hide the panel entirely only when there's nothing to show *and* the
     // user hasn't engaged with it. If they've expanded it (e.g. cleared the
     // log to wait for fresh queries), keep it mounted with an empty state so
@@ -438,6 +485,36 @@ const QueryInspector: FC<Props> = ({
                 <Box ml="auto" />
                 {!collapsed && (
                     <>
+                        {onToggleLineage && (
+                            <Tooltip
+                                label={
+                                    lineageEnabled
+                                        ? 'Inspect data: on'
+                                        : 'Inspect data'
+                                }
+                                withArrow
+                                position="top"
+                            >
+                                <ActionIcon
+                                    variant={
+                                        lineageEnabled ? 'filled' : 'subtle'
+                                    }
+                                    color={lineageEnabled ? 'violet' : 'gray'}
+                                    size="xs"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onToggleLineage();
+                                    }}
+                                    disabled={!lineageAvailable}
+                                    aria-label="Toggle data lineage inspector"
+                                >
+                                    <MantineIcon
+                                        icon={IconDatabaseSearch}
+                                        size={12}
+                                    />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
                         <Tooltip label="Clear queries" withArrow position="top">
                             <ActionIcon
                                 variant="subtle"
@@ -509,6 +586,11 @@ const QueryInspector: FC<Props> = ({
                                     key={q.queryUuid ?? q.id}
                                     query={q}
                                     projectUuid={projectUuid}
+                                    onHover={onHoverQuery}
+                                    focused={
+                                        focusedQueryUuid != null &&
+                                        q.queryUuid === focusedQueryUuid
+                                    }
                                 />
                             ))
                         )}
