@@ -1,3 +1,10 @@
+## [0.3262.1](https://github.com/lightdash/lightdash/compare/0.3262.0...0.3262.1) (2026-06-30)
+
+
+### Bug Fixes
+
+* resolve GeoJSON URL using SDK instance URL in SimpleMap ([#24871](https://github.com/lightdash/lightdash/issues/24871)) ([9aca7b3](https://github.com/lightdash/lightdash/commit/9aca7b3ad133e72c27d51d3fb816061c244c85e3))
+
 # [0.3262.0](https://github.com/lightdash/lightdash/compare/0.3261.1...0.3262.0) (2026-06-30)
 
 
