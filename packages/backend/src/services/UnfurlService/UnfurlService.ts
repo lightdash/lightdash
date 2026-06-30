@@ -1624,6 +1624,18 @@ export class UnfurlService extends BaseService {
                                 // of overflow.
                                 const contentHeight = await appFrame.evaluate(
                                     () => {
+                                        // Opt-in: honor an element flagged with
+                                        // `data-screenshot-bounds` as the content extent.
+                                        const explicit = document.querySelector(
+                                            '[data-screenshot-bounds]',
+                                        );
+                                        if (explicit) {
+                                            const r =
+                                                explicit.getBoundingClientRect();
+                                            if (r.width > 0 && r.height > 0) {
+                                                return Math.ceil(r.bottom);
+                                            }
+                                        }
                                         let maxBottom = 0;
                                         const root =
                                             document.querySelector('#root') ??
