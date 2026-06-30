@@ -204,6 +204,71 @@ describe('SandboxManager', () => {
         });
     });
 
+    describe('suspendByUuid', () => {
+        it('connects to the live container then suspends (no handle needed)', async () => {
+            const provider = makeProvider(false);
+            const registry = makeRegistry();
+            registry.findBySandboxUuid.mockResolvedValue({
+                sandboxUuid: 'sb-1',
+                organizationUuid: 'org-1',
+                projectUuid: 'proj-1',
+                providerSandboxId: 'live-running',
+                snapshotRef: null,
+                workspace,
+                lastActivityAt: new Date(0),
+            });
+            const manager = makeManager(provider, registry, makeStore());
+
+            await manager.suspendByUuid('sb-1');
+
+            expect(provider.connect).toHaveBeenCalledWith('live-running');
+            expect(provider.persist).toHaveBeenCalledTimes(1);
+            expect(provider.destroy).toHaveBeenCalledWith('live-reconnect');
+            expect(registry.markSuspended).toHaveBeenCalledWith('sb-1', {
+                snapshotRef: {
+                    kind: 's3-tar',
+                    key: 'sandboxes/sb-1/snapshot.tar.gz',
+                },
+                providerSandboxId: null,
+            });
+        });
+
+        it('GCs a row that has no live sandbox to preserve', async () => {
+            const provider = makeProvider(false);
+            const registry = makeRegistry();
+            registry.findBySandboxUuid.mockResolvedValue({
+                sandboxUuid: 'sb-1',
+                organizationUuid: 'org-1',
+                projectUuid: 'proj-1',
+                providerSandboxId: null,
+                snapshotRef: { kind: 's3-tar', key: 'k' },
+                workspace,
+                lastActivityAt: new Date(0),
+            });
+            const store = makeStore();
+            const manager = makeManager(provider, registry, store);
+
+            await manager.suspendByUuid('sb-1');
+
+            expect(provider.connect).not.toHaveBeenCalled();
+            expect(provider.persist).not.toHaveBeenCalled();
+            expect(store.delete).toHaveBeenCalledWith('k');
+            expect(registry.deleteBySandboxUuid).toHaveBeenCalledWith('sb-1');
+        });
+
+        it('is a no-op when the row is already gone', async () => {
+            const provider = makeProvider(false);
+            const registry = makeRegistry();
+            registry.findBySandboxUuid.mockResolvedValue(null);
+            const manager = makeManager(provider, registry, makeStore());
+
+            await manager.suspendByUuid('sb-1');
+
+            expect(provider.connect).not.toHaveBeenCalled();
+            expect(registry.deleteBySandboxUuid).not.toHaveBeenCalled();
+        });
+    });
+
     describe('resume', () => {
         it('restores from the recorded snapshot and marks running', async () => {
             const provider = makeProvider(false);

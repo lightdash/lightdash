@@ -197,6 +197,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     promoteService: repository.getPromoteService(),
                     externalConnectionModel:
                         models.getExternalConnectionModel(),
+                    sandboxRegistryModel:
+                        models.getSandboxRegistryModel<SandboxRegistryModel>(),
                 }),
             embedService: ({ repository, context, models }) =>
                 new EmbedService({

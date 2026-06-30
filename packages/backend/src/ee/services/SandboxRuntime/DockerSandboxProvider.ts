@@ -437,8 +437,12 @@ export class DockerSandboxProvider implements SandboxProvider {
         const includeArgs = workspace.include
             .map((path) => shQuote(toArchiveRelative(path)))
             .join(' ');
+        // `--ignore-failed-read` so a declared-but-absent include path (e.g. the
+        // HOME candidate for the other provider's runtime user) is skipped rather
+        // than failing the whole archive — the workspace lists both `/root/.claude*`
+        // and `/home/user/.claude*`, and only the live HOME's actually exist.
         await handle.commands.run(
-            `tar czf ${shQuote(archivePath)} ${excludeFlags} -C / ${includeArgs}`,
+            `tar czf ${shQuote(archivePath)} --ignore-failed-read ${excludeFlags} -C / ${includeArgs}`,
         );
         try {
             const archive = await handle.files.readBytes(archivePath);

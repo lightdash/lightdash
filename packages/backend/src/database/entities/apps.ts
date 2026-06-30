@@ -21,6 +21,12 @@ export type DbApp = {
     description: string;
     project_uuid: string;
     space_uuid: string | null;
+    // Stable, registry-owned sandbox id (`sandbox_registry.sandbox_uuid`). Null
+    // until the app's first generation creates a sandbox. The provider's own
+    // container id changes every turn under persist+destroy, so this indirection
+    // is what survives across turns. The column keeps its original name
+    // `sandbox_id` for backwards compatibility — renaming it would break
+    // in-flight old code during a deploy.
     sandbox_id: string | null;
     template: Exclude<DataAppTemplate, 'custom'> | null;
     design_uuid: string | null;
