@@ -44,9 +44,20 @@ export type FieldEntry = {
     description: string;
     aiHint: string;
     haystack: string;
+    // How many verified charts use this field (0 = not in any verified chart).
+    // Governs verified-first ranking; 0 when no usage map is supplied.
+    verifiedUsage: number;
 };
 
-export const buildFieldIndex = (explores: Explore[]): FieldEntry[] => {
+/**
+ * @param verifiedUsage Project-wide verified-chart usage keyed
+ * `table_field::fieldType` (from getVerifiedFieldUsage). Optional — when
+ * omitted every entry's verifiedUsage is 0 and ranking is keyword-only.
+ */
+export const buildFieldIndex = (
+    explores: Explore[],
+    verifiedUsage?: Map<string, number>,
+): FieldEntry[] => {
     const entries: FieldEntry[] = [];
     for (const explore of explores) {
         const exploreHints = [
@@ -90,6 +101,8 @@ export const buildFieldIndex = (explores: Explore[]): FieldEntry[] => {
                         description,
                         aiHint,
                         haystack: annotations.toLowerCase(),
+                        verifiedUsage:
+                            verifiedUsage?.get(`${fieldId}::${kind}`) ?? 0,
                     });
                 }
             }
@@ -164,9 +177,28 @@ export const extractKeywords = (text: string): string[] => {
 };
 
 /**
+ * Compare two scored entries: more keyword matches first, then verified-first
+ * (a field used in verified charts wins the tie — governed fields get a bit
+ * more weight without overriding relevance), then metrics, then shorter path.
+ */
+const compareScored = (
+    a: { entry: FieldEntry; score: number },
+    b: { entry: FieldEntry; score: number },
+): number => {
+    if (b.score !== a.score) return b.score - a.score;
+    if (b.entry.verifiedUsage !== a.entry.verifiedUsage) {
+        return b.entry.verifiedUsage - a.entry.verifiedUsage;
+    }
+    if (a.entry.kind !== b.entry.kind) {
+        return a.entry.kind === 'metric' ? -1 : 1;
+    }
+    return a.entry.path.length - b.entry.path.length;
+};
+
+/**
  * Score every field by how many of the query keywords it matches and return the
  * best candidates. Multi-keyword matches (e.g. a field hitting both "revenue"
- * and "country") rank first, so the seed surfaces the on-target fields.
+ * and "country") rank first; verified fields win ties.
  */
 export const selectCandidateFields = (
     index: FieldEntry[],
@@ -182,15 +214,16 @@ export const selectCandidateFields = (
         }
         if (score > 0) scored.push({ entry, score });
     }
-    scored.sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score;
-        // Tie-break: metrics first (questions usually want a measure), then the
-        // shorter path (less likely to be a deeply-nested edge field).
-        if (a.entry.kind !== b.entry.kind)
-            return a.entry.kind === 'metric' ? -1 : 1;
-        return a.entry.path.length - b.entry.path.length;
-    });
+    scored.sort(compareScored);
     return scored.slice(0, limit).map((s) => s.entry);
+};
+
+const fieldLine = (f: FieldEntry): string => {
+    const verified = f.verifiedUsage > 0 ? ' ✓verified' : '';
+    const desc = f.description
+        ? ` — ${f.description.replace(/\s+/g, ' ').slice(0, 140)}`
+        : '';
+    return `  ${f.path}  [${f.kind} ${f.type}]${verified} ${f.label}${desc}`;
 };
 
 export const renderCandidateBlock = (candidates: FieldEntry[]): string => {
@@ -201,14 +234,7 @@ export const renderCandidateBlock = (candidates: FieldEntry[]): string => {
         byExplore.set(c.exploreName, list);
     }
     const blocks = [...byExplore.entries()].map(([exploreName, fields]) => {
-        const lines = fields
-            .map((f) => {
-                const desc = f.description
-                    ? ` — ${f.description.replace(/\s+/g, ' ').slice(0, 140)}`
-                    : '';
-                return `  ${f.path}  [${f.kind} ${f.type}] ${f.label}${desc}`;
-            })
-            .join('\n');
+        const lines = fields.map(fieldLine).join('\n');
         return `${exploreName} (${fields[0]?.exploreLabel ?? exploreName})\n${lines}`;
     });
     return [

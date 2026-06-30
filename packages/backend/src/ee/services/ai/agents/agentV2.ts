@@ -113,6 +113,7 @@ const withToolHints = (
 const withPreGrepCandidates = (
     messageHistory: ModelMessage[],
     availableExplores: Explore[],
+    verifiedFieldUsage: Map<string, number>,
 ): ModelMessage[] => {
     const lastUserIndex = messageHistory.findLastIndex(
         (m) => m.role === 'user',
@@ -129,7 +130,7 @@ const withPreGrepCandidates = (
     const keywords = extractKeywords(userText);
     if (keywords.length === 0) return messageHistory;
     const candidates = selectCandidateFields(
-        buildFieldIndex(availableExplores),
+        buildFieldIndex(availableExplores, verifiedFieldUsage),
         keywords,
     );
     if (candidates.length === 0) return messageHistory;
@@ -259,6 +260,7 @@ const getAgentTools = (
     dependencies: AiAgentDependencies,
     availableExplores: Explore[],
     mcpToolSetup: AgentMcpToolSetup,
+    verifiedFieldUsage: Map<string, number>,
 ): ToolSet => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger(
@@ -302,6 +304,7 @@ const getAgentTools = (
         ? getGrepFields({
               availableExplores,
               findExplores: dependencies.findExplores,
+              verifiedFieldUsage,
           })
         : null;
 
@@ -622,6 +625,7 @@ const getAgentMessages = (
     args: AiAgentArgs,
     availableExplores: Explore[],
     mcpToolSetup: AgentMcpToolSetup,
+    verifiedFieldUsage: Map<string, number>,
 ) => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger('Agent Messages', 'Getting agent messages.');
@@ -630,6 +634,7 @@ const getAgentMessages = (
         ? withPreGrepCandidates(
               withToolHints(args.messageHistory, args.toolHints),
               availableExplores,
+              verifiedFieldUsage,
           )
         : withToolHints(args.messageHistory, args.toolHints);
 
@@ -718,14 +723,28 @@ export const generateAgentResponse = async ({
 
     try {
         const availableExplores = await dependencies.listExplores();
+        // Verified-chart usage powers verified-first ranking in grep discovery;
+        // degrade to an empty map if it can't be fetched.
+        const verifiedFieldUsage = args.enableGrepFields
+            ? await dependencies
+                  .getVerifiedFieldUsage()
+                  .catch(() => new Map<string, number>())
+            : new Map<string, number>();
         const tools = withEarlyToolProgress(
-            getAgentTools(args, dependencies, availableExplores, mcpToolSetup),
+            getAgentTools(
+                args,
+                dependencies,
+                availableExplores,
+                mcpToolSetup,
+                verifiedFieldUsage,
+            ),
             dependencies.updateProgress,
         );
         const messages = getAgentMessages(
             args,
             availableExplores,
             mcpToolSetup,
+            verifiedFieldUsage,
         );
         logger(
             'Generate Agent Response',
@@ -957,16 +976,23 @@ export const streamAgentResponse = async ({
 
     try {
         const availableExplores = await dependencies.listExplores();
+        const verifiedFieldUsage = args.enableGrepFields
+            ? await dependencies
+                  .getVerifiedFieldUsage()
+                  .catch(() => new Map<string, number>())
+            : new Map<string, number>();
         const tools = getAgentTools(
             args,
             dependencies,
             availableExplores,
             mcpToolSetup,
+            verifiedFieldUsage,
         );
         const messages = getAgentMessages(
             args,
             availableExplores,
             mcpToolSetup,
+            verifiedFieldUsage,
         );
         logger(
             'Stream Agent Response',

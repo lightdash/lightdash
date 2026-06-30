@@ -85,6 +85,10 @@ export type FindExploresFn = (args: {
     }>;
 }>;
 
+// Project-wide verified-chart usage per field, keyed `table_field::fieldType`.
+// Used to rank verified/governed fields first in grep discovery.
+export type GetVerifiedFieldUsageFn = () => Promise<Map<string, number>>;
+
 export type FindFieldFn = (
     args: KnexPaginateArgs & {
         table: ToolFindFieldsArgs['table'];
