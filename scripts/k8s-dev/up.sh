@@ -18,7 +18,16 @@ ok "terraform applied"
 APP_ROLE_ARN="$(tf_output app_role_arn)"
 S3_BUCKET="$(tf_output s3_bucket)"
 ECR_URL="$(tf_output ecr_repository_url)"
+MICROVM_EXECUTION_ROLE_ARN="$(tf_output microvm_execution_role_arn)"
 [ -n "$APP_ROLE_ARN" ] && [ -n "$S3_BUCKET" ] || fail "terraform -- missing outputs (app_role_arn/s3_bucket)"
+
+# Lambda MicroVMs (cross-region in eu-west-1). Image ARNs come from config.env,
+# produced by sandboxes/microvm-agent/build-microvm-image.sh. Warn (don't fail)
+# if unset so the cluster can still come up on the E2B fallback.
+LAMBDA_MICROVM_REGION="${LAMBDA_MICROVM_REGION:-eu-west-1}"
+if [ -z "${LAMBDA_MICROVM_AI_WRITEBACK_IMAGE_ARN:-}" ] || [ -z "${LAMBDA_MICROVM_DATA_APP_IMAGE_ARN:-}" ]; then
+  echo "WARN: LAMBDA_MICROVM_*_IMAGE_ARN not set in config.env — run sandboxes/microvm-agent/build-microvm-image.sh and export them, or set SANDBOX_PROVIDER=e2b."
+fi
 
 # ---------------------------------------------------------------------------
 step "configure kubectl"
@@ -133,6 +142,10 @@ APP_ROLE_ARN="$APP_ROLE_ARN" \
 S3_BUCKET="$S3_BUCKET" \
 S3_REGION="$AWS_REGION" \
 SITE_HOST="$SITE_HOST" \
+LAMBDA_MICROVM_REGION="$LAMBDA_MICROVM_REGION" \
+LAMBDA_MICROVM_AI_WRITEBACK_IMAGE_ARN="${LAMBDA_MICROVM_AI_WRITEBACK_IMAGE_ARN:-}" \
+LAMBDA_MICROVM_DATA_APP_IMAGE_ARN="${LAMBDA_MICROVM_DATA_APP_IMAGE_ARN:-}" \
+LAMBDA_MICROVM_EXECUTION_ROLE_ARN="$MICROVM_EXECUTION_ROLE_ARN" \
   envsubst < "$K8S_DEV_DIR/values.aws.yaml.tpl" > "$RENDERED"
 ok "values rendered -> $RENDERED"
 

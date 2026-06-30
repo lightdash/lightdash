@@ -108,6 +108,11 @@ ingress:
     # buffer overflows → 502 on asset routes ("upstream sent too big header"). Bump it.
     nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"
     nginx.ingress.kubernetes.io/proxy-buffers-number: "4"
+    # AI writeback runs synchronously and can take minutes (microVM boot + Claude
+    # + dbt compile + PR). The default 60s proxy timeout returns a 504 to the
+    # client even though the run succeeds server-side — bump it to 10 minutes.
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
   hosts:
     - host: "${SITE_HOST}"
       paths:
@@ -150,17 +155,35 @@ extraEnv:
       secretKeyRef:
         name: lightdash-app
         key: ANTHROPIC_API_KEY
-  # E2B runs the agent sandbox in E2B's cloud (cluster egress via NAT). Swap to
-  # SANDBOX_PROVIDER=kubernetes later — see SandboxRuntime/DESIGN.md.
+  # AI writeback reads a SEPARATE Anthropic key env var from the data-app/AI
+  # service; point it at the same secret so writeback can run Claude.
+  - name: AI_WRITEBACK_ANTHROPIC_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: lightdash-app
+        key: ANTHROPIC_API_KEY
+  # --- Sandbox backend: AWS Lambda MicroVMs (native suspend/resume) ---
+  # The backend drives the MicroVMs control plane cross-region: this cluster is
+  # in eu-west-2, MicroVMs in eu-west-1 (the EU launch region). The control plane
+  # is a normal API and the data plane is public HTTPS, so cross-region is fine;
+  # IAM (app role + execution role) is global. Image ARNs come from the
+  # sandboxes/microvm-agent/build-microvm-image.sh pipeline.
   - name: SANDBOX_PROVIDER
-    value: "e2b"
+    value: "lambda-microvm"
+  - name: LAMBDA_MICROVM_REGION
+    value: "${LAMBDA_MICROVM_REGION}"
+  - name: LAMBDA_MICROVM_AI_WRITEBACK_IMAGE_ARN
+    value: "${LAMBDA_MICROVM_AI_WRITEBACK_IMAGE_ARN}"
+  - name: LAMBDA_MICROVM_DATA_APP_IMAGE_ARN
+    value: "${LAMBDA_MICROVM_DATA_APP_IMAGE_ARN}"
+  - name: LAMBDA_MICROVM_EXECUTION_ROLE_ARN
+    value: "${LAMBDA_MICROVM_EXECUTION_ROLE_ARN}"
+  # E2B fallback (set SANDBOX_PROVIDER=e2b to switch back). Key kept in the secret.
   - name: E2B_API_KEY
     valueFrom:
       secretKeyRef:
         name: lightdash-app
         key: E2B_API_KEY
-  # Template tag defaults to the running version; pin to the rolling :latest so a missing
-  # per-version template doesn't fail sandbox creation on this pinned image.
   - name: E2B_TEMPLATE_TAG
     value: "latest"
   # --- GitHub App (dbt-over-GitHub + AI writeback). Creds from the lightdash-app secret. ---
