@@ -1,3 +1,10 @@
+## [0.3263.2](https://github.com/lightdash/lightdash/compare/0.3263.1...0.3263.2) (2026-06-30)
+
+
+### Bug Fixes
+
+* **ai:** use json outputs for discover fields tools ([#24922](https://github.com/lightdash/lightdash/issues/24922)) ([5d6e419](https://github.com/lightdash/lightdash/commit/5d6e4197b0e2df0c13b774a8c16cca2c96b50ad9))
+
 ## [0.3263.1](https://github.com/lightdash/lightdash/compare/0.3263.0...0.3263.1) (2026-06-30)
 
 
