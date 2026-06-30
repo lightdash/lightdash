@@ -1,3 +1,16 @@
+# [0.3267.0](https://github.com/lightdash/lightdash/compare/0.3266.0...0.3267.0) (2026-06-30)
+
+
+### Bug Fixes
+
+* **ai:** remove agent revamp branching ([#24926](https://github.com/lightdash/lightdash/issues/24926)) ([b7b5d7c](https://github.com/lightdash/lightdash/commit/b7b5d7c12ba9c9b34699cb7b529339680d0bd71b))
+* **ai:** route writeback "use this/not that" directives to ai_hints, not descriptions ([#24938](https://github.com/lightdash/lightdash/issues/24938)) ([3c1242b](https://github.com/lightdash/lightdash/commit/3c1242b1b3d4dca6c944b7de42aac23e7e88d7c3))
+
+
+### Features
+
+* align edit connection UI with onboarding wizard ([#24943](https://github.com/lightdash/lightdash/issues/24943)) ([5a55fb1](https://github.com/lightdash/lightdash/commit/5a55fb1ea351c545a3080bf5fa9ef9a8ad4dd9b4))
+
 # [0.3266.0](https://github.com/lightdash/lightdash/compare/0.3265.2...0.3266.0) (2026-06-30)
 
 
