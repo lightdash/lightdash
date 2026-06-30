@@ -102,13 +102,13 @@ jobs:
       - name: Install packages
         run: sfw pnpm install --frozen-lockfile --prefer-offline
       - name: Build
-        run: pnpm build
+        run: pnpm build:fast
       - name: Run quality checks in parallel
         run: |
           pnpm lint & pid_lint=$!
           pnpm format & pid_format=$!
           pnpm -F frontend unused-exports & pid_unused=$!
-          pnpm typecheck & pid_typecheck=$!
+          pnpm typecheck:fast & pid_typecheck=$!
           pnpm -F common check:filter-grammar-parser & pid_grammar=$!
           fail=0
           wait $pid_lint || fail=1
@@ -118,7 +118,7 @@ jobs:
           wait $pid_grammar || fail=1
           exit $fail
       - name: Run unit tests
-        run: pnpm test
+        run: pnpm test:fast
 
   # Guards the published SDK bundle against re-introducing eval()/new Function()
   # that breaks consumers on a strict CSP (no 'unsafe-eval'). See issue #21276.
@@ -462,7 +462,7 @@ jobs:
       - name: Install packages
         run: sfw pnpm install --frozen-lockfile --prefer-offline
       - name: Build packages/common module
-        run: pnpm common-build
+        run: pnpm common-build:fast
       - name: Create BigQuery credentials file
         id: create-json
         uses: jsdaniell/create-json@b8e77fa01397ca39cc4a6198cc29a3be5481afef # v1.2.3
@@ -509,7 +509,7 @@ jobs:
       - name: Setup Node, PNPM, and Cypress
         uses: ./.github/workflows/_setup_node_pnpm_cypress
       - name: Build packages/common module
-        run: pnpm common-build
+        run: pnpm common-build:fast
       - name: create-json
         id: create-json
         uses: jsdaniell/create-json@b8e77fa01397ca39cc4a6198cc29a3be5481afef # v1.2.3
@@ -571,7 +571,7 @@ jobs:
       - name: Setup Node, PNPM, and Cypress
         uses: ./.github/workflows/_setup_node_pnpm_cypress
       - name: Build packages/common module
-        run: pnpm common-build
+        run: pnpm common-build:fast
       - name: create-json
         id: create-json
         uses: jsdaniell/create-json@b8e77fa01397ca39cc4a6198cc29a3be5481afef # v1.2.3
@@ -617,11 +617,11 @@ jobs:
       - name: Setup Node, PNPM, and Cypress
         uses: ./.github/workflows/_setup_node_pnpm_cypress
       - name: Build packages/common module
-        run: pnpm common-build
+        run: pnpm common-build:fast
       - name: Build packages/warehouses module
-        run: pnpm warehouses-build
+        run: pnpm warehouses-build:fast
       - name: Build and install packages/cli module
-        run: cd packages/cli && pnpm build && sfw npm install -g
+        run: cd packages/cli && pnpm build:fast && sfw npm install -g
       - name: Test lightdash version
         run: |
           lightdash_version=$(lightdash --version)
@@ -679,11 +679,11 @@ jobs:
           PGDATABASE: postgres
           SEED_SCHEMA: jaffle_cli_tests_${{ github.run_id }}
       - name: Build packages/common module
-        run: pnpm common-build
+        run: pnpm common-build:fast
       - name: Build packages/warehouses module
-        run: pnpm warehouses-build
+        run: pnpm warehouses-build:fast
       - name: Build and install packages/cli module
-        run: cd packages/cli && pnpm build && sfw npm install -g
+        run: cd packages/cli && pnpm build:fast && sfw npm install -g
       - name: Test lightdash version
         run: |
           lightdash_version=$(lightdash --version)
@@ -754,11 +754,11 @@ jobs:
           PGDATABASE: postgres
           SEED_SCHEMA: jaffle_dbt_tests_${{ github.run_id }}_${{ strategy.job-index }}
       - name: Build packages/common module
-        run: pnpm common-build
+        run: pnpm common-build:fast
       - name: Build packages/warehouses module
-        run: pnpm warehouses-build
+        run: pnpm warehouses-build:fast
       - name: Build and install packages/cli module
-        run: cd packages/cli && pnpm build && sfw npm install -g
+        run: cd packages/cli && pnpm build:fast && sfw npm install -g
       - name: Test lightdash version
         run: |
           lightdash_version=$(lightdash --version)

@@ -11,6 +11,7 @@
         "format": "oxfmt . --check",
         "fix-format": "oxfmt .",
         "typecheck": "tsc6 --project tsconfig.json --noEmit",
+        "typecheck:fast": "tsc --project tsconfig.json --noEmit",
         "test:api": "vitest run --config vitest.config.ts",
         "test:api:watch": "vitest watch --config vitest.config.ts"
     },
