@@ -1,3 +1,11 @@
+## [0.3265.2](https://github.com/lightdash/lightdash/compare/0.3265.1...0.3265.2) (2026-06-30)
+
+
+### Bug Fixes
+
+* require verified oidc emails ([#24927](https://github.com/lightdash/lightdash/issues/24927)) ([18717aa](https://github.com/lightdash/lightdash/commit/18717aa5bd95115cdd84cd35628cb86468f8c178))
+* restore MotherDuck direct query compatibility ([#24937](https://github.com/lightdash/lightdash/issues/24937)) ([e3d9d3c](https://github.com/lightdash/lightdash/commit/e3d9d3c5774b2610de3576687b820c8502c2ddd9))
+
 ## [0.3265.1](https://github.com/lightdash/lightdash/compare/0.3265.0...0.3265.1) (2026-06-30)
 
 
