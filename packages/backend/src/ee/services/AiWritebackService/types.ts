@@ -5,7 +5,7 @@ import type {
     WarehouseTypes,
 } from '@lightdash/common';
 import type { AiWritebackFailureStage } from '../../../analytics/LightdashAnalytics';
-import type { AiWritebackThreadWithPrUrl } from '../../models/AiWritebackThreadModel';
+import type { ResumableWritebackThread } from '../../models/AiWritebackThreadModel';
 import type { GitProvider } from './providers/GitProvider';
 
 /**
@@ -110,7 +110,7 @@ export type TurnContext = {
     /** Resolved once from the dbt connection type; the service never re-branches. */
     provider: GitProvider;
     gitConnection: GitConnection;
-    existingRow: AiWritebackThreadWithPrUrl | null;
+    existingRow: ResumableWritebackThread | null;
     isResume: boolean;
     /**
      * The project's warehouse dialect, used to pick the warehouse skill file

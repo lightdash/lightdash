@@ -24,7 +24,7 @@ import {
     listReposAccessibleToInstallation,
     listReposAccessibleToUser,
 } from '../../../clients/github/Github';
-import { createSandboxProvider } from '../SandboxRuntime';
+import { createSandboxManager, SandboxManager } from '../SandboxRuntime';
 import {
     AiWritebackService,
     mergeSourceCodeRepoAccess,
@@ -45,14 +45,15 @@ vi.mock('e2b', () => ({
     TimeoutError: class TimeoutError extends Error {},
     ALL_TRAFFIC: 'all',
 }));
-// The service talks to a SandboxProvider, never a concrete SDK. Keep the real
-// error classes (the service branches on them with instanceof) but stub the
-// factory so the run() tests inject a fake provider over the fake sandbox.
+// The service talks to a SandboxManager over a provider, never a concrete SDK.
+// Keep the real SandboxManager + error classes (the service branches on them
+// with instanceof) but stub the manager factory so the run() tests wrap a fake
+// provider in a real manager.
 vi.mock('../SandboxRuntime', async () => ({
     ...(await vi.importActual<typeof import('../SandboxRuntime')>(
         '../SandboxRuntime',
     )),
-    createSandboxProvider: vi.fn(),
+    createSandboxManager: vi.fn(),
 }));
 vi.mock('../../../clients/github/Github', () => ({
     createBranch: vi.fn().mockResolvedValue(undefined),
@@ -93,6 +94,16 @@ const buildService = (overrides: Record<string, AnyType> = {}) =>
         } as AnyType,
         gitlabAppInstallationsModel: {} as AnyType,
         aiWritebackThreadModel: { findByAiThreadUuid: vi.fn() } as AnyType,
+        sandboxRegistryModel: {
+            create: vi.fn().mockResolvedValue('sbx-uuid'),
+            findBySandboxUuid: vi.fn().mockResolvedValue(null),
+            markRunning: vi.fn().mockResolvedValue(undefined),
+            markSuspended: vi.fn().mockResolvedValue(undefined),
+            touch: vi.fn().mockResolvedValue(undefined),
+            deleteBySandboxUuid: vi.fn().mockResolvedValue(undefined),
+            findIdleRunning: vi.fn().mockResolvedValue([]),
+            findExpiredSuspended: vi.fn().mockResolvedValue([]),
+        } as AnyType,
         pullRequestsModel: {} as AnyType,
         ciService: { mergePullRequest: vi.fn() } as AnyType,
         projectService: { scheduleCompileProject: vi.fn() } as AnyType,
@@ -132,7 +143,7 @@ const turnContext = (overrides: AnyType = {}): AnyType => ({
 const threadRow = (prUrl: string): AnyType => ({
     ai_writeback_thread_uuid: 'w-1',
     ai_thread_uuid: 'thread-1',
-    sandbox_id: 'sbx-1',
+    sandbox_uuid: 'sbx-1',
     pull_request_uuid: 'pr-1',
     created_at: new Date(),
     pr_url: prUrl,
@@ -169,6 +180,7 @@ describe('AiWritebackService.applyAgentChanges', () => {
     ): AnyType =>
         (service as AnyType).applyAgentChanges({
             sandbox: { sandboxId: 'sbx-1' },
+            sandboxUuid: 'sbx-uuid',
             installation: {
                 provider: PullRequestProvider.GITHUB,
                 installationId: 'inst-1',
@@ -540,6 +552,10 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         connect: vi.fn(),
         destroy: vi.fn().mockResolvedValue(undefined),
         pause: vi.fn().mockResolvedValue(undefined),
+        persist: vi
+            .fn()
+            .mockResolvedValue({ kind: 'e2b-paused', sandboxId: 'sb-test' }),
+        resume: vi.fn(),
     };
 
     const runService = (sandbox: AnyType) => {
@@ -551,6 +567,11 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                     e2bApiKey: 'e2b-key',
                     e2bAiWritebackTemplateName: 'tpl',
                     e2bAiWritebackTemplateTag: '',
+                    sandboxProvider: 'e2b',
+                    sandboxAiWritebackDockerImage:
+                        'lightdash-ai-writeback:local',
+                    sandboxIdleTimeoutMs: 30 * 60 * 1000,
+                    sandboxSnapshotRetentionMs: 7 * 24 * 60 * 60 * 1000,
                 },
                 aiWriteback: { anthropicApiKey: 'anthropic-key' },
             } as AnyType,
@@ -606,8 +627,19 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         vi.clearAllMocks();
         fakeSandboxProvider.destroy.mockResolvedValue(undefined);
         fakeSandboxProvider.pause.mockResolvedValue(undefined);
-        (createSandboxProvider as import('vitest').Mock).mockReturnValue(
-            fakeSandboxProvider,
+        // Wrap the fake provider in a real SandboxManager, threading the
+        // service's own fake registry model through.
+        (createSandboxManager as import('vitest').Mock).mockImplementation(
+            (opts: AnyType) =>
+                new SandboxManager({
+                    provider: fakeSandboxProvider as AnyType,
+                    providerKind: 'e2b',
+                    snapshotStore: opts.snapshotStore,
+                    registryModel: opts.registryModel,
+                    logger: opts.logger,
+                    idleTimeoutMs: opts.idleTimeoutMs ?? 0,
+                    snapshotRetentionMs: opts.snapshotRetentionMs ?? 0,
+                }),
         );
         (getInstallationToken as import('vitest').Mock).mockResolvedValue(
             'install-token',

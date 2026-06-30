@@ -41,6 +41,7 @@ import { ExternalConnectionModel } from './models/ExternalConnectionModel';
 import { ManagedAgentModel } from './models/ManagedAgentModel';
 import { ProjectCiStatusModel } from './models/ProjectCiStatusModel';
 import { ProjectContextModel } from './models/ProjectContextModel';
+import { SandboxRegistryModel } from './models/SandboxRegistryModel';
 import { ServiceAccountModel } from './models/ServiceAccountModel';
 import { enhanceExploresForPreAggregates } from './preAggregates/enhanceExploresForPreAggregates';
 import { preAggregatePostProcessor } from './preAggregates/postProcessor';
@@ -134,6 +135,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getGitlabAppInstallationsModel(),
                     aiWritebackThreadModel:
                         models.getAiWritebackThreadModel<AiWritebackThreadModel>(),
+                    sandboxRegistryModel:
+                        models.getSandboxRegistryModel<SandboxRegistryModel>(),
                     pullRequestsModel: models.getPullRequestsModel(),
                     prometheusMetrics,
                     ciService: repository.getCiService(),
@@ -759,6 +762,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AiAgentDocumentModel({ database }),
             aiWritebackThreadModel: ({ database }) =>
                 new AiWritebackThreadModel({ database }),
+            sandboxRegistryModel: ({ database }) =>
+                new SandboxRegistryModel({ database }),
             projectCiStatusModel: ({ database }) =>
                 new ProjectCiStatusModel({ database }),
             aiAgentReviewClassifierModel: ({ database }) =>

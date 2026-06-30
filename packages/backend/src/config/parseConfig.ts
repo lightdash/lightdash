@@ -1613,6 +1613,17 @@ export type AppRuntimeConfig = {
      * `lightdash-ai-writeback:local`).
      */
     sandboxAiWritebackDockerImage: string;
+    /**
+     * How long a *running* sandbox can be idle before the reaper suspends it.
+     * A crash safety net only — in steady state every turn suspends its own
+     * sandbox, so nothing sits idle. Defaults to 30 minutes.
+     */
+    sandboxIdleTimeoutMs: number;
+    /**
+     * How long a *suspended* sandbox snapshot is kept (resumable) before the
+     * reaper GCs it. Defaults to 7 days.
+     */
+    sandboxSnapshotRetentionMs: number;
 };
 
 export type IntercomConfig = {
@@ -1844,6 +1855,12 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         sandboxAiWritebackDockerImage:
             process.env.SANDBOX_AI_WRITEBACK_DOCKER_IMAGE ||
             'lightdash-ai-writeback:local',
+        sandboxIdleTimeoutMs: process.env.SANDBOX_IDLE_TIMEOUT_MS
+            ? parseInt(process.env.SANDBOX_IDLE_TIMEOUT_MS, 10)
+            : 30 * 60 * 1000,
+        sandboxSnapshotRetentionMs: process.env.SANDBOX_SNAPSHOT_RETENTION_MS
+            ? parseInt(process.env.SANDBOX_SNAPSHOT_RETENTION_MS, 10)
+            : 7 * 24 * 60 * 60 * 1000,
     };
 };
 

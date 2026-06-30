@@ -7,12 +7,14 @@ import {
     type GitCommitOptions,
     type GitPushOptions,
     type GitStatus,
+    type PersistOptions,
     type RunOptions,
     type SandboxCapabilities,
     type SandboxGit,
     type SandboxHandle,
     type SandboxProvider,
     type SandboxSpec,
+    type SnapshotRef,
 } from './types';
 
 // Sandboxes re-attached via connect() get the same long-lived ceiling as the
@@ -199,5 +201,25 @@ export class E2bSandboxProvider implements SandboxProvider {
 
     async pause(sandboxId: string): Promise<void> {
         await Sandbox.pause(sandboxId, { apiKey: this.apiKey });
+    }
+
+    // Native in-memory pause IS the snapshot: the paused sandbox keeps RAM, disk
+    // and live processes, so the declared workspace is irrelevant here. The ref
+    // is just the sandboxId to reconnect to.
+    async persist(
+        handle: SandboxHandle,
+        _options: PersistOptions,
+    ): Promise<SnapshotRef> {
+        await this.pause(handle.sandboxId);
+        return { kind: 'e2b-paused', sandboxId: handle.sandboxId };
+    }
+
+    async resume(ref: SnapshotRef, _spec: SandboxSpec): Promise<SandboxHandle> {
+        if (ref.kind !== 'e2b-paused') {
+            throw new Error(
+                `E2bSandboxProvider cannot resume a snapshot of kind '${ref.kind}'`,
+            );
+        }
+        return this.connect(ref.sandboxId);
     }
 }

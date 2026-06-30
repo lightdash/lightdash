@@ -109,7 +109,14 @@ export const AiWritebackThreadTableName = 'ai_writeback_thread';
 export type DbAiWritebackThread = {
     ai_writeback_thread_uuid: string;
     ai_thread_uuid: string;
-    sandbox_id: string;
+    /**
+     * The registry-owned, turn-stable sandbox id (see sandbox_registry).
+     * Backfilled for pre-registry rows by the registry migration. Null only for
+     * a row an old pod inserts mid-rollout (it sets the legacy `sandbox_id`
+     * column instead); such a thread is treated as unresumable and cleared on
+     * its next turn.
+     */
+    sandbox_uuid: string | null;
     pull_request_uuid: string | null;
     created_at: Date;
 };
@@ -118,9 +125,9 @@ export type AiWritebackThreadTable = Knex.CompositeTableType<
     DbAiWritebackThread,
     Pick<
         DbAiWritebackThread,
-        'ai_thread_uuid' | 'sandbox_id' | 'pull_request_uuid'
+        'ai_thread_uuid' | 'sandbox_uuid' | 'pull_request_uuid'
     >,
-    Pick<DbAiWritebackThread, 'sandbox_id' | 'pull_request_uuid'>
+    Pick<DbAiWritebackThread, 'sandbox_uuid' | 'pull_request_uuid'>
 >;
 
 export const AiPromptTableName = 'ai_prompt';
