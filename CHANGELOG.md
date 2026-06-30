@@ -1,3 +1,19 @@
+# [0.3265.0](https://github.com/lightdash/lightdash/compare/0.3264.0...0.3265.0) (2026-06-30)
+
+
+### Bug Fixes
+
+* adjust DuckDB SQL validation order ([#24924](https://github.com/lightdash/lightdash/issues/24924)) ([13a9f72](https://github.com/lightdash/lightdash/commit/13a9f721ba4e10630f456e7ad78e02b17ef68008))
+* improve command bar text contrast in dark mode ([#24915](https://github.com/lightdash/lightdash/issues/24915)) ([1cff996](https://github.com/lightdash/lightdash/commit/1cff9966d2a63139c529c9454074d22418582aea)), closes [#686868](https://github.com/lightdash/lightdash/issues/686868) [#242424](https://github.com/lightdash/lightdash/issues/242424)
+* **navbar:** truncate long project names in top navigation ([#24623](https://github.com/lightdash/lightdash/issues/24623)) ([59e9b4b](https://github.com/lightdash/lightdash/commit/59e9b4b0cda96859839f8a008504ef4b96a965d3))
+
+
+### Features
+
+* **sandbox:** AWS Lambda MicroVMs SandboxProvider (native pause/resume, ships dark) ([#24857](https://github.com/lightdash/lightdash/issues/24857)) ([eae2849](https://github.com/lightdash/lightdash/commit/eae284972adf3dc4afc515ae70894aa5adc71ee1)), closes [#24793](https://github.com/lightdash/lightdash/issues/24793)
+* **sandbox:** Lambda MicroVMs deploy infra — exec agent, image pipeline, /k8s-dev wiring ([#24858](https://github.com/lightdash/lightdash/issues/24858)) ([7d52870](https://github.com/lightdash/lightdash/commit/7d528706398d4c929a0e979b78c26bdfe1cd1ce4))
+* **sandbox:** persist/resume for data apps via SandboxManager (AppGenerate) ([#24794](https://github.com/lightdash/lightdash/issues/24794)) ([d79c43a](https://github.com/lightdash/lightdash/commit/d79c43a4ce73a39deb3802d9ede8941f550a2e20)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.3264.0](https://github.com/lightdash/lightdash/compare/0.3263.2...0.3264.0) (2026-06-30)
 
 
