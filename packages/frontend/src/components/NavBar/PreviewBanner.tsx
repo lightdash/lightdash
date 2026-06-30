@@ -47,8 +47,8 @@ export const PreviewBanner: FC<{
             <Group gap="xs" wrap="nowrap" miw={0}>
                 <MantineIcon icon={IconTool} color="white" size="sm" />
                 <Text c="white" fw={500} fz="xs" truncate>
-                    This is a preview environment. Any changes you make here will
-                    not affect production.
+                    This is a preview environment. Any changes you make here
+                    will not affect production.
                     {expiresAt && formatExpirationSuffix(expiresAt)}
                 </Text>
                 {upstreamProject && (
