@@ -2,6 +2,8 @@
 
 This document explains the `PivotData` structure used by the PivotTable component.
 
+> This file covers frontend rendering only. For the end-to-end pivot pipeline (the upstream config, SQL, and transform stages), see `/docs/pivoting.md`.
+
 ## Overview
 
 When a table is pivoted, dimensions move from rows to columns, creating a matrix view. The `PivotData` type contains all the information needed to render this transformation.

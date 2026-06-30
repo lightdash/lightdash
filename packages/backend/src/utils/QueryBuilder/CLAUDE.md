@@ -2,6 +2,8 @@
 SQL generation and transformation utilities for Lightdash queries.
 Three main builders: MetricQueryBuilder (metrics/dimensions with joins), PivotQueryBuilder (flat → pivot table with row/column indexes), SqlQueryBuilder (SQL charts with filtering).
 PivotQueryBuilder does NOT pivot data — it generates SQL that tags each row with `row_index` and `column_index` metadata via DENSE_RANK(). The actual pivoting happens downstream in AsyncQueryService.runQueryAndTransformRows.
+
+This file covers SQL generation only. For the end-to-end pivot pipeline (config → SQL → transform → reshape → render), see `/docs/pivoting.md`.
 </summary>
 
 <howToUse>
