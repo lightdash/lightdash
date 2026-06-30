@@ -101,6 +101,7 @@ vi.mock('../../hooks/useProjectAiAgents', () => ({
             isLoading: false,
         };
     },
+    useProjectAiAgent: () => ({ data: undefined, isLoading: false }),
 }));
 
 vi.mock('../../../../../hooks/useProjects', () => ({

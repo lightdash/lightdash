@@ -31,7 +31,20 @@ type Props = {
 export const EvidenceExcerpts: FC<Props> = ({ excerpts }) => {
     const renderable = getRenderableExcerpts(excerpts);
 
-    if (renderable.length === 0) {
+    // A `next_user_prompt` that repeats an earlier turn verbatim is the user
+    // re-asking — the signal is the repeat, not a new question. Showing the
+    // same text twice under two labels reads as a bug, so drop the echo.
+    const seen = new Set<string>();
+    const deduped = renderable.filter((excerpt) => {
+        const key = cleanExcerptText(excerpt.text).trim().toLowerCase();
+        if (excerpt.source === 'next_user_prompt' && seen.has(key)) {
+            return false;
+        }
+        seen.add(key);
+        return true;
+    });
+
+    if (deduped.length === 0) {
         return null;
     }
 
@@ -41,7 +54,7 @@ export const EvidenceExcerpts: FC<Props> = ({ excerpts }) => {
             className={styles.excerpts}
             gap="md"
         >
-            {renderable.map((excerpt) => {
+            {deduped.map((excerpt) => {
                 const muted = !PRIMARY_SOURCES.has(excerpt.source);
                 return (
                     <Stack

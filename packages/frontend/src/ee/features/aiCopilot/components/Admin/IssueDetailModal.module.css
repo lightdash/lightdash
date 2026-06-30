@@ -1,8 +1,20 @@
 .layout {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 248px;
-    gap: var(--mantine-spacing-xl);
-    align-items: start;
+    grid-template-columns: minmax(0, 1fr) 1px 232px;
+    gap: 28px;
+    align-items: stretch;
+}
+
+/* Hairline above the Evidence section, centred in the gap below Activity. */
+.evidenceSection {
+    margin-top: 26px;
+    padding-top: 26px;
+    border-top: 1px solid var(--mantine-color-ldGray-1);
+}
+
+/* Full-height hairline between the body and the rail. */
+.divider {
+    background-color: var(--mantine-color-ldGray-2);
 }
 
 .main {
@@ -10,25 +22,50 @@
     animation: rise 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Header title — rendered in the modal header bar, replaces the generic
-   "Issue" label so the bar reads as the issue itself. */
+/* Header title — rendered in the modal header bar. Light, roomy, low-contrast
+   weight so the bar reads as the issue without shouting. */
 .headerTitle {
     font-size: 16px;
-    font-weight: 650;
-    line-height: 1.35;
-    letter-spacing: -0.013em;
+    font-weight: 550;
+    line-height: 1.4;
+    letter-spacing: -0.014em;
     color: var(--mantine-color-ldGray-9);
 }
 
 /* Body lead ------------------------------------------------------------ */
 
 .metaRow {
-    margin-bottom: var(--mantine-spacing-md);
+    margin-bottom: var(--mantine-spacing-xl);
 }
 
+/* Root-cause marker — a bare dot + label, no chip fill. */
+.causeBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--mantine-color-ldGray-7);
+}
+
+.causeDot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.metaSep {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background-color: var(--mantine-color-ldGray-3);
+}
+
+/* Target ref — quiet monospace, no chip background. */
 .targetChip {
     display: inline-block;
-    max-width: 22rem;
+    max-width: 24rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -36,28 +73,30 @@
     font-family: var(--mantine-font-family-monospace);
     font-size: 11.5px;
     color: var(--mantine-color-ldGray-7);
-    background-color: var(--mantine-color-ldGray-1);
-    padding: 2px 7px;
-    border-radius: var(--mantine-radius-sm);
 }
 
 .recurrence {
-    font-size: 11.5px;
+    font-size: 11px;
     font-weight: 500;
     color: var(--mantine-color-ldGray-6);
 }
 
-/* AiMarkdown owns the typography; we only cap the measure for readability. */
+/* Fills the column — the prose grows to the available width. */
 .description {
-    max-width: 64ch;
+    max-width: 100%;
 }
 
+/* Quiet section markers — small, tracked, but with enough weight to read. */
 .sectionLabel {
-    font-size: 10.5px;
+    font-size: 10px;
     font-weight: 600;
-    letter-spacing: 0.07em;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--mantine-color-ldGray-6);
+}
+
+.section {
+    margin-top: 32px;
 }
 
 /* Activity / Evidence toggle ------------------------------------------- */
@@ -68,17 +107,14 @@
     gap: 5px;
     font-size: 11px;
     font-weight: 500;
-    color: var(--mantine-color-ldGray-6);
-    padding: 3px 8px;
+    color: var(--mantine-color-ldGray-5);
+    padding: 3px 6px;
     border-radius: var(--mantine-radius-sm);
-    transition:
-        color 150ms cubic-bezier(0.16, 1, 0.3, 1),
-        background-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
+    transition: color 150ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .toggle:hover {
     color: var(--mantine-color-ldGray-9);
-    background-color: var(--mantine-color-ldGray-1);
 }
 
 .toggle:any-link {
@@ -89,76 +125,90 @@
     animation: fade-in 200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Evidence header action — opens the full conversation in a stacked modal.
-   Lives next to the "Evidence" label so it's always reachable without
-   scrolling past the cited excerpts. */
+/* Evidence header action — opens the full conversation in a stacked modal. */
 .conversationButton {
     font-weight: 500;
-    color: var(--mantine-color-ldGray-6);
+    color: var(--mantine-color-ldGray-5);
 }
 
 .conversationButton:hover {
     color: var(--mantine-color-ldGray-9);
-    background-color: var(--mantine-color-ldGray-1);
+    background-color: transparent;
 }
 
 .evidenceEmpty {
     font-size: 13px;
     line-height: 1.6;
-    color: var(--mantine-color-ldGray-6);
+    color: var(--mantine-color-ldGray-5);
     max-width: 60ch;
 }
 
-/* Side rail (Linear-style property card) -------------------------------- */
-
+/* Side rail — a borderless definition list, set off from the body by a
+   single hairline divider. Air, not boxes. */
 .railColumn {
+    align-self: start;
     position: sticky;
     top: 0;
     animation: rise 280ms cubic-bezier(0.16, 1, 0.3, 1) 70ms both;
 }
 
-/* Writeback-blocked note — sits below the property card (not inside it) so it
-   reads as a standalone hint about why an auto-fix isn't available. */
+.railCard {
+    display: block;
+}
+
+/* Writeback-blocked note — only shown for actionable reasons (e.g. connect
+   GitHub / GitLab). Quiet, no icon. */
 .blockedNote {
-    padding: 0 var(--mantine-spacing-xs);
+    margin-top: var(--mantine-spacing-lg);
+    padding-top: var(--mantine-spacing-md);
+    border-top: 1px solid var(--mantine-color-ldGray-1);
+}
+
+.blockedTitle {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--mantine-color-ldGray-8);
+}
+
+.blockedText {
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--mantine-color-ldGray-6);
 }
 
 .railRow {
-    min-height: 38px;
-    padding: 6px 0;
-    gap: var(--mantine-spacing-md);
+    min-height: 26px;
+    padding: 3px 0;
 }
 
 .railLabel {
-    flex-shrink: 0;
-    font-size: 11px;
-    font-weight: 500;
+    flex: none;
+    width: 66px;
+    font-size: 11.5px;
+    font-weight: 400;
     color: var(--mantine-color-ldGray-6);
 }
 
 .railValue {
     min-width: 0;
+    flex: 1;
     display: flex;
-    justify-content: flex-end;
-    text-align: right;
+    justify-content: flex-start;
+    text-align: left;
 }
 
 .railText {
-    font-size: 12.5px;
+    font-size: 12px;
     font-weight: 500;
     color: var(--mantine-color-ldGray-9);
     overflow-wrap: anywhere;
 }
 
-/* Status chip — a quiet pill so the current state reads at a glance. */
+/* Status — a bare dot + label, no pill. */
 .statusPill {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 2px 9px 2px 8px;
-    border-radius: 999px;
-    background-color: var(--mantine-color-ldGray-1);
-    box-shadow: inset 0 0 0 1px var(--mantine-color-ldGray-2);
+    gap: 7px;
 }
 
 .statusDot {
@@ -187,9 +237,9 @@
 }
 
 .railActions {
-    margin-top: var(--mantine-spacing-sm);
-    padding-top: var(--mantine-spacing-sm);
-    border-top: 1px solid var(--mantine-color-ldGray-2);
+    margin-top: var(--mantine-spacing-lg);
+    padding-top: var(--mantine-spacing-md);
+    border-top: 1px solid var(--mantine-color-ldGray-1);
 }
 
 @keyframes fade-in {
@@ -217,6 +267,11 @@
 @media (max-width: 820px) {
     .layout {
         grid-template-columns: minmax(0, 1fr);
+        gap: var(--mantine-spacing-xl);
+    }
+
+    .divider {
+        display: none;
     }
 }
 

@@ -5,7 +5,6 @@ import {
     Button,
     Group,
     Loader,
-    Paper,
     Stack,
     Text,
     Tooltip,
@@ -15,19 +14,21 @@ import {
     IconArrowRight,
     IconExternalLink,
     IconGitPullRequest,
-    IconInfoCircle,
     IconLayoutColumns,
     IconMessages,
 } from '@tabler/icons-react';
 import { type FC, useMemo } from 'react';
 import { Link } from 'react-router';
+import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
-import { CategoryBadge } from '../../../../../components/common/CategoryBadge';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { useProjects } from '../../../../../hooks/useProjects';
 import { useAiAgentAdminReviewItems } from '../../hooks/useAiAgentAdmin';
-import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
+import {
+    useAiAgentThread,
+    useProjectAiAgent,
+} from '../../hooks/useProjectAiAgents';
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
 import { getRenderableExcerpts } from './evidenceExcerptHelpers';
 import { EvidenceExcerpts } from './EvidenceExcerpts';
@@ -66,7 +67,7 @@ const RailRow: FC<{ label: string; children: React.ReactNode }> = ({
     label,
     children,
 }) => (
-    <Group className={styles.railRow} justify="space-between" wrap="nowrap">
+    <Group className={styles.railRow} wrap="nowrap" gap="sm">
         <Text className={styles.railLabel}>{label}</Text>
         <Box className={styles.railValue}>{children}</Box>
     </Group>
@@ -95,6 +96,7 @@ export const IssueDetailModal: FC<Props> = ({
             { enabled: isOpen },
         );
     const { data: projects = [] } = useProjects();
+    const { data: agent } = useProjectAiAgent(projectUuid, agentUuid);
 
     const item = useMemo(
         () =>
@@ -132,6 +134,9 @@ export const IssueDetailModal: FC<Props> = ({
     const blockedReasonLabel = shouldShowWritebackBlockedReason(blockedReason)
         ? writebackBlockedReasonLabels[blockedReason]
         : null;
+    // Only the actionable reasons carry a description (e.g. "connect GitHub /
+    // GitLab"). Gate the rail note on it so noisy states like "a PR is already
+    // open" stay out — they're not something the user needs to act on here.
     const blockedReasonDescription = shouldShowWritebackBlockedReason(
         blockedReason,
     )
@@ -149,7 +154,7 @@ export const IssueDetailModal: FC<Props> = ({
             <MantineModal
                 opened={isOpen}
                 onClose={onClose}
-                size="60rem"
+                size="72rem"
                 title={
                     <Text
                         component="span"
@@ -191,45 +196,59 @@ export const IssueDetailModal: FC<Props> = ({
                     <Box className={styles.layout}>
                         <Stack className={styles.main} gap={0}>
                             <Group
-                                gap="xs"
+                                gap="sm"
                                 align="center"
                                 wrap="wrap"
                                 className={styles.metaRow}
                             >
-                                <CategoryBadge
-                                    variant="dot"
-                                    label={
+                                <Box
+                                    component="span"
+                                    className={styles.causeBadge}
+                                >
+                                    <Box
+                                        component="span"
+                                        className={styles.causeDot}
+                                        bg={`${threadReviewRootCauseColors[item.primaryRootCause]}.6`}
+                                    />
+                                    {
                                         threadReviewRootCauseLabels[
                                             item.primaryRootCause
                                         ]
                                     }
-                                    color={
-                                        threadReviewRootCauseColors[
-                                            item.primaryRootCause
-                                        ]
-                                    }
-                                />
+                                </Box>
                                 {targetAnchor && (
-                                    <Tooltip
-                                        label={targetAnchor}
-                                        withArrow
-                                        openDelay={300}
-                                        multiline
-                                        maw={340}
-                                    >
-                                        <Text className={styles.targetChip}>
-                                            {targetAnchor}
-                                        </Text>
-                                    </Tooltip>
+                                    <>
+                                        <Box
+                                            component="span"
+                                            className={styles.metaSep}
+                                        />
+                                        <Tooltip
+                                            label={targetAnchor}
+                                            withArrow
+                                            openDelay={300}
+                                            multiline
+                                            maw={340}
+                                        >
+                                            <Text className={styles.targetChip}>
+                                                {targetAnchor}
+                                            </Text>
+                                        </Tooltip>
+                                    </>
                                 )}
                                 {item.findingCount > 1 && (
-                                    <Text className={styles.recurrence}>
-                                        Recurs {item.findingCount}×
-                                    </Text>
+                                    <>
+                                        <Box
+                                            component="span"
+                                            className={styles.metaSep}
+                                        />
+                                        <Text className={styles.recurrence}>
+                                            Recurs {item.findingCount}×
+                                        </Text>
+                                    </>
                                 )}
                             </Group>
 
-                            <Stack gap="sm">
+                            <Stack gap="md">
                                 <Text className={styles.sectionLabel}>
                                     Description
                                 </Text>
@@ -240,10 +259,10 @@ export const IssueDetailModal: FC<Props> = ({
                                 )}
                             </Stack>
 
-                            <Stack gap="xl" mt="xl">
+                            <Stack gap={0} mt={28}>
                                 {/* Activity — the issue lifecycle. Short and
                                 high-signal, so it leads. */}
-                                <Stack gap="sm">
+                                <Stack gap="md">
                                     <Text className={styles.sectionLabel}>
                                         Activity
                                     </Text>
@@ -260,7 +279,10 @@ export const IssueDetailModal: FC<Props> = ({
                                 Manual issues have neither, so the section is
                                 omitted. */}
                                 {(hasThread || hasExcerpts) && (
-                                    <Stack gap="sm">
+                                    <Stack
+                                        gap="md"
+                                        className={styles.evidenceSection}
+                                    >
                                         <Group
                                             justify="space-between"
                                             align="center"
@@ -319,12 +341,12 @@ export const IssueDetailModal: FC<Props> = ({
                             </Stack>
                         </Stack>
 
+                        <Box className={styles.divider} />
+
                         <Stack gap="sm" className={styles.railColumn}>
-                            <Paper
+                            <Box
                                 component="aside"
-                                withBorder
-                                radius="md"
-                                p="md"
+                                className={styles.railCard}
                                 aria-label="Issue properties"
                             >
                                 <Stack gap={2}>
@@ -356,6 +378,22 @@ export const IssueDetailModal: FC<Props> = ({
                                             }
                                         />
                                     </RailRow>
+                                    {agent && (
+                                        <RailRow label="Agent">
+                                            <Group gap={6} wrap="nowrap">
+                                                <LightdashUserAvatar
+                                                    size={18}
+                                                    name={agent.name}
+                                                    src={agent.imageUrl}
+                                                />
+                                                <Text
+                                                    className={styles.railText}
+                                                >
+                                                    {agent.name}
+                                                </Text>
+                                            </Group>
+                                        </RailRow>
+                                    )}
                                     {projectName && (
                                         <RailRow label="Project">
                                             <Text className={styles.railText}>
@@ -389,6 +427,20 @@ export const IssueDetailModal: FC<Props> = ({
                                     )}
                                 </Stack>
 
+                                {blockedReasonDescription && (
+                                    <Stack
+                                        gap={3}
+                                        className={styles.blockedNote}
+                                    >
+                                        <Text className={styles.blockedTitle}>
+                                            {blockedReasonLabel}
+                                        </Text>
+                                        <Text className={styles.blockedText}>
+                                            {blockedReasonDescription}
+                                        </Text>
+                                    </Stack>
+                                )}
+
                                 <Box className={styles.railActions}>
                                     <ReviewItemActions
                                         reviewItem={item}
@@ -397,37 +449,7 @@ export const IssueDetailModal: FC<Props> = ({
                                         hideBlockedReason
                                     />
                                 </Box>
-                            </Paper>
-
-                            {blockedReasonLabel && (
-                                <Group
-                                    className={styles.blockedNote}
-                                    gap={10}
-                                    wrap="nowrap"
-                                    align="flex-start"
-                                >
-                                    <MantineIcon
-                                        icon={IconInfoCircle}
-                                        size={14}
-                                        stroke={1.6}
-                                        color="ldGray.5"
-                                    />
-                                    <Stack gap={2}>
-                                        <Text fz="xs" fw={600} c="ldGray.7">
-                                            {blockedReasonLabel}
-                                        </Text>
-                                        {blockedReasonDescription && (
-                                            <Text
-                                                fz="xs"
-                                                c="ldGray.6"
-                                                lh={1.45}
-                                            >
-                                                {blockedReasonDescription}
-                                            </Text>
-                                        )}
-                                    </Stack>
-                                </Group>
-                            )}
+                            </Box>
                         </Stack>
                     </Box>
                 )}

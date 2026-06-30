@@ -1,13 +1,14 @@
+/* A quiet transcript — no rules, no chips, just air between turns and a
+   whisper-light role label above each. */
 .excerpts {
-    border-left: 2px solid var(--mantine-color-ldGray-2);
-    padding-left: var(--mantine-spacing-md);
+    gap: 14px;
 }
 
 .label {
-    /* Match AiMarkdown's 7px left padding so labels line up with their text. */
-    padding-left: 7px;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
     color: var(--mantine-color-ldGray-6);
 }
 
@@ -17,6 +18,11 @@
 
 /* AiMarkdown owns the body typography; we only dim the secondary
    (context / tool) sources so the cited user & assistant turns lead. */
+.text {
+    font-size: 12.5px;
+    color: var(--mantine-color-ldGray-8);
+}
+
 .text[data-muted] {
-    opacity: 0.7;
+    opacity: 0.6;
 }
