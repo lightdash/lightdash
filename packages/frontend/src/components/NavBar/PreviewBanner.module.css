@@ -8,4 +8,5 @@
     gap: 4px;
     flex-shrink: 0;
     white-space: nowrap;
+    font-family: inherit;
 }

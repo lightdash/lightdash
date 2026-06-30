@@ -63,9 +63,8 @@ export const PreviewBanner: FC<{
                         className={classes.backLink}
                     >
                         <MantineIcon icon={IconArrowLeft} size="sm" />
-                        <Text span>back to</Text>
-                        <Text span truncate maw={200}>
-                            {upstreamProject.name}
+                        <Text span fz="xs" fw={600} truncate maw={200}>
+                            back to {upstreamProject.name}
                         </Text>
                     </Anchor>
                 )}
