@@ -80,6 +80,13 @@ export type ApiTestExternalConnectionRequest = {
     body?: unknown;
 };
 
+/** Test an unsaved connection config (incl. plaintext secret) before creating
+ *  it. Runs through the same SSRF-guarded proxy core, persisting nothing. */
+export type ApiTestExternalConnectionConfigRequest =
+    ApiTestExternalConnectionRequest & {
+        config: CreateExternalConnection;
+    };
+
 export type ApiTestExternalConnectionResponse = {
     status: 'ok';
     results: ExternalFetchResponse;

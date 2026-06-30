@@ -3,11 +3,12 @@ import { Button, Group, Skeleton, Stack, Text, Title } from '@mantine-8/core';
 import { IconPlug, IconPlus } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
 import { useExternalConnections } from '../../../features/externalConnections/hooks/useExternalConnections';
+import Callout from '../../common/Callout';
 import { EmptyState } from '../../common/EmptyState';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
+import { AddConnectionWizard } from './AddConnectionWizard';
 import { ConnectionsTable } from './ConnectionsTable';
-import { CreateConnectionModal } from './CreateConnectionModal';
 import { DeleteConnectionModal } from './DeleteConnectionModal';
 import { EditConnectionModal } from './EditConnectionModal';
 
@@ -52,6 +53,16 @@ const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
                             </Button>
                         </Group>
 
+                        <Callout
+                            variant="warning"
+                            title="Data leaves Lightdash"
+                        >
+                            Apps linked to a connection can send any data they
+                            can query to that connection&apos;s external host.
+                            Only add connections to hosts you trust with this
+                            project&apos;s data.
+                        </Callout>
+
                         {isLoading ? (
                             <Stack gap="xs">
                                 <Skeleton height={48} />
@@ -84,7 +95,7 @@ const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
             </Stack>
 
             {isCreating && (
-                <CreateConnectionModal
+                <AddConnectionWizard
                     opened={isCreating}
                     onClose={() => setIsCreating(false)}
                     projectUuid={projectUuid}

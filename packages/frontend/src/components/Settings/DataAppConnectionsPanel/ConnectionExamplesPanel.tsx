@@ -6,13 +6,10 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Badge,
     Box,
     Button,
-    Code,
     Divider,
     Group,
-    ScrollArea,
     SegmentedControl,
     Stack,
     Text,
@@ -23,13 +20,13 @@ import { useForm, zodResolver } from '@mantine/form';
 import { IconTrash } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
 import { z } from 'zod';
+import { ConnectionTestResult } from '../../../features/externalConnections/components/ConnectionTestResult';
 import { useConnectionSamples } from '../../../features/externalConnections/hooks/useConnectionSamples';
 import { useDeleteConnectionSample } from '../../../features/externalConnections/hooks/useDeleteConnectionSample';
 import { useSaveConnectionSample } from '../../../features/externalConnections/hooks/useSaveConnectionSample';
 import { useTestConnection } from '../../../features/externalConnections/hooks/useTestConnection';
 import MantineIcon from '../../common/MantineIcon';
 
-const MAX_BODY_RENDER_CHARS = 4000;
 const MAX_SAMPLE_PREVIEW_CHARS = 200;
 
 const parseJson = (value: string): unknown => {
@@ -302,35 +299,7 @@ export const ConnectionExamplesPanel: FC<Props> = ({
 
             {testMutation.data && (
                 <Stack gap="xs">
-                    <Group gap="xs">
-                        <Badge
-                            color={
-                                testMutation.data.status < 300
-                                    ? 'green'
-                                    : testMutation.data.status < 500
-                                      ? 'yellow'
-                                      : 'red'
-                            }
-                        >
-                            {testMutation.data.status}
-                        </Badge>
-                        <Text fz="xs" c="ldGray.6">
-                            {testMutation.data.contentType}
-                        </Text>
-                        {testMutation.data.truncated && (
-                            <Badge color="yellow">truncated</Badge>
-                        )}
-                    </Group>
-
-                    <ScrollArea.Autosize mah={260} offsetScrollbars>
-                        <Code block fz="xs">
-                            {JSON.stringify(
-                                testMutation.data.body,
-                                null,
-                                2,
-                            ).slice(0, MAX_BODY_RENDER_CHARS)}
-                        </Code>
-                    </ScrollArea.Autosize>
+                    <ConnectionTestResult response={testMutation.data} />
 
                     <TextInput
                         label="Sample label (optional)"
