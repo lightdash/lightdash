@@ -36,28 +36,26 @@ You are building a reusable **data app viz**, NOT a multi-panel app, and NOT a n
 
 1. Render a SINGLE visualization (one chart) filling the available space. No dashboard, navigation, multiple panels, or page chrome.
 
-2. Do NOT use the normal Lightdash app SDK / \`client\` to run queries, and do NOT hardcode field/column names. Receive your data over the postMessage bridge — the host sends exactly one message type you must listen for:
+2. Do NOT run queries yourself (don't use the SDK's query hooks or \`client\`) and do NOT hardcode field/column names — you are ONLY the renderer. Receive the host's data through the SDK's viz-context hook (no raw \`window.addEventListener\`):
 
-   window.addEventListener('message', (event) => {
-     const data = event.data;
-     if (!data || data.type !== 'lightdash:sdk:data-app-viz-context') return;
-     const { fieldMapping, rows } = data;
+   import { useVizContext, getFormatted, getRaw } from '@lightdash/query-sdk';
+
+   function Chart() {
+     const { fieldMapping, rows, ready } = useVizContext();
      // fieldMapping: { [yourFieldName]: queryFieldId }
-     // rows: Lightdash result rows. Each row is keyed by field id; each cell
-     //       is { value: { raw, formatted } }.
-     //   display string:  row[fieldId].value.formatted
-     //   numeric value:   row[fieldId].value.raw
-     // Re-render every time this fires (host re-sends on query/mapping change).
-   });
+     // rows: host-fetched result rows, re-pushed on every query/mapping change.
+     if (!ready) return <Placeholder />; // no context has arrived yet
+     // ...map rows to your chart's shape (see below)
+   }
 
-   Resolve each declared field's query field id via \`fieldMapping[fieldName]\`, then read that field's cell from each row. Example for fields "category" (dimension) + "value" (metric):
+   Resolve each declared field's query field id via \`fieldMapping[fieldName]\`, then read that field's cell from each row with the helpers — \`getFormatted(row, fieldId)\` for the display string, \`getRaw(row, fieldId)\` for the numeric/raw value:
      const catField = fieldMapping['category'];
      const valField = fieldMapping['value'];
-     const data = rows.map((r) => ({
-       label: r[catField]?.value?.formatted ?? '',
-       value: Number(r[valField]?.value?.raw ?? 0),
+     const data = rows.map((row) => ({
+       label: getFormatted(row, catField),
+       value: Number(getRaw(row, valField) ?? 0),
      }));
-   Render an empty/placeholder state before the first message arrives or when a field is unbound / rows are empty. Recharts, echarts, or plain SVG/HTML are all fine.
+   Render an empty/placeholder state while \`!ready\`, or when a field is unbound / rows are empty. Recharts, echarts, or plain SVG/HTML are all fine.
 
 3. Declare the field schema for your renderer — the typed inputs it reads from \`fieldMapping\`. It is collected as the run's structured output (do NOT write a file); the host uses it to build the field mapping UI, so the viz is unusable without it. For each field:
    - \`name\` = the machine key your renderer reads from \`fieldMapping\` (unique, non-empty, no spaces) — must match the keys you used in step 2.
