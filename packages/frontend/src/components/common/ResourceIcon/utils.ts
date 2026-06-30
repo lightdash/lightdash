@@ -12,6 +12,7 @@ import {
     IconGauge,
     IconGitMerge,
     IconMap,
+    IconPuzzle,
     IconSquareNumber1,
     IconTable,
 } from '@tabler/icons-react';
@@ -49,6 +50,8 @@ export const getChartIcon = (chartKind: ChartKind | undefined) => {
             return IconMap;
         case ChartKind.SANKEY:
             return IconGitMerge;
+        case ChartKind.DATA_APP_VIZ:
+            return IconPuzzle;
         default:
             return IconChartBar;
     }

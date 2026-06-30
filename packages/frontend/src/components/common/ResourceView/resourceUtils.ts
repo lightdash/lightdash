@@ -49,6 +49,8 @@ export const getResourceTypeName = (item: ResourceViewItem) => {
                     return 'Map';
                 case ChartKind.SANKEY:
                     return 'Sankey';
+                case ChartKind.DATA_APP_VIZ:
+                    return 'Data app visualization';
                 default:
                     return 'Chart';
             }

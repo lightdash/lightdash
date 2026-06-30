@@ -527,6 +527,7 @@ export function derivePivotConfigurationFromChart(
         case ChartType.BIG_NUMBER:
         case ChartType.MAP:
         case ChartType.SANKEY:
+        case ChartType.DATA_APP_VIZ:
             newConfig = undefined;
             break;
         default:

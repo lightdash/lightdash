@@ -2784,7 +2784,8 @@
                     "treemap",
                     "gauge",
                     "map",
-                    "sankey"
+                    "sankey",
+                    "data_app_viz"
                 ],
                 "type": "string"
             },
@@ -7258,6 +7259,41 @@
                 "required": ["type"],
                 "type": "object"
             },
+            "ChartType.DATA_APP_VIZ": {
+                "enum": ["data_app_viz"],
+                "type": "string"
+            },
+            "DataAppVizFieldMapping": {
+                "$ref": "#/components/schemas/Record_string.string_",
+                "description": "Maps a data app viz's field name → the host query field id bound to it."
+            },
+            "DataAppVizChart": {
+                "properties": {
+                    "fieldMapping": {
+                        "$ref": "#/components/schemas/DataAppVizFieldMapping"
+                    },
+                    "dataAppVizUuid": {
+                        "type": "string",
+                        "description": "The reusable data app viz this chart renders with (by reference)."
+                    }
+                },
+                "required": ["fieldMapping", "dataAppVizUuid"],
+                "type": "object"
+            },
+            "DataAppVizChartConfig": {
+                "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/DataAppVizChart",
+                        "description": "Reference to a data app viz plus its field mapping."
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ChartType.DATA_APP_VIZ",
+                        "description": "Type of chart visualization"
+                    }
+                },
+                "required": ["type"],
+                "type": "object"
+            },
             "ChartType.MAP": {
                 "enum": ["map"],
                 "type": "string"
@@ -7575,6 +7611,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/GaugeChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DataAppVizChartConfig"
                     },
                     {
                         "$ref": "#/components/schemas/MapChartConfig"
@@ -27991,7 +28030,8 @@
                     "gauge",
                     "custom",
                     "map",
-                    "sankey"
+                    "sankey",
+                    "data_app_viz"
                 ],
                 "type": "string"
             },

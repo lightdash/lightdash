@@ -15,6 +15,7 @@ import { EmptyState } from '../common/EmptyState';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import CustomVisualization from '../CustomVisualization';
+import DataAppVizRenderer from '../DataAppVizRenderer';
 import FunnelChart from '../FunnelChart';
 import SimpleChart from '../SimpleChart';
 import SimpleGauge from '../SimpleGauge';
@@ -264,6 +265,14 @@ const LightdashVisualization = memo(
                         <SimpleSankey
                             isInDashboard={!!isDashboard}
                             $shouldExpand
+                            onScreenshotReady={onScreenshotReady}
+                            onScreenshotError={onScreenshotError}
+                        />
+                    );
+                    break;
+                case ChartType.DATA_APP_VIZ:
+                    chartContent = (
+                        <DataAppVizRenderer
                             onScreenshotReady={onScreenshotReady}
                             onScreenshotError={onScreenshotError}
                         />
