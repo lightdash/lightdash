@@ -14,6 +14,7 @@ import {
     Text,
     TextInput,
     Title,
+    Tooltip,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconDatabase, IconPlus, IconTrash } from '@tabler/icons-react';
@@ -41,7 +42,16 @@ const DbtSourceRow: FC<{
                         {source.type ?? 'no connection'}
                     </Text>
                 </div>
-                {source.isPrimary && <Badge color="blue">Primary</Badge>}
+                {source.isPrimary && (
+                    <Tooltip
+                        withinPortal
+                        label="Models from this source win on name conflicts"
+                    >
+                        <Badge variant="light" color="gray">
+                            Wins conflicts
+                        </Badge>
+                    </Tooltip>
+                )}
             </Group>
             {!source.isPrimary && (
                 <Button

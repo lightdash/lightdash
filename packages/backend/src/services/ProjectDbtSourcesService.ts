@@ -87,7 +87,7 @@ export class ProjectDbtSourcesService extends BaseService {
         // synthesised here rather than stored as a row.
         const primary: ProjectDbtSourceSummary = {
             projectDbtSourceUuid: project.projectUuid,
-            name: 'Primary',
+            name: 'Project dbt connection',
             isPrimary: true,
             precedence: 0,
             type: project.dbtConnection.type,
