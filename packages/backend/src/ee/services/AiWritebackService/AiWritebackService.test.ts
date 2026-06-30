@@ -596,6 +596,59 @@ describe('AiWritebackService dbt source targeting', () => {
         });
     });
 
+    it('prefers the most specific source when names share a prefix', async () => {
+        // Primary `jaffle` is a substring of the additional `jaffle-2`, so naive
+        // substring matching would flag both and ask. The longest-match rule
+        // resolves "jaffle-2" to jaffle-2 and bare "jaffle" to the primary.
+        const jaffle2 = {
+            projectDbtSourceUuid: 'src-j2',
+            projectUuid: 'p1',
+            name: 'jaffle-2',
+            isPrimary: false,
+            precedence: 1,
+            dbtConnection: {
+                type: DbtProjectType.GITHUB,
+                authorization_method: 'installation_id',
+                repository: 'charliedowler/jaffle-2',
+                branch: 'main',
+                project_sub_path: '/dbt',
+            },
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        };
+        const service = serviceWithSources([jaffle2]);
+        const primaryJaffle = {
+            projectUuid: 'p1',
+            dbtConnection: {
+                type: DbtProjectType.GITHUB,
+                authorization_method: 'installation_id',
+                repository: 'charliedowler/jaffle',
+                branch: 'main',
+                project_sub_path: '/dbt',
+            },
+        };
+        const resolvePrompt = (prompt: string) =>
+            (service as AnyType).resolveDbtTarget({
+                projectUuid: 'p1',
+                project: primaryJaffle,
+                prompt,
+                dbtSourceUuid: undefined,
+                existingRow: null,
+            });
+        await expect(
+            resolvePrompt('In jaffle-2, add a total_revenue metric to orders'),
+        ).resolves.toMatchObject({
+            kind: 'resolved',
+            candidate: { sourceUuid: 'src-j2' },
+        });
+        await expect(
+            resolvePrompt('add a metric in the jaffle repo'),
+        ).resolves.toMatchObject({
+            kind: 'resolved',
+            candidate: { sourceUuid: null, isPrimary: true },
+        });
+    });
+
     it('asks the caller to choose when the prompt names no source', async () => {
         const result = await resolve(serviceWithSources([marketingSource()]), {
             prompt: 'add a new metric',

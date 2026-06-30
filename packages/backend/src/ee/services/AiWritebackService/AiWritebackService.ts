@@ -1824,11 +1824,25 @@ export class AiWritebackService extends BaseService {
             return { kind: 'resolved', candidate: candidates[0] };
         }
 
-        const matches = candidates.filter((c) =>
-            AiWritebackService.promptTargetsDbtSource(prompt, c),
-        );
-        if (matches.length === 1) {
-            return { kind: 'resolved', candidate: matches[0] };
+        // Score each candidate by how specifically the prompt names it (the
+        // length of the longest identifier of it found in the prompt), then take
+        // the single best. Scoring by length — not just "matched at all" — is
+        // what disambiguates prefix-related names: a prompt saying "jaffle-2"
+        // matches both `jaffle` and `jaffle-2` as substrings, but `jaffle-2` is
+        // the more specific (longer) match and wins. A tie for the top score
+        // (e.g. the prompt names two sources) stays ambiguous and asks.
+        const scored = candidates
+            .map((candidate) => ({
+                candidate,
+                score: AiWritebackService.dbtSourceMatchScore(prompt, candidate),
+            }))
+            .filter((s) => s.score > 0);
+        if (scored.length > 0) {
+            const topScore = Math.max(...scored.map((s) => s.score));
+            const top = scored.filter((s) => s.score === topScore);
+            if (top.length === 1) {
+                return { kind: 'resolved', candidate: top[0].candidate };
+            }
         }
 
         return {
@@ -1875,15 +1889,17 @@ export class AiWritebackService extends BaseService {
     }
 
     /**
-     * Whether the prompt plausibly names this dbt source — used only to choose
-     * between several. Matches the repo (`owner/repo` or repo name) or a
-     * non-generic source name as a case-insensitive substring. Deliberately
-     * conservative: 0 or >1 matches across candidates fall through to asking.
+     * How specifically the prompt names this dbt source: the length of the
+     * longest identifier of it (full `owner/repo`, the repo name, or a
+     * non-generic source name) that appears in the prompt, or 0 if none do.
+     * Returning a length — rather than a boolean — lets the caller prefer the
+     * most specific match, so prefix-related names (`jaffle` vs `jaffle-2`)
+     * disambiguate to the longer one instead of colliding.
      */
-    private static promptTargetsDbtSource(
+    private static dbtSourceMatchScore(
         prompt: string,
         candidate: DbtTargetCandidate,
-    ): boolean {
+    ): number {
         const haystack = prompt.toLowerCase();
         const { repository } = AiWritebackService.dbtSourceGitIdentity(
             candidate.connection,
@@ -1900,9 +1916,9 @@ export class AiWritebackService extends BaseService {
         if (!candidate.isPrimary && candidate.name.trim().length >= 3) {
             needles.push(candidate.name.toLowerCase());
         }
-        return needles.some(
-            (needle) => needle.length >= 3 && haystack.includes(needle),
-        );
+        return needles
+            .filter((needle) => needle.length >= 3 && haystack.includes(needle))
+            .reduce((best, needle) => Math.max(best, needle.length), 0);
     }
 
     /**
