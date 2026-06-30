@@ -24,7 +24,7 @@ const executeEditRepo = (tool: EditRepoTool) =>
 
 describe('getEditRepo error classification', () => {
     it('maps a missing GitHub app install to github_not_installed (not repo_write_forbidden)', async () => {
-        const editRepo = jest
+        const editRepo = vi
             .fn()
             .mockRejectedValue(
                 new WritebackGitNotConnectedError(
@@ -40,7 +40,7 @@ describe('getEditRepo error classification', () => {
     });
 
     it('maps a missing GitLab app install to gitlab_not_installed', async () => {
-        const editRepo = jest
+        const editRepo = vi
             .fn()
             .mockRejectedValue(
                 new WritebackGitNotConnectedError(
@@ -56,7 +56,7 @@ describe('getEditRepo error classification', () => {
     });
 
     it('still maps a plain ForbiddenError to repo_write_forbidden', async () => {
-        const editRepo = jest
+        const editRepo = vi
             .fn()
             .mockRejectedValue(new ForbiddenError('not your repo'));
         const output = await executeEditRepo(getEditRepo({ editRepo }));

@@ -163,7 +163,7 @@ describe('GitlabProvider.openPullRequest', () => {
         const sandbox = fakeSandbox();
         // The denied-path gate probes staged paths with `--name-status -z`;
         // return a CI/workflow path for that call, empty for everything else.
-        sandbox.commands.run = jest.fn(async (cmd: string) =>
+        sandbox.commands.run = vi.fn(async (cmd: string) =>
             cmd.includes('--name-status')
                 ? { exitCode: 0, stdout: 'A\0.github/workflows/deploy.yml\0' }
                 : { exitCode: 0, stdout: '' },
@@ -177,7 +177,7 @@ describe('GitlabProvider.openPullRequest', () => {
                 title: 'Add workflow',
                 description: 'Adds CI.',
                 user: { userUuid: 'u1' } as never,
-                setStage: jest.fn(),
+                setStage: vi.fn(),
                 denyCiPaths: true,
             }),
         ).rejects.toBeInstanceOf(DeniedPathError);

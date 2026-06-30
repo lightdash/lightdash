@@ -8,8 +8,8 @@ import { assertStagedPathsAllowed, collectFileChanges } from './sandboxGit';
 const sandboxWith = (nameStatusZ: string) =>
     ({
         sandboxId: 'sbx',
-        commands: { run: jest.fn().mockResolvedValue({ stdout: nameStatusZ }) },
-        files: { read: jest.fn().mockResolvedValue('contents') },
+        commands: { run: vi.fn().mockResolvedValue({ stdout: nameStatusZ }) },
+        files: { read: vi.fn().mockResolvedValue('contents') },
     }) as never;
 
 const b64 = (s: string) => Buffer.from(s, 'utf-8').toString('base64');
@@ -22,7 +22,8 @@ describe('collectFileChanges — GitHub commit gate', () => {
         ).rejects.toBeInstanceOf(DeniedPathError);
         // A denied changeset must abort before any file content is read.
         expect(
-            (sandbox as unknown as { files: { read: jest.Mock } }).files.read,
+            (sandbox as unknown as { files: { read: import('vitest').Mock } })
+                .files.read,
         ).not.toHaveBeenCalled();
     });
 
