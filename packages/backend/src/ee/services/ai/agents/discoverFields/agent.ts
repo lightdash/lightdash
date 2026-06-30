@@ -15,7 +15,6 @@ import { getFindFields } from '../../tools/findFields';
 import { getListExplores } from '../../tools/listExplores';
 import { getListFields } from '../../tools/listFields';
 import { getSubmitDiscoverFieldsResult } from '../../tools/submitDiscoverFieldsResult';
-import { stringifyToolJson } from '../../tools/toolOutputFormat';
 import type { AiAgentArgs, AiAgentDependencies } from '../../types/aiAgent';
 import { AgentContext } from '../../utils/AgentContext';
 import { getAgentTelemetryConfig } from '../telemetry';
@@ -69,29 +68,22 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const hasPersistableToolResult = (
     output: unknown,
 ): output is {
-    result: unknown;
+    result: string;
     metadata?: Record<string, unknown> | null;
-} => isRecord(output) && 'result' in output;
-
-const stringifyPersistedResult = (result: unknown): string =>
-    typeof result === 'string' ? result : stringifyToolJson(result);
+} => isRecord(output) && typeof output.result === 'string';
 
 const toPersistedToolResult = (
-    toolName: string,
     output: unknown,
 ): { result: string; metadata?: Record<string, unknown> | null } => {
-    if (hasPersistableToolResult(output)) {
-        const metadata = isRecord(output.metadata) ? output.metadata : null;
-
-        return {
-            result: stringifyPersistedResult(output.result),
-            metadata,
-        };
+    if (!hasPersistableToolResult(output)) {
+        throw new Error(
+            'Discovery subagent tool output must include a string result.',
+        );
     }
 
     return {
-        result: stringifyToolJson(output),
-        metadata: toolName === 'submitResult' ? { status: 'success' } : null,
+        result: output.result,
+        metadata: isRecord(output.metadata) ? output.metadata : null,
     };
 };
 
@@ -184,10 +176,7 @@ export const runDiscoverFieldsAgent = (
                 return;
             }
             if (chunk.type === 'tool-result') {
-                const output = toPersistedToolResult(
-                    chunk.toolName,
-                    chunk.output,
-                );
+                const output = toPersistedToolResult(chunk.output);
                 inflightWrites.push(
                     dependencies
                         .storeToolResults([
