@@ -8,6 +8,7 @@ import {
     Button,
     Card,
     Group,
+    Loader,
     Modal,
     Stack,
     Text,
@@ -149,7 +150,11 @@ const AddDbtSourceModal: FC<{
 
 const DbtSourcesPanel: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const { data: flag } = useServerFeatureFlag(FeatureFlags.MultiDbtSources);
-    const { data: sources } = useProjectDbtSources(projectUuid);
+    const {
+        data: sources,
+        isInitialLoading,
+        isError,
+    } = useProjectDbtSources(projectUuid);
     const deleteMutation = useDeleteProjectDbtSourceMutation(projectUuid);
     const [sourceToRemove, setSourceToRemove] =
         useState<ProjectDbtSourceSummary | null>(null);
@@ -180,20 +185,40 @@ const DbtSourcesPanel: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     </Button>
                 </Group>
 
-                <Stack spacing="xs">
-                    {(sources ?? []).map((source) => (
-                        <DbtSourceRow
-                            key={source.projectDbtSourceUuid}
-                            source={source}
-                            onRemove={setSourceToRemove}
-                            isRemoving={
-                                deleteMutation.isLoading &&
-                                deleteMutation.variables ===
-                                    source.projectDbtSourceUuid
-                            }
-                        />
-                    ))}
-                </Stack>
+                {isInitialLoading && (
+                    <Group position="center" py="md">
+                        <Loader size="sm" />
+                    </Group>
+                )}
+
+                {isError && (
+                    <Text size="sm" color="red">
+                        Failed to load dbt sources.
+                    </Text>
+                )}
+
+                {!isInitialLoading && !isError && (
+                    <Stack spacing="xs">
+                        {(sources ?? []).map((source) => (
+                            <DbtSourceRow
+                                key={source.projectDbtSourceUuid}
+                                source={source}
+                                onRemove={setSourceToRemove}
+                                isRemoving={
+                                    deleteMutation.isLoading &&
+                                    deleteMutation.variables ===
+                                        source.projectDbtSourceUuid
+                                }
+                            />
+                        ))}
+                        {sources && sources.length <= 1 && (
+                            <Text size="sm" color="dimmed">
+                                No additional sources yet. Add one to combine
+                                models from another dbt project.
+                            </Text>
+                        )}
+                    </Stack>
+                )}
             </Stack>
 
             <AddDbtSourceModal
