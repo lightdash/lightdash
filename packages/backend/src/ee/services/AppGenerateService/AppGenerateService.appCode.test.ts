@@ -15,7 +15,8 @@ vi.mock('ai', () => ({
 }));
 
 const PROJECT_UUID = 'proj-uuid-1';
-const ORG_UUID = 'org-uuid-1';
+const PROJECT_ORG_UUID = 'org-uuid-project'; // org derived from the project
+const USER_ORG_UUID = 'org-uuid-user'; // org from the user session (different)
 const USER_UUID = 'user-uuid-1';
 const NEW_APP_UUID = 'new-app-uuid';
 const EXISTING_APP_UUID = 'existing-app-uuid';
@@ -23,7 +24,7 @@ const EXISTING_APP_UUID = 'existing-app-uuid';
 const makeUser = () =>
     ({
         userUuid: USER_UUID,
-        organizationUuid: ORG_UUID,
+        organizationUuid: USER_ORG_UUID,
     }) as never;
 
 const makeCode = (files?: DataAppCode['files']): DataAppCode => ({
@@ -73,7 +74,7 @@ function buildService() {
 
     const projectModel = {
         getSummary: vi.fn().mockResolvedValue({
-            organizationUuid: ORG_UUID,
+            organizationUuid: PROJECT_ORG_UUID,
             projectUuid: PROJECT_UUID,
         }),
     };
@@ -159,14 +160,17 @@ describe('AppGenerateService.importAppCode', () => {
         );
         expect(putArg.input.Bucket).toBe('test-bucket');
 
-        // scheduler enqueued with correct payload
+        // scheduler enqueued with project org, not user's org
         expect(schedulerClient.appBuildFromSource).toHaveBeenCalledWith({
             appUuid: NEW_APP_UUID,
             version: 1,
             projectUuid: PROJECT_UUID,
-            organizationUuid: ORG_UUID,
+            organizationUuid: PROJECT_ORG_UUID,
             userUuid: USER_UUID,
         });
+        expect(schedulerClient.appBuildFromSource).not.toHaveBeenCalledWith(
+            expect.objectContaining({ organizationUuid: USER_ORG_UUID }),
+        );
     });
 
     it('append mode: appends version 5 when latest is 4 and enqueues build', async () => {
@@ -177,7 +181,7 @@ describe('AppGenerateService.importAppCode', () => {
             project_uuid: PROJECT_UUID,
             space_uuid: null,
             created_by_user_uuid: USER_UUID,
-            organization_uuid: ORG_UUID,
+            organization_uuid: PROJECT_ORG_UUID,
         };
         appModel.findApp.mockResolvedValue(existingApp);
         appModel.getLatestVersion.mockResolvedValue({ version: 4 });
@@ -200,14 +204,43 @@ describe('AppGenerateService.importAppCode', () => {
             expect.any(Object),
         );
 
-        // scheduler enqueued with version 5
+        // scheduler enqueued with version 5 and project org, not user's org
         expect(schedulerClient.appBuildFromSource).toHaveBeenCalledWith({
             appUuid: EXISTING_APP_UUID,
             version: 5,
             projectUuid: PROJECT_UUID,
-            organizationUuid: ORG_UUID,
+            organizationUuid: PROJECT_ORG_UUID,
             userUuid: USER_UUID,
         });
+        expect(schedulerClient.appBuildFromSource).not.toHaveBeenCalledWith(
+            expect.objectContaining({ organizationUuid: USER_ORG_UUID }),
+        );
+    });
+
+    it('throws ParameterError when targetAppUuid is given but app is not found', async () => {
+        const { service, appModel, schedulerClient } = buildService();
+
+        appModel.findApp.mockResolvedValue(undefined); // not found
+
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, {
+                code: makeCode(),
+                targetAppUuid: EXISTING_APP_UUID,
+            } as ImportAppCodeRequestBody),
+        ).rejects.toThrow(ParameterError);
+
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, {
+                code: makeCode(),
+                targetAppUuid: EXISTING_APP_UUID,
+            } as ImportAppCodeRequestBody),
+        ).rejects.toThrow(
+            `App ${EXISTING_APP_UUID} not found in project ${PROJECT_UUID}`,
+        );
+
+        // must not create or enqueue
+        expect(appModel.createWithVersion).not.toHaveBeenCalled();
+        expect(schedulerClient.appBuildFromSource).not.toHaveBeenCalled();
     });
 
     it('throws ParameterError when bundle has no src/ files', async () => {

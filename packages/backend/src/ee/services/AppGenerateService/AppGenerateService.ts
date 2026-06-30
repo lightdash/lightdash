@@ -6499,6 +6499,11 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         const existingApp = body.targetAppUuid
             ? await this.appModel.findApp(body.targetAppUuid, projectUuid)
             : undefined;
+        if (body.targetAppUuid && existingApp === undefined) {
+            throw new ParameterError(
+                `App ${body.targetAppUuid} not found in project ${projectUuid}`,
+            );
+        }
         const action: 'create' | 'append' =
             existingApp !== undefined ? 'append' : 'create';
 
@@ -6607,7 +6612,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             appUuid: newAppUuid,
             version: newVersion,
             projectUuid,
-            organizationUuid: user.organizationUuid!,
+            organizationUuid,
             userUuid: user.userUuid,
         });
 
