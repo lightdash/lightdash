@@ -41,9 +41,11 @@ import { AiWritebackService } from '../services/AiWritebackService/AiWritebackSe
 import { PreviewDeploySetupService } from '../services/PreviewDeploySetupService/PreviewDeploySetupService';
 
 // The target repo (owner/repo) and dbt sub-folder are resolved server-side from
-// the project's dbt connection, so the body only carries the prompt.
+// the chosen dbt source. `dbtSourceUuid` selects it when the project has more
+// than one; omit it to target the primary or let the run infer/ask.
 const aiWritebackBodySchema = z.object({
     prompt: z.string().trim().min(1, 'prompt is required'),
+    dbtSourceUuid: z.string().trim().uuid().optional(),
 });
 
 const mergePullRequestBodySchema = z.object({
@@ -88,12 +90,13 @@ export class AiWritebackController extends BaseController {
                 parsed.error.errors[0]?.message ?? 'Invalid request parameters',
             );
         }
-        const { prompt } = parsed.data;
+        const { prompt, dbtSourceUuid } = parsed.data;
         this.setStatus(200);
         const result = await this.getAiWritebackService().run({
             user: toSessionUser(req.account),
             projectUuid,
             prompt,
+            dbtSourceUuid,
             source: 'api',
         });
         return {

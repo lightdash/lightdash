@@ -6,6 +6,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     getLatestSupportDbtVersion,
+    ParameterError,
     PullRequestProvider,
     RequestMethod,
     SupportedDbtVersions,
@@ -87,6 +88,11 @@ const buildService = (overrides: Record<string, AnyType> = {}) =>
         lightdashConfig: { gitlab: {} } as AnyType,
         analytics: { track: vi.fn() } as AnyType,
         projectModel: { get: vi.fn() } as AnyType,
+        // Default: no additional dbt sources, so the single-source (primary)
+        // path is taken unless a test overrides this.
+        projectDbtSourcesModel: {
+            getSources: vi.fn().mockResolvedValue([]),
+        } as AnyType,
         featureFlagModel: { get: vi.fn() } as AnyType,
         githubAppInstallationsModel: {} as AnyType,
         githubAppService: {
@@ -340,12 +346,22 @@ describe('AiWritebackService.prepareTurn', () => {
         warehouseConnection: { type: WarehouseTypes.POSTGRES },
     });
 
-    const prepareTurn = (service: AiWritebackService, user: SessionUser) =>
-        (service as AnyType).prepareTurn({
+    // prepareTurn now returns a discriminated union ({ kind: 'run', turn } |
+    // { kind: 'select', ... }); unwrap the turn so these single-source tests keep
+    // asserting on the turn context directly. Rejections still propagate.
+    const prepareTurn = async (
+        service: AiWritebackService,
+        user: SessionUser,
+    ) => {
+        const prepared = await (service as AnyType).prepareTurn({
             user,
             projectUuid: 'p1',
+            prompt: 'add a revenue metric',
             aiThreadUuid: undefined,
+            dbtSourceUuid: undefined,
         });
+        return prepared.kind === 'run' ? prepared.turn : prepared;
+    };
 
     it('rejects when the AI writeback feature flag is disabled', async () => {
         const service = buildService({
@@ -471,6 +487,203 @@ describe('AiWritebackService.prepareTurn', () => {
                 hostDomain: 'gitlab.acme.com',
             },
         });
+    });
+});
+
+describe('AiWritebackService dbt source targeting', () => {
+    const PRIMARY_CONNECTION = {
+        type: DbtProjectType.GITHUB,
+        authorization_method: 'installation_id',
+        repository: 'acme/analytics',
+        branch: 'main',
+        project_sub_path: '/',
+    };
+    const project = (): AnyType => ({
+        projectUuid: 'p1',
+        dbtConnection: PRIMARY_CONNECTION,
+    });
+    // An additional (non-primary) GitHub dbt source pointing at a different repo.
+    const marketingSource = (): AnyType => ({
+        projectDbtSourceUuid: 'src-marketing',
+        projectUuid: 'p1',
+        name: 'Marketing dbt',
+        isPrimary: false,
+        precedence: 1,
+        dbtConnection: {
+            type: DbtProjectType.GITHUB,
+            authorization_method: 'installation_id',
+            repository: 'acme/marketing',
+            branch: 'main',
+            project_sub_path: '/',
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+    });
+
+    const serviceWithSources = (sources: AnyType[]) =>
+        buildService({
+            projectDbtSourcesModel: {
+                getSources: vi.fn().mockResolvedValue(sources),
+            } as AnyType,
+        });
+
+    const resolve = (
+        service: AiWritebackService,
+        args: {
+            prompt?: string;
+            dbtSourceUuid?: string;
+            existingRow?: AnyType;
+        },
+    ) =>
+        (service as AnyType).resolveDbtTarget({
+            projectUuid: 'p1',
+            project: project(),
+            prompt: args.prompt ?? '',
+            dbtSourceUuid: args.dbtSourceUuid,
+            existingRow: args.existingRow ?? null,
+        });
+
+    it('targets the primary connection when the project has no additional sources', async () => {
+        const result = await resolve(serviceWithSources([]), {
+            prompt: 'add a revenue metric',
+        });
+        expect(result).toMatchObject({
+            kind: 'resolved',
+            candidate: { sourceUuid: null, isPrimary: true, optionUuid: 'p1' },
+        });
+    });
+
+    it('honours an explicit additional dbtSourceUuid', async () => {
+        const result = await resolve(serviceWithSources([marketingSource()]), {
+            dbtSourceUuid: 'src-marketing',
+        });
+        expect(result).toMatchObject({
+            kind: 'resolved',
+            candidate: {
+                sourceUuid: 'src-marketing',
+                isPrimary: false,
+                connection: { repository: 'acme/marketing' },
+            },
+        });
+    });
+
+    it('treats the project uuid as an explicit choice of the primary source', async () => {
+        const result = await resolve(serviceWithSources([marketingSource()]), {
+            dbtSourceUuid: 'p1',
+        });
+        expect(result).toMatchObject({
+            kind: 'resolved',
+            candidate: { sourceUuid: null, isPrimary: true },
+        });
+    });
+
+    it('rejects an explicit dbtSourceUuid that is not a target', async () => {
+        await expect(
+            resolve(serviceWithSources([marketingSource()]), {
+                dbtSourceUuid: 'does-not-exist',
+            }),
+        ).rejects.toThrow(ParameterError);
+    });
+
+    it('infers the source from the prompt when exactly one matches', async () => {
+        const result = await resolve(serviceWithSources([marketingSource()]), {
+            prompt: 'add a spend metric to the marketing models',
+        });
+        expect(result).toMatchObject({
+            kind: 'resolved',
+            candidate: { sourceUuid: 'src-marketing' },
+        });
+    });
+
+    it('asks the caller to choose when the prompt names no source', async () => {
+        const result = await resolve(serviceWithSources([marketingSource()]), {
+            prompt: 'add a new metric',
+        });
+        expect(result.kind).toBe('select');
+        expect(result.options).toHaveLength(2);
+        expect(result.options).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    projectDbtSourceUuid: 'p1',
+                    isPrimary: true,
+                }),
+                expect.objectContaining({
+                    projectDbtSourceUuid: 'src-marketing',
+                    repository: 'acme/marketing',
+                }),
+            ]),
+        );
+    });
+
+    it('keeps a resumed thread bound to its original source, ignoring the prompt', async () => {
+        const result = await resolve(serviceWithSources([marketingSource()]), {
+            // The prompt names the primary repo, but the thread is bound to the
+            // additional source — binding wins so the resumed sandbox stays put.
+            prompt: 'change something in analytics',
+            existingRow: { project_dbt_source_uuid: 'src-marketing' },
+        });
+        expect(result).toMatchObject({
+            kind: 'resolved',
+            candidate: { sourceUuid: 'src-marketing' },
+        });
+    });
+
+    it('falls back to the primary when a resumed thread`s bound source was deleted', async () => {
+        const result = await resolve(serviceWithSources([marketingSource()]), {
+            existingRow: { project_dbt_source_uuid: 'deleted-source' },
+        });
+        expect(result).toMatchObject({
+            kind: 'resolved',
+            candidate: { sourceUuid: null, isPrimary: true },
+        });
+    });
+
+    it('run() returns a selection request without starting a sandbox', async () => {
+        const service = buildService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            } as AnyType,
+            projectModel: {
+                get: vi.fn().mockResolvedValue({
+                    projectUuid: 'p1',
+                    organizationUuid: ORG,
+                    name: 'Analytics',
+                    dbtConnection: PRIMARY_CONNECTION,
+                    warehouseConnection: null,
+                    dbtVersion: SupportedDbtVersions.V1_9,
+                }),
+            } as AnyType,
+            projectDbtSourcesModel: {
+                getSources: vi.fn().mockResolvedValue([marketingSource()]),
+            } as AnyType,
+            aiWritebackThreadModel: {
+                findByAiThreadUuid: vi.fn().mockResolvedValue(null),
+            } as AnyType,
+        });
+        const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+        can('manage', 'SourceCode', { organizationUuid: ORG });
+        const user = {
+            userUuid: 'u1',
+            organizationUuid: ORG,
+            organizationName: 'Acme',
+            organizationCreatedAt: new Date(),
+            role: 'admin',
+            ability: build(),
+        } as AnyType;
+
+        const result = await service.run({
+            user,
+            projectUuid: 'p1',
+            prompt: 'add a new metric',
+            source: 'api',
+        });
+
+        expect(result.needsDbtSourceSelection).toBe(true);
+        expect(result.prUrl).toBeNull();
+        expect(result.dbtSourceUuid).toBeNull();
+        expect(result.dbtSourceOptions).toHaveLength(2);
+        // No sandbox manager is ever constructed on the selection path.
+        expect(createSandboxManager).not.toHaveBeenCalled();
     });
 });
 

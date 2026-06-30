@@ -1113,12 +1113,35 @@ export class McpService extends BaseService {
                         user,
                         projectUuid,
                         prompt: args.prompt,
+                        dbtSourceUuid: args.dbtSourceUuid,
                         source: 'mcp',
                     });
 
-                    const summary = result.prUrl
-                        ? `AI writeback complete. Pull request opened: ${result.prUrl}`
-                        : 'AI writeback complete. The agent made no file changes, so no pull request was opened.';
+                    let summary: string;
+                    if (result.needsDbtSourceSelection) {
+                        // The project has several dbt sources and the prompt
+                        // didn't name one — surface the choices so the agent can
+                        // re-call with the chosen dbtSourceUuid. No PR was opened.
+                        const choices = (result.dbtSourceOptions ?? [])
+                            .map(
+                                (option) =>
+                                    `- ${option.name}${
+                                        option.repository
+                                            ? ` (${option.repository})`
+                                            : ''
+                                    }${
+                                        option.isPrimary ? ' [primary]' : ''
+                                    } — dbtSourceUuid: ${
+                                        option.projectDbtSourceUuid
+                                    }`,
+                            )
+                            .join('\n');
+                        summary = `This project has more than one dbt source. Re-run run_ai_writeback with one of these as dbtSourceUuid:\n${choices}`;
+                    } else {
+                        summary = result.prUrl
+                            ? `AI writeback complete. Pull request opened: ${result.prUrl}`
+                            : 'AI writeback complete. The agent made no file changes, so no pull request was opened.';
+                    }
 
                     return await this.buildScopedResponse(
                         ctx,

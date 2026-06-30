@@ -7,11 +7,37 @@ import { type ApiSuccess } from '../../types/api/success';
  * pull request is opened against the repo if the agent changes any files.
  *
  * The target repository (owner, repo) and the dbt project sub-folder are
- * resolved server-side from the Lightdash project's dbt connection — identified
- * by the `projectUuid` path parameter — so the caller only supplies the prompt.
+ * resolved server-side from the chosen dbt source — by default the Lightdash
+ * project's primary dbt connection (identified by the `projectUuid` path
+ * parameter), or the source named by `dbtSourceUuid` when the project has more
+ * than one dbt source.
  */
 export type AiWritebackRequestBody = {
     prompt: string;
+    /**
+     * Which of the project's dbt sources to target, when it has more than one
+     * (see {@link AiWritebackDbtSourceOption}). Pass the project's own uuid (or
+     * omit) to target the primary dbt connection. When omitted and the project
+     * has several sources, the run infers the target from the prompt and asks
+     * the caller to choose if it can't (see `needsDbtSourceSelection`).
+     */
+    dbtSourceUuid?: string;
+};
+
+/**
+ * One dbt source a writeback run can target, surfaced when a project has more
+ * than one and the run needs the caller to choose. `projectDbtSourceUuid` is
+ * the project's own uuid for the primary source and a row uuid for additional
+ * sources — the same identifier the project's dbt-sources list returns, so the
+ * caller can echo it straight back as `dbtSourceUuid`.
+ */
+export type AiWritebackDbtSourceOption = {
+    projectDbtSourceUuid: string;
+    name: string;
+    isPrimary: boolean;
+    repository: string | null;
+    branch: string | null;
+    projectSubPath: string | null;
 };
 
 /**
@@ -63,6 +89,21 @@ export type AiWritebackRunResult = {
     repository: string;
     /** Ordered actions the sandbox took, for the chat UI's step rows. */
     steps: AiWritebackStep[];
+    /**
+     * The dbt source this run targeted: a `project_dbt_sources` row uuid for an
+     * additional source, or `null` for the project's primary dbt connection. A
+     * thread stays bound to this source across resumes — one thread, one PR.
+     */
+    dbtSourceUuid: string | null;
+    /**
+     * Set when the project has several dbt sources and the run could not decide
+     * which one the prompt targets. No sandbox is started and no pull request is
+     * opened; `dbtSourceOptions` lists the choices and the caller should re-run
+     * with `dbtSourceUuid` set to one of them. Absent on a normal run.
+     */
+    needsDbtSourceSelection?: boolean;
+    /** The dbt sources to choose from when `needsDbtSourceSelection` is set. */
+    dbtSourceOptions?: AiWritebackDbtSourceOption[];
 };
 
 export type ApiAiWritebackResponse = ApiSuccess<AiWritebackRunResult>;
@@ -88,6 +129,7 @@ Important:
 
 Parameters:
 - prompt: A clear, self-contained description of the change to make to the dbt project (e.g. "Add a 'total_revenue' metric to the orders model as the sum of amount").
+- dbtSourceUuid (optional): When the project has more than one dbt source, the uuid of the source to change. Omit it to let the run infer the target from the prompt; if it cannot, the response asks you to choose and lists the available sources, after which you re-call with the chosen dbtSourceUuid.
 
 Response shape (MCP CallToolResult):
 - content: [{ type: "text", text: "<human-readable summary including the PR URL>" }]
@@ -104,6 +146,12 @@ export const mcpRunAiWritebackArgsSchema = z.object({
         .min(1)
         .describe(
             'A clear, self-contained description of the change to make to the dbt project that backs the active Lightdash project.',
+        ),
+    dbtSourceUuid: z
+        .string()
+        .optional()
+        .describe(
+            "Which of the project's dbt sources to change, when it has more than one. Omit to infer the target from the prompt; if the run cannot decide it returns the available sources to choose from, then you re-call with the chosen uuid.",
         ),
 });
 

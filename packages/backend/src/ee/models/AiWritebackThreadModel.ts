@@ -58,6 +58,9 @@ export class AiWritebackThreadModel {
         aiThreadUuid: string;
         sandboxUuid: string;
         pullRequestUuid: string;
+        // The dbt source this thread targets — null for the project's primary
+        // dbt connection. Binds the thread to one repo across resumes.
+        projectDbtSourceUuid: string | null;
     }): Promise<DbAiWritebackThread> {
         const [row] = await this.database<AiWritebackThreadTable>(
             AiWritebackThreadTableName,
@@ -66,6 +69,7 @@ export class AiWritebackThreadModel {
                 ai_thread_uuid: data.aiThreadUuid,
                 sandbox_uuid: data.sandboxUuid,
                 pull_request_uuid: data.pullRequestUuid,
+                project_dbt_source_uuid: data.projectDbtSourceUuid,
             })
             .returning('*');
         return row;
