@@ -371,9 +371,8 @@ const LatestRow: FC<{
 };
 
 /**
- * Subagent UIMessage as carried inside the discoverFields tool's output:
- * `output.metadata.streamingMessage` during preliminary streaming and on the
- * final non-preliminary result that lands in `AiAgentToolResult.metadata`.
+ * Subagent UIMessage as carried inside preliminary discoverFields streaming
+ * output. Older persisted threads may also have this in result metadata.
  */
 type StreamingMessage = {
     parts: ReadonlyArray<{

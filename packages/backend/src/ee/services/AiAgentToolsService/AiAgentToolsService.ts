@@ -114,6 +114,8 @@ const CONTENT_AS_CODE_TYPE_LABELS = {
     chart: 'Chart',
 } as const satisfies Record<ContentAsCodeType, string>;
 
+const MIN_EXPLORE_SEARCH_RANK = 0.3;
+
 export type AiAgentToolsSource = 'ai_agent' | 'mcp';
 
 export type AiAgentToolsRuntimeContext = {
@@ -538,6 +540,10 @@ export class AiAgentToolsService extends BaseService {
 
                 const exploreSearchResults = tableSearchResults.data
                     .filter((item) => item.type === CatalogType.Table)
+                    .filter(
+                        (table) =>
+                            (table.searchRank ?? 0) >= MIN_EXPLORE_SEARCH_RANK,
+                    )
                     .map((table) => {
                         const explore = filteredExploresByName.get(table.name);
                         if (!explore) {

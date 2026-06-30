@@ -132,7 +132,7 @@ Parameters:
 - searchQuery: Keyword terms for finding relevant explores
 
 Output:
-- Matching explores with searchRank scores, joined tables, required filters, AI hints, and full descriptions
+- Matching explores with searchRank scores >= 0.3, joined tables, required filters, AI hints, and full descriptions
 - Compact all-field inventories split into dimension and metric field ids
 
 Field descriptions are not included in the compact field inventories. Use findFields to search/compare fields by label/description.

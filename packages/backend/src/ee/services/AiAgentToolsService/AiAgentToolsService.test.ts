@@ -382,6 +382,47 @@ describe('AiAgentToolsService', () => {
         );
     });
 
+    it('filters low-rank explore search results', async () => {
+        const searchCatalog = vi.fn(async () => ({
+            data: [
+                {
+                    type: CatalogType.Table,
+                    name: 'orders',
+                    label: 'Orders',
+                    description: 'Orders explore',
+                    aiHints: [],
+                    searchRank: 0.3,
+                    joinedTables: [],
+                },
+                {
+                    type: CatalogType.Table,
+                    name: 'customers',
+                    label: 'Customers',
+                    description: 'Customers explore',
+                    aiHints: [],
+                    searchRank: 0.299,
+                    joinedTables: [],
+                },
+            ],
+            pagination: undefined,
+        }));
+        const service = makeService({
+            explores: {
+                orders: makeExplore({ name: 'orders' }),
+                customers: makeExplore({ name: 'customers' }),
+            },
+            searchCatalog,
+        });
+
+        await expect(
+            service.createRuntime(makeRuntimeContext()).findExplores({
+                searchQuery: 'orders customers',
+            }),
+        ).resolves.toMatchObject({
+            exploreSearchResults: [expect.objectContaining({ name: 'orders' })],
+        });
+    });
+
     it('adds required filters to AI runtime explore search metadata only', async () => {
         const requiredFilters = [
             {

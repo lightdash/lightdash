@@ -400,8 +400,6 @@ export const getDiscoverFields = (args: ToolArgs, dependencies: Dependencies) =>
                     structuredResult,
                     metadata: {
                         status: 'success' as const,
-                        discovery: handoff,
-                        streamingMessage: currentMessage,
                     },
                 } as ToolDiscoverFieldsOutput;
             } catch (error) {

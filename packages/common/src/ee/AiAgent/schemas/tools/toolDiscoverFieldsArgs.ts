@@ -257,13 +257,6 @@ export const discoverFieldsResultUnionSchemaV2 = z.discriminatedUnion(
 export const discoverFieldsResultUnionSchema =
     discoverFieldsResultUnionSchemaV2;
 
-const discoverFieldsResultUnionSchemaBackwardCompatible = z.union([
-    discoverFieldsResolvedResultSchemaV2,
-    discoverFieldsResolvedResultSchemaV1,
-    discoverFieldsAmbiguousResultSchema,
-    discoverFieldsNoMatchResultSchema,
-]);
-
 export const discoverFieldsResultSchema = z.object({
     handoff: discoverFieldsResultUnionSchema,
 });
@@ -273,7 +266,6 @@ export const toolDiscoverFieldsOutputSchema = z.union([
         result: z.string(),
         metadata: z.object({
             status: z.literal('success'),
-            discovery: discoverFieldsResultUnionSchemaBackwardCompatible,
         }),
     }),
     z.object({
