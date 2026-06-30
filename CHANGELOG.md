@@ -1,3 +1,10 @@
+## [0.3265.1](https://github.com/lightdash/lightdash/compare/0.3265.0...0.3265.1) (2026-06-30)
+
+
+### Bug Fixes
+
+* harden MotherDuck connection options ([#24925](https://github.com/lightdash/lightdash/issues/24925)) ([a2ed7ee](https://github.com/lightdash/lightdash/commit/a2ed7eeb12d2955e49d490c1e796d47dbcb2204b))
+
 # [0.3265.0](https://github.com/lightdash/lightdash/compare/0.3264.0...0.3265.0) (2026-06-30)
 
 
