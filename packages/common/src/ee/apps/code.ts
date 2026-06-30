@@ -4,7 +4,7 @@ import { type DataAppTemplate } from './types';
 export const currentDataAppCodeVersion = 1 as const;
 
 export type DataAppManifest = {
-    codeVersion: typeof currentDataAppCodeVersion;
+    codeVersion: 1;
     appUuid: string;
     projectUuid: string;
     version: number;

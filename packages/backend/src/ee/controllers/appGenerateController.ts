@@ -14,6 +14,7 @@ import {
     type ApiDuplicateAppResponse,
     type ApiEmbedProjectAppsResponse,
     type ApiGenerateAppResponse,
+    type ApiGetAppCodeResponse,
     type ApiGetAppResponse,
     type ApiMyAppsResponse,
     type ApiPreviewTokenResponse,
@@ -507,6 +508,32 @@ export class AppGenerateController extends BaseController {
         return {
             status: 'ok',
             results: { token },
+        };
+    }
+
+    /**
+     * Downloads the source code for a data app version.
+     * @summary Get app code
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{appUuid}/code')
+    @OperationId('getAppCode')
+    async getAppCode(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+        @Query() version?: number,
+    ): Promise<ApiGetAppCodeResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getAppGenerateService().getAppCode(
+                toSessionUser(req.account),
+                projectUuid,
+                appUuid,
+                version,
+            ),
         };
     }
 
