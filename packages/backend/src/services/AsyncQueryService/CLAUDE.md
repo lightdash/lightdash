@@ -3,6 +3,8 @@ AsyncQueryService handles asynchronous query execution against data warehouses. 
 
 **Important**: While the API response is non-blocking (returns immediately), the actual query execution still runs on the main Node.js event loop and can block it during row processing for large result sets.
 
+`runQueryAndTransformRows` is where pivot rows get spread into wide columns. For the full pivot pipeline, see `/docs/pivoting.md`.
+
 </summary>
 
 <howToUse>
