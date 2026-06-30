@@ -11336,6 +11336,52 @@
             "ApiGetAppCodeResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_DataAppCode_"
             },
+            "ApiSuccess__appUuid-string--version-number--action-create-or-append__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "action": {
+                                "type": "string",
+                                "enum": ["create", "append"]
+                            },
+                            "version": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["action", "version", "appUuid"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiImportAppCodeResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--version-number--action-create-or-append__"
+            },
+            "ImportAppCodeRequestBody": {
+                "properties": {
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "targetAppUuid": {
+                        "type": "string"
+                    },
+                    "code": {
+                        "$ref": "#/components/schemas/DataAppCode"
+                    }
+                },
+                "required": ["code"],
+                "type": "object"
+            },
             "ApiSuccess__imageUrl-string__": {
                 "properties": {
                     "results": {
@@ -28516,6 +28562,7 @@
                     "embedArtifactVersion",
                     "generateArtifactQuestion",
                     "appGeneratePipeline",
+                    "appBuildFromSource",
                     "sweepStaleAppLocks",
                     "handleScheduledDelivery",
                     "sendSlackNotification",

@@ -16,6 +16,7 @@ import {
     type ApiGenerateAppResponse,
     type ApiGetAppCodeResponse,
     type ApiGetAppResponse,
+    type ApiImportAppCodeResponse,
     type ApiMyAppsResponse,
     type ApiPreviewTokenResponse,
     type ApiPromoteAppDiffResponse,
@@ -26,6 +27,7 @@ import {
     type ApiUpdateAppRequest,
     type ApiUpdateAppResponse,
     type GenerateAppRequestBody,
+    type ImportAppCodeRequestBody,
 } from '@lightdash/common';
 import {
     Body,
@@ -533,6 +535,31 @@ export class AppGenerateController extends BaseController {
                 projectUuid,
                 appUuid,
                 version,
+            ),
+        };
+    }
+
+    /**
+     * Import source code for a data app version.
+     * @summary Import app code
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/code')
+    @OperationId('importAppCode')
+    async importAppCode(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: ImportAppCodeRequestBody,
+    ): Promise<ApiImportAppCodeResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAppGenerateService().importAppCode(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
             ),
         };
     }
