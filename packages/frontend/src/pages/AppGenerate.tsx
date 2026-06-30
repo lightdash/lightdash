@@ -935,9 +935,7 @@ const AppGenerate: FC = () => {
         ? selectedTemplate
         : appPersistedTemplate;
     const displayTemplate: DataAppTemplate | null =
-        candidateTemplate &&
-        candidateTemplate !== 'custom' &&
-        candidateTemplate !== 'data_app_viz'
+        candidateTemplate && candidateTemplate !== 'custom'
             ? candidateTemplate
             : null;
     // New-app empty screen: arch + composer, centered, no preview/split yet.
@@ -1530,6 +1528,12 @@ const AppGenerate: FC = () => {
             setIsSubmitting(true);
         }
 
+        // Starter template selected in the picker, if any. `data_app_viz` is a
+        // template like the others — it flows through the same clarify + build
+        // path; the pipeline keys the viz behaviour off the app's stored template.
+        const starterTemplate: DataAppTemplate | undefined =
+            selectedTemplate ?? undefined;
+
         try {
             // Send structured chart refs (uuid + per-chart sample-data opt-in).
             // The backend resolves these server-side so the client never sees
@@ -1680,7 +1684,7 @@ const AppGenerate: FC = () => {
                     const { questions } = await clarifyMutateAsync({
                         projectUuid: projectUuid!,
                         prompt: trimmed,
-                        template: selectedTemplate ?? undefined,
+                        template: starterTemplate,
                         charts,
                         dashboard,
                         imageIds,
@@ -1689,7 +1693,7 @@ const AppGenerate: FC = () => {
                         setPendingClarification({
                             questions,
                             prompt: trimmed,
-                            template: selectedTemplate ?? undefined,
+                            template: starterTemplate,
                             imageIds,
                             appUuid: newAppUuid,
                             charts,
@@ -1738,7 +1742,7 @@ const AppGenerate: FC = () => {
                     {
                         projectUuid,
                         prompt: trimmed,
-                        template: selectedTemplate ?? undefined,
+                        template: starterTemplate,
                         imageIds,
                         appUuid: newAppUuid,
                         charts,

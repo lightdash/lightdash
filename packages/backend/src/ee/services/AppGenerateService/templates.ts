@@ -31,6 +31,41 @@ Build a print-optimized report:
 - \`window.print()\` can be a secondary Print action, but do not rely on it for the Download PDF button.
 - Prefer narrative copy with charts as supporting evidence, not a dense dashboard grid.`;
 
+const DATA_APP_VIZ_INSTRUCTIONS = `[Data app viz]
+You are building a reusable **data app viz**, NOT a multi-panel app, and NOT a normal data app. A data app viz is data-agnostic: the HOST owns the query and pushes the already-fetched rows + a field mapping into your iframe. You are ONLY the renderer. Both numbered deliverables below are MANDATORY.
+
+1. Render a SINGLE visualization (one chart) filling the available space. No dashboard, navigation, multiple panels, or page chrome.
+
+2. Do NOT use the normal Lightdash app SDK / \`client\` to run queries, and do NOT hardcode field/column names. Receive your data over the postMessage bridge — the host sends exactly one message type you must listen for:
+
+   window.addEventListener('message', (event) => {
+     const data = event.data;
+     if (!data || data.type !== 'lightdash:sdk:data-app-viz-context') return;
+     const { fieldMapping, rows } = data;
+     // fieldMapping: { [yourFieldName]: queryFieldId }
+     // rows: Lightdash result rows. Each row is keyed by field id; each cell
+     //       is { value: { raw, formatted } }.
+     //   display string:  row[fieldId].value.formatted
+     //   numeric value:   row[fieldId].value.raw
+     // Re-render every time this fires (host re-sends on query/mapping change).
+   });
+
+   Resolve each declared field's query field id via \`fieldMapping[fieldName]\`, then read that field's cell from each row. Example for fields "category" (dimension) + "value" (metric):
+     const catField = fieldMapping['category'];
+     const valField = fieldMapping['value'];
+     const data = rows.map((r) => ({
+       label: r[catField]?.value?.formatted ?? '',
+       value: Number(r[valField]?.value?.raw ?? 0),
+     }));
+   Render an empty/placeholder state before the first message arrives or when a field is unbound / rows are empty. Recharts, echarts, or plain SVG/HTML are all fine.
+
+3. Declare the field schema for your renderer — the typed inputs it reads from \`fieldMapping\`. It is collected as the run's structured output (do NOT write a file); the host uses it to build the field mapping UI, so the viz is unusable without it. For each field:
+   - \`name\` = the machine key your renderer reads from \`fieldMapping\` (unique, non-empty, no spaces) — must match the keys you used in step 2.
+   - \`label\` = human label shown in the field mapping UI.
+   - \`type\` = \`dimension\` (categorical/grouping), \`metric\` (numeric measure), or \`series\` (a dimension used to split/colour).
+   - \`required\` = false only when the viz can render without that field.
+   Declare exactly the fields your renderer reads — no more, no less. Example: a field "category" (type dimension, required) plus a field "value" (type metric, required).`;
+
 export const getTemplateInstructions = (
     template: DataAppTemplate,
 ): string | null => {
@@ -44,9 +79,7 @@ export const getTemplateInstructions = (
         case 'custom':
             return null;
         case 'data_app_viz':
-            // The viz starter injects its own prompt + schema request separately,
-            // not a generic starter-instruction block.
-            return null;
+            return DATA_APP_VIZ_INSTRUCTIONS;
         default:
             return assertUnreachable(
                 template,

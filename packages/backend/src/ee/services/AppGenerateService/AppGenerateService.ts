@@ -15,6 +15,9 @@ import {
     assertEmbeddedAuth,
     assertUnreachable,
     DATA_APP_CLAUDE_MODELS,
+    DATA_APP_VIZ_TEMPLATE,
+    dataAppVizJsonSchema,
+    dataAppVizSchema,
     DEFAULT_DATA_APP_CLAUDE_MODEL,
     FeatureFlags,
     ForbiddenError,
@@ -1550,6 +1553,7 @@ export class AppGenerateService extends BaseService {
         bucket: string,
         chartReferences: ChartReference[] | undefined,
         template: DataAppTemplate | undefined,
+        isDataAppViz: boolean,
     ): Promise<{
         durationMs: number;
         tableCount: number;
@@ -1625,9 +1629,16 @@ export class AppGenerateService extends BaseService {
             }
         }
 
-        // Prepend starter-template instructions, when one was selected on creation
-        if (template) {
-            const templateInstructions = getTemplateInstructions(template);
+        // Viz instructions come from the app's stored template (reliable on
+        // iterate/retry, where payload.template is absent); starter-template
+        // instructions seed only the initial generate. Both resolve through the
+        // same exhaustive switch.
+        const instructionsTemplate = isDataAppViz
+            ? DATA_APP_VIZ_TEMPLATE
+            : template;
+        if (instructionsTemplate) {
+            const templateInstructions =
+                getTemplateInstructions(instructionsTemplate);
             if (templateInstructions) {
                 finalPrompt = `${templateInstructions}\n\n${finalPrompt}`;
             }
@@ -1897,15 +1908,41 @@ export class AppGenerateService extends BaseService {
         continueSession: boolean,
         claudeCodeEnv: Record<string, string>,
         claudeModel: DataAppClaudeModel,
+        // JSON Schema string for `--json-schema` structured output. When set,
+        // the CLI validates the run's final output against it (retrying on
+        // failure) and emits the parsed object on the result event. `null`
+        // for runs that don't collect a structured schema (metadata, builds).
+        structuredOutputSchema: string | null,
     ): Promise<{
         durationMs: number;
         responseText: string | null;
+        structuredOutput: unknown;
         toolCallCount: number;
         usage: ClaudeGenerationUsage | null;
         timeToFirstTokenMs: number | null;
         turnDurationsMs: number[];
     }> {
         const start = performance.now();
+
+        if (structuredOutputSchema) {
+            // A resumed sandbox may still hold a root-owned
+            // /tmp/output-schema.json from the previous run's Claude execution,
+            // which would make the write below fail with a permission error.
+            // Remove it first (same pattern as the other /tmp scratch files).
+            await sandbox.commands.run(
+                'rm -f /tmp/output-schema.json 2>/dev/null; true',
+                { timeoutMs: 10_000 },
+            );
+            await sandbox.files.write(
+                '/tmp/output-schema.json',
+                structuredOutputSchema,
+            );
+        }
+        // `"$(cat …)"` splices the schema in as a single literal arg — robust
+        // to the JSON's own quotes/braces, and a no-op when unset.
+        const jsonSchemaFlag = structuredOutputSchema
+            ? '--json-schema "$(cat /tmp/output-schema.json)" '
+            : '';
 
         // When the sandbox was resumed from a previous iteration, use
         // --continue so Claude has the full conversation history of what
@@ -1922,6 +1959,7 @@ export class AppGenerateService extends BaseService {
         ): Promise<{
             durationMs: number;
             responseText: string | null;
+            structuredOutput: unknown;
             toolCallCount: number;
             usage: ClaudeGenerationUsage | null;
             timeToFirstTokenMs: number | null;
@@ -1931,6 +1969,7 @@ export class AppGenerateService extends BaseService {
                 continueSession || forceContinue ? '--continue -p' : '-p';
             const processor = new ClaudeStreamProcessor();
             let responseText: string | null = null;
+            let structuredOutput: unknown = null;
             let sessionEstablished = false;
 
             const result = await sandbox.commands
@@ -1939,7 +1978,7 @@ export class AppGenerateService extends BaseService {
                         `--model ${claudeModel} ` +
                         `--verbose --output-format stream-json --include-partial-messages ` +
                         `--allowedTools "Read(//app/**),Read(//tmp/dbt-repo/**),Read(//tmp/images/**),Read(//tmp/metric-queries/**),Read(//tmp/external-data/**),Write(//app/src/**),Edit(//app/src/**),Glob(//app/**),Glob(//tmp/dbt-repo/**),Glob(//tmp/metric-queries/**),Glob(//tmp/external-data/**),Grep(//app/**),Grep(//tmp/dbt-repo/**),Grep(//tmp/external-data/**)" ` +
-                        `--append-system-prompt-file ${AppGenerateService.EFFECTIVE_SKILL_PATH}`,
+                        `${jsonSchemaFlag}--append-system-prompt-file ${AppGenerateService.EFFECTIVE_SKILL_PATH}`,
                     {
                         cwd: '/app',
                         timeoutMs: 55 * 60 * 1000,
@@ -1987,6 +2026,8 @@ export class AppGenerateService extends BaseService {
                                         if (event.text) {
                                             responseText = event.text;
                                         }
+                                        structuredOutput =
+                                            event.structuredOutput;
                                         break;
                                     default:
                                         assertUnreachable(
@@ -2038,6 +2079,7 @@ export class AppGenerateService extends BaseService {
                 return {
                     durationMs,
                     responseText,
+                    structuredOutput,
                     toolCallCount,
                     usage,
                     timeToFirstTokenMs,
@@ -2160,6 +2202,7 @@ export class AppGenerateService extends BaseService {
             true, // --continue: Claude remembers what it just built
             claudeCodeEnv,
             claudeModel,
+            null, // metadata run collects no structured schema
         );
 
         const durationMs = AppGenerateService.elapsed(start);
@@ -2375,6 +2418,7 @@ export class AppGenerateService extends BaseService {
                 true, // --continue: keep conversation context from generation
                 claudeCodeEnv,
                 claudeModel,
+                null, // build-fix run collects no structured schema
             );
             fixGenerationMs += generation.durationMs;
             fixUsage = addClaudeUsage(fixUsage, generation.usage);
@@ -2811,6 +2855,12 @@ export class AppGenerateService extends BaseService {
         chartReferences: ChartReference[] | undefined,
     ): Promise<void> {
         const { appUuid, version, projectUuid, prompt, template } = payload;
+        // Drives the data-app-viz prompt instructions + schema collection.
+        // Derived from the app's own template (the source of truth) rather than
+        // a payload flag, so it is correct on every path — initial generate,
+        // iteration, and retry — not just the ones that remembered to set it.
+        const pipelineApp = await this.appModel.getApp(appUuid, projectUuid);
+        const isDataAppViz = pipelineApp.template === DATA_APP_VIZ_TEMPLATE;
         // Resolve the model once per pipeline run. Jobs enqueued before the
         // picker shipped (or any future caller that omits the field) fall back
         // to the default so we never run with `--model undefined`.
@@ -2880,6 +2930,7 @@ export class AppGenerateService extends BaseService {
                     bucket,
                     chartReferences,
                     template,
+                    isDataAppViz,
                 );
                 durations.catalogMs = catalogResult.durationMs;
                 catalogStats = {
@@ -2915,6 +2966,10 @@ export class AppGenerateService extends BaseService {
 
         // --- Stage: generating ---
         let responseText: string | null = null;
+        // The data app viz schema, collected as the generation run's
+        // `--json-schema` structured output (null for non-viz apps or when the
+        // generating stage is skipped on a resumed build).
+        let vizStructuredOutput: unknown = null;
         if (shouldRun('generating')) {
             try {
                 const advanced = await this.advanceStage(
@@ -2938,9 +2993,13 @@ export class AppGenerateService extends BaseService {
                     continueSession,
                     claudeCodeEnv,
                     claudeModel,
+                    // Data app vizs collect a validated schema as the run's
+                    // structured output; other apps don't declare one.
+                    isDataAppViz ? JSON.stringify(dataAppVizJsonSchema) : null,
                 );
                 durations.generateMs = generation.durationMs;
                 responseText = generation.responseText;
+                vizStructuredOutput = generation.structuredOutput;
                 toolCallCount = generation.toolCallCount;
                 generationUsage = addClaudeUsage(
                     generationUsage,
@@ -3132,6 +3191,12 @@ export class AppGenerateService extends BaseService {
                 }
                 return;
             }
+        }
+
+        // Data app viz: persist the schema the generator declared as the run's
+        // structured output.
+        if (isDataAppViz) {
+            await this.persistSchema(vizStructuredOutput, appUuid, version);
         }
 
         try {
@@ -5420,6 +5485,41 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         }
         const apps = await this.appModel.listAppsByProject(projectUuid);
         return apps.map((app) => ({ appUuid: app.app_id, name: app.name }));
+    }
+
+    // Validate the generator's declared schema. Pure (no IO); null when the
+    // value doesn't match the contract. Never throws.
+    static parseSchema(value: unknown): DataAppVizSchema | null {
+        const result = dataAppVizSchema.safeParse(value);
+        return result.success ? result.data : null;
+    }
+
+    // Persist the schema the generator emitted as the run's `--json-schema`
+    // structured output. Best-effort: a missing (null) or invalid structured
+    // output leaves viz_schema untouched without failing an otherwise-good
+    // build — a data app viz with no schema is simply absent from the picker.
+    private async persistSchema(
+        structuredOutput: unknown,
+        appUuid: string,
+        version: number,
+    ): Promise<void> {
+        if (structuredOutput === null || structuredOutput === undefined) {
+            this.logger.warn(
+                `App ${appUuid}: no structured schema from the generation run; leaving viz_schema null`,
+            );
+            return;
+        }
+        const schema = AppGenerateService.parseSchema(structuredOutput);
+        if (!schema) {
+            this.logger.warn(
+                `App ${appUuid}: structured schema failed validation; leaving viz_schema null`,
+            );
+            return;
+        }
+        await this.appModel.setSchema(appUuid, version, schema);
+        this.logger.info(
+            `App ${appUuid} v${version}: persisted schema (${schema.fields.length} field(s), ${schema.configOptions.length} option(s))`,
+        );
     }
 
     private static mapDataAppViz(

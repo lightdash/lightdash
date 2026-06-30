@@ -33,7 +33,11 @@ describe('ClaudeStreamProcessor result parsing', () => {
         const events = processor.feedChunk(resultLine());
 
         expect(events).toEqual([
-            { kind: 'result', text: 'Done building the dashboard.' },
+            {
+                kind: 'result',
+                text: 'Done building the dashboard.',
+                structuredOutput: null,
+            },
         ]);
         expect(processor.lastUsage).toEqual({
             inputTokens: 1_000,
@@ -52,8 +56,36 @@ describe('ClaudeStreamProcessor result parsing', () => {
             line({ type: 'result', subtype: 'success' }),
         );
 
-        expect(events).toEqual([{ kind: 'result', text: '' }]);
+        expect(events).toEqual([
+            { kind: 'result', text: '', structuredOutput: null },
+        ]);
         expect(processor.lastUsage).toEqual(ZERO_CLAUDE_USAGE);
+    });
+
+    test('captures structured_output when the run used --json-schema', () => {
+        const processor = new ClaudeStreamProcessor();
+        const schema = {
+            fields: [
+                {
+                    name: 'category',
+                    label: 'Category',
+                    type: 'dimension',
+                    required: true,
+                },
+            ],
+            configOptions: [],
+        };
+        const events = processor.feedChunk(
+            resultLine({ structured_output: schema }),
+        );
+
+        expect(events).toEqual([
+            {
+                kind: 'result',
+                text: 'Done building the dashboard.',
+                structuredOutput: schema,
+            },
+        ]);
     });
 
     test('ignores non-JSON and non-result lines, leaving usage null', () => {

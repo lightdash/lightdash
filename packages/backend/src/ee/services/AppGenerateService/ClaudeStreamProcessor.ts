@@ -61,7 +61,7 @@ export type ClaudeStreamEvent =
     | { kind: 'thinking_started'; turn: number }
     | { kind: 'thinking_snippet'; snippet: string }
     | { kind: 'tool_use'; index: number; description: string }
-    | { kind: 'result'; text: string };
+    | { kind: 'result'; text: string; structuredOutput: unknown };
 
 const STATUS_THROTTLE_MS = 3000;
 const SNIPPET_SENTENCES = 1;
@@ -210,9 +210,13 @@ function asFiniteNumber(value: unknown): number {
  * the `result` event is emitted once per run and always carries usage, but
  * we parse defensively in case a field is absent on older CLI versions.
  */
-function parseResult(
-    line: string,
-): { text: string | null; usage: ClaudeGenerationUsage } | undefined {
+function parseResult(line: string):
+    | {
+          text: string | null;
+          usage: ClaudeGenerationUsage;
+          structuredOutput: unknown;
+      }
+    | undefined {
     let event: Record<string, unknown>;
     try {
         event = JSON.parse(line);
@@ -223,6 +227,10 @@ function parseResult(
     const usage = (event.usage ?? {}) as Record<string, unknown>;
     return {
         text: typeof event.result === 'string' ? event.result : null,
+        // Populated only when the run was invoked with `--json-schema`; the CLI
+        // validates the final output against that schema and emits the parsed
+        // object here. `null`/absent otherwise.
+        structuredOutput: event.structured_output ?? null,
         usage: {
             inputTokens: asFiniteNumber(usage.input_tokens),
             outputTokens: asFiniteNumber(usage.output_tokens),
@@ -391,7 +399,11 @@ export class ClaudeStreamProcessor {
                 this.lastTurnStartAt = null;
             }
             this.lastUsageValue = result.usage;
-            events.push({ kind: 'result', text: result.text ?? '' });
+            events.push({
+                kind: 'result',
+                text: result.text ?? '',
+                structuredOutput: result.structuredOutput,
+            });
         }
     }
 }

@@ -632,6 +632,21 @@ export class AppModel {
             .first();
     }
 
+    // Persist the schema generated for a data app viz on its version row.
+    async setSchema(
+        appId: string,
+        version: number,
+        schema: DataAppVizSchema,
+    ): Promise<void> {
+        await this.database(AppVersionsTableName)
+            .where({ app_id: appId, version })
+            .update({
+                viz_schema: JSON.stringify(
+                    schema,
+                ) as unknown as DataAppVizSchema,
+            });
+    }
+
     /**
      * Repoint a preview project's data-app dashboard tiles from the source
      * (upstream) apps they were copied with onto the preview's own duplicated
