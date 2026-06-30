@@ -76,7 +76,6 @@ import AppPromptEditor, {
 import {
     AttachButton,
     InspectButton,
-    InspectDataButton,
     ModelPicker,
     ScreenshotButton,
     SelectedDashboardSection,
@@ -557,6 +556,14 @@ const AppGenerate: FC = () => {
 
     const handleLineageCancelled = useCallback(() => {
         setLineageEnabled(false);
+    }, []);
+
+    const handleToggleLineage = useCallback(() => {
+        setLineageEnabled((v) => {
+            const next = !v;
+            if (next) setInspectorEnabled(false);
+            return next;
+        });
     }, []);
     const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
     // Pre-build clarification round: captured submission args that we need
@@ -2730,20 +2737,6 @@ const AppGenerate: FC = () => {
                                                 }}
                                                 disabled={!inspectorAvailable}
                                             />
-                                            <InspectDataButton
-                                                enabled={lineageEnabled}
-                                                onToggle={() => {
-                                                    setLineageEnabled((v) => {
-                                                        const next = !v;
-                                                        if (next)
-                                                            setInspectorEnabled(
-                                                                false,
-                                                            );
-                                                        return next;
-                                                    });
-                                                }}
-                                                disabled={!lineageAvailable}
-                                            />
                                             <ModelPicker
                                                 value={selectedModel}
                                                 onChange={handleModelChange}
@@ -2997,6 +2990,9 @@ const AppGenerate: FC = () => {
                                         }
                                         onHoverQuery={setHoveredQueryUuid}
                                         focusedQueryUuid={focusedQueryUuid}
+                                        lineageEnabled={lineageEnabled}
+                                        lineageAvailable={lineageAvailable}
+                                        onToggleLineage={handleToggleLineage}
                                     />
                                 )}
                             </Box>

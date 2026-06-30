@@ -106,4 +106,30 @@ describe('QueryInspector lineage hooks', () => {
             );
         });
     });
+
+    describe('inspect data toggle', () => {
+        it('calls onToggleLineage when the header toggle is clicked', () => {
+            const onToggleLineage = vi.fn();
+            renderInspector({
+                onToggleLineage,
+                lineageAvailable: true,
+                defaultCollapsed: false,
+            });
+            fireEvent.click(
+                screen.getByLabelText('Toggle data lineage inspector'),
+            );
+            expect(onToggleLineage).toHaveBeenCalledTimes(1);
+        });
+
+        it('disables the toggle when lineage is unavailable', () => {
+            renderInspector({
+                onToggleLineage: vi.fn(),
+                lineageAvailable: false,
+                defaultCollapsed: false,
+            });
+            expect(
+                screen.getByLabelText('Toggle data lineage inspector'),
+            ).toBeDisabled();
+        });
+    });
 });

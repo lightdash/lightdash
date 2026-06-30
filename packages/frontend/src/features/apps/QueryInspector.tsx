@@ -18,6 +18,7 @@ import {
     IconChevronRight,
     IconCopy,
     IconDatabase,
+    IconDatabaseSearch,
     IconExternalLink,
     IconTrash,
     IconX,
@@ -56,6 +57,11 @@ type Props = {
      *  until queries arrive; the preview passes `false` so once opened from
      *  the menu the panel remains visible. */
     hideWhenEmpty?: boolean;
+    /** Data-lineage ("Inspect data") toggle rendered in the panel header.
+     *  When `onToggleLineage` is omitted, the toggle is hidden. */
+    lineageEnabled?: boolean;
+    lineageAvailable?: boolean;
+    onToggleLineage?: () => void;
     /** Called with the queryUuid when a row is hovered, and null on leave.
      *  The parent forwards this to the iframe to outline matching elements. */
     onHoverQuery?: (queryUuid: string | null) => void;
@@ -384,6 +390,9 @@ const QueryInspector: FC<Props> = ({
     hideWhenEmpty = true,
     onHoverQuery,
     focusedQueryUuid,
+    lineageEnabled,
+    lineageAvailable,
+    onToggleLineage,
 }) => {
     const [collapsed, setCollapsed] = useState(defaultCollapsed);
     const [height, setHeight] = useState(DEFAULT_HEIGHT);
@@ -476,6 +485,36 @@ const QueryInspector: FC<Props> = ({
                 <Box ml="auto" />
                 {!collapsed && (
                     <>
+                        {onToggleLineage && (
+                            <Tooltip
+                                label={
+                                    lineageEnabled
+                                        ? 'Inspect data: on'
+                                        : 'Inspect data'
+                                }
+                                withArrow
+                                position="top"
+                            >
+                                <ActionIcon
+                                    variant={
+                                        lineageEnabled ? 'filled' : 'subtle'
+                                    }
+                                    color={lineageEnabled ? 'violet' : 'gray'}
+                                    size="xs"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onToggleLineage();
+                                    }}
+                                    disabled={!lineageAvailable}
+                                    aria-label="Toggle data lineage inspector"
+                                >
+                                    <MantineIcon
+                                        icon={IconDatabaseSearch}
+                                        size={12}
+                                    />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
                         <Tooltip label="Clear queries" withArrow position="top">
                             <ActionIcon
                                 variant="subtle"

@@ -29,7 +29,6 @@ import {
     IconClick,
     IconDatabase,
     IconDatabasePlus,
-    IconDatabaseSearch,
     IconLayoutDashboard,
     IconPhoto,
     IconPlugConnected,
@@ -143,35 +142,6 @@ export const InspectButton: FC<{
             aria-label="Toggle element inspector"
         >
             <MantineIcon icon={IconClick} size={16} />
-        </ActionIcon>
-    </Tooltip>
-);
-
-/**
- * Toggle button that activates the iframe-side data-lineage picker. While
- * enabled, clicking a value in the preview reveals the query behind it in the
- * Queries panel. Mutually exclusive with the element inspector.
- */
-export const InspectDataButton: FC<{
-    enabled: boolean;
-    onToggle: () => void;
-    disabled?: boolean;
-}> = ({ enabled, onToggle, disabled }) => (
-    <Tooltip
-        label={enabled ? 'Inspect data: on' : 'Inspect data'}
-        withArrow
-        position="top"
-    >
-        <ActionIcon
-            variant={enabled ? 'filled' : 'default'}
-            color={enabled ? 'violet' : undefined}
-            size="lg"
-            radius="md"
-            onClick={onToggle}
-            disabled={disabled}
-            aria-label="Toggle data lineage inspector"
-        >
-            <MantineIcon icon={IconDatabaseSearch} size={16} />
         </ActionIcon>
     </Tooltip>
 );
