@@ -27,6 +27,16 @@ const createOpenIdUserFromUserInfo = (
     issuerType: OpenIdIdentityIssuerType,
     fail: OpenIDClientOktaStrategy['fail'],
 ) => {
+    if (userInfo.email_verified === false) {
+        return fail(
+            {
+                message:
+                    'Authentication failed: email is not verified in OpenID profile.',
+            },
+            401,
+        );
+    }
+
     if (!userInfo.email || !userInfo.sub) {
         return fail(
             {
