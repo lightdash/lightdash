@@ -22,7 +22,6 @@ import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
 import { dbtDefaults } from './DbtForms/defaultValues';
 import { dbtFormValidators } from './DbtForms/validators';
-import DbtSourcesPanel from './DbtSourcesPanel';
 import { FormContainer } from './FormContainer';
 import { FormProvider, useForm } from './formContext';
 import { ProjectForm } from './ProjectForm';
@@ -222,11 +221,6 @@ const UpdateProjectConnection: FC<{
                     </Card>
                 </FormContainer>
             </form>
-            {project?.type !== ProjectType.PREVIEW && (
-                <Box mt="lg">
-                    <DbtSourcesPanel projectUuid={projectUuid} />
-                </Box>
-            )}
         </FormProvider>
     );
 };
