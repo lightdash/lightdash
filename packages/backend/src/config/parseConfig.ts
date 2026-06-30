@@ -1596,10 +1596,11 @@ export type AppRuntimeConfig = {
     /**
      * Which sandbox backend the data-app pipeline launches sandboxes on.
      * `e2b` keeps today's hosted path; `docker` runs a plain local container
-     * (dev / self-host testbed — see SandboxRuntime/DESIGN.md). Later:
-     * kubernetes | ecs | microsandbox.
+     * (dev / self-host testbed — see SandboxRuntime/DESIGN.md);
+     * `lambda-microvm` runs AWS Lambda MicroVMs (native suspend/resume).
+     * Later: kubernetes | ecs | microsandbox.
      */
-    sandboxProvider: 'e2b' | 'docker';
+    sandboxProvider: 'e2b' | 'docker' | 'lambda-microvm';
     /**
      * OCI image the `docker` sandbox provider launches data-app containers
      * from. Built locally from sandboxes/data-apps (e.g. `lightdash-sandbox:local`).
@@ -1624,6 +1625,35 @@ export type AppRuntimeConfig = {
      * reaper GCs it. Defaults to 7 days.
      */
     sandboxSnapshotRetentionMs: number;
+    /**
+     * Static config the `lambda-microvm` sandbox provider needs (region, IAM
+     * execution role, network connectors, idle policy). Idle/suspended durations
+     * are derived from `sandboxIdleTimeoutMs`/`sandboxSnapshotRetentionMs` so the
+     * AWS-side `idlePolicy` (auto-suspend / auto-terminate) mirrors the reaper's
+     * windows. Always populated (with defaults); only read when the provider is
+     * `lambda-microvm`.
+     */
+    lambdaMicroVm: {
+        region: string;
+        executionRoleArn: string | null;
+        ingressConnectorArn: string;
+        egressConnectorArn: string;
+        maxIdleDurationSeconds: number;
+        suspendedDurationSeconds: number;
+    };
+    /**
+     * Lambda MicroVM image ARN the data-app pipeline runs from (the
+     * `lambda-microvm` analog of the Docker data-app image).
+     * Built out-of-band by the image pipeline (see sandboxes/). Required only
+     * when `sandboxProvider === 'lambda-microvm'`.
+     */
+    lambdaMicroVmDataAppImageArn: string | null;
+    /**
+     * Lambda MicroVM image ARN the AI writeback pipeline runs from (decoupled
+     * from the data-app image, mirroring the split Docker images).
+     * Required only when `sandboxProvider === 'lambda-microvm'`.
+     */
+    lambdaMicroVmAiWritebackImageArn: string | null;
 };
 
 export type IntercomConfig = {
@@ -1788,6 +1818,14 @@ export type SmtpConfig = {
 
 const DEFAULT_JOB_TIMEOUT = 1000 * 60 * 10; // 10 minutes
 
+const parseSandboxProvider = (
+    value: string | undefined,
+): AppRuntimeConfig['sandboxProvider'] => {
+    if (value === 'docker') return 'docker';
+    if (value === 'lambda-microvm') return 'lambda-microvm';
+    return 'e2b';
+};
+
 const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
     const enabled = process.env.APPS_RUNTIME_ENABLED === 'true';
     const appsBucket = process.env.APPS_S3_BUCKET;
@@ -1825,6 +1863,16 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         };
     }
 
+    const sandboxIdleTimeoutMs = process.env.SANDBOX_IDLE_TIMEOUT_MS
+        ? parseInt(process.env.SANDBOX_IDLE_TIMEOUT_MS, 10)
+        : 30 * 60 * 1000;
+    const sandboxSnapshotRetentionMs = process.env.SANDBOX_SNAPSHOT_RETENTION_MS
+        ? parseInt(process.env.SANDBOX_SNAPSHOT_RETENTION_MS, 10)
+        : 7 * 24 * 60 * 60 * 1000;
+    // Lambda MicroVMs run in eu-west-1 (Ireland) — the EU launch region.
+    const lambdaMicroVmRegion =
+        process.env.LAMBDA_MICROVM_REGION || 'eu-west-1';
+
     return {
         enabled,
         lightdashOrigin: process.env.APP_RUNTIME_LIGHTDASH_ORIGIN || siteUrl,
@@ -1848,19 +1896,36 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             'lightdash-ai-writeback',
         e2bAiWritebackTemplateTag:
             process.env.E2B_AI_WRITEBACK_TEMPLATE_TAG ?? (VERSION as string),
-        sandboxProvider:
-            process.env.SANDBOX_PROVIDER === 'docker' ? 'docker' : 'e2b',
+        sandboxProvider: parseSandboxProvider(process.env.SANDBOX_PROVIDER),
         sandboxDockerImage:
             process.env.SANDBOX_DOCKER_IMAGE || 'lightdash-sandbox:local',
         sandboxAiWritebackDockerImage:
             process.env.SANDBOX_AI_WRITEBACK_DOCKER_IMAGE ||
             'lightdash-ai-writeback:local',
-        sandboxIdleTimeoutMs: process.env.SANDBOX_IDLE_TIMEOUT_MS
-            ? parseInt(process.env.SANDBOX_IDLE_TIMEOUT_MS, 10)
-            : 30 * 60 * 1000,
-        sandboxSnapshotRetentionMs: process.env.SANDBOX_SNAPSHOT_RETENTION_MS
-            ? parseInt(process.env.SANDBOX_SNAPSHOT_RETENTION_MS, 10)
-            : 7 * 24 * 60 * 60 * 1000,
+        sandboxIdleTimeoutMs,
+        sandboxSnapshotRetentionMs,
+        lambdaMicroVm: {
+            region: lambdaMicroVmRegion,
+            executionRoleArn:
+                process.env.LAMBDA_MICROVM_EXECUTION_ROLE_ARN || null,
+            // Managed connectors are fixed, region-scoped ARNs (no list op). The
+            // open `INTERNET_EGRESS` connector is the MVP egress; a custom VPC
+            // connector (egress allowlist) is a later hardening.
+            ingressConnectorArn:
+                process.env.LAMBDA_MICROVM_INGRESS_CONNECTOR_ARN ||
+                `arn:aws:lambda:${lambdaMicroVmRegion}:aws:network-connector:aws-network-connector:ALL_INGRESS`,
+            egressConnectorArn:
+                process.env.LAMBDA_MICROVM_EGRESS_CONNECTOR_ARN ||
+                `arn:aws:lambda:${lambdaMicroVmRegion}:aws:network-connector:aws-network-connector:INTERNET_EGRESS`,
+            maxIdleDurationSeconds: Math.floor(sandboxIdleTimeoutMs / 1000),
+            suspendedDurationSeconds: Math.floor(
+                sandboxSnapshotRetentionMs / 1000,
+            ),
+        },
+        lambdaMicroVmDataAppImageArn:
+            process.env.LAMBDA_MICROVM_DATA_APP_IMAGE_ARN || null,
+        lambdaMicroVmAiWritebackImageArn:
+            process.env.LAMBDA_MICROVM_AI_WRITEBACK_IMAGE_ARN || null,
     };
 };
 

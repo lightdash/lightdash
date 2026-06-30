@@ -56,6 +56,7 @@
         "@ai-sdk/mcp": "1.0.41",
         "@ai-sdk/openai": "3.0.68",
         "@anthropic-ai/sdk": "0.91.1",
+        "@aws-sdk/client-lambda-microvms": "3.1075.0",
         "@aws-sdk/client-s3": "3.992.0",
         "@aws-sdk/credential-providers": "3.995.0",
         "@aws-sdk/lib-storage": "3.995.0",
