@@ -900,7 +900,9 @@ export type UpdateProjectDbtSource = {
 /**
  * Non-sensitive view of a dbt source for API responses — never includes the
  * decrypted connection (which holds credentials). The primary source is
- * synthesised from the project's own dbt_connection.
+ * synthesised from the project's own dbt_connection. `repository`, `branch` and
+ * `projectSubPath` are the git-backed source's identity (null for non-git
+ * connections); they are safe to expose — only secrets are stripped.
  */
 export type ProjectDbtSourceSummary = {
     projectDbtSourceUuid: string;
@@ -908,6 +910,9 @@ export type ProjectDbtSourceSummary = {
     isPrimary: boolean;
     precedence: number;
     type: DbtProjectType | null;
+    repository: string | null;
+    branch: string | null;
+    projectSubPath: string | null;
 };
 
 export type ApiCreateProjectDbtSource = {
@@ -923,6 +928,25 @@ export type ApiProjectDbtSourcesResponse = {
 export type ApiProjectDbtSourceResponse = {
     status: 'ok';
     results: ProjectDbtSourceSummary;
+};
+
+/**
+ * A single dbt source including its connection, with sensitive credentials
+ * (tokens, keys) stripped — used to pre-fill the edit form. Secrets left out
+ * here are preserved on update via `mergeMissingDbtConfigSecrets`.
+ */
+export type ProjectDbtSourceWithConnection = ProjectDbtSourceSummary & {
+    dbtConnection: DbtProjectConfig | null;
+};
+
+export type ApiProjectDbtSourceWithConnectionResponse = {
+    status: 'ok';
+    results: ProjectDbtSourceWithConnection;
+};
+
+export type ApiUpdateProjectDbtSource = {
+    name?: string;
+    dbtConnection?: DbtProjectConfig;
 };
 
 export const isGitProjectType = (

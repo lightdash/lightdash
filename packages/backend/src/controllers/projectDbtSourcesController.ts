@@ -3,7 +3,9 @@ import {
     ApiErrorPayload,
     ApiProjectDbtSourceResponse,
     ApiProjectDbtSourcesResponse,
+    ApiProjectDbtSourceWithConnectionResponse,
     ApiSuccessEmpty,
+    ApiUpdateProjectDbtSource,
     assertRegisteredAccount,
 } from '@lightdash/common';
 import {
@@ -12,6 +14,7 @@ import {
     Get,
     Middlewares,
     OperationId,
+    Patch,
     Path,
     Post,
     Request,
@@ -78,6 +81,69 @@ export class ProjectDbtSourcesController extends BaseController {
         const results = await this.services
             .getProjectDbtSourcesService()
             .createProjectDbtSource(req.account, projectUuid, body);
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Get a single dbt source including its connection, with credentials
+     * stripped — used to pre-fill the edit form.
+     * @summary Get dbt source
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{projectDbtSourceUuid}')
+    @OperationId('GetProjectDbtSource')
+    async getProjectDbtSource(
+        @Path() projectUuid: string,
+        @Path() projectDbtSourceUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiProjectDbtSourceWithConnectionResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.services
+            .getProjectDbtSourcesService()
+            .getProjectDbtSource(
+                req.account,
+                projectUuid,
+                projectDbtSourceUuid,
+            );
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Update an additional dbt source's name or connection.
+     * @summary Update dbt source
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('/{projectDbtSourceUuid}')
+    @OperationId('UpdateProjectDbtSource')
+    async updateProjectDbtSource(
+        @Path() projectUuid: string,
+        @Path() projectDbtSourceUuid: string,
+        @Body() body: ApiUpdateProjectDbtSource,
+        @Request() req: express.Request,
+    ): Promise<ApiProjectDbtSourceResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.services
+            .getProjectDbtSourcesService()
+            .updateProjectDbtSource(
+                req.account,
+                projectUuid,
+                projectDbtSourceUuid,
+                body,
+            );
         return {
             status: 'ok',
             results,

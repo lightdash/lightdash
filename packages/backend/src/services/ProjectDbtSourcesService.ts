@@ -1,17 +1,21 @@
 import { subject } from '@casl/ability';
 import {
     ApiCreateProjectDbtSource,
+    ApiUpdateProjectDbtSource,
+    DbtProjectConfig,
     DbtProjectType,
     ForbiddenError,
     ParameterError,
     ProjectDbtSource,
     ProjectDbtSourceSummary,
+    ProjectDbtSourceWithConnection,
+    sensitiveDbtCredentialsFieldNames,
     type Account,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../config/parseConfig';
 import { ProjectDbtSourcesModel } from '../models/ProjectDbtSourcesModel';
-import type { ProjectModel } from '../models/ProjectModel/ProjectModel';
+import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { BaseService } from './BaseService';
 
 type ProjectDbtSourcesServiceArguments = {
@@ -43,6 +47,50 @@ export class ProjectDbtSourcesService extends BaseService {
         this.projectDbtSourcesModel = args.projectDbtSourcesModel;
     }
 
+    /**
+     * The git-backed identity of a connection (repo, branch, subfolder). These
+     * fields are not credentials, so they are safe to expose in summaries. Null
+     * for non-git connections (local, dbt cloud, none, manifest).
+     */
+    private static gitIdentity(config: DbtProjectConfig | null): {
+        repository: string | null;
+        branch: string | null;
+        projectSubPath: string | null;
+    } {
+        if (
+            config &&
+            (config.type === DbtProjectType.GITHUB ||
+                config.type === DbtProjectType.GITLAB ||
+                config.type === DbtProjectType.BITBUCKET ||
+                config.type === DbtProjectType.AZURE_DEVOPS)
+        ) {
+            return {
+                repository: config.repository,
+                branch: config.branch,
+                projectSubPath: config.project_sub_path,
+            };
+        }
+        return { repository: null, branch: null, projectSubPath: null };
+    }
+
+    /**
+     * Removes sensitive dbt credentials (tokens, keys) from a connection so it
+     * can be returned to the client for editing. The stripped secrets are
+     * preserved on update via ProjectModel.mergeMissingDbtConfigSecrets.
+     */
+    private static stripDbtSecrets(
+        config: DbtProjectConfig | null,
+    ): DbtProjectConfig | null {
+        if (!config) {
+            return null;
+        }
+        const stripped: Record<string, unknown> = { ...config };
+        sensitiveDbtCredentialsFieldNames.forEach((key) => {
+            delete stripped[key];
+        });
+        return stripped as unknown as DbtProjectConfig;
+    }
+
     private static toSummary(
         source: ProjectDbtSource,
     ): ProjectDbtSourceSummary {
@@ -52,6 +100,7 @@ export class ProjectDbtSourcesService extends BaseService {
             isPrimary: source.isPrimary,
             precedence: source.precedence,
             type: source.dbtConnection?.type ?? null,
+            ...ProjectDbtSourcesService.gitIdentity(source.dbtConnection),
         };
     }
 
@@ -93,6 +142,7 @@ export class ProjectDbtSourcesService extends BaseService {
             isPrimary: true,
             precedence: 0,
             type: project.dbtConnection.type,
+            ...ProjectDbtSourcesService.gitIdentity(project.dbtConnection),
         };
         return [primary, ...sources.map(ProjectDbtSourcesService.toSummary)];
     }
@@ -128,6 +178,69 @@ export class ProjectDbtSourcesService extends BaseService {
             },
         );
         return ProjectDbtSourcesService.toSummary(created);
+    }
+
+    async getProjectDbtSource(
+        account: Account,
+        projectUuid: string,
+        projectDbtSourceUuid: string,
+    ): Promise<ProjectDbtSourceWithConnection> {
+        await this.checkProjectAccess(account, projectUuid, 'view');
+        const source =
+            await this.projectDbtSourcesModel.getSource(projectDbtSourceUuid);
+        if (source.projectUuid !== projectUuid) {
+            throw new ForbiddenError(
+                'This dbt source does not belong to the project',
+            );
+        }
+        return {
+            ...ProjectDbtSourcesService.toSummary(source),
+            dbtConnection: ProjectDbtSourcesService.stripDbtSecrets(
+                source.dbtConnection,
+            ),
+        };
+    }
+
+    async updateProjectDbtSource(
+        account: Account,
+        projectUuid: string,
+        projectDbtSourceUuid: string,
+        data: ApiUpdateProjectDbtSource,
+    ): Promise<ProjectDbtSourceSummary> {
+        await this.checkProjectAccess(account, projectUuid, 'manage');
+        const existing =
+            await this.projectDbtSourcesModel.getSource(projectDbtSourceUuid);
+        if (existing.projectUuid !== projectUuid) {
+            throw new ForbiddenError(
+                'This dbt source does not belong to the project',
+            );
+        }
+        // GitHub-only for now, matching createProjectDbtSource.
+        if (
+            data.dbtConnection &&
+            data.dbtConnection.type !== DbtProjectType.GITHUB
+        ) {
+            throw new ParameterError(
+                'Additional dbt sources currently support GitHub connections only',
+            );
+        }
+        // The edit form receives the connection with secrets stripped; restore
+        // any the user did not re-enter from the stored connection.
+        const dbtConnection =
+            data.dbtConnection && existing.dbtConnection
+                ? ProjectModel.mergeMissingDbtConfigSecrets(
+                      data.dbtConnection,
+                      existing.dbtConnection,
+                  )
+                : data.dbtConnection;
+        const updated = await this.projectDbtSourcesModel.updateSource(
+            projectDbtSourceUuid,
+            {
+                name: data.name,
+                dbtConnection,
+            },
+        );
+        return ProjectDbtSourcesService.toSummary(updated);
     }
 
     async deleteProjectDbtSource(
