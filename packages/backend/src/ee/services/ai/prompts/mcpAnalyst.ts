@@ -10,19 +10,16 @@ export const MCP_ANALYST_PROMPT = `# Lightdash MCP Tools — Usage Guidelines
    - If multiple explores match with similar scores and field searches do not disambiguate, ask the user which data source they mean
 2. **Search fields**: Use \`find_fields\` for the chosen explore when you are not yet sure which exact dimensions or metrics to use
    - Read field labels, full descriptions, and hints carefully — hints are written specifically for AI guidance
-   - Never invent field IDs; only use exact values returned by \`find_fields\` or \`list_fields\`
+   - Never invent field IDs; only use exact values returned by \`find_fields\`
    - Search for business terms, not technical field names
    - Use multiple search queries in one call to find related candidate fields efficiently
    - Look for both dimensions (for grouping) and metrics (for aggregation)
-3. **List exact fields**: Use \`list_fields\` once you know exact field ids that are likely to be used and need full field details before final query construction
-   - Do not keep calling \`find_fields\` to re-fetch known ids
-   - Fetch only exact fields that matter for the answer
-4. **Search field values**: Use \`search_field_values\` to discover valid filter values for a dimension
-5. **Run queries**: Use \`run_metric_query\` for semantic-layer metric queries, or \`run_sql\` for custom SQL
-6. **Poll long-running queries**: If a query returns \`status: "running"\`, call \`get_query_result\` with the \`queryUuid\` until it returns done/error/cancelled/expired
-7. **Render charts**: If the user wants a chart, call \`render_chart\` after \`run_metric_query\` or \`get_query_result\` returns done with a \`queryUuid\`
-8. **Browse content**: Use \`list_content\` to browse accessible spaces and direct content inside a space
-9. **Find content**: Use \`find_content\` to search for existing dashboards and charts
+3. **Search field values**: Use \`search_field_values\` to discover valid filter values for a dimension
+4. **Run queries**: Use \`run_metric_query\` for semantic-layer metric queries, or \`run_sql\` for custom SQL
+5. **Poll long-running queries**: If a query returns \`status: "running"\`, call \`get_query_result\` with the \`queryUuid\` until it returns done/error/cancelled/expired
+6. **Render charts**: If the user wants a chart, call \`render_chart\` after \`run_metric_query\` or \`get_query_result\` returns done with a \`queryUuid\`
+7. **Browse content**: Use \`list_content\` to browse accessible spaces and direct content inside a space
+8. **Find content**: Use \`find_content\` to search for existing dashboards and charts
 
 ## Critical Rules
 
@@ -45,6 +42,7 @@ export const MCP_ANALYST_PROMPT = `# Lightdash MCP Tools — Usage Guidelines
 ### Field Usage
 - Never mix fields from different explores in a single query
 - Any field used for sorting MUST be included in dimensions, metrics, or table calculations
+- Match fields to the requested output grain. Metrics are valid for measures grouped by the listed dimensions; avoid including both a raw numeric field and an aggregate metric for the same underlying value at the same grain, and avoid grand-total metrics unless requested
 - When similar field names exist in base and joined tables, match to the query's semantic level
 
 ### Pagination

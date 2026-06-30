@@ -714,29 +714,6 @@ describe('MCP async query polling', () => {
                 searchResults: expect.any(Array),
             },
         });
-
-        const listFieldsResult = await getToolCallback(McpToolName.LIST_FIELDS)(
-            {
-                fields: [
-                    {
-                        explore: 'orders',
-                        fieldId: 'orders_missing_field',
-                    },
-                ],
-            },
-            extra,
-        );
-        expect(listFieldsResult).toMatchObject({
-            structuredContent: {
-                count: 1,
-                results: [
-                    expect.objectContaining({
-                        status: 'error',
-                        fieldId: 'orders_missing_field',
-                    }),
-                ],
-            },
-        });
     });
 
     it('filters content by active agent space access', async () => {

@@ -5,12 +5,7 @@ import type { ToolCallSummary } from './utils/types';
 
 export type TraceEntry = {
     toolCallId: string;
-    toolName:
-        | 'listExplores'
-        | 'findExplores'
-        | 'findFields'
-        | 'listFields'
-        | 'submitResult';
+    toolName: 'listExplores' | 'findExplores' | 'findFields' | 'submitResult';
     toolArgs: unknown;
 };
 

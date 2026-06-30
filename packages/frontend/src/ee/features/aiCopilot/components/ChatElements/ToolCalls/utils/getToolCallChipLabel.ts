@@ -11,7 +11,6 @@ import type {
     ToolFindFieldsArgs,
     ToolGetDashboardChartsArgs,
     ToolListContentArgs,
-    ToolListFieldsArgs,
     ToolListWarehouseTablesArgs,
     ToolRunContentQueryArgs,
     ToolRunQueryArgs,
@@ -82,10 +81,6 @@ export const getToolCallChipLabel = (
         case 'findFields': {
             const args = toolArgs as ToolFindFieldsArgs;
             return args.fieldSearchQueries?.[0]?.label ?? null;
-        }
-        case 'listFields': {
-            const args = toolArgs as ToolListFieldsArgs;
-            return args.fields?.[0]?.fieldId ?? null;
         }
         case 'listExplores':
             return 'available explores';

@@ -34,7 +34,6 @@ import {
     listAgentsToolDefinition,
     listContentToolDefinition,
     listExploresToolDefinition,
-    listFieldsToolDefinition,
     listSkillsToolDefinition,
     listVerifiedContentToolDefinition,
     MCP_QUERY_POLL_INTERVAL_MS,
@@ -119,7 +118,6 @@ import { getFindExplores } from '../ai/tools/findExplores';
 import { getFindFields } from '../ai/tools/findFields';
 import { getListContent } from '../ai/tools/listContent';
 import { getListExplores } from '../ai/tools/listExplores';
-import { getListFields } from '../ai/tools/listFields';
 import { getReadContent } from '../ai/tools/readContent';
 import { validateRunQueryTool } from '../ai/tools/runQuery';
 import { getSearchFieldValues } from '../ai/tools/searchFieldValues';
@@ -149,7 +147,6 @@ export enum McpToolName {
     LIST_EXPLORES = 'list_explores',
     FIND_EXPLORES = 'find_explores',
     FIND_FIELDS = 'find_fields',
-    LIST_FIELDS = 'list_fields',
     FIND_CONTENT = 'find_content',
     LIST_CONTENT = 'list_content',
     READ_CONTENT = 'read_content',
@@ -183,7 +180,6 @@ const mcpGetLightdashVersionTool = getLightdashVersionToolDefinition.for('mcp');
 const mcpListExploresTool = listExploresToolDefinition.for('mcp');
 const mcpFindExploresTool = findExploresToolDefinition.for('mcp');
 const mcpFindFieldsTool = findFieldsToolDefinition.for('mcp');
-const mcpListFieldsTool = listFieldsToolDefinition.for('mcp');
 const mcpFindContentTool = findContentToolDefinition.for('mcp');
 const mcpListContentTool = listContentToolDefinition.for('mcp');
 const mcpReadContentTool = readContentToolDefinition.for('mcp');
@@ -1486,47 +1482,6 @@ export class McpService extends BaseService {
                     pageSize: 15,
                 });
                 const result = await findFieldsTool.execute!(argsWithProject, {
-                    toolCallId: '',
-                    messages: [],
-                });
-                const { resultText, structuredContent } =
-                    await McpService.streamToolResponse(result);
-
-                return this.buildScopedResponse(
-                    ctx,
-                    resultText,
-                    structuredContent ??
-                        McpService.parseToolStructuredContent(resultText),
-                    projectUuid,
-                );
-            },
-        );
-
-        this.mcpServer.registerTool(
-            mcpListFieldsTool.name,
-            {
-                title: mcpListFieldsTool.title,
-                description: mcpListFieldsTool.description,
-                inputSchema: mcpListFieldsTool.inputSchema.shape,
-                annotations: mcpListFieldsTool.annotations,
-            },
-            async (args, extra) => {
-                const ctx = getMcpContext(extra);
-
-                const projectUuid = await this.resolveProjectUuid(ctx);
-                const argsWithProject = { ...args, projectUuid };
-
-                this.trackToolCall(ctx, McpToolName.LIST_FIELDS, projectUuid);
-
-                const toolsRuntime = await this.getToolsRuntime(
-                    ctx,
-                    projectUuid,
-                );
-
-                const listFieldsTool = getListFields({
-                    getExplore: toolsRuntime.getExplore,
-                });
-                const result = await listFieldsTool.execute!(argsWithProject, {
                     toolCallId: '',
                     messages: [],
                 });

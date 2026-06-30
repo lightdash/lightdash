@@ -17,7 +17,6 @@ const SEARCH_TOOLS = new Set([
     'listExplores',
     'findExplores',
     'findFields',
-    'listFields',
     'discoverFields',
     'submitResult',
     'searchSemanticLayer',

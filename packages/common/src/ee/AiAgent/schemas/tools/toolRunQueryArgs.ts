@@ -27,12 +27,12 @@ const queryConfigBaseSchema = z.object({
     dimensions: z
         .array(getFieldIdSchema({ additionalDescription: null }))
         .describe(
-            'The field ids for the dimensions to group the metrics by. dimensions[0] is the primary grouping (x-axis for charts). dimensions[1+] create additional grouping levels.',
+            'The field ids for dimensions/attributes to return or group by. dimensions[0] is the primary grouping (x-axis for charts). dimensions[1+] create additional grouping levels. For detail/list questions, include the fields that define each output row.',
         ),
     metrics: z
         .array(getFieldIdSchema({ additionalDescription: null }))
         .describe(
-            'The field ids of the metrics to be calculated. They will be grouped by the dimensions.',
+            'The field ids of metrics to calculate. They will be grouped by the dimensions. Use metrics for measures that should be calculated at the query grain; avoid metrics that duplicate selected raw numeric dimensions at the same grain, and avoid grand-total/overall metrics unless requested.',
         ),
     sorts: z
         .array(sortFieldSchema)

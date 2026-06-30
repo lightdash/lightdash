@@ -3,15 +3,12 @@ import {
     FieldType,
     type ToolFindExploresOutput,
     type ToolFindFieldsOutput,
-    type ToolListFieldsOutput,
 } from '@lightdash/common';
 import { getFindExplores } from './findExplores';
 import { getFindFields } from './findFields';
-import { getListFields } from './listFields';
 
 type FindExploresTool = ReturnType<typeof getFindExplores>;
 type FindFieldsTool = ReturnType<typeof getFindFields>;
-type ListFieldsTool = ReturnType<typeof getListFields>;
 
 const executeFindExplores = (
     tool: FindExploresTool,
@@ -30,15 +27,6 @@ const executeFindFields = (
         messages: [],
         toolCallId: 'test',
     }) as Promise<ToolFindFieldsOutput>;
-
-const executeListFields = (
-    tool: ListFieldsTool,
-    args: Parameters<NonNullable<ListFieldsTool['execute']>>[0],
-): Promise<ToolListFieldsOutput> =>
-    tool.execute!(args, {
-        messages: [],
-        toolCallId: 'test',
-    }) as Promise<ToolListFieldsOutput>;
 
 const longDescription = `Important grain and usage notes. ${'x'.repeat(
     650,
@@ -121,82 +109,5 @@ describe('field discovery descriptions', () => {
         expect(result.searchResults[0].fields[0].description).toEqual(
             longDescription,
         );
-    });
-
-    it('returns full descriptions and per-field errors from listFields', async () => {
-        const featureName = {
-            fieldType: FieldType.DIMENSION,
-            type: DimensionType.STRING,
-            name: 'feature_name',
-            label: 'Feature name',
-            table: 'tickets',
-            tableLabel: 'Tickets',
-            sql: '${TABLE}.feature_name',
-            description: longDescription,
-            hidden: false,
-        };
-        const hiddenDimension = {
-            fieldType: FieldType.DIMENSION,
-            type: DimensionType.STRING,
-            name: 'internal_notes',
-            label: 'Internal notes',
-            table: 'tickets',
-            tableLabel: 'Tickets',
-            sql: '${TABLE}.internal_notes',
-            description: 'Internal-only notes.',
-            hidden: true,
-        };
-        const explore = {
-            name: 'tickets',
-            baseTable: 'tickets',
-            joinedTables: [],
-            tables: {
-                tickets: {
-                    dimensions: {
-                        feature_name: featureName,
-                        internal_notes: hiddenDimension,
-                    },
-                    metrics: {},
-                },
-            },
-        };
-
-        const tool = getListFields({
-            getExplore: vi.fn().mockResolvedValue(explore),
-        });
-
-        const output = await executeListFields(tool, {
-            fields: [
-                { explore: 'tickets', fieldId: 'tickets_feature_name' },
-                { explore: 'tickets', fieldId: 'tickets_internal_notes' },
-                { explore: 'tickets', fieldId: 'tickets_missing' },
-            ],
-        });
-        const result = JSON.parse(output.result);
-
-        expect(result.results[0].field.description).toEqual(longDescription);
-        expect(result.results[1].error).toEqual(
-            'Field "tickets_internal_notes" was not found in explore "tickets".',
-        );
-        expect(result.results[2].error).toEqual(
-            'Field "tickets_missing" was not found in explore "tickets".',
-        );
-        expect(output.metadata.lookup?.fields).toEqual([
-            {
-                explore: 'tickets',
-                fieldId: 'tickets_feature_name',
-                status: 'success',
-            },
-            {
-                explore: 'tickets',
-                fieldId: 'tickets_internal_notes',
-                status: 'error',
-            },
-            {
-                explore: 'tickets',
-                fieldId: 'tickets_missing',
-                status: 'error',
-            },
-        ]);
     });
 });

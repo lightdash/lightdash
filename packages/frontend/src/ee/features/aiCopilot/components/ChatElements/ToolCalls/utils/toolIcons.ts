@@ -36,7 +36,6 @@ export const getToolIcon = (toolName: ActivityToolName) => {
         {
             findExplores: IconDatabase,
             findFields: IconSearch,
-            listFields: IconSearch,
             searchSemanticLayer: IconBooks,
             analyzeFieldImpact: IconChartDots3,
             discoverFields: IconSearch,

@@ -27,7 +27,7 @@ type Dependencies = {
 const toolDefinition = findFieldsToolDefinition.for('agent');
 
 const findFieldsNote =
-    'Field descriptions are full, untruncated catalog descriptions. Use findFields to compare candidates; once you know exact field ids that are likely to be used, call listFields for exact lookup/validation instead of re-searching known fields.';
+    'Field descriptions are full, untruncated catalog descriptions. Returned field ids are exact and can be used directly in follow-up query construction.';
 
 const getSearchResultOutput = (
     args: Awaited<ReturnType<FindFieldFn>> & { searchQuery: string },

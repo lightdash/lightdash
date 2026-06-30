@@ -400,7 +400,6 @@ const DISCOVER_FIELDS_TRACE_TOOL_PARTS: Record<
     'tool-listExplores': 'listExplores',
     'tool-findExplores': 'findExplores',
     'tool-findFields': 'findFields',
-    'tool-listFields': 'listFields',
     'tool-submitResult': 'submitResult',
 };
 

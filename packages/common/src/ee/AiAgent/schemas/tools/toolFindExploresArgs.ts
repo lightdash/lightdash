@@ -15,7 +15,7 @@ const requiredFilterSchema = z.object({
 export const TOOL_FIND_EXPLORES_DESCRIPTION = `Tool: findExplores
 
 Purpose:
-Returns explores matching the query with joined tables, required filters, AI hints, full descriptions, and compact lists of all dimension/metric field ids available in each matched explore. Search matches explore name, label, description, and AI hints. A follow-up query runs against a single explore, so this tool is meant to identify the explore to inspect next with findFields or listFields.
+Returns explores matching the query with joined tables, required filters, AI hints, full descriptions, and compact lists of all dimension/metric field ids available in each matched explore. Search matches explore name, label, description, and AI hints. A follow-up query runs against a single explore, so this tool is meant to identify the explore to inspect next with findFields.
 
 IMPORTANT: Each explore may include fields from multiple joined tables. Check the "joinedTables" elements to see which tables are included in the explore.
 
@@ -26,7 +26,7 @@ Output:
 - Matching explores with searchRank scores, joined tables, required filters, AI hints, and full descriptions
 - Compact all-field inventories split into dimension and metric field ids
 
-Field descriptions are not included in the compact field inventories. Use findFields to search/compare fields by label/description, or listFields when you need exact full metadata for known field ids.
+Field descriptions are not included in the compact field inventories. Use findFields to search/compare fields by label/description.
 `;
 
 export const toolFindExploresArgsSchemaV1 = createToolSchema()

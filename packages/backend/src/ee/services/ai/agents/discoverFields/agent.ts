@@ -13,7 +13,6 @@ import Logger from '../../../../../logging/logger';
 import { getFindExplores } from '../../tools/findExplores';
 import { getFindFields } from '../../tools/findFields';
 import { getListExplores } from '../../tools/listExplores';
-import { getListFields } from '../../tools/listFields';
 import { getSubmitDiscoverFieldsResult } from '../../tools/submitDiscoverFieldsResult';
 import type { AiAgentArgs, AiAgentDependencies } from '../../types/aiAgent';
 import { AgentContext } from '../../utils/AgentContext';
@@ -58,7 +57,6 @@ export type DiscoverFieldsSubagentTools = {
     listExplores: ReturnType<typeof getListExplores>;
     findExplores: ReturnType<typeof getFindExplores>;
     findFields: ReturnType<typeof getFindFields>;
-    listFields: ReturnType<typeof getListFields>;
     submitResult: ReturnType<typeof getSubmitDiscoverFieldsResult>;
 };
 
@@ -123,10 +121,6 @@ export const runDiscoverFieldsAgent = (
         pageSize: args.findFieldsPageSize,
     });
 
-    const listFields = getListFields({
-        getExplore: dependencies.getExplore,
-    });
-
     const submitResult = getSubmitDiscoverFieldsResult();
 
     const messages: ModelMessage[] = [
@@ -149,7 +143,6 @@ export const runDiscoverFieldsAgent = (
         tools: {
             listExplores,
             findExplores,
-            listFields,
             findFields,
             submitResult,
         },

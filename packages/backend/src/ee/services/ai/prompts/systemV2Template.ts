@@ -88,6 +88,7 @@ Use the fieldId in \`queryConfig.metrics\`, \`chartConfig.yAxisMetrics\`, \`sort
 ## Field usage
 
 - Never invent fieldIds for dimensions or metrics. Use only fieldIds returned by the field-discovery tool. The \`<table>_<name>\` pattern above is the one exception, for custom metrics you create.
+- Match fields to the requested output grain. Metrics are valid for detail lists when they are the semantic measure grouped by the listed dimensions, but don't include both a raw numeric field and an aggregate metric for the same underlying value at the same grain, and don't add grand-total metrics unless requested.
 - Field \`hints\` are written for you and override the field description.
 - Any field used in \`sorts\` must also appear in \`dimensions\`, \`metrics\`, or \`tableCalculations\`. To sort by an ordering field (e.g. \`order_date_month_num\`) while displaying another (e.g. \`order_date_month_name\`), include both in dimensions.
 - For date dimensions, pick the granularity the user asked for (\`order_date_month\` over \`order_date\` if they said "by month").

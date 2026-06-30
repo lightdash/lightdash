@@ -30,7 +30,6 @@ const TOOL_CALL_GROUP_DEFINITIONS: ToolCallGroupDefinition[] = [
             'listExplores',
             'findExplores',
             'findFields',
-            'listFields',
             'searchSemanticLayer',
             'submitResult',
         ],

@@ -270,7 +270,7 @@
                 "idempotentHint": true,
                 "readOnlyHint": true
             },
-            "description": "Tool: findExplores\n\nPurpose:\nReturns explores matching the query with joined tables, required filters, AI hints, full descriptions, and compact lists of all dimension/metric field ids available in each matched explore. Search matches explore name, label, description, and AI hints. A follow-up query runs against a single explore, so this tool is meant to identify the explore to inspect next with findFields or listFields.\n\nIMPORTANT: Each explore may include fields from multiple joined tables. Check the \"joinedTables\" elements to see which tables are included in the explore.\n\nParameters:\n- searchQuery: Keyword terms for finding relevant explores\n\nOutput:\n- Matching explores with searchRank scores, joined tables, required filters, AI hints, and full descriptions\n- Compact all-field inventories split into dimension and metric field ids\n\nField descriptions are not included in the compact field inventories. Use findFields to search/compare fields by label/description, or listFields when you need exact full metadata for known field ids.\n",
+            "description": "Tool: findExplores\n\nPurpose:\nReturns explores matching the query with joined tables, required filters, AI hints, full descriptions, and compact lists of all dimension/metric field ids available in each matched explore. Search matches explore name, label, description, and AI hints. A follow-up query runs against a single explore, so this tool is meant to identify the explore to inspect next with findFields.\n\nIMPORTANT: Each explore may include fields from multiple joined tables. Check the \"joinedTables\" elements to see which tables are included in the explore.\n\nParameters:\n- searchQuery: Keyword terms for finding relevant explores\n\nOutput:\n- Matching explores with searchRank scores, joined tables, required filters, AI hints, and full descriptions\n- Compact all-field inventories split into dimension and metric field ids\n\nField descriptions are not included in the compact field inventories. Use findFields to search/compare fields by label/description.\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
@@ -293,7 +293,7 @@
                 "idempotentHint": true,
                 "readOnlyHint": true
             },
-            "description": "Tool: \"findFields\"\n\nPurpose:\nSearches for candidate Fields (Metrics & Dimensions) within an Explore when you are not yet sure which exact field id to use. Returns ranked field matches with full, untruncated descriptions.\n\nUsage tips:\n- Use \"findExplores\" first to discover the relevant Explore, then use this tool to search fields inside it.\n- Use full field labels in search terms (e.g. \"Total Revenue\", \"Order Date\").\n- Pass all needed candidate searches in one request.\n- Fields are sorted by relevance, with a maximum score of 1 and a minimum of 0, so the top results are the most relevant.\n- If results aren't relevant, retry with clearer or more specific terms.\n- Results are paginated — use the next page token to get more results if needed.\n- Once you know the exact field id(s) you likely want to use, switch to listFields for exact full details. Do not keep using findFields to re-fetch known field ids.\n- Field descriptions are full, untruncated catalog descriptions. Use listFields for exact lookup/validation once you know likely-final field ids.\n",
+            "description": "Tool: \"findFields\"\n\nPurpose:\nSearches for candidate Fields (Metrics & Dimensions) within an Explore when you are not yet sure which exact field id to use. Returns ranked field matches with full, untruncated descriptions.\n\nUsage tips:\n- Use \"findExplores\" first to discover the relevant Explore, then use this tool to search fields inside it.\n- Use full field labels in search terms (e.g. \"Total Revenue\", \"Order Date\").\n- Pass all needed candidate searches in one request.\n- Fields are sorted by relevance, with a maximum score of 1 and a minimum of 0, so the top results are the most relevant.\n- If results aren't relevant, retry with clearer or more specific terms.\n- Results are paginated — use the next page token to get more results if needed.\n- Field descriptions are full, untruncated catalog descriptions.\n- Returned field ids are exact and can be used directly in follow-up query construction.\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
@@ -612,45 +612,6 @@
             "name": "list_explores",
             "outputSchema": null,
             "title": "List explores"
-        },
-        {
-            "annotations": {
-                "destructiveHint": false,
-                "idempotentHint": true,
-                "readOnlyHint": true
-            },
-            "description": "Tool: listFields\n\nPurpose:\nFetch exact fields from exact explores by field id. Use this when you already know the field id(s) you likely want to use and need exact full field context before final selection or query construction.\n\nUsage tips:\n- This is not a search tool. Use findExplores/findFields when you are still discovering or comparing candidates.\n- Use listFields when you are fairly sure a metric or dimension should be used and want exact details for that known field id.\n- Pass exact field ids returned by findExplores, findFields, query errors, or other semantic-layer tools.\n- Never infer field ids from labels or desired concepts (for example, do not guess \"orders_country\" or \"airports_city\"). If the exact field id was not returned by a tool, call findFields first.\n- Pass multiple fields in one request only when each field is likely relevant to the final answer.\n- Do not use this to fetch broad field inventories; use findExplores/findFields for search and only fetch exact fields that matter.\n- Results are returned per field. If one field cannot be resolved, other valid fields are still returned.\n\nOutput:\n- Full untruncated field details for each resolved field.\n- Per-field errors for missing explores or field ids.\n",
-            "inputSchema": {
-                "$schema": "http://json-schema.org/draft-07/schema#",
-                "additionalProperties": false,
-                "properties": {
-                    "fields": {
-                        "description": "Fields to fetch by exact explore name and field id.",
-                        "items": {
-                            "additionalProperties": false,
-                            "properties": {
-                                "explore": {
-                                    "description": "Exact explore name that contains the field.",
-                                    "type": "string"
-                                },
-                                "fieldId": {
-                                    "description": "Exact field id to fetch, e.g. \"orders_total_revenue\".",
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["explore", "fieldId"],
-                            "type": "object"
-                        },
-                        "minItems": 1,
-                        "type": "array"
-                    }
-                },
-                "required": ["fields"],
-                "type": "object"
-            },
-            "name": "list_fields",
-            "outputSchema": null,
-            "title": "List fields"
         },
         {
             "annotations": {
@@ -2325,7 +2286,7 @@
                                 "type": "array"
                             },
                             "dimensions": {
-                                "description": "The field ids for the dimensions to group the metrics by. dimensions[0] is the primary grouping (x-axis for charts). dimensions[1+] create additional grouping levels.",
+                                "description": "The field ids for dimensions/attributes to return or group by. dimensions[0] is the primary grouping (x-axis for charts). dimensions[1+] create additional grouping levels. For detail/list questions, include the fields that define each output row.",
                                 "items": {
                                     "description": "\"fieldId\" must come from the previously searched Fields; otherwise, it will throw an error",
                                     "type": "string"
@@ -4064,7 +4025,7 @@
                                 "type": "number"
                             },
                             "metrics": {
-                                "description": "The field ids of the metrics to be calculated. They will be grouped by the dimensions.",
+                                "description": "The field ids of metrics to calculate. They will be grouped by the dimensions. Use metrics for measures that should be calculated at the query grain; avoid metrics that duplicate selected raw numeric dimensions at the same grain, and avoid grand-total/overall metrics unless requested.",
                                 "items": {
                                     "description": "\"fieldId\" must come from the previously searched Fields; otherwise, it will throw an error",
                                     "type": "string"

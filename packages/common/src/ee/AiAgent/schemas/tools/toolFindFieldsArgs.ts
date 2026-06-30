@@ -14,8 +14,8 @@ Usage tips:
 - Fields are sorted by relevance, with a maximum score of 1 and a minimum of 0, so the top results are the most relevant.
 - If results aren't relevant, retry with clearer or more specific terms.
 - Results are paginated — use the next page token to get more results if needed.
-- Once you know the exact field id(s) you likely want to use, switch to listFields for exact full details. Do not keep using findFields to re-fetch known field ids.
-- Field descriptions are full, untruncated catalog descriptions. Use listFields for exact lookup/validation once you know likely-final field ids.
+- Field descriptions are full, untruncated catalog descriptions.
+- Returned field ids are exact and can be used directly in follow-up query construction.
 `;
 
 export const toolFindFieldsArgsSchema = createToolSchema()

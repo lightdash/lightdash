@@ -87,7 +87,7 @@ const discoverFieldsFieldSummaryBaseSchema = z.object({
         .string()
         .nullable()
         .describe(
-            'Full field description copied exactly from listFields when fetched, otherwise a non-truncated findFields description; null when the field has no description.',
+            'Full, non-truncated field description from discovery metadata; null when the field has no description.',
         ),
 });
 

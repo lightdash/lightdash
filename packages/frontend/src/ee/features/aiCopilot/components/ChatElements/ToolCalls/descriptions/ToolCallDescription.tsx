@@ -23,7 +23,6 @@ import {
     type ToolGetKnowledgeDocumentContentArgs,
     type ToolGetKnowledgeDocumentContentOutput,
     type ToolListContentArgs,
-    type ToolListFieldsArgs,
     type ToolListWarehouseTablesArgs,
     type ToolRunContentQueryArgs,
     type ToolRunQueryArgsV1,
@@ -49,7 +48,6 @@ import { FieldValuesSearchToolCallDescription } from './FieldValuesSearchToolCal
 import { KnowledgeDocumentToolCallDescription } from './KnowledgeDocumentToolCallDescription';
 import { ListContentToolCallDescription } from './ListContentToolCallDescription';
 import { ListExploresToolCallDescription } from './ListExploresToolCallDescription';
-import { ListFieldsToolCallDescription } from './ListFieldsToolCallDescription';
 import { ListWarehouseTablesToolCallDescription } from './ListWarehouseTablesToolCallDescription';
 import { QueryResultToolCallDescription } from './QueryResultToolCallDescription';
 import { RepoShellToolCallDescription } from './RepoShellToolCallDescription';
@@ -113,13 +111,6 @@ export const ToolCallDescription: FC<{
             );
         case 'listExplores':
             return <ListExploresToolCallDescription />;
-        case 'listFields':
-            const toolArgsListFields = toolCall.toolArgs as ToolListFieldsArgs;
-            return (
-                <ListFieldsToolCallDescription
-                    fields={toolArgsListFields.fields ?? []}
-                />
-            );
         case 'discoverFields':
             const discoverFieldsArgs = toolCall.toolArgs as DiscoverFieldsInput;
             return (
