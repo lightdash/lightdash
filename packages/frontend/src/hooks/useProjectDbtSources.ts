@@ -1,7 +1,9 @@
 import {
     type ApiCreateProjectDbtSource,
     type ApiError,
+    type ApiUpdateProjectDbtSource,
     type ProjectDbtSourceSummary,
+    type ProjectDbtSourceWithConnection,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
@@ -21,6 +23,27 @@ const createProjectDbtSource = async (
     lightdashApi<ProjectDbtSourceSummary>({
         url: `/projects/${projectUuid}/dbt-sources`,
         method: 'POST',
+        body: JSON.stringify(data),
+    });
+
+const getProjectDbtSource = async (
+    projectUuid: string,
+    projectDbtSourceUuid: string,
+) =>
+    lightdashApi<ProjectDbtSourceWithConnection>({
+        url: `/projects/${projectUuid}/dbt-sources/${projectDbtSourceUuid}`,
+        method: 'GET',
+        body: undefined,
+    });
+
+const updateProjectDbtSource = async (
+    projectUuid: string,
+    projectDbtSourceUuid: string,
+    data: ApiUpdateProjectDbtSource,
+) =>
+    lightdashApi<ProjectDbtSourceSummary>({
+        url: `/projects/${projectUuid}/dbt-sources/${projectDbtSourceUuid}`,
+        method: 'PATCH',
         body: JSON.stringify(data),
     });
 
@@ -64,6 +87,45 @@ export const useCreateProjectDbtSourceMutation = (projectUuid: string) => {
             });
         },
     });
+};
+
+export const useProjectDbtSource = (
+    projectUuid: string,
+    projectDbtSourceUuid?: string,
+) =>
+    useQuery<ProjectDbtSourceWithConnection, ApiError>({
+        queryKey: ['project_dbt_source', projectUuid, projectDbtSourceUuid],
+        queryFn: () => getProjectDbtSource(projectUuid, projectDbtSourceUuid!),
+        enabled: !!projectDbtSourceUuid,
+    });
+
+export const useUpdateProjectDbtSourceMutation = (projectUuid: string) => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
+    return useMutation<
+        ProjectDbtSourceSummary,
+        ApiError,
+        { projectDbtSourceUuid: string; data: ApiUpdateProjectDbtSource }
+    >(
+        ({ projectDbtSourceUuid, data }) =>
+            updateProjectDbtSource(projectUuid, projectDbtSourceUuid, data),
+        {
+            mutationKey: ['update_project_dbt_source', projectUuid],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries([
+                    'project_dbt_sources',
+                    projectUuid,
+                ]);
+                showToastSuccess({ title: 'dbt source updated' });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to update dbt source',
+                    apiError: error,
+                });
+            },
+        },
+    );
 };
 
 export const useDeleteProjectDbtSourceMutation = (projectUuid: string) => {
