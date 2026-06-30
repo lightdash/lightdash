@@ -7,12 +7,12 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build:grammar": "peggy --format es -o src/grammar/parser.js src/grammar/formula.pegjs",
-    "build:ts": "tsc --build",
-    "build:ts:fast": "tsgo --build tsconfig.fast.json",
+    "build:ts": "tsc6 --build",
+    "build:ts:fast": "tsc --build tsconfig.fast.json",
     "build": "pnpm run build:grammar && pnpm run build:ts",
     "build:fast": "pnpm run build:grammar && pnpm run build:ts:fast",
-    "typecheck": "tsc --project tsconfig.json --noEmit",
-    "typecheck:fast": "tsgo --project tsconfig.fast.json --noEmit",
+    "typecheck": "tsc6 --project tsconfig.json --noEmit",
+    "typecheck:fast": "tsc --project tsconfig.fast.json --noEmit",
     "format": "oxfmt ./src --check",
     "fix-format": "oxfmt ./src",
     "formatter": "oxfmt",
@@ -22,11 +22,11 @@
     "test": "vitest run"
   },
   "devDependencies": {
-    "@typescript/native-preview": "7.0.0-dev.20260527.2",
     "oxlint": "1.57.0",
     "oxlint-tsgolint": "0.18.1",
     "peggy": "4.2.0",
-    "typescript": "6.0.3",
+    "typescript": "npm:@typescript/typescript6@6.0.1",
+    "typescript-7": "npm:typescript@7.0.1-rc",
     "vitest": "4.1.6"
   }
 }

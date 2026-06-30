@@ -54,6 +54,9 @@ minimumReleaseAgeExclude:
   # Renovate security update: undici@6.27.0
   - undici@6.27.0
 
+overrides:
+  '@typescript/typescript6>typescript': 6.0.3
+
 # Dependency lifecycle scripts (preinstall/install/postinstall) are a supply-chain
 # attack/breakage vector — they also run on `npm install` for downstream consumers
 # of our published packages (e.g. @lightdash/cli). pnpm blocks them by default;

@@ -10,7 +10,7 @@
         "fix-lint": "pnpm run linter . --fix",
         "format": "oxfmt . --check",
         "fix-format": "oxfmt .",
-        "typecheck": "tsc --project tsconfig.json --noEmit",
+        "typecheck": "tsc6 --project tsconfig.json --noEmit",
         "test:api": "vitest run --config vitest.config.ts",
         "test:api:watch": "vitest watch --config vitest.config.ts"
     },
@@ -20,7 +20,8 @@
     },
     "devDependencies": {
         "@types/js-yaml": "4.0.9",
-        "typescript": "6.0.3",
+        "typescript": "npm:@typescript/typescript6@6.0.1",
+        "typescript-7": "npm:typescript@7.0.1-rc",
         "vitest": "4.1.6"
     }
 }

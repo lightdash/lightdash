@@ -22,10 +22,10 @@
         }
     },
     "scripts": {
-        "build": "tsc --project tsconfig.build.json",
-        "build:fast": "tsgo --project tsconfig.build.fast.json",
-        "typecheck": "tsc --noEmit",
-        "typecheck:fast": "tsgo --project tsconfig.fast.json --noEmit",
+        "build": "tsc6 --project tsconfig.build.json",
+        "build:fast": "tsc --project tsconfig.build.fast.json",
+        "typecheck": "tsc6 --noEmit",
+        "typecheck:fast": "tsc --project tsconfig.fast.json --noEmit",
         "lint": "eslint src/",
         "test": "vitest run",
         "format": "oxfmt ./src --check",
@@ -37,9 +37,9 @@
     },
     "devDependencies": {
         "@types/react": "19.2.2",
-        "@typescript/native-preview": "7.0.0-dev.20260527.2",
         "jsdom": "26.1.0",
-        "typescript": "6.0.3",
+        "typescript": "npm:@typescript/typescript6@6.0.1",
+        "typescript-7": "npm:typescript@7.0.1-rc",
         "vitest": "4.1.6"
     }
 }
