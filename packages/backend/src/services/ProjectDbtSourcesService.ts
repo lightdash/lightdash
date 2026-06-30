@@ -1,7 +1,9 @@
 import { subject } from '@casl/ability';
 import {
     ApiCreateProjectDbtSource,
+    DbtProjectType,
     ForbiddenError,
+    ParameterError,
     ProjectDbtSource,
     ProjectDbtSourceSummary,
     type Account,
@@ -101,6 +103,13 @@ export class ProjectDbtSourcesService extends BaseService {
         data: ApiCreateProjectDbtSource,
     ): Promise<ProjectDbtSourceSummary> {
         await this.checkProjectAccess(account, projectUuid, 'manage');
+        // GitHub-only for now: additional sources are restricted to GitHub
+        // connections until the other git providers are validated end-to-end.
+        if (data.dbtConnection.type !== DbtProjectType.GITHUB) {
+            throw new ParameterError(
+                'Additional dbt sources currently support GitHub connections only',
+            );
+        }
         const existing =
             await this.projectDbtSourcesModel.getSources(projectUuid);
         // Append after the highest existing precedence (primary is 0).

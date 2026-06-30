@@ -58,24 +58,28 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
         setIsAdvancedSettingsOpen((open) => !open);
     const { health } = useApp();
     const options = useMemo(() => {
-        // Additional dbt sources are git-only: the merge clones and compiles
-        // each source, so non-git types (none/local/manifest/dbt Cloud) don't
-        // apply.
+        // Additional dbt sources are restricted to GitHub for now (the merge is
+        // git-only, and the other providers aren't validated end-to-end yet).
+        if (isDbtSource) {
+            return [
+                {
+                    value: DbtProjectType.GITHUB,
+                    label: DbtProjectTypeLabels[DbtProjectType.GITHUB],
+                },
+            ];
+        }
+
         const enabledTypes = [
             DbtProjectType.GITHUB,
             DbtProjectType.GITLAB,
             DbtProjectType.BITBUCKET,
             DbtProjectType.AZURE_DEVOPS,
+            DbtProjectType.NONE,
+            DbtProjectType.MANIFEST,
+            DbtProjectType.DBT_CLOUD_IDE,
         ];
-        if (!isDbtSource) {
-            enabledTypes.push(
-                DbtProjectType.NONE,
-                DbtProjectType.MANIFEST,
-                DbtProjectType.DBT_CLOUD_IDE,
-            );
-            if (health.data?.localDbtEnabled) {
-                enabledTypes.push(DbtProjectType.DBT);
-            }
+        if (health.data?.localDbtEnabled) {
+            enabledTypes.push(DbtProjectType.DBT);
         }
 
         return enabledTypes.map((value) => ({
