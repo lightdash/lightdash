@@ -1,5 +1,6 @@
 import { grepFieldsToolDefinition, type Explore } from '@lightdash/common';
 import { tool } from 'ai';
+import type { FindExploresFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import {
     buildFieldIndex,
@@ -12,6 +13,39 @@ const toolDefinition = grepFieldsToolDefinition.for('agent');
 
 type Dependencies = {
     availableExplores: Explore[];
+    // FTS catalog search, reused as a fuzzy fallback when literal grep is dry.
+    findExplores: FindExploresFn;
+};
+
+// Turn the regex patterns into a plain-keyword query for the FTS fallback.
+const toFtsQuery = (patterns: string[]): string =>
+    patterns
+        .join(' ')
+        .replace(/[|()\\^$.*+?[\]{}]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+const renderFtsFallback = (
+    fields: NonNullable<
+        Awaited<ReturnType<FindExploresFn>>['topMatchingFields']
+    >,
+): string => {
+    const ranked = [...fields].sort(
+        (a, b) =>
+            (b.verifiedChartUsage ?? 0) - (a.verifiedChartUsage ?? 0) ||
+            (b.chartUsage ?? 0) - (a.chartUsage ?? 0) ||
+            (b.searchRank ?? 0) - (a.searchRank ?? 0),
+    );
+    const lines = ranked
+        .map((f) => {
+            const verified = f.verifiedChartUsage ? ' ✓verified' : '';
+            const desc = f.description
+                ? ` — ${f.description.replace(/\s+/g, ' ').slice(0, 140)}`
+                : '';
+            return `  ${f.tableName}_${f.name}  [${f.fieldType}]${verified} ${f.label}${desc}`;
+        })
+        .join('\n');
+    return `No exact grep matches. Closest catalog matches (fuzzy search, verified fields first):\n${lines}`;
 };
 
 // Per-pattern cap so a batch of broad patterns can't flood the context.
@@ -80,7 +114,10 @@ const renderPattern = (
  * never touches the warehouse or git. Gated by the `ai-grep-fields` flag as an
  * alternative to the discoverFields sub-agent.
  */
-export const getGrepFields = ({ availableExplores }: Dependencies) => {
+export const getGrepFields = ({
+    availableExplores,
+    findExplores,
+}: Dependencies) => {
     let index: FieldEntry[] | null = null;
     const getIndex = () => {
         if (index === null) index = buildFieldIndex(availableExplores);
@@ -112,11 +149,39 @@ export const getGrepFields = ({ availableExplores }: Dependencies) => {
                     );
                 });
                 const anyHit = blocks.some((b) => !b.includes('— no matches.'));
+                if (anyHit) {
+                    return {
+                        result: blocks.join('\n\n'),
+                        metadata: { status: 'success' as const },
+                    };
+                }
+
+                // Literal grep is dry — fall back to FTS (stemming + recall) so
+                // the agent gets matches now instead of re-grepping synonyms.
+                // A fallback failure degrades to the plain "no matches" message
+                // rather than erroring the whole (otherwise successful) grep.
+                let ftsFields: NonNullable<
+                    Awaited<
+                        ReturnType<typeof findExplores>
+                    >['topMatchingFields']
+                > = [];
+                try {
+                    const fallback = await findExplores({
+                        fieldSearchSize: 25,
+                        searchQuery: toFtsQuery(patterns),
+                    });
+                    ftsFields = (fallback.topMatchingFields ?? []).filter(
+                        (f) => !exploreName || f.tableName === exploreName,
+                    );
+                } catch {
+                    ftsFields = [];
+                }
                 const scope = exploreName ? ` in explore "${exploreName}"` : '';
                 return {
-                    result: anyHit
-                        ? blocks.join('\n\n')
-                        : `No fields matched any of the patterns${scope}. Try broader or alternative keywords.`,
+                    result:
+                        ftsFields.length > 0
+                            ? renderFtsFallback(ftsFields)
+                            : `No fields matched any of the patterns${scope}, and the catalog search found nothing close. Try broader or alternative keywords.`,
                     metadata: { status: 'success' as const },
                 };
             } catch (error) {

@@ -130,3 +130,90 @@ export const compileMatcher = (
             terms.every((term) => haystack.includes(term)),
         );
 };
+
+// Pure grammatical filler — dropped before the pre-grep so "what is our total
+// revenue by country" greps for revenue/country, not "what". Deliberately keeps
+// measure words (total, count, sum, average, value, top, …): in BI questions
+// those are exactly what disambiguate which metric, so they must stay greppable.
+const STOPWORDS = new Set(
+    (
+        'the a an is are was were be our my we us you your what whats how many much ' +
+        'show me give list get tell do does did have has of by for in on to and or ' +
+        'with per each all over time across this that these ' +
+        'those from which can could would should please into between about above ' +
+        'group breakdown break down split'
+    ).split(' '),
+);
+
+/**
+ * Deterministic keyword extraction from the user's question — no LLM. Drops
+ * stopwords and short tokens, dedupes, and keeps the most distinctive terms so
+ * we can pre-grep the catalog before the agent's first turn.
+ */
+export const extractKeywords = (text: string): string[] => {
+    const tokens = text.toLowerCase().match(/[a-z0-9_]+/g) ?? [];
+    const seen = new Set<string>();
+    const kept: string[] = [];
+    for (const token of tokens) {
+        if (token.length >= 3 && !STOPWORDS.has(token) && !seen.has(token)) {
+            seen.add(token);
+            kept.push(token);
+        }
+    }
+    return kept.slice(0, 6);
+};
+
+/**
+ * Score every field by how many of the query keywords it matches and return the
+ * best candidates. Multi-keyword matches (e.g. a field hitting both "revenue"
+ * and "country") rank first, so the seed surfaces the on-target fields.
+ */
+export const selectCandidateFields = (
+    index: FieldEntry[],
+    keywords: string[],
+    limit = 25,
+): FieldEntry[] => {
+    if (keywords.length === 0) return [];
+    const scored: { entry: FieldEntry; score: number }[] = [];
+    for (const entry of index) {
+        let score = 0;
+        for (const keyword of keywords) {
+            if (entry.haystack.includes(keyword)) score += 1;
+        }
+        if (score > 0) scored.push({ entry, score });
+    }
+    scored.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        // Tie-break: metrics first (questions usually want a measure), then the
+        // shorter path (less likely to be a deeply-nested edge field).
+        if (a.entry.kind !== b.entry.kind)
+            return a.entry.kind === 'metric' ? -1 : 1;
+        return a.entry.path.length - b.entry.path.length;
+    });
+    return scored.slice(0, limit).map((s) => s.entry);
+};
+
+export const renderCandidateBlock = (candidates: FieldEntry[]): string => {
+    const byExplore = new Map<string, FieldEntry[]>();
+    for (const c of candidates) {
+        const list = byExplore.get(c.exploreName) ?? [];
+        list.push(c);
+        byExplore.set(c.exploreName, list);
+    }
+    const blocks = [...byExplore.entries()].map(([exploreName, fields]) => {
+        const lines = fields
+            .map((f) => {
+                const desc = f.description
+                    ? ` — ${f.description.replace(/\s+/g, ' ').slice(0, 140)}`
+                    : '';
+                return `  ${f.path}  [${f.kind} ${f.type}] ${f.label}${desc}`;
+            })
+            .join('\n');
+        return `${exploreName} (${fields[0]?.exploreLabel ?? exploreName})\n${lines}`;
+    });
+    return [
+        'Candidate fields pre-grepped from the catalog for this question (deterministic keyword match — VERIFY these fit before using, and call grepFields yourself if you need different angles or none of these match):',
+        '',
+        ...blocks,
+    ].join('\n');
+};
