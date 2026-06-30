@@ -47,6 +47,32 @@ describe('buildLiquidContext', () => {
         });
     });
 
+    it('should not pollute object prototypes with dotted parameter keys', () => {
+        delete (Object.prototype as Record<string, unknown>).veriaPolluted;
+
+        buildLiquidContext({ '__proto__.veriaPolluted': 'yes' });
+
+        expect(({} as Record<string, unknown>).veriaPolluted).toBeUndefined();
+    });
+
+    it('should ignore parameter keys with unsafe prototype segments', () => {
+        const context = buildLiquidContext({
+            safe: 'ok',
+            'events.grain': 'day',
+            '__proto__.polluted': 'yes',
+            'constructor.polluted': 'yes',
+            'events.prototype': 'yes',
+        });
+
+        expect(context.ld.parameters).toEqual({
+            safe: 'ok',
+            'events.grain': 'day',
+            grain: 'day',
+            events: { grain: 'day' },
+        });
+        expect(context.lightdash.parameters).toEqual(context.ld.parameters);
+    });
+
     it('should handle multiple parameters', () => {
         const context = buildLiquidContext({
             grain: 'day',
