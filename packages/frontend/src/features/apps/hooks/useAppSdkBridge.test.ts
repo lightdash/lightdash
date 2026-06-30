@@ -399,6 +399,77 @@ describe('useAppSdkBridge', () => {
     });
 });
 
+describe('lineage message routing', () => {
+    beforeEach(() => {
+        vi.stubGlobal('fetch', vi.fn());
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.clearAllMocks();
+    });
+
+    it('routes lightdash:lineage:selected to onLineageSelected with the queryUuid', () => {
+        const onLineageSelected = vi.fn();
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        renderHook(() =>
+            useAppSdkBridge(
+                iframeRef,
+                window.location.origin,
+                PROJECT_UUID,
+                APP_UUID,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                onLineageSelected,
+            ),
+        );
+
+        dispatchFetchMessage({
+            type: 'lightdash:lineage:selected',
+            queryUuid: 'q-9',
+        });
+
+        expect(onLineageSelected).toHaveBeenCalledWith({ queryUuid: 'q-9' });
+    });
+
+    it('routes lightdash:lineage:available to onLineageAvailable', () => {
+        const onLineageAvailable = vi.fn();
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        renderHook(() =>
+            useAppSdkBridge(
+                iframeRef,
+                window.location.origin,
+                PROJECT_UUID,
+                APP_UUID,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                onLineageAvailable,
+            ),
+        );
+
+        dispatchFetchMessage({
+            type: 'lightdash:lineage:available',
+        });
+
+        expect(onLineageAvailable).toHaveBeenCalled();
+    });
+});
+
 describe('external-fetch branch', () => {
     beforeEach(() => {
         vi.stubGlobal('fetch', vi.fn());
@@ -565,37 +636,6 @@ describe('external-fetch branch', () => {
                 )?.['result'],
             ).toBeDefined(),
         );
-    });
-
-    it('routes lightdash:lineage:selected to onLineageSelected with the queryUuid', () => {
-        const onLineageSelected = vi.fn();
-        const iframeRef = {
-            current: { contentWindow: window } as unknown as HTMLIFrameElement,
-        } as RefObject<HTMLIFrameElement | null>;
-        renderHook(() =>
-            useAppSdkBridge(
-                iframeRef,
-                window.location.origin,
-                PROJECT_UUID,
-                APP_UUID,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                onLineageSelected,
-            ),
-        );
-
-        dispatchFetchMessage({
-            type: 'lightdash:lineage:selected',
-            queryUuid: 'q-9',
-        });
-
-        expect(onLineageSelected).toHaveBeenCalledWith({ queryUuid: 'q-9' });
     });
 
     it('rejects external-fetch messages from a spoofed sender (wrong source AND wrong origin)', async () => {

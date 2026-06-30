@@ -1,6 +1,6 @@
 // QueryInspector.test.tsx
 import { MantineProvider } from '@mantine-8/core';
-import { fireEvent, render } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import QueryInspector from './QueryInspector';
 
 const baseQuery = {
@@ -94,6 +94,16 @@ describe('QueryInspector lineage hooks', () => {
             });
             const row = document.querySelector('[data-query-uuid="q-1"]')!;
             expect(row.className).toMatch(/queryRowFocused/);
+        });
+
+        it('auto-uncollapses the panel when a matching focusedQueryUuid arrives', async () => {
+            // Panel starts collapsed (defaultCollapsed defaults to true).
+            // The effect in QueryInspector should call setCollapsed(false)
+            // because 'q-1' matches a query in the list, making the row visible.
+            renderInspector({ focusedQueryUuid: 'q-1' });
+            await waitFor(() =>
+                expect(screen.getByText('Revenue')).toBeVisible(),
+            );
         });
     });
 });

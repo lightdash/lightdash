@@ -436,6 +436,17 @@ const QueryInspector: FC<Props> = ({
         [onClear],
     );
 
+    // Auto-uncollapse the panel when a matching focused query arrives so
+    // the focused row is not hidden inside a closed collapse region.
+    useEffect(() => {
+        if (
+            focusedQueryUuid != null &&
+            queries.some((q) => q.queryUuid === focusedQueryUuid)
+        ) {
+            setCollapsed(false);
+        }
+    }, [focusedQueryUuid, queries]);
+
     // Hide the panel entirely only when there's nothing to show *and* the
     // user hasn't engaged with it. If they've expanded it (e.g. cleared the
     // log to wait for fresh queries), keep it mounted with an empty state so
