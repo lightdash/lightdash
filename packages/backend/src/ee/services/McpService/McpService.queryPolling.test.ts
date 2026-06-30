@@ -727,6 +727,51 @@ describe('MCP async query polling', () => {
         });
     });
 
+    it('returns MCP error content when find_explores fails', async () => {
+        const { aiAgentToolsService } = makeMcpService();
+        aiAgentToolsService.createRuntime.mockImplementation(() => {
+            throw new Error('Runtime failed');
+        });
+
+        const result = await getToolCallback(McpToolName.FIND_EXPLORES)(
+            { searchQuery: 'orders' },
+            extra,
+        );
+
+        expect(result).toMatchObject({
+            isError: true,
+            content: [
+                expect.objectContaining({
+                    text: 'Error finding explores: Runtime failed',
+                }),
+            ],
+        });
+    });
+
+    it('returns MCP error content when find_fields fails', async () => {
+        const { aiAgentToolsService } = makeMcpService();
+        aiAgentToolsService.createRuntime.mockImplementation(() => {
+            throw new Error('Runtime failed');
+        });
+
+        const result = await getToolCallback(McpToolName.FIND_FIELDS)(
+            {
+                table: 'orders',
+                fieldSearchQueries: [{ label: 'orders count' }],
+            },
+            extra,
+        );
+
+        expect(result).toMatchObject({
+            isError: true,
+            content: [
+                expect.objectContaining({
+                    text: 'Error finding fields: Runtime failed',
+                }),
+            ],
+        });
+    });
+
     it('filters content by active agent space access', async () => {
         const allowedChart = makeChartSearchResult({
             name: 'Allowed Chart',
