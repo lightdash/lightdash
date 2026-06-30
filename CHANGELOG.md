@@ -1,3 +1,16 @@
+# [0.3270.0](https://github.com/lightdash/lightdash/compare/0.3269.0...0.3270.0) (2026-06-30)
+
+
+### Bug Fixes
+
+* **ai:** extract discover fields result tool ([#24959](https://github.com/lightdash/lightdash/issues/24959)) ([948433f](https://github.com/lightdash/lightdash/commit/948433f35bed8eb98ff36a0dc0e5168f8d9d9ad3))
+* **ai:** stop truncating field descriptions in getMetadata tool ([#24963](https://github.com/lightdash/lightdash/issues/24963)) ([2d35460](https://github.com/lightdash/lightdash/commit/2d354607cba3f0a840c71c521d6dcf71705222c3))
+
+
+### Features
+
+* **ai-agents:** add Claude Sonnet 5 model ([#24958](https://github.com/lightdash/lightdash/issues/24958)) ([4e7218c](https://github.com/lightdash/lightdash/commit/4e7218c9291cee6e7de7f2896a592979181481d2)), closes [/linear.app/lightdash/issue/PROD-8595/add-sonnet-5-as-a-new-model-in-ai-agents#agent-session-27dba648](https://github.com//linear.app/lightdash/issue/PROD-8595/add-sonnet-5-as-a-new-model-in-ai-agents/issues/agent-session-27dba648)
+
 # [0.3269.0](https://github.com/lightdash/lightdash/compare/0.3268.0...0.3269.0) (2026-06-30)
 
 
