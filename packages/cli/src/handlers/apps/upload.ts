@@ -129,8 +129,10 @@ export const appsUploadHandler = async (
 
             if (isTerminalStatus(v.status)) {
                 if (v.status === 'ready') {
+                    const actionLabel =
+                        action === 'create' ? 'created' : 'updated';
                     spinner.succeed(
-                        `App ${action}d: v${version} built (${appUuid})`,
+                        `App ${actionLabel}: v${version} built (${appUuid})`,
                     );
                     GlobalState.log(
                         styles.info(`View at: ${serverUrl}/apps/${appUuid}`),
