@@ -106,6 +106,10 @@ export type AiAgentArgs = AnyAiModel & {
     writebackAttribution: AiWritebackAttribution | null;
     enablePreviewDeploySetup: boolean;
     enableRepoDiscovery: boolean;
+    // Experimental: swap the discoverFields sub-agent for a deterministic grep
+    // over the in-memory annotated explores (the `grepFields` tool). Gated by
+    // the `ai-grep-fields` feature flag.
+    enableGrepFields: boolean;
     // dbt project root within the repo (from project_sub_path); '.' = repo root,
     // null when repo discovery is off or the project is not git-backed.
     repoFsRoot: string | null;

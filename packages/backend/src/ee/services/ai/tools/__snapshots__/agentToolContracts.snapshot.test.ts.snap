@@ -6968,6 +6968,7 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "runQuery",
   "runSql",
   "discoverFields",
+  "grepFields",
   "generateDashboard",
   "generateHashes",
   "generateUuids",

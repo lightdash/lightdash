@@ -251,6 +251,15 @@ export enum FeatureFlags {
      * rolled out / disabled per-org at runtime without a deploy.
      */
     RedshiftIamAuth = 'redshift-iam-auth',
+
+    /**
+     * Replace the discoverFields sub-agent with a deterministic grep over an
+     * in-memory, annotated view of the project's cached explores (explore =
+     * directory, field = file). Connection-agnostic (reads compiled explores,
+     * never the warehouse or git) — lets the main agent navigate fields itself
+     * instead of paying the discoverFields sub-agent round-trip. Experimental.
+     */
+    AiGrepFields = 'ai-grep-fields',
 }
 
 export type FeatureFlag = {

@@ -42,6 +42,9 @@ export const getSystemPromptV2 = (args: {
     // Whether the repo host supports server-side code search (GitHub yes,
     // GitLab no). Defaults true; when false the prompt steers off `search`.
     repoFsSupportsCodeSearch?: boolean;
+    // Experimental: steer field discovery to the grepFields tool instead of
+    // discoverFields (the ai-grep-fields flag).
+    enableGrepFields?: boolean;
     enableContentTools?: boolean;
     canRunSql?: boolean;
     warehouseType?: WarehouseTypes | null;
@@ -60,6 +63,7 @@ export const getSystemPromptV2 = (args: {
         enableRepoDiscovery = false,
         repoFsRoot = null,
         repoFsSupportsCodeSearch = true,
+        enableGrepFields = false,
         enableContentTools = false,
         canRunSql = false,
         warehouseType = null,
@@ -199,7 +203,24 @@ export const getSystemPromptV2 = (args: {
                   .join('\n')}`
             : '';
 
-    const finalContent = [content, mcpConnectionsSection, skillsSection]
+    // Experimental: when grepFields replaces discoverFields, override the
+    // discovery guidance so the agent greps the field catalog itself.
+    const grepFieldsSection = enableGrepFields
+        ? [
+              '## Finding fields (grepFields)',
+              'To find which explore and fields can answer a question, use the `grepFields` tool instead of any other discovery step. It greps the field catalog (names, labels, descriptions, hints, tags) with case-insensitive keyword patterns (`|` for OR, space or .* between words for AND) and returns `explore/fieldId  [kind type]` lines grouped by explore.',
+              '- Pass several patterns in ONE call (the `patterns` array) covering the different angles of the question at once — e.g. `["revenue|sales", "country|region"]`. Do not grep one pattern, wait, then grep another.',
+              '- Use meaningful keywords, not long natural-language phrases. Read the returned fieldIds and pick the single explore that answers at the right grain before building a query.',
+              '- If a search returns nothing, try synonyms or a broader pattern before giving up.',
+          ].join('\n')
+        : '';
+
+    const finalContent = [
+        content,
+        grepFieldsSection,
+        mcpConnectionsSection,
+        skillsSection,
+    ]
         .filter(Boolean)
         .join('\n\n');
 

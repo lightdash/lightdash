@@ -7186,6 +7186,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 user,
                 featureFlagId: FeatureFlags.SearchSemanticLayer,
             });
+        const { enabled: grepFieldsEnabled } =
+            await this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.AiGrepFields,
+            });
         let { enabled: aiWritebackEnabled } = await this.featureFlagService.get(
             {
                 user,
@@ -7368,6 +7373,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             writebackAttribution,
             enablePreviewDeploySetup: aiPreviewDeploySetupEnabled,
             enableRepoDiscovery: repoDiscoveryEnabled,
+            enableGrepFields: grepFieldsEnabled,
             repoFsRoot,
             repoFsSupportsCodeSearch,
             canRunSql,
