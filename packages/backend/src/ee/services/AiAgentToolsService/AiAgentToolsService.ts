@@ -6,7 +6,6 @@ import {
     CatalogFilter,
     CatalogType,
     ContentType,
-    convertFieldRefToFieldId,
     Explore,
     filterExploreByTags,
     ForbiddenError,
@@ -17,7 +16,6 @@ import {
     isDashboardChartTileType,
     isExploreError,
     isGitProjectType,
-    isJoinModelRequiredFilter,
     JobStatusType,
     NotFoundError,
     ParameterError,
@@ -30,7 +28,6 @@ import {
     WarehouseQueryError,
     type ChartAsCode,
     type DashboardAsCode,
-    type ModelRequiredFilterRule,
 } from '@lightdash/common';
 import * as JsonPatch from 'fast-json-patch';
 import Logger from '../../../logging/logger';
@@ -65,7 +62,6 @@ import { AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
 import { ProjectContextModel } from '../../models/ProjectContextModel';
 import type { BuiltInSkills } from '../ai/skills/builtInSkills';
 import {
-    AiAgentRequiredFilterMetadata,
     AnalyzeFieldImpactFn,
     CreateContentFn,
     DescribeWarehouseTableFn,
@@ -101,6 +97,7 @@ import {
     expandMetricsWithPopAdditionalMetrics,
     populateCustomMetricsSQL,
 } from '../ai/utils/populateCustomMetricsSQL';
+import { getExploreRequiredFilters } from '../ai/utils/requiredFilters';
 import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
 
 type AgentListContentResult = Awaited<ReturnType<ListContentFn>>;
@@ -256,42 +253,6 @@ export class AiAgentToolsService extends BaseService {
 
     loadAgentSkill(name: string) {
         return this.builtInSkills.getAiAgentSkill(name);
-    }
-
-    private static getRequiredFilterMetadata(
-        filter: ModelRequiredFilterRule,
-        fallbackTableName: string,
-    ): AiAgentRequiredFilterMetadata {
-        const tableName = isJoinModelRequiredFilter(filter)
-            ? filter.target.tableName
-            : fallbackTableName;
-
-        return {
-            fieldId: convertFieldRefToFieldId(
-                filter.target.fieldRef,
-                tableName,
-            ),
-            fieldRef: filter.target.fieldRef,
-            tableName,
-            operator: filter.operator,
-            values: filter.values,
-            settings: filter.settings,
-            required: filter.required ?? true,
-        };
-    }
-
-    private static getExploreRequiredFilters(
-        explore: Explore | undefined,
-    ): AiAgentRequiredFilterMetadata[] {
-        if (!explore) return [];
-
-        return (explore.tables[explore.baseTable].requiredFilters ?? []).map(
-            (filter) =>
-                AiAgentToolsService.getRequiredFilterMetadata(
-                    filter,
-                    explore.baseTable,
-                ),
-        );
     }
 
     listMcpSkills() {
@@ -562,10 +523,9 @@ export class AiAgentToolsService extends BaseService {
                 const exploreSearchResults = tableSearchResults.data
                     .filter((item) => item.type === CatalogType.Table)
                     .map((table) => {
-                        const requiredFilters =
-                            AiAgentToolsService.getExploreRequiredFilters(
-                                filteredExploresByName.get(table.name),
-                            );
+                        const requiredFilters = getExploreRequiredFilters(
+                            filteredExploresByName.get(table.name),
+                        );
 
                         return {
                             name: table.name,
