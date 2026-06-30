@@ -16,6 +16,7 @@ import {
 } from './env';
 import { getDiagnosticsHint } from './error';
 import GlobalState from './globalState';
+import { appsDownloadHandler } from './handlers/apps/download';
 import { compileHandler } from './handlers/compile';
 import { refreshHandler } from './handlers/dbt/refresh';
 import { dbtRunHandler } from './handlers/dbt/run';
@@ -810,6 +811,32 @@ program
     .option('--validate', 'Validate charts and dashboards after upload', false)
     .option('--gzip', 'Enable gzip compression for request bodies', false)
     .action(uploadHandler);
+
+const appsProgram = program
+    .command('apps')
+    .description('Download and upload Lightdash data apps as code');
+
+appsProgram
+    .command('download <appUuid>')
+    .description('Download a data app to a local folder')
+    .option('--verbose', undefined, false)
+    .option(
+        '-p, --path <path>',
+        'target directory (default: ./<appUuid>)',
+        undefined,
+    )
+    .option(
+        '--project <project uuid>',
+        'project UUID',
+        parseProjectArgument,
+        undefined,
+    )
+    .option(
+        '--app-version <n>',
+        'specific version (default: latest ready)',
+        undefined,
+    )
+    .action((appUuid, options) => appsDownloadHandler(appUuid, options));
 
 program
     .command('deploy')
