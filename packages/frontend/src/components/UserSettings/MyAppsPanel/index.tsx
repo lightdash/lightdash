@@ -39,6 +39,7 @@ import {
     type FC,
 } from 'react';
 import { Link } from 'react-router';
+import AppThumbnailHoverCard from '../../../features/apps/components/AppThumbnailHoverCard';
 import { useMyApps } from '../../../features/apps/hooks/useMyApps';
 import { useContentAction } from '../../../hooks/useContent';
 import {
@@ -117,6 +118,32 @@ const statusColor = (status: string | null) => {
     }
 };
 
+const AppNameCell: FC<{ app: ApiAppSummary }> = ({ app }) => {
+    const displayName = getAppDisplayName(app.name, app.appUuid);
+
+    return (
+        <AppThumbnailHoverCard
+            projectUuid={app.projectUuid}
+            appUuid={app.appUuid}
+            appName={displayName}
+            hasReadyVersion={hasReadyVersion(app)}
+        >
+            <Anchor
+                component={Link}
+                to={`/projects/${app.projectUuid}/apps/${app.appUuid}`}
+                fz="sm"
+                fw={500}
+                c="inherit"
+                underline="hover"
+                truncate="end"
+                display="block"
+            >
+                {displayName}
+            </Anchor>
+        </AppThumbnailHoverCard>
+    );
+};
+
 type MyAppsPanelProps = {
     includePreviewAppsByDefault?: boolean;
 };
@@ -179,25 +206,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                 ),
                 Cell: ({ row }) => {
                     const app = row.original;
-                    const displayName = getAppDisplayName(
-                        app.name,
-                        app.appUuid,
-                    );
-
-                    return (
-                        <Anchor
-                            component={Link}
-                            to={`/projects/${app.projectUuid}/apps/${app.appUuid}`}
-                            fz="sm"
-                            fw={500}
-                            c="inherit"
-                            underline="hover"
-                            truncate="end"
-                            display="block"
-                        >
-                            {displayName}
-                        </Anchor>
-                    );
+                    return <AppNameCell app={app} />;
                 },
             },
             {

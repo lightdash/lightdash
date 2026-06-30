@@ -2,9 +2,11 @@ import {
     CopyObjectCommand,
     DeleteObjectsCommand,
     GetObjectCommand,
+    HeadObjectCommand,
     ListObjectsV2Command,
     PutObjectCommand,
     S3Client,
+    S3ServiceException,
     type ObjectIdentifier,
     type S3ClientConfig,
 } from '@aws-sdk/client-s3';
@@ -620,6 +622,10 @@ export class AppGenerateService extends BaseService {
         return `apps/${appUuid}/uploads/${imageId}`;
     }
 
+    private static appThumbnailKey(appUuid: string): string {
+        return `apps/${appUuid}/thumbnail.png`;
+    }
+
     private static mimeToExt(mimeType: string): string {
         const extMap: Record<string, string> = {
             'image/png': 'png',
@@ -888,6 +894,107 @@ export class AppGenerateService extends BaseService {
         );
 
         return { imageUrl };
+    }
+
+    async uploadThumbnail(
+        user: SessionUser,
+        projectUuid: string,
+        mimeType: string,
+        body: Readable,
+        contentLength: number,
+        appUuid: string,
+    ): Promise<void> {
+        await this.assertDataAppsEnabled(user);
+
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertCanManageApp(
+            user,
+            app,
+            'Insufficient permissions to update app thumbnail',
+        );
+
+        if (mimeType !== 'image/png') {
+            throw new ParameterError('App thumbnails must be PNG images');
+        }
+
+        const maxSize = 10 * 1024 * 1024; // 10 MB
+        if (contentLength > maxSize) {
+            throw new ParameterError(
+                `Thumbnail too large: ${contentLength} bytes. Maximum: ${maxSize} bytes`,
+            );
+        }
+
+        const bufferedBody = await AppGenerateService.bufferAndValidate(
+            body,
+            mimeType,
+            maxSize,
+        );
+
+        const { client: s3Client, bucket } = this.getS3Client();
+        await s3Client.send(
+            new PutObjectCommand({
+                Bucket: bucket,
+                Key: AppGenerateService.appThumbnailKey(appUuid),
+                Body: bufferedBody,
+                ContentLength: bufferedBody.length,
+                ContentType: 'image/png',
+            }),
+        );
+
+        this.analytics.track({
+            event: 'data_app.thumbnail_uploaded',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                appUuid,
+                sizeBytes: bufferedBody.length,
+            },
+        });
+    }
+
+    async getThumbnailUrl(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+    ): Promise<{ thumbnailUrl: string }> {
+        await this.assertDataAppsEnabled(user);
+
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertCanManageApp(
+            user,
+            app,
+            'Insufficient permissions to view app thumbnail',
+        );
+
+        const { client: s3Client, bucket } = this.getS3Client();
+        const key = AppGenerateService.appThumbnailKey(appUuid);
+
+        try {
+            await s3Client.send(
+                new HeadObjectCommand({
+                    Bucket: bucket,
+                    Key: key,
+                }),
+            );
+        } catch (error) {
+            if (
+                error instanceof S3ServiceException &&
+                error.$metadata.httpStatusCode === 404
+            ) {
+                throw new NotFoundError('App thumbnail not found');
+            }
+            throw error;
+        }
+
+        const { getSignedUrl } = await import('@aws-sdk/s3-request-presigner');
+        const thumbnailUrl = await getSignedUrl(
+            s3Client,
+            new GetObjectCommand({ Bucket: bucket, Key: key }),
+            { expiresIn: 900 },
+        );
+
+        return { thumbnailUrl };
     }
 
     private static truncateEnd(text: string, maxLength: number): string {

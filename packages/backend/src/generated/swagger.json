@@ -11225,6 +11225,29 @@
             "ApiAppImageUrlResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__imageUrl-string__"
             },
+            "ApiSuccess__thumbnailUrl-string__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "thumbnailUrl": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["thumbnailUrl"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAppThumbnailUrlResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__thumbnailUrl-string__"
+            },
             "SchedulerFormat": {
                 "enum": ["csv", "xlsx", "image", "gsheets", "pdf"],
                 "type": "string"

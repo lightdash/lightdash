@@ -79,7 +79,7 @@ type ResourceViewGridGroup = {
 
 type ResourceCardProps = Pick<
     DraggableItemProps,
-    'item' | 'allowDelete' | 'onAction'
+    'item' | 'allowDelete' | 'onAction' | 'projectUuid'
 > & {
     dragIcon: ReactNode;
 };
@@ -88,6 +88,7 @@ const ResourceCard: FC<ResourceCardProps> = ({
     item,
     allowDelete,
     onAction,
+    projectUuid,
     dragIcon,
 }) => {
     switch (item.type) {
@@ -122,6 +123,7 @@ const ResourceCard: FC<ResourceCardProps> = ({
             return (
                 <ResourceViewGridDataAppItem
                     item={item}
+                    projectUuid={projectUuid}
                     allowDelete={allowDelete}
                     onAction={onAction}
                     dragIcon={dragIcon}
@@ -234,6 +236,7 @@ const DraggableItem: FC<DraggableItemProps> = ({
                 item={item}
                 allowDelete={allowDelete}
                 onAction={onAction}
+                projectUuid={projectUuid}
                 dragIcon={DragIcon}
             />
         </Box>
@@ -449,6 +452,7 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
                                             item={activeItem}
                                             allowDelete={allowDelete}
                                             onAction={onAction}
+                                            projectUuid={projectUuid}
                                             dragIcon={null}
                                         />
                                     </Box>

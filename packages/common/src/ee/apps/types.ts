@@ -228,6 +228,10 @@ export type ApiAppImageUrlResponse = ApiSuccess<{
     imageUrl: string;
 }>;
 
+export type ApiAppThumbnailUrlResponse = ApiSuccess<{
+    thumbnailUrl: string;
+}>;
+
 export type ApiAppVersionSummary = {
     version: number;
     prompt: string;
