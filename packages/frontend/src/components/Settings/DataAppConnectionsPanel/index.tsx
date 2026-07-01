@@ -1,7 +1,8 @@
 import { type ExternalConnection } from '@lightdash/common';
 import { Button, Group, Skeleton, Stack, Text, Title } from '@mantine-8/core';
 import { IconPlug, IconPlus } from '@tabler/icons-react';
-import { type FC, useState } from 'react';
+import { useCallback, useState, type FC } from 'react';
+import { useSearchParams } from 'react-router';
 import { useExternalConnections } from '../../../features/externalConnections/hooks/useExternalConnections';
 import Callout from '../../common/Callout';
 import { EmptyState } from '../../common/EmptyState';
@@ -19,7 +20,19 @@ type Props = {
 const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
     const { data: connections, isLoading } =
         useExternalConnections(projectUuid);
-    const [isCreating, setIsCreating] = useState(false);
+    // Deep-link support: the builder's connection picker links here with
+    // `?create=1` to open the wizard straight away.
+    const [searchParams, setSearchParams] = useSearchParams();
+    const [isCreating, setIsCreating] = useState(
+        () => searchParams.get('create') === '1',
+    );
+    const closeCreate = useCallback(() => {
+        setIsCreating(false);
+        if (searchParams.has('create')) {
+            searchParams.delete('create');
+            setSearchParams(searchParams, { replace: true });
+        }
+    }, [searchParams, setSearchParams]);
     const [connectionToEdit, setConnectionToEdit] = useState<
         ExternalConnection | undefined
     >(undefined);
@@ -97,7 +110,7 @@ const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
             {isCreating && (
                 <AddConnectionWizard
                     opened={isCreating}
-                    onClose={() => setIsCreating(false)}
+                    onClose={closeCreate}
                     projectUuid={projectUuid}
                 />
             )}
