@@ -871,6 +871,8 @@ export class ServiceRepository
                     permissionsService: this.getPermissionsService(),
                     persistentDownloadFileService:
                         this.getPersistentDownloadFileService(),
+                    organizationAccessService:
+                        this.getOrganizationAccessService(),
                     projectCompileLogModel:
                         this.models.getProjectCompileLogModel(),
                     adminNotificationService:

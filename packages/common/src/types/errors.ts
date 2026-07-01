@@ -70,6 +70,20 @@ export class DeactivatedAccountError extends LightdashError {
     }
 }
 
+export class TrialExpiredError extends LightdashError {
+    constructor(
+        message = "Your organization's trial has expired. Please contact your organization administrator.",
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'TrialExpiredError',
+            statusCode: 403,
+            data,
+        });
+    }
+}
+
 export class AuthorizationError extends LightdashError {
     constructor(
         message = "You don't have authorization to perform this action",
