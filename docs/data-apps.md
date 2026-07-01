@@ -354,6 +354,15 @@ Orchestration lives in `AppGenerateService.duplicateAppsForPreview`, called once
 - **Spaces.** `ProjectModel.duplicateContent` now returns the source→preview space-uuid mapping; each app lands in the
   preview's mirror of its source space (ancestors already created by the content copy). Personal apps
   (`space_uuid IS NULL`) stay personal.
+- **External connections.** Because connections are project-scoped and runtime fetches resolve against
+  `app_external_connections` (`resolveAppAlias`), the preview needs its own connections or the copied apps' external
+  fetches would dangle. Before copying apps, `ExternalConnectionModel.copyConnectionsToProject` clones every non-deleted
+  upstream connection — with its secret and saved samples — into the preview project, returning a source→preview
+  connection-uuid map. The secret ciphertext is copied verbatim (`EncryptionUtil` is instance-wide, so the payload is
+  portable). Each app's live links are then translated through that map onto the preview's own connections, and the
+  version snapshot's `externalConnections` is rebuilt from the same translated set. Project deletion cascades
+  (`external_connections.project_uuid ON DELETE CASCADE`) clean the copies up when the preview is torn down. This copy is
+  best-effort: if it fails, apps are still copied (just without working connections).
 - **The round trip — `upstream_app_uuid`.** Each preview copy's `upstream_app_uuid` is set back to the production app it
   was copied from. That is the same link `promoteApp` writes on first promotion, so iterating on the copy inside the
   preview and then promoting **updates the original production app** rather than creating a duplicate. Preview
@@ -802,7 +811,7 @@ External connections let a project admin register a third-party HTTP API (base U
 
 A connection lives on the `external_connections` table (`packages/backend/src/ee/database/entities/externalConnections.ts`), scoped to a project. It stores a human-readable **alias**, a **base URL** (origin), the auth method, and an **encrypted secret** (never returned to the client — stripped on read, only decrypted server-side for an actual fetch). Apps opt into a connection by linking it (`app_external_connections`); an app can reference a connection's data only after the admin links it.
 
-Runtime fetches resolve the alias against `app_external_connections` (`resolveAppAlias`), so the link rows — not the version `resources` snapshot — are what grant an app access. When an app is **duplicated** (`AppGenerateService.duplicateApp`), its live links are copied onto the new app so the duplicate can make the same external fetches; both apps share a project, so the connection UUIDs stay valid. (Cross-project copies — `promoteApp`, `duplicateAppsForPreview` — deliberately don't copy link rows, since the target project's connections are different entities.)
+Runtime fetches resolve the alias against `app_external_connections` (`resolveAppAlias`), so the link rows — not the version `resources` snapshot — are what grant an app access. When an app is **duplicated** (`AppGenerateService.duplicateApp`), its live links are copied onto the new app so the duplicate can make the same external fetches; both apps share a project, so the connection UUIDs stay valid. **Preview duplication** is the cross-project case: the target preview project has none of the source's connections, so it first clones the connections themselves (see [Preview environments](#preview-environments-copy-on-preview)) and re-links the copied apps onto those clones. **Promotion** (`promoteApp`, preview → upstream) still does **not** carry links across today — the upstream project's connections are separate entities and would need identity mapping to re-link.
 
 ### Proxy security model
 
