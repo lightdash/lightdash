@@ -1,7 +1,7 @@
 import { ERROR_BOUNDARY_ID } from '@lightdash/common';
 import { Flex } from '@mantine/core';
 import * as Sentry from '@sentry/react';
-import { type FC } from 'react';
+import { useEffect, useState, type FC } from 'react';
 import { useRouteError } from 'react-router';
 import {
     hasRecentChunkReload,
@@ -17,8 +17,18 @@ import { ChunkErrorFallback, GeneralErrorFallback } from './ErrorFallbacks';
  */
 const ChunkErrorRouteBoundary: FC = () => {
     const error = useRouteError();
+    const isChunkError = isChunkLoadErrorObject(error);
+    const [eventId, setEventId] = useState<string>('');
 
-    if (isChunkLoadErrorObject(error)) {
+    // Chunk errors are kept out of Sentry until auto-reload fails; capture in an
+    // effect so we don't report a side effect (or duplicates) on every render.
+    useEffect(() => {
+        if (!isChunkError) {
+            setEventId(Sentry.captureException(error));
+        }
+    }, [error, isChunkError]);
+
+    if (isChunkError) {
         if (!hasRecentChunkReload()) {
             triggerChunkErrorReload();
             return null;
@@ -36,8 +46,6 @@ const ChunkErrorRouteBoundary: FC = () => {
             </Flex>
         );
     }
-
-    const eventId = Sentry.captureException(error);
 
     return (
         <Flex
