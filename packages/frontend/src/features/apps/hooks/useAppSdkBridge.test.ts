@@ -470,6 +470,88 @@ describe('lineage message routing', () => {
     });
 });
 
+describe('chart-query routing', () => {
+    beforeEach(() => {
+        vi.stubGlobal('fetch', vi.fn());
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.clearAllMocks();
+    });
+
+    const CHART_UUID = 'chart-uuid';
+    const CHART_PATH = `/api/v2/projects/${PROJECT_UUID}/query/chart`;
+    const CHART_POST_ID = '33333333-3333-3333-3333-333333333333';
+    const CHART_QUERY_UUID = 'q-1';
+
+    it('emits a running QueryEvent (no pending) when a /query/chart POST succeeds', async () => {
+        const events: QueryEvent[] = [];
+        renderBridge((e) => events.push(e));
+
+        mockFetchOk({
+            status: 'ok',
+            results: {
+                queryUuid: CHART_QUERY_UUID,
+                metricQuery: {
+                    exploreName: 'orders',
+                    dimensions: [],
+                    metrics: [],
+                    filters: {},
+                    sorts: [],
+                    tableCalculations: [],
+                    additionalMetrics: [],
+                    limit: 100,
+                },
+            },
+        });
+
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:fetch',
+            id: CHART_POST_ID,
+            method: 'POST',
+            path: CHART_PATH,
+            body: { chartUuid: CHART_UUID },
+        });
+
+        await vi.waitFor(() => expect(events).toHaveLength(1));
+
+        expect(events[0]).toMatchObject({
+            id: CHART_POST_ID,
+            status: 'running',
+            queryUuid: CHART_QUERY_UUID,
+            exploreName: 'orders',
+        });
+    });
+
+    it('emits a terminal error QueryEvent when a /query/chart POST fails', async () => {
+        const events: QueryEvent[] = [];
+        renderBridge((e) => events.push(e));
+
+        mockFetchNonOk({
+            status: 'error',
+            error: { message: 'Chart not found' },
+        });
+
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:fetch',
+            id: CHART_POST_ID,
+            method: 'POST',
+            path: CHART_PATH,
+            body: { chartUuid: CHART_UUID },
+        });
+
+        await vi.waitFor(() => expect(events).toHaveLength(1));
+
+        expect(events[0]).toMatchObject({
+            id: CHART_POST_ID,
+            status: 'error',
+            queryUuid: null,
+            error: 'Chart not found',
+        });
+    });
+});
+
 describe('external-fetch branch', () => {
     beforeEach(() => {
         vi.stubGlobal('fetch', vi.fn());

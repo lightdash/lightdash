@@ -79,6 +79,11 @@ const ALLOWED_ROUTES: Array<{ method: string; pattern: RegExp }> = [
         method: 'POST',
         pattern: /^\/api\/v2\/projects\/[^/]+\/query\/metric-query$/,
     },
+    // Run a saved chart live by UUID (linked charts)
+    {
+        method: 'POST',
+        pattern: /^\/api\/v2\/projects\/[^/]+\/query\/chart$/,
+    },
     // Run underlying-data queries for SDK result rows
     {
         method: 'POST',
@@ -114,6 +119,10 @@ function isAllowedRoute(method: string, path: string): boolean {
 const isMetricQueryPost = (method: string, path: string): boolean =>
     method.toUpperCase() === 'POST' &&
     /^\/api\/v2\/projects\/[^/]+\/query\/metric-query$/.test(path);
+
+const isChartQueryPost = (method: string, path: string): boolean =>
+    method.toUpperCase() === 'POST' &&
+    /^\/api\/v2\/projects\/[^/]+\/query\/chart$/.test(path);
 
 const isQueryResultGet = (method: string, path: string): boolean =>
     method.toUpperCase() === 'GET' &&
@@ -493,7 +502,12 @@ export function useAppSdkBridge(
             // already emit their own terminal events, so this only runs
             // for the POST.
             const emitPostFailure = (errorMessage: string) => {
-                if (!isMetricQueryPost(method, path) || !onQueryEvent) return;
+                if (
+                    (!isMetricQueryPost(method, path) &&
+                        !isChartQueryPost(method, path)) ||
+                    !onQueryEvent
+                )
+                    return;
                 onQueryEvent({
                     id,
                     timestamp: Date.now(),
@@ -542,7 +556,8 @@ export function useAppSdkBridge(
                 if (json.status === 'ok') {
                     // Track metric query initiation response (has queryUuid)
                     if (
-                        isMetricQueryPost(method, path) &&
+                        (isMetricQueryPost(method, path) ||
+                            isChartQueryPost(method, path)) &&
                         onQueryEvent &&
                         json.results?.queryUuid
                     ) {
