@@ -1,3 +1,11 @@
+# [0.3275.0](https://github.com/lightdash/lightdash/compare/0.3274.1...0.3275.0) (2026-07-01)
+
+
+### Features
+
+* add AI agent embed support with code snippets and preview form ([#24986](https://github.com/lightdash/lightdash/issues/24986)) ([7319892](https://github.com/lightdash/lightdash/commit/73198920e23c48c627a2b4612783ffacf73987a2))
+* multiple dbt sources per Lightdash project (behind MultiDbtSources flag) ([#24957](https://github.com/lightdash/lightdash/issues/24957)) ([25f4394](https://github.com/lightdash/lightdash/commit/25f4394939545349fa997e95d0d44881eb2b68ef))
+
 ## [0.3274.1](https://github.com/lightdash/lightdash/compare/0.3274.0...0.3274.1) (2026-07-01)
 
 
