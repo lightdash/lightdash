@@ -11736,10 +11736,90 @@
                 "required": ["files", "manifest"],
                 "type": "object"
             },
-            "ApiSuccess_DataAppCode_": {
+            "DataAppContextFile": {
+                "properties": {
+                    "contentBase64": {
+                        "type": "string"
+                    },
+                    "path": {
+                        "type": "string"
+                    }
+                },
+                "required": ["contentBase64", "path"],
+                "type": "object"
+            },
+            "DataAppThemeContext": {
+                "properties": {
+                    "skippedAssetCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "assets": {
+                        "items": {
+                            "$ref": "#/components/schemas/DataAppContextFile"
+                        },
+                        "type": "array"
+                    },
+                    "instructions": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DataAppContextFile"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": ["skippedAssetCount", "assets", "instructions"],
+                "type": "object"
+            },
+            "DataAppContext": {
+                "properties": {
+                    "theme": {
+                        "$ref": "#/components/schemas/DataAppThemeContext"
+                    },
+                    "promptHistory": {
+                        "$ref": "#/components/schemas/DataAppContextFile"
+                    },
+                    "parameters": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DataAppContextFile"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "semanticLayer": {
+                        "$ref": "#/components/schemas/DataAppContextFile"
+                    }
+                },
+                "required": [
+                    "theme",
+                    "promptHistory",
+                    "parameters",
+                    "semanticLayer"
+                ],
+                "type": "object"
+            },
+            "DataAppCodeDownload": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DataAppCode"
+                    },
+                    {
+                        "properties": {
+                            "context": {
+                                "$ref": "#/components/schemas/DataAppContext"
+                            }
+                        },
+                        "required": ["context"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiSuccess_DataAppCodeDownload_": {
                 "properties": {
                     "results": {
-                        "$ref": "#/components/schemas/DataAppCode"
+                        "$ref": "#/components/schemas/DataAppCodeDownload"
                     },
                     "status": {
                         "type": "string",
@@ -11751,7 +11831,7 @@
                 "type": "object"
             },
             "ApiGetAppCodeResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_DataAppCode_"
+                "$ref": "#/components/schemas/ApiSuccess_DataAppCodeDownload_"
             },
             "ApiSuccess__appUuid-string--version-number--action-create-or-append__": {
                 "properties": {
