@@ -10,7 +10,6 @@ import { trackedQueryToCreateChart } from './utils/trackedQueryToChart';
 type Props = {
     query: QueryEvent;
     projectUuid: string;
-    opened: boolean;
     onClose: () => void;
 };
 
@@ -24,7 +23,6 @@ type Props = {
 const SaveQueryToLightdashModal: FC<Props> = ({
     query,
     projectUuid,
-    opened,
     onClose,
 }) => {
     const { data: spaces, isLoading: spacesLoading } =
@@ -60,7 +58,7 @@ const SaveQueryToLightdashModal: FC<Props> = ({
 
     return (
         <MantineModal
-            opened={opened}
+            opened
             onClose={onClose}
             title="Save to Lightdash"
             icon={IconDeviceFloppy}

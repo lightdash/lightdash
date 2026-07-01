@@ -329,11 +329,10 @@ const QueryRow: FC<{
                     )}
                 </Group>
             </Collapse>
-            {query.exploreName && query.rawMetricQuery && (
+            {saveOpen && query.rawMetricQuery && (
                 <SaveQueryToLightdashModal
                     query={query}
                     projectUuid={projectUuid}
-                    opened={saveOpen}
                     onClose={() => setSaveOpen(false)}
                 />
             )}
