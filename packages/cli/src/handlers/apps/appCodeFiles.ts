@@ -3,6 +3,7 @@ import {
     getErrorMessage,
     validateDataAppCode,
     type DataAppCode,
+    type DataAppCodeFile,
     type DataAppManifest,
     type ImportAppCodeRequestBody,
 } from '@lightdash/common';
@@ -30,22 +31,13 @@ export const appFolderName = (
     return suffixed;
 };
 
-export const writeBundleToDir = async (
+export const writeFilesToDir = async (
     dir: string,
-    code: DataAppCode,
+    files: DataAppCodeFile[],
 ): Promise<void> => {
-    await fs.mkdir(dir, { recursive: true });
-
-    const manifestYaml = YAML.stringify(code.manifest);
-    await fs.writeFile(
-        path.join(dir, MANIFEST_FILENAME),
-        manifestYaml,
-        'utf-8',
-    );
-
     const resolvedRoot = path.resolve(dir);
     await Promise.all(
-        code.files.map(async (file) => {
+        files.map(async (file) => {
             const filePath = path.resolve(dir, file.path);
             // Defense-in-depth: never write outside the target directory, even
             // if the server returns a traversal path.
@@ -64,6 +56,22 @@ export const writeBundleToDir = async (
             );
         }),
     );
+};
+
+export const writeBundleToDir = async (
+    dir: string,
+    code: DataAppCode,
+): Promise<void> => {
+    await fs.mkdir(dir, { recursive: true });
+
+    const manifestYaml = YAML.stringify(code.manifest);
+    await fs.writeFile(
+        path.join(dir, MANIFEST_FILENAME),
+        manifestYaml,
+        'utf-8',
+    );
+
+    await writeFilesToDir(dir, code.files);
 };
 
 const collectFiles = async (

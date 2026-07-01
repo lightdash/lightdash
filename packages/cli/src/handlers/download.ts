@@ -33,6 +33,7 @@ import pLimit from 'p-limit';
 import * as path from 'path';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig, setAnswer } from '../config';
+import { CLI_VERSION } from '../env';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import {
@@ -40,7 +41,9 @@ import {
     buildImportBody,
     readBundleFromDir,
     writeBundleToDir,
+    writeFilesToDir,
 } from './apps/appCodeFiles';
+import { buildStaticAuthoringFiles } from './apps/scaffolding';
 import {
     checkLightdashVersion,
     lightdashApi,
@@ -1068,8 +1071,20 @@ export const downloadHandler = async (
                         takenFolders.add(folder);
 
                         const appDir = path.join(appsDir, folder);
+                        const manifest = {
+                            ...code.manifest,
+                            scaffoldingVersion: CLI_VERSION,
+                        };
                         // eslint-disable-next-line no-await-in-loop
-                        await writeBundleToDir(appDir, code);
+                        await writeBundleToDir(appDir, { ...code, manifest });
+                        // eslint-disable-next-line no-await-in-loop
+                        await writeFilesToDir(
+                            appDir,
+                            buildStaticAuthoringFiles({
+                                appName: code.manifest.name,
+                                sdkVersion: CLI_VERSION,
+                            }),
+                        );
                         appSuccessCount += 1;
                     } catch (appErr) {
                         if (
