@@ -415,6 +415,127 @@ func main() {
 `,
 };
 
+const aiAgentIframeCodeTemplates: Record<SnippetLanguage, string> = {
+    [SnippetLanguage.NODE]: `import jwt from 'jsonwebtoken';
+const LIGHTDASH_EMBED_SECRET = 'secret'; // replace with your secret
+const projectUuid = '{{projectUuid}}';
+const agentUuid = '{{agentUuid}}';
+const data = {
+    content: {
+        type: 'aiAgent',
+        projectUuid: projectUuid,
+        agentUuid: agentUuid,
+    },
+    user: {
+        externalId: {{externalId}},
+        email: {{email}}
+    },
+    userAttributes: {{userAttributes}},
+{{writeActionsSnippet}}
+};
+const token = jwt.sign(data, LIGHTDASH_EMBED_SECRET, { expiresIn: '{{expiresIn}}' });
+const url = \`{{siteUrl}}/embed/\${projectUuid}/ai-agents/\${agentUuid}/threads#\${token}\`;
+`,
+    [SnippetLanguage.PYTHON]: `import datetime
+import jwt # pip install pyjwt
+
+key = "secret" # replace with your secret
+projectUuid = '{{projectUuid}}'
+agentUuid = '{{agentUuid}}'
+
+data = {
+    "exp": datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(hours=1), # replace with your expiration time,
+    "iat": datetime.datetime.now(tz=datetime.timezone.utc),
+    "content": {
+        "type": "aiAgent",
+        "projectUuid": projectUuid,
+        "agentUuid": agentUuid,
+    },
+    "user": {
+        "externalId": {{externalId}},
+        "email": {{email}}
+    },
+    "userAttributes": {{userAttributes}},
+{{writeActionsSnippet}}
+};
+token = jwt.encode(data, key, algorithm="HS256")
+url = f"{{siteUrl}}/embed/{projectUuid}/ai-agents/{agentUuid}/threads#{token}"
+`,
+    [SnippetLanguage.GO]: `
+package main
+
+import (
+    "fmt"
+    "time"
+
+    jwt "github.com/dgrijalva/jwt-go"
+)
+
+const LIGHTDASH_EMBED_SECRET = "secret" // replace with your secret
+const projectUuid = "{{projectUuid}}"
+const agentUuid = "{{agentUuid}}"
+
+func main() {
+    {{externalIdDef}}
+    {{emailDef}}
+
+    type CustomClaims struct {
+        Content struct {
+            Type        string \`json:"type"\`
+            ProjectUuid string \`json:"projectUuid"\`
+            AgentUuid   string \`json:"agentUuid"\`
+        } \`json:"content"\`
+        UserAttributes map[string]string \`json:"userAttributes"\`
+        WriteActions *struct {
+            ServiceAccountUserUuid string \`json:"serviceAccountUserUuid,omitempty"\`
+            UserUuid               string \`json:"userUuid,omitempty"\`
+            SpaceUuid              string \`json:"spaceUuid"\`
+        } \`json:"writeActions,omitempty"\`
+        jwt.StandardClaims
+        User *struct {
+            ExternalId *string \`json:"externalId,omitempty"\`
+            Email      *string \`json:"email,omitempty"\`
+        } \`json:"user,omitempty"\`
+    }
+
+    claims := CustomClaims{
+        Content: struct {
+            Type        string \`json:"type"\`
+            ProjectUuid string \`json:"projectUuid"\`
+            AgentUuid   string \`json:"agentUuid"\`
+        }{
+            Type:        "aiAgent",
+            ProjectUuid: projectUuid,
+            AgentUuid:   agentUuid,
+        },
+        User: &struct {
+            ExternalId *string \`json:"externalId,omitempty"\`
+            Email      *string \`json:"email,omitempty"\`
+        }{
+            ExternalId: {{externalIdUsage}},
+            Email:      {{emailUsage}},
+        },
+        UserAttributes: map[string]string{{userAttributes}},
+        // ServiceAccountUserUuid is the selected service account's user UUID.
+        // To run actions as a user instead, set UserUuid and leave ServiceAccountUserUuid empty.
+        WriteActions: {{writeActionsGo}},
+        StandardClaims: jwt.StandardClaims{
+            ExpiresAt: time.Now().Add(time.Hour).Unix(), // replace with your expiration
+        },
+    }
+
+    token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+    signedToken, err := token.SignedString([]byte(LIGHTDASH_EMBED_SECRET))
+    if err != nil {
+        panic(err)
+    }
+
+    url := fmt.Sprintf("{{siteUrl}}/embed/%s/ai-agents/%s/threads#%s", projectUuid, agentUuid, signedToken)
+    fmt.Println("URL:", url)
+}
+`,
+};
+
 const dashboardIframeCodeTemplates: Record<SnippetLanguage, string> = {
     [SnippetLanguage.NODE]: `import jwt from 'jsonwebtoken';
 const LIGHTDASH_EMBED_SECRET = 'secret'; // replace with your secret
@@ -970,10 +1091,6 @@ const getBackendCodeSnippet = (
     },
     mode: EmbedMethod,
 ): string => {
-    if (data.content.type === 'aiAgent') {
-        return '';
-    }
-
     let codeTemplate;
     if (isDashboardContent(data.content)) {
         codeTemplate =
@@ -984,6 +1101,9 @@ const getBackendCodeSnippet = (
         // Standalone data apps are iframe-only — there is no React SDK
         // component for them yet.
         codeTemplate = dataAppIframeCodeTemplates[language];
+    } else if (data.content.type === 'aiAgent') {
+        // AI agent embeds are iframe-only.
+        codeTemplate = aiAgentIframeCodeTemplates[language];
     } else {
         codeTemplate =
             mode === 'iframe'
@@ -1129,6 +1249,14 @@ const getBackendCodeSnippet = (
                 'appUuid' in data.content
                     ? data.content.appUuid || '<APP_UUID>'
                     : '<APP_UUID>',
+            );
+            break;
+        case 'aiAgent':
+            codeTemplate = codeTemplate.replace(
+                '{{agentUuid}}',
+                'agentUuid' in data.content
+                    ? data.content.agentUuid || '<AGENT_UUID>'
+                    : '<AGENT_UUID>',
             );
             break;
         case 'apiAccess':
