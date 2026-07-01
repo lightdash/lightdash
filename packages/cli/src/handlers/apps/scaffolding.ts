@@ -2,11 +2,7 @@ import { type DataAppCodeFile } from '@lightdash/common';
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import * as path from 'path';
 
-// --- Vendor dir resolution ---
-//
-// Built path:   __dirname = dist/handlers/apps  → vendor at ../../vendor = dist/vendor
-// Source path:  __dirname = src/handlers/apps   → vendor absent; fall back to
-//               sandboxes/data-apps/template  and  src/handlers/apps/authoring
+// Resolves vendor directory paths: built → dist/vendor, source → sandboxes/data-apps/template + src/authoring
 
 const builtVendorDir = path.join(__dirname, '..', '..', 'vendor');
 
@@ -73,11 +69,7 @@ export const rewriteWorkspaceDeps = (
 ): string => packageJson.replace(/"workspace:[^"]*"/g, `"${version}"`);
 
 /**
- * Reads the vendored template directory into DataAppCodeFile[], excluding
- * sandbox-only entries:
- * - `skill.md`   — remapped to a .claude skill path by buildStaticAuthoringFiles
- * - `scripts/`   — bootstrap/generate helpers used only inside the sandbox
- * - `src/`       — the app source tree, owned by the downloaded bundle
+ * Reads vendored template, excluding sandbox-only entries (skill.md, scripts/, src/).
  */
 export const loadVendoredTemplate = (): DataAppCodeFile[] => {
     const { templateDir } = resolveVendorDirs();
@@ -86,20 +78,7 @@ export const loadVendoredTemplate = (): DataAppCodeFile[] => {
 };
 
 /**
- * Assembles the full set of static authoring files to write alongside a
- * downloaded data app. Ships only non-source files:
- *
- * From the vendored template (no src/, scripts/, skill.md):
- *   package.json (workspace:* pins rewritten to sdkVersion), vite.config.js,
- *   tailwind/postcss/tsconfig, index.html, .npmrc, pnpm-workspace.yaml,
- *   d3-reference.md, .claude/** (frontend-design skill)
- *
- * Remapped / generated:
- *   skill.md               → .claude/skills/lightdash-data-app/SKILL.md
- *   authoring/.../SKILL.md → .claude/skills/developing-data-apps-locally/SKILL.md
- *   authoring/AGENTS.md.tmpl → AGENTS.md
- *   authoring/README.md.tmpl → README.md  ({{APP_NAME}} substituted)
- *   authoring/gitignore      → .gitignore
+ * Assembles static authoring files (configs, skills, templates) to deploy alongside a data app.
  */
 export const buildStaticAuthoringFiles = (args: {
     appName: string;
