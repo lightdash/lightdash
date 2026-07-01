@@ -2,10 +2,7 @@ import { Box, Button, Flex, Text } from '@mantine/core';
 import { noop } from '@mantine/utils';
 import { IconAlertCircle, IconRefresh, IconTable } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
-import {
-    isChunkLoadError,
-    triggerChunkErrorReload,
-} from '../../features/chunkErrorHandler';
+import { isChunkLoadError } from '../../features/chunkErrorHandler';
 import { computeLimitedRowCount, sliceRows } from '../../utils/sliceRows';
 import LoadingChart from '../common/LoadingChart';
 import PivotTable from '../common/PivotTable';
@@ -264,7 +261,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                             variant="default"
                             size={'xs'}
                             leftIcon={<IconRefresh size={16} />}
-                            onClick={triggerChunkErrorReload}
+                            onClick={() => window.location.reload()}
                         >
                             Refresh page
                         </Button>

@@ -1,7 +1,8 @@
 # Chunk Error Handler
 
 <summary>
-Handles automatic recovery when users encounter stale JavaScript chunks after a deployment.
+Detects stale JavaScript/CSS chunk load failures so the UI can show a clear
+"file not found, please refresh" message.
 
 When Lightdash deploys a new version:
 
@@ -10,50 +11,35 @@ When Lightdash deploys a new version:
 3. Users with cached HTML still reference old chunk URLs
 4. When React.lazy() tries to load the old chunk → 404 → error
 
-This module detects these "Failed to fetch dynamically imported module" errors and auto-reloads
-the page to fetch fresh HTML with correct chunk references.
+This module only provides detection helpers (`isChunkLoadError`,
+`isChunkLoadErrorObject`). The error boundaries use them to render a
+manual-refresh fallback.
 
 </summary>
 
-<howToUse>
-This module is already integrated into:
-- `@/features/errorBoundary/ErrorBoundary.tsx` - Auto-reload on chunk errors
-- `@/hooks/thirdPartyServices/useSentry.ts` - Filters chunk errors from Sentry until auto-reload fails
-- `@/components/SimpleTable/index.tsx` - Manual refresh UI for pivot table worker errors (no auto-reload)
-
-You typically don't need to use this directly unless handling chunk errors in a new location.
-</howToUse>
-
-<codeExample>
-
-```typescript
-import {
-    isChunkLoadErrorObject,
-    hasRecentChunkReload,
-    triggerChunkErrorReload,
-} from '../chunkErrorHandler';
-
-// In an error boundary fallback:
-if (isChunkLoadErrorObject(error)) {
-    if (!hasRecentChunkReload()) {
-        triggerChunkErrorReload(); // Auto-reload once
-        return null;
-    }
-    // Show manual refresh UI (auto-reload already failed)
-}
-```
-
-</codeExample>
-
 <importantToKnow>
-- Uses sessionStorage to prevent infinite reload loops (60s cooldown)
+- **We never reload automatically.** A programmatic `window.location.reload()`
+  bypasses the editors' unsaved-changes guards and silently discards in-progress
+  chart/dashboard work (see PROD-8618). Instead, the error boundaries show
+  `ChunkErrorFallback` with a "Refresh page" button the user clicks themselves,
+  so the `beforeunload` guard can warn them and they can save first.
 - `isChunkLoadError(message: string)` - checks error message strings
 - `isChunkLoadErrorObject(error: unknown)` - checks Error objects
-- Sentry integration: errors are only reported if auto-reload fails
+- Sentry integration (`useSentry.ts`) drops chunk load errors — they're benign
+  stale-deploy artifacts resolved by refreshing.
 </importantToKnow>
 
+<howToUse>
+This module is integrated into:
+- `@/features/errorBoundary/ErrorBoundary.tsx` - shows the refresh fallback on chunk errors
+- `@/features/errorBoundary/ChunkErrorRouteBoundary.tsx` - same, for react-router lazy-route failures
+- `@/hooks/thirdPartyServices/useSentry.ts` - filters chunk errors from Sentry
+- `@/components/SimpleTable/index.tsx` - manual refresh UI for pivot table worker errors
+</howToUse>
+
 <links>
-- @/features/errorBoundary/ErrorBoundary.tsx - Primary integration point
-- @/hooks/thirdPartyServices/useSentry.ts - Sentry filtering logic
-- @/components/SimpleTable/index.tsx - Manual refresh UI for pivot table worker errors
+- @/features/errorBoundary/ErrorBoundary.tsx
+- @/features/errorBoundary/ChunkErrorRouteBoundary.tsx
+- @/features/errorBoundary/ErrorFallbacks.tsx - the ChunkErrorFallback UI
+- @/hooks/thirdPartyServices/useSentry.ts
 </links>
