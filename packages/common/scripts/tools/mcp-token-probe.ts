@@ -16,7 +16,7 @@
  *   ANTHROPIC_API_KEY  enables the Anthropic measurement + per-tool breakdown
  *   OPENAI_API_KEY     enables the OpenAI measurement
  *   ANTHROPIC_MODEL    default claude-sonnet-4-6
- *   OPENAI_MODEL       default gpt-5.4-mini
+ *   OPENAI_MODEL       default gpt-5-mini
  *
  * Flags:
  *   --json        also print a machine-readable JSON blob (dashboard-ready)
@@ -76,7 +76,7 @@ type OpenAiInputTokenCountParams = {
 const args = new Set(process.argv.slice(2));
 const PROMPT = 'hi';
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-6';
-const OPENAI_MODEL = process.env.OPENAI_MODEL ?? 'gpt-5.4-mini';
+const OPENAI_MODEL = process.env.OPENAI_MODEL ?? 'gpt-5-mini';
 const OPENAI_INPUT_TOKENS_URL =
     'https://api.openai.com/v1/responses/input_tokens';
 
@@ -84,6 +84,16 @@ const fmt = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${n}`);
 
 const isJsonObjectSchema = (value: unknown): value is JsonObjectSchema =>
     typeof value === 'object' && value !== null && !Array.isArray(value);
+
+function getOpenAiApiKey() {
+    const apiKey = process.env.OPENAI_API_KEY;
+
+    if (!apiKey) {
+        throw new Error('OPENAI_API_KEY environment variable is not set');
+    }
+
+    return apiKey;
+}
 
 function schemaToJsonSchema(schema: z.ZodTypeAny): unknown {
     return zodToJsonSchema(schema, { target: 'jsonSchema7' });
@@ -162,7 +172,7 @@ async function countOpenAiInputTokens(
     const response = await fetch(OPENAI_INPUT_TOKENS_URL, {
         method: 'POST',
         headers: {
-            Authorization: `Bearer ${process.env.OPENAI_API_KEY ?? ''}`,
+            Authorization: `Bearer ${getOpenAiApiKey()}`,
             'Content-Type': 'application/json',
         },
         body: JSON.stringify(params),
