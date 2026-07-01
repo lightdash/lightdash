@@ -16,7 +16,7 @@ When to use:
 - The user asked about a raw table that isn't part of any explore.
 
 Do NOT use:
-- For columns of explore-backed tables — use findFields instead.
+- For columns of explore-backed tables — use grepFields or findFields, depending on which tool is available.
 - As a substitute for runSql — this returns schema only, not data.
 - For schema-wide listings — use listWarehouseTables to find table names first.
 
@@ -74,354 +74,6 @@ Parameters:
         "metadata",
       ],
       "type": "object",
-    },
-  },
-  {
-    "description": "Tool: discoverFields
-
-Purpose:
-Run the data-discovery subagent. Given the latest user query, returns a structured handoff describing which explore and which fields to use to answer it.
-
-Use this tool as the FIRST step whenever the user asks a data question (counts, totals, breakdowns, trends, "what is", "show me", "how many"). Do NOT call this when the user is only asking about existing dashboards/charts (use findContent) or follow-up clarifications about a chart you already produced.
-
-You will receive one of three statuses:
-- "resolved" — proceed with generateVisualization (or generateDashboard) using the returned explore + fields.
-- "ambiguous" — surface the suggestedQuestion to the user; do NOT call generateVisualization.
-- "no_match" — explain back to the user that no data source covers the request.
-
-Re-call this tool if the user pivots mid-thread to a different data topic and you need fields from a different explore.
-",
-    "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "agentInstruction": {
-          "description": "The agent's configured \`instruction\` field if present, otherwise null. Provides domain-specific guidance for explore/field selection.",
-          "type": [
-            "string",
-            "null",
-          ],
-        },
-        "userQuery": {
-          "description": "The latest user question or instruction the agent is responding to. Pass the full message — the subagent uses it to disambiguate explores and rank fields.",
-          "type": "string",
-        },
-      },
-      "required": [
-        "userQuery",
-        "agentInstruction",
-      ],
-      "type": "object",
-    },
-    "name": "discoverFields",
-    "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "anyOf": [
-        {
-          "additionalProperties": false,
-          "properties": {
-            "metadata": {
-              "additionalProperties": false,
-              "properties": {
-                "status": {
-                  "const": "streaming",
-                  "type": "string",
-                },
-                "streamingMessage": {},
-              },
-              "required": [
-                "status",
-              ],
-              "type": "object",
-            },
-            "result": {
-              "const": "",
-              "type": "string",
-            },
-          },
-          "required": [
-            "result",
-            "metadata",
-          ],
-          "type": "object",
-        },
-        {
-          "additionalProperties": false,
-          "properties": {
-            "metadata": {
-              "additionalProperties": false,
-              "properties": {
-                "discovery": {
-                  "anyOf": [
-                    {
-                      "additionalProperties": false,
-                      "properties": {
-                        "explore": {
-                          "additionalProperties": false,
-                          "properties": {
-                            "baseTable": {
-                              "type": "string",
-                            },
-                            "joinedTables": {
-                              "items": {
-                                "type": "string",
-                              },
-                              "type": "array",
-                            },
-                            "label": {
-                              "type": "string",
-                            },
-                            "name": {
-                              "type": "string",
-                            },
-                            "requiredFilters": {
-                              "description": "Explore-level required/default filters from findExplores. Only include when findExplores returned requiredFilters for the selected explore.",
-                              "items": {
-                                "additionalProperties": false,
-                                "properties": {
-                                  "fieldId": {
-                                    "type": "string",
-                                  },
-                                  "fieldRef": {
-                                    "type": "string",
-                                  },
-                                  "operator": {
-                                    "type": "string",
-                                  },
-                                  "required": {
-                                    "type": "boolean",
-                                  },
-                                  "settings": {},
-                                  "tableName": {
-                                    "type": "string",
-                                  },
-                                  "values": {
-                                    "items": {},
-                                    "type": "array",
-                                  },
-                                },
-                                "required": [
-                                  "fieldId",
-                                  "fieldRef",
-                                  "tableName",
-                                  "operator",
-                                  "required",
-                                ],
-                                "type": "object",
-                              },
-                              "type": "array",
-                            },
-                          },
-                          "required": [
-                            "name",
-                            "label",
-                            "baseTable",
-                            "joinedTables",
-                          ],
-                          "type": "object",
-                        },
-                        "fields": {
-                          "description": "Filtered list of fields relevant to the user query — typically 5–20 entries. Not the full explore.",
-                          "items": {
-                            "additionalProperties": false,
-                            "properties": {
-                              "caseSensitiveFilters": {
-                                "description": "Use "true" or "false" only when the exact selected findFields result explicitly includes caseSensitiveFilters with that value; otherwise use "not_applicable".",
-                                "enum": [
-                                  "true",
-                                  "false",
-                                  "not_applicable",
-                                ],
-                                "type": "string",
-                              },
-                              "description": {
-                                "description": "Short description, only include when needed to distinguish similar fields.",
-                                "type": [
-                                  "string",
-                                  "null",
-                                ],
-                              },
-                              "fieldFilterType": {
-                                "type": "string",
-                              },
-                              "fieldId": {
-                                "description": "The fieldId to use in generateVisualization payloads.",
-                                "type": "string",
-                              },
-                              "fieldType": {
-                                "enum": [
-                                  "dimension",
-                                  "metric",
-                                ],
-                                "type": "string",
-                              },
-                              "fieldValueType": {
-                                "description": "The value type (e.g. number, string, date, timestamp, boolean).",
-                                "type": "string",
-                              },
-                              "isFromJoinedTable": {
-                                "type": "boolean",
-                              },
-                              "label": {
-                                "type": "string",
-                              },
-                              "name": {
-                                "type": "string",
-                              },
-                              "table": {
-                                "type": "string",
-                              },
-                            },
-                            "required": [
-                              "fieldId",
-                              "name",
-                              "label",
-                              "table",
-                              "fieldType",
-                              "fieldValueType",
-                              "fieldFilterType",
-                              "caseSensitiveFilters",
-                              "isFromJoinedTable",
-                              "description",
-                            ],
-                            "type": "object",
-                          },
-                          "type": "array",
-                        },
-                        "rationale": {
-                          "description": "Brief justification for the explore + field selection.",
-                          "type": [
-                            "string",
-                            "null",
-                          ],
-                        },
-                        "status": {
-                          "const": "resolved",
-                          "type": "string",
-                        },
-                      },
-                      "required": [
-                        "status",
-                        "explore",
-                        "fields",
-                        "rationale",
-                      ],
-                      "type": "object",
-                    },
-                    {
-                      "additionalProperties": false,
-                      "properties": {
-                        "candidates": {
-                          "description": "Plausible explores the parent should ask the user to disambiguate between.",
-                          "items": {
-                            "additionalProperties": false,
-                            "properties": {
-                              "exploreLabel": {
-                                "type": "string",
-                              },
-                              "exploreName": {
-                                "type": "string",
-                              },
-                              "reason": {
-                                "description": "Why this explore is a plausible candidate for the query.",
-                                "type": "string",
-                              },
-                            },
-                            "required": [
-                              "exploreName",
-                              "exploreLabel",
-                              "reason",
-                            ],
-                            "type": "object",
-                          },
-                          "minItems": 2,
-                          "type": "array",
-                        },
-                        "status": {
-                          "const": "ambiguous",
-                          "type": "string",
-                        },
-                        "suggestedQuestion": {
-                          "description": "A clarification question the parent can echo to the user (e.g. 'Did you mean revenue from the orders explore or the payments explore?').",
-                          "type": "string",
-                        },
-                      },
-                      "required": [
-                        "status",
-                        "candidates",
-                        "suggestedQuestion",
-                      ],
-                      "type": "object",
-                    },
-                    {
-                      "additionalProperties": false,
-                      "properties": {
-                        "reason": {
-                          "description": "Why no explore covers the user query — used by the parent to explain back to the user.",
-                          "type": "string",
-                        },
-                        "status": {
-                          "const": "no_match",
-                          "type": "string",
-                        },
-                      },
-                      "required": [
-                        "status",
-                        "reason",
-                      ],
-                      "type": "object",
-                    },
-                  ],
-                },
-                "status": {
-                  "const": "success",
-                  "type": "string",
-                },
-                "streamingMessage": {},
-              },
-              "required": [
-                "status",
-                "discovery",
-              ],
-              "type": "object",
-            },
-            "result": {
-              "type": "string",
-            },
-          },
-          "required": [
-            "result",
-            "metadata",
-          ],
-          "type": "object",
-        },
-        {
-          "additionalProperties": false,
-          "properties": {
-            "metadata": {
-              "additionalProperties": false,
-              "properties": {
-                "status": {
-                  "const": "error",
-                  "type": "string",
-                },
-              },
-              "required": [
-                "status",
-              ],
-              "type": "object",
-            },
-            "result": {
-              "type": "string",
-            },
-          },
-          "required": [
-            "result",
-            "metadata",
-          ],
-          "type": "object",
-        },
-      ],
     },
   },
   {
@@ -2131,7 +1783,7 @@ Recommended Dashboard Structure:
                                       "type": "null",
                                     },
                                   ],
-                                  "description": "Optional filters for conditional metrics. Each filter needs fieldId (from findFields) and table name.",
+                                  "description": "Optional filters for conditional metrics. Each filter needs fieldId from grepFields or findFields and table name.",
                                 },
                                 "kind": {
                                   "const": "aggregation",
@@ -3418,7 +3070,7 @@ When to use:
 - When you need background or policy context that the data warehouse alone cannot provide.
 
 Do NOT use:
-- For data queries — use generateVisualization / runSql / findFields instead.
+- For data queries — use generateVisualization / runSql after grepFields or findFields, depending on which tool is available.
 - For schema or table discovery — use findExplores / listWarehouseTables instead.
 
 Parameters:
@@ -3516,7 +3168,7 @@ When to use:
 - You're trying to confirm a schema name before writing SQL.
 
 Do NOT use:
-- For column/field discovery — use findFields on the relevant explore instead.
+- For column/field discovery — use grepFields or findFields, depending on which tool is available.
 - To run ad-hoc queries — use runSql.
 
 Parameters:
@@ -5237,7 +4889,7 @@ Notes:
                                 "type": "null",
                               },
                             ],
-                            "description": "Optional filters for conditional metrics. Each filter needs fieldId (from findFields) and table name.",
+                            "description": "Optional filters for conditional metrics. Each filter needs fieldId from grepFields or findFields and table name.",
                           },
                           "kind": {
                             "const": "aggregation",
@@ -6977,7 +6629,6 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "generateVisualization",
   "runQuery",
   "runSql",
-  "discoverFields",
   "grepFields",
   "getMetadata",
   "generateDashboard",

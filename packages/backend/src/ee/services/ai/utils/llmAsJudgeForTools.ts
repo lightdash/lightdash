@@ -1,8 +1,4 @@
-import {
-    agentToolDefinitionsByName,
-    isToolName,
-    type ToolName,
-} from '@lightdash/common';
+import { agentToolDefinitionsByName, isToolName } from '@lightdash/common';
 import { generateObject } from 'ai';
 import { JSONDiff } from 'autoevals';
 import { compact, differenceWith } from 'lodash';
@@ -12,12 +8,13 @@ import { defaultAgentOptions } from '../agents/agentV2';
 import { getOpenaiGptmodel } from '../models/openai-gpt';
 import { getAiCallTelemetry } from './aiCallTelemetry';
 
+type AvailableToolName = keyof typeof agentToolDefinitionsByName;
+
 const TOOL_NAME_TO_DB_TOOL_NAME = {
     findExplores: 'find_explores',
     findFields: 'find_fields',
     searchSemanticLayer: 'search_semantic_layer',
     analyzeFieldImpact: 'analyze_field_impact',
-    discoverFields: 'discover_fields',
     grepFields: 'grep_fields',
     getMetadata: 'get_metadata',
     searchFieldValues: 'search_field_values',
@@ -57,18 +54,26 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     exploreRepo: 'explore_repo',
     discoverRepos: 'discover_repos',
     setupPreviewDeploy: 'setup_preview_deploy',
-} satisfies Record<ToolName, string>;
+} satisfies Record<AvailableToolName, string>;
+
+const availableToolNames = new Set(Object.keys(agentToolDefinitionsByName));
+
+const isAvailableToolName = (toolName: string): toolName is AvailableToolName =>
+    availableToolNames.has(toolName);
 
 const getToolInfo = (toolName: string) => {
     if (!isToolName(toolName)) {
         throw new Error(`Tool ${toolName} is not a valid tool`);
     }
+    if (!isAvailableToolName(toolName)) {
+        throw new Error(`Tool ${toolName} is no longer available`);
+    }
     return agentToolDefinitionsByName[toolName].inputSchema;
 };
 
-const availableTools = Object.entries(agentToolDefinitionsByName).map(
-    ([name, definition]) => ({
-        name: TOOL_NAME_TO_DB_TOOL_NAME[name as ToolName],
+const availableTools = Object.values(agentToolDefinitionsByName).map(
+    (definition) => ({
+        name: TOOL_NAME_TO_DB_TOOL_NAME[definition.name],
         description: definition.description,
     }),
 );

@@ -96,7 +96,7 @@ const aggregationCustomMetricSchema = z.object({
             `Aggregation type. If the base dimension type is STRING, TIMESTAMP, DATE, BOOLEAN, use COUNT_DISTINCT, COUNT, MIN, MAX. If NUMBER, use MIN, MAX, SUM, PERCENTILE, MEDIAN, AVERAGE, COUNT_DISTINCT, COUNT. If BOOLEAN, use COUNT_DISTINCT, COUNT.`,
         ),
     filters: metricFiltersSchema.describe(
-        'Optional filters for conditional metrics. Each filter needs fieldId (from findFields) and table name.',
+        'Optional filters for conditional metrics. Each filter needs fieldId from grepFields or findFields and table name.',
     ),
 });
 

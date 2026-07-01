@@ -358,6 +358,21 @@ export const findFieldsToolDefinition: ToolDefinitionWithMcpOutput<
     },
 });
 
+/** @deprecated History-only definition for parsing old discoverFields tool calls. */
+export const discoverFieldsToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'discoverFields',
+    typeof discoverFieldsInputSchema,
+    typeof discoverFieldsInputSchema,
+    typeof toolDiscoverFieldsOutputSchema
+> = defineTool({
+    name: 'discoverFields',
+    title: 'Discover fields',
+    description: DISCOVER_FIELDS_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: discoverFieldsInputSchema,
+    agent: { outputSchema: toolDiscoverFieldsOutputSchema },
+});
+
 export const searchSemanticLayerToolDefinition: ToolDefinitionWithoutMcpOutput<
     'searchSemanticLayer',
     typeof toolSearchSemanticLayerArgsSchema,
@@ -526,20 +541,6 @@ export const runMetricQueryToolDefinition: ToolDefinitionWithoutMcpOutput<
     availability: ['agent'],
     inputSchema: toolRunMetricQueryArgsSchema,
     agent: { outputSchema: toolRunMetricQueryOutputSchema },
-});
-
-export const discoverFieldsToolDefinition: ToolDefinitionWithoutMcpOutput<
-    'discoverFields',
-    typeof discoverFieldsInputSchema,
-    typeof discoverFieldsInputSchema,
-    typeof toolDiscoverFieldsOutputSchema
-> = defineTool({
-    name: 'discoverFields',
-    title: 'Discover fields',
-    description: DISCOVER_FIELDS_DESCRIPTION,
-    availability: ['agent'],
-    inputSchema: discoverFieldsInputSchema,
-    agent: { outputSchema: toolDiscoverFieldsOutputSchema },
 });
 
 export const grepFieldsToolDefinition: ToolDefinitionWithoutMcpOutput<
@@ -1298,7 +1299,6 @@ type AgentToolDefinitionsByName = {
     generateVisualization: typeof generateVisualizationToolDefinition;
     runQuery: typeof runQueryToolDefinition;
     runSql: typeof runSqlToolDefinition;
-    discoverFields: typeof discoverFieldsToolDefinition;
     grepFields: typeof grepFieldsToolDefinition;
     getMetadata: typeof getMetadataToolDefinition;
     generateDashboard: typeof generateDashboardToolDefinition;
@@ -1345,7 +1345,6 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     generateVisualization: generateVisualizationToolDefinition,
     runQuery: runQueryToolDefinition,
     runSql: runSqlToolDefinition,
-    discoverFields: discoverFieldsToolDefinition,
     grepFields: grepFieldsToolDefinition,
     getMetadata: getMetadataToolDefinition,
     generateDashboard: generateDashboardToolDefinition,
@@ -1394,7 +1393,6 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     runSqlToolDefinition,
     getQueryResultToolDefinition,
     renderChartToolDefinition,
-    discoverFieldsToolDefinition,
     grepFieldsToolDefinition,
     getMetadataToolDefinition,
     generateDashboardToolDefinition,

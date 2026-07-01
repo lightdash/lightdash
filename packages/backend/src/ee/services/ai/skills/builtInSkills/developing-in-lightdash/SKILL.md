@@ -9,15 +9,15 @@ Use this skill when working with Lightdash dashboards and charts.
 
 ## What You Can Do
 
-| Task                          | Tools/Action                                                | References                            |
-| ----------------------------- | ----------------------------------------------------------- | ------------------------------------- |
-| Read dashboards and charts    | `readContent`                                               | `dashboard-reference`, chart refs     |
-| Edit dashboards               | `editContent` with RFC6902 JSON Patch                       | `dashboard-reference`                 |
-| Edit charts and tiles         | `editContent`, then update referencing dashboards if needed | Chart refs, `dashboard-reference`     |
-| Create charts                 | `discoverFields`, `runContentQuery`, `createContent`        | Chart refs                            |
-| Create dashboards             | `discoverFields`, `createContent`                           | `dashboard-reference`, best practices |
-| Add period comparisons        | Edit chart `metricQuery` and config                         | `period-over-period-reference`        |
-| Verify changed metric queries | `runContentQuery` with `source.type: "metricQuery"`         | Chart refs                            |
+| Task                          | Tools/Action                                                     | References                            |
+| ----------------------------- | ---------------------------------------------------------------- | ------------------------------------- |
+| Read dashboards and charts    | `readContent`                                                    | `dashboard-reference`, chart refs     |
+| Edit dashboards               | `editContent` with RFC6902 JSON Patch                            | `dashboard-reference`                 |
+| Edit charts and tiles         | `editContent`, then update referencing dashboards if needed      | Chart refs, `dashboard-reference`     |
+| Create charts                 | `grepFields` or `findFields`, `runContentQuery`, `createContent` | Chart refs                            |
+| Create dashboards             | `grepFields` or `findFields`, `createContent`                    | `dashboard-reference`, best practices |
+| Add period comparisons        | Edit chart `metricQuery` and config                              | `period-over-period-reference`        |
+| Verify changed metric queries | `runContentQuery` with `source.type: "metricQuery"`              | Chart refs                            |
 
 Rules:
 
@@ -60,7 +60,7 @@ Rules:
 
 ### Create Charts
 
-1. Use `discoverFields` to explore available fields and plan your chart.
+1. Use `grepFields` or `findFields`, depending on which tool is available, to explore available fields and plan your chart.
 2. Always read the chart reference for chart type (see `Choosing the Right Chart Type` below) to understand required fields and configuration.
 3. Build the full chart JSON with that metric query and other required fields.
 4. Call `runContentQuery` with `source.type: "metricQuery"` and the chart's `tableName`/`metricQuery`.
@@ -70,7 +70,7 @@ Rules:
 
 1. Always read the `dashboard-reference` and `dashboard-best-practices` resources.
 2. Explore existing dashboards and charts to find reusable content and inspiration for layout and design.
-3. Use `discoverFields` to explore available fields and plan which charts to include.
+3. Use `grepFields` or `findFields`, depending on which tool is available, to explore available fields and plan which charts to include.
 4. Create an empty dashboard shell first.
 5. Start building charts and adding them to the dashboard one by one, using the workflow above for creating charts.
 

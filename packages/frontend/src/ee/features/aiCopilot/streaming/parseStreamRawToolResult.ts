@@ -1,19 +1,22 @@
 import {
     agentToolDefinitionsByName,
+    discoverFieldsToolDefinition,
     isAiAgentMcpToolName,
     type ToolDefinition,
-    type ToolName,
 } from '@lightdash/common';
 import { type z } from 'zod';
 
-type ParsedToolName = ToolName;
+const toolDefinitionsByName = {
+    ...agentToolDefinitionsByName,
+    discoverFields: discoverFieldsToolDefinition,
+};
 type McpStreamToolName = `mcp_${string}`;
 
-type ToolArgs<TName extends ToolName> = z.infer<
-    (typeof agentToolDefinitionsByName)[TName]['inputSchema']
+type ToolArgs<TName extends keyof typeof toolDefinitionsByName> = z.infer<
+    (typeof toolDefinitionsByName)[TName]['inputSchema']
 >;
-type ToolOutputSchema<TName extends ToolName> =
-    (typeof agentToolDefinitionsByName)[TName] extends ToolDefinition<
+type ToolOutputSchema<TName extends keyof typeof toolDefinitionsByName> =
+    (typeof toolDefinitionsByName)[TName] extends ToolDefinition<
         string,
         z.ZodObject<z.ZodRawShape>,
         z.ZodTypeAny,
@@ -21,36 +24,36 @@ type ToolOutputSchema<TName extends ToolName> =
     >
         ? TOutputSchema
         : never;
-type ToolResult<TName extends ParsedToolName> = z.infer<
+type ToolResult<TName extends keyof typeof toolDefinitionsByName> = z.infer<
     NonNullable<ToolOutputSchema<TName>>
 >;
 
 export type AiAgentToolOutput = {
-    [K in ParsedToolName]: ToolResult<K>;
-}[ParsedToolName];
+    [K in keyof typeof toolDefinitionsByName]: ToolResult<K>;
+}[keyof typeof toolDefinitionsByName];
 
 type BuiltInToolCall = {
-    [K in ParsedToolName]: {
+    [K in keyof typeof toolDefinitionsByName]: {
         toolName: K;
         toolArgs: ToolArgs<K>;
         toolResult?: ToolResult<K> | null;
         isPreliminary?: boolean;
     };
-}[ParsedToolName];
+}[keyof typeof toolDefinitionsByName];
 
 type BuiltInToolResult = {
-    [K in ParsedToolName]: {
+    [K in keyof typeof toolDefinitionsByName]: {
         toolName: K;
         toolArgs: ToolArgs<K>;
         toolResult: ToolResult<K>;
         isPreliminary?: boolean;
     };
-}[ParsedToolName];
+}[keyof typeof toolDefinitionsByName];
 
 type McpToolCall = {
     toolName: McpStreamToolName;
     toolArgs: object;
-    toolResult?: unknown | null;
+    toolResult?: unknown;
     isPreliminary?: boolean;
 };
 
@@ -76,8 +79,10 @@ export type StreamRawToolResult = StreamRawToolCall & {
     toolOutput: unknown;
 };
 
-const isParsedToolName = (toolName: string): toolName is ParsedToolName =>
-    toolName in agentToolDefinitionsByName;
+const isBuiltInToolName = (
+    toolName: string,
+): toolName is keyof typeof toolDefinitionsByName =>
+    toolName in toolDefinitionsByName;
 
 const isMcpStreamToolName = (toolName: string): toolName is McpStreamToolName =>
     isAiAgentMcpToolName(toolName);
@@ -87,12 +92,17 @@ const parseMcpToolArgs = (toolArgs: unknown): object =>
         ? toolArgs
         : {};
 
-const parseToolArgs = (toolName: ParsedToolName, toolArgs: unknown) =>
-    agentToolDefinitionsByName[toolName].inputSchema.safeParse(toolArgs);
+const parseToolArgs = (
+    toolName: keyof typeof toolDefinitionsByName,
+    toolArgs: unknown,
+) => toolDefinitionsByName[toolName].inputSchema.safeParse(toolArgs);
 
-const parseToolOutput = (toolName: ParsedToolName, toolOutput: unknown) => {
+const parseToolOutput = (
+    toolName: keyof typeof toolDefinitionsByName,
+    toolOutput: unknown,
+) => {
     const outputSchema =
-        agentToolDefinitionsByName[toolName].for('agent').outputSchema;
+        toolDefinitionsByName[toolName].for('agent').outputSchema;
 
     return outputSchema?.safeParse(toolOutput) ?? null;
 };
@@ -108,7 +118,7 @@ export const parseStreamRawToolCall = (
         };
     }
 
-    if (!isParsedToolName(toolCall.toolName)) return null;
+    if (!isBuiltInToolName(toolCall.toolName)) return null;
     const toolArgs = parseToolArgs(toolCall.toolName, toolCall.toolArgs);
     if (!toolArgs.success) return null;
 
@@ -131,7 +141,7 @@ export const parseStreamRawToolResult = (
         };
     }
 
-    if (!isParsedToolName(toolResult.toolName)) return null;
+    if (!isBuiltInToolName(toolResult.toolName)) return null;
     const toolArgs = parseToolArgs(toolResult.toolName, toolResult.toolArgs);
     const parsedToolResult = parseToolOutput(
         toolResult.toolName,

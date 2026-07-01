@@ -1,6 +1,5 @@
 import { agentToolDefinitions } from '@lightdash/common';
 import { asSchema, type FlexibleSchema } from 'ai';
-import { getDiscoverFields } from '../agents/discoverFields/tool';
 import { getCreateContent } from './createContent';
 import { getDescribeWarehouseTable } from './describeWarehouseTable';
 import { getDiscoverRepos } from './discoverRepos';
@@ -66,36 +65,6 @@ const makeAgentTools = () => {
         describeWarehouseTable: getDescribeWarehouseTable({
             describeWarehouseTable: noop,
         }),
-        discoverFields: getDiscoverFields(
-            {
-                model: {} as never,
-                callOptions: {},
-                providerOptions: undefined,
-                availableExplores: [],
-                findExploresFieldSearchSize: 25,
-                findFieldsPageSize: 25,
-                toolDescriptionMaxChars: 600,
-                promptUuid: 'prompt-uuid',
-                telemetry: {
-                    agentSettings: {
-                        uuid: 'agent-uuid',
-                        name: 'Agent',
-                        projectUuid: 'project-uuid',
-                    },
-                    threadUuid: 'thread-uuid',
-                    promptUuid: 'prompt-uuid',
-                    telemetryEnabled: false,
-                },
-            } as never,
-            {
-                findExplores: noop,
-                findFields: noop,
-                getExplore: noop,
-                storeToolCall: noopAsync,
-                storeToolResults: noopAsync,
-                updateProgress: noopAsync,
-            } as never,
-        ),
         createContent: getCreateContent({ createContent: noop }),
         editContent: getEditContent({ editContent: noop }),
         findContent: getFindContent({

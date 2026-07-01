@@ -327,7 +327,6 @@ const TOOL_NAME_PRIORITY = new Map<string, number>([
     ['run_sql', 60],
     ['searchFieldValues', 55],
     ['search_field_values', 55],
-    ['discoverFields', 50],
 ]);
 
 const TOOL_RESULT_ERROR_PATTERN =
