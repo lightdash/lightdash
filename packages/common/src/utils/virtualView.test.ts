@@ -29,6 +29,7 @@ const fakeWarehouseClient: WarehouseClient = {
         queryMetadata: null,
         totalRows: 0,
         durationMs: 0,
+        phaseTimings: {},
     }),
     runQuery: async () => ({ fields: {}, rows: [] }),
     test: async () => {},

@@ -18,6 +18,7 @@ import {
     WarehouseCatalog,
     WarehouseResults,
     WarehouseTypes,
+    type WarehouseQueryPhase,
 } from '@lightdash/common';
 import { createHash } from 'crypto';
 import fs from 'fs/promises';
@@ -1528,9 +1529,15 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             queryParams?: Record<string, AnyType>;
             tags?: Record<string, string>;
             timezone?: string;
+            onPhaseTiming?: (
+                phase: WarehouseQueryPhase,
+                durationMs: number,
+            ) => void;
         },
     ): Promise<void> {
+        const reportPhase = options?.onPhaseTiming;
         await this.withSession(async (db) => {
+            const sessionStart = performance.now();
             if (options?.timezone) {
                 await db.run(
                     `SET TimeZone = '${this.escapeString(options.timezone)}';`,
@@ -1550,7 +1557,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             }
 
             await this.validateUserSql(db, sql);
+            reportPhase?.('session', performance.now() - sessionStart);
 
+            const queryStart = performance.now();
             const result = await db.stream(
                 this.getSQLWithMetadata(sql, options?.tags),
                 this.getBindValues(options),
@@ -1558,9 +1567,20 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             const fields =
                 DuckdbWarehouseClient.getFieldsFromStreamResult(result);
 
+            let fetchStart: number | undefined;
             // eslint-disable-next-line no-restricted-syntax
             for await (const rows of result.yieldRowObjectJson()) {
+                if (fetchStart === undefined) {
+                    reportPhase?.('query', performance.now() - queryStart);
+                    fetchStart = performance.now();
+                }
                 await streamCallback({ fields, rows });
+            }
+            if (fetchStart === undefined) {
+                reportPhase?.('query', performance.now() - queryStart);
+                reportPhase?.('fetch', 0);
+            } else {
+                reportPhase?.('fetch', performance.now() - fetchStart);
             }
 
             if (profilePath) {

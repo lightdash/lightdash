@@ -601,15 +601,19 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             fields: WarehouseResults['fields'],
         ) => void | Promise<void>,
     ): Promise<WarehouseExecuteAsyncQuery> {
+        const connectStart = performance.now();
         const connection = await this.getConnection();
+        const connectMs = performance.now() - connectStart;
 
         try {
+            const sessionStart = performance.now();
             await this.prepareWarehouse(connection, {
                 timezone,
                 tags,
             });
+            const sessionMs = performance.now() - sessionStart;
 
-            const { queryId, durationMs, totalRows } =
+            const { queryId, durationMs, totalRows, queryMs, fetchMs } =
                 await this.executeAsyncStatement(
                     connection,
                     sql,
@@ -624,6 +628,12 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 queryMetadata: null,
                 totalRows,
                 durationMs,
+                phaseTimings: {
+                    connect: connectMs,
+                    session: sessionMs,
+                    query: queryMs,
+                    fetch: fetchMs,
+                },
             };
         } finally {
             await this.destroyConnection(
@@ -652,6 +662,8 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 queryMetadata: null;
                 totalRows: number;
                 durationMs: number;
+                queryMs: number;
+                fetchMs: number;
             }>((resolve, reject) => {
                 connection.execute({
                     sqlText: sql,
@@ -665,6 +677,8 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
                         const fields = this.getFieldsFromStatement(stmt);
                         let rowCount = 0;
+                        const queryMs = performance.now() - startTime;
+                        const fetchStart = performance.now();
 
                         pipeline(
                             stmt.streamRows(),
@@ -707,6 +721,8 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                                         totalRows: rowCount,
                                         durationMs:
                                             performance.now() - startTime,
+                                        queryMs,
+                                        fetchMs: performance.now() - fetchStart,
                                     });
                                 }
                             },
@@ -761,6 +777,8 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             queryMetadata: null,
             totalRows,
             durationMs,
+            queryMs: durationMs,
+            fetchMs: 0,
         };
     }
 

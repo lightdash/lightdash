@@ -119,6 +119,7 @@ import {
     type SessionUser,
     type SpaceSummaryBase,
     type WarehouseExecuteAsyncQuery,
+    type WarehousePhaseTimings,
     type WarehouseResults,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
@@ -2531,6 +2532,7 @@ export class AsyncQueryService extends ProjectService {
             | CreateWarehouseCredentials['type']
             | undefined;
         let warehouseClient: WarehouseClient;
+        let tunnelConnectMs: number | null = null;
 
         const analyticsIdentity = isRegisteredUser
             ? { userId: userUuid }
@@ -2572,6 +2574,7 @@ export class AsyncQueryService extends ProjectService {
                 );
                 warehouseClient = warehouseConnection.warehouseClient;
                 sshTunnel = warehouseConnection.sshTunnel;
+                tunnelConnectMs = warehouseConnection.tunnelConnectMs;
             }
 
             const isTimezoneSupportEnabled =
@@ -2660,6 +2663,7 @@ export class AsyncQueryService extends ProjectService {
                     totalRows,
                     queryMetadata,
                     queryId,
+                    phaseTimings,
                 },
                 pivotDetails,
                 columns,
@@ -2688,10 +2692,21 @@ export class AsyncQueryService extends ProjectService {
                     }),
             );
 
+            const warehousePhaseTimings: WarehousePhaseTimings =
+                tunnelConnectMs !== null
+                    ? { ssh_tunnel: tunnelConnectMs, ...phaseTimings }
+                    : phaseTimings;
+
             this.prometheusMetrics?.observeWarehouseDuration(
                 durationMs,
-                warehouseCredentialsType || 'unknown',
-                queryTags.query_context || 'unknown',
+                warehouseCredentialsType,
+                queryTags.query_context,
+            );
+
+            this.prometheusMetrics?.observeWarehousePhaseDurations(
+                warehousePhaseTimings,
+                warehouseCredentialsType,
+                queryTags.query_context,
             );
 
             this.analytics.track({
@@ -2811,8 +2826,13 @@ export class AsyncQueryService extends ProjectService {
             const streamMetricsStr = streamMetrics
                 ? ` stream_bytes=${streamMetrics.totalBytesWritten} stream_rows=${streamMetrics.totalRowsWritten} write_calls=${streamMetrics.writeCalls}`
                 : '';
+            const phasesStr = Object.keys(warehousePhaseTimings).length
+                ? ` phases=[${Object.entries(warehousePhaseTimings)
+                      .map(([phase, ms]) => `${phase}=${Math.round(ms)}ms`)
+                      .join(' ')}]`
+                : '';
             this.logger.info(
-                `Query ${queryUuid} completed: source=${executionSource} s3_stream_create=${s3StreamCreatedMs}ms query_exec=${queryExecMs}ms s3_upload_close=${s3UploadCloseMs}ms db_update=${dbUpdateMs}ms total=${totalMs}ms rows=${pivotDetails?.totalRows ?? totalRows}${streamMetricsStr}`,
+                `Query ${queryUuid} completed: source=${executionSource} s3_stream_create=${s3StreamCreatedMs}ms query_exec=${queryExecMs}ms s3_upload_close=${s3UploadCloseMs}ms db_update=${dbUpdateMs}ms total=${totalMs}ms rows=${pivotDetails?.totalRows ?? totalRows}${streamMetricsStr}${phasesStr}`,
             );
 
             // Track successful query in Prometheus

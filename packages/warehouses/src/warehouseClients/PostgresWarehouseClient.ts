@@ -12,6 +12,7 @@ import {
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
+    type WarehouseQueryPhase,
 } from '@lightdash/common';
 import { readFileSync } from 'fs';
 import path from 'path';
@@ -254,12 +255,18 @@ export class PostgresClient<
             values?: AnyType[];
             tags?: Record<string, string>;
             timezone?: string;
+            onPhaseTiming?: (
+                phase: WarehouseQueryPhase,
+                durationMs: number,
+            ) => void;
         },
     ): Promise<void> {
         let pool: pg.Pool | undefined;
         let closeClient: (() => void) | undefined;
         let activeStream: QueryStream | undefined;
         let queryTimeout: ReturnType<typeof setTimeout> | undefined;
+
+        const reportPhase = options.onPhaseTiming;
 
         // The pool's `query_timeout` does not fire on the cursor (pg-cursor)
         // path, so we enforce the ceiling ourselves: a server-side
@@ -306,6 +313,7 @@ export class PostgresClient<
                 });
             });
 
+            const connectStart = performance.now();
             pool.connect((err, client, done) => {
                 // Store references so we can clean up properly
                 closeClient = done;
@@ -318,6 +326,7 @@ export class PostgresClient<
                     reject(new Error('client undefined'));
                     return;
                 }
+                reportPhase?.('connect', performance.now() - connectStart);
 
                 client.on('error', (e) => {
                     console.error(
@@ -337,6 +346,8 @@ export class PostgresClient<
                 });
 
                 const runQuery = () => {
+                    const queryStart = performance.now();
+                    let fetchStart: number | undefined;
                     // CodeQL: This will raise a security warning because user defined raw SQL is being passed into the database module.
                     //         In this case this is exactly what we want to do. We're hitting the user's warehouse not the application's database.
                     activeStream = client.query(
@@ -376,6 +387,11 @@ export class PostgresClient<
                                         PostgresClient.convertQueryResultFields(
                                             chunk.fields,
                                         );
+                                    reportPhase?.(
+                                        'query',
+                                        performance.now() - queryStart,
+                                    );
+                                    fetchStart = performance.now();
                                 }
                                 await streamCallback({
                                     fields: cachedFields,
@@ -395,6 +411,18 @@ export class PostgresClient<
                     // Wait for writable to finish processing all async callbacks
                     // (not 'end' on readable - async write callbacks may still be in flight)
                     writable.on('finish', () => {
+                        if (fetchStart === undefined) {
+                            reportPhase?.(
+                                'query',
+                                performance.now() - queryStart,
+                            );
+                            reportPhase?.('fetch', 0);
+                        } else {
+                            reportPhase?.(
+                                'fetch',
+                                performance.now() - fetchStart,
+                            );
+                        }
                         resolve();
                     });
                     writable.on('error', (err2) => {
@@ -412,6 +440,7 @@ export class PostgresClient<
                 // query_timeout is ineffective on the cursor path. Issued as
                 // its own single statement (followed by the optional timezone)
                 // to stay portable across Postgres and Redshift.
+                const sessionStart = performance.now();
                 client
                     .query(`SET statement_timeout = ${statementTimeoutMs}`)
                     .then(() => {
@@ -426,6 +455,10 @@ export class PostgresClient<
                         return undefined;
                     })
                     .then(() => {
+                        reportPhase?.(
+                            'session',
+                            performance.now() - sessionStart,
+                        );
                         runQuery();
                     })
                     .catch((sessionError) => {

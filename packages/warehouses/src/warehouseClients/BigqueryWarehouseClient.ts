@@ -680,6 +680,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         ) => void,
     ): Promise<WarehouseExecuteAsyncQuery> {
         try {
+            const queryPhaseStart = performance.now();
             const [job] = await this.createJob(sql, {
                 tags,
             });
@@ -699,6 +700,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             await this.awaitJobCompletion(job);
 
             const resultsMetadata = await this.getJobResultsMetadata(job);
+            const queryMs = performance.now() - queryPhaseStart;
             const startTime = job.metadata?.statistics?.startTime;
             const endTime = job.metadata?.statistics?.endTime;
             const totalRows: number = resultsMetadata?.totalRows
@@ -708,10 +710,13 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 BigqueryWarehouseClient.getFieldsFromResponse(resultsMetadata);
 
             // If a callback is provided, stream the results to the callback
+            let fetchMs = 0;
             if (resultsStreamCallback) {
+                const fetchPhaseStart = performance.now();
                 await this.streamResults(job, (row) =>
                     resultsStreamCallback([row], fields),
                 );
+                fetchMs = performance.now() - fetchPhaseStart;
             }
 
             return {
@@ -722,6 +727,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 },
                 totalRows,
                 durationMs: startTime && endTime ? endTime - startTime : 0,
+                phaseTimings: { query: queryMs, fetch: fetchMs },
             };
         } catch (e: unknown) {
             if (BigqueryWarehouseClient.isBigqueryError(e)) {

@@ -61,11 +61,24 @@ export type WarehouseExecuteAsyncQueryArgs = {
     sql: string;
 };
 
+// `query` is execution up to the first row; `fetch` is streaming the rest.
+export type WarehouseQueryPhase =
+    | 'ssh_tunnel'
+    | 'connect'
+    | 'session'
+    | 'query'
+    | 'fetch';
+
+export type WarehousePhaseTimings = Partial<
+    Record<WarehouseQueryPhase, number>
+>;
+
 export type WarehouseExecuteAsyncQuery = {
     queryId: string | null;
     queryMetadata: WarehouseQueryMetadata | null;
     totalRows: number;
     durationMs: number;
+    phaseTimings: WarehousePhaseTimings;
 };
 
 export enum TimeIntervalUnit {

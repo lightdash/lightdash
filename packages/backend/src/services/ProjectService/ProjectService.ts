@@ -1709,11 +1709,18 @@ export class ProjectService extends BaseService {
     ): Promise<{
         warehouseClient: WarehouseClient;
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
+        tunnelConnectMs: number | null;
     }> {
         Sentry.setTag('warehouse.type', credentials.type);
         // Setup SSH tunnel for client (user needs to close this)
         const sshTunnel = new SshTunnel(credentials);
+        const usedSshTunnel =
+            'useSshTunnel' in credentials && !!credentials.useSshTunnel;
+        const tunnelStart = performance.now();
         const warehouseSshCredentials = await sshTunnel.connect();
+        const tunnelConnectMs = usedSshTunnel
+            ? performance.now() - tunnelStart
+            : null;
 
         const { snowflakeVirtualWarehouse, databricksCompute } =
             overrides || {};
@@ -1730,7 +1737,11 @@ export class ProjectService extends BaseService {
             deepEqual(existingClient.credentials, warehouseSshCredentials)
         ) {
             // if existing client uses identical credentials, use it
-            return { warehouseClient: existingClient, sshTunnel };
+            return {
+                warehouseClient: existingClient,
+                sshTunnel,
+                tunnelConnectMs,
+            };
         }
         // otherwise create a new client and cache for future use
         const getSnowflakeWarehouse = (
@@ -1794,7 +1805,7 @@ export class ProjectService extends BaseService {
             credentialsWithOverrides,
         );
         this.warehouseClients[cacheKey] = client;
-        return { warehouseClient: client, sshTunnel };
+        return { warehouseClient: client, sshTunnel, tunnelConnectMs };
     }
 
     private async syncPreAggregateDefinitionsRegistry(
