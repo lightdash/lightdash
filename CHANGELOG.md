@@ -1,3 +1,16 @@
+# [0.3271.0](https://github.com/lightdash/lightdash/compare/0.3270.1...0.3271.0) (2026-07-01)
+
+
+### Bug Fixes
+
+* **ai:** add mcp structured tool content ([#24945](https://github.com/lightdash/lightdash/issues/24945)) ([685eb6b](https://github.com/lightdash/lightdash/commit/685eb6b75f13607d94a8a65525f36bbfc2979875))
+
+
+### Features
+
+* **ai:** observability + optional empty-query guard for agent field-value search ([#24969](https://github.com/lightdash/lightdash/issues/24969)) ([f41602c](https://github.com/lightdash/lightdash/commit/f41602cb7dd7bf266a990f8d6eaae0e292f97f77))
+* **warehouses:** log ssh tunnel local-socket idle-timeout drops ([#24968](https://github.com/lightdash/lightdash/issues/24968)) ([af581c5](https://github.com/lightdash/lightdash/commit/af581c564ce2894ddc8844025dbcc22a59e6ecd4))
+
 ## [0.3270.1](https://github.com/lightdash/lightdash/compare/0.3270.0...0.3270.1) (2026-06-30)
 
 
