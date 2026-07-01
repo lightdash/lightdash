@@ -637,28 +637,28 @@ describe('DuckdbWarehouseClient', () => {
             );
         });
 
-        it.each(['current_setting', 'duckdb_settings', 'duckdb_secrets'])(
-            'should reject queries with %s()',
-            async (blockedFunction) => {
-                const streamMock = vi.fn(async () =>
-                    getMockStreamResult(
-                        [[{ val: 1 }]],
-                        [DUCKDB_TYPE_IDS.INTEGER],
-                    ),
-                );
+        it.each([
+            'current_setting',
+            'duckdb_settings',
+            'duckdb_secrets',
+            'query',
+            'query_table',
+        ])('should reject queries with %s()', async (blockedFunction) => {
+            const streamMock = vi.fn(async () =>
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            );
 
-                createInstanceMock.mockResolvedValue(
-                    createMockConnection(streamMock),
-                );
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock),
+            );
 
-                const client = new DuckdbWarehouseClient();
-                await expect(
-                    client.runQuery(`SELECT * FROM ${blockedFunction}()`),
-                ).rejects.toThrow(
-                    `SQL validation error: function '${blockedFunction}' is not allowed`,
-                );
-            },
-        );
+            const client = new DuckdbWarehouseClient();
+            await expect(
+                client.runQuery(`SELECT * FROM ${blockedFunction}()`),
+            ).rejects.toThrow(
+                `SQL validation error: function '${blockedFunction}' is not allowed`,
+            );
+        });
 
         it.each([
             'read_csv',

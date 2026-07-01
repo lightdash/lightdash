@@ -274,7 +274,7 @@ const BLOCKED_STATEMENT_TYPES_INTERNAL_SQL = new Set([
 ]);
 
 const BLOCKED_FUNCTION_PATTERN =
-    /\b(current_setting|duckdb_settings|duckdb_secrets)\s*\(/i;
+    /\b(current_setting|duckdb_settings|duckdb_secrets|query|query_table)\s*\(/i;
 
 const BLOCKED_USER_SQL_FILE_FUNCTION_PATTERN =
     /\b(read_(?:blob|csv(?:_auto)?|json(?:_auto|_objects(?:_auto)?)?|ndjson(?:_auto|_objects(?:_auto)?)?|parquet|text|xlsx))\s*\(/i;

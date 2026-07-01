@@ -156,4 +156,24 @@ describe('getRunSql', () => {
         );
         expect(dependencies.runSqlJob).not.toHaveBeenCalled();
     });
+
+    it('rejects nested SQL execution functions before approval', async () => {
+        const { tool, dependencies } = makeTool();
+
+        const output = (await tool.execute!(
+            {
+                sql: "SELECT * FROM query('INSTALL shellfs')",
+                limit: 500,
+            },
+            {
+                messages: [],
+                toolCallId: 'tool-call-1',
+            },
+        )) as RunSqlOutput;
+
+        expect(output.metadata?.status).toBe('error');
+        expect(output.result).toContain('forbidden functions');
+        expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
+        expect(dependencies.runSqlJob).not.toHaveBeenCalled();
+    });
 });

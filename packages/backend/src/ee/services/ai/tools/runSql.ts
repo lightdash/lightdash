@@ -51,6 +51,7 @@ const stripCommentsAndStrings = (sql: string): string =>
 const STARTS_WITH_SELECT_OR_WITH = /^\s*(WITH|SELECT)\b/i;
 const FORBIDDEN_STATEMENTS =
     /\b(INSERT|UPDATE|DELETE|DROP|TRUNCATE|ALTER|CREATE|GRANT|REVOKE|MERGE|CALL|EXECUTE)\b/i;
+const FORBIDDEN_FUNCTIONS = /\b(query|query_table)\s*\(/i;
 const INFORMATION_SCHEMA = /\binformation_schema\b/i;
 
 const PREVIEW_ROW_LIMIT = 50;
@@ -65,6 +66,11 @@ const validateSelectOnly = (sql: string) => {
     if (FORBIDDEN_STATEMENTS.test(stripped)) {
         throw new Error(
             'SQL contains forbidden statements (INSERT/UPDATE/DELETE/DDL). Only SELECT queries are allowed.',
+        );
+    }
+    if (FORBIDDEN_FUNCTIONS.test(stripped)) {
+        throw new Error(
+            'SQL contains forbidden functions. Only direct SELECT queries are allowed.',
         );
     }
     if (INFORMATION_SCHEMA.test(stripped)) {
