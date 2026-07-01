@@ -160,10 +160,13 @@ Each file contains:
 
 Each file has a `linked` boolean and a `chartUuid`:
 
-- **`linked: true`** — the user wants this chart **live**. Render it with
-  `lightdash.savedChart("<chartUuid>").label("<chartName>")` instead of building
-  an inline `query(...)`. `savedChart(...)` is chainable like `query(...)` —
-  always `.label()` it. Its query is **fixed by the saved chart**: `.label()`,
+- **`linked: true`** — the user wants this chart **live**. Import `savedChart`
+  from `@lightdash/query-sdk` (exactly like `query`) and render with
+  `savedChart("<chartUuid>").label("<chartName>")` instead of an inline
+  `query(...)`. **There is NO `lightdash` object — call `savedChart(...)` and
+  `query(...)` directly; a `lightdash.` prefix is undefined and crashes the app.**
+  `savedChart(...)` is chainable like `query(...)` — always `.label()` it. Its
+  query is **fixed by the saved chart**: `.label()`,
   `.limit()` and `.parameters()` apply, but `.dimensions()/.metrics()/.filters()
   /.sorts()` are IGNORED — if the user needs a different shape or extra filters,
   build an inline `query(...)` instead of linking. Do NOT copy the metricQuery.
