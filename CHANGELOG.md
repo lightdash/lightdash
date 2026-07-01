@@ -1,3 +1,10 @@
+# [0.3285.0](https://github.com/lightdash/lightdash/compare/0.3284.0...0.3285.0) (2026-07-01)
+
+
+### Features
+
+* **apps:** minimal data app viz library picker (GLITCH-552) ([#24953](https://github.com/lightdash/lightdash/issues/24953)) ([6421818](https://github.com/lightdash/lightdash/commit/6421818d42e98bd6a55ccdeb220c8fb3d2abb63b))
+
 # [0.3284.0](https://github.com/lightdash/lightdash/compare/0.3283.1...0.3284.0) (2026-07-01)
 
 
