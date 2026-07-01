@@ -3,6 +3,12 @@ import {
     getInvalidDbtEnvironmentVariableKeys,
     isSafeDbtEnvironmentVariableKey,
     LIGHTDASH_DBT_PROFILE_ENV_VAR_PREFIX,
+    mergeWarehouseCredentials,
+    WarehouseTypes,
+    type CreateAthenaCredentials,
+    type CreatePostgresCredentials,
+    type CreateRedshiftCredentials,
+    type CreateWarehouseCredentials,
 } from './projects';
 
 describe('dbt environment variable validation', () => {
@@ -48,5 +54,170 @@ describe('dbt environment variable validation', () => {
                 { key: 'PYTHONPATH', value: '/tmp' },
             ]),
         ).toEqual(['GIT_SSH_COMMAND', 'PYTHONPATH']);
+    });
+});
+
+describe('mergeWarehouseCredentials', () => {
+    const athenaBase: CreateAthenaCredentials = {
+        type: WarehouseTypes.ATHENA,
+        region: 'us-east-2',
+        database: 'awsdatacatalog',
+        schema: 'dbt',
+        s3StagingDir: 's3://staging/',
+        accessKeyId: 'PARENT_KEY',
+        secretAccessKey: 'PARENT_SECRET',
+        assumeRoleArn: 'arn:aws:iam::111:role/parent-role',
+        assumeRoleExternalId: 'parent-external-id',
+    };
+
+    test('does not inherit parent assumeRoleArn when preview supplies its own base credentials', () => {
+        // The preview credentials come from profiles.yml with no assume-role config.
+        // JSON transport strips undefined keys, so the incoming object simply omits them.
+        const previewCredentials: CreateAthenaCredentials = {
+            type: WarehouseTypes.ATHENA,
+            region: 'us-east-2',
+            database: 'awsdatacatalog',
+            schema: 'dbt',
+            s3StagingDir: 's3://staging/',
+            accessKeyId: 'PREVIEW_KEY',
+            secretAccessKey: 'PREVIEW_SECRET',
+            sessionToken: 'PREVIEW_TOKEN',
+        };
+
+        const merged = mergeWarehouseCredentials(
+            athenaBase,
+            previewCredentials,
+        );
+
+        expect(merged.assumeRoleArn).toBeUndefined();
+        expect(merged.assumeRoleExternalId).toBeUndefined();
+        // The preview's own base credentials are still used
+        expect(merged.accessKeyId).toBe('PREVIEW_KEY');
+    });
+
+    test('uses the preview assumeRoleArn when it supplies its own', () => {
+        const previewCredentials: CreateAthenaCredentials = {
+            ...athenaBase,
+            accessKeyId: 'PREVIEW_KEY',
+            secretAccessKey: 'PREVIEW_SECRET',
+            assumeRoleArn: 'arn:aws:iam::222:role/preview-role',
+            assumeRoleExternalId: 'preview-external-id',
+        };
+
+        const merged = mergeWarehouseCredentials(
+            athenaBase,
+            previewCredentials,
+        );
+
+        expect(merged.assumeRoleArn).toBe('arn:aws:iam::222:role/preview-role');
+        expect(merged.assumeRoleExternalId).toBe('preview-external-id');
+    });
+
+    test('still inherits non-sensitive advanced settings the preview omits', () => {
+        // Guards against the exclusion being too broad: excluding the assume-role
+        // fields must not stop other parent-only config from being inherited.
+        const previewCredentials: CreateAthenaCredentials = {
+            type: WarehouseTypes.ATHENA,
+            region: 'us-east-2',
+            database: 'awsdatacatalog',
+            schema: 'dbt',
+            s3StagingDir: 's3://staging/',
+            accessKeyId: 'PREVIEW_KEY',
+            secretAccessKey: 'PREVIEW_SECRET',
+        };
+
+        const merged = mergeWarehouseCredentials(
+            { ...athenaBase, workGroup: 'data_platform', numRetries: 7 },
+            previewCredentials,
+        );
+
+        expect(merged.workGroup).toBe('data_platform');
+        expect(merged.numRetries).toBe(7);
+        expect(merged.assumeRoleArn).toBeUndefined();
+    });
+
+    test('does not inherit parent assumeRoleArn for Redshift either', () => {
+        const redshiftBase: CreateRedshiftCredentials = {
+            type: WarehouseTypes.REDSHIFT,
+            host: 'cluster.redshift.amazonaws.com',
+            user: '',
+            port: 5439,
+            dbname: 'dev',
+            schema: 'public',
+            accessKeyId: 'PARENT_KEY',
+            secretAccessKey: 'PARENT_SECRET',
+            assumeRoleArn: 'arn:aws:iam::111:role/parent-role',
+            assumeRoleExternalId: 'parent-external-id',
+        };
+        const previewCredentials: CreateRedshiftCredentials = {
+            type: WarehouseTypes.REDSHIFT,
+            host: 'cluster.redshift.amazonaws.com',
+            user: '',
+            port: 5439,
+            dbname: 'dev',
+            schema: 'public',
+            accessKeyId: 'PREVIEW_KEY',
+            secretAccessKey: 'PREVIEW_SECRET',
+        };
+
+        const merged = mergeWarehouseCredentials(
+            redshiftBase,
+            previewCredentials,
+        );
+
+        expect(merged.assumeRoleArn).toBeUndefined();
+        expect(merged.assumeRoleExternalId).toBeUndefined();
+    });
+
+    test('returns preview credentials as-is when warehouse types differ', () => {
+        const postgresPreview: CreatePostgresCredentials = {
+            type: WarehouseTypes.POSTGRES,
+            host: 'localhost',
+            user: 'preview',
+            password: 'preview',
+            port: 5432,
+            dbname: 'dev',
+            schema: 'public',
+        };
+
+        const parent: CreateWarehouseCredentials = {
+            ...athenaBase,
+            requireUserCredentials: true,
+        };
+        const merged = mergeWarehouseCredentials<CreateWarehouseCredentials>(
+            parent,
+            postgresPreview,
+        );
+
+        expect(merged).toEqual(postgresPreview);
+        expect(merged).not.toHaveProperty('requireUserCredentials');
+    });
+
+    test('preserves requireUserCredentials from either side', () => {
+        const previewCredentials: CreateAthenaCredentials = {
+            type: WarehouseTypes.ATHENA,
+            region: 'us-east-2',
+            database: 'awsdatacatalog',
+            schema: 'dbt',
+            s3StagingDir: 's3://staging/',
+            accessKeyId: 'PREVIEW_KEY',
+            secretAccessKey: 'PREVIEW_SECRET',
+        };
+
+        // Inherited from the parent
+        expect(
+            mergeWarehouseCredentials(
+                { ...athenaBase, requireUserCredentials: true },
+                previewCredentials,
+            ).requireUserCredentials,
+        ).toBe(true);
+
+        // Set by the preview itself
+        expect(
+            mergeWarehouseCredentials(athenaBase, {
+                ...previewCredentials,
+                requireUserCredentials: true,
+            }).requireUserCredentials,
+        ).toBe(true);
     });
 });
