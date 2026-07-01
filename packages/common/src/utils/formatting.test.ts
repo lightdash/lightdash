@@ -28,6 +28,7 @@ import {
     formatValueWithExpression,
     getCustomFormatFromLegacy,
     getEffectiveSeparator,
+    getFieldFormatOverrideProps,
     getFormatExpressionLocale,
     getFormatterTimezone,
     isCalendarValueItem,
@@ -3470,6 +3471,80 @@ describe('Formatting', () => {
                 expect(getFormatExpressionLocale(metric)).toBeUndefined();
                 expect(getFormatExpressionLocale(undefined)).toBeUndefined();
             });
+        });
+    });
+
+    describe('getFieldFormatOverrideProps', () => {
+        const numericDimension: Dimension = {
+            ...dimension,
+            type: DimensionType.NUMBER,
+        };
+
+        test('encodes a non-dynamic override as a format expression, no formatOptions', () => {
+            const props = getFieldFormatOverrideProps({
+                type: CustomFormatType.NUMBER,
+                compact: Compact.THOUSANDS,
+            });
+            expect(props.format).toEqual('#,##0.###,"K"');
+            expect(props.formatOptions).toBeUndefined();
+        });
+
+        test('preserves structured formatOptions for dynamic AUTO compact (no expression form)', () => {
+            const formatOptions: CustomFormat = {
+                type: CustomFormatType.NUMBER,
+                compact: Compact.AUTO,
+            };
+            // AUTO has no ECMA-376 representation, so the expression must be
+            // cleared and the structured options carried through instead.
+            expect(
+                convertCustomFormatToFormatExpression(formatOptions),
+            ).toBeNull();
+            const props = getFieldFormatOverrideProps(formatOptions);
+            expect(props.format).toBeUndefined();
+            expect(props.formatOptions).toEqual(formatOptions);
+        });
+
+        test('preserves structured formatOptions for dynamic AUTO compact on CURRENCY too', () => {
+            const formatOptions: CustomFormat = {
+                type: CustomFormatType.CURRENCY,
+                currency: 'USD',
+                compact: Compact.AUTO,
+            };
+            expect(
+                convertCustomFormatToFormatExpression(formatOptions),
+            ).toBeNull();
+            const props = getFieldFormatOverrideProps(formatOptions);
+            expect(props.format).toBeUndefined();
+            expect(props.formatOptions).toEqual(formatOptions);
+        });
+
+        test('AUTO override on a numeric dimension compacts the value (the reported bug)', () => {
+            const field = {
+                ...numericDimension,
+                ...getFieldFormatOverrideProps({
+                    type: CustomFormatType.NUMBER,
+                    compact: Compact.AUTO,
+                }),
+            };
+            expect(formatItemValue(field, 929_000_000)).toEqual('929M');
+            expect(formatItemValue(field, 1_500)).toEqual('1.5K');
+        });
+
+        test('AUTO override clears a legacy field format expression so it cannot shadow the structured options', () => {
+            // legacy YAML expression that would otherwise win in formatItemValue
+            const fieldWithLegacyFormat = {
+                ...numericDimension,
+                format: '#,##0',
+            };
+            const field = {
+                ...fieldWithLegacyFormat,
+                ...getFieldFormatOverrideProps({
+                    type: CustomFormatType.NUMBER,
+                    compact: Compact.AUTO,
+                }),
+            };
+            // Without clearing the legacy expression this renders '929,000,000'.
+            expect(formatItemValue(field, 929_000_000)).toEqual('929M');
         });
     });
 });
