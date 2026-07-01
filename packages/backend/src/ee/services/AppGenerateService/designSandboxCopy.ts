@@ -1,4 +1,4 @@
-import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { type S3Client } from '@aws-sdk/client-s3';
 import {
     type AppVersionDesignSnapshot,
     type OrganizationDesignFileKind,
@@ -7,6 +7,7 @@ import type { Logger } from 'winston';
 import type { OrganizationDesignModel } from '../../../models/OrganizationDesignModel';
 import { designS3Key } from '../../../services/OrganizationDesignService/OrganizationDesignService';
 import { type SandboxHandle } from '../SandboxRuntime';
+import { readS3ObjectAsBuffer } from './s3Utils';
 
 /**
  * Sandbox layout the agent sees when a theme is applied. Subdirectories are
@@ -39,25 +40,6 @@ const EMPTY_RESULT: DesignSandboxCopyResult = {
     fontPaths: [],
     instructionMarkdown: '',
     designSnapshot: null,
-};
-
-const readS3ObjectAsBuffer = async (
-    s3Client: S3Client,
-    bucket: string,
-    key: string,
-): Promise<Buffer> => {
-    const response = await s3Client.send(
-        new GetObjectCommand({ Bucket: bucket, Key: key }),
-    );
-    const body = response.Body;
-    if (!body || typeof (body as NodeJS.ReadableStream).on !== 'function') {
-        throw new Error(`Unexpected S3 response body type for key=${key}`);
-    }
-    const chunks: Uint8Array[] = [];
-    for await (const chunk of body as AsyncIterable<Uint8Array>) {
-        chunks.push(chunk);
-    }
-    return Buffer.concat(chunks);
 };
 
 /**

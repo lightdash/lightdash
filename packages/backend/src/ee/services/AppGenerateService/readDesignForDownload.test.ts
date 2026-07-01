@@ -128,6 +128,9 @@ describe('readDesignForDownload', () => {
         expect(result.instructions?.path).toBe(
             '.lightdash/context/theme/instructions.md',
         );
+        expect(result.assets[0].path).toBe(
+            '.lightdash/context/theme/assets/css-1.css',
+        );
         // All 3 files fetched from S3 (2 assets + 1 instruction)
         expect(s3Client.send).toHaveBeenCalledTimes(3);
     });
