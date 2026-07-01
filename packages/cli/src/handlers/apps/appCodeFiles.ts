@@ -4,6 +4,7 @@ import {
     validateDataAppCode,
     type DataAppCode,
     type DataAppManifest,
+    type ImportAppCodeRequestBody,
 } from '@lightdash/common';
 import { promises as fs } from 'fs';
 import * as path from 'path';
@@ -96,6 +97,25 @@ const collectFiles = async (
     );
 
     return nestedResults.flat();
+};
+
+export const buildImportBody = (
+    code: DataAppCode,
+    targetProjectUuid: string,
+    opts: { app?: string; space?: string },
+): ImportAppCodeRequestBody => {
+    let targetAppUuid: string | undefined;
+    if (opts.app) {
+        targetAppUuid = opts.app;
+    } else if (targetProjectUuid === code.manifest.projectUuid) {
+        targetAppUuid = code.manifest.appUuid;
+    }
+
+    return {
+        code,
+        targetAppUuid,
+        spaceUuid: opts.space,
+    };
 };
 
 export const readBundleFromDir = async (dir: string): Promise<DataAppCode> => {
