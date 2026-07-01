@@ -6112,8 +6112,10 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             typeof v === 'number' ? String(v) : AppGenerateService.yamlQuote(v);
 
         const lines: string[] = [`${indent}${key}:`];
+        // Parameters authored before labels existed have no label at runtime;
+        // fall back to the key rather than crashing in yamlQuote(undefined).
         lines.push(
-            `${inner}label: ${AppGenerateService.yamlQuote(param.label)}`,
+            `${inner}label: ${AppGenerateService.yamlQuote(param.label ?? key)}`,
         );
         if (param.description) {
             lines.push(
