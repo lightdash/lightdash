@@ -1,3 +1,17 @@
+# [0.3278.0](https://github.com/lightdash/lightdash/compare/0.3277.1...0.3278.0) (2026-07-01)
+
+
+### Bug Fixes
+
+* **apps:** allow app builders to list external connections without manage ([#24998](https://github.com/lightdash/lightdash/issues/24998)) ([d5f6cf5](https://github.com/lightdash/lightdash/commit/d5f6cf5730cf275f10220c0760f3c0667233f619))
+
+
+### Features
+
+* **apps:** data app viz entity + typed field schema (GLITCH-549) ([#24950](https://github.com/lightdash/lightdash/issues/24950)) ([3c0cf5b](https://github.com/lightdash/lightdash/commit/3c0cf5bc86d870e6ee6004c56b045d8f0df36f86))
+* block queries for expired-trial orgs behind feature flag ([#24989](https://github.com/lightdash/lightdash/issues/24989)) ([2eb820c](https://github.com/lightdash/lightdash/commit/2eb820c8a21580e3033cb2395f1ce19b24dbcdf8))
+* **data-apps:** Data Apps as Code — 1c cross-instance + rate limit + docs ([#24977](https://github.com/lightdash/lightdash/issues/24977)) ([1f093d3](https://github.com/lightdash/lightdash/commit/1f093d32f2926ca57ac08b42c84d1ba3796ad414))
+
 ## [0.3277.1](https://github.com/lightdash/lightdash/compare/0.3277.0...0.3277.1) (2026-07-01)
 
 
