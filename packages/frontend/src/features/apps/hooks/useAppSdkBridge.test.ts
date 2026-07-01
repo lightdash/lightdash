@@ -109,13 +109,13 @@ function renderBridge(onQueryEvent: (event: QueryEvent) => void) {
         current: { contentWindow: window } as unknown as HTMLIFrameElement,
     } as RefObject<HTMLIFrameElement | null>;
     renderHook(() =>
-        useAppSdkBridge(
+        useAppSdkBridge({
             iframeRef,
-            window.location.origin,
-            PROJECT_UUID,
-            APP_UUID,
+            expectedPreviewOrigin: window.location.origin,
+            projectUuid: PROJECT_UUID,
+            appUuid: APP_UUID,
             onQueryEvent,
-        ),
+        }),
     );
 }
 
@@ -419,21 +419,13 @@ describe('lineage message routing', () => {
             current: { contentWindow: window } as unknown as HTMLIFrameElement,
         } as RefObject<HTMLIFrameElement | null>;
         renderHook(() =>
-            useAppSdkBridge(
+            useAppSdkBridge({
                 iframeRef,
-                window.location.origin,
-                PROJECT_UUID,
-                APP_UUID,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
                 onLineageSelected,
-            ),
+            }),
         );
 
         dispatchFetchMessage({
@@ -450,20 +442,13 @@ describe('lineage message routing', () => {
             current: { contentWindow: window } as unknown as HTMLIFrameElement,
         } as RefObject<HTMLIFrameElement | null>;
         renderHook(() =>
-            useAppSdkBridge(
+            useAppSdkBridge({
                 iframeRef,
-                window.location.origin,
-                PROJECT_UUID,
-                APP_UUID,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
                 onLineageAvailable,
-            ),
+            }),
         );
 
         dispatchFetchMessage({
@@ -503,22 +488,13 @@ describe('external-fetch branch', () => {
             current: { contentWindow: window } as unknown as HTMLIFrameElement,
         } as RefObject<HTMLIFrameElement | null>;
         renderHook(() =>
-            useAppSdkBridge(
+            useAppSdkBridge({
                 iframeRef,
-                window.location.origin,
-                PROJECT_UUID,
-                APP_UUID,
-                undefined, // onQueryEvent
-                undefined, // onElementSelected
-                undefined, // onInspectorAvailable
-                undefined, // onScreenshotAvailable
-                undefined, // dashboardFilters
-                undefined, // invalidateCache
-                undefined, // capabilities
-                undefined, // onLineageAvailable
-                undefined, // onLineageSelected
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
                 onExternalRequestEvent,
-            ),
+            }),
         );
     }
 
