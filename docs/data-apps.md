@@ -829,6 +829,15 @@ From a successful test, an admin can **Save as sample** (`POST .../external-conn
 
 During a generation, for every linked connection that has a saved sample, the pipeline (`AppGenerateService.writeCatalogAndPrompt` → `writeExternalConnectionSamples`) writes `/tmp/external-data/{alias}.json` into the sandbox and prepends a one-line reference to `/tmp/prompt.txt`, mirroring how chart-reference and image files are surfaced. This grounds Claude in the API's response shape (field names, nesting, formats) so its fetch/render code matches reality. The sample is for code generation only — at runtime the app fetches live data through the proxy, never from these files. The skill (`sandboxes/data-apps/template/skill.md`, "Linked external connections" section) documents the convention; keep the prompt-prepend wording and that section in sync.
 
+### Inspecting external requests at runtime
+
+The builder/preview inspector overlay is a **tabbed panel** (`AppInspectorPanel.tsx`) with two tabs that mirror each other: **Queries** (metric queries) and **External requests** (external-connection fetches). Both are captured client-side from the same `useAppSdkBridge` postMessage bridge — nothing is persisted server-side beyond the existing `external_connection.fetch` audit event (which stores byte counts, not bodies).
+
+- **Capture.** The bridge's external-fetch branch emits an `ExternalRequestEvent` when a fetch starts (`pending`) and a terminal `ready`/`error` event when it settles (carrying the upstream HTTP status, content type, response body, `truncated` flag, and round-trip duration). Because an external fetch is a single request → single response, entries merge by `id` with no `queryUuid` remap — `useTrackedExternalRequests` is the simpler sibling of `useTrackedAppQueries`.
+- **Always visible.** Both tabs are always shown (the Requests tab reads `Requests (0)` when idle), so clearing the log doesn't yank the tab out from under the user, and the tab surfaces the feature to apps that haven't used a connection yet.
+- **What's shown.** Per request: connection alias, method + path, query params, request body, response status/content-type/body (collapsible + copy), truncation, error, and duration. The frontend only knows the **alias + path**, never the connection's origin or secret — auth is injected server-side in `executeExternalFetch`, so the panel can never display credential material.
+- **Persistence.** Entries live in in-memory React state, cleared on iframe refresh / new-version load unless the shared **Persist** toggle is on (the same `data-apps:persist-logs` preference the Queries tab uses). "Persist" moves still-`pending` entries to a terminal `error` on reload rather than dropping them.
+
 ---
 
 ## Frontend Architecture

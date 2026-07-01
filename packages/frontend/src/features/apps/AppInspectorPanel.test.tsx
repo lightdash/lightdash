@@ -1,7 +1,8 @@
-// QueryInspector.test.tsx
+// AppInspectorPanel.test.tsx
 import { MantineProvider } from '@mantine-8/core';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import QueryInspector from './QueryInspector';
+import AppInspectorPanel from './AppInspectorPanel';
+import type { ExternalRequestEvent } from './hooks/useAppSdkBridge';
 
 const baseQuery = {
     id: '1',
@@ -23,25 +24,44 @@ const baseQuery = {
     rawMetricQuery: null,
 };
 
-const renderInspector = (
-    props: Partial<React.ComponentProps<typeof QueryInspector>>,
+const baseExternalRequest: ExternalRequestEvent = {
+    id: 'ext-1',
+    timestamp: 0,
+    alias: 'stripe',
+    method: 'GET',
+    path: '/v1/charges',
+    query: null,
+    requestBody: null,
+    status: 'ready',
+    httpStatus: 200,
+    contentType: 'application/json',
+    responseBody: { ok: true },
+    truncated: false,
+    durationMs: 42,
+    error: null,
+};
+
+const renderPanel = (
+    props: Partial<React.ComponentProps<typeof AppInspectorPanel>>,
 ) =>
     render(
         <MantineProvider>
-            <QueryInspector
+            <AppInspectorPanel
                 queries={[baseQuery]}
+                externalRequests={[]}
                 projectUuid="p-1"
-                onClear={() => {}}
+                onClearQueries={() => {}}
+                onClearExternalRequests={() => {}}
                 onDismiss={() => {}}
                 {...props}
             />
         </MantineProvider>,
     );
 
-describe('QueryInspector lineage hooks', () => {
+describe('AppInspectorPanel lineage hooks', () => {
     it('calls onHoverQuery with the queryUuid on hover and null on leave', () => {
         const onHoverQuery = vi.fn();
-        renderInspector({ onHoverQuery });
+        renderPanel({ onHoverQuery, defaultCollapsed: false });
         const row = document.querySelector('[data-query-uuid="q-1"]')!;
         fireEvent.mouseEnter(row);
         expect(onHoverQuery).toHaveBeenCalledWith('q-1');
@@ -69,7 +89,7 @@ describe('QueryInspector lineage hooks', () => {
         });
 
         it('scrolls the focused row into view with smooth behavior', () => {
-            renderInspector({
+            renderPanel({
                 focusedQueryUuid: 'q-1',
                 defaultCollapsed: false,
             });
@@ -80,7 +100,7 @@ describe('QueryInspector lineage hooks', () => {
         });
 
         it('does NOT scroll when focusedQueryUuid does not match any row', () => {
-            renderInspector({
+            renderPanel({
                 focusedQueryUuid: 'does-not-exist',
                 defaultCollapsed: false,
             });
@@ -88,7 +108,7 @@ describe('QueryInspector lineage hooks', () => {
         });
 
         it('applies the focused CSS class to the matching row', () => {
-            renderInspector({
+            renderPanel({
                 focusedQueryUuid: 'q-1',
                 defaultCollapsed: false,
             });
@@ -98,9 +118,9 @@ describe('QueryInspector lineage hooks', () => {
 
         it('auto-uncollapses the panel when a matching focusedQueryUuid arrives', async () => {
             // Panel starts collapsed (defaultCollapsed defaults to true).
-            // The effect in QueryInspector should call setCollapsed(false)
-            // because 'q-1' matches a query in the list, making the row visible.
-            renderInspector({ focusedQueryUuid: 'q-1' });
+            // The effect should call setCollapsed(false) because 'q-1' matches
+            // a query in the list, making the row visible.
+            renderPanel({ focusedQueryUuid: 'q-1' });
             await waitFor(() =>
                 expect(screen.getByText('Revenue')).toBeVisible(),
             );
@@ -110,7 +130,7 @@ describe('QueryInspector lineage hooks', () => {
     describe('inspect data toggle', () => {
         it('calls onToggleLineage when the header toggle is clicked', () => {
             const onToggleLineage = vi.fn();
-            renderInspector({
+            renderPanel({
                 onToggleLineage,
                 lineageAvailable: true,
                 defaultCollapsed: false,
@@ -122,7 +142,7 @@ describe('QueryInspector lineage hooks', () => {
         });
 
         it('disables the toggle when lineage is unavailable', () => {
-            renderInspector({
+            renderPanel({
                 onToggleLineage: vi.fn(),
                 lineageAvailable: false,
                 defaultCollapsed: false,
@@ -131,5 +151,48 @@ describe('QueryInspector lineage hooks', () => {
                 screen.getByLabelText('Toggle data lineage inspector'),
             ).toBeDisabled();
         });
+    });
+});
+
+describe('AppInspectorPanel external requests tab', () => {
+    it('always shows the requests tab, even with none', () => {
+        renderPanel({ externalRequests: [], defaultCollapsed: false });
+        expect(screen.getByText('Requests (0)')).toBeInTheDocument();
+    });
+
+    it('reflects the request count in the tab label', () => {
+        renderPanel({
+            externalRequests: [baseExternalRequest],
+            defaultCollapsed: false,
+        });
+        expect(screen.getByText('Requests (1)')).toBeInTheDocument();
+    });
+
+    it('switches to the requests tab and renders the request', () => {
+        renderPanel({
+            externalRequests: [baseExternalRequest],
+            defaultCollapsed: false,
+        });
+        fireEvent.click(screen.getByText('Requests (1)'));
+        // Rendered in the row header (Mantine Collapse keeps the expanded
+        // detail mounted, so the same text can also appear there).
+        expect(screen.getAllByText('GET /v1/charges').length).toBeGreaterThan(
+            0,
+        );
+    });
+
+    it('clears the active tab: external requests when the requests tab is active', () => {
+        const onClearQueries = vi.fn();
+        const onClearExternalRequests = vi.fn();
+        renderPanel({
+            externalRequests: [baseExternalRequest],
+            onClearQueries,
+            onClearExternalRequests,
+            defaultCollapsed: false,
+        });
+        fireEvent.click(screen.getByText('Requests (1)'));
+        fireEvent.click(screen.getByLabelText('Clear external requests'));
+        expect(onClearExternalRequests).toHaveBeenCalledTimes(1);
+        expect(onClearQueries).not.toHaveBeenCalled();
     });
 });

@@ -9,6 +9,7 @@ import {
 import {
     useAppSdkBridge,
     type ElementSelectedEvent,
+    type ExternalRequestEvent,
     type QueryEvent,
 } from './hooks/useAppSdkBridge';
 import { useIframeScreenshot } from './hooks/useIframeScreenshot';
@@ -36,6 +37,10 @@ type Props = {
      *  Inspect/Screenshot buttons don't flicker off-then-back-on each time. */
     identityKey: string;
     onQueryEvent?: (event: QueryEvent) => void;
+    /** Reports external-connection fetches for the external-requests inspector
+     *  tab. Left undefined by hosts that don't surface the inspector (embed,
+     *  dashboard tiles). */
+    onExternalRequestEvent?: (event: ExternalRequestEvent) => void;
     onElementSelected?: (event: ElementSelectedEvent) => void;
     /** When true, the iframe-side inspector overlay is active and clicks
      *  are intercepted to produce element-selected events. */
@@ -112,6 +117,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             appUuid,
             identityKey,
             onQueryEvent,
+            onExternalRequestEvent,
             onElementSelected,
             inspectorEnabled,
             onInspectorAvailabilityChange,
@@ -163,6 +169,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             capabilities,
             handleLineageAnnounce,
             onLineageSelected,
+            onExternalRequestEvent,
         );
         const { captureScreenshot } = useIframeScreenshot(iframeRef);
 
