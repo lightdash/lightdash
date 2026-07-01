@@ -1,3 +1,10 @@
+## [0.3277.1](https://github.com/lightdash/lightdash/compare/0.3277.0...0.3277.1) (2026-07-01)
+
+
+### Bug Fixes
+
+* **explore:** apply Auto compact number format on dimensions ([#25000](https://github.com/lightdash/lightdash/issues/25000)) ([2cd2cfb](https://github.com/lightdash/lightdash/commit/2cd2cfb97c0983ce39282a640c4f581ee6c8eb50))
+
 # [0.3277.0](https://github.com/lightdash/lightdash/compare/0.3276.0...0.3277.0) (2026-07-01)
 
 
