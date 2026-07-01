@@ -132,7 +132,12 @@ export const readBundleFromDir = async (dir: string): Promise<DataAppCode> => {
         );
     }
 
-    const files = await collectFiles(dir, dir);
+    const srcDir = path.join(dir, 'src');
+    const srcExists = await fs
+        .stat(srcDir)
+        .then((s) => s.isDirectory())
+        .catch(() => false);
+    const files = srcExists ? await collectFiles(srcDir, dir) : [];
     files.sort((a, b) => a.path.localeCompare(b.path));
 
     return validateDataAppCode({ manifest, files });
