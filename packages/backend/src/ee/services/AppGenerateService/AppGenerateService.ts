@@ -4939,9 +4939,22 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             );
         }
 
-        const resources = AppGenerateService.buildCopiedResources(
-            sourceVersion.resources ?? null,
+        const sourceLinks = await this.externalConnectionModel.listAppLinks(
+            sourceApp.app_id,
         );
+        const externalConnectionResources: AppVersionExternalConnectionResource[] =
+            sourceLinks.map((link) => ({
+                externalConnectionUuid: link.connection.externalConnectionUuid,
+                name: link.connection.name,
+                alias: link.alias,
+            }));
+
+        const resources: AppVersionResources = {
+            ...AppGenerateService.buildCopiedResources(
+                sourceVersion.resources ?? null,
+            ),
+            externalConnections: externalConnectionResources,
+        };
 
         const newAppUuid = uuidv4();
         const newVersion = 1;
@@ -4977,6 +4990,10 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 { version: newVersion, prompt: duplicatePrompt },
                 'ready',
                 resources,
+            );
+            await this.linkResolvedExternalConnections(
+                newAppUuid,
+                externalConnectionResources,
             );
             await this.appModel.updateStatusMessage(
                 newAppUuid,
