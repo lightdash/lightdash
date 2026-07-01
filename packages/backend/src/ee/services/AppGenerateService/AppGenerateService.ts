@@ -46,6 +46,7 @@ import {
     type ExternalConnectionMethod,
     type ExternalConnectionSample,
     type LightdashProjectParameter,
+    type MetricQuery,
     type PromoteAppAction,
     type PromoteAppDiff,
     type SessionUser,
@@ -120,6 +121,31 @@ import {
     type DesignSandboxCopyResult,
 } from './designSandboxCopy';
 import { getTemplateInstructions } from './templates';
+
+/**
+ * Pure helper: builds a ChartReference from a resolved chart object.
+ * Extracted at module scope so it can be unit-tested without spinning up the
+ * full async service.
+ */
+export const buildChartReference = (
+    chart: {
+        name: string;
+        description?: string;
+        tableName: string;
+        metricQuery: MetricQuery;
+    },
+    chartUuid: string,
+    linked: boolean,
+    sampleData: ChartSampleData | null,
+): ChartReference => ({
+    chartName: chart.name,
+    chartDescription: chart.description ?? '',
+    exploreName: chart.tableName,
+    metricQuery: chart.metricQuery,
+    sampleData,
+    chartUuid,
+    linked,
+});
 
 type AppExternalConnectionDoc = {
     alias: string;
@@ -1398,8 +1424,11 @@ export class AppGenerateService extends BaseService {
             } else if (ref.sampleData?.status === 'unavailable') {
                 sampleSuffix = ` — sample data unavailable (${ref.sampleData.reason})`;
             }
+            const modeSuffix = ref.linked
+                ? ` — LINKED: render live with lightdash.savedChart("${ref.chartUuid}") (do NOT inline the metricQuery)`
+                : sampleSuffix;
             fileEntries.push(
-                `- ${filename} ("${ref.chartName}", explore: ${ref.exploreName})${sampleSuffix}`,
+                `- ${filename} ("${ref.chartName}", explore: ${ref.exploreName})${modeSuffix}`,
             );
         }
 
@@ -3247,12 +3276,19 @@ export class AppGenerateService extends BaseService {
         refs: AppChartReference[];
         dashboardName: string | null;
     }> {
-        const flagByUuid = new Map<string, boolean>();
+        const flagByUuid = new Map<
+            string,
+            { sample: boolean; link: boolean }
+        >();
         for (const c of charts ?? []) {
-            flagByUuid.set(
-                c.uuid,
-                (flagByUuid.get(c.uuid) ?? false) || c.includeSampleData,
-            );
+            const prev = flagByUuid.get(c.uuid) ?? {
+                sample: false,
+                link: false,
+            };
+            flagByUuid.set(c.uuid, {
+                sample: prev.sample || c.includeSampleData,
+                link: prev.link || c.linkLive,
+            });
         }
         let dashboardName: string | null = null;
         if (dashboard) {
@@ -3262,15 +3298,22 @@ export class AppGenerateService extends BaseService {
             );
             dashboardName = result.dashboardName;
             for (const uuid of result.chartUuids) {
-                flagByUuid.set(
-                    uuid,
-                    (flagByUuid.get(uuid) ?? false) ||
-                        dashboard.includeSampleData,
-                );
+                const prev = flagByUuid.get(uuid) ?? {
+                    sample: false,
+                    link: false,
+                };
+                flagByUuid.set(uuid, {
+                    sample: prev.sample || dashboard.includeSampleData,
+                    link: prev.link,
+                });
             }
         }
         const refs: AppChartReference[] = [...flagByUuid.entries()].map(
-            ([uuid, includeSampleData]) => ({ uuid, includeSampleData }),
+            ([uuid, { sample, link }]) => ({
+                uuid,
+                includeSampleData: sample,
+                linkLive: link,
+            }),
         );
         return { refs, dashboardName };
     }
@@ -3338,14 +3381,15 @@ export class AppGenerateService extends BaseService {
         chartResources: AppVersionChartResource[];
         sampleStats: { requested: number; available: number };
     }> {
-        // Dedupe by uuid; if any duplicate asks for sample data, the union
-        // wins so the user gets the data they opted into.
-        const dedup = new Map<string, boolean>();
+        // Dedupe by uuid; if any duplicate asks for sample data or link mode,
+        // the union wins so the user gets the data they opted into.
+        const dedup = new Map<string, { sample: boolean; link: boolean }>();
         for (const ref of chartRefs) {
-            dedup.set(
-                ref.uuid,
-                (dedup.get(ref.uuid) ?? false) || ref.includeSampleData,
-            );
+            const prev = dedup.get(ref.uuid) ?? { sample: false, link: false };
+            dedup.set(ref.uuid, {
+                sample: prev.sample || ref.includeSampleData,
+                link: prev.link || ref.linkLive,
+            });
         }
         if (dedup.size === 0) {
             return {
@@ -3367,7 +3411,12 @@ export class AppGenerateService extends BaseService {
         // so we can attach the result back to the right reference.
         const sampleUuids: string[] = [];
         chartResults.forEach((result, i) => {
-            if (result.status === 'fulfilled' && dedup.get(uuids[i])) {
+            const flags = dedup.get(uuids[i]);
+            if (
+                result.status === 'fulfilled' &&
+                flags?.sample &&
+                !flags?.link
+            ) {
                 sampleUuids.push(uuids[i]);
             }
         });
@@ -3384,13 +3433,14 @@ export class AppGenerateService extends BaseService {
         chartResults.forEach((result, i) => {
             if (result.status === 'fulfilled') {
                 const chart = result.value;
-                references.push({
-                    chartName: chart.name,
-                    chartDescription: chart.description ?? '',
-                    exploreName: chart.tableName,
-                    metricQuery: chart.metricQuery,
-                    sampleData: sampleByUuid.get(uuids[i]) ?? null,
-                });
+                references.push(
+                    buildChartReference(
+                        chart,
+                        uuids[i],
+                        dedup.get(uuids[i])!.link,
+                        sampleByUuid.get(uuids[i]) ?? null,
+                    ),
+                );
                 chartResources.push({
                     chartUuid: uuids[i],
                     chartName: chart.name,

@@ -156,6 +156,23 @@ Each file contains:
 4. These are starting points — adapt them based on the user's prompt. You may combine
    multiple referenced queries, add/remove fields, or adjust filters as needed.
 
+### Linked vs. copied charts
+
+Each file has a `linked` boolean and a `chartUuid`:
+
+- **`linked: true`** — the user wants this chart **live**. Render it with
+  `lightdash.savedChart("<chartUuid>")` instead of building an inline `query(...)`.
+  Do NOT copy the metricQuery. The rows are keyed by the chart's field ids
+  (as listed under `metricQuery.dimensions` / `metricQuery.metrics`); read the
+  returned `columns` to know what's available. The listing line marks these
+  with "LINKED".
+- **`linked: false`** — copy as today: build an inline `query(exploreName)...`
+  from the metricQuery.
+
+A linked chart stays in sync with Lightdash and appears in the Queries panel
+like any other query. If it can't be run (deleted / no access), the app should
+show its normal error state — don't fabricate data.
+
 **Important:** The field IDs in metric queries use qualified names (e.g.,
 `orders_total_revenue`). When mapping to SDK calls:
 - **Base explore fields:** Strip the explore name prefix. `orders_total_revenue` → `total_revenue`
