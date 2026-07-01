@@ -30,7 +30,7 @@ const run = (patterns?: string[]) => {
     const tool = getLoadProjectContext({ getDocument: async () => entries });
     // Tool.execute is (args, options); options is unused here.
     return (
-        tool.execute as (
+        tool.execute as unknown as (
             a: unknown,
             o: unknown,
         ) => Promise<{
