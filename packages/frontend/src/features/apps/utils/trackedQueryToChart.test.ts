@@ -57,19 +57,47 @@ describe('trackedQueryToChartVersion', () => {
 });
 
 describe('trackedQueryToCreateChart', () => {
-    it('adds name + space and marks it a space chart (dashboardUuid null)', () => {
-        const c = trackedQueryToCreateChart(makeQuery(), {
+    const rawMetricQuery = {
+        exploreName: 'orders',
+        dimensions: ['orders_order_date'],
+        metrics: ['orders_total_revenue'],
+        filters: {},
+        sorts: [],
+        limit: 500,
+        tableCalculations: [
+            { name: 'growth', displayName: 'Growth', sql: '1' },
+        ],
+        additionalMetrics: [{ name: 'adhoc' }],
+        customDimensions: [],
+    };
+
+    it('adds name + space and persists the exact raw metric query', () => {
+        const c = trackedQueryToCreateChart(makeQuery({ rawMetricQuery }), {
             name: 'My chart',
             spaceUuid: 'space-1',
         });
-        expect(c.name).toBe('My chart');
-        expect(c.spaceUuid).toBe('space-1');
-        expect(c.dashboardUuid).toBeNull();
-        expect(c.tableName).toBe('orders');
+        expect(c).not.toBeNull();
+        expect(c?.name).toBe('My chart');
+        expect(c?.description).toBe('');
+        expect(c?.spaceUuid).toBe('space-1');
+        expect(c?.dashboardUuid).toBeNull();
+        expect(c?.tableName).toBe('orders');
+        // faithful: the app's exact query, keeping additionalMetrics
+        expect(c?.metricQuery).toBe(rawMetricQuery);
     });
 
     it('omits space when not provided (backend picks the default space)', () => {
-        const c = trackedQueryToCreateChart(makeQuery(), { name: 'X' });
-        expect(c.spaceUuid).toBeUndefined();
+        const c = trackedQueryToCreateChart(makeQuery({ rawMetricQuery }), {
+            name: 'X',
+        });
+        expect(c?.spaceUuid).toBeUndefined();
+    });
+
+    it('returns null without a captured query (e.g. linked-chart rows)', () => {
+        expect(
+            trackedQueryToCreateChart(makeQuery({ rawMetricQuery: null }), {
+                name: 'X',
+            }),
+        ).toBeNull();
     });
 });

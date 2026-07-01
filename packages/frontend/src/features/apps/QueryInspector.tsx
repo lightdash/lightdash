@@ -154,23 +154,25 @@ const QueryRow: FC<{
                                         </Anchor>
                                     ) : null;
                                 })()}
-                                <Anchor
-                                    component="button"
-                                    type="button"
-                                    size="xs"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSaveOpen(true);
-                                    }}
-                                >
-                                    <Group gap={4} wrap="nowrap">
-                                        <MantineIcon
-                                            icon={IconDeviceFloppy}
-                                            size={12}
-                                        />
-                                        Save to Lightdash
-                                    </Group>
-                                </Anchor>
+                                {query.rawMetricQuery && (
+                                    <Anchor
+                                        component="button"
+                                        type="button"
+                                        size="xs"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSaveOpen(true);
+                                        }}
+                                    >
+                                        <Group gap={4} wrap="nowrap">
+                                            <MantineIcon
+                                                icon={IconDeviceFloppy}
+                                                size={12}
+                                            />
+                                            Save to Lightdash
+                                        </Group>
+                                    </Anchor>
+                                )}
                             </Group>
                         )}
                         {query.exploreName && (
@@ -327,7 +329,7 @@ const QueryRow: FC<{
                     )}
                 </Group>
             </Collapse>
-            {query.exploreName && (
+            {query.exploreName && query.rawMetricQuery && (
                 <SaveQueryToLightdashModal
                     query={query}
                     projectUuid={projectUuid}

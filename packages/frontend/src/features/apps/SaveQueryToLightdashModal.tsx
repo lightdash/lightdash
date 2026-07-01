@@ -46,15 +46,16 @@ const SaveQueryToLightdashModal: FC<Props> = ({
 
     const handleSave = () => {
         if (!name.trim()) return;
-        createChart.mutate(
-            trackedQueryToCreateChart(query, {
-                name: name.trim(),
-                spaceUuid: selectedSpace ?? undefined,
-            }),
+        const payload = trackedQueryToCreateChart(query, {
+            name: name.trim(),
+            spaceUuid: selectedSpace ?? undefined,
+        });
+        if (!payload) return;
+        createChart.mutate(payload, {
             // The hook's own onSuccess shows the toast + "View chart" action;
             // this per-call handler just closes the modal.
-            { onSuccess: () => onClose() },
-        );
+            onSuccess: () => onClose(),
+        });
     };
 
     return (

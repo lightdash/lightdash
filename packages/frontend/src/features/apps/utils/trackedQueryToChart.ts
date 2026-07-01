@@ -51,13 +51,26 @@ export const trackedQueryToChartVersion = (
  * Build a full `CreateSavedChart` (a table chart) from a tracked app query,
  * adding a name and target space. Posted to `POST /projects/{uuid}/saved`.
  * Omit `spaceUuid` to let the backend pick the user's first viewable space.
+ *
+ * Returns `null` when the row has no `rawMetricQuery` — only inline app queries
+ * (POST /query/metric-query) capture one. Linked-chart rows (POST /query/chart)
+ * don't, and they're already governed charts, so they aren't savable here.
  */
 export const trackedQueryToCreateChart = (
     query: QueryEvent,
     opts: { name: string; spaceUuid?: string },
-): CreateSavedChart => ({
-    ...trackedQueryToChartVersion(query),
-    name: opts.name,
-    spaceUuid: opts.spaceUuid,
-    dashboardUuid: null,
-});
+): CreateSavedChart | null => {
+    if (!query.exploreName || !query.rawMetricQuery) return null;
+    return {
+        ...trackedQueryToChartVersion(query),
+        // Persist the EXACT query the app ran — this keeps additionalMetrics /
+        // customDimensions that the discrete inspector fields drop (a chart
+        // referencing an ad-hoc metric it doesn't define would be broken).
+        metricQuery:
+            query.rawMetricQuery as unknown as CreateSavedChartVersion['metricQuery'],
+        name: opts.name,
+        description: '',
+        spaceUuid: opts.spaceUuid,
+        dashboardUuid: null,
+    };
+};
