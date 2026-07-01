@@ -9,6 +9,8 @@ import {
     Explore,
     FeatureFlags,
     filterExploreByTags,
+    filterStaticFilterAutocompleteValues,
+    findFieldByIdInExplore,
     ForbiddenError,
     getContentAsCodePathFromLtreePath,
     getErrorMessage,
@@ -16,6 +18,7 @@ import {
     getLtreePathFromContentAsCodePath,
     getValidAiQueryLimit,
     isDashboardChartTileType,
+    isDimension,
     isExploreError,
     isGitProjectType,
     JobStatusType,
@@ -25,11 +28,13 @@ import {
     QueryHistoryStatus,
     RequestMethod,
     SessionUser,
+    shouldUseStaticFilterAutocomplete,
     TimeoutError,
     UserAttributeValueMap,
     WarehouseQueryError,
     type ChartAsCode,
     type DashboardAsCode,
+    type FieldValueSearchResult,
 } from '@lightdash/common';
 import * as JsonPatch from 'fast-json-patch';
 import Logger from '../../../logging/logger';
@@ -1863,6 +1868,23 @@ export class AiAgentToolsService extends BaseService {
                 const query = args.query ?? '';
                 const isEmptyQuery = query.trim() === '';
 
+                // Serve curated filter_autocomplete values before the warehouse guard.
+                const curatedResult = await this.getStaticFieldValues(
+                    context,
+                    args,
+                    query,
+                );
+                if (curatedResult) {
+                    Logger.info(
+                        `[ai-field-values] served ${curatedResult.results.length} ` +
+                            `curated values source=${context.source} ` +
+                            `table=${args.table} fieldId=${args.fieldId}`,
+                    );
+                    return context.source === 'mcp'
+                        ? curatedResult
+                        : curatedResult.results;
+                }
+
                 // Live PostHog toggle; default off => byte-identical to today.
                 const { enabled: guardEnabled } =
                     await this.featureFlagService.get({
@@ -1935,6 +1957,47 @@ export class AiAgentToolsService extends BaseService {
                 return output;
             },
         );
+    }
+
+    /**
+     * Serve a dimension's curated `filter_autocomplete` values without touching
+     * the warehouse, mirroring the Explore filter UI (`useFieldValues`). Returns
+     * undefined when the field isn't curated (or can't be resolved) so the
+     * caller falls back to the warehouse lookup.
+     */
+    private async getStaticFieldValues(
+        context: AiAgentToolsRuntimeContext,
+        args: Parameters<SearchFieldValuesFn>[0],
+        query: string,
+    ): Promise<FieldValueSearchResult<string> | undefined> {
+        let explore: Explore;
+        try {
+            explore = await this.getExploreForRuntime(context, {
+                table: args.table,
+            });
+        } catch (e) {
+            Logger.warn(
+                `[ai-field-values] could not resolve explore "${args.table}" for curated values: ${getErrorMessage(e)}`,
+            );
+            return undefined;
+        }
+        const field = findFieldByIdInExplore(explore, args.fieldId);
+        if (!field || !isDimension(field)) return undefined;
+        if (
+            !shouldUseStaticFilterAutocomplete(field.filterAutocomplete, query)
+        ) {
+            return undefined;
+        }
+        const results = filterStaticFilterAutocompleteValues(
+            field.filterAutocomplete?.values ?? [],
+            query,
+        ).slice(0, 100);
+        return {
+            search: query,
+            results,
+            cached: false,
+            refreshedAt: new Date(),
+        };
     }
 
     private listKnowledgeDocuments(
