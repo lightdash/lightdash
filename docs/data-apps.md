@@ -802,6 +802,8 @@ External connections let a project admin register a third-party HTTP API (base U
 
 A connection lives on the `external_connections` table (`packages/backend/src/ee/database/entities/externalConnections.ts`), scoped to a project. It stores a human-readable **alias**, a **base URL** (origin), the auth method, and an **encrypted secret** (never returned to the client — stripped on read, only decrypted server-side for an actual fetch). Apps opt into a connection by linking it (`app_external_connections`); an app can reference a connection's data only after the admin links it.
 
+Runtime fetches resolve the alias against `app_external_connections` (`resolveAppAlias`), so the link rows — not the version `resources` snapshot — are what grant an app access. When an app is **duplicated** (`AppGenerateService.duplicateApp`), its live links are copied onto the new app so the duplicate can make the same external fetches; both apps share a project, so the connection UUIDs stay valid. (Cross-project copies — `promoteApp`, `duplicateAppsForPreview` — deliberately don't copy link rows, since the target project's connections are different entities.)
+
 ### Proxy security model
 
 The sandboxed preview iframe has no network access of its own (`default-src 'none'` CSP, opaque origin). External fetches therefore route through the same parent → backend proxy path as metric queries:
