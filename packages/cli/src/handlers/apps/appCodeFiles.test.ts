@@ -7,6 +7,7 @@ import {
     buildImportBody,
     readBundleFromDir,
     writeBundleToDir,
+    writeContextToDir,
 } from './appCodeFiles';
 
 const makeCode = (appUuid: string, projectUuid: string): DataAppCode => ({
@@ -157,6 +158,44 @@ it('throws a clear error when the manifest is not valid YAML', async () => {
     await expect(readBundleFromDir(dir)).rejects.toThrow(
         /Could not parse lightdash-app\.yml/,
     );
+});
+
+it('writes context files under .lightdash/context and skips null parameters', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-ctx-'));
+    await writeContextToDir(dir, {
+        semanticLayer: {
+            path: '.lightdash/context/semantic-layer.yml',
+            contentBase64: Buffer.from('models: []').toString('base64'),
+        },
+        parameters: null,
+        promptHistory: {
+            path: '.lightdash/context/prompt-history.md',
+            contentBase64: Buffer.from('# prompts').toString('base64'),
+        },
+        theme: {
+            instructions: {
+                path: '.lightdash/context/theme/instructions.md',
+                contentBase64: Buffer.from('# theme').toString('base64'),
+            },
+            assets: [],
+            skippedAssetCount: 0,
+        },
+    });
+    expect(
+        await fs.readFile(
+            path.join(dir, '.lightdash/context/semantic-layer.yml'),
+            'utf-8',
+        ),
+    ).toBe('models: []');
+    expect(
+        await fs.readFile(
+            path.join(dir, '.lightdash/context/theme/instructions.md'),
+            'utf-8',
+        ),
+    ).toBe('# theme');
+    await expect(
+        fs.access(path.join(dir, '.lightdash/context/parameters.yml')),
+    ).rejects.toThrow();
 });
 
 describe('appFolderName', () => {

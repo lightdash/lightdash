@@ -4,6 +4,8 @@ import {
     validateDataAppCode,
     type DataAppCode,
     type DataAppCodeFile,
+    type DataAppContext,
+    type DataAppContextFile,
     type DataAppManifest,
     type ImportAppCodeRequestBody,
 } from '@lightdash/common';
@@ -56,6 +58,20 @@ export const writeFilesToDir = async (
             );
         }),
     );
+};
+
+export const writeContextToDir = async (
+    dir: string,
+    context: DataAppContext,
+): Promise<void> => {
+    const files: DataAppContextFile[] = [
+        context.semanticLayer,
+        ...(context.parameters ? [context.parameters] : []),
+        context.promptHistory,
+        ...(context.theme.instructions ? [context.theme.instructions] : []),
+        ...context.theme.assets,
+    ];
+    await writeFilesToDir(dir, files);
 };
 
 export const writeBundleToDir = async (
