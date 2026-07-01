@@ -1,4 +1,3 @@
-import { ChartType, type CreateSavedChartVersion } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -15,6 +14,7 @@ import {
     IconChevronDown,
     IconChevronRight,
     IconCopy,
+    IconDeviceFloppy,
     IconExternalLink,
 } from '@tabler/icons-react';
 import { useEffect, useRef, useState, type FC } from 'react';
@@ -22,6 +22,8 @@ import MantineIcon from '../../components/common/MantineIcon';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import classes from './AppInspector.module.css';
 import type { QueryEvent } from './hooks/useAppSdkBridge';
+import SaveQueryToLightdashModal from './SaveQueryToLightdashModal';
+import { trackedQueryToChartVersion } from './utils/trackedQueryToChart';
 
 type TrackedQuery = QueryEvent & {
     /** Merged from the initial POST + subsequent poll results */
@@ -46,31 +48,7 @@ const buildExploreUrl = (
     query: TrackedQuery,
 ): string | null => {
     if (!query.exploreName) return null;
-    const chartVersion: CreateSavedChartVersion = {
-        tableName: query.exploreName,
-        metricQuery: {
-            exploreName: query.exploreName,
-            dimensions: query.dimensions,
-            metrics: query.metrics,
-            filters:
-                (query.filters as CreateSavedChartVersion['metricQuery']['filters']) ??
-                {},
-            sorts:
-                (query.sorts as CreateSavedChartVersion['metricQuery']['sorts']) ??
-                [],
-            limit: query.limit,
-            tableCalculations: query.tableCalculations.map((tc) => ({
-                name: tc.name,
-                displayName: tc.displayName,
-                sql: tc.sql,
-            })),
-        },
-        chartConfig: {
-            type: ChartType.TABLE,
-            config: {},
-        },
-        tableConfig: { columnOrder: [] },
-    };
+    const chartVersion = trackedQueryToChartVersion(query);
     const { pathname, search } = getExplorerUrlFromCreateSavedChartVersion(
         projectUuid,
         chartVersion,
@@ -86,6 +64,7 @@ const QueryRow: FC<{
 }> = ({ query, projectUuid, onHover, focused }) => {
     const [expanded, setExpanded] = useState(false);
     const [jsonExpanded, setJsonExpanded] = useState(false);
+    const [saveOpen, setSaveOpen] = useState(false);
     const rowRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -97,6 +76,10 @@ const QueryRow: FC<{
             });
         }
     }, [focused]);
+
+    const exploreUrl = query.exploreName
+        ? buildExploreUrl(projectUuid, query)
+        : null;
 
     return (
         <Box
@@ -151,29 +134,45 @@ const QueryRow: FC<{
                     className={classes.queryDetailsRow}
                 >
                     <Box className={classes.queryDetails}>
-                        {(() => {
-                            const exploreUrl = buildExploreUrl(
-                                projectUuid,
-                                query,
-                            );
-                            return exploreUrl ? (
-                                <Anchor
-                                    href={exploreUrl}
-                                    target="_blank"
-                                    size="xs"
-                                    className={classes.openInExplore}
-                                    onClick={(e) => e.stopPropagation()}
-                                >
-                                    <Group gap={4}>
-                                        <MantineIcon
-                                            icon={IconExternalLink}
-                                            size={12}
-                                        />
-                                        Open in Explore
-                                    </Group>
-                                </Anchor>
-                            ) : null;
-                        })()}
+                        {query.exploreName && (
+                            <Group gap="md" wrap="nowrap">
+                                {exploreUrl && (
+                                    <Anchor
+                                        href={exploreUrl}
+                                        target="_blank"
+                                        size="xs"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <Group gap={4} wrap="nowrap">
+                                            <MantineIcon
+                                                icon={IconExternalLink}
+                                                size={12}
+                                            />
+                                            Open in Explore
+                                        </Group>
+                                    </Anchor>
+                                )}
+                                {query.rawMetricQuery && (
+                                    <Anchor
+                                        component="button"
+                                        type="button"
+                                        size="xs"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSaveOpen(true);
+                                        }}
+                                    >
+                                        <Group gap={4} wrap="nowrap">
+                                            <MantineIcon
+                                                icon={IconDeviceFloppy}
+                                                size={12}
+                                            />
+                                            Save to Lightdash
+                                        </Group>
+                                    </Anchor>
+                                )}
+                            </Group>
+                        )}
                         {query.exploreName && (
                             <Box>
                                 <Text size="xs" fw={600} c="dimmed">
@@ -328,6 +327,13 @@ const QueryRow: FC<{
                     )}
                 </Group>
             </Collapse>
+            {saveOpen && query.rawMetricQuery && (
+                <SaveQueryToLightdashModal
+                    query={query}
+                    projectUuid={projectUuid}
+                    onClose={() => setSaveOpen(false)}
+                />
+            )}
         </Box>
     );
 };

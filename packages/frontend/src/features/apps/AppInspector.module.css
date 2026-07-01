@@ -198,12 +198,6 @@
     min-width: 0;
 }
 
-.openInExplore {
-    position: absolute;
-    top: var(--mantine-spacing-xs);
-    right: var(--mantine-spacing-sm);
-}
-
 .rawJsonPanel {
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
     flex-shrink: 0;
