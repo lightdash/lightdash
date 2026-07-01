@@ -4,6 +4,7 @@ import {
     ApiChartAsCodeListResponse,
     ApiChartAsCodeUpsertResponse,
     ApiChartValidationResponse,
+    ApiContentResponse,
     ApiDashboardAsCodeListResponse,
     ApiDashboardValidationResponse,
     ApiSqlChartAsCodeListResponse,
@@ -21,6 +22,7 @@ import {
     PromotionChanges,
     removePivotedSeriesValuesFromChartConfig,
     SqlChartAsCode,
+    type DataAppCode,
     type SpaceAsCode,
 } from '@lightdash/common';
 import { Dirent, promises as fs, type Stats } from 'fs';
@@ -32,6 +34,7 @@ import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig, setAnswer } from '../config';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
+import { appFolderName, writeBundleToDir } from './apps/appCodeFiles';
 import {
     checkLightdashVersion,
     lightdashApi,
@@ -49,6 +52,7 @@ export type DownloadHandlerOptions = {
     verbose: boolean;
     charts: string[]; // These can be slugs, uuids or urls
     dashboards: string[]; // These can be slugs, uuids or urls
+    apps: string[] | boolean | null; // true = all apps; string[] = specific UUIDs; null/false/absent = skip
     force: boolean;
     path?: string; // New optional path parameter
     project?: string;
@@ -979,6 +983,110 @@ export const downloadHandler = async (
                     `Downloaded ${
                         regularCharts + sqlCharts
                     } charts linked to dashboards`,
+                );
+            }
+        }
+
+        // Download data apps (enterprise, opt-in via --apps)
+        const appsOption = options.apps;
+        const shouldDownloadApps =
+            appsOption !== null &&
+            appsOption !== false &&
+            appsOption !== undefined;
+
+        if (shouldDownloadApps) {
+            // Normalize: true or [] means all apps; string[] means specific UUIDs
+            const specificAppUuids: string[] | null =
+                Array.isArray(appsOption) && appsOption.length > 0
+                    ? appsOption
+                    : null;
+
+            let appUuidsToDownload: string[];
+
+            if (specificAppUuids) {
+                appUuidsToDownload = specificAppUuids;
+            } else {
+                // List all apps via content API (paginated)
+                spinner.start(`Listing data apps in project`);
+                appUuidsToDownload = [];
+                let page = 1;
+                let totalPageCount = 1;
+
+                do {
+                    // eslint-disable-next-line no-await-in-loop
+                    const contentResult = await lightdashApi<
+                        ApiContentResponse['results']
+                    >({
+                        method: 'GET',
+                        url: `/api/v2/content?projectUuids=${projectId}&contentTypes=data_app&page=${page}&pageSize=100`,
+                        body: undefined,
+                    });
+
+                    appUuidsToDownload.push(
+                        ...contentResult.data
+                            .filter((item) => item.contentType === 'data_app')
+                            .map((item) => item.uuid),
+                    );
+
+                    totalPageCount =
+                        contentResult.pagination?.totalPageCount ?? 1;
+                    page += 1;
+                } while (page <= totalPageCount);
+            }
+
+            if (appUuidsToDownload.length === 0) {
+                spinner.succeed(`No data apps found in project`);
+            } else {
+                spinner.start(
+                    `Downloading ${appUuidsToDownload.length} data app(s)…`,
+                );
+                const baseDir = getDownloadFolder(options.path);
+                const appsDir = path.join(baseDir, 'apps');
+                const takenFolders = new Set<string>();
+                let appSuccessCount = 0;
+
+                for (const appUuid of appUuidsToDownload) {
+                    try {
+                        // eslint-disable-next-line no-await-in-loop
+                        const code = await lightdashApi<DataAppCode>({
+                            method: 'GET',
+                            url: `/api/v1/ee/projects/${projectId}/apps/${appUuid}/download`,
+                            body: undefined,
+                        });
+
+                        const folder = appFolderName(
+                            code.manifest.name,
+                            appUuid,
+                            takenFolders,
+                        );
+                        takenFolders.add(folder);
+
+                        const appDir = path.join(appsDir, folder);
+                        // eslint-disable-next-line no-await-in-loop
+                        await writeBundleToDir(appDir, code);
+                        appSuccessCount += 1;
+                    } catch (appErr) {
+                        if (
+                            appErr instanceof LightdashError &&
+                            appErr.statusCode === 404
+                        ) {
+                            GlobalState.log(
+                                styles.warning(
+                                    `Data apps are not enabled on this instance, or app ${appUuid} was not found.`,
+                                ),
+                            );
+                        } else {
+                            GlobalState.log(
+                                styles.error(
+                                    `Failed to download app ${appUuid}: ${getErrorMessage(appErr)}`,
+                                ),
+                            );
+                        }
+                    }
+                }
+
+                spinner.succeed(
+                    `Downloaded ${appSuccessCount} of ${appUuidsToDownload.length} data app(s) to ${appsDir}`,
                 );
             }
         }

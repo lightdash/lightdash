@@ -40,6 +40,7 @@ import {
     type CompiledExploreJoin,
     type CompiledTable,
     type DataAppClaudeModel,
+    type DataAppCode,
     type DataAppTemplate,
     type EmbedProjectApp,
     type Explore,
@@ -100,6 +101,12 @@ import {
     type SandboxSpec,
 } from '../SandboxRuntime';
 import { assertCanViewApp as assertUserCanViewApp } from './appAuthz';
+import {
+    buildManifest,
+    contentTypeForPath,
+    s3KeyToRelPath,
+    versionPrefix,
+} from './appCode';
 import {
     classifyClaudeCliFailure,
     ClaudeGenerationError,
@@ -6353,24 +6360,119 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     }
 
     private static getContentType(filePath: string): string {
-        const ext = filePath.split('.').pop()?.toLowerCase();
-        const mimeTypes: Record<string, string> = {
-            html: 'text/html',
-            js: 'application/javascript',
-            css: 'text/css',
-            json: 'application/json',
-            png: 'image/png',
-            jpg: 'image/jpeg',
-            jpeg: 'image/jpeg',
-            gif: 'image/gif',
-            svg: 'image/svg+xml',
-            ico: 'image/x-icon',
-            woff: 'font/woff',
-            woff2: 'font/woff2',
-            ttf: 'font/ttf',
-            eot: 'application/vnd.ms-fontobject',
-            map: 'application/json',
-        };
-        return mimeTypes[ext ?? ''] ?? 'application/octet-stream';
+        return contentTypeForPath(filePath);
+    }
+
+    /**
+     * Read all artifacts for a specific (or latest ready) built app version from
+     * S3 and return them as a base64-encoded bundle together with a manifest.
+     */
+    async getAppCode(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+        version?: number,
+    ): Promise<DataAppCode> {
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertCanViewApp(user, app);
+
+        let resolvedVersion: number;
+        if (version !== undefined) {
+            resolvedVersion = version;
+        } else {
+            const latestReady = await this.appModel.getLatestReadyVersion(
+                app.app_id,
+            );
+            if (!latestReady) {
+                throw new NotFoundError(
+                    `Data app has no ready version yet: ${appUuid}`,
+                );
+            }
+            resolvedVersion = latestReady.version;
+        }
+
+        const { client: s3Client, bucket } = this.getS3Client();
+        const sourceTarKey = `${versionPrefix(appUuid, resolvedVersion)}source.tar`;
+
+        // Download the single source archive for this version
+        let tarBuffer: Buffer;
+        try {
+            const response = await s3Client.send(
+                new GetObjectCommand({ Bucket: bucket, Key: sourceTarKey }),
+            );
+            const stream = response.Body as Readable;
+            const chunks: Buffer[] = [];
+            for await (const chunk of stream) {
+                chunks.push(
+                    Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk),
+                );
+            }
+            tarBuffer = Buffer.concat(chunks);
+        } catch (err: unknown) {
+            const code =
+                err instanceof Error &&
+                'Code' in err &&
+                typeof (err as { Code: unknown }).Code === 'string'
+                    ? (err as { Code: string }).Code
+                    : undefined;
+            const name = err instanceof Error ? err.name : undefined;
+            if (code === 'NoSuchKey' || name === 'NoSuchKey') {
+                throw new NotFoundError(
+                    `Source not found for app ${appUuid} version ${resolvedVersion}`,
+                );
+            }
+            throw err;
+        }
+
+        // Extract the tar in-process and collect file entries
+        const files = await new Promise<
+            { path: string; contentBase64: string }[]
+        >((resolve, reject) => {
+            const extractor = extract();
+            const entries: { path: string; contentBase64: string }[] = [];
+
+            extractor.on(
+                'entry',
+                (header: Headers, stream: PassThrough, next: () => void) => {
+                    if (header.type === 'file' && header.name) {
+                        const chunks: Buffer[] = [];
+                        stream.on('data', (chunk: Buffer) =>
+                            chunks.push(chunk),
+                        );
+                        stream.on('end', () => {
+                            const bytes = Buffer.concat(chunks);
+                            entries.push({
+                                path: header.name,
+                                contentBase64: bytes.toString('base64'),
+                            });
+                            next();
+                        });
+                        stream.on('error', reject);
+                    } else {
+                        stream.resume();
+                        next();
+                    }
+                },
+            );
+
+            extractor.on('finish', () => resolve(entries));
+            extractor.on('error', reject);
+
+            const passThrough = new PassThrough();
+            passThrough.pipe(extractor);
+            passThrough.end(tarBuffer);
+        });
+
+        const manifest = buildManifest({
+            appUuid,
+            projectUuid,
+            version: resolvedVersion,
+            name: app.name,
+            description: app.description,
+            template: app.template,
+            downloadedAt: new Date().toISOString(),
+        });
+
+        return { manifest, files };
     }
 }
