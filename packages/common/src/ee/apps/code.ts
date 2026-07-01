@@ -4,7 +4,7 @@ import { type DataAppTemplate } from './types';
 export const currentDataAppCodeVersion = 1 as const;
 
 export type DataAppManifest = {
-    codeVersion: 1;
+    codeVersion: typeof currentDataAppCodeVersion;
     appUuid: string;
     projectUuid: string;
     version: number;
@@ -14,6 +14,7 @@ export type DataAppManifest = {
     // "Custom" or apps predating template persistence.
     template: Exclude<DataAppTemplate, 'custom'> | null;
     downloadedAt: string; // ISO
+    scaffoldingVersion?: string; // CLI/SDK version the vendored scaffolding came from (Phase 2)
 };
 
 export type DataAppCodeFile = {

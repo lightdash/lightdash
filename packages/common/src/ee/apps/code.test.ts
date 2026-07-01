@@ -81,4 +81,11 @@ describe('validateDataAppCode', () => {
             }),
         ).toThrow('Invalid app bundle: file entry is not an object');
     });
+    it('accepts a manifest with scaffoldingVersion', () => {
+        const withVersion: DataAppCode = {
+            ...valid,
+            manifest: { ...valid.manifest, scaffoldingVersion: '0.3275.0' },
+        };
+        expect(validateDataAppCode(withVersion)).toEqual(withVersion);
+    });
 });
