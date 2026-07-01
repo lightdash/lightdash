@@ -84,6 +84,7 @@ export const getToolCallChipLabel = (
             const args = toolArgs as ToolFindFieldsArgs;
             return args.fieldSearchQueries?.[0]?.label ?? null;
         }
+        /** @deprecated History-only label for old discoverFields tool calls. */
         case 'discoverFields': {
             const args = toolArgs as DiscoverFieldsInput;
             return args.userQuery ?? null;

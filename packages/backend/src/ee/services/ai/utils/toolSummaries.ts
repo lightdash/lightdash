@@ -64,8 +64,6 @@ export const summarizeToolCall = (toolName: string, input: AnyType) => {
             );
         case 'loadProjectContext':
             return 'Reading project context';
-        case 'discoverFields':
-            return 'Finding the fields to answer this';
         case 'generateVisualization':
             return 'Building chart';
         case 'generateDashboard':
@@ -105,9 +103,6 @@ export const summarizeToolResult = (toolName: string, output: AnyType) => {
     }
     if (toolName === 'findFields') {
         return 'Fields checked';
-    }
-    if (toolName === 'discoverFields') {
-        return 'Fields selected';
     }
     if (toolName === 'generateVisualization') {
         return 'Chart ready';

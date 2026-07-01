@@ -2,7 +2,9 @@ import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { defineTool } from './defineTool';
 import {
+    agentToolDefinitionsByName,
     agentToolNames,
+    discoverFieldsToolDefinition,
     generateVisualizationToolDefinition,
     mcpToolDefinitions,
     runQueryToolDefinition,
@@ -196,9 +198,17 @@ describe('defineTool', () => {
         ]);
     });
 
-    it('keeps ToolNameSchema aligned with agent-available definitions', () => {
+    it('keeps discoverFields history-only', () => {
         expect(new Set(ToolNameSchema.options)).toEqual(
-            new Set(agentToolNames),
+            new Set([...agentToolNames, 'discoverFields']),
+        );
+        expect(agentToolNames).not.toContain('discoverFields');
+    });
+
+    it('keeps discoverFields out of the current-agent map', () => {
+        expect('discoverFields' in agentToolDefinitionsByName).toBe(false);
+        expect(discoverFieldsToolDefinition.for('agent').name).toBe(
+            'discoverFields',
         );
     });
 });

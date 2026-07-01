@@ -368,11 +368,7 @@ const LatestRow: FC<{
     );
 };
 
-/**
- * Subagent UIMessage as carried inside the discoverFields tool's output:
- * `output.metadata.streamingMessage` during preliminary streaming and on the
- * final non-preliminary result that lands in `AiAgentToolResult.metadata`.
- */
+/** @deprecated History-only shape for old discoverFields tool calls. */
 type StreamingMessage = {
     parts: ReadonlyArray<{
         type: string;
@@ -381,6 +377,7 @@ type StreamingMessage = {
     }>;
 };
 
+/** @deprecated History-only metadata for old discoverFields tool calls. */
 type DiscoverFieldsOutputMetadata = {
     streamingMessage?: StreamingMessage;
     /**
@@ -391,6 +388,7 @@ type DiscoverFieldsOutputMetadata = {
     trace?: TraceEntry[];
 };
 
+/** @deprecated History-only parser for old discoverFields tool calls. */
 const extractDiscoverFieldsTraceFromStreamingMessage = (
     message: StreamingMessage | undefined,
 ): TraceEntry[] | null => {
@@ -419,6 +417,7 @@ const extractDiscoverFieldsTraceFromStreamingMessage = (
     return entries.length > 0 ? entries : null;
 };
 
+/** @deprecated History-only parser for old discoverFields tool calls. */
 const extractTraceFromChildren = (
     parentToolCallId: string,
     allToolCalls: AiAgentToolCall[] | undefined,
@@ -437,6 +436,7 @@ const extractTraceFromChildren = (
     }));
 };
 
+/** @deprecated History-only trace getter for old discoverFields tool calls. */
 const getDiscoverFieldsTrace = (
     toolResult: AiAgentToolResult | undefined,
     allToolCalls?: AiAgentToolCall[],
@@ -458,12 +458,7 @@ const getDiscoverFieldsTrace = (
     return Array.isArray(legacy) && legacy.length > 0 ? legacy : null;
 };
 
-/**
- * Pulls the trace out of a live discoverFields tool call's preliminary
- * output. Source of truth during streaming, while the subagent is still
- * emitting findExplores/findFields parts and before the result lands in
- * AiAgentToolResult.metadata.
- */
+/** @deprecated History-only trace getter for old discoverFields tool calls. */
 const getDiscoverFieldsTraceFromCall = (
     call: ToolCallSummary,
 ): TraceEntry[] | null => {

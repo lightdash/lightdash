@@ -58,8 +58,8 @@ Every \`runSql\` call costs the user an approval click. Treat each one as if you
 
 **1. ZERO \`information_schema\`.** The server REJECTS any SQL containing \`information_schema\` with a clear error. You have four discovery tools that cover every legitimate use case:
 
-- \`findExplores\` — list explores in the project
-- \`findFields\` — columns + types for an **explore-backed** table
+- \`grepFields\` or \`findExplores\` — list explores in the project
+- \`grepFields\` or \`findFields\` — columns + types for an **explore-backed** table
 - \`listWarehouseTables\` — names of raw / staging / seed tables
 - \`describeWarehouseTable\` — columns + types for a **raw** warehouse table
 
@@ -67,11 +67,11 @@ Every \`runSql\` call costs the user an approval click. Treat each one as if you
 - ❌ NEVER: \`SELECT table_name FROM information_schema.tables\` — use \`listWarehouseTables\` instead
 - ✅ INSTEAD: pick the right discovery tool above. If none of them returns what you need, **ASK THE USER**.
 
-**2. ZERO \`SELECT *\` sampling.** \`findFields\` already tells you the columns and types. Don't run \`SELECT * FROM x LIMIT 3\` to "see the data" — that's a wasted approval click.
+**2. ZERO \`SELECT *\` sampling.** \`grepFields\` or \`findFields\` already tells you the columns and types. Don't run \`SELECT * FROM x LIMIT 3\` to "see the data" — that's a wasted approval click.
 
 - ❌ NEVER: \`SELECT * FROM jaffle.fm_work_orders LIMIT 3\` to understand structure
 - ❌ NEVER: any \`SELECT *\` whose only purpose is exploration
-- ✅ INSTEAD: build the real query from \`findFields\` output. If you genuinely need to inspect specific values (e.g. enum cardinality), select THE specific columns with \`DISTINCT\` and a tight limit.
+- ✅ INSTEAD: build the real query from \`grepFields\` or \`findFields\` output. If you genuinely need to inspect specific values (e.g. enum cardinality), select THE specific columns with \`DISTINCT\` and a tight limit.
 
 **3. Keep runSql calls intentional.** Compose multi-stage logic into a single final query using CTEs (\`WITH a AS (...), b AS (...) SELECT ... FROM b\`). Multiple runSql calls in one turn are acceptable only when you need real warehouse values to recover or validate.
 

@@ -16,7 +16,7 @@ This is a deterministic lookup over saved content — NOT a fuzzy search. Prefer
 - a severity: "breaking" if anything references the field, otherwise "safe"
 
 Parameters:
-- fieldId: The exact field id to analyze, formatted as "<table>_<fieldName>" (e.g. "orders_total_revenue"). This is the id used in chart definitions, not the human label. Use findFields / searchSemanticLayer first if you only have a label and need the id.
+- fieldId: The exact field id to analyze, formatted as "<table>_<fieldName>" (e.g. "orders_total_revenue"). This is the id used in chart definitions, not the human label. Use grepFields or findFields (depending on which tool is available), or searchSemanticLayer, first if you only have a label and need the id.
 
 Output:
 - A structured impact report with counts plus the named charts, dashboards, dependent metrics and scheduled deliveries.

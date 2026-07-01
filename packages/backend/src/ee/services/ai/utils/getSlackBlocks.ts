@@ -167,7 +167,6 @@ const TOOL_TASK_TITLES: Record<string, string> = {
     runSavedChart: 'Running saved chart',
     runQuery: 'Running query',
     runSql: 'Reviewing SQL',
-    discoverFields: 'Choosing fields',
     generateVisualization: 'Building chart',
     generateDashboard: 'Creating dashboard',
     createContent: 'Saving content',

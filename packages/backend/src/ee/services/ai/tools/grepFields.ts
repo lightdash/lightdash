@@ -117,8 +117,7 @@ const renderPattern = (
  * Deterministic field discovery: grep an in-memory, annotated view of the
  * project's compiled explores (explore = directory, field = file). Reads only
  * the cached explores passed in, so it works for every connection type and
- * never touches the warehouse or git. Gated by the `ai-grep-fields` flag as an
- * alternative to the discoverFields sub-agent.
+ * never touches the warehouse or git. Gated by the `ai-grep-fields` flag.
  */
 export const getGrepFields = ({
     availableExplores,

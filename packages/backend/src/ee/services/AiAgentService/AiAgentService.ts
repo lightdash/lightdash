@@ -8518,7 +8518,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const getSlackReasoningDetails = (toolName?: string): string => {
             switch (toolName) {
-                case 'discoverFields':
                 case 'findFields':
                 case 'findExplores':
                     return 'Analyzing the available fields...';

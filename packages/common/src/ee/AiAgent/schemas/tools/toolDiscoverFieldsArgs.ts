@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+/** @deprecated History-only schema for rendering old discoverFields tool calls. */
 export const DISCOVER_FIELDS_DESCRIPTION = `Tool: discoverFields
 
 Purpose:
@@ -15,6 +16,7 @@ You will receive one of three statuses:
 Re-call this tool if the user pivots mid-thread to a different data topic and you need fields from a different explore.
 `;
 
+/** @deprecated History-only schema for rendering old discoverFields tool calls. */
 export const discoverFieldsInputSchema = z.object({
     userQuery: z
         .string()
@@ -29,6 +31,7 @@ export const discoverFieldsInputSchema = z.object({
         ),
 });
 
+/** @deprecated History-only input type for old discoverFields tool calls. */
 export type DiscoverFieldsInput = z.infer<typeof discoverFieldsInputSchema>;
 
 const discoverFieldsExploreSummarySchema = z.object({
@@ -90,6 +93,7 @@ const discoverFieldsCandidateSchema = z.object({
         .describe('Why this explore is a plausible candidate for the query.'),
 });
 
+/** @deprecated History-only result schema for old discoverFields tool calls. */
 export const discoverFieldsResultUnionSchema = z.discriminatedUnion('status', [
     z.object({
         status: z.literal('resolved'),
@@ -128,10 +132,12 @@ export const discoverFieldsResultUnionSchema = z.discriminatedUnion('status', [
     }),
 ]);
 
+/** @deprecated History-only result schema for old discoverFields tool calls. */
 export const discoverFieldsResultSchema = z.object({
     handoff: discoverFieldsResultUnionSchema,
 });
 
+/** @deprecated History-only output schema for old discoverFields tool calls. */
 export const toolDiscoverFieldsOutputSchema = z.union([
     z.object({
         result: z.literal(''),
@@ -156,9 +162,11 @@ export const toolDiscoverFieldsOutputSchema = z.union([
     }),
 ]);
 
+/** @deprecated History-only result type for old discoverFields tool calls. */
 export type DiscoverFieldsResult = z.infer<
     typeof discoverFieldsResultUnionSchema
 >;
+/** @deprecated History-only output type for old discoverFields tool calls. */
 export type ToolDiscoverFieldsOutput = z.infer<
     typeof toolDiscoverFieldsOutputSchema
 >;

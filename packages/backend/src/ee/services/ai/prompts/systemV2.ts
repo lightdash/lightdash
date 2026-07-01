@@ -42,8 +42,7 @@ export const getSystemPromptV2 = (args: {
     // Whether the repo host supports server-side code search (GitHub yes,
     // GitLab no). Defaults true; when false the prompt steers off `search`.
     repoFsSupportsCodeSearch?: boolean;
-    // Experimental: steer field discovery to the grepFields tool instead of
-    // discoverFields (the ai-grep-fields flag).
+    // Experimental: replace findExplores/findFields with grepFields/getMetadata.
     enableGrepFields?: boolean;
     enableContentTools?: boolean;
     canRunSql?: boolean;
@@ -121,8 +120,12 @@ export const getSystemPromptV2 = (args: {
             ? 'No knowledge documents have been curated for this agent.'
             : knowledgeDocuments.map(renderKnowledgeDocument).join('\n');
 
+    const fieldDiscoveryToolLabel = enableGrepFields
+        ? 'grepFields/getMetadata'
+        : 'findExplores/findFields';
+
     const projectContextContent = args.hasProjectContext
-        ? 'This project has curated business context (acronyms, definitions, rules). Call the `loadProjectContext` tool BEFORE findExplores/findFields/discoverFields — it can change which explore, field, or filter value you should use. Treat it as authoritative over your own assumptions.'
+        ? `This project has curated business context (acronyms, definitions, rules). Call the \`loadProjectContext\` tool BEFORE ${fieldDiscoveryToolLabel} — it can change which explore, field, or filter value you should use. Treat it as authoritative over your own assumptions.`
         : 'No project context has been configured for this project.';
 
     const AVAILABLE_EXPLORES_INLINE_LIMIT = 15;
@@ -137,8 +140,40 @@ export const getSystemPromptV2 = (args: {
             args.availableExplores,
         ).toString();
     } else {
-        availableExploresContent = `This agent has access to ${args.availableExplores.length} explores. Use findExplores to discover the relevant one for each request.`;
+        const discoveryTool = enableGrepFields ? 'grepFields' : 'findExplores';
+        availableExploresContent = `This agent has access to ${args.availableExplores.length} explores. Use ${discoveryTool} to discover the relevant one for each request.`;
     }
+
+    const internalToolExamples = enableGrepFields
+        ? 'grepFields, getMetadata, generateVisualization, searchFieldValues, findContent, get_knowledge_document_content'
+        : 'findExplores, findFields, generateVisualization, searchFieldValues, findContent, get_knowledge_document_content';
+    const fieldDiscoveryToolName = enableGrepFields
+        ? 'grepFields'
+        : 'findFields';
+    const fieldResolutionTools = enableGrepFields
+        ? 'grepFields/getMetadata or searchSemanticLayer'
+        : 'findFields or searchSemanticLayer';
+    const dataDiscoveryWorkflow = enableGrepFields
+        ? [
+              "   - Call grepFields with high-signal keyword patterns from the user's request. Leave exploreName null unless the thread already gives you a specific explore. Use the returned explore groups, required filters, verified usage, and any knowledge-document guidance to choose one explore.",
+              '   - If multiple explores are genuinely plausible and no knowledge document resolves the ambiguity, ask the user a concise clarification question and do not call generateVisualization.',
+              '   - If no explore or fields cover the request, explain that and offer alternatives if appropriate.',
+              '   - Once you have chosen an explore and fields, call getMetadata for that explore and the selected fields to get joined-table markers, filter types, required filters, and hints.',
+              "   - Use only field IDs returned by grepFields and verified with getMetadata. Don't include every field; pick the metrics, dimensions, date grains, and filters needed for the answer.",
+          ].join('\n')
+        : [
+              "   - Call findExplores with high-signal keywords from the user's request. Use the returned explore matches, top matching fields, joined tables, required filters, verified usage, and any knowledge-document guidance to choose one explore.",
+              '   - If multiple explores are genuinely plausible and no knowledge document resolves the ambiguity, ask the user a concise clarification question and do not call generateVisualization.',
+              '   - If no explore covers the request, explain that and offer alternatives if appropriate.',
+              '   - Once you have chosen an explore, call findFields for that explore with the needed metric/entity/date/filter terms. Pass all needed field searches in one request.',
+              "   - Use only field IDs returned by findFields. Don't include every field; pick the metrics, dimensions, date grains, and filters needed for the answer.",
+          ].join('\n');
+    const fieldIdSourceRule = enableGrepFields
+        ? 'Use only fieldIds returned by grepFields and verified with getMetadata.'
+        : 'Use only field IDs returned by findFields.';
+    const joinedTableMarkerRule = enableGrepFields
+        ? 'getMetadata identifies joined-table fields; trust that detail rather than substituting a base-table field with a similar name.'
+        : 'findFields surfaces joined-table fields with `isFromJoinedTable`; trust those markers rather than substituting a base-table field with a similar name.';
 
     const content = SYSTEM_PROMPT_TEMPLATE.replace(
         '{{self_improvement_section}}',
@@ -183,6 +218,12 @@ export const getSystemPromptV2 = (args: {
         .replace('{{cross_explore_join_rule}}', crossExploreJoinRule)
         .replace('{{custom_sql_limitation}}', customSqlLimitation)
         .replace('{{agent_name}}', agentName)
+        .replace('{{internal_tool_examples}}', internalToolExamples)
+        .replace('{{field_discovery_tool_name}}', fieldDiscoveryToolName)
+        .replace('{{field_resolution_tools}}', fieldResolutionTools)
+        .replace('{{data_discovery_workflow}}', dataDiscoveryWorkflow)
+        .replace('{{field_id_source_rule}}', fieldIdSourceRule)
+        .replace('{{joined_table_marker_rule}}', joinedTableMarkerRule)
         .replace(
             '{{instructions}}',
             instructions ? `Special instructions: ${instructions}` : '',
@@ -203,14 +244,12 @@ export const getSystemPromptV2 = (args: {
                   .join('\n')}`
             : '';
 
-    // Experimental: when grepFields replaces discoverFields, override the
-    // discovery guidance so the agent greps the field catalog itself.
     const grepFieldsSection = enableGrepFields
         ? [
-              '## Finding fields (grepFields)',
-              'To find which explore and fields can answer a question, use the `grepFields` tool instead of any other discovery step. It greps the field catalog (names, labels, descriptions, hints, tags) with case-insensitive keyword patterns (`|` for OR, space or .* between words for AND) and returns `explore/fieldId  [kind type]` lines grouped by explore.',
-              '- The user message may already include a "Candidate fields pre-grepped from the catalog" block. Read it FIRST — if it contains the fields you need, use them directly and skip calling grepFields. Only call grepFields when those candidates do not cover the question or you need a different angle.',
-              '- When you do call grepFields, pass several patterns in ONE call (the `patterns` array) covering the different angles of the question at once — e.g. `["revenue|sales", "country|region"]`. Do not grep one pattern, wait, then grep another.',
+              '## Finding explores and fields (grepFields)',
+              'Use `grepFields` to search the field catalog (names, labels, descriptions, hints, tags) with case-insensitive keyword patterns (`|` for OR, space or .* between words for AND). It returns `explore/fieldId  [kind type]` lines grouped by explore, so it identifies both candidate explores and fields.',
+              '- The user message may already include a "Candidate fields pre-grepped from the catalog" block. Read it FIRST — if it contains the fields you need, use them as the grep result and go straight to getMetadata. Only call grepFields when those candidates do not cover the question or you need a different angle.',
+              '- When you call grepFields, pass several patterns in ONE call (the `patterns` array) covering the different angles of the question at once — e.g. `["revenue|sales", "country|region"]`. Do not grep one pattern, wait, then grep another.',
               '- Use meaningful keywords, not long natural-language phrases. Read the returned fieldIds and pick the single explore that answers at the right grain before building a query.',
               "- Once you have narrowed down to the explore(s) and field(s) you intend to use, call `getMetadata` (batching all of them in one call) to get the detail you need to build a correct query — an explore's joined tables and required filters, and a field's filter type, case-sensitivity and hints. grepFields tells you what exists; getMetadata tells you how to use it.",
               '- If your literal patterns miss, grepFields automatically returns the closest catalog matches (fuzzy search, verified fields first) under "No exact grep matches" — use those rather than re-grepping a long list of synonyms.',

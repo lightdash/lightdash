@@ -15,7 +15,7 @@ When to use:
 - You're trying to confirm a schema name before writing SQL.
 
 Do NOT use:
-- For column/field discovery — use findFields on the relevant explore instead.
+- For column/field discovery — use grepFields or findFields, depending on which tool is available.
 - To run ad-hoc queries — use runSql.
 
 Parameters:

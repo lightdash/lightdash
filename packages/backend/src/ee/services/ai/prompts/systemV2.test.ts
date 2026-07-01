@@ -33,6 +33,37 @@ describe('getSystemPromptV2 project context', () => {
     });
 });
 
+describe('getSystemPromptV2 grep discovery', () => {
+    test('uses grep metadata workflow without findExplores/findFields guidance when enabled', () => {
+        const content = promptText({
+            availableExplores: [],
+            enableGrepFields: true,
+            hasProjectContext: true,
+            canRunSql: true,
+            enableRepoDiscovery: true,
+        });
+
+        expect(content).toContain('grepFields');
+        expect(content).toContain('getMetadata');
+        expect(content).not.toContain('Call findExplores');
+        expect(content).not.toContain('call findFields');
+        expect(content).not.toContain('findExplores/findFields');
+        expect(content).not.toContain('{{data_discovery_workflow}}');
+    });
+
+    test('uses findFields workflow when grep is disabled', () => {
+        const content = promptText({
+            availableExplores: [],
+            enableGrepFields: false,
+        });
+
+        expect(content).toContain('findExplores');
+        expect(content).toContain('findFields');
+        expect(content).not.toContain('grepFields');
+        expect(content).not.toContain('{{data_discovery_workflow}}');
+    });
+});
+
 describe('getSystemPromptV2 MCP connections', () => {
     test('lists unauthenticated MCP server login status', () => {
         const content = promptText({
