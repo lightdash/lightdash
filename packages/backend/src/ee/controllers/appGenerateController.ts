@@ -16,7 +16,9 @@ import {
     type ApiGenerateAppResponse,
     type ApiGetAppCodeResponse,
     type ApiGetAppResponse,
+    type ApiGetDataAppVizResponse,
     type ApiImportAppCodeResponse,
+    type ApiListDataAppVizsResponse,
     type ApiMyAppsResponse,
     type ApiPreviewTokenResponse,
     type ApiPromoteAppDiffResponse,
@@ -114,6 +116,59 @@ export class AppGenerateController extends BaseController {
         return {
             status: 'ok',
             results,
+        };
+    }
+
+    /**
+     * @summary List project data app visualizations
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/visualizations')
+    @OperationId('listDataAppVisualizations')
+    async listDataAppVisualizations(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Query() page?: number,
+        @Query() pageSize?: number,
+    ): Promise<ApiListDataAppVizsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results =
+            await this.getAppGenerateService().listDataAppVisualizations(
+                toSessionUser(req.account),
+                projectUuid,
+                page && pageSize ? { page, pageSize } : undefined,
+            );
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * @summary Get a data app visualization
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/visualizations/{dataAppVizUuid}')
+    @OperationId('getDataAppVisualization')
+    async getDataAppVisualization(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() dataAppVizUuid: string,
+    ): Promise<ApiGetDataAppVizResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const result =
+            await this.getAppGenerateService().getDataAppVisualization(
+                toSessionUser(req.account),
+                projectUuid,
+                dataAppVizUuid,
+            );
+        return {
+            status: 'ok',
+            results: result,
         };
     }
 

@@ -10552,7 +10552,13 @@
             },
             "DataAppTemplate": {
                 "type": "string",
-                "enum": ["custom", "dashboard", "slideshow", "pdf"]
+                "enum": [
+                    "custom",
+                    "dashboard",
+                    "slideshow",
+                    "pdf",
+                    "data_app_viz"
+                ]
             },
             "AppChartReference": {
                 "properties": {
@@ -10695,6 +10701,349 @@
             "ApiEmbedProjectAppsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_EmbedProjectApp-Array_"
             },
+            "DataAppVizFieldType": {
+                "type": "string",
+                "enum": ["dimension", "metric", "series"]
+            },
+            "DataAppVizField": {
+                "properties": {
+                    "required": {
+                        "type": "boolean"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DataAppVizFieldType"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["required", "type", "label", "name"],
+                "type": "object"
+            },
+            "DataAppVizConfigOption": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "default": {
+                                "type": "boolean"
+                            },
+                            "group": {
+                                "type": "string"
+                            },
+                            "label": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["boolean"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["default", "label", "name", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "default": {
+                                "type": "string"
+                            },
+                            "choices": {
+                                "items": {
+                                    "properties": {
+                                        "label": {
+                                            "type": "string"
+                                        },
+                                        "value": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["label", "value"],
+                                    "type": "object"
+                                },
+                                "type": "array"
+                            },
+                            "group": {
+                                "type": "string"
+                            },
+                            "label": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["select"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "default",
+                            "choices",
+                            "label",
+                            "name",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "max": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "min": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "default": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "group": {
+                                "type": "string"
+                            },
+                            "label": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["number"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["default", "label", "name", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "default": {
+                                "type": "string"
+                            },
+                            "group": {
+                                "type": "string"
+                            },
+                            "label": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["text"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["default", "label", "name", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "default": {
+                                "type": "string"
+                            },
+                            "group": {
+                                "type": "string"
+                            },
+                            "label": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["color"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["default", "label", "name", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "default": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "group": {
+                                "type": "string"
+                            },
+                            "label": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["palette"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["default", "label", "name", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "DataAppVizSchema": {
+                "properties": {
+                    "configOptions": {
+                        "items": {
+                            "$ref": "#/components/schemas/DataAppVizConfigOption"
+                        },
+                        "type": "array"
+                    },
+                    "fields": {
+                        "items": {
+                            "$ref": "#/components/schemas/DataAppVizField"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["configOptions", "fields"],
+                "type": "object",
+                "description": "The full declaration a data app viz emits: data-binding fields + config form."
+            },
+            "DataAppViz": {
+                "properties": {
+                    "createdByUserUuid": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "schema": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DataAppVizSchema"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "spaceUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "dataAppVizUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "createdByUserUuid",
+                    "createdAt",
+                    "schema",
+                    "spaceUuid",
+                    "projectUuid",
+                    "description",
+                    "name",
+                    "dataAppVizUuid"
+                ],
+                "type": "object"
+            },
+            "KnexPaginateArgs": {
+                "properties": {
+                    "page": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "pageSize": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["page", "pageSize"],
+                "type": "object"
+            },
+            "KnexPaginatedData_DataAppViz-Array_": {
+                "properties": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalResults", "totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
+                        "items": {
+                            "$ref": "#/components/schemas/DataAppViz"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiSuccess_KnexPaginatedData_DataAppViz-Array__": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_DataAppViz-Array_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiListDataAppVizsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_DataAppViz-Array__"
+            },
+            "ApiSuccess_DataAppViz_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/DataAppViz"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiGetDataAppVizResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_DataAppViz_"
+            },
             "ApiSuccess__questions-string-Array__": {
                 "properties": {
                     "results": {
@@ -10773,7 +11122,7 @@
             },
             "Exclude_DataAppTemplate.custom_": {
                 "type": "string",
-                "enum": ["dashboard", "slideshow", "pdf"],
+                "enum": ["dashboard", "slideshow", "pdf", "data_app_viz"],
                 "description": "Exclude from T those types that are assignable to U"
             },
             "AppVersionStatus": {
@@ -12232,20 +12581,6 @@
                     "name",
                     "appUuid"
                 ],
-                "type": "object"
-            },
-            "KnexPaginateArgs": {
-                "properties": {
-                    "page": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "pageSize": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": ["page", "pageSize"],
                 "type": "object"
             },
             "ApiSuccess__data-ApiAppSummary-Array--pagination_63_-KnexPaginateArgs-and-_totalPageCount-number--totalResults-number___": {
@@ -41982,7 +42317,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3274.1",
+        "version": "0.3277.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

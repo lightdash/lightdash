@@ -1,5 +1,10 @@
+import { z } from 'zod';
+import { zodToJsonSchema } from 'zod-to-json-schema';
 import { type ApiSuccess, type ApiSuccessEmpty } from '../../types/api/success';
-import { type KnexPaginateArgs } from '../../types/knex-paginate';
+import {
+    type KnexPaginateArgs,
+    type KnexPaginatedData,
+} from '../../types/knex-paginate';
 import { type MetricQuery } from '../../types/metricQuery';
 
 /**
@@ -47,11 +52,15 @@ export type ApiAppImageUploadResponse = ApiSuccess<{
     imageId: string;
 }>;
 
+/** Starter template for a single-tile renderer that emits a typed viz schema. */
+export const DATA_APP_VIZ_TEMPLATE = 'data_app_viz' as const;
+
 export const DATA_APP_TEMPLATES = [
     'dashboard',
     'slideshow',
     'pdf',
     'custom',
+    DATA_APP_VIZ_TEMPLATE,
 ] as const;
 export type DataAppTemplate = (typeof DATA_APP_TEMPLATES)[number];
 
@@ -260,7 +269,7 @@ export type ApiGetAppResponse = ApiSuccess<{
     createdByUserUuid: string;
     spaceUuid: string | null;
     spaceName: string | null;
-    // null when the user picked "Custom" or for apps that pre-date template persistence
+    // The stored template flavor; null for "Custom" or apps predating template persistence.
     template: Exclude<DataAppTemplate, 'custom'> | null;
     pinnedListUuid: string | null;
     pinnedListOrder: number | null;
@@ -378,3 +387,195 @@ export type ApiMyAppsResponse = ApiSuccess<{
         totalResults: number;
     };
 }>;
+
+// Data app viz declaration: explicit TS types (for the OpenAPI spec) plus a zod
+// schema (runtime validation of the generated declaration), kept in sync by the
+// compile-time assertion below.
+
+// Binds a host query column: dimension (grouping), metric (measure), series (splits/colours).
+export type DataAppVizFieldType = 'dimension' | 'metric' | 'series';
+export type DataAppVizField = {
+    name: string;
+    label: string;
+    type: DataAppVizFieldType;
+    required: boolean;
+};
+
+export type DataAppVizConfigOptionType =
+    | 'boolean'
+    | 'select'
+    | 'number'
+    | 'text'
+    | 'color'
+    | 'palette';
+
+// A whole-viz config option rendered as a form control; `group` is an optional tab label.
+export type DataAppVizConfigOption =
+    | {
+          type: 'boolean';
+          name: string;
+          label: string;
+          group?: string;
+          default: boolean;
+      }
+    | {
+          type: 'select';
+          name: string;
+          label: string;
+          group?: string;
+          choices: { value: string; label: string }[];
+          default: string;
+      }
+    | {
+          type: 'number';
+          name: string;
+          label: string;
+          group?: string;
+          default: number;
+          min?: number;
+          max?: number;
+      }
+    | {
+          type: 'text';
+          name: string;
+          label: string;
+          group?: string;
+          default: string;
+      }
+    | {
+          type: 'color';
+          name: string;
+          label: string;
+          group?: string;
+          default: string;
+      }
+    | {
+          type: 'palette';
+          name: string;
+          label: string;
+          group?: string;
+          default: string[];
+      };
+
+/** A persisted config value; its shape is set by the option's declared `type`. */
+export type DataAppVizOptionValue = boolean | number | string | string[];
+
+/** The full declaration a data app viz emits: data-binding fields + config form. */
+export type DataAppVizSchema = {
+    fields: DataAppVizField[];
+    configOptions: DataAppVizConfigOption[];
+};
+
+const uniqueNames = <T extends { name: string }>(arr: T[]): boolean =>
+    new Set(arr.map((a) => a.name)).size === arr.length;
+
+const optionBase = {
+    name: z.string().min(1),
+    label: z.string(),
+    group: z.string().optional(),
+};
+
+// Runtime validator for the untrusted generated declaration. Also the source
+// for the JSON Schema embedded in the generation prompt.
+export const dataAppVizSchema = z.object({
+    fields: z
+        .array(
+            z.object({
+                name: z.string().min(1),
+                label: z.string(),
+                type: z.enum(['dimension', 'metric', 'series']),
+                required: z.boolean(),
+            }),
+        )
+        .refine(uniqueNames, 'duplicate field name'),
+    configOptions: z
+        .array(
+            z.discriminatedUnion('type', [
+                z.object({
+                    ...optionBase,
+                    type: z.literal('boolean'),
+                    default: z.boolean(),
+                }),
+                z.object({
+                    ...optionBase,
+                    type: z.literal('select'),
+                    choices: z
+                        .array(
+                            z.object({ value: z.string(), label: z.string() }),
+                        )
+                        .min(1),
+                    default: z.string(),
+                }),
+                z.object({
+                    ...optionBase,
+                    type: z.literal('number'),
+                    default: z.number(),
+                    min: z.number().optional(),
+                    max: z.number().optional(),
+                }),
+                z.object({
+                    ...optionBase,
+                    type: z.literal('text'),
+                    default: z.string(),
+                }),
+                z.object({
+                    ...optionBase,
+                    type: z.literal('color'),
+                    default: z.string(),
+                }),
+                z.object({
+                    ...optionBase,
+                    type: z.literal('palette'),
+                    default: z.array(z.string()),
+                }),
+            ]),
+        )
+        .default([])
+        .refine(uniqueNames, 'duplicate option name'),
+});
+
+// Compile-time guard: the zod schema's output type must match the explicit
+// type exposed through the API. If either side drifts, this line fails to type.
+type AssertMutuallyAssignable<A, B> = [A] extends [B]
+    ? [B] extends [A]
+        ? true
+        : never
+    : never;
+const dataAppVizSchemaMatchesApiType: AssertMutuallyAssignable<
+    z.infer<typeof dataAppVizSchema>,
+    DataAppVizSchema
+> = true;
+void dataAppVizSchemaMatchesApiType;
+
+// JSON Schema form of `dataAppVizSchema` for the generator CLI's `--json-schema`
+// flag. Refinements (e.g. unique names) don't survive the conversion and stay
+// enforced by the runtime `safeParse`.
+export const dataAppVizJsonSchema = zodToJsonSchema(dataAppVizSchema);
+
+/** Effective option values = stored value ?? declared default (derive, never seed). */
+export const getEffectiveOptionValues = (
+    configOptions: DataAppVizConfigOption[],
+    optionValues: Record<string, DataAppVizOptionValue>,
+): Record<string, DataAppVizOptionValue> =>
+    Object.fromEntries(
+        configOptions.map((o) => [o.name, optionValues[o.name] ?? o.default]),
+    );
+
+// A reusable, by-reference data app viz: a single-tile data app that declares a
+// schema. Consumers store the `dataAppVizUuid` plus their own mapping, never a
+// copy. `schema` is null until a version generates one.
+export type DataAppViz = {
+    dataAppVizUuid: string;
+    name: string;
+    description: string;
+    projectUuid: string;
+    spaceUuid: string | null;
+    schema: DataAppVizSchema | null;
+    createdAt: Date;
+    createdByUserUuid: string;
+};
+
+export type ApiListDataAppVizsResponse = ApiSuccess<
+    KnexPaginatedData<DataAppViz[]>
+>;
+export type ApiGetDataAppVizResponse = ApiSuccess<DataAppViz>;
