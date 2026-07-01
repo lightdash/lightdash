@@ -5,6 +5,8 @@ export type ChatChart = {
     name: string;
     uuid: string;
     chartKind?: ChartKind;
+    /** True when the chart was attached as a live link (run by uuid). */
+    linkLive?: boolean;
 };
 
 export type ChatConnection = {

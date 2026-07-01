@@ -1,8 +1,11 @@
+// Must be first: registers global crash handlers before any app module evals.
+import '@/lib/globalErrorHandler';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createClient, LightdashProvider } from '@lightdash/query-sdk';
 import { FilterProvider } from '@/lib/filters';
+import { ErrorBoundary } from '@/lib/ErrorBoundary';
 import App from './App';
 import './index.css';
 import './chart-overrides.css';
@@ -26,7 +29,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <QueryClientProvider client={queryClient}>
             <LightdashProvider client={lightdash}>
                 <FilterProvider>
-                    <App />
+                    <ErrorBoundary>
+                        <App />
+                    </ErrorBoundary>
                 </FilterProvider>
             </LightdashProvider>
         </QueryClientProvider>

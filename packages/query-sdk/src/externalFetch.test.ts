@@ -104,6 +104,7 @@ describe('LightdashClient.externalFetch', () => {
         };
         const transport: Transport = {
             executeQuery: vi.fn(),
+            executeSavedChart: vi.fn(),
             getUser: vi.fn(),
             externalFetch: vi.fn().mockResolvedValue(result),
         };

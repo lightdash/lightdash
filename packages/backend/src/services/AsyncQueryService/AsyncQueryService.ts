@@ -4714,6 +4714,8 @@ export class AsyncQueryService extends ProjectService {
             chartUuid,
             versionUuid,
             limit,
+            parameters,
+            pivotResults,
         };
 
         const { maxLimit, csvCellsLimit } =

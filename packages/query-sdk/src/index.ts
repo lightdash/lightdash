@@ -1,5 +1,6 @@
 // Query builder
 export { query } from './query';
+export { savedChart, type SavedChartQuery } from './savedChart';
 
 // Drill-down helper
 export { drillDown } from './drillDown';

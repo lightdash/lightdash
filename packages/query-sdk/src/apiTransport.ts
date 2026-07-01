@@ -21,6 +21,7 @@ import type {
     InternalFilterDefinition,
     LightdashClientConfig,
     LightdashUser,
+    ParametersValuesMap,
     QueryDefinition,
     QueryResult,
     Row,
@@ -852,6 +853,64 @@ export function createApiTransport(
                 getUnderlyingData,
                 downloadUnderlyingData,
                 downloadResults,
+            };
+        },
+
+        async executeSavedChart(params: {
+            chartUuid: string;
+            label?: string;
+            limit?: number;
+            parameters?: ParametersValuesMap;
+        }): Promise<QueryResult> {
+            const metadata = params.label
+                ? { label: params.label }
+                : undefined;
+            const body: Record<string, unknown> = {
+                chartUuid: params.chartUuid,
+            };
+            if (params.limit !== undefined) body.limit = params.limit;
+            if (
+                params.parameters &&
+                Object.keys(params.parameters).length > 0
+            ) {
+                body.parameters = params.parameters;
+            }
+            const execResult = await fetchFn<AsyncQueryResponse>(
+                'POST',
+                `/api/v2/projects/${config.projectUuid}/query/chart`,
+                body,
+                metadata,
+            );
+            const { queryUuid, fields } = execResult;
+
+            const { firstReadyPage, apiRows } = await pollQueryRows(
+                fetchFn,
+                config.projectUuid,
+                queryUuid,
+            );
+
+            // No client-side QueryDefinition for a saved chart — derive the
+            // field ids from the response (same approach as underlying-data),
+            // and key rows by their field id (identity).
+            const fieldIds = [
+                ...Object.keys(fields),
+                ...Object.keys(firstReadyPage.columns).filter(
+                    (fieldId) => !(fieldId in fields),
+                ),
+            ];
+
+            const mappedResult = mapApiRowsToQueryResult({
+                apiRows,
+                columns: firstReadyPage.columns,
+                fields,
+                fieldIds,
+                fieldNameForId: (fieldId) => fieldId,
+            });
+
+            return {
+                ...mappedResult,
+                totalResults: firstReadyPage.totalResults,
+                queryUuid,
             };
         },
 

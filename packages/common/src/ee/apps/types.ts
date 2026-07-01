@@ -83,6 +83,10 @@ export const DEFAULT_DATA_APP_CLAUDE_MODEL: DataAppClaudeModel = 'sonnet';
 export type AppChartReference = {
     uuid: string;
     includeSampleData: boolean;
+    /** When true the app runs this chart live by UUID (linked) instead of
+     *  copying its metric query inline. Optional for backwards compatibility —
+     *  omitted (older clients) is treated as false (copy) on the server. */
+    linkLive?: boolean;
 };
 
 /**
@@ -197,6 +201,9 @@ export type AppVersionChartResource = {
     chartUuid: string;
     chartName: string;
     chartKind: string | null;
+    /** Whether this chart was attached as a live link — persists the linked
+     *  chip indicator across reloads. Optional for backwards compatibility. */
+    linkLive?: boolean;
 };
 
 export type AppVersionExternalConnectionResource = {
@@ -382,6 +389,11 @@ export type ChartReference = {
     exploreName: string;
     metricQuery: MetricQuery;
     sampleData: ChartSampleData | null; // null when the user did not opt in
+    /** Saved chart UUID — surfaced into the sandbox so a linked chart can be
+     *  run live via savedChart(uuid). */
+    chartUuid: string;
+    /** true = run live by UUID; false = inline the metricQuery (copy). */
+    linked: boolean;
 };
 
 export type ApiMyAppsResponse = ApiSuccess<{

@@ -15,7 +15,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTransport } from './LightdashProvider';
-import type { QueryBuilder } from './query';
+import { QueryBuilder } from './query';
+import type { SavedChartQuery } from './savedChart';
 import type {
     Column,
     DownloadUnderlyingDataOptions,
@@ -72,7 +73,9 @@ type UseLightdashResult = {
     ) => Promise<DownloadResultsResult>;
 };
 
-export function useLightdash(query: QueryBuilder): UseLightdashResult {
+export function useLightdash(
+    query: QueryBuilder | SavedChartQuery,
+): UseLightdashResult {
     const transport = useTransport();
     const [data, setData] = useState<Row[]>([]);
     const [columns, setColumns] = useState<Column[]>([]);
@@ -102,7 +105,15 @@ export function useLightdash(query: QueryBuilder): UseLightdashResult {
         );
     });
 
-    const queryKey = useMemo(() => JSON.stringify(query.build()), [query]);
+    const queryKey = useMemo(
+        () =>
+            query instanceof QueryBuilder
+                ? JSON.stringify(query.build())
+                : `savedChart:${query.chartUuid}:${
+                      query.limitValue ?? ''
+                  }:${JSON.stringify(query.parameterValues ?? {})}`,
+        [query],
+    );
 
     const refetch = useCallback(() => {
         setFetchCount((c) => c + 1);
@@ -132,10 +143,17 @@ export function useLightdash(query: QueryBuilder): UseLightdashResult {
             );
         });
 
-        const definition = query.build();
+        const exec =
+            query instanceof QueryBuilder
+                ? transport.executeQuery(query.build())
+                : transport.executeSavedChart({
+                      chartUuid: query.chartUuid,
+                      label: query.labelText,
+                      limit: query.limitValue,
+                      parameters: query.parameterValues,
+                  });
 
-        transport
-            .executeQuery(definition)
+        exec
             .then((res) => {
                 if (!cancelled) {
                     setData(res.rows);

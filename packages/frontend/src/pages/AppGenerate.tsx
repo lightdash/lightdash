@@ -35,6 +35,7 @@ import {
     IconExternalLink,
     IconArrowBackUp,
     IconLayoutDashboard,
+    IconLink,
     IconPlayerStop,
     IconRestore,
     IconPlugConnected,
@@ -811,6 +812,7 @@ const AppGenerate: FC = () => {
                     name: c.chartName,
                     uuid: c.chartUuid,
                     chartKind: undefined,
+                    linkLive: c.linkLive,
                 })) ?? [];
             const charts =
                 serverCharts.length > 0
@@ -1539,6 +1541,7 @@ const AppGenerate: FC = () => {
                     ? selectedCharts.map((c) => ({
                           uuid: c.uuid,
                           includeSampleData: c.includeSampleData,
+                          linkLive: c.linkLive,
                       }))
                     : undefined;
             const externalConnections:
@@ -1607,6 +1610,7 @@ const AppGenerate: FC = () => {
                 name: c.name,
                 uuid: c.uuid,
                 chartKind: c.chartKind,
+                linkLive: c.linkLive,
             }));
             if (sentCharts.length > 0) {
                 sentChartsByPrompt.current.set(trimmed, sentCharts);
@@ -2008,6 +2012,17 @@ const AppGenerate: FC = () => {
                                                                                     chart.name
                                                                                 }
                                                                             </Text>
+                                                                            {chart.linkLive && (
+                                                                                <MantineIcon
+                                                                                    icon={
+                                                                                        IconLink
+                                                                                    }
+                                                                                    size={
+                                                                                        12
+                                                                                    }
+                                                                                    color="blue.6"
+                                                                                />
+                                                                            )}
                                                                         </Box>
                                                                     ),
                                                                 )}
@@ -2581,6 +2596,25 @@ const AppGenerate: FC = () => {
                                                                               ...c,
                                                                               includeSampleData:
                                                                                   !c.includeSampleData,
+                                                                          }
+                                                                        : c,
+                                                                ),
+                                                        )
+                                                    }
+                                                    onToggleLink={(uuid) =>
+                                                        setSelectedCharts(
+                                                            (prev) =>
+                                                                prev.map((c) =>
+                                                                    c.uuid ===
+                                                                    uuid
+                                                                        ? {
+                                                                              ...c,
+                                                                              linkLive:
+                                                                                  !c.linkLive,
+                                                                              includeSampleData:
+                                                                                  c.linkLive
+                                                                                      ? c.includeSampleData
+                                                                                      : false,
                                                                           }
                                                                         : c,
                                                                 ),

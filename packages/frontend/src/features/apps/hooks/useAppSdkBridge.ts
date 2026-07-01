@@ -106,6 +106,11 @@ const ALLOWED_ROUTES: Array<{ method: string; pattern: RegExp }> = [
         method: 'POST',
         pattern: /^\/api\/v2\/projects\/[^/]+\/query\/metric-query$/,
     },
+    // Run a saved chart live by UUID (linked charts)
+    {
+        method: 'POST',
+        pattern: /^\/api\/v2\/projects\/[^/]+\/query\/chart$/,
+    },
     // Run underlying-data queries for SDK result rows
     {
         method: 'POST',
@@ -141,6 +146,10 @@ function isAllowedRoute(method: string, path: string): boolean {
 const isMetricQueryPost = (method: string, path: string): boolean =>
     method.toUpperCase() === 'POST' &&
     /^\/api\/v2\/projects\/[^/]+\/query\/metric-query$/.test(path);
+
+const isChartQueryPost = (method: string, path: string): boolean =>
+    method.toUpperCase() === 'POST' &&
+    /^\/api\/v2\/projects\/[^/]+\/query\/chart$/.test(path);
 
 const isQueryResultGet = (method: string, path: string): boolean =>
     method.toUpperCase() === 'GET' &&
@@ -537,19 +546,25 @@ export function useAppSdkBridge({
             }
 
             // Stamp dashboard filters and the cache-invalidation flag onto
-            // outgoing metric-query bodies. The backend drops filters whose
-            // fields aren't in the query's explore, so it's safe to send the
-            // full set on every call. `invalidateCache` mirrors what charts
-            // send on a dashboard refresh so the app's queries bypass the
-            // warehouse results cache too. App attribution rides on the
+            // outgoing query bodies. The backend drops filters whose fields
+            // aren't in the query's explore, so it's safe to send the full set
+            // on every call. dashboardFilters apply only to inline metric
+            // queries; `invalidateCache` applies to inline AND linked
+            // (/query/chart) charts so a preview refresh bypasses the warehouse
+            // results cache for linked charts too. App attribution rides on the
             // LightdashAppUuidHeader instead (see the fetch below).
+            const stampFilters =
+                isMetricQueryPost(method, path) && !!dashboardFilters;
+            const stampInvalidate =
+                (isMetricQueryPost(method, path) ||
+                    isChartQueryPost(method, path)) &&
+                !!invalidateCache;
             const effectiveBody =
-                isMetricQueryPost(method, path) &&
-                (dashboardFilters || invalidateCache)
+                stampFilters || stampInvalidate
                     ? {
                           ...(body as Record<string, unknown> | undefined),
-                          ...(dashboardFilters ? { dashboardFilters } : {}),
-                          ...(invalidateCache ? { invalidateCache } : {}),
+                          ...(stampFilters ? { dashboardFilters } : {}),
+                          ...(stampInvalidate ? { invalidateCache } : {}),
                       }
                     : body;
 
@@ -606,7 +621,12 @@ export function useAppSdkBridge({
             // already emit their own terminal events, so this only runs
             // for the POST.
             const emitPostFailure = (errorMessage: string) => {
-                if (!isMetricQueryPost(method, path) || !onQueryEvent) return;
+                if (
+                    (!isMetricQueryPost(method, path) &&
+                        !isChartQueryPost(method, path)) ||
+                    !onQueryEvent
+                )
+                    return;
                 onQueryEvent({
                     id,
                     timestamp: Date.now(),
@@ -655,7 +675,8 @@ export function useAppSdkBridge({
                 if (json.status === 'ok') {
                     // Track metric query initiation response (has queryUuid)
                     if (
-                        isMetricQueryPost(method, path) &&
+                        (isMetricQueryPost(method, path) ||
+                            isChartQueryPost(method, path)) &&
                         onQueryEvent &&
                         json.results?.queryUuid
                     ) {
