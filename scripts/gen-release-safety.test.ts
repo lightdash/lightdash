@@ -704,6 +704,70 @@ test('NO DRIFT: ownExpandContractFloor equals the floor buildMarker advertises',
     assert.strictEqual(ownExpandContractFloor(input), '0.3240.0');
 });
 
+// --- upgrade.sourceVersion / kind / requiredStops (structured, no prose) -----
+
+test('carriedFloor from a required stop => kind=requiredStop + sourceVersion (the stop to LAND on)', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: noMig,
+        carriedFloor: { minPreviousVersion: '0.3280.0', sourceVersion: '0.3280.0', kind: 'requiredStop' },
+    });
+    assert.strictEqual(m.upgrade.minPreviousVersion, '0.3280.0');
+    assert.strictEqual(m.upgrade.kind, 'requiredStop');
+    assert.strictEqual(m.upgrade.sourceVersion, '0.3280.0');
+});
+
+test('carriedFloor from a drop floor => kind=minPrevious + the source release', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: noMig,
+        carriedFloor: { minPreviousVersion: '0.3260.0', sourceVersion: '0.3265.0', kind: 'minPrevious' },
+    });
+    assert.strictEqual(m.upgrade.kind, 'minPrevious');
+    assert.strictEqual(m.upgrade.sourceVersion, '0.3265.0');
+});
+
+test("this release's own expand/contract floor is attributed to this version", () => {
+    const m = buildMarker({
+        ...base, // version 0.3261.0
+        migrations: migPresent,
+        sqlLint: { ran: true, breaking: true, findings: ['drop-column'] },
+        aiReview: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', summary: 'cleared' },
+        expandContractFloor: '0.3240.0',
+    });
+    assert.strictEqual(m.upgrade.minPreviousVersion, '0.3240.0');
+    assert.strictEqual(m.upgrade.sourceVersion, '0.3261.0'); // this release set it
+    assert.strictEqual(m.upgrade.kind, 'minPrevious');
+});
+
+test('a default floor => kind=default, sourceVersion null', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: noMig,
+        carriedFloor: { minPreviousVersion: '0.3000.0', sourceVersion: null, kind: 'default' },
+    });
+    assert.strictEqual(m.upgrade.kind, 'default');
+    assert.strictEqual(m.upgrade.sourceVersion, null);
+});
+
+test('no floor => sourceVersion null and kind null', () => {
+    const m = buildMarker({ ...base, migrations: noMig });
+    assert.strictEqual(m.upgrade.minPreviousVersion, null);
+    assert.strictEqual(m.upgrade.sourceVersion, null);
+    assert.strictEqual(m.upgrade.kind, null);
+});
+
+test('requiredStops list surfaces verbatim on the marker; defaults to []', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: noMig,
+        requiredStops: ['0.3280.0', '0.3290.0'],
+    });
+    assert.deepStrictEqual(m.upgrade.requiredStops, ['0.3280.0', '0.3290.0']);
+    const m2 = buildMarker({ ...base, migrations: noMig });
+    assert.deepStrictEqual(m2.upgrade.requiredStops, []);
+});
+
 // --- report ------------------------------------------------------------------
 
 if (failures.length > 0) {

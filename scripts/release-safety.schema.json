@@ -86,11 +86,27 @@
         "upgrade": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["minPreviousVersion", "requiredStop", "note"],
+            "required": [
+                "minPreviousVersion",
+                "requiredStop",
+                "note",
+                "sourceVersion",
+                "kind",
+                "requiredStops"
+            ],
             "properties": {
                 "minPreviousVersion": { "type": ["string", "null"] },
                 "requiredStop": { "type": "boolean" },
-                "note": { "type": ["string", "null"] }
+                "note": { "type": ["string", "null"] },
+                "sourceVersion": { "type": ["string", "null"] },
+                "kind": {
+                    "type": ["string", "null"],
+                    "enum": ["minPrevious", "requiredStop", "default", null]
+                },
+                "requiredStops": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                }
             }
         }
     }

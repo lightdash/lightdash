@@ -152,6 +152,29 @@ export function carriedUpgradeFloor(
 }
 
 /**
+ * PURE. Every declared required-stop release at or before `version`, oldest-first.
+ *
+ * Where `carriedUpgradeFloor` collapses the stops into a single binding floor, this
+ * returns the full list so a consumer reading ONE marker learns every mandatory
+ * waypoint on the path to this release (an operator lands on each stop whose version
+ * is greater than the one they're currently on). Includes `version` itself when it
+ * is a required stop. A null `overrides` (file absent) yields an empty list.
+ */
+export function requiredStopsUpTo(
+    overrides: UpgradeOverridesFile | null,
+    version: string,
+): string[] {
+    if (!overrides) return [];
+    return Object.entries(overrides.versions ?? {})
+        .filter(
+            ([v, block]) =>
+                block.requiredStop === true && compareVersions(v, version) <= 0,
+        )
+        .map(([v]) => v)
+        .sort(compareVersions);
+}
+
+/**
  * PURE. Validate the parsed overrides object, throwing a clear error on any
  * shape violation. Strict on purpose: a typo in a maintainer's required-stop
  * declaration must fail the release, not be silently dropped.
