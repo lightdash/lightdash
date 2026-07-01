@@ -901,7 +901,16 @@ const scopes: Scope[] = [
     },
 
     // External Connections — project-scoped allowlisted outbound HTTP endpoints
-    // that data apps reach through the secure fetch proxy. Admin-only.
+    // that data apps reach through the secure fetch proxy. Managing (create/
+    // edit/delete) is admin-only; viewing is available to app builders so they
+    // can select an existing connection to link in the data app builder.
+    {
+        name: 'view:ExternalConnection',
+        description: 'View external API connections to link them in data apps',
+        isEnterprise: true,
+        group: ScopeGroup.AI,
+        getConditions: addDefaultUuidCondition,
+    },
     {
         name: 'manage:ExternalConnection',
         description:

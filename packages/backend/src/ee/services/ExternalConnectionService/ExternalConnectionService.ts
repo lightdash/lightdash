@@ -84,6 +84,27 @@ export class ExternalConnectionService extends BaseService {
         }
     }
 
+    private assertCanView(
+        account: RegisteredAccount,
+        projectUuid: string,
+        organizationUuid: string,
+    ): void {
+        const ability = this.createAuditedAbility(account);
+        if (
+            ability.cannot(
+                'view',
+                subject('ExternalConnection', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to view external connections',
+            );
+        }
+    }
+
     /**
      * Loads the app row and asserts the caller can `manage` the DataApp,
      * mirroring AppGenerateService's assertCanManageApp pattern (space
@@ -178,12 +199,11 @@ export class ExternalConnectionService extends BaseService {
         if (!organizationUuid) {
             throw new NotFoundError('Project not found');
         }
-        this.assertCanManage(account, projectUuid, organizationUuid);
+        this.assertCanView(account, projectUuid, organizationUuid);
         return this.externalConnectionModel.list(projectUuid, organizationUuid);
     }
 
-    private async getOwnedConnection(
-        account: RegisteredAccount,
+    private async loadConnection(
         projectUuid: string,
         connectionUuid: string,
     ): Promise<ExternalConnection> {
@@ -192,7 +212,36 @@ export class ExternalConnectionService extends BaseService {
         if (!connection || connection.projectUuid !== projectUuid) {
             throw new NotFoundError('External connection not found');
         }
+        return connection;
+    }
+
+    private async getOwnedConnection(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<ExternalConnection> {
+        const connection = await this.loadConnection(
+            projectUuid,
+            connectionUuid,
+        );
         this.assertCanManage(
+            account,
+            connection.projectUuid,
+            connection.organizationUuid,
+        );
+        return connection;
+    }
+
+    private async getViewableConnection(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<ExternalConnection> {
+        const connection = await this.loadConnection(
+            projectUuid,
+            connectionUuid,
+        );
+        this.assertCanView(
             account,
             connection.projectUuid,
             connection.organizationUuid,
@@ -205,7 +254,7 @@ export class ExternalConnectionService extends BaseService {
         projectUuid: string,
         connectionUuid: string,
     ): Promise<ExternalConnection> {
-        return this.getOwnedConnection(account, projectUuid, connectionUuid);
+        return this.getViewableConnection(account, projectUuid, connectionUuid);
     }
 
     async update(

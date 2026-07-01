@@ -71,6 +71,7 @@ const BASE_ROLE_SCOPES = {
         'create:DataApp', // Personal apps (not yet in a space)
         'view:DataApp@self', // Own personal apps
         'manage:DataApp@self', // Own personal apps
+        'view:ExternalConnection', // Select/link connections in the app builder (manage stays admin-only)
     ],
 
     [ProjectMemberRole.EDITOR]: [
@@ -270,6 +271,7 @@ export const getNonEnterpriseScopesForRole = (
         'create:DataApp',
         'view:DataApp@self',
         'manage:DataApp@self',
+        'view:ExternalConnection',
         'manage:ExternalConnection',
         'view:OrganizationDesign',
         'manage:OrganizationDesign',

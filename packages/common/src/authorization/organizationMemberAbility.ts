@@ -220,6 +220,11 @@ export const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
             createdByUserUuid: member.userUuid,
         });
+        // View external connections to select and link them when building a
+        // data app. Managing (create/edit/delete) stays admin-only.
+        can('view', 'ExternalConnection', {
+            organizationUuid: member.organizationUuid,
+        });
 
         can('manage', 'Space', {
             organizationUuid: member.organizationUuid,
