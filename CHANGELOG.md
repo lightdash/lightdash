@@ -1,3 +1,16 @@
+# [0.3282.0](https://github.com/lightdash/lightdash/compare/0.3281.0...0.3282.0) (2026-07-01)
+
+
+### Bug Fixes
+
+* **ai-copilot:** skip AI agents probe when Copilot is disabled ([#25008](https://github.com/lightdash/lightdash/issues/25008)) ([db1688c](https://github.com/lightdash/lightdash/commit/db1688c256dcccf3cdf19590e5f40c29fdb83394))
+* **apps:** copy external connections into preview projects ([#25012](https://github.com/lightdash/lightdash/issues/25012)) ([1395b6a](https://github.com/lightdash/lightdash/commit/1395b6ab906b204e484d1d49d0e774450225b748))
+
+
+### Features
+
+* **apps:** generate data app vizs + field schema (GLITCH-550) ([#24952](https://github.com/lightdash/lightdash/issues/24952)) ([8727db0](https://github.com/lightdash/lightdash/commit/8727db0d905f124403ccd81c9872ebeb39aa64e1))
+
 # [0.3281.0](https://github.com/lightdash/lightdash/compare/0.3280.0...0.3281.0) (2026-07-01)
 
 
