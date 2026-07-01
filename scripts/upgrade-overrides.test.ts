@@ -13,6 +13,7 @@ import {
     carriedUpgradeFloor,
     loadUpgradeOverrides,
     recordDerivedFloor,
+    requiredStopsUpTo,
     resolveUpgrade,
     validateOverrides,
 } from './upgrade-overrides';
@@ -141,6 +142,38 @@ test('the highest (most restrictive) floor wins across mixed sources', () => {
     );
     assert.strictEqual(f.minPreviousVersion, '0.3280.0');
     assert.strictEqual(f.kind, 'requiredStop');
+});
+
+// --- requiredStopsUpTo (full mandatory-waypoint list) ------------------------
+
+test('null overrides => empty list', () => {
+    assert.deepStrictEqual(requiredStopsUpTo(null, '0.3300.0'), []);
+});
+
+test('no required stops => empty list (min-previous entries are not stops)', () => {
+    const ov = { versions: { '0.3265.0': { minPreviousVersion: '0.3260.0' } } };
+    assert.deepStrictEqual(requiredStopsUpTo(ov, '0.3300.0'), []);
+});
+
+test('lists required stops at or before the version, oldest-first', () => {
+    const ov = {
+        versions: {
+            '0.3290.0': { requiredStop: true },
+            '0.3280.0': { requiredStop: true },
+            '0.3265.0': { minPreviousVersion: '0.3260.0' }, // not a stop
+        },
+    };
+    assert.deepStrictEqual(requiredStopsUpTo(ov, '0.3300.0'), ['0.3280.0', '0.3290.0']);
+});
+
+test('excludes required stops newer than the version', () => {
+    const ov = { versions: { '0.3400.0': { requiredStop: true } } };
+    assert.deepStrictEqual(requiredStopsUpTo(ov, '0.3300.0'), []);
+});
+
+test('includes the version itself when it is a required stop', () => {
+    const ov = { versions: { '0.3300.0': { requiredStop: true } } };
+    assert.deepStrictEqual(requiredStopsUpTo(ov, '0.3300.0'), ['0.3300.0']);
 });
 
 // --- validateOverrides (fail loud) -------------------------------------------
