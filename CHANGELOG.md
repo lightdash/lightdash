@@ -1,3 +1,10 @@
+## [0.3272.1](https://github.com/lightdash/lightdash/compare/0.3272.0...0.3272.1) (2026-07-01)
+
+
+### Bug Fixes
+
+* **prometheus:** emit http_server_request_duration_seconds without a Sentry DSN ([#24981](https://github.com/lightdash/lightdash/issues/24981)) ([63bc1eb](https://github.com/lightdash/lightdash/commit/63bc1ebfa737cfe3aa974dece207087bf2d26496))
+
 # [0.3272.0](https://github.com/lightdash/lightdash/compare/0.3271.1...0.3272.0) (2026-07-01)
 
 
