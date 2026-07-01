@@ -190,19 +190,26 @@ field id) is UNACCEPTABLE — it blanks the whole app.
 For every LINKED chart, render from the **runtime data**, never hardcoded field
 ids or labels:
 
-- **Discover fields from `columns`, not by name.** `useLightdash` returns
-  `columns: { name, label, type }[]`. Pick the x-axis as the `date`/`timestamp`
-  column and the metric(s) as the `number` column(s) — by `type`, not by a
-  hardcoded id like `orders_fulfillment_rate`.
+- **Discover fields from `columns` by TYPE, not by name — and DON'T assume a
+  date.** `useLightdash` returns `columns: { name, label, type }[]`. The
+  **category / x-axis is the dimension** — the non-numeric column: a
+  `date`/`timestamp` → a time series (line), a `string` → categories (bar /
+  ranking / table). The **series are the `number` columns** (the metrics). Pick
+  whatever dimension exists — a string dimension (customer, status, region) is
+  completely normal, NOT an error. Never hardcode a field id like
+  `orders_fulfillment_rate`.
 - **Titles / axis labels from `columns[].label`** — do NOT hardcode
   "Fulfillment Rate"; read the metric column's `label` so a metric swap in
   Lightdash relabels the app automatically.
 - **Format every value with `format(row, column.name)`** — it renders `%` vs
   `$` vs dates correctly per field, so a units change follows automatically.
-- **Guard every aggregation.** No `Math.max(values)` on a possibly-empty array
-  (yields `-Infinity`), no divide-by-zero, no `.toFixed()` on a maybe-undefined
-  value. If a column is missing or there are no rows, render a neutral `—` —
-  never `NaN`/`Infinity`/a thrown error.
+- **Guard aggregations; fall back only as a LAST resort.** No `Math.max(values)`
+  on a possibly-empty array (yields `-Infinity`), no divide-by-zero, no
+  `.toFixed()` on a maybe-undefined value → render a neutral `—` for a single
+  missing value. Show a whole-chart "no data / unexpected shape" fallback ONLY
+  when the query truly returns **no rows** or **no numeric column at all** — NOT
+  because the dimension is a string, or the metric changed. Bailing on valid
+  categorical data is a bug, not graceful degradation.
 
 Then WRAP each data/chart component in `<ErrorBoundary>` (from `@/lib/ErrorBoundary`):
 
