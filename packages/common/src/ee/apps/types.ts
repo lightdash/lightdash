@@ -237,6 +237,10 @@ export type ApiAppVersionSummary = {
     prompt: string;
     status: AppVersionStatus;
     statusMessage: string | null;
+    // Detailed failure reason (e.g. the build's stderr) when `status` is
+    // `error`; null otherwise. `statusMessage` carries the short user-facing
+    // line (e.g. "Build failed"); this carries the why.
+    error: string | null;
     createdAt: Date;
     // When the version last transitioned (e.g. into `ready` or `error`).
     // The chat UI shows this as the assistant-reply timestamp so it reflects

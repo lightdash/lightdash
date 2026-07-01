@@ -5299,6 +5299,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             prompt: string;
             status: AppVersionStatus;
             statusMessage: string | null;
+            error: string | null;
             createdAt: Date;
             statusUpdatedAt: Date | null;
             createdByUser: {
@@ -5348,6 +5349,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 prompt: v.prompt,
                 status: v.status,
                 statusMessage: v.status_message,
+                error: v.error,
                 // Backfill `clarifications` for rows persisted before the
                 // field existed on `resources`.
                 resources: v.resources
