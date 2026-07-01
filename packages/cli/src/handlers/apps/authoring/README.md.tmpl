@@ -1,0 +1,13 @@
+# {{APP_NAME}} — Lightdash data app (local copy)
+
+Downloaded with `lightdash download --apps`.
+
+## Edit → build → upload
+1. Edit files under `src/`.
+2. `pnpm install && pnpm build` to check it compiles locally.
+3. `lightdash upload --apps` — Lightdash rebuilds and serves the app.
+
+## What's read-only
+Everything outside `src/` is reference: root config, `.lightdash/context/` (the project's semantic layer, parameters, prompt history, theme), and the `.claude/skills/` guidance. The server rebuilds against a trusted template, so local config edits don't change the deployed app. Bringing your own libraries / a local preview is a later phase.
+
+The context under `.lightdash/context/` is a snapshot of the source project at download time; re-download to refresh it.
