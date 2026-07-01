@@ -355,6 +355,53 @@ describe('AppGenerateService.getAppCode', () => {
         ).rejects.toThrow(ForbiddenError);
     });
 
+    it('resolves with manifest and files intact when semanticLayer fetch fails (degraded context)', async () => {
+        const fakeS3 = makeFakeS3(sourceTarBuffer);
+
+        const appModel = {
+            getApp: vi.fn().mockResolvedValue(fakeApp),
+            getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
+            getAppWithVersions: vi
+                .fn()
+                .mockResolvedValue({ versions: [], hasMore: false }),
+        };
+
+        const svc = buildService({
+            appModel,
+            s3ClientOverride: fakeS3,
+            projectModel: {
+                getAllExploresFromCache: vi
+                    .fn()
+                    .mockRejectedValue(new Error('cache miss')),
+            },
+            projectParametersModel: {
+                find: vi.fn().mockResolvedValue([]),
+            },
+            organizationDesignModel: {
+                findInOrganization: vi.fn().mockResolvedValue(null),
+            },
+        });
+
+        // Should not throw even though semanticLayer fetch fails
+        const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID);
+
+        // Core deliverables are intact
+        expect(result.manifest.appUuid).toBe(APP_UUID);
+        expect(result.manifest.version).toBe(VERSION);
+        expect(result.files).toHaveLength(2);
+
+        // Semantic layer is degraded placeholder, not absent
+        expect(result.context.semanticLayer).toBeDefined();
+        expect(result.context.semanticLayer.path).toBe(
+            '.lightdash/context/semantic-layer.yml',
+        );
+        const semanticContent = Buffer.from(
+            result.context.semanticLayer.contentBase64,
+            'base64',
+        ).toString('utf8');
+        expect(semanticContent).toContain('# Semantic layer unavailable');
+    });
+
     it('assembles context: semantic layer, null parameters (empty), prompt history, and empty theme', async () => {
         const fakeS3 = makeFakeS3(sourceTarBuffer);
 
