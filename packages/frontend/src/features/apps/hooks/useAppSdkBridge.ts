@@ -433,19 +433,25 @@ export function useAppSdkBridge(
             }
 
             // Stamp dashboard filters and the cache-invalidation flag onto
-            // outgoing metric-query bodies. The backend drops filters whose
-            // fields aren't in the query's explore, so it's safe to send the
-            // full set on every call. `invalidateCache` mirrors what charts
-            // send on a dashboard refresh so the app's queries bypass the
-            // warehouse results cache too. App attribution rides on the
+            // outgoing query bodies. The backend drops filters whose fields
+            // aren't in the query's explore, so it's safe to send the full set
+            // on every call. dashboardFilters apply only to inline metric
+            // queries; `invalidateCache` applies to inline AND linked
+            // (/query/chart) charts so a preview refresh bypasses the warehouse
+            // results cache for linked charts too. App attribution rides on the
             // LightdashAppUuidHeader instead (see the fetch below).
+            const stampFilters =
+                isMetricQueryPost(method, path) && !!dashboardFilters;
+            const stampInvalidate =
+                (isMetricQueryPost(method, path) ||
+                    isChartQueryPost(method, path)) &&
+                !!invalidateCache;
             const effectiveBody =
-                isMetricQueryPost(method, path) &&
-                (dashboardFilters || invalidateCache)
+                stampFilters || stampInvalidate
                     ? {
                           ...(body as Record<string, unknown> | undefined),
-                          ...(dashboardFilters ? { dashboardFilters } : {}),
-                          ...(invalidateCache ? { invalidateCache } : {}),
+                          ...(stampFilters ? { dashboardFilters } : {}),
+                          ...(stampInvalidate ? { invalidateCache } : {}),
                       }
                     : body;
 
