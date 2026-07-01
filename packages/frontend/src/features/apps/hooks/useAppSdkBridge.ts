@@ -70,6 +70,33 @@ export type QueryEvent = {
 };
 
 /**
+ * A single external-connection fetch proxied through the bridge, reported for
+ * the external-requests inspector tab. Single-shot lifecycle: one `pending`
+ * event when the fetch starts, one terminal `ready`/`error` event when it
+ * settles — matched by `id` (no queryUuid remap like metric queries need).
+ */
+export type ExternalRequestEvent = {
+    id: string;
+    timestamp: number;
+    /** Connection alias the app called, e.g. `stripe`. */
+    alias: string;
+    method: 'GET' | 'POST';
+    path: string;
+    query: Record<string, string> | null;
+    /** JSON request body (POST); null for GET or an empty body. */
+    requestBody: unknown;
+    status: 'pending' | 'ready' | 'error';
+    /** Upstream HTTP status (null until the fetch settles / on proxy error). */
+    httpStatus: number | null;
+    contentType: string | null;
+    /** Parsed response body; null until the fetch settles. */
+    responseBody: unknown;
+    truncated: boolean | null;
+    durationMs: number | null;
+    error: string | null;
+};
+
+/**
  * Routes the SDK is allowed to call through the postMessage bridge.
  * Everything else is rejected. Patterns use :param for path segments.
  */
@@ -188,6 +215,13 @@ export function useAppSdkBridge(
     capabilities?: { gsheetExport?: boolean },
     onLineageAvailable?: () => void,
     onLineageSelected?: (event: { queryUuid: string }) => void,
+    /**
+     * When provided, external-connection fetches proxied through this bridge
+     * are reported for the external-requests inspector tab — mirrors
+     * `onQueryEvent` for metric queries. Emits `pending` when the fetch starts
+     * and a terminal `ready`/`error` event when it settles.
+     */
+    onExternalRequestEvent?: (event: ExternalRequestEvent) => void,
 ) {
     // Embed mode adapts the bridge's outgoing fetches in two ways:
     //   - Attaches the embed JWT header in lieu of session cookies
@@ -344,13 +378,53 @@ export function useAppSdkBridge(
                     );
                 };
 
+                // Report the fetch to the external-requests inspector. Base
+                // request fields are captured up front; each call overlays the
+                // lifecycle status (and, on settle, the response/duration).
+                const startedAt = Date.now();
+                const emitExternal = (
+                    fields: Partial<ExternalRequestEvent> & {
+                        status: ExternalRequestEvent['status'];
+                    },
+                ) => {
+                    onExternalRequestEvent?.({
+                        id: externalId,
+                        timestamp: startedAt,
+                        alias: typeof alias === 'string' ? alias : 'unknown',
+                        method: externalMethod === 'POST' ? 'POST' : 'GET',
+                        path:
+                            typeof externalPath === 'string'
+                                ? externalPath
+                                : '',
+                        query:
+                            (externalQuery as
+                                | Record<string, string>
+                                | undefined) ?? null,
+                        requestBody: externalBody ?? null,
+                        httpStatus: null,
+                        contentType: null,
+                        responseBody: null,
+                        truncated: null,
+                        durationMs: null,
+                        error: null,
+                        ...fields,
+                    });
+                };
+
+                emitExternal({ status: 'pending' });
+
                 // External fetch is not available to embedded apps: the proxy
                 // endpoint requires a registered session, not an embed JWT.
                 // Fail clearly rather than make a doomed authenticated call.
                 if (embedToken) {
-                    respondExternal({
-                        error: 'External data access is not available in embedded apps',
+                    const embedError =
+                        'External data access is not available in embedded apps';
+                    emitExternal({
+                        status: 'error',
+                        error: embedError,
+                        durationMs: Date.now() - startedAt,
                     });
+                    respondExternal({ error: embedError });
                     return;
                 }
 
@@ -381,21 +455,43 @@ export function useAppSdkBridge(
                     );
                     const json = await res.json();
                     if (json.status === 'ok') {
+                        const result = json.results as
+                            | {
+                                  status?: number;
+                                  contentType?: string;
+                                  body?: unknown;
+                                  truncated?: boolean;
+                              }
+                            | undefined;
+                        emitExternal({
+                            status: 'ready',
+                            httpStatus: result?.status ?? null,
+                            contentType: result?.contentType ?? null,
+                            responseBody: result?.body ?? null,
+                            truncated: result?.truncated ?? null,
+                            durationMs: Date.now() - startedAt,
+                        });
                         respondExternal({ result: json.results });
                     } else {
-                        respondExternal({
-                            error:
-                                json.error?.message ??
-                                `External fetch failed (${res.status})`,
+                        const errorMessage =
+                            json.error?.message ??
+                            `External fetch failed (${res.status})`;
+                        emitExternal({
+                            status: 'error',
+                            error: errorMessage,
+                            durationMs: Date.now() - startedAt,
                         });
+                        respondExternal({ error: errorMessage });
                     }
                 } catch (err) {
-                    respondExternal({
-                        error:
-                            err instanceof Error
-                                ? err.message
-                                : 'Unknown error',
+                    const errorMessage =
+                        err instanceof Error ? err.message : 'Unknown error';
+                    emitExternal({
+                        status: 'error',
+                        error: errorMessage,
+                        durationMs: Date.now() - startedAt,
                     });
+                    respondExternal({ error: errorMessage });
                 }
                 return;
             }
@@ -683,6 +779,7 @@ export function useAppSdkBridge(
             capabilities,
             onLineageAvailable,
             onLineageSelected,
+            onExternalRequestEvent,
             health.data,
             user.data,
         ],

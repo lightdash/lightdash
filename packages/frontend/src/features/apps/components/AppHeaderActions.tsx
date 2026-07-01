@@ -5,8 +5,8 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Menu, Tooltip } from '@mantine-8/core';
 import {
+    IconArrowsUpDown,
     IconCopy,
-    IconDatabase,
     IconDatabaseExport,
     IconDots,
     IconEdit,
@@ -46,7 +46,7 @@ type Props = {
     latestVersionStatus: AppVersionStatus | null;
     onRefresh: () => void;
     refreshDisabled: boolean;
-    onViewQueries: () => void;
+    onViewNetwork: () => void;
     /** Called after a successful delete so the page can navigate away. */
     onDeleted: () => void;
     /** The single cross-navigation menu item that differs per surface:
@@ -75,7 +75,7 @@ const AppHeaderActions: FC<Props> = ({
     latestVersionStatus,
     onRefresh,
     refreshDisabled,
-    onViewQueries,
+    onViewNetwork,
     onDeleted,
     navItem,
 }) => {
@@ -166,11 +166,11 @@ const AppHeaderActions: FC<Props> = ({
                     />
                     <Menu.Item
                         leftSection={
-                            <MantineIcon icon={IconDatabase} size={14} />
+                            <MantineIcon icon={IconArrowsUpDown} size={14} />
                         }
-                        onClick={onViewQueries}
+                        onClick={onViewNetwork}
                     >
-                        View queries
+                        View network
                     </Menu.Item>
                     {canEdit && scheduledDeliveriesFlag.data?.enabled && (
                         <Menu.Item
