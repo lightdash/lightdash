@@ -15,3 +15,4 @@ template/src/lib/*
 !template/src/lib/filters.tsx
 !template/src/lib/floating.tsx
 !template/src/lib/format.ts
+!template/src/lib/ErrorBoundary.tsx
