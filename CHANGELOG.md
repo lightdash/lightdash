@@ -1,3 +1,10 @@
+# [0.3283.0](https://github.com/lightdash/lightdash/compare/0.3282.0...0.3283.0) (2026-07-01)
+
+
+### Features
+
+* **data-apps:** save an app query to Lightdash ([#25007](https://github.com/lightdash/lightdash/issues/25007)) ([610ff85](https://github.com/lightdash/lightdash/commit/610ff857daa4f7d9df063ec1940ab95f9e3f0478))
+
 # [0.3282.0](https://github.com/lightdash/lightdash/compare/0.3281.0...0.3282.0) (2026-07-01)
 
 
