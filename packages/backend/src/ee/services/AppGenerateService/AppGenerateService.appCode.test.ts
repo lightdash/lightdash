@@ -4,6 +4,7 @@ import {
     type DataAppCode,
     type ImportAppCodeRequestBody,
 } from '@lightdash/common';
+import { extract as tarExtract } from 'tar-stream';
 import { AppGenerateService } from './AppGenerateService';
 
 vi.mock('e2b', () => ({
@@ -309,5 +310,48 @@ describe('AppGenerateService.importAppCode', () => {
         expect(result.action).toBe('create');
         expect(appModel.createWithVersion).toHaveBeenCalledOnce();
         expect(schedulerClient.appBuildFromSource).toHaveBeenCalledOnce();
+    });
+
+    it('create mode: source.tar contains only src/ entries when bundle has mixed files', async () => {
+        const { service, appModel } = buildService();
+
+        appModel.findApp.mockResolvedValue(undefined);
+
+        const mixedCode = makeCode([
+            {
+                path: 'src/App.jsx',
+                contentBase64: Buffer.from('// app').toString('base64'),
+            },
+            {
+                path: 'vite.config.js',
+                contentBase64: Buffer.from('// vite').toString('base64'),
+            },
+            {
+                path: '.lightdash/context/semantic-layer.yml',
+                contentBase64: Buffer.from('# context').toString('base64'),
+            },
+        ]);
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: mixedCode,
+        } as ImportAppCodeRequestBody);
+
+        const putArg = s3SendSpy.mock.calls[0][0];
+        const tarBuffer = putArg.input.Body as Buffer;
+
+        const entryNames = await new Promise<string[]>((resolve, reject) => {
+            const names: string[] = [];
+            const extractor = tarExtract();
+            extractor.on('entry', (header, stream, next) => {
+                names.push(header.name);
+                stream.resume();
+                stream.on('end', next);
+            });
+            extractor.on('finish', () => resolve(names));
+            extractor.on('error', reject);
+            extractor.end(tarBuffer);
+        });
+
+        expect(entryNames).toEqual(['src/App.jsx']);
     });
 });
