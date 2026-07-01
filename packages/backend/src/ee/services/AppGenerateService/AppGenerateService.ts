@@ -26,6 +26,7 @@ import {
     NotFoundError,
     ParameterError,
     QueryExecutionContext,
+    TooManyRequestsError,
     validateDataAppCode,
     type AnonymousAccount,
     type AppBuildFromSourceJobPayload,
@@ -192,6 +193,9 @@ const DATA_APP_WORKSPACE: PersistentWorkspace = {
     ],
     exclude: ['node_modules'],
 };
+// Maximum number of in-progress app builds allowed per project at one time.
+// Prevents trivial sandbox exhaustion via repeated POST /code calls.
+const MAX_CONCURRENT_APP_BUILDS_PER_PROJECT = 5;
 
 export class AppGenerateService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
@@ -6508,6 +6512,14 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             existingApp !== undefined ? 'append' : 'create';
 
         const organizationUuid = await this.getProjectOrgUuid(projectUuid);
+
+        const inProgressCount =
+            await this.appModel.countInProgressVersionsForProject(projectUuid);
+        if (inProgressCount >= MAX_CONCURRENT_APP_BUILDS_PER_PROJECT) {
+            throw new TooManyRequestsError(
+                `Too many app builds in progress for this project (${inProgressCount}/${MAX_CONCURRENT_APP_BUILDS_PER_PROJECT}). Wait for some to finish and try again.`,
+            );
+        }
 
         let newAppUuid: string;
         let newVersion: number;

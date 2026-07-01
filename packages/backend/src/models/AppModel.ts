@@ -936,4 +936,20 @@ export class AppModel {
         );
         return result.rowCount ?? 0;
     }
+
+    async countInProgressVersionsForProject(
+        projectUuid: string,
+    ): Promise<number> {
+        const [row] = await this.database(AppVersionsTableName)
+            .join(
+                AppsTableName,
+                `${AppsTableName}.app_id`,
+                `${AppVersionsTableName}.app_id`,
+            )
+            .where(`${AppsTableName}.project_uuid`, projectUuid)
+            .whereNull(`${AppsTableName}.deleted_at`)
+            .whereNotIn('status', [...APP_VERSION_TERMINAL_STATUSES])
+            .count<{ count: string }[]>({ count: '*' });
+        return parseInt(row.count, 10);
+    }
 }
