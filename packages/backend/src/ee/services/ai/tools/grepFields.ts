@@ -4,6 +4,7 @@ import type { FindExploresFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import {
     buildFieldIndex,
+    buildMetricAmbiguityNote,
     compileMatcher,
     summarizeRequiredFilters,
     type FieldEntry,
@@ -108,9 +109,11 @@ const renderPattern = (
         hits.length > MAX_PER_PATTERN
             ? ` (showing ${MAX_PER_PATTERN} of ${hits.length})`
             : '';
+    const body = renderHits(hits, requiredFiltersByExplore);
+    const ambiguityNote = buildMetricAmbiguityNote(hits);
     return `/${pattern}/ — ${hits.length} match${
         hits.length === 1 ? '' : 'es'
-    }${capped}:\n${renderHits(hits, requiredFiltersByExplore)}`;
+    }${capped}:\n${body}${ambiguityNote ? `\n${ambiguityNote}` : ''}`;
 };
 
 /**
