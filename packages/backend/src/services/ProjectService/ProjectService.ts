@@ -83,6 +83,7 @@ import {
     getDbtEnvironmentVariableKeyError,
     getDimensions,
     getErrorMessage,
+    getFieldFormatOverrideProps,
     getFields,
     getIntrinsicUserAttributes,
     getItemId,
@@ -5428,12 +5429,15 @@ export class ProjectService extends BaseService {
                             const override =
                                 resolvedMetricOverrides[key] ||
                                 metricQuery.dimensionOverrides?.[key];
-                            if (override) {
+                            const formatOptions = override?.formatOptions;
+                            if (formatOptions) {
                                 return [
                                     key,
                                     {
                                         ...value,
-                                        ...override,
+                                        ...getFieldFormatOverrideProps(
+                                            formatOptions,
+                                        ),
                                     },
                                 ];
                             }

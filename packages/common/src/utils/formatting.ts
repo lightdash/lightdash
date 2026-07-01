@@ -1125,6 +1125,39 @@ export function convertCustomFormatToFormatExpression(
     );
 }
 
+/**
+ * Converts a UI format override (a metric/dimension `formatOptions`) into the
+ * field-level format props to spread onto a query result field.
+ *
+ * Formats that have an ECMA-376 representation are encoded as a `format`
+ * expression so every render and export path shares a single source of truth.
+ * When there is no expression form — notably dynamic compact (`Compact.AUTO`),
+ * where `convertCustomFormatToFormatExpression` returns null — the structured
+ * `formatOptions` is preserved and any legacy `format` expression cleared,
+ * letting the render path apply it via the structured `applyCompact` path.
+ */
+export function getFieldFormatOverrideProps(formatOptions: CustomFormat): {
+    format: string | undefined;
+    formatOptions?: CustomFormat;
+    separator: NumberSeparator | undefined;
+} {
+    const formatExpression =
+        convertCustomFormatToFormatExpression(formatOptions);
+    if (formatExpression === null) {
+        return {
+            format: undefined,
+            formatOptions,
+            separator: formatOptions.separator,
+        };
+    }
+    return {
+        // The format expression can't encode the separator, so carry it
+        // separately for the render paths (getEffectiveSeparator reads it).
+        format: formatExpression,
+        separator: formatOptions.separator,
+    };
+}
+
 export function getFormatExpression(
     item: Item | AdditionalMetric,
 ): string | undefined {

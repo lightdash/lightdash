@@ -16,7 +16,6 @@ import {
     CalculateSubtotalsFromQuery,
     CalculateTotalFromQuery,
     CompiledDimension,
-    convertCustomFormatToFormatExpression,
     convertFieldRefToFieldId,
     createVirtualView as createVirtualViewObject,
     CreateWarehouseCredentials,
@@ -48,6 +47,7 @@ import {
     getDimensions,
     getDimensionsWithValidParameters,
     getErrorMessage,
+    getFieldFormatOverrideProps,
     getFieldsFromMetricQuery,
     getItemId,
     getItemMap,
@@ -3432,14 +3432,7 @@ export class AsyncQueryService extends ProjectService {
                             key,
                             {
                                 ...value,
-                                // Override the format expression with the metric/dimension query override instead of adding `formatOptions` to the item
-                                // This ensures that legacy `formatOptions` are kept as is and we don't need to change logic over which format takes precedence
-                                format: convertCustomFormatToFormatExpression(
-                                    formatOptions,
-                                ),
-                                // The format expression can't encode the separator, so carry it
-                                // separately for the render paths (getEffectiveSeparator reads it).
-                                separator: formatOptions.separator,
+                                ...getFieldFormatOverrideProps(formatOptions),
                             },
                         ];
                     }
