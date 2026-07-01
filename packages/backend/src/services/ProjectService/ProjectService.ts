@@ -3860,6 +3860,20 @@ export class ProjectService extends BaseService {
         const { manifest: primaryManifest } =
             await primary.adapter.getDbtManifest();
 
+        // A credential error fails the whole deploy by name, matching every
+        // other per-source failure below (broken clone, broken manifest) — a
+        // silently-skipped source would otherwise produce a green deploy that
+        // is quietly missing one sibling's models, the exact failure mode the
+        // recompile-all-sources design exists to prevent.
+        const brokenCredentialSource = sources.find(
+            (source) => source.hasCredentialError,
+        );
+        if (brokenCredentialSource) {
+            throw new ParameterError(
+                `Failed to load dbt source "${brokenCredentialSource.name}": its connection credentials could not be decrypted. Remove it and add it again with a fresh connection.`,
+            );
+        }
+
         const compilableSources = sources.filter(
             (
                 source,
@@ -3871,7 +3885,7 @@ export class ProjectService extends BaseService {
             .filter((source) => source.dbtConnection === null)
             .forEach((source) => {
                 this.logger.warn(
-                    `Skipping dbt source "${source.name}" (${source.projectDbtSourceUuid}) — no dbt connection to compile from`,
+                    `Skipping dbt source "${source.name}" (${source.projectDbtSourceUuid}) — it has no dbt connection configured`,
                 );
             });
 

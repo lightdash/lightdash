@@ -7,6 +7,7 @@ import {
     ApiSuccessEmpty,
     ApiUpdateProjectDbtSource,
     assertRegisteredAccount,
+    type UUID,
 } from '@lightdash/common';
 import {
     Body,
@@ -45,7 +46,7 @@ export class ProjectDbtSourcesController extends BaseController {
     @Get('/')
     @OperationId('ListProjectDbtSources')
     async listProjectDbtSources(
-        @Path() projectUuid: string,
+        @Path() projectUuid: UUID,
         @Request() req: express.Request,
     ): Promise<ApiProjectDbtSourcesResponse> {
         assertRegisteredAccount(req.account);
@@ -72,7 +73,7 @@ export class ProjectDbtSourcesController extends BaseController {
     @Post('/')
     @OperationId('CreateProjectDbtSource')
     async createProjectDbtSource(
-        @Path() projectUuid: string,
+        @Path() projectUuid: UUID,
         @Body() body: ApiCreateProjectDbtSource,
         @Request() req: express.Request,
     ): Promise<ApiProjectDbtSourceResponse> {
@@ -97,8 +98,8 @@ export class ProjectDbtSourcesController extends BaseController {
     @Get('/{projectDbtSourceUuid}')
     @OperationId('GetProjectDbtSource')
     async getProjectDbtSource(
-        @Path() projectUuid: string,
-        @Path() projectDbtSourceUuid: string,
+        @Path() projectUuid: UUID,
+        @Path() projectDbtSourceUuid: UUID,
         @Request() req: express.Request,
     ): Promise<ApiProjectDbtSourceWithConnectionResponse> {
         assertRegisteredAccount(req.account);
@@ -129,8 +130,8 @@ export class ProjectDbtSourcesController extends BaseController {
     @Patch('/{projectDbtSourceUuid}')
     @OperationId('UpdateProjectDbtSource')
     async updateProjectDbtSource(
-        @Path() projectUuid: string,
-        @Path() projectDbtSourceUuid: string,
+        @Path() projectUuid: UUID,
+        @Path() projectDbtSourceUuid: UUID,
         @Body() body: ApiUpdateProjectDbtSource,
         @Request() req: express.Request,
     ): Promise<ApiProjectDbtSourceResponse> {
@@ -164,8 +165,8 @@ export class ProjectDbtSourcesController extends BaseController {
     @Delete('/{projectDbtSourceUuid}')
     @OperationId('DeleteProjectDbtSource')
     async deleteProjectDbtSource(
-        @Path() projectUuid: string,
-        @Path() projectDbtSourceUuid: string,
+        @Path() projectUuid: UUID,
+        @Path() projectDbtSourceUuid: UUID,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
         assertRegisteredAccount(req.account);

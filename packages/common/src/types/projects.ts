@@ -872,6 +872,14 @@ export type DbtProjectConfig =
  * short-circuit). `dbtConnection` is the decrypted per-source connection; the
  * source is recompiled from it at deploy/preview time and its manifest merged
  * with the others.
+ *
+ * `hasCredentialError` is true when the stored connection could not be
+ * decrypted (e.g. an encryption secret rotation) — `dbtConnection` is then
+ * `null` even though a connection was originally saved. Callers must not let
+ * one source's credential error fail an operation over every source (listing,
+ * compiling); only an operation that actually needs this source's connection
+ * (editing, compiling this one source) should fail, and should name the
+ * source when it does.
  */
 export type ProjectDbtSource = {
     projectDbtSourceUuid: string;
@@ -880,6 +888,7 @@ export type ProjectDbtSource = {
     isPrimary: boolean;
     precedence: number;
     dbtConnection: DbtProjectConfig | null;
+    hasCredentialError: boolean;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -903,6 +912,9 @@ export type UpdateProjectDbtSource = {
  * synthesised from the project's own dbt_connection. `repository`, `branch` and
  * `projectSubPath` are the git-backed source's identity (null for non-git
  * connections); they are safe to expose — only secrets are stripped.
+ *
+ * `hasCredentialError` is always `false` for the synthesised primary source.
+ * See `ProjectDbtSource` for what it means on an additional source.
  */
 export type ProjectDbtSourceSummary = {
     projectDbtSourceUuid: string;
@@ -913,6 +925,7 @@ export type ProjectDbtSourceSummary = {
     repository: string | null;
     branch: string | null;
     projectSubPath: string | null;
+    hasCredentialError: boolean;
 };
 
 export type ApiCreateProjectDbtSource = {

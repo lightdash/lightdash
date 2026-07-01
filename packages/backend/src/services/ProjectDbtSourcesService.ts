@@ -10,6 +10,7 @@ import {
     ProjectDbtSourceSummary,
     ProjectDbtSourceWithConnection,
     sensitiveDbtCredentialsFieldNames,
+    UnexpectedServerError,
     type Account,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
@@ -100,6 +101,7 @@ export class ProjectDbtSourcesService extends BaseService {
             isPrimary: source.isPrimary,
             precedence: source.precedence,
             type: source.dbtConnection?.type ?? null,
+            hasCredentialError: source.hasCredentialError,
             ...ProjectDbtSourcesService.gitIdentity(source.dbtConnection),
         };
     }
@@ -142,6 +144,7 @@ export class ProjectDbtSourcesService extends BaseService {
             isPrimary: true,
             precedence: 0,
             type: project.dbtConnection.type,
+            hasCredentialError: false,
             ...ProjectDbtSourcesService.gitIdentity(project.dbtConnection),
         };
         return [primary, ...sources.map(ProjectDbtSourcesService.toSummary)];
@@ -191,6 +194,15 @@ export class ProjectDbtSourcesService extends BaseService {
         if (source.projectUuid !== projectUuid) {
             throw new ForbiddenError(
                 'This dbt source does not belong to the project',
+            );
+        }
+        // Listing tolerates a credential error (other sources still load), but
+        // fetching this one source for editing genuinely cannot proceed without
+        // its connection — fail clearly, naming the source, instead of
+        // returning an unusable blank form.
+        if (source.hasCredentialError) {
+            throw new UnexpectedServerError(
+                `Could not load credentials for dbt source "${source.name}" — remove it and add it again with a fresh connection.`,
             );
         }
         return {

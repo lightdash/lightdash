@@ -1,4 +1,5 @@
 import {
+    AlreadyExistsError,
     CreateProjectDbtSource,
     DbtProjectConfig,
     NotFoundError,
@@ -8,11 +9,14 @@ import {
     UpdateProjectDbtSource,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { DatabaseError } from 'pg';
 import {
     DbProjectDbtSource,
     ProjectDbtSourcesTableName,
 } from '../database/entities/projectDbtSources';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
+
+const PG_UNIQUE_VIOLATION = '23505';
 
 type ProjectDbtSourcesModelArguments = {
     database: Knex;
@@ -36,20 +40,29 @@ export class ProjectDbtSourcesModel {
         this.encryptionUtil = args.encryptionUtil;
     }
 
-    private decryptConnection(
-        encrypted: Buffer | null,
-    ): DbtProjectConfig | null {
+    /**
+     * Never throws: a source whose credentials cannot be decrypted (e.g. after
+     * an encryption secret rotation) must not take down every other source in
+     * the same list/compile — it is reported via `hasCredentialError` instead,
+     * and the caller decides whether that source can be skipped (compiling,
+     * listing) or must fail by name (editing, compiling only this source).
+     */
+    private tryDecryptConnection(encrypted: Buffer | null): {
+        dbtConnection: DbtProjectConfig | null;
+        hasCredentialError: boolean;
+    } {
         if (!encrypted) {
-            return null;
+            return { dbtConnection: null, hasCredentialError: false };
         }
         try {
-            return JSON.parse(
-                this.encryptionUtil.decrypt(encrypted),
-            ) as DbtProjectConfig;
+            return {
+                dbtConnection: JSON.parse(
+                    this.encryptionUtil.decrypt(encrypted),
+                ) as DbtProjectConfig,
+                hasCredentialError: false,
+            };
         } catch (e) {
-            throw new UnexpectedServerError(
-                'Failed to load dbt source credentials',
-            );
+            return { dbtConnection: null, hasCredentialError: true };
         }
     }
 
@@ -69,13 +82,17 @@ export class ProjectDbtSourcesModel {
     }
 
     private convertRow(row: DbProjectDbtSource): ProjectDbtSource {
+        const { dbtConnection, hasCredentialError } = this.tryDecryptConnection(
+            row.dbt_connection,
+        );
         return {
             projectDbtSourceUuid: row.project_dbt_source_uuid,
             projectUuid: row.project_uuid,
             name: row.name,
             isPrimary: row.is_primary,
             precedence: row.precedence,
-            dbtConnection: this.decryptConnection(row.dbt_connection),
+            dbtConnection,
+            hasCredentialError,
             createdAt: row.created_at,
             updatedAt: row.updated_at,
         };
@@ -120,41 +137,68 @@ export class ProjectDbtSourcesModel {
         projectUuid: string,
         data: CreateProjectDbtSource,
     ): Promise<ProjectDbtSource> {
-        const [row] = await this.database(ProjectDbtSourcesTableName)
-            .insert({
-                project_uuid: projectUuid,
-                name: data.name,
-                is_primary: data.isPrimary,
-                precedence: data.precedence,
-                dbt_connection_type: data.dbtConnection?.type ?? null,
-                dbt_connection: this.encryptConnection(data.dbtConnection),
-            })
-            .returning('*');
-        return this.convertRow(row);
+        try {
+            const [row] = await this.database(ProjectDbtSourcesTableName)
+                .insert({
+                    project_uuid: projectUuid,
+                    name: data.name,
+                    is_primary: data.isPrimary,
+                    precedence: data.precedence,
+                    dbt_connection_type: data.dbtConnection?.type ?? null,
+                    dbt_connection: this.encryptConnection(data.dbtConnection),
+                })
+                .returning('*');
+            return this.convertRow(row);
+        } catch (error) {
+            if (
+                error instanceof DatabaseError &&
+                error.code === PG_UNIQUE_VIOLATION
+            ) {
+                throw new AlreadyExistsError(
+                    `A dbt source named "${data.name}" already exists on this project`,
+                );
+            }
+            throw error;
+        }
     }
 
     async updateSource(
         projectDbtSourceUuid: string,
         data: UpdateProjectDbtSource,
     ): Promise<ProjectDbtSource> {
-        const [row] = await this.database(ProjectDbtSourcesTableName)
-            .where('project_dbt_source_uuid', projectDbtSourceUuid)
-            .update({
-                ...(data.name !== undefined ? { name: data.name } : {}),
-                ...(data.precedence !== undefined
-                    ? { precedence: data.precedence }
-                    : {}),
-                ...(data.dbtConnection !== undefined
-                    ? {
-                          dbt_connection_type: data.dbtConnection?.type ?? null,
-                          dbt_connection: this.encryptConnection(
-                              data.dbtConnection,
-                          ),
-                      }
-                    : {}),
-                updated_at: new Date(),
-            })
-            .returning('*');
+        let row: DbProjectDbtSource | undefined;
+        try {
+            [row] = await this.database(ProjectDbtSourcesTableName)
+                .where('project_dbt_source_uuid', projectDbtSourceUuid)
+                .update({
+                    ...(data.name !== undefined ? { name: data.name } : {}),
+                    ...(data.precedence !== undefined
+                        ? { precedence: data.precedence }
+                        : {}),
+                    ...(data.dbtConnection !== undefined
+                        ? {
+                              dbt_connection_type:
+                                  data.dbtConnection?.type ?? null,
+                              dbt_connection: this.encryptConnection(
+                                  data.dbtConnection,
+                              ),
+                          }
+                        : {}),
+                    updated_at: new Date(),
+                })
+                .returning('*');
+        } catch (error) {
+            if (
+                error instanceof DatabaseError &&
+                error.code === PG_UNIQUE_VIOLATION &&
+                data.name !== undefined
+            ) {
+                throw new AlreadyExistsError(
+                    `A dbt source named "${data.name}" already exists on this project`,
+                );
+            }
+            throw error;
+        }
         if (!row) {
             throw new NotFoundError(
                 `Cannot find dbt source with id: ${projectDbtSourceUuid}`,

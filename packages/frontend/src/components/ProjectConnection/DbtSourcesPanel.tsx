@@ -22,6 +22,7 @@ import {
     Tooltip,
 } from '@mantine-8/core';
 import {
+    IconAlertTriangle,
     IconDots,
     IconInfoCircle,
     IconPencil,
@@ -49,7 +50,10 @@ import { ProjectFormProvider } from './ProjectFormProvider';
 
 /**
  * The git-backed identity of a source as a single line — `repo · branch ·
- * subfolder`. Falls back to the connection type for non-git sources.
+ * subfolder`. Falls back to the connection type for non-git sources (also
+ * the fallback when the stored connection couldn't be decrypted, since the
+ * identity fields are then unavailable too — that case surfaces via the
+ * warning icon instead, not this line).
  */
 const sourceIdentity = (source: ProjectDbtSourceSummary): string => {
     if (source.repository) {
@@ -74,9 +78,25 @@ const DbtSourceRow: FC<{
     <div className={classes.row}>
         <img className={classes.mark} src={DbtLogo} alt="" />
         <div className={classes.info}>
-            <Text fw={600} size="sm" truncate>
-                {source.name}
-            </Text>
+            <Group gap={6} wrap="nowrap">
+                <Text fw={600} size="sm" truncate>
+                    {source.name}
+                </Text>
+                {source.hasCredentialError && (
+                    <Tooltip
+                        multiline
+                        w={260}
+                        withinPortal
+                        label="Connection could not be loaded — remove and add it again"
+                    >
+                        <MantineIcon
+                            icon={IconAlertTriangle}
+                            color="red"
+                            aria-label={`${source.name} connection could not be loaded`}
+                        />
+                    </Tooltip>
+                )}
+            </Group>
             <Text className={classes.meta} c="dimmed" truncate>
                 {sourceIdentity(source)}
             </Text>
