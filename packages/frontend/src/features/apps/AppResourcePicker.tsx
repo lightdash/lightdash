@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     ChartKind,
     type ChartContent,
@@ -6,6 +7,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Anchor,
     Box,
     Button,
     CloseButton,
@@ -15,6 +17,7 @@ import {
     LoadingOverlay,
     Popover,
     ScrollArea,
+    Stack,
     Text,
     TextInput,
     Tooltip,
@@ -45,6 +48,8 @@ import { ChartIcon, IconBox } from '../../components/common/ResourceIcon';
 import { getChartIcon } from '../../components/common/ResourceIcon/utils';
 import { useDashboards } from '../../hooks/dashboard/useDashboards';
 import { useChartSummariesV2 } from '../../hooks/useChartSummariesV2';
+import { useProject } from '../../hooks/useProject';
+import useApp from '../../providers/App/useApp';
 import { useExternalConnections } from '../externalConnections/hooks/useExternalConnections';
 import classes from './AppResourcePicker.module.css';
 
@@ -746,6 +751,24 @@ const ConnectionPickerView: FC<{
         enabled ? projectUuid : undefined,
     );
 
+    // Only project/org admins can create connections; mirror the gate the
+    // Project Settings → Data app connections page uses.
+    const { user } = useApp();
+    const { data: project } = useProject(projectUuid);
+    const canManageConnections =
+        !!project &&
+        (user.data?.ability.can(
+            'manage',
+            subject('ExternalConnection', {
+                organizationUuid: project.organizationUuid,
+                projectUuid: project.projectUuid,
+            }),
+        ) ??
+            false);
+    const createConnectionUrl = projectUuid
+        ? `/generalSettings/projectManagement/${projectUuid}/dataAppConnections?create=1`
+        : undefined;
+
     const selectedUuids = useMemo(
         () => new Set(selectedConnections.map((c) => c.externalConnectionUuid)),
         [selectedConnections],
@@ -795,9 +818,19 @@ const ConnectionPickerView: FC<{
                         <Loader size="sm" />
                     </Group>
                 ) : filtered.length === 0 ? (
-                    <Text size="xs" c="dimmed" ta="center" p="sm">
-                        No external connections found
-                    </Text>
+                    <Stack gap={4} align="center" p="sm">
+                        <Text size="xs" c="dimmed" ta="center">
+                            {(connections?.length ?? 0) === 0
+                                ? 'No external connections yet'
+                                : 'No connections match your search'}
+                        </Text>
+                        {(connections?.length ?? 0) === 0 &&
+                            !canManageConnections && (
+                                <Text size="xs" c="dimmed" ta="center">
+                                    Ask a project admin to add one.
+                                </Text>
+                            )}
+                    </Stack>
                 ) : (
                     filtered.map((connection) => {
                         const isSelected = selectedUuids.has(
@@ -838,6 +871,21 @@ const ConnectionPickerView: FC<{
                 )}
             </ScrollArea.Autosize>
             <Box className={classes.attachPickerFooter}>
+                {canManageConnections && createConnectionUrl && (
+                    <Anchor
+                        href={createConnectionUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        mr="auto"
+                    >
+                        <Group gap={4} wrap="nowrap">
+                            <MantineIcon icon={IconPlus} size={14} />
+                            <Text size="xs" fw={500}>
+                                New connection
+                            </Text>
+                        </Group>
+                    </Anchor>
+                )}
                 <Button size="compact-xs" radius="md" onClick={onDone}>
                     Done
                 </Button>

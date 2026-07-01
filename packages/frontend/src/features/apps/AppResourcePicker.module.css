@@ -37,6 +37,7 @@
 
 .attachPickerFooter {
     display: flex;
+    align-items: center;
     justify-content: flex-end;
     padding: var(--mantine-spacing-xs);
     border-top: 1px solid;
