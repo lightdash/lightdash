@@ -320,11 +320,12 @@ const routeAgentStructuredOutputSchema = z.object({
     ),
 });
 
-export const findExploresToolDefinition: ToolDefinitionWithoutMcpOutput<
+export const findExploresToolDefinition: ToolDefinitionWithMcpOutput<
     'findExplores',
     typeof toolFindExploresArgsSchemaV3,
     typeof toolFindExploresArgsSchemaV3,
-    typeof toolFindExploresOutputSchema
+    typeof toolFindExploresOutputSchema,
+    typeof findExploresResultSchema
 > = defineTool({
     name: 'findExplores',
     title: 'Find explores',
@@ -338,11 +339,12 @@ export const findExploresToolDefinition: ToolDefinitionWithoutMcpOutput<
     },
 });
 
-export const findFieldsToolDefinition: ToolDefinitionWithoutMcpOutput<
+export const findFieldsToolDefinition: ToolDefinitionWithMcpOutput<
     'findFields',
     typeof toolFindFieldsArgsSchema,
     typeof toolFindFieldsArgsSchema,
-    typeof toolFindFieldsOutputSchema
+    typeof toolFindFieldsOutputSchema,
+    typeof findFieldsResultSchema
 > = defineTool({
     name: 'findFields',
     title: 'Find fields',
