@@ -123,8 +123,28 @@ export function validateCustomMetricsDefinition(
         );
 
         if (!field) {
+            // The transform strips the "<table>_" prefix from baseDimensionName,
+            // so show the field id we actually looked for and list the real
+            // dimensions — the agent can then correct in one step instead of
+            // guessing an id/primary-key column the explore may not expose.
+            const expectedFieldId = getItemId({
+                name: metric.baseDimensionName,
+                table: metric.table,
+            });
+            const availableDimensions = exploreFields
+                .filter(isDimension)
+                .map(getItemId);
+            const shown = availableDimensions.slice(0, 50);
+            const more =
+                availableDimensions.length > shown.length
+                    ? ` (and ${
+                          availableDimensions.length - shown.length
+                      } more — use findFields to search them)`
+                    : '';
             errors.push(
-                `Error: the base dimension name "${metric.baseDimensionName}" does not exist in the explore.`,
+                `Error: base dimension "${expectedFieldId}" does not exist in the explore "${metric.table}". ` +
+                    `baseDimensionName must be an existing dimension (do not invent an id/primary-key column). ` +
+                    `Available dimensions: ${shown.join(', ')}${more}`,
             );
             return;
         }
