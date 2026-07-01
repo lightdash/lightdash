@@ -1,3 +1,11 @@
+# [0.3277.0](https://github.com/lightdash/lightdash/compare/0.3276.0...0.3277.0) (2026-07-01)
+
+
+### Features
+
+* **ai-agents:** honor filter_autocomplete curated values in searchFieldValues ([#24990](https://github.com/lightdash/lightdash/issues/24990)) ([08f5e73](https://github.com/lightdash/lightdash/commit/08f5e73eac6d71cd11080fc03998a8ecd6276b03))
+* **data-apps:** Data Apps as Code — 1b upload + server build ([#24949](https://github.com/lightdash/lightdash/issues/24949)) ([564c17e](https://github.com/lightdash/lightdash/commit/564c17eb216175809d27b7e466004401b0cc4593))
+
 # [0.3276.0](https://github.com/lightdash/lightdash/compare/0.3275.0...0.3276.0) (2026-07-01)
 
 
