@@ -1,5 +1,6 @@
 import {
     ParameterError,
+    TooManyRequestsError,
     type DataAppCode,
     type ImportAppCodeRequestBody,
 } from '@lightdash/common';
@@ -62,6 +63,7 @@ function buildService() {
         }),
         createVersion: vi.fn().mockResolvedValue({ version: 1 }),
         getLatestVersion: vi.fn().mockResolvedValue(null),
+        countInProgressVersionsForProject: vi.fn().mockResolvedValue(0),
     };
 
     const schedulerClient = {
@@ -269,5 +271,43 @@ describe('AppGenerateService.importAppCode', () => {
                 code: noSrcCode,
             } as ImportAppCodeRequestBody),
         ).rejects.toThrow('bundle has no src/ files to build');
+    });
+
+    it('throws TooManyRequestsError when in-progress build count is at the cap', async () => {
+        const { service, appModel, schedulerClient } = buildService();
+
+        appModel.findApp.mockResolvedValue(undefined);
+        appModel.countInProgressVersionsForProject.mockResolvedValue(5);
+
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, {
+                code: makeCode(),
+            } as ImportAppCodeRequestBody),
+        ).rejects.toThrow(TooManyRequestsError);
+
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, {
+                code: makeCode(),
+            } as ImportAppCodeRequestBody),
+        ).rejects.toThrow('Too many app builds in progress for this project');
+
+        // must not create a version or enqueue a build
+        expect(appModel.createWithVersion).not.toHaveBeenCalled();
+        expect(schedulerClient.appBuildFromSource).not.toHaveBeenCalled();
+    });
+
+    it('proceeds normally when in-progress build count is zero', async () => {
+        const { service, appModel, schedulerClient } = buildService();
+
+        appModel.findApp.mockResolvedValue(undefined);
+        appModel.countInProgressVersionsForProject.mockResolvedValue(0);
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(),
+        } as ImportAppCodeRequestBody);
+
+        expect(result.action).toBe('create');
+        expect(appModel.createWithVersion).toHaveBeenCalledOnce();
+        expect(schedulerClient.appBuildFromSource).toHaveBeenCalledOnce();
     });
 });
