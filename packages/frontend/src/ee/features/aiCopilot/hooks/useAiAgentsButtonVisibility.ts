@@ -21,7 +21,9 @@ export const useAiAgentButtonVisibility = () => {
         options: {
             enabled:
                 aiOrganizationSettingsQuery.isSuccess &&
-                aiOrganizationSettingsQuery.data?.aiAgentsVisible,
+                !!aiOrganizationSettingsQuery.data?.aiAgentsVisible &&
+                (aiOrganizationSettingsQuery.data.isCopilotEnabled ||
+                    aiOrganizationSettingsQuery.data.isTrial),
         },
         redirectOnUnauthorized: false,
     });
