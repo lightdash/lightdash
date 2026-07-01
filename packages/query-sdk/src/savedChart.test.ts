@@ -3,23 +3,47 @@ import { createApiTransport } from './apiTransport';
 import { savedChart } from './savedChart';
 
 describe('savedChart', () => {
-    it('builds a SavedChartQuery with the chart uuid', () => {
+    it('builds a saved-chart query with the chart uuid', () => {
         const q = savedChart('chart-1');
         expect(q.kind).toBe('savedChart');
         expect(q.chartUuid).toBe('chart-1');
         expect(q.labelText).toBeUndefined();
     });
+
     it('accepts a label via the second argument', () => {
         expect(savedChart('chart-1', 'Revenue').labelText).toBe('Revenue');
     });
-    it('exposes a chainable .label() (regression: the agent calls .label() on every query)', () => {
-        // A plain object had no .label() method → `.label is not a function`
-        // crashed generated apps. It must be chainable like QueryBuilder.
-        expect(typeof savedChart('chart-1').label).toBe('function');
-        const q = savedChart('chart-1').label('Revenue');
-        expect(q.kind).toBe('savedChart');
-        expect(q.chartUuid).toBe('chart-1');
-        expect(q.labelText).toBe('Revenue');
+
+    // REGRESSION (battle-tested): generated apps chain the FULL QueryBuilder API
+    // on a linked chart. A missing method throws `TypeError: X is not a function`
+    // and crashes the whole app. Every QueryBuilder method must exist + chain.
+    it('mirrors the full QueryBuilder chainable surface without crashing', () => {
+        const chained = savedChart('chart-1')
+            .label('Revenue')
+            .dimensions(['orders_status'])
+            .metrics(['orders_revenue'])
+            .filters([])
+            .sorts([])
+            .tableCalculations([])
+            .additionalMetrics([])
+            .customDimensions([])
+            .parameters({ region: 'US' })
+            .limit(25);
+
+        expect(chained.kind).toBe('savedChart');
+        expect(chained.chartUuid).toBe('chart-1');
+    });
+
+    it('honors label/limit/parameters and ignores structural methods', () => {
+        const q = savedChart('chart-1')
+            .dimensions(['ignored'])
+            .filters([])
+            .label('Rev')
+            .limit(10)
+            .parameters({ region: 'US' });
+        expect(q.labelText).toBe('Rev');
+        expect(q.limitValue).toBe(10);
+        expect(q.parameterValues).toEqual({ region: 'US' });
     });
 });
 

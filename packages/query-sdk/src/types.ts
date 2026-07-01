@@ -294,6 +294,8 @@ export type Transport = {
     executeSavedChart: (params: {
         chartUuid: string;
         label?: string;
+        limit?: number;
+        parameters?: ParametersValuesMap;
     }) => Promise<QueryResult>;
     getUser: () => Promise<LightdashUser>;
     externalFetch: (

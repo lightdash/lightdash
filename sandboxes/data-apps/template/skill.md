@@ -162,9 +162,12 @@ Each file has a `linked` boolean and a `chartUuid`:
 
 - **`linked: true`** — the user wants this chart **live**. Render it with
   `lightdash.savedChart("<chartUuid>").label("<chartName>")` instead of building
-  an inline `query(...)`. `savedChart(...)` is chainable and supports `.label()`
-  exactly like `query(...)` — set the label as always. Do NOT copy the
-  metricQuery. The rows are keyed by the chart's field ids (as listed under
+  an inline `query(...)`. `savedChart(...)` is chainable like `query(...)` —
+  always `.label()` it. Its query is **fixed by the saved chart**: `.label()`,
+  `.limit()` and `.parameters()` apply, but `.dimensions()/.metrics()/.filters()
+  /.sorts()` are IGNORED — if the user needs a different shape or extra filters,
+  build an inline `query(...)` instead of linking. Do NOT copy the metricQuery.
+  The rows are keyed by the chart's field ids (as listed under
   `metricQuery.dimensions` / `metricQuery.metrics`); read the returned `columns`
   to know what's available. The listing line marks these with "LINKED".
 - **`linked: false`** — copy as today: build an inline `query(exploreName)...`

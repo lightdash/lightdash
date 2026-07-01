@@ -21,6 +21,7 @@ import type {
     InternalFilterDefinition,
     LightdashClientConfig,
     LightdashUser,
+    ParametersValuesMap,
     QueryDefinition,
     QueryResult,
     Row,
@@ -858,14 +859,26 @@ export function createApiTransport(
         async executeSavedChart(params: {
             chartUuid: string;
             label?: string;
+            limit?: number;
+            parameters?: ParametersValuesMap;
         }): Promise<QueryResult> {
             const metadata = params.label
                 ? { label: params.label }
                 : undefined;
+            const body: Record<string, unknown> = {
+                chartUuid: params.chartUuid,
+            };
+            if (params.limit !== undefined) body.limit = params.limit;
+            if (
+                params.parameters &&
+                Object.keys(params.parameters).length > 0
+            ) {
+                body.parameters = params.parameters;
+            }
             const execResult = await fetchFn<AsyncQueryResponse>(
                 'POST',
                 `/api/v2/projects/${config.projectUuid}/query/chart`,
-                { chartUuid: params.chartUuid },
+                body,
                 metadata,
             );
             const { queryUuid, fields } = execResult;

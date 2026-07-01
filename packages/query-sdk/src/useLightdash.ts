@@ -109,7 +109,9 @@ export function useLightdash(
         () =>
             query instanceof QueryBuilder
                 ? JSON.stringify(query.build())
-                : `savedChart:${query.chartUuid}`,
+                : `savedChart:${query.chartUuid}:${
+                      query.limitValue ?? ''
+                  }:${JSON.stringify(query.parameterValues ?? {})}`,
         [query],
     );
 
@@ -147,6 +149,8 @@ export function useLightdash(
                 : transport.executeSavedChart({
                       chartUuid: query.chartUuid,
                       label: query.labelText,
+                      limit: query.limitValue,
+                      parameters: query.parameterValues,
                   });
 
         exec
