@@ -7,6 +7,7 @@ import {
     CatalogType,
     ContentType,
     Explore,
+    FeatureFlags,
     filterExploreByTags,
     ForbiddenError,
     getContentAsCodePathFromLtreePath,
@@ -1722,11 +1723,52 @@ export class AiAgentToolsService extends BaseService {
                     );
                 }
 
+                const query = args.query ?? '';
+                const isEmptyQuery = query.trim() === '';
+
+                // Live PostHog toggle; default off => byte-identical to today.
+                const { enabled: guardEnabled } =
+                    await this.featureFlagService.get({
+                        user: context.user,
+                        featureFlagId: FeatureFlags.AiFieldValueSearchGuard,
+                    });
+
+                // Observability. Deliberately does NOT log the query text or any
+                // returned values (they can contain user data) — only the field
+                // identifier, the request shape and timing.
+                Logger.info(
+                    `[ai-field-values] search source=${context.source} ` +
+                        `table=${args.table} fieldId=${args.fieldId} ` +
+                        `isEmptyQuery=${isEmptyQuery} queryLen=${query.length} ` +
+                        `guard=${guardEnabled}`,
+                );
+
+                // An empty query compiles to `LIKE '%%'` — "distinct the whole
+                // column" — the worst case on a high-cardinality field. With the
+                // guard on, refuse it up front (0s) with a message the agent can
+                // act on, instead of paying for a full-column scan first.
+                if (guardEnabled && isEmptyQuery) {
+                    Logger.warn(
+                        `[ai-field-values] guard blocked empty-query scan ` +
+                            `source=${context.source} table=${args.table} ` +
+                            `fieldId=${args.fieldId}`,
+                    );
+                    throw new Error(
+                        'Listing all values for this field is disabled because ' +
+                            'it requires a full-column scan that is too slow on ' +
+                            'large tables. Search for a specific value instead ' +
+                            '(e.g. part of a name, status or code), or filter by ' +
+                            'an exact value you already know.',
+                    );
+                }
+
                 const dimensionFilters = args.filters?.dimensions;
                 const andFilters =
                     dimensionFilters && 'and' in dimensionFilters
                         ? dimensionFilters
                         : undefined;
+
+                const startedAt = Date.now();
                 const results =
                     await this.projectService.searchFieldUniqueValues(
                         context.user,
@@ -1743,7 +1785,17 @@ export class AiAgentToolsService extends BaseService {
                             ? QueryExecutionContext.MCP_SEARCH_FIELD_VALUES
                             : undefined,
                     );
-                return context.source === 'mcp' ? results : results.results;
+                const output =
+                    context.source === 'mcp' ? results : results.results;
+                Logger.info(
+                    `[ai-field-values] done source=${context.source} ` +
+                        `fieldId=${args.fieldId} elapsedMs=${
+                            Date.now() - startedAt
+                        } resultCount=${
+                            Array.isArray(output) ? output.length : 'n/a'
+                        }`,
+                );
+                return output;
             },
         );
     }

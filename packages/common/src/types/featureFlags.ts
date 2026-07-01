@@ -260,6 +260,17 @@ export enum FeatureFlags {
      * instead of paying the discoverFields sub-agent round-trip. Experimental.
      */
     AiGrepFields = 'ai-grep-fields',
+
+    /**
+     * Guard the agent's `searchFieldValues` tool against pathological warehouse
+     * scans. When on, an empty/whitespace query — which compiles to
+     * `LIKE '%%'`, i.e. "distinct the entire column" — is rejected immediately
+     * with an actionable message instead of running a leading-wildcard full
+     * scan that can take minutes on high-cardinality fields. Default off, so
+     * behaviour is byte-identical to today when disabled; a live toggle lets the
+     * new behaviour be trialled per-org without a redeploy. Experimental.
+     */
+    AiFieldValueSearchGuard = 'ai-field-value-search-guard',
 }
 
 export type FeatureFlag = {
