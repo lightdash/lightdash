@@ -1,5 +1,6 @@
 import {
     ChartType,
+    type DataAppVizChart,
     type CustomDimension,
     type DashboardFilters,
     type DateZoom,
@@ -199,6 +200,26 @@ export type VisualizationCustomConfigProps =
         itemsMap?: ItemsMap | undefined;
     };
 
+// Data app viz
+
+export type VisualizationConfigDataAppViz = {
+    chartType: ChartType.DATA_APP_VIZ;
+    chartConfig: {
+        validConfig: DataAppVizChart | undefined;
+    };
+};
+
+export const isDataAppVizVisualizationConfig = (
+    visualizationConfig: VisualizationConfig | undefined,
+): visualizationConfig is VisualizationConfigDataAppViz => {
+    return visualizationConfig?.chartType === ChartType.DATA_APP_VIZ;
+};
+
+export type VisualizationDataAppVizConfigProps =
+    VisualizationConfigCommon<VisualizationConfigDataAppViz> & {
+        itemsMap?: ItemsMap | undefined;
+    };
+
 // Gauge
 
 export type VisualizationConfigGauge = {
@@ -279,4 +300,5 @@ export type VisualizationConfig =
     | VisualizationConfigGauge
     | VisualizationConfigMap
     | VisualizationCustomConfigType
-    | VisualizationConfigSankeyType;
+    | VisualizationConfigSankeyType
+    | VisualizationConfigDataAppViz;

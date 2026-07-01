@@ -62,6 +62,12 @@ const VisualizationConfig: FC<Props> = ({ chartType, onClose }) => {
                 );
             case ChartType.SANKEY:
                 return SankeyConfigTabs;
+            case ChartType.DATA_APP_VIZ:
+                return () => (
+                    <Text p="sm" color="dimmed" size="sm">
+                        No configuration options yet.
+                    </Text>
+                );
             default:
                 return assertUnreachable(
                     chartType,

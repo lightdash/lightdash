@@ -401,6 +401,9 @@
                     "$ref": "#/$defs/GaugeChartConfig"
                 },
                 {
+                    "$ref": "#/$defs/DataAppVizChartConfig"
+                },
+                {
                     "$ref": "#/$defs/MapChartConfig"
                 },
                 {
@@ -418,6 +421,10 @@
         },
         "ChartType.CUSTOM": {
             "enum": ["custom"],
+            "type": "string"
+        },
+        "ChartType.DATA_APP_VIZ": {
+            "enum": ["data_app_viz"],
             "type": "string"
         },
         "ChartType.FUNNEL": {
@@ -1044,6 +1051,37 @@
             },
             "required": ["type"],
             "type": "object"
+        },
+        "DataAppVizChart": {
+            "properties": {
+                "dataAppVizUuid": {
+                    "description": "The reusable data app viz this chart renders with (by reference).",
+                    "type": "string"
+                },
+                "fieldMapping": {
+                    "$ref": "#/$defs/DataAppVizFieldMapping"
+                }
+            },
+            "required": ["fieldMapping", "dataAppVizUuid"],
+            "type": "object"
+        },
+        "DataAppVizChartConfig": {
+            "properties": {
+                "config": {
+                    "$ref": "#/$defs/DataAppVizChart",
+                    "description": "Reference to a data app viz plus its field mapping."
+                },
+                "type": {
+                    "$ref": "#/$defs/ChartType.DATA_APP_VIZ",
+                    "description": "Type of chart visualization"
+                }
+            },
+            "required": ["type"],
+            "type": "object"
+        },
+        "DataAppVizFieldMapping": {
+            "$ref": "#/$defs/Record_string.string_",
+            "description": "Maps a data app viz's field name → the host query field id bound to it."
         },
         "DimensionOverrides": {
             "additionalProperties": {
@@ -3420,6 +3458,20 @@
                         },
                         "type": {
                             "const": "gauge",
+                            "description": "Type of chart visualization"
+                        }
+                    },
+                    "required": ["type"],
+                    "type": "object"
+                },
+                {
+                    "properties": {
+                        "config": {
+                            "$ref": "#/$defs/DataAppVizChart",
+                            "description": "Reference to a data app viz plus its field mapping."
+                        },
+                        "type": {
+                            "const": "data_app_viz",
                             "description": "Type of chart visualization"
                         }
                     },

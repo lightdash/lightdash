@@ -51,6 +51,7 @@ import VisualizationConfigSankey from './VisualizationConfigSankey';
 import VisualizationTableConfig from './VisualizationConfigTable';
 import VisualizationTreemapConfig from './VisualizationConfigTreemap';
 import VisualizationCustomConfig from './VisualizationCustomConfig';
+import VisualizationDataAppVizConfig from './VisualizationDataAppVizConfig';
 
 export type VisualizationProviderProps = {
     minimal?: boolean;
@@ -565,6 +566,23 @@ const VisualizationProvider: FC<
                         </Context.Provider>
                     )}
                 </VisualizationConfigSankey>
+            );
+        case ChartType.DATA_APP_VIZ:
+            return (
+                <VisualizationDataAppVizConfig
+                    itemsMap={itemsMap}
+                    resultsData={lastValidResultsData}
+                    initialChartConfig={chartConfig.config}
+                    onChartConfigChange={handleChartConfigChange}
+                >
+                    {({ visualizationConfig }) => (
+                        <Context.Provider
+                            value={{ ...value, visualizationConfig }}
+                        >
+                            {children}
+                        </Context.Provider>
+                    )}
+                </VisualizationDataAppVizConfig>
             );
         default:
             return assertUnreachable(chartConfig, 'Unknown chart type');

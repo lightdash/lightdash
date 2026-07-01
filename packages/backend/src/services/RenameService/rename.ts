@@ -29,6 +29,7 @@ import {
     SchedulerAndTargets,
     TableCalculationTemplateType,
     type ConditionalFormattingConfig,
+    type DataAppVizChartConfig,
     type SankeyChartConfig,
 } from '@lightdash/common';
 
@@ -503,6 +504,27 @@ export const renameChartConfigType = (
                     ),
                     metricFieldId: replaceOptionalId(
                         sankeyConfig.config?.metricFieldId,
+                    ),
+                },
+            };
+        }
+
+        case ChartType.DATA_APP_VIZ: {
+            const dataAppVizConfig = chartConfig as DataAppVizChartConfig;
+            if (!dataAppVizConfig.config) return dataAppVizConfig;
+            // Field mapping keys are the viz's internal field names; the values
+            // are query field ids, so only the values get renamed.
+            return {
+                ...dataAppVizConfig,
+                config: {
+                    ...dataAppVizConfig.config,
+                    fieldMapping: Object.fromEntries(
+                        Object.entries(
+                            dataAppVizConfig.config.fieldMapping,
+                        ).map(([field, fieldId]) => [
+                            field,
+                            replaceId(fieldId),
+                        ]),
                     ),
                 },
             };

@@ -31,6 +31,7 @@ export enum ChartKind {
     GAUGE = 'gauge',
     MAP = 'map',
     SANKEY = 'sankey',
+    DATA_APP_VIZ = 'data_app_viz',
 }
 
 export enum ChartType {
@@ -44,6 +45,7 @@ export enum ChartType {
     CUSTOM = 'custom',
     MAP = 'map',
     SANKEY = 'sankey',
+    DATA_APP_VIZ = 'data_app_viz',
 }
 
 export enum ComparisonFormatTypes {
@@ -776,6 +778,15 @@ export type CustomVis = {
     spec?: Record<string, unknown>;
 };
 
+/** Maps a data app viz's field name → the host query field id bound to it. */
+export type DataAppVizFieldMapping = Record<string, string>;
+
+export type DataAppVizChart = {
+    /** The reusable data app viz this chart renders with (by reference). */
+    dataAppVizUuid: string;
+    fieldMapping: DataAppVizFieldMapping;
+};
+
 export type CartesianChart = {
     /** Layout configuration for the chart axes and orientation */
     layout: CartesianChartLayout;
@@ -810,6 +821,13 @@ export type CustomVisConfig = {
     type: ChartType.CUSTOM;
     /** Chart-type-specific configuration */
     config?: CustomVis;
+};
+
+export type DataAppVizChartConfig = {
+    /** Type of chart visualization */
+    type: ChartType.DATA_APP_VIZ;
+    /** Reference to a data app viz plus its field mapping. */
+    config?: DataAppVizChart;
 };
 
 export type PieChartConfig = {
@@ -870,6 +888,7 @@ export type ChartConfig =
     | TableChartConfig
     | TreemapChartConfig
     | GaugeChartConfig
+    | DataAppVizChartConfig
     | MapChartConfig
     | SankeyChartConfig;
 
@@ -1025,13 +1044,20 @@ export const isCartesianChartConfig = (
 ): value is CartesianChart =>
     !!value && 'layout' in value && 'eChartsConfig' in value;
 
+export const isDataAppVizChart = (
+    value: ChartConfig['config'],
+): value is DataAppVizChart =>
+    !!value && 'dataAppVizUuid' in value && 'fieldMapping' in value;
+
 export const isBigNumberConfig = (
     value: ChartConfig['config'],
-): value is BigNumber => !!value && !isCartesianChartConfig(value);
+): value is BigNumber =>
+    !!value && !isCartesianChartConfig(value) && !isDataAppVizChart(value);
 
 export const isTableChartConfig = (
     value: ChartConfig['config'],
-): value is TableChart => !!value && !isCartesianChartConfig(value);
+): value is TableChart =>
+    !!value && !isCartesianChartConfig(value) && !isDataAppVizChart(value);
 
 export const isPieChartConfig = (
     value: ChartConfig['config'],
@@ -1184,6 +1210,8 @@ export const getChartType = (chartKind: ChartKind | undefined): ChartType => {
             return ChartType.GAUGE;
         case ChartKind.SANKEY:
             return ChartType.SANKEY;
+        case ChartKind.DATA_APP_VIZ:
+            return ChartType.DATA_APP_VIZ;
         default:
             return ChartType.CARTESIAN;
     }
@@ -1244,6 +1272,8 @@ export const getChartKind = (
             return ChartKind.MAP;
         case ChartType.SANKEY:
             return ChartKind.SANKEY;
+        case ChartType.DATA_APP_VIZ:
+            return ChartKind.DATA_APP_VIZ;
         default:
             return assertUnreachable(
                 chartType,

@@ -5,6 +5,7 @@ import {
     type CartesianChartConfig,
     type ChartConfig,
     type ChartType,
+    type DataAppVizChartConfig,
     type CreateSavedChartVersion,
     type CustomDimension,
     type CustomFormat,
@@ -106,6 +107,7 @@ export type ConfigCacheMap = {
     [ChartType.MAP]: MapChartConfigCache;
     [ChartType.CUSTOM]: ChartConfigCache<CustomVisConfig['config']>;
     [ChartType.SANKEY]: ChartConfigCache<SankeyChartConfig['config']>;
+    [ChartType.DATA_APP_VIZ]: ChartConfigCache<DataAppVizChartConfig['config']>;
 };
 
 export type Action =

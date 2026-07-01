@@ -19,6 +19,7 @@ import {
     IconGauge,
     IconGitMerge,
     IconMap,
+    IconPuzzle,
     IconSquareNumber1,
     IconTable,
 } from '@tabler/icons-react';
@@ -195,6 +196,11 @@ const VisualizationCardOptions: FC = memo(() => {
                 return {
                     text: 'Sankey',
                     icon: <MantineIcon icon={IconGitMerge} color="ldGray" />,
+                };
+            case ChartType.DATA_APP_VIZ:
+                return {
+                    text: 'Data app visualization',
+                    icon: <MantineIcon icon={IconPuzzle} color="ldGray" />,
                 };
             default: {
                 return assertUnreachable(

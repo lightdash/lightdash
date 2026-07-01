@@ -1,9 +1,15 @@
 import {
     CartesianSeriesType,
+    ChartKind,
     ChartType,
+    getChartKind,
+    getChartType,
+    isDataAppVizChart,
+    isTableChartConfig,
     removePivotedSeriesValuesFromChartConfig,
     type CartesianChartConfig,
     type ChartConfig,
+    type DataAppVizChartConfig,
     type Series,
 } from './savedCharts';
 
@@ -143,5 +149,34 @@ describe('removePivotedSeriesValuesFromChartConfig', () => {
         expect(removePivotedSeriesValuesFromChartConfig(emptySeries)).toBe(
             emptySeries,
         );
+    });
+});
+
+describe('ChartType.DATA_APP_VIZ variant', () => {
+    const dataAppVizConfig: DataAppVizChartConfig = {
+        type: ChartType.DATA_APP_VIZ,
+        config: {
+            dataAppVizUuid: 'data-app-viz-1',
+            fieldMapping: { category: 'orders_status', value: 'orders_count' },
+        },
+    };
+
+    it('round-trips through getChartKind / getChartType without loss', () => {
+        const kind = getChartKind(
+            dataAppVizConfig.type,
+            dataAppVizConfig.config,
+        );
+        expect(kind).toBe(ChartKind.DATA_APP_VIZ);
+        expect(getChartType(kind)).toBe(ChartType.DATA_APP_VIZ);
+    });
+
+    it('isDataAppVizChart identifies the config and rejects others', () => {
+        expect(isDataAppVizChart(dataAppVizConfig.config)).toBe(true);
+        expect(isDataAppVizChart({ spec: {} })).toBe(false);
+        expect(isDataAppVizChart(undefined)).toBe(false);
+    });
+
+    it('is not misclassified as a table config', () => {
+        expect(isTableChartConfig(dataAppVizConfig.config)).toBe(false);
     });
 });
