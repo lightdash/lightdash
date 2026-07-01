@@ -811,9 +811,11 @@ The sandboxed preview iframe has no network access of its own (`default-src 'non
 3. `executeExternalFetch` validates the request, enforces the SSRF guard (the request must resolve under the connection's configured base URL/host; private/loopback/link-local targets are rejected), injects the secret as the configured auth, reads a **bounded** response body, and returns `{ status, contentType, body, truncated }`.
 4. The bounded response is posted back to the iframe. The decrypted secret never crosses to the frontend.
 
-### GET / POST rules
+### Method rules
 
-Only `GET` and `POST` are allowed. `GET` is for reads; `POST` carries a JSON body. Other methods are rejected. The request `path` is resolved against the connection's base URL and cannot escape its host (SSRF guard). Responses are size-capped; oversized bodies come back with `truncated: true` rather than streaming unbounded data into the browser.
+Each connection carries a per-connection **allowed-methods** list; an admin opts a connection into whichever of `GET`, `POST`, `PUT`, `PATCH`, and `DELETE` it needs (the shared universe is `EXTERNAL_CONNECTION_METHODS` in `packages/common/src/ee/externalConnections/types.ts`). A fetch whose method is not in that list is rejected. `GET` is for reads and carries no body; every other method may carry a server-serialized JSON body. The request `path` is resolved against the connection's base URL and cannot escape its host (SSRF guard). Responses are size-capped; oversized bodies come back with `truncated: true` rather than streaming unbounded data into the browser.
+
+New connections default to `['GET']` only; broadening the set is an explicit admin opt-in per connection, keeping the exfiltration surface (see [Why the exfiltration warning matters](#why-the-exfiltration-warning-matters)) as small as the app actually needs.
 
 ### Why the exfiltration warning matters
 

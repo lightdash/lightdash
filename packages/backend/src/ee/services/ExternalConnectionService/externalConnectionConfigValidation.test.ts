@@ -119,10 +119,28 @@ describe('validateExternalConnectionConfig', () => {
         it('rejects an unsupported method', () => {
             expect(() =>
                 validateExternalConnectionConfig(
-                    { ...base, allowedMethods: ['DELETE'] },
+                    { ...base, allowedMethods: ['TRACE'] },
                     false,
                 ),
             ).toThrow(ParameterError);
+        });
+
+        it('accepts the extended write methods', () => {
+            expect(() =>
+                validateExternalConnectionConfig(
+                    {
+                        ...base,
+                        allowedMethods: [
+                            'GET',
+                            'POST',
+                            'PUT',
+                            'PATCH',
+                            'DELETE',
+                        ],
+                    },
+                    false,
+                ),
+            ).not.toThrow();
         });
 
         it('rejects empty content types', () => {

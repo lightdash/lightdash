@@ -1450,7 +1450,7 @@ export class AppGenerateService extends BaseService {
                 {
                     alias: doc.alias,
                     signature:
-                        "externalFetch(alias: string, opts: { method?: 'GET' | 'POST'; path: string; query?: Record<string, string>; body?: unknown }): Promise<{ status: number; contentType: string; body: unknown; truncated: boolean }>",
+                        "externalFetch(alias: string, opts: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; path: string; query?: Record<string, string>; body?: unknown }): Promise<{ status: number; contentType: string; body: unknown; truncated: boolean }>",
                     origin: doc.origin,
                     // The single most-misread thing: `path` is the COMPLETE path from
                     // the origin, not relative to the prefix. Spell out origin + path.

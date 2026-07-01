@@ -1,9 +1,12 @@
-import { type ExternalConnectionMethod } from '@lightdash/common';
+import {
+    EXTERNAL_CONNECTION_METHODS,
+    type ExternalConnectionMethod,
+} from '@lightdash/common';
 import { Chip, Group, Stack, Text } from '@mantine-8/core';
 import { type FC, type ReactNode } from 'react';
 
-// Extend here when the backend's supported-method set grows (e.g. PATCH/DELETE).
-const METHOD_OPTIONS: ExternalConnectionMethod[] = ['GET', 'POST'];
+const METHOD_OPTIONS: readonly ExternalConnectionMethod[] =
+    EXTERNAL_CONNECTION_METHODS;
 
 type Props = {
     label: string;
@@ -13,7 +16,7 @@ type Props = {
     disabled?: boolean;
 };
 
-/** Multi-select method chips (GET/POST). Shared by the onboarding wizard's
+/** Multi-select HTTP method chips. Shared by the onboarding wizard's
  *  Rules step and the Edit connection form. */
 export const MethodsField: FC<Props> = ({
     label,

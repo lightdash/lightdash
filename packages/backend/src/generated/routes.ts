@@ -1679,6 +1679,9 @@ const models: TsoaRoute.Models = {
             subSchemas: [
                 { dataType: 'enum', enums: ['GET'] },
                 { dataType: 'enum', enums: ['POST'] },
+                { dataType: 'enum', enums: ['PUT'] },
+                { dataType: 'enum', enums: ['PATCH'] },
+                { dataType: 'enum', enums: ['DELETE'] },
             ],
             validators: {},
         },
@@ -2078,13 +2081,7 @@ const models: TsoaRoute.Models = {
                 body: { dataType: 'any' },
                 query: { ref: 'Record_string.string_' },
                 path: { dataType: 'string', required: true },
-                method: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'enum', enums: ['GET'] },
-                        { dataType: 'enum', enums: ['POST'] },
-                    ],
-                },
+                method: { ref: 'ExternalConnectionMethod' },
             },
             validators: {},
         },

@@ -1666,7 +1666,7 @@
             },
             "ExternalConnectionMethod": {
                 "type": "string",
-                "enum": ["GET", "POST"]
+                "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"]
             },
             "ApiKeyLocation": {
                 "type": "string",
@@ -2067,8 +2067,7 @@
                         "type": "string"
                     },
                     "method": {
-                        "type": "string",
-                        "enum": ["GET", "POST"]
+                        "$ref": "#/components/schemas/ExternalConnectionMethod"
                     }
                 },
                 "required": ["path"],
