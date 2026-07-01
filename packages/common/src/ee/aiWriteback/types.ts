@@ -128,10 +128,10 @@ Requirements:
 Important:
 - This tool is NOT read-only and NOT idempotent — each call can open a new pull request. Use it only when the user explicitly wants to change their dbt project.
 - The run is synchronous and can take a few minutes (cloning, running the agent, opening the PR).
+- Some projects have more than one dbt source. If the prompt doesn't make clear which one to change, the tool makes no change and returns the list of sources (by name and repository); re-run and name the intended source in the prompt itself (e.g. "In jaffle-2, add ..."). You never pass an id.
 
 Parameters:
-- prompt: A clear, self-contained description of the change to make to the dbt project (e.g. "Add a 'total_revenue' metric to the orders model as the sum of amount").
-- dbtSourceUuid (optional): When the project has more than one dbt source, the uuid of the source to change. Omit it to let the run infer the target from the prompt; if it cannot, the response asks you to choose and lists the available sources, after which you re-call with the chosen dbtSourceUuid.
+- prompt: A clear, self-contained description of the change to make to the dbt project (e.g. "Add a 'total_revenue' metric to the orders model as the sum of amount"). When the project has more than one dbt source, name the intended source here (e.g. "In the marketing dbt project, ...").
 
 Response shape (MCP CallToolResult):
 - content: [{ type: "text", text: "<human-readable summary including the PR URL>" }]
@@ -147,13 +147,7 @@ export const mcpRunAiWritebackArgsSchema = z.object({
         .string()
         .min(1)
         .describe(
-            'A clear, self-contained description of the change to make to the dbt project that backs the active Lightdash project.',
-        ),
-    dbtSourceUuid: z
-        .string()
-        .optional()
-        .describe(
-            "Which of the project's dbt sources to change, when it has more than one. Omit to infer the target from the prompt; if the run cannot decide it returns the available sources to choose from, then you re-call with the chosen uuid.",
+            'A clear, self-contained description of the change to make to the dbt project that backs the active Lightdash project. If the project has more than one dbt source, name the intended one here (e.g. "In jaffle-2, add ...") — the tool resolves it from the prompt and asks (listing sources by name) if it can\'t tell.',
         ),
 });
 

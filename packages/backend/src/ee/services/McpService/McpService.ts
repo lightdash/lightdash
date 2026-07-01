@@ -1113,15 +1113,15 @@ export class McpService extends BaseService {
                         user,
                         projectUuid,
                         prompt: args.prompt,
-                        dbtSourceUuid: args.dbtSourceUuid,
                         source: 'mcp',
                     });
 
                     let summary: string;
                     if (result.needsDbtSourceSelection) {
                         // The project has several dbt sources and the prompt
-                        // didn't name one — surface the choices so the agent can
-                        // re-call with the chosen dbtSourceUuid. No PR was opened.
+                        // didn't name one. Surface the choices by name/repo and
+                        // ask the agent to re-run naming the source in the prompt
+                        // — no id round-trip. No PR was opened.
                         const choices = (result.dbtSourceOptions ?? [])
                             .map(
                                 (option) =>
@@ -1129,14 +1129,10 @@ export class McpService extends BaseService {
                                         option.repository
                                             ? ` (${option.repository})`
                                             : ''
-                                    }${
-                                        option.isPrimary ? ' [primary]' : ''
-                                    } — dbtSourceUuid: ${
-                                        option.projectDbtSourceUuid
-                                    }`,
+                                    }${option.isPrimary ? ' [primary]' : ''}`,
                             )
                             .join('\n');
-                        summary = `This project has more than one dbt source. Re-run run_ai_writeback with one of these as dbtSourceUuid:\n${choices}`;
+                        summary = `This project has more than one dbt source, so I couldn't tell which one to change. Ask again and name the source in your request (e.g. "In jaffle-2, ..."). Available sources:\n${choices}`;
                     } else {
                         summary = result.prUrl
                             ? `AI writeback complete. Pull request opened: ${result.prUrl}`
