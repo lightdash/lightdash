@@ -47,6 +47,8 @@ import {
     type CompiledTable,
     type DataAppClaudeModel,
     type DataAppCode,
+    type DataAppCodeDownload,
+    type DataAppContext,
     type DataAppTemplate,
     type DataAppViz,
     type DataAppVizSchema,
@@ -120,6 +122,7 @@ import {
     s3KeyToRelPath,
     versionPrefix,
 } from './appCode';
+import { contextFile, promptHistoryToMarkdown } from './appContext';
 import {
     classifyClaudeCliFailure,
     ClaudeGenerationError,
@@ -139,6 +142,7 @@ import {
     copyDesignIntoSandbox,
     type DesignSandboxCopyResult,
 } from './designSandboxCopy';
+import { readDesignForDownload } from './readDesignForDownload';
 import { getTemplateInstructions } from './templates';
 
 /**
@@ -6713,7 +6717,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         projectUuid: string,
         appUuid: string,
         version?: number,
-    ): Promise<DataAppCode> {
+    ): Promise<DataAppCodeDownload> {
         const app = await this.appModel.getApp(appUuid, projectUuid);
         await this.assertCanViewApp(user, app);
 
@@ -6814,7 +6818,62 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             downloadedAt: new Date().toISOString(),
         });
 
-        return { manifest, files };
+        const context = await this.assembleAppContext(
+            app,
+            projectUuid,
+            app.organization_uuid,
+        );
+
+        return { manifest, files, context };
+    }
+
+    private async assembleAppContext(
+        app: { app_id: string; design_uuid: string | null },
+        projectUuid: string,
+        organizationUuid: string,
+    ): Promise<DataAppContext> {
+        const exploresByUuid =
+            await this.projectModel.getAllExploresFromCache(projectUuid);
+        const explores = Object.values(exploresByUuid).filter(
+            (e): e is Explore => !isExploreError(e),
+        );
+        const { yaml: modelYaml } = AppGenerateService.exploresToYaml(explores);
+
+        const globalParameters =
+            await this.projectParametersModel.find(projectUuid);
+        const configYaml =
+            AppGenerateService.projectParametersToConfigYaml(globalParameters);
+
+        const withVersions = await this.appModel.getAppWithVersions(
+            app.app_id,
+            projectUuid,
+        );
+        const promptMd = promptHistoryToMarkdown(
+            withVersions.versions.map((v) => ({
+                version: v.version,
+                prompt: v.prompt ?? '',
+                createdAt: v.created_at.toISOString(),
+            })),
+        );
+
+        const { client: s3Client, bucket } = this.getS3Client();
+        const theme = await readDesignForDownload({
+            s3Client,
+            bucket,
+            organizationDesignModel: this.organizationDesignModel,
+            organizationUuid,
+            designUuid: app.design_uuid,
+            logger: this.logger,
+        });
+
+        return {
+            semanticLayer: contextFile('semantic-layer.yml', modelYaml),
+            parameters: configYaml
+                ? contextFile('parameters.yml', configYaml)
+                : null,
+            promptHistory: contextFile('prompt-history.md', promptMd),
+            theme,
+        };
     }
 
     async importAppCode(
