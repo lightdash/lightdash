@@ -90,6 +90,8 @@ function buildService(opts: {
             .mockResolvedValue(
                 opts.connection !== undefined ? opts.connection : connection,
             ),
+        getProjectOrganizationUuid: vi.fn().mockResolvedValue(orgUuid),
+        list: vi.fn().mockResolvedValue([connection]),
         getDecryptedSecret: vi.fn().mockResolvedValue(opts.secret ?? 's3cr3t'),
         saveSample: opts.saveSampleFn ?? vi.fn().mockResolvedValue(fakeSample),
         countSamples: opts.countSamplesFn ?? vi.fn().mockResolvedValue(0),
@@ -136,8 +138,84 @@ function mockAbility(
     });
 }
 
+// Action-aware ability: only the listed actions are allowed. Lets us assert
+// that reads gate on `view` while mutations still gate on `manage`.
+function mockAbilityByActions(
+    service: ExternalConnectionService,
+    allowedActions: string[],
+): void {
+    const allowed = new Set(allowedActions);
+    vi.spyOn(
+        service as unknown as { createAuditedAbility: () => unknown },
+        'createAuditedAbility',
+    ).mockReturnValue({
+        can: (action: string) => allowed.has(action),
+        cannot: (action: string) => !allowed.has(action),
+    });
+}
+
 const adminAccount = makeAccount(true);
 const viewerAccount = makeAccount(false);
+
+// -------------------------------------------------------------------
+// list / get — reads gate on `view`, not `manage`
+// -------------------------------------------------------------------
+describe('ExternalConnectionService reads (view, not manage)', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('lists connections for a view-only principal (no manage)', async () => {
+        const { service, model } = buildService({});
+        mockAbilityByActions(service, ['view']);
+
+        const result = await service.list(viewerAccount, projectUuid);
+
+        expect(result).toEqual([connection]);
+        expect(model.list).toHaveBeenCalledWith(projectUuid, orgUuid);
+    });
+
+    it('gets a connection for a view-only principal (no manage)', async () => {
+        const { service } = buildService({});
+        mockAbilityByActions(service, ['view']);
+
+        const result = await service.get(
+            viewerAccount,
+            projectUuid,
+            connectionUuid,
+        );
+
+        expect(result).toEqual(connection);
+    });
+
+    it('rejects list when the principal cannot view', async () => {
+        const { service, model } = buildService({});
+        mockAbilityByActions(service, []);
+
+        await expect(service.list(viewerAccount, projectUuid)).rejects.toThrow(
+            ForbiddenError,
+        );
+        expect(model.list).not.toHaveBeenCalled();
+    });
+
+    it('still requires manage to create — view alone is rejected', async () => {
+        const { service } = buildService({});
+        mockAbilityByActions(service, ['view']);
+
+        await expect(
+            service.create(viewerAccount, projectUuid, {
+                name: 'API',
+                type: 'none',
+                origin: 'https://api.example.com',
+                allowedPathPrefixes: ['/'],
+                allowedMethods: ['GET'],
+                allowedContentTypes: ['application/json'],
+                responseMaxBytes: 1000,
+                secret: null,
+            }),
+        ).rejects.toThrow(ForbiddenError);
+    });
+});
 
 // -------------------------------------------------------------------
 // testConnection
