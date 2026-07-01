@@ -1,13 +1,19 @@
-import { Box, Group, Image, Loader, Popover, Text } from '@mantine-8/core';
+import { Box, Image, Popover, Stack } from '@mantine-8/core';
 import { useEffect, useState, type FC, type ReactNode } from 'react';
 import { useAppThumbnailUrl } from '../hooks/useAppThumbnail';
+
+type AppThumbnailHoverCardState = {
+    hasThumbnailPreview: boolean;
+    isLoadingThumbnail: boolean;
+};
 
 type AppThumbnailHoverCardProps = {
     projectUuid: string | undefined;
     appUuid: string;
     appName: string;
     hasReadyVersion: boolean;
-    children: ReactNode;
+    children: ReactNode | ((state: AppThumbnailHoverCardState) => ReactNode);
+    infoContent?: ReactNode;
     position?: 'right-start' | 'top' | 'bottom' | 'left-start';
     fullWidthTarget?: boolean;
     active?: boolean;
@@ -20,6 +26,7 @@ const AppThumbnailHoverCard: FC<AppThumbnailHoverCardProps> = ({
     appName,
     hasReadyVersion,
     children,
+    infoContent,
     position = 'right-start',
     fullWidthTarget = false,
     active,
@@ -38,9 +45,12 @@ const AppThumbnailHoverCard: FC<AppThumbnailHoverCardProps> = ({
     );
     const isLoadingThumbnail = thumbnail.isLoading || thumbnail.isFetching;
     const thumbnailUrl = thumbnail.data?.thumbnailUrl;
-    const showEmptyState =
-        thumbnail.isError || (thumbnail.isFetched && !thumbnailUrl);
-    const showPreview = isLoadingThumbnail || !!thumbnailUrl || showEmptyState;
+    const hasThumbnailPreview = !!thumbnailUrl;
+    const showPreview = hasThumbnailPreview;
+    const renderedChildren =
+        typeof children === 'function'
+            ? children({ hasThumbnailPreview, isLoadingThumbnail })
+            : children;
 
     useEffect(() => {
         if (!activateOnClosestRow || !targetElement) return;
@@ -80,7 +90,7 @@ const AppThumbnailHoverCard: FC<AppThumbnailHoverCardProps> = ({
                     onMouseEnter={() => setIsTargetHovered(true)}
                     onMouseLeave={() => setIsTargetHovered(false)}
                 >
-                    {children}
+                    {renderedChildren}
                 </Box>
             </Popover.Target>
             {showPreview && (
@@ -90,28 +100,17 @@ const AppThumbnailHoverCard: FC<AppThumbnailHoverCardProps> = ({
                     style={{ pointerEvents: 'none' }}
                 >
                     {thumbnailUrl ? (
-                        <Image
-                            src={thumbnailUrl}
-                            alt={appName}
-                            w={320}
-                            mah={220}
-                            fit="contain"
-                        />
-                    ) : isLoadingThumbnail ? (
-                        <Box w={320} h={180} pos="relative">
-                            <Group h="100%" justify="center">
-                                <Loader size="sm" />
-                            </Group>
-                        </Box>
-                    ) : (
-                        <Box w={320} h={120} pos="relative">
-                            <Group h="100%" justify="center">
-                                <Text c="dimmed" fz="sm" fw={500}>
-                                    No thumbnail available
-                                </Text>
-                            </Group>
-                        </Box>
-                    )}
+                        <Stack gap="sm" w={320}>
+                            {infoContent}
+                            <Image
+                                src={thumbnailUrl}
+                                alt={appName}
+                                w={320}
+                                mah={220}
+                                fit="contain"
+                            />
+                        </Stack>
+                    ) : null}
                 </Popover.Dropdown>
             )}
         </Popover>
