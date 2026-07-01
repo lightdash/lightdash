@@ -142,7 +142,6 @@ const QueryRow: FC<{
                                             href={exploreUrl}
                                             target="_blank"
                                             size="xs"
-                                            className={classes.openInExplore}
                                             onClick={(e) => e.stopPropagation()}
                                         >
                                             <Group gap={4} wrap="nowrap">
@@ -159,7 +158,6 @@ const QueryRow: FC<{
                                     component="button"
                                     type="button"
                                     size="xs"
-                                    className={classes.openInExplore}
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         setSaveOpen(true);
