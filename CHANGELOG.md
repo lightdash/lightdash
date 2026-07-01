@@ -1,3 +1,10 @@
+## [0.3271.1](https://github.com/lightdash/lightdash/compare/0.3271.0...0.3271.1) (2026-07-01)
+
+
+### Bug Fixes
+
+* block nested sql execution functions ([#24928](https://github.com/lightdash/lightdash/issues/24928)) ([26a04ee](https://github.com/lightdash/lightdash/commit/26a04ee23cb1a7151572fcd6e0412e8551d2adbd))
+
 # [0.3271.0](https://github.com/lightdash/lightdash/compare/0.3270.1...0.3271.0) (2026-07-01)
 
 
