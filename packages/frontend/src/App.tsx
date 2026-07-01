@@ -10,6 +10,7 @@ import {
 import { AiAgentsGlobalProvider } from './ee/features/aiCopilot/components/Launcher/AiAgentsGlobalProvider';
 import { parseEmbedThemeParams } from './ee/providers/Embed/parseEmbedThemeParams';
 import { installChunkLoadErrorHandler } from './features/chunkErrorHandler';
+import ChunkErrorRouteBoundary from './features/errorBoundary/ChunkErrorRouteBoundary';
 import ErrorBoundary from './features/errorBoundary/ErrorBoundary';
 import { SourceCodeEditorProvider } from './features/sourceCodeEditor';
 import ChartColorMappingContextProvider from './hooks/useChartColorConfig/ChartColorMappingContextProvider';
@@ -52,6 +53,7 @@ const sentryCreateBrowserRouter =
 const router = sentryCreateBrowserRouter([
     {
         path: '/',
+        errorElement: <ChunkErrorRouteBoundary />,
         element: (
             <AppProvider>
                 <FullscreenProvider enabled={isMobile || !isMinimalPage}>
