@@ -243,3 +243,20 @@ export const renderCandidateBlock = (candidates: FieldEntry[]): string => {
         ...blocks,
     ].join('\n');
 };
+
+/**
+ * When a grep pattern surfaces several metric definitions of the same measure
+ * across explores and none is verified, the agent has no governance signal to
+ * pick between them and may silently choose the wrong one. Return a one-line
+ * note nudging it to prefer a verified / governed metric and to state which one
+ * it used. Additive — it does NOT reorder results, so it cannot make an
+ * otherwise-correct pick worse. Null when there is nothing ambiguous to flag.
+ */
+export const buildMetricAmbiguityNote = (hits: FieldEntry[]): string | null => {
+    const metricHits = hits.filter((h) => h.kind === 'metric');
+    if (metricHits.length < 2) return null;
+    if (metricHits.some((h) => h.verifiedUsage > 0)) return null;
+    const explores = new Set(metricHits.map((h) => h.exploreName));
+    if (explores.size < 2) return null;
+    return `⚠ ${metricHits.length} metrics across ${explores.size} explores match — likely competing definitions of the same measure, and none is ✓verified. Prefer a verified metric if one exists; otherwise pick the most governed explore (e.g. a reporting "rpt_" model) and state in your answer which metric and explore you used.`;
+};
