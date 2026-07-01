@@ -10556,6 +10556,10 @@
             },
             "AppChartReference": {
                 "properties": {
+                    "linkLive": {
+                        "type": "boolean",
+                        "description": "When true the app runs this chart live by UUID (linked) instead of\ncopying its metric query inline. Default false = copy (legacy)."
+                    },
                     "includeSampleData": {
                         "type": "boolean"
                     },
@@ -10563,7 +10567,7 @@
                         "type": "string"
                     }
                 },
-                "required": ["includeSampleData", "uuid"],
+                "required": ["linkLive", "includeSampleData", "uuid"],
                 "type": "object",
                 "description": "A saved-chart reference attached to a generation request.\n`includeSampleData` is opt-in per chart: when true the backend runs the\nunderlying metric query and inlines a small sample of rows into the\nsandbox so Claude can see actual values (e.g. \"season 2026 only\")."
             },

@@ -9242,6 +9242,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                linkLive: { dataType: 'boolean', required: true },
                 includeSampleData: { dataType: 'boolean', required: true },
                 uuid: { dataType: 'string', required: true },
             },
