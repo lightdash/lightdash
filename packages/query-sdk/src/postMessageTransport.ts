@@ -11,6 +11,7 @@
 
 import { createApiTransport, type FetchAdapter } from './apiTransport';
 import type {
+    ExternalFetchMethod,
     ExternalFetchOptions,
     ExternalFetchResult,
     Transport,
@@ -114,7 +115,7 @@ export type SdkExternalFetchRequest = {
     type: 'lightdash:sdk:external-fetch';
     id: string;
     alias: string;
-    method?: 'GET' | 'POST';
+    method?: ExternalFetchMethod;
     path: string;
     query?: Record<string, string>;
     body?: unknown;

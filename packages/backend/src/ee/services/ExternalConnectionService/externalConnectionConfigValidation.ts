@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    EXTERNAL_CONNECTION_METHODS,
     ParameterError,
     type ApiKeyLocation,
     type ExternalConnectionAuthType,
@@ -12,7 +13,7 @@ const MAX_REQUEST_BYTES = 10 * 1024 * 1024; // 10 MiB
 const MAX_TIMEOUT_MS = 120_000; // 2 minutes
 const MAX_RATE_LIMIT = 100_000;
 
-const SUPPORTED_METHODS = new Set(['GET', 'POST']);
+const SUPPORTED_METHODS = new Set<string>(EXTERNAL_CONNECTION_METHODS);
 // RFC 7230 token chars — valid for HTTP header names and a safe set for query keys.
 const HTTP_TOKEN = /^[A-Za-z0-9!#$%&'*+.^_`|~-]+$/;
 const CONTENT_TYPE = /^[a-z0-9*]+\/[a-z0-9.+*-]+$/i;

@@ -28,6 +28,7 @@ export type {
     DownloadResultsResult,
     DownloadResultsValues,
     DownloadUnderlyingDataOptions,
+    ExternalFetchMethod,
     ExternalFetchOptions,
     ExternalFetchResult,
     Filter,

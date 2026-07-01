@@ -1,3 +1,4 @@
+import { type ExternalConnectionMethod } from '@lightdash/common';
 import { Track as AnalyticsTrack } from '@rudderstack/rudder-sdk-node';
 
 type BaseTrack = Omit<AnalyticsTrack, 'context'>;
@@ -51,7 +52,7 @@ export type ExternalConnectionEvent = BaseTrack &
                   appUuid: string;
                   externalConnectionUuid: string;
                   connectionAlias: string;
-                  method: 'GET' | 'POST';
+                  method: ExternalConnectionMethod;
                   path: string;
                   status: number | null;
                   outcome:
