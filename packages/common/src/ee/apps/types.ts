@@ -192,6 +192,9 @@ export type AppVersionChartResource = {
     chartUuid: string;
     chartName: string;
     chartKind: string | null;
+    /** Whether this chart was attached as a live link — persists the linked
+     *  chip indicator across reloads. Optional for backwards compatibility. */
+    linkLive?: boolean;
 };
 
 export type AppVersionExternalConnectionResource = {

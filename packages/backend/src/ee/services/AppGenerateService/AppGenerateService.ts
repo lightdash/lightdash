@@ -3445,6 +3445,7 @@ export class AppGenerateService extends BaseService {
                     chartUuid: uuids[i],
                     chartName: chart.name,
                     chartKind: null,
+                    linkLive: dedup.get(uuids[i])!.link,
                 });
             }
             // Rejected = not a chart UUID, no access, or deleted — skip silently

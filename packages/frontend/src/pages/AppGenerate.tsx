@@ -798,6 +798,7 @@ const AppGenerate: FC = () => {
                     name: c.chartName,
                     uuid: c.chartUuid,
                     chartKind: undefined,
+                    linkLive: c.linkLive,
                 })) ?? [];
             const charts =
                 serverCharts.length > 0
