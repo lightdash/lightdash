@@ -2451,6 +2451,34 @@ export const MODEL_WITH_CUSTOM_GRANULARITY_AND_REQUIRED_ATTRIBUTES: DbtModelNode
     },
 };
 
+export const MODEL_WITH_MODEL_METRIC_ON_PROTECTED_DIMENSION: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        sensitive_field: {
+            name: 'sensitive_field',
+            data_type: DimensionType.NUMBER,
+            meta: {
+                dimension: {
+                    type: DimensionType.NUMBER,
+                    required_attributes: {
+                        access_groups: 'data',
+                    },
+                },
+            },
+        },
+    },
+    meta: {
+        metrics: {
+            sensitive_metric: {
+                type: MetricType.SUM,
+                sql: '${sensitive_field}',
+            },
+        },
+    },
+};
+
 export const MODEL_WITH_DUPLICATE_METRIC_DIMENSION_NAME: DbtModelNode & {
     relation_name: string;
 } = {
