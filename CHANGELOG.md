@@ -1,3 +1,10 @@
+## [0.3274.1](https://github.com/lightdash/lightdash/compare/0.3274.0...0.3274.1) (2026-07-01)
+
+
+### Bug Fixes
+
+* **data-apps:** fall back to parameter key when label is missing ([#24988](https://github.com/lightdash/lightdash/issues/24988)) ([6a106fe](https://github.com/lightdash/lightdash/commit/6a106fea7d9291b0b64c838e18a6b8d6f2352ce8)), closes [#20639](https://github.com/lightdash/lightdash/issues/20639)
+
 # [0.3274.0](https://github.com/lightdash/lightdash/compare/0.3273.0...0.3274.0) (2026-07-01)
 
 
