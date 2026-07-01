@@ -374,7 +374,7 @@ export type ChartReference = {
     metricQuery: MetricQuery;
     sampleData: ChartSampleData | null; // null when the user did not opt in
     /** Saved chart UUID — surfaced into the sandbox so a linked chart can be
-     *  run live via lightdash.savedChart(uuid). */
+     *  run live via savedChart(uuid). */
     chartUuid: string;
     /** true = run live by UUID; false = inline the metricQuery (copy). */
     linked: boolean;

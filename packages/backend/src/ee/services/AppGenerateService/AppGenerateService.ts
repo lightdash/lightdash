@@ -1425,7 +1425,7 @@ export class AppGenerateService extends BaseService {
                 sampleSuffix = ` — sample data unavailable (${ref.sampleData.reason})`;
             }
             const modeSuffix = ref.linked
-                ? ` — LINKED: render live with lightdash.savedChart("${ref.chartUuid}") (do NOT inline the metricQuery)`
+                ? ` — LINKED: render live with savedChart("${ref.chartUuid}") (do NOT inline the metricQuery)`
                 : sampleSuffix;
             fileEntries.push(
                 `- ${filename} ("${ref.chartName}", explore: ${ref.exploreName})${modeSuffix}`,
