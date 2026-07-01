@@ -25,6 +25,10 @@ class SSH2Tunnel {
 
     private error: Error | undefined = undefined;
 
+    // Wall-clock (ms) when this tunnel was constructed. Used only for logging:
+    // how long a connection survived before it was closed / dropped / timed out.
+    private readonly openedAt: number = Date.now();
+
     constructor(args: {
         sshHost: string;
         sshPort: number;
@@ -108,8 +112,18 @@ class SSH2Tunnel {
                 socket.destroy();
             });
             socket.setTimeout(60000 * 5, () => {
-                console.log(
-                    `SSH tunnel ${this.id} - local tcp server connection timed out after 5 minutes`,
+                // A query that scanned without streaming rows back sends no
+                // bytes on this socket, so bytesToClient stays ~0 and
+                // elapsedSinceOpen ~= 5 minutes. Destroying the socket here is
+                // what surfaces to pg as "Connection terminated unexpectedly",
+                // so log elapsed + byte counts to make such drops measurable
+                // rather than inferred.
+                console.warn(
+                    `[ssh-tunnel] ${this.id} local socket idle timeout after ` +
+                        `5 minutes (elapsedSinceOpen=${Date.now() - this.openedAt}ms ` +
+                        `bytesFromClient=${socket.bytesRead} ` +
+                        `bytesToClient=${socket.bytesWritten}) - destroying ` +
+                        `pg<->tunnel socket`,
                 );
                 socket.destroy();
             });
