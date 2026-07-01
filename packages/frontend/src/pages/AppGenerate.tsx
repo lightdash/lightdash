@@ -35,6 +35,7 @@ import {
     IconExternalLink,
     IconArrowBackUp,
     IconLayoutDashboard,
+    IconLink,
     IconPlayerStop,
     IconRestore,
     IconPlugConnected,
@@ -1579,6 +1580,7 @@ const AppGenerate: FC = () => {
                 name: c.name,
                 uuid: c.uuid,
                 chartKind: c.chartKind,
+                linkLive: c.linkLive,
             }));
             if (sentCharts.length > 0) {
                 sentChartsByPrompt.current.set(trimmed, sentCharts);
@@ -1980,6 +1982,17 @@ const AppGenerate: FC = () => {
                                                                                     chart.name
                                                                                 }
                                                                             </Text>
+                                                                            {chart.linkLive && (
+                                                                                <MantineIcon
+                                                                                    icon={
+                                                                                        IconLink
+                                                                                    }
+                                                                                    size={
+                                                                                        12
+                                                                                    }
+                                                                                    color="blue.6"
+                                                                                />
+                                                                            )}
                                                                         </Box>
                                                                     ),
                                                                 )}
