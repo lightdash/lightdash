@@ -7,6 +7,7 @@ import MantineIcon from '../components/common/MantineIcon';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import AppIframePreview from '../features/apps/AppIframePreview';
+import AppInspectorPanel from '../features/apps/AppInspectorPanel';
 import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
 import AppSpaceChip from '../features/apps/components/AppSpaceChip';
@@ -14,8 +15,8 @@ import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useTrackedAppQueries } from '../features/apps/hooks/useTrackedAppQueries';
+import { useTrackedExternalRequests } from '../features/apps/hooks/useTrackedExternalRequests';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
-import QueryInspector from '../features/apps/QueryInspector';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import classes from './AppPreviewTest.module.css';
 
@@ -63,7 +64,7 @@ export default function AppPreviewTest() {
         error: tokenError,
     } = useAppPreviewToken(projectUuid, appUuid, version);
 
-    const [queriesPanelHidden, setQueriesPanelHidden] = useState(true);
+    const [networkPanelHidden, setNetworkPanelHidden] = useState(true);
 
     // Data-lineage ("Inspect data"): click a value to reveal the query behind
     // it; hover a query row to highlight where it renders.
@@ -81,6 +82,11 @@ export default function AppPreviewTest() {
     // up the SDK bridge callback unconditionally so queries that run before
     // the user opens the panel are still captured.
     const { queries, handleQueryEvent, clearQueries } = useTrackedAppQueries();
+    const {
+        externalRequests,
+        handleExternalRequestEvent,
+        clearExternalRequests,
+    } = useTrackedExternalRequests();
 
     // Manual refresh: bumping the counter changes the iframe URL, forcing a
     // reload so the app's metric queries re-fire. `invalidateCache` latches on
@@ -92,7 +98,8 @@ export default function AppPreviewTest() {
         setRefreshKey((k) => k + 1);
         setInvalidateCache(true);
         clearQueries();
-    }, [clearQueries]);
+        clearExternalRequests();
+    }, [clearQueries, clearExternalRequests]);
 
     const handleToggleLineage = useCallback(
         () => setLineageEnabled((v) => !v),
@@ -100,7 +107,7 @@ export default function AppPreviewTest() {
     );
     const handleLineageSelected = useCallback(
         (event: { queryUuid: string }) => {
-            setQueriesPanelHidden(false);
+            setNetworkPanelHidden(false);
             setFocusedQueryUuid(event.queryUuid);
         },
         [],
@@ -228,7 +235,7 @@ export default function AppPreviewTest() {
                         }
                         onRefresh={handleRefresh}
                         refreshDisabled={false}
-                        onViewQueries={() => setQueriesPanelHidden(false)}
+                        onViewNetwork={() => setNetworkPanelHidden(false)}
                         onDeleted={() => {
                             void navigate(`/projects/${projectUuid}/home`);
                         }}
@@ -263,6 +270,7 @@ export default function AppPreviewTest() {
                     identityKey={`${appUuid}:${version}`}
                     invalidateCache={invalidateCache}
                     onQueryEvent={handleQueryEvent}
+                    onExternalRequestEvent={handleExternalRequestEvent}
                     capabilities={{ gsheetExport: true }}
                     lineageEnabled={lineageEnabled}
                     onLineageAvailabilityChange={setLineageAvailable}
@@ -270,14 +278,16 @@ export default function AppPreviewTest() {
                     lineageHighlightQueryUuid={hoveredQueryUuid}
                     onLineageCancelled={handleLineageCancelled}
                 />
-                {!queriesPanelHidden && (
-                    <QueryInspector
+                {!networkPanelHidden && (
+                    <AppInspectorPanel
                         queries={queries}
                         projectUuid={projectUuid}
-                        onClear={clearQueries}
+                        onClearQueries={clearQueries}
+                        externalRequests={externalRequests}
+                        onClearExternalRequests={clearExternalRequests}
                         defaultCollapsed={false}
                         hideWhenEmpty={false}
-                        onDismiss={() => setQueriesPanelHidden(true)}
+                        onDismiss={() => setNetworkPanelHidden(true)}
                         onHoverQuery={setHoveredQueryUuid}
                         focusedQueryUuid={focusedQueryUuid}
                         lineageEnabled={lineageEnabled}

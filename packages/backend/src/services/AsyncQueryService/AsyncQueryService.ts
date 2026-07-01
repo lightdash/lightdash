@@ -16,7 +16,6 @@ import {
     CalculateSubtotalsFromQuery,
     CalculateTotalFromQuery,
     CompiledDimension,
-    convertCustomFormatToFormatExpression,
     convertFieldRefToFieldId,
     createVirtualView as createVirtualViewObject,
     CreateWarehouseCredentials,
@@ -48,6 +47,7 @@ import {
     getDimensions,
     getDimensionsWithValidParameters,
     getErrorMessage,
+    getFieldFormatOverrideProps,
     getFieldsFromMetricQuery,
     getItemId,
     getItemMap,
@@ -72,6 +72,7 @@ import {
     normalizeIndexColumns,
     NotFoundError,
     NotSupportedError,
+    OrganizationAccessStatus,
     ParameterError,
     ParseError,
     PivotConfig,
@@ -84,6 +85,7 @@ import {
     S3Error,
     SchedulerFormat,
     SqlChart,
+    TrialExpiredError,
     UnexpectedServerError,
     UserAccessControls,
     WarehouseClient,
@@ -164,6 +166,7 @@ import type { ICacheService } from '../CacheService/ICacheService';
 import { CreateCacheResult } from '../CacheService/types';
 import { CsvService } from '../CsvService/CsvService';
 import { ExcelService } from '../ExcelService/ExcelService';
+import { OrganizationAccessService } from '../OrganizationAccessService/OrganizationAccessService';
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
@@ -276,6 +279,7 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     natsClient: INatsClient;
     permissionsService: PermissionsService;
     persistentDownloadFileService: PersistentDownloadFileService;
+    organizationAccessService: OrganizationAccessService;
     preAggregateStrategy?: PreAggregateStrategy;
 };
 
@@ -364,6 +368,8 @@ export class AsyncQueryService extends ProjectService {
 
     persistentDownloadFileService: PersistentDownloadFileService;
 
+    private readonly organizationAccessService: OrganizationAccessService;
+
     protected readonly preAggregateStrategy: PreAggregateStrategy;
 
     constructor(args: AsyncQueryServiceArguments) {
@@ -380,6 +386,7 @@ export class AsyncQueryService extends ProjectService {
         this.natsClient = args.natsClient;
         this.permissionsService = args.permissionsService;
         this.persistentDownloadFileService = args.persistentDownloadFileService;
+        this.organizationAccessService = args.organizationAccessService;
         this.preAggregateStrategy =
             args.preAggregateStrategy ?? new NoOpPreAggregateStrategy();
     }
@@ -3432,14 +3439,7 @@ export class AsyncQueryService extends ProjectService {
                             key,
                             {
                                 ...value,
-                                // Override the format expression with the metric/dimension query override instead of adding `formatOptions` to the item
-                                // This ensures that legacy `formatOptions` are kept as is and we don't need to change logic over which format takes precedence
-                                format: convertCustomFormatToFormatExpression(
-                                    formatOptions,
-                                ),
-                                // The format expression can't encode the separator, so carry it
-                                // separately for the render paths (getEffectiveSeparator reads it).
-                                separator: formatOptions.separator,
+                                ...getFieldFormatOverrideProps(formatOptions),
                             },
                         ];
                     }
@@ -3468,6 +3468,16 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
+    private async assertOrganizationNotBlocked(
+        account: Account,
+    ): Promise<void> {
+        const access =
+            await this.organizationAccessService.getOrganizationAccess(account);
+        if (access.status === OrganizationAccessStatus.TRIAL_EXPIRED) {
+            throw new TrialExpiredError();
+        }
+    }
+
     private async executePreparedAsyncQuery(
         // TODO: remove metric query, fields, etc from args once they are no longer needed in the database
         args: ExecuteAsyncMetricQueryArgs & {
@@ -3489,6 +3499,7 @@ export class AsyncQueryService extends ProjectService {
         requestParameters: ExecuteAsyncQueryRequestParams,
         organizationUuid: string,
     ): Promise<ExecuteAsyncQueryReturn> {
+        await this.assertOrganizationNotBlocked(args.account);
         return wrapSentryTransaction(
             'ProjectService.executeAsyncQuery',
             {},

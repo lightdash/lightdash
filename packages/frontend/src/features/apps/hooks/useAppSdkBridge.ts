@@ -70,6 +70,33 @@ export type QueryEvent = {
 };
 
 /**
+ * A single external-connection fetch proxied through the bridge, reported for
+ * the external-requests inspector tab. Single-shot lifecycle: one `pending`
+ * event when the fetch starts, one terminal `ready`/`error` event when it
+ * settles — matched by `id` (no queryUuid remap like metric queries need).
+ */
+export type ExternalRequestEvent = {
+    id: string;
+    timestamp: number;
+    /** Connection alias the app called, e.g. `stripe`. */
+    alias: string;
+    method: 'GET' | 'POST';
+    path: string;
+    query: Record<string, string> | null;
+    /** JSON request body (POST); null for GET or an empty body. */
+    requestBody: unknown;
+    status: 'pending' | 'ready' | 'error';
+    /** Upstream HTTP status (null until the fetch settles / on proxy error). */
+    httpStatus: number | null;
+    contentType: string | null;
+    /** Parsed response body; null until the fetch settles. */
+    responseBody: unknown;
+    truncated: boolean | null;
+    durationMs: number | null;
+    error: string | null;
+};
+
+/**
  * Routes the SDK is allowed to call through the postMessage bridge.
  * Everything else is rejected. Patterns use :param for path segments.
  */
@@ -154,8 +181,8 @@ export type ElementSelectedEvent = {
  * availability state itself — the parent owns it and is responsible for
  * resetting on iframe `src` change.
  */
-export function useAppSdkBridge(
-    iframeRef: RefObject<HTMLIFrameElement | null>,
+export type UseAppSdkBridgeParams = {
+    iframeRef: RefObject<HTMLIFrameElement | null>;
     /**
      * The origin this iframe is expected to load from. When previews are
      * served cross-origin this is `https://{customer}.lightdash.app`; in
@@ -166,38 +193,62 @@ export function useAppSdkBridge(
      * matching our iframe's contentWindow (unforgeable); origin is a
      * defence-in-depth check for the non-sandboxed/dev case.
      */
-    expectedPreviewOrigin: string,
+    expectedPreviewOrigin: string;
     /** Project the proxied EE external-fetch calls run against. */
-    projectUuid: string,
+    projectUuid: string;
     /** App the proxied EE external-fetch calls are attributed to. */
-    appUuid: string,
-    onQueryEvent?: (event: QueryEvent) => void,
-    onElementSelected?: (event: ElementSelectedEvent) => void,
-    onInspectorAvailable?: () => void,
-    onScreenshotAvailable?: () => void,
+    appUuid: string;
+    onQueryEvent?: (event: QueryEvent) => void;
+    onElementSelected?: (event: ElementSelectedEvent) => void;
+    onInspectorAvailable?: () => void;
+    onScreenshotAvailable?: () => void;
     /**
      * When set, these filters are stamped onto every intercepted metric-query
      * POST before it reaches the backend. Used by dashboard data-app tiles so
      * the dashboard filter bar applies to the app's queries. The iframe SDK
      * is not involved — generated apps stay filter-agnostic.
      */
-    dashboardFilters?: DashboardFilters,
+    dashboardFilters?: DashboardFilters;
     /**
      * When true, `invalidateCache` is stamped onto every intercepted
      * metric-query POST so the backend bypasses the warehouse results cache —
      * mirrors what chart tiles send after the dashboard refresh button is
      * pressed. Set by `DashboardDataAppTile`; left undefined elsewhere.
      */
-    invalidateCache?: boolean,
+    invalidateCache?: boolean;
     /**
      * Feature capabilities the host page opts into. Currently gates the
      * Google Sheets export flow — hosts that don't pass `gsheetExport: true`
      * will receive an error response for those requests.
      */
-    capabilities?: { gsheetExport?: boolean },
-    onLineageAvailable?: () => void,
-    onLineageSelected?: (event: { queryUuid: string }) => void,
-) {
+    capabilities?: { gsheetExport?: boolean };
+    onLineageAvailable?: () => void;
+    onLineageSelected?: (event: { queryUuid: string }) => void;
+    /**
+     * When provided, external-connection fetches proxied through this bridge
+     * are reported for the external-requests inspector tab — mirrors
+     * `onQueryEvent` for metric queries. Emits `pending` when the fetch starts
+     * and a terminal `ready`/`error` event when it settles.
+     */
+    onExternalRequestEvent?: (event: ExternalRequestEvent) => void;
+};
+
+export function useAppSdkBridge({
+    iframeRef,
+    expectedPreviewOrigin,
+    projectUuid,
+    appUuid,
+    onQueryEvent,
+    onElementSelected,
+    onInspectorAvailable,
+    onScreenshotAvailable,
+    dashboardFilters,
+    invalidateCache,
+    capabilities,
+    onLineageAvailable,
+    onLineageSelected,
+    onExternalRequestEvent,
+}: UseAppSdkBridgeParams) {
     // Embed mode adapts the bridge's outgoing fetches in two ways:
     //   - Attaches the embed JWT header in lieu of session cookies
     //     (the parent in embed mode has no session, only the JWT).
@@ -353,13 +404,53 @@ export function useAppSdkBridge(
                     );
                 };
 
+                // Report the fetch to the external-requests inspector. Base
+                // request fields are captured up front; each call overlays the
+                // lifecycle status (and, on settle, the response/duration).
+                const startedAt = Date.now();
+                const emitExternal = (
+                    fields: Partial<ExternalRequestEvent> & {
+                        status: ExternalRequestEvent['status'];
+                    },
+                ) => {
+                    onExternalRequestEvent?.({
+                        id: externalId,
+                        timestamp: startedAt,
+                        alias: typeof alias === 'string' ? alias : 'unknown',
+                        method: externalMethod === 'POST' ? 'POST' : 'GET',
+                        path:
+                            typeof externalPath === 'string'
+                                ? externalPath
+                                : '',
+                        query:
+                            (externalQuery as
+                                | Record<string, string>
+                                | undefined) ?? null,
+                        requestBody: externalBody ?? null,
+                        httpStatus: null,
+                        contentType: null,
+                        responseBody: null,
+                        truncated: null,
+                        durationMs: null,
+                        error: null,
+                        ...fields,
+                    });
+                };
+
+                emitExternal({ status: 'pending' });
+
                 // External fetch is not available to embedded apps: the proxy
                 // endpoint requires a registered session, not an embed JWT.
                 // Fail clearly rather than make a doomed authenticated call.
                 if (embedToken) {
-                    respondExternal({
-                        error: 'External data access is not available in embedded apps',
+                    const embedError =
+                        'External data access is not available in embedded apps';
+                    emitExternal({
+                        status: 'error',
+                        error: embedError,
+                        durationMs: Date.now() - startedAt,
                     });
+                    respondExternal({ error: embedError });
                     return;
                 }
 
@@ -390,21 +481,43 @@ export function useAppSdkBridge(
                     );
                     const json = await res.json();
                     if (json.status === 'ok') {
+                        const result = json.results as
+                            | {
+                                  status?: number;
+                                  contentType?: string;
+                                  body?: unknown;
+                                  truncated?: boolean;
+                              }
+                            | undefined;
+                        emitExternal({
+                            status: 'ready',
+                            httpStatus: result?.status ?? null,
+                            contentType: result?.contentType ?? null,
+                            responseBody: result?.body ?? null,
+                            truncated: result?.truncated ?? null,
+                            durationMs: Date.now() - startedAt,
+                        });
                         respondExternal({ result: json.results });
                     } else {
-                        respondExternal({
-                            error:
-                                json.error?.message ??
-                                `External fetch failed (${res.status})`,
+                        const errorMessage =
+                            json.error?.message ??
+                            `External fetch failed (${res.status})`;
+                        emitExternal({
+                            status: 'error',
+                            error: errorMessage,
+                            durationMs: Date.now() - startedAt,
                         });
+                        respondExternal({ error: errorMessage });
                     }
                 } catch (err) {
-                    respondExternal({
-                        error:
-                            err instanceof Error
-                                ? err.message
-                                : 'Unknown error',
+                    const errorMessage =
+                        err instanceof Error ? err.message : 'Unknown error';
+                    emitExternal({
+                        status: 'error',
+                        error: errorMessage,
+                        durationMs: Date.now() - startedAt,
                     });
+                    respondExternal({ error: errorMessage });
                 }
                 return;
             }
@@ -704,6 +817,7 @@ export function useAppSdkBridge(
             capabilities,
             onLineageAvailable,
             onLineageSelected,
+            onExternalRequestEvent,
             health.data,
             user.data,
         ],

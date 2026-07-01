@@ -1,3 +1,74 @@
+## [0.3277.1](https://github.com/lightdash/lightdash/compare/0.3277.0...0.3277.1) (2026-07-01)
+
+
+### Bug Fixes
+
+* **explore:** apply Auto compact number format on dimensions ([#25000](https://github.com/lightdash/lightdash/issues/25000)) ([2cd2cfb](https://github.com/lightdash/lightdash/commit/2cd2cfb97c0983ce39282a640c4f581ee6c8eb50))
+
+# [0.3277.0](https://github.com/lightdash/lightdash/compare/0.3276.0...0.3277.0) (2026-07-01)
+
+
+### Features
+
+* **ai-agents:** honor filter_autocomplete curated values in searchFieldValues ([#24990](https://github.com/lightdash/lightdash/issues/24990)) ([08f5e73](https://github.com/lightdash/lightdash/commit/08f5e73eac6d71cd11080fc03998a8ecd6276b03))
+* **data-apps:** Data Apps as Code — 1b upload + server build ([#24949](https://github.com/lightdash/lightdash/issues/24949)) ([564c17e](https://github.com/lightdash/lightdash/commit/564c17eb216175809d27b7e466004401b0cc4593))
+
+# [0.3276.0](https://github.com/lightdash/lightdash/compare/0.3275.0...0.3276.0) (2026-07-01)
+
+
+### Bug Fixes
+
+* **files:** serve 404 for missing S3 objects instead of 500 ([#24997](https://github.com/lightdash/lightdash/issues/24997)) ([6c9ff6a](https://github.com/lightdash/lightdash/commit/6c9ff6a00a35fc6b1e4049f7ce325aaecd1c9a08))
+* **frontend:** recover from route-lazy chunk load failures ([#24993](https://github.com/lightdash/lightdash/issues/24993)) ([c32fd24](https://github.com/lightdash/lightdash/commit/c32fd2432bbac335e4fad614326cf45a8ebb7fc9)), closes [#24685](https://github.com/lightdash/lightdash/issues/24685)
+
+
+### Features
+
+* **apps:** link to connection creation from the builder ([#24994](https://github.com/lightdash/lightdash/issues/24994)) ([5929131](https://github.com/lightdash/lightdash/commit/59291310f745f8582c0b803e0031227e7ae9c6ba))
+* **data-apps:** Data Apps as Code — 1a download (source) ([#24939](https://github.com/lightdash/lightdash/issues/24939)) ([ec59f03](https://github.com/lightdash/lightdash/commit/ec59f03f96d01db085d9682516da8e28f7768304))
+
+# [0.3275.0](https://github.com/lightdash/lightdash/compare/0.3274.1...0.3275.0) (2026-07-01)
+
+
+### Features
+
+* add AI agent embed support with code snippets and preview form ([#24986](https://github.com/lightdash/lightdash/issues/24986)) ([7319892](https://github.com/lightdash/lightdash/commit/73198920e23c48c627a2b4612783ffacf73987a2))
+* multiple dbt sources per Lightdash project (behind MultiDbtSources flag) ([#24957](https://github.com/lightdash/lightdash/issues/24957)) ([25f4394](https://github.com/lightdash/lightdash/commit/25f4394939545349fa997e95d0d44881eb2b68ef))
+
+## [0.3274.1](https://github.com/lightdash/lightdash/compare/0.3274.0...0.3274.1) (2026-07-01)
+
+
+### Bug Fixes
+
+* **data-apps:** fall back to parameter key when label is missing ([#24988](https://github.com/lightdash/lightdash/issues/24988)) ([6a106fe](https://github.com/lightdash/lightdash/commit/6a106fea7d9291b0b64c838e18a6b8d6f2352ce8)), closes [#20639](https://github.com/lightdash/lightdash/issues/20639)
+
+# [0.3274.0](https://github.com/lightdash/lightdash/compare/0.3273.0...0.3274.0) (2026-07-01)
+
+
+### Bug Fixes
+
+* **ai:** make invalid custom-metric baseDimensionName errors actionable ([#24983](https://github.com/lightdash/lightdash/issues/24983)) ([0747756](https://github.com/lightdash/lightdash/commit/074775692415250624c104df7ece8e2206ed793f))
+* **ai:** treat aggregation custom metrics as selected metrics in axis validation ([#24982](https://github.com/lightdash/lightdash/issues/24982)) ([1ba6d63](https://github.com/lightdash/lightdash/commit/1ba6d63324649ae95b2689e032f2d3e8bb9af33d))
+
+
+### Features
+
+* **data-apps:** allow all REST methods on external connections (GLITCH-540) ([#24984](https://github.com/lightdash/lightdash/issues/24984)) ([3651875](https://github.com/lightdash/lightdash/commit/3651875929c8ab1147595b5f40754db8dc1464fa))
+
+# [0.3273.0](https://github.com/lightdash/lightdash/compare/0.3272.1...0.3273.0) (2026-07-01)
+
+
+### Features
+
+* **data-apps:** add external requests inspector tab ([#24980](https://github.com/lightdash/lightdash/issues/24980)) ([887dc86](https://github.com/lightdash/lightdash/commit/887dc86ffa01f9b476952a661a6044acdb68200c))
+
+## [0.3272.1](https://github.com/lightdash/lightdash/compare/0.3272.0...0.3272.1) (2026-07-01)
+
+
+### Bug Fixes
+
+* **prometheus:** emit http_server_request_duration_seconds without a Sentry DSN ([#24981](https://github.com/lightdash/lightdash/issues/24981)) ([63bc1eb](https://github.com/lightdash/lightdash/commit/63bc1ebfa737cfe3aa974dece207087bf2d26496))
+
 # [0.3272.0](https://github.com/lightdash/lightdash/compare/0.3271.1...0.3272.0) (2026-07-01)
 
 

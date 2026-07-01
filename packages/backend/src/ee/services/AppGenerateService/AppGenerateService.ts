@@ -26,7 +26,10 @@ import {
     NotFoundError,
     ParameterError,
     QueryExecutionContext,
+    TooManyRequestsError,
+    validateDataAppCode,
     type AnonymousAccount,
+    type AppBuildFromSourceJobPayload,
     type AppChartReference,
     type AppClarification,
     type AppDashboardReference,
@@ -40,11 +43,17 @@ import {
     type CompiledExploreJoin,
     type CompiledTable,
     type DataAppClaudeModel,
+    type DataAppCode,
     type DataAppTemplate,
+    type DataAppViz,
+    type DataAppVizSchema,
     type EmbedProjectApp,
     type Explore,
     type ExternalConnectionMethod,
     type ExternalConnectionSample,
+    type ImportAppCodeRequestBody,
+    type KnexPaginateArgs,
+    type KnexPaginatedData,
     type LightdashProjectParameter,
     type MetricQuery,
     type PromoteAppAction,
@@ -56,7 +65,7 @@ import { generateObject } from 'ai';
 import { Knex } from 'knex';
 import { performance } from 'node:perf_hooks';
 import { PassThrough, Readable } from 'node:stream';
-import { extract, type Headers } from 'tar-stream';
+import { extract, pack as tarPack, type Headers } from 'tar-stream';
 import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
@@ -101,6 +110,12 @@ import {
     type SandboxSpec,
 } from '../SandboxRuntime';
 import { assertCanViewApp as assertUserCanViewApp } from './appAuthz';
+import {
+    buildManifest,
+    contentTypeForPath,
+    s3KeyToRelPath,
+    versionPrefix,
+} from './appCode';
 import {
     classifyClaudeCliFailure,
     ClaudeGenerationError,
@@ -208,6 +223,9 @@ const DATA_APP_WORKSPACE: PersistentWorkspace = {
     ],
     exclude: ['node_modules'],
 };
+// Maximum number of in-progress app builds allowed per project at one time.
+// Prevents trivial sandbox exhaustion via repeated POST /code calls.
+const MAX_CONCURRENT_APP_BUILDS_PER_PROJECT = 5;
 
 export class AppGenerateService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
@@ -1479,7 +1497,7 @@ export class AppGenerateService extends BaseService {
                 {
                     alias: doc.alias,
                     signature:
-                        "externalFetch(alias: string, opts: { method?: 'GET' | 'POST'; path: string; query?: Record<string, string>; body?: unknown }): Promise<{ status: number; contentType: string; body: unknown; truncated: boolean }>",
+                        "externalFetch(alias: string, opts: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; path: string; query?: Record<string, string>; body?: unknown }): Promise<{ status: number; contentType: string; body: unknown; truncated: boolean }>",
                     origin: doc.origin,
                     // The single most-misread thing: `path` is the COMPLETE path from
                     // the origin, not relative to the prefix. Spell out origin + path.
@@ -5436,6 +5454,70 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         return apps.map((app) => ({ appUuid: app.app_id, name: app.name }));
     }
 
+    private static mapDataAppViz(
+        app: DbApp & { viz_schema: DataAppVizSchema | null },
+    ): DataAppViz {
+        return {
+            dataAppVizUuid: app.app_id,
+            name: app.name,
+            description: app.description,
+            projectUuid: app.project_uuid,
+            spaceUuid: app.space_uuid,
+            schema: app.viz_schema,
+            createdAt: app.created_at,
+            createdByUserUuid: app.created_by_user_uuid,
+        };
+    }
+
+    async listDataAppVisualizations(
+        user: SessionUser,
+        projectUuid: string,
+        paginateArgs?: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<DataAppViz[]>> {
+        await this.assertDataAppsEnabled(user);
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('DataApp', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError('Insufficient permissions');
+        }
+        const { data, pagination } =
+            await this.appModel.listDataAppVisualizations(
+                projectUuid,
+                paginateArgs,
+            );
+        return { data: data.map(AppGenerateService.mapDataAppViz), pagination };
+    }
+
+    async getDataAppVisualization(
+        user: SessionUser,
+        projectUuid: string,
+        dataAppVizUuid: string,
+    ): Promise<DataAppViz> {
+        await this.assertDataAppsEnabled(user);
+        const dataAppViz = await this.appModel.findVisualizationApp(
+            dataAppVizUuid,
+            projectUuid,
+        );
+        if (!dataAppViz) {
+            throw new NotFoundError(
+                `Data app visualization not found: ${dataAppVizUuid}`,
+            );
+        }
+        await this.assertCanViewApp(user, {
+            project_uuid: dataAppViz.project_uuid,
+            space_uuid: dataAppViz.space_uuid,
+            organization_uuid: dataAppViz.organization_uuid,
+            created_by_user_uuid: dataAppViz.created_by_user_uuid,
+        });
+        return AppGenerateService.mapDataAppViz(dataAppViz);
+    }
+
     async listMyApps(
         user: SessionUser,
         paginateArgs?: { page: number; pageSize: number },
@@ -6163,8 +6245,10 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             typeof v === 'number' ? String(v) : AppGenerateService.yamlQuote(v);
 
         const lines: string[] = [`${indent}${key}:`];
+        // Parameters authored before labels existed have no label at runtime;
+        // fall back to the key rather than crashing in yamlQuote(undefined).
         lines.push(
-            `${inner}label: ${AppGenerateService.yamlQuote(param.label)}`,
+            `${inner}label: ${AppGenerateService.yamlQuote(param.label ?? key)}`,
         );
         if (param.description) {
             lines.push(
@@ -6402,24 +6486,373 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     }
 
     private static getContentType(filePath: string): string {
-        const ext = filePath.split('.').pop()?.toLowerCase();
-        const mimeTypes: Record<string, string> = {
-            html: 'text/html',
-            js: 'application/javascript',
-            css: 'text/css',
-            json: 'application/json',
-            png: 'image/png',
-            jpg: 'image/jpeg',
-            jpeg: 'image/jpeg',
-            gif: 'image/gif',
-            svg: 'image/svg+xml',
-            ico: 'image/x-icon',
-            woff: 'font/woff',
-            woff2: 'font/woff2',
-            ttf: 'font/ttf',
-            eot: 'application/vnd.ms-fontobject',
-            map: 'application/json',
-        };
-        return mimeTypes[ext ?? ''] ?? 'application/octet-stream';
+        return contentTypeForPath(filePath);
+    }
+
+    /**
+     * Read all artifacts for a specific (or latest ready) built app version from
+     * S3 and return them as a base64-encoded bundle together with a manifest.
+     */
+    async getAppCode(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+        version?: number,
+    ): Promise<DataAppCode> {
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertCanViewApp(user, app);
+
+        let resolvedVersion: number;
+        if (version !== undefined) {
+            resolvedVersion = version;
+        } else {
+            const latestReady = await this.appModel.getLatestReadyVersion(
+                app.app_id,
+            );
+            if (!latestReady) {
+                throw new NotFoundError(
+                    `Data app has no ready version yet: ${appUuid}`,
+                );
+            }
+            resolvedVersion = latestReady.version;
+        }
+
+        const { client: s3Client, bucket } = this.getS3Client();
+        const sourceTarKey = `${versionPrefix(appUuid, resolvedVersion)}source.tar`;
+
+        // Download the single source archive for this version
+        let tarBuffer: Buffer;
+        try {
+            const response = await s3Client.send(
+                new GetObjectCommand({ Bucket: bucket, Key: sourceTarKey }),
+            );
+            const stream = response.Body as Readable;
+            const chunks: Buffer[] = [];
+            for await (const chunk of stream) {
+                chunks.push(
+                    Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk),
+                );
+            }
+            tarBuffer = Buffer.concat(chunks);
+        } catch (err: unknown) {
+            const code =
+                err instanceof Error &&
+                'Code' in err &&
+                typeof (err as { Code: unknown }).Code === 'string'
+                    ? (err as { Code: string }).Code
+                    : undefined;
+            const name = err instanceof Error ? err.name : undefined;
+            if (code === 'NoSuchKey' || name === 'NoSuchKey') {
+                throw new NotFoundError(
+                    `Source not found for app ${appUuid} version ${resolvedVersion}`,
+                );
+            }
+            throw err;
+        }
+
+        // Extract the tar in-process and collect file entries
+        const files = await new Promise<
+            { path: string; contentBase64: string }[]
+        >((resolve, reject) => {
+            const extractor = extract();
+            const entries: { path: string; contentBase64: string }[] = [];
+
+            extractor.on(
+                'entry',
+                (header: Headers, stream: PassThrough, next: () => void) => {
+                    if (header.type === 'file' && header.name) {
+                        const chunks: Buffer[] = [];
+                        stream.on('data', (chunk: Buffer) =>
+                            chunks.push(chunk),
+                        );
+                        stream.on('end', () => {
+                            const bytes = Buffer.concat(chunks);
+                            entries.push({
+                                path: header.name,
+                                contentBase64: bytes.toString('base64'),
+                            });
+                            next();
+                        });
+                        stream.on('error', reject);
+                    } else {
+                        stream.resume();
+                        next();
+                    }
+                },
+            );
+
+            extractor.on('finish', () => resolve(entries));
+            extractor.on('error', reject);
+
+            const passThrough = new PassThrough();
+            passThrough.pipe(extractor);
+            passThrough.end(tarBuffer);
+        });
+
+        const manifest = buildManifest({
+            appUuid,
+            projectUuid,
+            version: resolvedVersion,
+            name: app.name,
+            description: app.description,
+            template: app.template,
+            downloadedAt: new Date().toISOString(),
+        });
+
+        return { manifest, files };
+    }
+
+    async importAppCode(
+        user: SessionUser,
+        projectUuid: string,
+        body: ImportAppCodeRequestBody,
+    ): Promise<{
+        appUuid: string;
+        version: number;
+        action: 'create' | 'append';
+    }> {
+        await this.assertDataAppsEnabled(user);
+
+        const code = validateDataAppCode(body.code);
+        if (!code.files.some((f) => f.path.startsWith('src/'))) {
+            throw new ParameterError('bundle has no src/ files to build');
+        }
+
+        // Determine mode: append to existing app or create new one
+        const existingApp = body.targetAppUuid
+            ? await this.appModel.findApp(body.targetAppUuid, projectUuid)
+            : undefined;
+        if (body.targetAppUuid && existingApp === undefined) {
+            throw new ParameterError(
+                `App ${body.targetAppUuid} not found in project ${projectUuid}`,
+            );
+        }
+        const action: 'create' | 'append' =
+            existingApp !== undefined ? 'append' : 'create';
+
+        const organizationUuid = await this.getProjectOrgUuid(projectUuid);
+
+        const inProgressCount =
+            await this.appModel.countInProgressVersionsForProject(projectUuid);
+        if (inProgressCount >= MAX_CONCURRENT_APP_BUILDS_PER_PROJECT) {
+            throw new TooManyRequestsError(
+                `Too many app builds in progress for this project (${inProgressCount}/${MAX_CONCURRENT_APP_BUILDS_PER_PROJECT}). Wait for some to finish and try again.`,
+            );
+        }
+
+        let newAppUuid: string;
+        let newVersion: number;
+
+        if (action === 'append' && existingApp !== undefined) {
+            await this.assertCanManageApp(
+                user,
+                existingApp,
+                'You do not have access to update this app',
+            );
+            newAppUuid = existingApp.app_id;
+            const latestVersion = await this.appModel.getLatestVersion(
+                existingApp.app_id,
+            );
+            newVersion = (latestVersion?.version ?? 0) + 1;
+            await this.appModel.createVersion(
+                existingApp.app_id,
+                { version: newVersion, prompt: '' },
+                'pending',
+                user.userUuid,
+                AppGenerateService.buildCopiedResources(null),
+            );
+        } else {
+            this.assertDataAppAbility(
+                user,
+                'create',
+                organizationUuid,
+                projectUuid,
+                'Insufficient permissions to create data apps',
+            );
+            if (body.spaceUuid) {
+                const spaceContext =
+                    await this.spacePermissionService.getSpaceAccessContext(
+                        user.userUuid,
+                        body.spaceUuid,
+                    );
+                this.assertDataAppAbility(
+                    user,
+                    'manage',
+                    organizationUuid,
+                    projectUuid,
+                    'Insufficient permissions to create a data app in this space',
+                    spaceContext,
+                );
+            }
+            newVersion = 1;
+            const { app } = await this.appModel.createWithVersion(
+                {
+                    project_uuid: projectUuid,
+                    created_by_user_uuid: user.userUuid,
+                    name: code.manifest.name,
+                    description: code.manifest.description,
+                    template: code.manifest.template,
+                    space_uuid: body.spaceUuid ?? null,
+                },
+                { version: newVersion, prompt: '' },
+                'pending',
+                AppGenerateService.buildCopiedResources(null),
+            );
+            newAppUuid = app.app_id;
+        }
+
+        // Re-tar the source files into a single source.tar Buffer
+        const sourceTar = await new Promise<Buffer>((resolve, reject) => {
+            const packer = tarPack();
+            const chunks: Buffer[] = [];
+            packer.on('data', (chunk: Buffer) => chunks.push(chunk));
+            packer.on('end', () => resolve(Buffer.concat(chunks)));
+            packer.on('error', reject);
+
+            const addNext = (index: number): void => {
+                if (index >= code.files.length) {
+                    packer.finalize();
+                    return;
+                }
+                const file = code.files[index];
+                const content = Buffer.from(file.contentBase64, 'base64');
+                packer.entry({ name: file.path }, content, (err) => {
+                    if (err) {
+                        reject(err);
+                        return;
+                    }
+                    addNext(index + 1);
+                });
+            };
+            addNext(0);
+        });
+
+        // Store source.tar in S3
+        const { client, bucket } = this.getS3Client();
+        await client.send(
+            new PutObjectCommand({
+                Bucket: bucket,
+                Key: `${versionPrefix(newAppUuid, newVersion)}source.tar`,
+                Body: sourceTar,
+                ContentType: 'application/x-tar',
+            }),
+        );
+
+        // Enqueue the build-only pipeline
+        await this.schedulerClient.appBuildFromSource({
+            appUuid: newAppUuid,
+            version: newVersion,
+            projectUuid,
+            organizationUuid,
+            userUuid: user.userUuid,
+        });
+
+        return { appUuid: newAppUuid, version: newVersion, action };
+    }
+
+    async runBuildFromSourcePipeline(
+        payload: AppBuildFromSourceJobPayload,
+    ): Promise<void> {
+        const { appUuid, version, organizationUuid, projectUuid } = payload;
+        const { client, bucket } = this.getS3Client();
+
+        let sandbox: SandboxHandle | undefined;
+        let sandboxUuid: string | undefined;
+        const heartbeat = setInterval(() => {
+            void this.appModel
+                .touchVersionIfInProgress(appUuid, version)
+                .catch((e) => {
+                    this.logger.warn(
+                        `App ${appUuid}: heartbeat failed: ${getErrorMessage(e)}`,
+                    );
+                });
+        }, HEARTBEAT_INTERVAL_MS);
+        try {
+            const advanced = await this.advanceStage(
+                appUuid,
+                version,
+                'sandbox',
+                'Setting up build environment',
+            );
+            if (!advanced) {
+                return;
+            }
+
+            const result = await this.createSandbox(
+                appUuid,
+                organizationUuid,
+                projectUuid,
+            );
+            sandbox = result.sandbox;
+            sandboxUuid = result.sandboxUuid;
+            await this.appModel.updateSandboxUuid(appUuid, sandboxUuid);
+
+            await this.restoreSourceFromS3(
+                sandbox,
+                client,
+                bucket,
+                appUuid,
+                version,
+            );
+
+            const buildAdvanced = await this.advanceStage(
+                appUuid,
+                version,
+                'building',
+                'Building your app',
+            );
+            if (!buildAdvanced) {
+                return;
+            }
+
+            const build = await this.runBuild(sandbox, appUuid);
+            if (build.exitCode !== 0) {
+                await this.markError(
+                    appUuid,
+                    version,
+                    build.stderr || build.stdout,
+                    'Build failed',
+                );
+                return;
+            }
+
+            const packageAdvanced = await this.advanceStage(
+                appUuid,
+                version,
+                'packaging',
+                'Packaging your app',
+            );
+            if (!packageAdvanced) {
+                return;
+            }
+
+            const { distTar, sourceTar } = await this.packageArtifacts(
+                sandbox,
+                appUuid,
+            );
+            await this.uploadToS3(
+                client,
+                bucket,
+                appUuid,
+                version,
+                distTar,
+                sourceTar,
+            );
+
+            await this.appModel.updateVersionStatusIfInProgress(
+                appUuid,
+                version,
+                'ready',
+                null,
+                null,
+            );
+        } catch (err) {
+            await this.markError(appUuid, version, err, 'Build failed');
+        } finally {
+            clearInterval(heartbeat);
+            if (sandbox !== undefined && sandboxUuid !== undefined) {
+                await this.suspendSandbox(sandboxUuid, sandbox, appUuid);
+            }
+        }
     }
 }

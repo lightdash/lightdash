@@ -1026,10 +1026,10 @@ Lightdash that stores the origin (host) and credentials. The app references it b
 
 ```tsx
 const res = await lightdash.externalFetch('stripe', {
-    method: 'GET',          // 'GET' | 'POST' — defaults to 'GET'
+    method: 'GET',          // 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' — defaults to 'GET'. Must be one of the connection's allowed methods.
     path: '/v1/charges',    // COMPLETE path appended to the connection's origin (host). Full URL = origin + path. Must start with an allowed prefix; it is NOT relative to the prefix.
     query: { limit: '10' }, // Record<string, string> — values MUST be strings
-    // body: { ... },       // JSON body (POST only)
+    // body: { ... },       // JSON body — sent for every method except GET
 });
 
 // res.status      — upstream HTTP status (number)

@@ -170,6 +170,13 @@ export enum FeatureFlags {
     OrganizationTrialWarning = 'organization-trial-warning',
 
     /**
+     * Block an organization from running queries because its trial has
+     * expired. Stronger than OrganizationTrialWarning — this DOES block a
+     * product action (query execution). Off by default; enable per-org.
+     */
+    OrganizationTrialBlock = 'organization-trial-block',
+
+    /**
      * Enable the (in-progress) AI writeback feature. Spins up an e2b
      * sandbox pre-loaded with dbt and the Claude Code CLI, then runs a
      * user-supplied prompt against it synchronously. Off by default — gated
@@ -271,6 +278,17 @@ export enum FeatureFlags {
      * new behaviour be trialled per-org without a redeploy. Experimental.
      */
     AiFieldValueSearchGuard = 'ai-field-value-search-guard',
+
+    /**
+     * Allow a single Lightdash project to connect to multiple dbt sources
+     * (repos/CLI deploys). Each source stores its latest compiled manifest in
+     * S3; on every deploy or preview the backend merges all sources' manifests
+     * into one, compiles once, and writes a single combined explore set. Off by
+     * default; the N=0 short-circuit (a project with zero registered sources
+     * runs today's single-source code path byte-for-byte) is the regression
+     * firewall. Enable per-org for gradual rollout.
+     */
+    MultiDbtSources = 'multi-dbt-sources',
 }
 
 export type FeatureFlag = {

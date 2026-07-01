@@ -70,6 +70,7 @@ import SuboptimalState from '../components/common/SuboptimalState/SuboptimalStat
 import AppIframePreview, {
     type AppIframePreviewHandle,
 } from '../features/apps/AppIframePreview';
+import AppInspectorPanel from '../features/apps/AppInspectorPanel';
 import AppPromptEditor, {
     type AppPromptEditorHandle,
     type ElementRef,
@@ -96,7 +97,10 @@ import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppImageUpload } from '../features/apps/hooks/useAppImageUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
-import type { QueryEvent } from '../features/apps/hooks/useAppSdkBridge';
+import type {
+    ExternalRequestEvent,
+    QueryEvent,
+} from '../features/apps/hooks/useAppSdkBridge';
 import { useAppThumbnailUpload } from '../features/apps/hooks/useAppThumbnail';
 import { useBuildNotification } from '../features/apps/hooks/useBuildNotification';
 import { useCancelAppVersion } from '../features/apps/hooks/useCancelAppVersion';
@@ -106,8 +110,8 @@ import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useIterateApp } from '../features/apps/hooks/useIterateApp';
 import { useRestoreAppVersion } from '../features/apps/hooks/useRestoreAppVersion';
 import { useTrackedAppQueries } from '../features/apps/hooks/useTrackedAppQueries';
+import { useTrackedExternalRequests } from '../features/apps/hooks/useTrackedExternalRequests';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
-import QueryInspector from '../features/apps/QueryInspector';
 import { getTemplate } from '../features/apps/templates';
 import {
     mergeChatMessages,
@@ -187,6 +191,7 @@ type AppPreviewProps = {
      *  refresh button so a manual refresh always re-runs against the warehouse. */
     invalidateCache?: boolean;
     onQueryEvent?: (event: QueryEvent) => void;
+    onExternalRequestEvent?: (event: ExternalRequestEvent) => void;
     inspectorEnabled?: boolean;
     onElementSelected?: (event: { label: string }) => void;
     onInspectorAvailabilityChange?: (available: boolean) => void;
@@ -208,6 +213,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
             refreshKey,
             invalidateCache,
             onQueryEvent,
+            onExternalRequestEvent,
             inspectorEnabled,
             onElementSelected,
             onInspectorAvailabilityChange,
@@ -264,6 +270,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
                 identityKey={appUuid}
                 invalidateCache={invalidateCache}
                 onQueryEvent={onQueryEvent}
+                onExternalRequestEvent={onExternalRequestEvent}
                 inspectorEnabled={inspectorEnabled}
                 onElementSelected={onElementSelected}
                 onInspectorAvailabilityChange={onInspectorAvailabilityChange}
@@ -526,11 +533,17 @@ const AppGenerate: FC = () => {
         clearQueries,
         interruptInFlightQueries,
     } = useTrackedAppQueries();
+    const {
+        externalRequests,
+        handleExternalRequestEvent,
+        clearExternalRequests,
+        interruptInFlightRequests,
+    } = useTrackedExternalRequests();
     // Parent-owned visibility so the X dismisses the panel completely and the
     // user re-opens it from the dots menu — same model as preview, for
     // consistency. Defaults to visible because the builder is the technical
     // workflow where seeing queries as they fire is the point.
-    const [queriesPanelHidden, setQueriesPanelHidden] = useState(false);
+    const [networkPanelHidden, setNetworkPanelHidden] = useState(false);
     const handleElementSelected = useCallback((event: { label: string }) => {
         const ref = parseElementRefLabel(event.label);
         if (!ref) {
@@ -549,7 +562,7 @@ const AppGenerate: FC = () => {
     }, []);
     const handleLineageSelected = useCallback(
         (event: { queryUuid: string }) => {
-            setQueriesPanelHidden(false);
+            setNetworkPanelHidden(false);
             setFocusedQueryUuid(event.queryUuid);
         },
         [],
@@ -643,6 +656,7 @@ const AppGenerate: FC = () => {
         setLocalMessages([]);
         setPin(null);
         clearQueries();
+        clearExternalRequests();
         setInspectorEnabled(false);
         setInspectorAvailable(false);
         setScreenshotAvailable(false);
@@ -661,7 +675,7 @@ const AppGenerate: FC = () => {
             urls.forEach((url) => URL.revokeObjectURL(url)),
         );
         sentImagesByPrompt.current.clear();
-    }, [clearQueries]);
+    }, [clearQueries, clearExternalRequests]);
     useEffect(() => {
         const prev = prevUrlAppUuid.current;
         prevUrlAppUuid.current = urlAppUuid;
@@ -922,7 +936,9 @@ const AppGenerate: FC = () => {
         ? selectedTemplate
         : appPersistedTemplate;
     const displayTemplate: DataAppTemplate | null =
-        candidateTemplate && candidateTemplate !== 'custom'
+        candidateTemplate &&
+        candidateTemplate !== 'custom' &&
+        candidateTemplate !== 'data_app_viz'
             ? candidateTemplate
             : null;
     // New-app empty screen: arch + composer, centered, no preview/split yet.
@@ -1226,14 +1242,18 @@ const AppGenerate: FC = () => {
         if (prev === null) return; // Initial render — nothing to clean up.
         if (persistLogs) {
             interruptInFlightQueries();
+            interruptInFlightRequests();
         } else {
             clearQueries();
+            clearExternalRequests();
         }
     }, [
         previewApp?.version,
         persistLogs,
         interruptInFlightQueries,
         clearQueries,
+        interruptInFlightRequests,
+        clearExternalRequests,
     ]);
 
     // Manual refresh counter for the preview iframe. The iframe URL embeds
@@ -1251,10 +1271,18 @@ const AppGenerate: FC = () => {
         setInvalidatePreviewCache(true);
         if (persistLogs) {
             interruptInFlightQueries();
+            interruptInFlightRequests();
         } else {
             clearQueries();
+            clearExternalRequests();
         }
-    }, [persistLogs, interruptInFlightQueries, clearQueries]);
+    }, [
+        persistLogs,
+        interruptInFlightQueries,
+        clearQueries,
+        interruptInFlightRequests,
+        clearExternalRequests,
+    ]);
 
     const scrollToBottom = useCallback(() => {
         // Scroll the chat container itself rather than calling scrollIntoView
@@ -2887,8 +2915,8 @@ const AppGenerate: FC = () => {
                                             }
                                             onRefresh={handleRefreshPreview}
                                             refreshDisabled={!previewApp}
-                                            onViewQueries={() =>
-                                                setQueriesPanelHidden(false)
+                                            onViewNetwork={() =>
+                                                setNetworkPanelHidden(false)
                                             }
                                             onDeleted={() =>
                                                 void navigate(
@@ -2977,6 +3005,9 @@ const AppGenerate: FC = () => {
                                         refreshKey={previewRefreshKey}
                                         invalidateCache={invalidatePreviewCache}
                                         onQueryEvent={handleQueryEvent}
+                                        onExternalRequestEvent={
+                                            handleExternalRequestEvent
+                                        }
                                         inspectorEnabled={inspectorEnabled}
                                         onElementSelected={
                                             handleElementSelected
@@ -3012,15 +3043,19 @@ const AppGenerate: FC = () => {
                                         </Text>
                                     </Box>
                                 )}
-                                {!queriesPanelHidden && (
-                                    <QueryInspector
+                                {!networkPanelHidden && (
+                                    <AppInspectorPanel
                                         queries={trackedQueries}
                                         projectUuid={projectUuid!}
-                                        onClear={clearQueries}
+                                        onClearQueries={clearQueries}
+                                        externalRequests={externalRequests}
+                                        onClearExternalRequests={
+                                            clearExternalRequests
+                                        }
                                         persistLogs={persistLogs}
                                         onPersistLogsChange={setPersistLogs}
                                         onDismiss={() =>
-                                            setQueriesPanelHidden(true)
+                                            setNetworkPanelHidden(true)
                                         }
                                         onHoverQuery={setHoveredQueryUuid}
                                         focusedQueryUuid={focusedQueryUuid}

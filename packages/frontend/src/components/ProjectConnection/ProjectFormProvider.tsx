@@ -3,8 +3,10 @@ import Context, { type ProjectFormContext } from './context';
 
 export const ProjectFormProvider: FC<
     React.PropsWithChildren<ProjectFormContext>
-> = ({ savedProject, children }) => {
+> = ({ savedProject, isDbtSource, children }) => {
     return (
-        <Context.Provider value={{ savedProject }}>{children}</Context.Provider>
+        <Context.Provider value={{ savedProject, isDbtSource }}>
+            {children}
+        </Context.Provider>
     );
 };

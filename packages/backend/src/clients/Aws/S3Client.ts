@@ -13,6 +13,7 @@ import {
     DownloadFileType,
     getErrorMessage,
     MissingConfigError,
+    NotFoundError,
     S3Error,
     type WarehouseResults,
 } from '@lightdash/common';
@@ -250,6 +251,9 @@ export class S3Client extends S3BaseClient implements FileStorageClient {
             }
             return response.Body as Readable;
         } catch (error) {
+            if (error instanceof NoSuchKey || error instanceof NotFound) {
+                throw new NotFoundError('File not found');
+            }
             if (error instanceof S3Error) {
                 Sentry.captureException(error);
                 throw error;

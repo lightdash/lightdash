@@ -10,7 +10,11 @@ import {
     vi,
     type Mock,
 } from 'vitest';
-import { useAppSdkBridge, type QueryEvent } from './useAppSdkBridge';
+import {
+    useAppSdkBridge,
+    type ExternalRequestEvent,
+    type QueryEvent,
+} from './useAppSdkBridge';
 
 const mockUseEmbed = vi.fn(() => ({
     embedToken: undefined as string | undefined,
@@ -105,13 +109,13 @@ function renderBridge(onQueryEvent: (event: QueryEvent) => void) {
         current: { contentWindow: window } as unknown as HTMLIFrameElement,
     } as RefObject<HTMLIFrameElement | null>;
     renderHook(() =>
-        useAppSdkBridge(
+        useAppSdkBridge({
             iframeRef,
-            window.location.origin,
-            PROJECT_UUID,
-            APP_UUID,
+            expectedPreviewOrigin: window.location.origin,
+            projectUuid: PROJECT_UUID,
+            appUuid: APP_UUID,
             onQueryEvent,
-        ),
+        }),
     );
 }
 
@@ -415,21 +419,13 @@ describe('lineage message routing', () => {
             current: { contentWindow: window } as unknown as HTMLIFrameElement,
         } as RefObject<HTMLIFrameElement | null>;
         renderHook(() =>
-            useAppSdkBridge(
+            useAppSdkBridge({
                 iframeRef,
-                window.location.origin,
-                PROJECT_UUID,
-                APP_UUID,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
                 onLineageSelected,
-            ),
+            }),
         );
 
         dispatchFetchMessage({
@@ -446,20 +442,13 @@ describe('lineage message routing', () => {
             current: { contentWindow: window } as unknown as HTMLIFrameElement,
         } as RefObject<HTMLIFrameElement | null>;
         renderHook(() =>
-            useAppSdkBridge(
+            useAppSdkBridge({
                 iframeRef,
-                window.location.origin,
-                PROJECT_UUID,
-                APP_UUID,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
                 onLineageAvailable,
-            ),
+            }),
         );
 
         dispatchFetchMessage({
@@ -572,6 +561,23 @@ describe('external-fetch branch', () => {
             id: POST_ID,
             ...payload,
         });
+    }
+
+    function renderBridgeExternal(
+        onExternalRequestEvent: (event: ExternalRequestEvent) => void,
+    ) {
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        renderHook(() =>
+            useAppSdkBridge({
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                onExternalRequestEvent,
+            }),
+        );
     }
 
     function captureResponses() {
@@ -718,6 +724,65 @@ describe('external-fetch branch', () => {
                 )?.['result'],
             ).toBeDefined(),
         );
+    });
+
+    it('emits pending then ready external-request events on success', async () => {
+        const events: ExternalRequestEvent[] = [];
+        renderBridgeExternal((e) => events.push(e));
+        mockFetchOk({
+            status: 'ok',
+            results: {
+                status: 200,
+                contentType: 'application/json',
+                body: { ok: true },
+                truncated: false,
+            },
+        });
+
+        postExternalFetch({
+            alias: 'stripe',
+            method: 'GET',
+            path: '/v1/charges',
+        });
+
+        await vi.waitFor(() =>
+            expect(events.map((e) => e.status)).toEqual(['pending', 'ready']),
+        );
+        expect(events[0]).toMatchObject({
+            id: POST_ID,
+            alias: 'stripe',
+            method: 'GET',
+            path: '/v1/charges',
+            status: 'pending',
+        });
+        expect(events[1]).toMatchObject({
+            id: POST_ID,
+            status: 'ready',
+            httpStatus: 200,
+            contentType: 'application/json',
+            truncated: false,
+        });
+        expect(events[1].responseBody).toEqual({ ok: true });
+    });
+
+    it('emits pending then error external-request events when the EE call fails', async () => {
+        const events: ExternalRequestEvent[] = [];
+        renderBridgeExternal((e) => events.push(e));
+        mockFetchNonOk({
+            status: 'error',
+            error: { message: 'Connection alias not found' },
+        });
+
+        postExternalFetch({ alias: 'nope', method: 'GET', path: '/x' });
+
+        await vi.waitFor(() =>
+            expect(events.map((e) => e.status)).toEqual(['pending', 'error']),
+        );
+        expect(events[1]).toMatchObject({
+            id: POST_ID,
+            status: 'error',
+            error: 'Connection alias not found',
+        });
     });
 
     it('rejects external-fetch messages from a spoofed sender (wrong source AND wrong origin)', async () => {

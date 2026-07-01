@@ -251,6 +251,27 @@ describe('ExternalConnectionService.proxyFetch', () => {
         expect(opts.headers!['Content-Type']).toBe('application/json');
     });
 
+    it.each(['PUT', 'PATCH', 'DELETE'] as const)(
+        'happy %s: forwards the method and serializes the body when allowed',
+        async (method) => {
+            const { service } = buildService({
+                connection: baseConnection({
+                    allowedMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+                }),
+            });
+            await service.proxyFetch(user, 'proj-1', 'app-1', {
+                connectionAlias: 'weather',
+                method,
+                path: '/v1/echo',
+                body: { hello: 'world' },
+            });
+            const [, opts] = mockSecureFetch.mock.calls[0];
+            expect(opts.method).toBe(method);
+            expect(opts.body).toBe('{"hello":"world"}');
+            expect(opts.headers!['Content-Type']).toBe('application/json');
+        },
+    );
+
     it('POST over requestMaxBytes is rejected', async () => {
         const { service } = buildService({
             connection: baseConnection({ requestMaxBytes: 5 }),

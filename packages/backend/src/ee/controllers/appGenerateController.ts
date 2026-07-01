@@ -14,7 +14,11 @@ import {
     type ApiDuplicateAppResponse,
     type ApiEmbedProjectAppsResponse,
     type ApiGenerateAppResponse,
+    type ApiGetAppCodeResponse,
     type ApiGetAppResponse,
+    type ApiGetDataAppVizResponse,
+    type ApiImportAppCodeResponse,
+    type ApiListDataAppVizsResponse,
     type ApiMyAppsResponse,
     type ApiPreviewTokenResponse,
     type ApiPromoteAppDiffResponse,
@@ -25,6 +29,7 @@ import {
     type ApiUpdateAppRequest,
     type ApiUpdateAppResponse,
     type GenerateAppRequestBody,
+    type ImportAppCodeRequestBody,
 } from '@lightdash/common';
 import {
     Body,
@@ -111,6 +116,59 @@ export class AppGenerateController extends BaseController {
         return {
             status: 'ok',
             results,
+        };
+    }
+
+    /**
+     * @summary List project data app visualizations
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/visualizations')
+    @OperationId('listDataAppVisualizations')
+    async listDataAppVisualizations(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Query() page?: number,
+        @Query() pageSize?: number,
+    ): Promise<ApiListDataAppVizsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results =
+            await this.getAppGenerateService().listDataAppVisualizations(
+                toSessionUser(req.account),
+                projectUuid,
+                page && pageSize ? { page, pageSize } : undefined,
+            );
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * @summary Get a data app visualization
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/visualizations/{dataAppVizUuid}')
+    @OperationId('getDataAppVisualization')
+    async getDataAppVisualization(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() dataAppVizUuid: string,
+    ): Promise<ApiGetDataAppVizResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const result =
+            await this.getAppGenerateService().getDataAppVisualization(
+                toSessionUser(req.account),
+                projectUuid,
+                dataAppVizUuid,
+            );
+        return {
+            status: 'ok',
+            results: result,
         };
     }
 
@@ -507,6 +565,57 @@ export class AppGenerateController extends BaseController {
         return {
             status: 'ok',
             results: { token },
+        };
+    }
+
+    /**
+     * Downloads the source code for a data app version.
+     * @summary Get app code
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{appUuid}/download')
+    @OperationId('getAppCode')
+    async getAppCode(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+        @Query() version?: number,
+    ): Promise<ApiGetAppCodeResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getAppGenerateService().getAppCode(
+                toSessionUser(req.account),
+                projectUuid,
+                appUuid,
+                version,
+            ),
+        };
+    }
+
+    /**
+     * Import source code for a data app version.
+     * @summary Import app code
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/upload')
+    @OperationId('importAppCode')
+    async importAppCode(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: ImportAppCodeRequestBody,
+    ): Promise<ApiImportAppCodeResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAppGenerateService().importAppCode(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
+            ),
         };
     }
 

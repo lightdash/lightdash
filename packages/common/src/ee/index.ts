@@ -3,6 +3,7 @@ export * from './aiWriteback/types';
 export * from './externalConnections/types';
 export * from './AiRouter';
 export * from './apps/types';
+export * from './apps/code';
 export * from './ambientAi';
 export * from './commercialFeatureFlags';
 export * from './designs/types';

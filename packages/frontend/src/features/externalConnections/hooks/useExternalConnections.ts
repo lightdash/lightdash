@@ -14,4 +14,7 @@ export const useExternalConnections = (projectUuid: string | undefined) =>
         queryKey: ['external-connections', projectUuid],
         queryFn: () => getExternalConnections(projectUuid!),
         enabled: !!projectUuid,
+        // Refetch when the tab regains focus so connections created in another
+        // tab (e.g. from the builder's "New connection" link) show up on return.
+        refetchOnWindowFocus: true,
     });

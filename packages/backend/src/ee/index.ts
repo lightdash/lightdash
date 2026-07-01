@@ -489,6 +489,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     projectModel: models.getProjectModel(),
+                    projectDbtSourcesModel: models.getProjectDbtSourcesModel(),
                     preAggregateModel: models.getPreAggregateModel(),
                     onboardingModel: models.getOnboardingModel(),
                     savedChartModel: models.getSavedChartModel(),
@@ -601,6 +602,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     projectModel: models.getProjectModel(),
+                    projectDbtSourcesModel: models.getProjectDbtSourcesModel(),
                     preAggregateModel: models.getPreAggregateModel(),
                     onboardingModel: models.getOnboardingModel(),
                     savedChartModel: models.getSavedChartModel(),
@@ -642,6 +644,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     permissionsService: repository.getPermissionsService(),
                     persistentDownloadFileService:
                         repository.getPersistentDownloadFileService(),
+                    organizationAccessService:
+                        repository.getOrganizationAccessService(),
                     preAggregateStrategy: new PreAggregateStrategy({
                         preAggregationDuckDbClient:
                             new PreAggregationDuckDbClient({

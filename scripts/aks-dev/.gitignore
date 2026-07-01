@@ -1,0 +1,2 @@
+# Live config with the unique ACR name + resolved pool endpoints (gitignored).
+config.env

@@ -1,0 +1,99 @@
+# In-cluster MinIO: the S3-compatible object store backing both the app's file
+# storage and the sandbox runtime's snapshot store (S3SnapshotStore). On Azure we
+# bundle MinIO instead of using Azure Blob because Lightdash speaks the S3 API
+# strictly (parseBaseS3Config enforces S3_ENDPOINT/BUCKET/REGION). Single replica,
+# ephemeral-ish PVC — fine for a testbed. Root creds come from the `minio-creds`
+# secret created idempotently by up.sh (never templated here).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: minio
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: minio-data
+  namespace: minio
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: managed-csi
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+  namespace: minio
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: minio }
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels: { app: minio }
+    spec:
+      containers:
+        - name: minio
+          image: quay.io/minio/minio:latest
+          args: ["server", "/data", "--console-address", ":9001"]
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom: { secretKeyRef: { name: minio-creds, key: accesskey } }
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom: { secretKeyRef: { name: minio-creds, key: secretkey } }
+          ports:
+            - { containerPort: 9000, name: api }
+            - { containerPort: 9001, name: console }
+          readinessProbe:
+            httpGet: { path: /minio/health/ready, port: 9000 }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - { name: data, mountPath: /data }
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: minio-data }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+  namespace: minio
+spec:
+  selector: { app: minio }
+  ports:
+    - { name: api, port: 9000, targetPort: 9000 }
+    - { name: console, port: 9001, targetPort: 9001 }
+---
+# Create the `lightdash` bucket once MinIO is reachable (idempotent: `mb -p`).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-make-bucket
+  namespace: minio
+spec:
+  backoffLimit: 10
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mc
+          image: quay.io/minio/mc:latest
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              until mc alias set local http://minio:9000 "$ACCESS" "$SECRET"; do
+                echo "waiting for minio..."; sleep 3
+              done
+              mc mb -p local/lightdash || true
+              echo "bucket ready"
+          env:
+            - name: ACCESS
+              valueFrom: { secretKeyRef: { name: minio-creds, key: accesskey } }
+            - name: SECRET
+              valueFrom: { secretKeyRef: { name: minio-creds, key: secretkey } }

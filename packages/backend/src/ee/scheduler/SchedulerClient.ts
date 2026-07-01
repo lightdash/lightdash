@@ -5,6 +5,7 @@ import {
     AiAgentReviewRemediationPreviewJobPayload,
     AiAgentReviewRemediationRunJobPayload,
     AiAgentReviewWritebackJobPayload,
+    AppBuildFromSourceJobPayload,
     AppGeneratePipelineJobPayload,
     EE_SCHEDULER_TASKS,
     EmbedArtifactVersionJobPayload,
@@ -180,6 +181,20 @@ export class CommercialSchedulerClient extends SchedulerClient {
                 runAt: new Date(),
                 maxAttempts: 2,
                 jobKey: `app-generate:${payload.appUuid}:${payload.version}`,
+            },
+        );
+        return { jobId };
+    }
+
+    async appBuildFromSource(payload: AppBuildFromSourceJobPayload) {
+        const graphileClient = await this.graphileUtils;
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.APP_BUILD_FROM_SOURCE,
+            payload,
+            {
+                runAt: new Date(),
+                maxAttempts: 2,
+                jobKey: `app-build:${payload.appUuid}:${payload.version}`,
             },
         );
         return { jobId };

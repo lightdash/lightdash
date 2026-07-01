@@ -30,6 +30,13 @@ export interface ProjectAdapter {
 
     getDbtPackages(): Promise<DbtPackages | undefined>;
 
+    /**
+     * Fetch this source's compiled dbt manifest without compiling explores. Used
+     * by the multiple-dbt-sources merge to combine each source's manifest before
+     * a single compile.
+     */
+    getDbtManifest(): Promise<DbtRpcGetManifestResults>;
+
     test(): Promise<void>;
 
     destroy(): Promise<void>;
@@ -39,6 +46,15 @@ export interface ProjectAdapter {
     ): Promise<LightdashProjectConfig>;
 
     getProjectContext(): Promise<ProjectContextEntry[]>;
+
+    /**
+     * Local dbt project directory this adapter reads `lightdash.config.yml` and
+     * `lightdash.project_context.yml` from. Undefined for adapters with no
+     * checkout (manifest-only, dbt Cloud, none). The multiple-dbt-sources merge
+     * passes the primary source's dir to the merged manifest adapter so the
+     * combined compile keeps the primary's project config.
+     */
+    dbtProjectDir?: string;
 }
 
 export interface DbtClient {

@@ -1,5 +1,7 @@
 import {
+    EXTERNAL_CONNECTION_METHODS,
     type ExternalConnection,
+    type ExternalConnectionMethod,
     type ExternalConnectionSample,
     type ExternalConnectionSampleRequest,
     type ExternalFetchResponse,
@@ -10,7 +12,7 @@ import {
     Button,
     Divider,
     Group,
-    SegmentedControl,
+    Select,
     Stack,
     Text,
     Textarea,
@@ -89,7 +91,7 @@ const parsePathInput = (
 };
 
 const exampleFormSchema = z.object({
-    method: z.enum(['GET', 'POST']),
+    method: z.enum(EXTERNAL_CONNECTION_METHODS),
     path: z.string().min(1, 'Path is required'),
     queryParams: z.array(
         z.object({
@@ -244,7 +246,7 @@ export const ConnectionExamplesPanel: FC<Props> = ({
                 path: values.path,
                 query: buildQuery(values.queryParams),
                 body:
-                    values.method === 'POST'
+                    values.method !== 'GET'
                         ? parseJson(values.requestBody)
                         : undefined,
             };
@@ -285,15 +287,20 @@ export const ConnectionExamplesPanel: FC<Props> = ({
             </Stack>
 
             <Group align="flex-end" gap="xs">
-                <SegmentedControl
+                <Select
+                    label="Method"
+                    w={110}
+                    allowDeselect={false}
                     value={form.values.method}
                     onChange={(v) => {
-                        form.setFieldValue('method', v as 'GET' | 'POST');
+                        if (!v) return;
+                        form.setFieldValue(
+                            'method',
+                            v as ExternalConnectionMethod,
+                        );
                         testMutation.reset();
                     }}
-                    data={['GET', 'POST']}
-                    size="xs"
-                    mb="xxs"
+                    data={[...EXTERNAL_CONNECTION_METHODS]}
                 />
                 <TextInput
                     label="Path"
@@ -356,7 +363,7 @@ export const ConnectionExamplesPanel: FC<Props> = ({
                 </Button>
             </Stack>
 
-            {form.values.method === 'POST' && (
+            {form.values.method !== 'GET' && (
                 <Textarea
                     label="Request body (JSON)"
                     placeholder='{"key": "value"}'

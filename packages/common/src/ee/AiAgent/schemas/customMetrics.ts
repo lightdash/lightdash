@@ -74,7 +74,7 @@ const aggregationCustomMetricSchema = z.object({
     baseDimensionName: z
         .string()
         .describe(
-            'Name of the base dimension/column this metric calculates from',
+            'Field ID (e.g. "customers_age") or bare column name (e.g. "age") of the base dimension to aggregate. Must be a dimension that already EXISTS in this explore — find it via findFields / getMetadata. Do NOT guess an id/primary-key column: many explores do not expose "<table>_id" as a queryable dimension.',
         ),
     table: z
         .string()

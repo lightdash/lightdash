@@ -7,6 +7,7 @@ import {
     DbtModelNode,
     DbtPackages,
     DbtRawModelNode,
+    DbtRpcGetManifestResults,
     DEFAULT_SPOTLIGHT_CONFIG,
     Explore,
     ExploreError,
@@ -94,6 +95,17 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             return this.dbtClient.getDbtPackages();
         }
         return undefined;
+    }
+
+    public async getDbtManifest(): Promise<DbtRpcGetManifestResults> {
+        // Install dependencies first (same as compileAllExplores) — a git source's
+        // `dbt ls` fails without its packages installed.
+        if (this.dbtClient.installDeps !== undefined) {
+            Logger.debug('Install dependencies');
+            await this.dbtClient.installDeps();
+        }
+        Logger.debug(`Get dbt manifest`);
+        return this.dbtClient.getDbtManifest();
     }
 
     public async getLightdashProjectConfig(

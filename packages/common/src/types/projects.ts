@@ -865,6 +865,103 @@ export type DbtProjectConfig =
     | DbtNoneProjectConfig
     | DbtManifestProjectConfig;
 
+/**
+ * One dbt source connected to a project (PROD-7484 multiple dbt sources). The
+ * project's own `dbt_connection` is the primary source (precedence 0); when a
+ * project has no source rows it runs the single-source path unchanged (N=0
+ * short-circuit). `dbtConnection` is the decrypted per-source connection; the
+ * source is recompiled from it at deploy/preview time and its manifest merged
+ * with the others.
+ *
+ * `hasCredentialError` is true when the stored connection could not be
+ * decrypted (e.g. an encryption secret rotation) — `dbtConnection` is then
+ * `null` even though a connection was originally saved. Callers must not let
+ * one source's credential error fail an operation over every source (listing,
+ * compiling); only an operation that actually needs this source's connection
+ * (editing, compiling this one source) should fail, and should name the
+ * source when it does.
+ */
+export type ProjectDbtSource = {
+    projectDbtSourceUuid: string;
+    projectUuid: string;
+    name: string;
+    isPrimary: boolean;
+    precedence: number;
+    dbtConnection: DbtProjectConfig | null;
+    hasCredentialError: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type CreateProjectDbtSource = {
+    name: string;
+    isPrimary: boolean;
+    precedence: number;
+    dbtConnection: DbtProjectConfig | null;
+};
+
+export type UpdateProjectDbtSource = {
+    name?: string;
+    precedence?: number;
+    dbtConnection?: DbtProjectConfig | null;
+};
+
+/**
+ * Non-sensitive view of a dbt source for API responses — never includes the
+ * decrypted connection (which holds credentials). The primary source is
+ * synthesised from the project's own dbt_connection. `repository`, `branch` and
+ * `projectSubPath` are the git-backed source's identity (null for non-git
+ * connections); they are safe to expose — only secrets are stripped.
+ *
+ * `hasCredentialError` is always `false` for the synthesised primary source.
+ * See `ProjectDbtSource` for what it means on an additional source.
+ */
+export type ProjectDbtSourceSummary = {
+    projectDbtSourceUuid: string;
+    name: string;
+    isPrimary: boolean;
+    precedence: number;
+    type: DbtProjectType | null;
+    repository: string | null;
+    branch: string | null;
+    projectSubPath: string | null;
+    hasCredentialError: boolean;
+};
+
+export type ApiCreateProjectDbtSource = {
+    name: string;
+    dbtConnection: DbtProjectConfig;
+};
+
+export type ApiProjectDbtSourcesResponse = {
+    status: 'ok';
+    results: ProjectDbtSourceSummary[];
+};
+
+export type ApiProjectDbtSourceResponse = {
+    status: 'ok';
+    results: ProjectDbtSourceSummary;
+};
+
+/**
+ * A single dbt source including its connection, with sensitive credentials
+ * (tokens, keys) stripped — used to pre-fill the edit form. Secrets left out
+ * here are preserved on update via `mergeMissingDbtConfigSecrets`.
+ */
+export type ProjectDbtSourceWithConnection = ProjectDbtSourceSummary & {
+    dbtConnection: DbtProjectConfig | null;
+};
+
+export type ApiProjectDbtSourceWithConnectionResponse = {
+    status: 'ok';
+    results: ProjectDbtSourceWithConnection;
+};
+
+export type ApiUpdateProjectDbtSource = {
+    name?: string;
+    dbtConnection?: DbtProjectConfig;
+};
+
 export const isGitProjectType = (
     connection: DbtProjectConfig,
 ): connection is

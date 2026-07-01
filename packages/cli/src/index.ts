@@ -759,6 +759,10 @@ program
         'strip per-value pivot series config from chart YAML for portable downloads',
         false,
     )
+    .option(
+        '--apps [appUuids...]',
+        'Include data apps (enterprise). Optionally limit to specific app UUIDs; default: all apps in the project.',
+    )
     .action(downloadHandler);
 
 program
@@ -809,6 +813,10 @@ program
     )
     .option('--validate', 'Validate charts and dashboards after upload', false)
     .option('--gzip', 'Enable gzip compression for request bodies', false)
+    .option(
+        '--apps [appUuids...]',
+        'Include data apps (enterprise). Optionally limit to specific app UUIDs; default: all app folders on disk.',
+    )
     .action(uploadHandler);
 
 program

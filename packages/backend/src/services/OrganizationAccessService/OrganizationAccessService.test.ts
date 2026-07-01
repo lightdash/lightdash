@@ -51,4 +51,27 @@ describe('OrganizationAccessService', () => {
 
         expect(access.status).toBe(OrganizationAccessStatus.TRIAL_WARNING);
     });
+
+    it('returns trial expired when the block flag is enabled', async () => {
+        const service = buildService(
+            new Set([FeatureFlags.OrganizationTrialBlock]),
+        );
+
+        const access = await service.getOrganizationAccess(account);
+
+        expect(access.status).toBe(OrganizationAccessStatus.TRIAL_EXPIRED);
+    });
+
+    it('prioritises the block flag over the warning flag', async () => {
+        const service = buildService(
+            new Set([
+                FeatureFlags.OrganizationTrialBlock,
+                FeatureFlags.OrganizationTrialWarning,
+            ]),
+        );
+
+        const access = await service.getOrganizationAccess(account);
+
+        expect(access.status).toBe(OrganizationAccessStatus.TRIAL_EXPIRED);
+    });
 });

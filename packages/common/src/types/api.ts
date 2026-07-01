@@ -45,6 +45,7 @@ import type {
     ApiCloneAiAgentThreadShareResponse,
     ApiCreateEvaluationResponse,
     ApiGenerateAppResponse,
+    ApiGetAppCodeResponse,
     ApiGetAppResponse,
     ApiGetUserAgentPreferencesResponse,
     ApiManagedAgentActionResponse,
@@ -1157,6 +1158,7 @@ type ApiResults =
     | OAuthClientSummary
     | CreateOAuthClientResponse
     | ApiGenerateAppResponse['results']
+    | ApiGetAppCodeResponse['results']
     | ApiGetAppResponse['results']
     | ApiMyAppsResponse['results']
     | ApiPromoteAppResponse['results']

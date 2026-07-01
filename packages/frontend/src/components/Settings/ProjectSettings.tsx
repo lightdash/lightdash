@@ -2,7 +2,14 @@ import { subject } from '@casl/ability';
 import { FeatureFlags } from '@lightdash/common';
 import { Anchor, Stack, Text, Title } from '@mantine-8/core';
 import { useMemo, type FC } from 'react';
-import { Navigate, useParams, useRoutes, type RouteObject } from 'react-router';
+import {
+    matchPath,
+    Navigate,
+    useLocation,
+    useParams,
+    useRoutes,
+    type RouteObject,
+} from 'react-router';
 import SettingsEmbed from '../../ee/features/embed/SettingsEmbed';
 import { ProjectChangesets } from '../../features/changesets/components/ProjectChangesets';
 import PullRequestsPage from '../../features/pullRequests/components/PullRequestsPage';
@@ -39,6 +46,7 @@ const ProjectSettings: FC = () => {
     const { projectUuid } = useParams<{
         projectUuid: string;
     }>();
+    const location = useLocation();
 
     const { health, user } = useApp();
     const { isInitialLoading, data: project, error } = useProject(projectUuid);
@@ -48,9 +56,8 @@ const ProjectSettings: FC = () => {
     // section lists PRs opened against that repo.
     const isGitProject = useIsGitProject(projectUuid ?? '');
 
-    const { data: dataAppsFlag } = useServerFeatureFlag(
-        FeatureFlags.EnableDataApps,
-    );
+    const { data: dataAppsFlag, isLoading: isDataAppsFlagLoading } =
+        useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
     const canManageExternalConnections =
         isDataAppsEnabled &&
@@ -253,7 +260,23 @@ const ProjectSettings: FC = () => {
         return <ErrorState error={error.error} />;
     }
 
-    if (isInitialLoading || !project || !projectUuid) {
+    // The dataAppConnections route only registers once the flag resolves. On a
+    // hard load (e.g. the builder's "New connection" deep link opening in a new
+    // tab) the flag is still pending, so without this wait the nested catch-all
+    // below bounces to the settings index before the route exists.
+    const isAwaitingDataAppConnectionsRoute =
+        isDataAppsFlagLoading &&
+        !!matchPath(
+            '/generalSettings/projectManagement/:projectUuid/dataAppConnections',
+            location.pathname,
+        );
+
+    if (
+        isInitialLoading ||
+        !project ||
+        !projectUuid ||
+        isAwaitingDataAppConnectionsRoute
+    ) {
         return (
             <div style={{ marginTop: '20px' }}>
                 <SuboptimalState title="Loading project" loading />

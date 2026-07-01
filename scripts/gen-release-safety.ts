@@ -22,10 +22,12 @@ import { diffRestApi } from './rest-api-diff';
 import { diffMcpTools } from './mcp-tools-diff';
 import {
     CarriedFloor,
+    CarriedFloorKind,
     carriedUpgradeFloor,
     DEFAULT_OVERRIDES_PATH,
     loadUpgradeOverrides,
     recordDerivedFloor,
+    requiredStopsUpTo,
     resolveUpgrade,
     UpgradeResolution,
 } from './upgrade-overrides';
@@ -89,8 +91,26 @@ export interface ReleaseSafetyMarker {
     };
     upgrade: {
         minPreviousVersion: string | null;
+        /** Whether THIS release is itself a required stop (its own declaration). */
         requiredStop: boolean;
         note: string | null;
+        /**
+         * The release whose declaration established `minPreviousVersion`; null when
+         * there is no floor. Lets a consumer act without parsing `note`: when
+         * `kind === 'requiredStop'` this is the release to LAND on.
+         */
+        sourceVersion: string | null;
+        /**
+         * How `minPreviousVersion` was set: `'requiredStop'` (a mandatory waypoint),
+         * `'minPrevious'` (a floor — just start from >= it), `'default'`, or null.
+         */
+        kind: CarriedFloorKind;
+        /**
+         * Every required-stop release at or before this one, oldest-first. An
+         * operator upgrading to this release must land on each one newer than the
+         * version they are currently on.
+         */
+        requiredStops: string[];
     };
 }
 
@@ -190,6 +210,12 @@ export interface BuildMarkerInput {
      * something their old pods use. null/absent leaves the per-release floor as-is.
      */
     carriedFloor?: CarriedFloor | null;
+    /**
+     * Optional list of required-stop releases at or before this version (from the
+     * committed overrides). Surfaced verbatim as `upgrade.requiredStops`. Absent →
+     * empty list.
+     */
+    requiredStops?: string[];
 }
 
 export interface AiReviewSummary {
@@ -378,7 +404,13 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
     // claimed) only when a committed overrides file was consulted; otherwise the
     // honest null stub. A malformed file fails loud upstream — it never silently
     // degrades here, because that would drop a maintainer's required-stop signal.
-    let upgrade: ReleaseSafetyMarker['upgrade'] = {
+    // Working floor object (the 3 core fields); the structured attribution
+    // (sourceVersion/kind/requiredStops) is derived once, after the fold, below.
+    let upgrade: {
+        minPreviousVersion: string | null;
+        requiredStop: boolean;
+        note: string | null;
+    } = {
         minPreviousVersion: null,
         requiredStop: false,
         note: null,
@@ -450,6 +482,27 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
         upgradeKnown = true;
     }
 
+    // Attribute the FINAL floor to a source + kind, so a consumer can branch
+    // without parsing `note`. When the carried high-water mark won, reuse its
+    // attribution (it correctly identifies a required stop vs a min-previous floor
+    // vs the default). Otherwise the floor came from THIS release — its own
+    // expand/contract drop or a this-version human override — both anchored here as
+    // a min-previous floor.
+    let floorSource: string | null = null;
+    let floorKind: CarriedFloorKind = null;
+    if (upgrade.minPreviousVersion !== null) {
+        if (
+            input.carriedFloor &&
+            upgrade.minPreviousVersion === input.carriedFloor.minPreviousVersion
+        ) {
+            floorSource = input.carriedFloor.sourceVersion;
+            floorKind = input.carriedFloor.kind;
+        } else {
+            floorSource = version;
+            floorKind = 'minPrevious';
+        }
+    }
+
     if (upgradeKnown) {
         capabilities.push('upgrade');
     }
@@ -478,7 +531,12 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
             // P3: mcp is populated by the tool-snapshot diff when it ran.
             mcp,
         },
-        upgrade,
+        upgrade: {
+            ...upgrade,
+            sourceVersion: floorSource,
+            kind: floorKind,
+            requiredStops: input.requiredStops ?? [],
+        },
     };
 }
 
@@ -691,6 +749,9 @@ async function main(): Promise<void> {
     // declared in any release at or before this one, so the marker is self-
     // sufficient for a version-skip (see buildMarker's carriedFloor fold).
     const carriedFloor = carriedUpgradeFloor(overrides, args.version);
+    // Full list of required stops at/before this release, so a consumer can read
+    // every mandatory waypoint from a single marker (see upgrade.requiredStops).
+    const requiredStops = requiredStopsUpTo(overrides, args.version);
 
     const marker = buildMarker({
         version: args.version,
@@ -704,6 +765,7 @@ async function main(): Promise<void> {
         mcpApi,
         upgrade,
         carriedFloor,
+        requiredStops,
     });
 
     // Persist THIS release's own auto-derived expand/contract floor into the

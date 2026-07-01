@@ -1,5 +1,16 @@
 export type ExternalConnectionAuthType = 'none' | 'api_key' | 'bearer_token';
-export type ExternalConnectionMethod = 'GET' | 'POST';
+
+/** HTTP methods an admin can opt a connection into. Single source of truth for
+ *  the backend validation allowlist and the frontend method pickers. */
+export const EXTERNAL_CONNECTION_METHODS = [
+    'GET',
+    'POST',
+    'PUT',
+    'PATCH',
+    'DELETE',
+] as const;
+export type ExternalConnectionMethod =
+    (typeof EXTERNAL_CONNECTION_METHODS)[number];
 export type ApiKeyLocation = 'header' | 'query';
 
 /** READ shape returned by the API — NEVER includes the secret value. */
@@ -74,7 +85,7 @@ export type ExternalFetchResponse = {
 };
 
 export type ApiTestExternalConnectionRequest = {
-    method?: 'GET' | 'POST';
+    method?: ExternalConnectionMethod;
     path: string;
     query?: Record<string, string>;
     body?: unknown;

@@ -238,4 +238,9 @@ export class DbtGitProjectAdapter
         await this._refreshRepo();
         await super.test();
     }
+
+    public async getDbtManifest() {
+        await this._refreshRepo();
+        return super.getDbtManifest();
+    }
 }

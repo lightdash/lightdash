@@ -276,14 +276,21 @@ export type ExternalFetchResult = {
     truncated: boolean;
 };
 
+/**
+ * HTTP methods an external connection can be configured to allow. Mirror of
+ * `ExternalConnectionMethod` in `@lightdash/common` — the SDK is published
+ * standalone with no `@lightdash/common` dependency, so keep the two in sync.
+ */
+export type ExternalFetchMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+
 export type ExternalFetchOptions = {
     /** HTTP method. Defaults to `'GET'`. */
-    method?: 'GET' | 'POST';
+    method?: ExternalFetchMethod;
     /** Relative path appended to the connection's configured base URL. */
     path: string;
     /** Query-string params, merged into the request URL by the backend. */
     query?: Record<string, string>;
-    /** JSON request body (POST only). */
+    /** JSON request body. Sent for every method except `GET`. */
     body?: unknown;
 };
 

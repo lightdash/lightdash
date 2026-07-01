@@ -4,8 +4,10 @@ import {
     ApiChartAsCodeListResponse,
     ApiChartAsCodeUpsertResponse,
     ApiChartValidationResponse,
+    ApiContentResponse,
     ApiDashboardAsCodeListResponse,
     ApiDashboardValidationResponse,
+    ApiImportAppCodeResponse,
     ApiSqlChartAsCodeListResponse,
     assertUnreachable,
     AuthorizationError,
@@ -21,6 +23,7 @@ import {
     PromotionChanges,
     removePivotedSeriesValuesFromChartConfig,
     SqlChartAsCode,
+    type DataAppCode,
     type SpaceAsCode,
 } from '@lightdash/common';
 import { Dirent, promises as fs, type Stats } from 'fs';
@@ -32,6 +35,12 @@ import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig, setAnswer } from '../config';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
+import {
+    appFolderName,
+    buildImportBody,
+    readBundleFromDir,
+    writeBundleToDir,
+} from './apps/appCodeFiles';
 import {
     checkLightdashVersion,
     lightdashApi,
@@ -49,6 +58,7 @@ export type DownloadHandlerOptions = {
     verbose: boolean;
     charts: string[]; // These can be slugs, uuids or urls
     dashboards: string[]; // These can be slugs, uuids or urls
+    apps: string[] | boolean | null; // true = all apps; string[] = specific UUIDs; null/false/absent = skip
     force: boolean;
     path?: string; // New optional path parameter
     project?: string;
@@ -983,6 +993,110 @@ export const downloadHandler = async (
             }
         }
 
+        // Download data apps (enterprise, opt-in via --apps)
+        const appsOption = options.apps;
+        const shouldDownloadApps =
+            appsOption !== null &&
+            appsOption !== false &&
+            appsOption !== undefined;
+
+        if (shouldDownloadApps) {
+            // Normalize: true or [] means all apps; string[] means specific UUIDs
+            const specificAppUuids: string[] | null =
+                Array.isArray(appsOption) && appsOption.length > 0
+                    ? appsOption
+                    : null;
+
+            let appUuidsToDownload: string[];
+
+            if (specificAppUuids) {
+                appUuidsToDownload = specificAppUuids;
+            } else {
+                // List all apps via content API (paginated)
+                spinner.start(`Listing data apps in project`);
+                appUuidsToDownload = [];
+                let page = 1;
+                let totalPageCount = 1;
+
+                do {
+                    // eslint-disable-next-line no-await-in-loop
+                    const contentResult = await lightdashApi<
+                        ApiContentResponse['results']
+                    >({
+                        method: 'GET',
+                        url: `/api/v2/content?projectUuids=${projectId}&contentTypes=data_app&page=${page}&pageSize=100`,
+                        body: undefined,
+                    });
+
+                    appUuidsToDownload.push(
+                        ...contentResult.data
+                            .filter((item) => item.contentType === 'data_app')
+                            .map((item) => item.uuid),
+                    );
+
+                    totalPageCount =
+                        contentResult.pagination?.totalPageCount ?? 1;
+                    page += 1;
+                } while (page <= totalPageCount);
+            }
+
+            if (appUuidsToDownload.length === 0) {
+                spinner.succeed(`No data apps found in project`);
+            } else {
+                spinner.start(
+                    `Downloading ${appUuidsToDownload.length} data app(s)…`,
+                );
+                const baseDir = getDownloadFolder(options.path);
+                const appsDir = path.join(baseDir, 'apps');
+                const takenFolders = new Set<string>();
+                let appSuccessCount = 0;
+
+                for (const appUuid of appUuidsToDownload) {
+                    try {
+                        // eslint-disable-next-line no-await-in-loop
+                        const code = await lightdashApi<DataAppCode>({
+                            method: 'GET',
+                            url: `/api/v1/ee/projects/${projectId}/apps/${appUuid}/download`,
+                            body: undefined,
+                        });
+
+                        const folder = appFolderName(
+                            code.manifest.name,
+                            appUuid,
+                            takenFolders,
+                        );
+                        takenFolders.add(folder);
+
+                        const appDir = path.join(appsDir, folder);
+                        // eslint-disable-next-line no-await-in-loop
+                        await writeBundleToDir(appDir, code);
+                        appSuccessCount += 1;
+                    } catch (appErr) {
+                        if (
+                            appErr instanceof LightdashError &&
+                            appErr.statusCode === 404
+                        ) {
+                            GlobalState.log(
+                                styles.warning(
+                                    `Data apps are not enabled on this instance, or app ${appUuid} was not found.`,
+                                ),
+                            );
+                        } else {
+                            GlobalState.log(
+                                styles.error(
+                                    `Failed to download app ${appUuid}: ${getErrorMessage(appErr)}`,
+                                ),
+                            );
+                        }
+                    }
+                }
+
+                spinner.succeed(
+                    `Downloaded ${appSuccessCount} of ${appUuidsToDownload.length} data app(s) to ${appsDir}`,
+                );
+            }
+        }
+
         // Report space definitions count
         if (!skipSpaces) {
             const uniqueSpaceCount = new Set(allSpaces.map((s) => s.slug)).size;
@@ -1693,6 +1807,105 @@ export const uploadHandler = async (
             changes = dashboardChanges;
             dashboardTotal = total;
         }
+
+        // Upload data apps (enterprise, opt-in via --apps, fire-and-forget)
+        const appsOption = options.apps;
+        const shouldUploadApps =
+            appsOption !== null &&
+            appsOption !== false &&
+            appsOption !== undefined;
+
+        if (shouldUploadApps) {
+            const filterUuids: Set<string> | null =
+                Array.isArray(appsOption) && appsOption.length > 0
+                    ? new Set(appsOption)
+                    : null;
+
+            const baseDir = getDownloadFolder(options.path);
+            const appsDir = path.join(baseDir, 'apps');
+
+            let appFolderEntries: import('fs').Dirent[];
+            try {
+                appFolderEntries = await fs.readdir(appsDir, {
+                    withFileTypes: true,
+                });
+            } catch (err) {
+                if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+                    GlobalState.log(
+                        styles.warning(
+                            `No apps directory found at ${appsDir}. Run 'lightdash download --apps' first.`,
+                        ),
+                    );
+                    appFolderEntries = [];
+                } else {
+                    throw err;
+                }
+            }
+
+            const subDirs = appFolderEntries.filter((e) => e.isDirectory());
+
+            if (subDirs.length === 0) {
+                GlobalState.log(
+                    styles.warning(`No app folders found in ${appsDir}.`),
+                );
+            }
+
+            for (const subDir of subDirs) {
+                const folderPath = path.join(appsDir, subDir.name);
+                try {
+                    // eslint-disable-next-line no-await-in-loop
+                    const code = await readBundleFromDir(folderPath);
+
+                    if (
+                        filterUuids &&
+                        !filterUuids.has(code.manifest.appUuid)
+                    ) {
+                        GlobalState.debug(
+                            `Skipping app folder "${subDir.name}" (uuid ${code.manifest.appUuid} not in filter)`,
+                        );
+                        // eslint-disable-next-line no-continue
+                        continue;
+                    }
+
+                    const body = buildImportBody(code, projectId, {});
+
+                    // eslint-disable-next-line no-await-in-loop
+                    const { appUuid, version, action } = await lightdashApi<
+                        ApiImportAppCodeResponse['results']
+                    >({
+                        method: 'POST',
+                        url: `/api/v1/ee/projects/${projectId}/apps/upload`,
+                        body: JSON.stringify(body),
+                    });
+
+                    const actionLabel =
+                        action === 'create' ? 'created' : 'updated';
+                    GlobalState.log(
+                        styles.success(
+                            `Uploaded "${code.manifest.name}" — ${actionLabel} v${version} (${appUuid}). Building in the background; the app will show "building" until the server finishes.`,
+                        ),
+                    );
+                } catch (appErr) {
+                    if (
+                        appErr instanceof LightdashError &&
+                        appErr.statusCode === 404
+                    ) {
+                        GlobalState.log(
+                            styles.error(
+                                `App folder "${subDir.name}": data apps are not enabled on this instance, or the app was not found.`,
+                            ),
+                        );
+                    } else {
+                        GlobalState.log(
+                            styles.error(
+                                `Failed to upload app folder "${subDir.name}": ${getErrorMessage(appErr)}`,
+                            ),
+                        );
+                    }
+                }
+            }
+        }
+
         const end = Date.now();
 
         await LightdashAnalytics.track({

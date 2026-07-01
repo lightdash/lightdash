@@ -1,13 +1,15 @@
-import { type DbtProjectType } from '@lightdash/common';
+import { ProjectType, type DbtProjectType } from '@lightdash/common';
 import { Avatar, Flex, Stack, Text, TextInput, Title } from '@mantine/core';
 import { type FC } from 'react';
 import useApp from '../../providers/App/useApp';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 import DbtSettingsForm from './DbtSettingsForm';
+import DbtSourcesPanel from './DbtSourcesPanel';
 import { useFormContext } from './formContext';
 import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
 import { getWarehouseIcon } from './ProjectConnectFlow/utils';
+import { useProjectFormContext } from './useProjectFormContext';
 import WarehouseSettingsForm from './WarehouseSettingsForm';
 
 interface Props {
@@ -25,6 +27,7 @@ export const ProjectForm: FC<Props> = ({
 }) => {
     const { health } = useApp();
     const form = useFormContext();
+    const { savedProject } = useProjectFormContext();
     const warehouse = form.values.warehouse.type;
 
     return (
@@ -96,6 +99,10 @@ export const ProjectForm: FC<Props> = ({
                     />
                 </div>
             </SettingsGridCard>
+
+            {savedProject && savedProject.type !== ProjectType.PREVIEW && (
+                <DbtSourcesPanel projectUuid={savedProject.projectUuid} />
+            )}
         </Stack>
     );
 };

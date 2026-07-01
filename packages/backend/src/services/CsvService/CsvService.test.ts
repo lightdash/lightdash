@@ -27,6 +27,7 @@ import { OrganizationModel } from '../../models/OrganizationModel';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
+import { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -62,6 +63,7 @@ describe('Csv service', () => {
             jobModel: {} as JobModel,
             onboardingModel: {} as OnboardingModel,
             projectModel: {} as ProjectModel,
+            projectDbtSourcesModel: {} as ProjectDbtSourcesModel,
             preAggregateModel: {} as PreAggregateModel,
             s3CacheClient: {} as S3CacheClient,
             savedChartModel: {} as SavedChartModel,

@@ -26,7 +26,7 @@ export class SecureFetchError extends Error {
 }
 
 export type SecureFetchOptions = {
-    method: 'GET' | 'POST';
+    method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
     body?: string;
     headers?: Record<string, string>;
     timeoutMs: number;

@@ -123,8 +123,28 @@ export function validateCustomMetricsDefinition(
         );
 
         if (!field) {
+            // The transform strips the "<table>_" prefix from baseDimensionName,
+            // so show the field id we actually looked for and list the real
+            // dimensions — the agent can then correct in one step instead of
+            // guessing an id/primary-key column the explore may not expose.
+            const expectedFieldId = getItemId({
+                name: metric.baseDimensionName,
+                table: metric.table,
+            });
+            const availableDimensions = exploreFields
+                .filter(isDimension)
+                .map(getItemId);
+            const shown = availableDimensions.slice(0, 50);
+            const more =
+                availableDimensions.length > shown.length
+                    ? ` (and ${
+                          availableDimensions.length - shown.length
+                      } more — use findFields to search them)`
+                    : '';
             errors.push(
-                `Error: the base dimension name "${metric.baseDimensionName}" does not exist in the explore.`,
+                `Error: base dimension "${expectedFieldId}" does not exist in the explore "${metric.table}". ` +
+                    `baseDimensionName must be an existing dimension (do not invent an id/primary-key column). ` +
+                    `Available dimensions: ${shown.join(', ')}${more}`,
             );
             return;
         }
@@ -1180,10 +1200,19 @@ export function validateAxisFields(
     selectedDimensions: string[],
     selectedMetrics: string[],
     tableCalculations?: TableCalcsSchema | TableCalculation[],
+    customMetrics?: CustomMetricBaseTransformed[] | null,
 ) {
     if (!chartConfig) {
         return;
     }
+
+    // Aggregation custom metrics are selected metrics too — they compile to
+    // "<table>_<name>" field ids and are valid on the axes. Fold them in like
+    // the sort / table-calculation / field-existence validators already do,
+    // otherwise a custom metric referenced in yAxisMetrics fails validation
+    // even though it is part of the query.
+    const customMetricIds = customMetrics?.map(getItemId) ?? [];
+    const selectableMetrics = [...selectedMetrics, ...customMetricIds];
 
     // Validate both axis fields
     const xAxisErrors = validateXAxisField(
@@ -1192,14 +1221,14 @@ export function validateAxisFields(
     );
     const yAxisErrors = validateYAxisMetrics(
         chartConfig.yAxisMetrics,
-        selectedMetrics,
+        selectableMetrics,
         tableCalculations,
     );
     if (chartConfig.secondaryYAxisMetric) {
         yAxisErrors.push(
             ...validateYAxisMetrics(
                 [chartConfig.secondaryYAxisMetric],
-                selectedMetrics,
+                selectableMetrics,
                 tableCalculations,
             ),
         );

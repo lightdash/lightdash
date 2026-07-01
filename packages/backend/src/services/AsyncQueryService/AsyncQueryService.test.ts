@@ -12,6 +12,7 @@ import {
     FilterOperator,
     ForbiddenError,
     NotFoundError,
+    OrganizationAccessStatus,
     PossibleAbilities,
     QueryExecutionContext,
     QueryHistory,
@@ -49,6 +50,7 @@ import type { OrganizationModel } from '../../models/OrganizationModel';
 import type { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import type { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import type { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
+import type { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { projectUuid } from '../../models/ProjectModel/ProjectModel.mock';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
@@ -68,6 +70,7 @@ import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CacheHitCacheResult, MissCacheResult } from '../CacheService/types';
+import { OrganizationAccessService } from '../OrganizationAccessService/OrganizationAccessService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
@@ -195,6 +198,7 @@ const getMockedAsyncQueryService = (
         lightdashConfig,
         analytics: analyticsMock,
         projectModel: projectModel as unknown as ProjectModel,
+        projectDbtSourcesModel: {} as unknown as ProjectDbtSourcesModel,
         preAggregateModel: {} as PreAggregateModel,
         onboardingModel: onboardingModel as unknown as OnboardingModel,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
@@ -307,6 +311,11 @@ const getMockedAsyncQueryService = (
         }),
         permissionsService: {} as PermissionsService,
         persistentDownloadFileService: {} as PersistentDownloadFileService,
+        organizationAccessService: {
+            getOrganizationAccess: vi.fn(async () => ({
+                status: OrganizationAccessStatus.ACTIVE,
+            })),
+        } as unknown as OrganizationAccessService,
         preAggregateStrategy: new NoOpPreAggregateStrategy(),
         projectCompileLogModel: {} as ProjectCompileLogModel,
         adminNotificationService: {} as AdminNotificationService,

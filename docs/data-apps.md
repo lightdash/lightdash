@@ -796,7 +796,7 @@ defences keep the path robust:
 
 ## External connections
 
-External connections let a project admin register a third-party HTTP API (base URL, auth) that generated data apps can fetch from at runtime, through a parent-mediated proxy that mirrors the metric-query [PostMessage Bridge](#postmessage-bridge-useappsdkbridge). The feature is enterprise-only and gated on the `manage:ExternalConnection` scope for configuration.
+External connections let a project admin register a third-party HTTP API (base URL, auth) that generated data apps can fetch from at runtime, through a parent-mediated proxy that mirrors the metric-query [PostMessage Bridge](#postmessage-bridge-useappsdkbridge). The feature is enterprise-only. Two scopes split the surface: **configuring** a connection (create / edit / delete, including its host, auth secret, and allowed methods) requires the admin-only `manage:ExternalConnection` scope; **viewing** the connection list — so an app builder can pick an existing connection to link in the builder — requires `view:ExternalConnection`, granted to interactive-viewer+ (the same tier that can build data apps). Linking a viewed connection to an app is gated by manage rights on the app itself (`manage:DataApp`, via `assertCanManageApp`), not by connection-manage — so a space editor can link an admin-created connection to an app they own.
 
 ### Connection model
 
@@ -811,13 +811,15 @@ The sandboxed preview iframe has no network access of its own (`default-src 'non
 3. `executeExternalFetch` validates the request, enforces the SSRF guard (the request must resolve under the connection's configured base URL/host; private/loopback/link-local targets are rejected), injects the secret as the configured auth, reads a **bounded** response body, and returns `{ status, contentType, body, truncated }`.
 4. The bounded response is posted back to the iframe. The decrypted secret never crosses to the frontend.
 
-### GET / POST rules
+### Method rules
 
-Only `GET` and `POST` are allowed. `GET` is for reads; `POST` carries a JSON body. Other methods are rejected. The request `path` is resolved against the connection's base URL and cannot escape its host (SSRF guard). Responses are size-capped; oversized bodies come back with `truncated: true` rather than streaming unbounded data into the browser.
+Each connection carries a per-connection **allowed-methods** list; an admin opts a connection into whichever of `GET`, `POST`, `PUT`, `PATCH`, and `DELETE` it needs (the shared universe is `EXTERNAL_CONNECTION_METHODS` in `packages/common/src/ee/externalConnections/types.ts`). A fetch whose method is not in that list is rejected. `GET` is for reads and carries no body; every other method may carry a server-serialized JSON body. The request `path` is resolved against the connection's base URL and cannot escape its host (SSRF guard). Responses are size-capped; oversized bodies come back with `truncated: true` rather than streaming unbounded data into the browser.
+
+New connections default to `['GET']` only; broadening the set is an explicit admin opt-in per connection, keeping the exfiltration surface (see [Why the exfiltration warning matters](#why-the-exfiltration-warning-matters)) as small as the app actually needs.
 
 ### Why the exfiltration warning matters
 
-Because the proxy injects a server-held secret and can reach an admin-configured external host, a **generated app could be coaxed into exfiltrating warehouse data** to that host (e.g. POST query results to an attacker-influenced endpoint). The trust model is therefore: **only a project admin can configure and link connections** (`manage:ExternalConnection`), the base URL is admin-pinned (the app can't redirect the fetch to an arbitrary host), and methods/paths are constrained. Admins should only link connections to hosts they trust with project data, and review which apps are linked to which connections.
+Because the proxy injects a server-held secret and can reach an admin-configured external host, a **generated app could be coaxed into exfiltrating warehouse data** to that host (e.g. POST query results to an attacker-influenced endpoint). The trust decision that bounds this lives entirely with the admin: **only a project admin can configure a connection** (`manage:ExternalConnection`) — i.e. pin its host, secret, and allowed methods. Once a connection exists, an app builder can select it and link it to an app they manage (gated by `manage:DataApp`, not connection-manage), but the base URL stays admin-pinned (the app can't redirect the fetch to an arbitrary host) and methods/paths are constrained. So a builder can only ever reach hosts an admin already chose to trust with project data. Admins should only create connections to hosts they trust, keep the allowed-methods set as narrow as the apps need, and review which apps are linked to which connections.
 
 ### Admin "Test connection"
 
@@ -828,6 +830,47 @@ Admins can test a connection from the app's connections panel before relying on 
 From a successful test, an admin can **Save as sample** (`POST .../external-connections/{connectionUuid}/sample` → `ExternalConnectionService.saveSample`). The sample is **sanitized and truncated** (capped to ~16 KB / 50 rows, with known auth keys redacted) and persisted to `external_connections.last_test_sample`; it never contains secret material (`saveSample` never decrypts the connection's credential).
 
 During a generation, for every linked connection that has a saved sample, the pipeline (`AppGenerateService.writeCatalogAndPrompt` → `writeExternalConnectionSamples`) writes `/tmp/external-data/{alias}.json` into the sandbox and prepends a one-line reference to `/tmp/prompt.txt`, mirroring how chart-reference and image files are surfaced. This grounds Claude in the API's response shape (field names, nesting, formats) so its fetch/render code matches reality. The sample is for code generation only — at runtime the app fetches live data through the proxy, never from these files. The skill (`sandboxes/data-apps/template/skill.md`, "Linked external connections" section) documents the convention; keep the prompt-prepend wording and that section in sync.
+
+### Inspecting external requests at runtime
+
+The builder/preview inspector overlay is a **tabbed panel** (`AppInspectorPanel.tsx`) with two tabs that mirror each other: **Queries** (metric queries) and **External requests** (external-connection fetches). Both are captured client-side from the same `useAppSdkBridge` postMessage bridge — nothing is persisted server-side beyond the existing `external_connection.fetch` audit event (which stores byte counts, not bodies).
+
+- **Capture.** The bridge's external-fetch branch emits an `ExternalRequestEvent` when a fetch starts (`pending`) and a terminal `ready`/`error` event when it settles (carrying the upstream HTTP status, content type, response body, `truncated` flag, and round-trip duration). Because an external fetch is a single request → single response, entries merge by `id` with no `queryUuid` remap — `useTrackedExternalRequests` is the simpler sibling of `useTrackedAppQueries`.
+- **Always visible.** Both tabs are always shown (the Requests tab reads `Requests (0)` when idle), so clearing the log doesn't yank the tab out from under the user, and the tab surfaces the feature to apps that haven't used a connection yet.
+- **What's shown.** Per request: connection alias, method + path, query params, request body, response status/content-type/body (collapsible + copy), truncation, error, and duration. The frontend only knows the **alias + path**, never the connection's origin or secret — auth is injected server-side in `executeExternalFetch`, so the panel can never display credential material.
+- **Persistence.** Entries live in in-memory React state, cleared on iframe refresh / new-version load unless the shared **Persist** toggle is on (the same `data-apps:persist-logs` preference the Queries tab uses). "Persist" moves still-`pending` entries to a terminal `error` on reload rather than dropping them.
+
+---
+
+## Data apps as code
+
+Data apps can be **downloaded as source, versioned in git, edited, and re-uploaded** — the server rebuilds them. This parallels charts/dashboards-as-code, but the artifact is the app's **source tree** and upload triggers a **server-side build** (no built `dist` is ever shipped by the client).
+
+### CLI
+
+Opt-in flags on the existing `lightdash download` / `lightdash upload` commands (off by default — core users never touch app code paths unless they ask):
+
+- **`lightdash download --apps [appUuids...]`** — download data apps into `lightdash/apps/<slug>/`. Bare `--apps` = all apps in the project (listed via the content API); with UUIDs = just those. Each folder holds `lightdash-app.yml` (manifest) + the app's `src/` tree. The built `dist` is intentionally excluded — it's regenerated on upload.
+- **`lightdash upload --apps [appUuids...]`** — upload each `lightdash/apps/<slug>/` folder; the server rebuilds the source. **Fire-and-forget:** the CLI posts and returns immediately — the app shows `building` in the UI until the server finishes.
+
+**Identity:** the manifest's `appUuid` is the source of truth (apps have no persistent slug; the `<slug>` folder name is derived from the app name via `generateSlug`). Uploading to the **same project** appends a new version of that app; uploading to a **different project** creates a new app there.
+
+### What the endpoints do
+
+- **Download** — `GET /api/v1/ee/projects/{projectUuid}/apps/{appUuid}/download` reads the version's `source.tar` from S3, extracts it in-process (`tar-stream`), and returns the `src/` files + manifest (`AppGenerateService.getAppCode`).
+- **Upload** — `POST /api/v1/ee/projects/{projectUuid}/apps/upload` (`AppGenerateService.importAppCode`) validates the source (`validateDataAppCode` rejects path traversal), re-tars it, stores `source.tar` at the new version's prefix, creates a `pending` version, and enqueues the **build-only pipeline** `APP_BUILD_FROM_SOURCE` (`runBuildFromSourcePipeline`): sandbox → restore source → `pnpm build` (**fail-loud, no AI autofix**) → package → store → `ready`. Concurrent builds are **rate-limited per project** (`MAX_CONCURRENT_APP_BUILDS_PER_PROJECT`, HTTP 429 when exceeded).
+
+### Moving an app between projects or instances
+
+- **Different project (same instance):** `lightdash upload --apps --project <target-project>` — creates and builds the app in the target project.
+- **Different instance:** point the CLI at the destination first — `lightdash login <destination-url>` (or set `LIGHTDASH_URL` / `LIGHTDASH_API_KEY`) — then `lightdash upload --apps --project <target>`. The **destination builds the source in its own sandbox** (so it must have data apps / the build sandbox enabled); it never receives code built elsewhere.
+
+### Constraints & notes
+
+- **Enterprise-only** (`APP_RUNTIME_ENABLED`); the caller needs `view` / `create` / `manage:DataApp`.
+- **Fixed dependency set:** upload rebuilds against the sandbox template's pre-installed libraries — you can edit source but can't add libraries the sandbox lacks (a future "bring your own libraries" phase covers that via local builds).
+- **Semantic-layer coupling:** a moved app's queries run against the **target project's** fields *by name*; fields missing in the target surface as in-app query errors, not upload failures.
+- **Security:** because the server only ever builds source in its trusted, network-locked sandbox and never serves client-supplied *built* code, the runtime trust model is unchanged from AI-generated apps. See [Security Model](#security-model). (Follow-up: the query bridge runs as the *viewing* user — a pre-existing consideration for any app, generated or uploaded.)
 
 ---
 
