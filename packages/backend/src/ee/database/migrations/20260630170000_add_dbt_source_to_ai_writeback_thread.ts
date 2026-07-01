@@ -26,14 +26,8 @@ export async function up(knex: Knex): Promise<void> {
     }
 }
 
-export async function down(knex: Knex): Promise<void> {
-    const hasColumn = await knex.schema.hasColumn(
-        AiWritebackThreadTableName,
-        ColumnName,
-    );
-    if (hasColumn) {
-        await knex.schema.alterTable(AiWritebackThreadTableName, (table) => {
-            table.dropColumn(ColumnName);
-        });
-    }
+export async function down(_knex: Knex): Promise<void> {
+    // Intentionally a no-op. Dropping a column is a destructive operation that
+    // can lose data (the thread→source bindings) and break a running old pod
+    // mid-rollback, so per the migration rules the column is left in place.
 }

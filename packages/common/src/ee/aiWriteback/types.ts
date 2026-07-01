@@ -93,8 +93,10 @@ export type AiWritebackRunResult = {
      * The dbt source this run targeted: a `project_dbt_sources` row uuid for an
      * additional source, or `null` for the project's primary dbt connection. A
      * thread stays bound to this source across resumes — one thread, one PR.
+     * Optional so an older server's response (which omits it) doesn't surface as
+     * `undefined` on a newer typed client.
      */
-    dbtSourceUuid: string | null;
+    dbtSourceUuid?: string | null;
     /**
      * Set when the project has several dbt sources and the run could not decide
      * which one the prompt targets. No sandbox is started and no pull request is

@@ -692,6 +692,28 @@ describe('AiWritebackService dbt source targeting', () => {
         });
     });
 
+    it('falls back to the first git source (not by stale array order) when the bound source is deleted and the primary is non-git', async () => {
+        // Graphite-flagged scenario: with a non-git primary the primary is not a
+        // candidate, so `candidates[0]` is the first *additional* source, not the
+        // primary. When the bound source has been deleted there is no primary to
+        // return; degrade deterministically to the first git-backed source.
+        const service = serviceWithSources([marketingSource()]);
+        const result = await (service as AnyType).resolveDbtTarget({
+            projectUuid: 'p1',
+            project: {
+                projectUuid: 'p1',
+                dbtConnection: { type: DbtProjectType.DBT },
+            },
+            prompt: 'change something',
+            dbtSourceUuid: undefined,
+            existingRow: { project_dbt_source_uuid: 'deleted-src' },
+        });
+        expect(result).toMatchObject({
+            kind: 'resolved',
+            candidate: { sourceUuid: 'src-marketing', isPrimary: false },
+        });
+    });
+
     it('drops a non-git primary but still targets git-backed additional sources', async () => {
         const service = serviceWithSources([marketingSource()]);
         const result = await (service as AnyType).resolveDbtTarget({

@@ -1802,10 +1802,16 @@ export class AiWritebackService extends BaseService {
             const bound = candidates.find(
                 (c) => c.sourceUuid === existingRow.project_dbt_source_uuid,
             );
-            // The bound source is the primary (null), or was deleted after the
-            // thread started (FK SET NULL) — fall back to the primary, which is
-            // always candidates[0].
-            return { kind: 'resolved', candidate: bound ?? candidates[0] };
+            if (bound) {
+                return { kind: 'resolved', candidate: bound };
+            }
+            // The bound source is null (the primary) or was deleted after the
+            // thread started (FK SET NULL). Prefer the primary — but it is only a
+            // candidate when git-backed, so `candidates[0]` is NOT always the
+            // primary. Look it up explicitly, and when the primary is non-git
+            // (absent) fall back to the first git-backed source.
+            const primary = candidates.find((c) => c.isPrimary);
+            return { kind: 'resolved', candidate: primary ?? candidates[0] };
         }
 
         if (dbtSourceUuid) {
@@ -1814,7 +1820,7 @@ export class AiWritebackService extends BaseService {
             );
             if (!chosen) {
                 throw new ParameterError(
-                    `dbt source ${dbtSourceUuid} is not a writeback target for this project`,
+                    'The specified dbt source is not a valid writeback target for this project',
                 );
             }
             return { kind: 'resolved', candidate: chosen };
@@ -1834,7 +1840,10 @@ export class AiWritebackService extends BaseService {
         const scored = candidates
             .map((candidate) => ({
                 candidate,
-                score: AiWritebackService.dbtSourceMatchScore(prompt, candidate),
+                score: AiWritebackService.dbtSourceMatchScore(
+                    prompt,
+                    candidate,
+                ),
             }))
             .filter((s) => s.score > 0);
         if (scored.length > 0) {

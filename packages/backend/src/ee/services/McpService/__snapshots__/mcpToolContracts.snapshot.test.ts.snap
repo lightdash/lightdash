@@ -7351,6 +7351,7 @@ Important:
 
 Parameters:
 - prompt: A clear, self-contained description of the change to make to the dbt project (e.g. "Add a 'total_revenue' metric to the orders model as the sum of amount").
+- dbtSourceUuid (optional): When the project has more than one dbt source, the uuid of the source to change. Omit it to let the run infer the target from the prompt; if it cannot, the response asks you to choose and lists the available sources, after which you re-call with the chosen dbtSourceUuid.
 
 Response shape (MCP CallToolResult):
 - content: [{ type: "text", text: "<human-readable summary including the PR URL>" }]
@@ -7364,6 +7365,10 @@ Response shape (MCP CallToolResult):
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "dbtSourceUuid": {
+            "description": "Which of the project's dbt sources to change, when it has more than one. Omit to infer the target from the prompt; if the run cannot decide it returns the available sources to choose from, then you re-call with the chosen uuid.",
+            "type": "string",
+          },
           "prompt": {
             "description": "A clear, self-contained description of the change to make to the dbt project that backs the active Lightdash project.",
             "minLength": 1,
