@@ -1,3 +1,17 @@
+# [0.3276.0](https://github.com/lightdash/lightdash/compare/0.3275.0...0.3276.0) (2026-07-01)
+
+
+### Bug Fixes
+
+* **files:** serve 404 for missing S3 objects instead of 500 ([#24997](https://github.com/lightdash/lightdash/issues/24997)) ([6c9ff6a](https://github.com/lightdash/lightdash/commit/6c9ff6a00a35fc6b1e4049f7ce325aaecd1c9a08))
+* **frontend:** recover from route-lazy chunk load failures ([#24993](https://github.com/lightdash/lightdash/issues/24993)) ([c32fd24](https://github.com/lightdash/lightdash/commit/c32fd2432bbac335e4fad614326cf45a8ebb7fc9)), closes [#24685](https://github.com/lightdash/lightdash/issues/24685)
+
+
+### Features
+
+* **apps:** link to connection creation from the builder ([#24994](https://github.com/lightdash/lightdash/issues/24994)) ([5929131](https://github.com/lightdash/lightdash/commit/59291310f745f8582c0b803e0031227e7ae9c6ba))
+* **data-apps:** Data Apps as Code — 1a download (source) ([#24939](https://github.com/lightdash/lightdash/issues/24939)) ([ec59f03](https://github.com/lightdash/lightdash/commit/ec59f03f96d01db085d9682516da8e28f7768304))
+
 # [0.3275.0](https://github.com/lightdash/lightdash/compare/0.3274.1...0.3275.0) (2026-07-01)
 
 
