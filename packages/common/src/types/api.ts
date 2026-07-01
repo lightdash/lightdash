@@ -47,7 +47,9 @@ import type {
     ApiGenerateAppResponse,
     ApiGetAppCodeResponse,
     ApiGetAppResponse,
+    ApiGetDataAppVizResponse,
     ApiGetUserAgentPreferencesResponse,
+    ApiListDataAppVizsResponse,
     ApiManagedAgentActionResponse,
     ApiManagedAgentRunResponse,
     ApiManagedAgentRunsListResponse,
@@ -1160,6 +1162,8 @@ type ApiResults =
     | ApiGenerateAppResponse['results']
     | ApiGetAppCodeResponse['results']
     | ApiGetAppResponse['results']
+    | ApiListDataAppVizsResponse['results']
+    | ApiGetDataAppVizResponse['results']
     | ApiMyAppsResponse['results']
     | ApiPromoteAppResponse['results']
     | ApiPromoteAppDiffResponse['results']
