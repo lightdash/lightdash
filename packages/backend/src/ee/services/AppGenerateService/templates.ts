@@ -36,7 +36,7 @@ You are building a reusable **data app viz**, NOT a multi-panel app, and NOT a n
 
 1. Render a SINGLE visualization (one chart) filling the available space. No dashboard, navigation, multiple panels, or page chrome.
 
-2. Do NOT run queries yourself (don't use the SDK's query hooks or \`client\`) and do NOT hardcode field/column names — you are ONLY the renderer. Receive the host's data through the SDK's viz-context hook (no raw \`window.addEventListener\`):
+2. Do NOT run queries yourself (don't use the SDK's query hooks or \`client\`) and do NOT hardcode field/column names — you are ONLY the renderer. Receive the host's data through the SDK's viz-context hook — the scaffold already wires delivery, so NEVER add your own \`window.addEventListener('message', …)\`; just call \`useVizContext()\`:
 
    import { useVizContext, getFormatted, getRaw } from '@lightdash/query-sdk';
 
