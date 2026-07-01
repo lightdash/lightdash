@@ -170,6 +170,13 @@ export enum FeatureFlags {
     OrganizationTrialWarning = 'organization-trial-warning',
 
     /**
+     * Block an organization from running queries because its trial has
+     * expired. Stronger than OrganizationTrialWarning — this DOES block a
+     * product action (query execution). Off by default; enable per-org.
+     */
+    OrganizationTrialBlock = 'organization-trial-block',
+
+    /**
      * Enable the (in-progress) AI writeback feature. Spins up an e2b
      * sandbox pre-loaded with dbt and the Claude Code CLI, then runs a
      * user-supplied prompt against it synchronously. Off by default — gated

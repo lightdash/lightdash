@@ -12,6 +12,7 @@ import {
     FilterOperator,
     ForbiddenError,
     NotFoundError,
+    OrganizationAccessStatus,
     PossibleAbilities,
     QueryExecutionContext,
     QueryHistory,
@@ -69,6 +70,7 @@ import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CacheHitCacheResult, MissCacheResult } from '../CacheService/types';
+import { OrganizationAccessService } from '../OrganizationAccessService/OrganizationAccessService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
@@ -309,6 +311,11 @@ const getMockedAsyncQueryService = (
         }),
         permissionsService: {} as PermissionsService,
         persistentDownloadFileService: {} as PersistentDownloadFileService,
+        organizationAccessService: {
+            getOrganizationAccess: vi.fn(async () => ({
+                status: OrganizationAccessStatus.ACTIVE,
+            })),
+        } as unknown as OrganizationAccessService,
         preAggregateStrategy: new NoOpPreAggregateStrategy(),
         projectCompileLogModel: {} as ProjectCompileLogModel,
         adminNotificationService: {} as AdminNotificationService,

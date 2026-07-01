@@ -644,6 +644,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     permissionsService: repository.getPermissionsService(),
                     persistentDownloadFileService:
                         repository.getPersistentDownloadFileService(),
+                    organizationAccessService:
+                        repository.getOrganizationAccessService(),
                     preAggregateStrategy: new PreAggregateStrategy({
                         preAggregationDuckDbClient:
                             new PreAggregationDuckDbClient({
