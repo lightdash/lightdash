@@ -623,10 +623,15 @@ export const mergeWarehouseCredentials = <T extends CreateWarehouseCredentials>(
         return newCredentials;
     }
 
-    // Only add non sensitive fields from base credentials to avoid conflicts with authentication methods
+    // Only add non sensitive fields from base credentials to avoid conflicts with authentication methods.
+    // assumeRoleArn/assumeRoleExternalId are authentication config tied to the base credentials, so they
+    // must not be inherited when the preview supplies its own credentials (otherwise the preview tries to
+    // assume the parent's role with credentials that aren't authorized to).
     const keysToExclude = [
         ...sensitiveCredentialsFieldNames,
         'authenticationType',
+        'assumeRoleArn',
+        'assumeRoleExternalId',
     ];
     const filteredBaseCredentials = Object.fromEntries(
         Object.entries(baseCredentials).filter(
