@@ -46,6 +46,7 @@ import {
 import Logger from '../../../../logging/logger';
 import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';
 import { serializeData } from './serializeData';
+import { suggestClosestFieldIds } from './suggestClosestFieldIds';
 /**
  * Validate that all selected fields exist in the explore, custom metrics or table calculations
  * @param explore
@@ -396,10 +397,20 @@ export function validateFilterRules(
         const field = allFields[fieldIndex];
 
         if (!field) {
+            const suggestions = suggestClosestFieldIds(
+                rule.target.fieldId,
+                allFieldIds,
+            );
+            const suggestionText =
+                suggestions.length > 0
+                    ? `\nDid you mean one of these existing fields? ${suggestions.join(
+                          ', ',
+                      )}`
+                    : '';
             filterRuleErrors.push(
                 `Error: the field with id "${
                     rule.target.fieldId
-                }" does not exist.
+                }" does not exist.${suggestionText}
 FilterRule:
 ${serializeData(rule, 'json')}`,
             );
