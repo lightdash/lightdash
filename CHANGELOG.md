@@ -1,3 +1,10 @@
+# [0.3281.0](https://github.com/lightdash/lightdash/compare/0.3280.0...0.3281.0) (2026-07-01)
+
+
+### Features
+
+* **metrics:** split warehouse query duration into per-phase timings ([#25009](https://github.com/lightdash/lightdash/issues/25009)) ([0e1429f](https://github.com/lightdash/lightdash/commit/0e1429f6e70acfddbe103b8927da4016f06bf8b5))
+
 # [0.3280.0](https://github.com/lightdash/lightdash/compare/0.3279.0...0.3280.0) (2026-07-01)
 
 
