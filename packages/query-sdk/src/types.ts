@@ -291,6 +291,10 @@ export type ExternalFetchOptions = {
 
 export type Transport = {
     executeQuery: (query: QueryDefinition) => Promise<QueryResult>;
+    executeSavedChart: (params: {
+        chartUuid: string;
+        label?: string;
+    }) => Promise<QueryResult>;
     getUser: () => Promise<LightdashUser>;
     externalFetch: (
         alias: string,
