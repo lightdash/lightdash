@@ -146,7 +146,7 @@ export function useLightdash(
                 ? transport.executeQuery(query.build())
                 : transport.executeSavedChart({
                       chartUuid: query.chartUuid,
-                      label: query.label,
+                      label: query.labelText,
                   });
 
         exec

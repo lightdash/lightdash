@@ -4,17 +4,22 @@ import { savedChart } from './savedChart';
 
 describe('savedChart', () => {
     it('builds a SavedChartQuery with the chart uuid', () => {
-        expect(savedChart('chart-1')).toEqual({
-            kind: 'savedChart',
-            chartUuid: 'chart-1',
-        });
+        const q = savedChart('chart-1');
+        expect(q.kind).toBe('savedChart');
+        expect(q.chartUuid).toBe('chart-1');
+        expect(q.labelText).toBeUndefined();
     });
-    it('carries an optional label', () => {
-        expect(savedChart('chart-1', 'Revenue')).toEqual({
-            kind: 'savedChart',
-            chartUuid: 'chart-1',
-            label: 'Revenue',
-        });
+    it('accepts a label via the second argument', () => {
+        expect(savedChart('chart-1', 'Revenue').labelText).toBe('Revenue');
+    });
+    it('exposes a chainable .label() (regression: the agent calls .label() on every query)', () => {
+        // A plain object had no .label() method → `.label is not a function`
+        // crashed generated apps. It must be chainable like QueryBuilder.
+        expect(typeof savedChart('chart-1').label).toBe('function');
+        const q = savedChart('chart-1').label('Revenue');
+        expect(q.kind).toBe('savedChart');
+        expect(q.chartUuid).toBe('chart-1');
+        expect(q.labelText).toBe('Revenue');
     });
 });
 
