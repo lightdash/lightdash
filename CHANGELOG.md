@@ -1,3 +1,10 @@
+# [0.3273.0](https://github.com/lightdash/lightdash/compare/0.3272.1...0.3273.0) (2026-07-01)
+
+
+### Features
+
+* **data-apps:** add external requests inspector tab ([#24980](https://github.com/lightdash/lightdash/issues/24980)) ([887dc86](https://github.com/lightdash/lightdash/commit/887dc86ffa01f9b476952a661a6044acdb68200c))
+
 ## [0.3272.1](https://github.com/lightdash/lightdash/compare/0.3272.0...0.3272.1) (2026-07-01)
 
 
