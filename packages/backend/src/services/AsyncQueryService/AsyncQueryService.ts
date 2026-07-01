@@ -166,8 +166,8 @@ import type { ICacheService } from '../CacheService/ICacheService';
 import { CreateCacheResult } from '../CacheService/types';
 import { CsvService } from '../CsvService/CsvService';
 import { ExcelService } from '../ExcelService/ExcelService';
-import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { OrganizationAccessService } from '../OrganizationAccessService/OrganizationAccessService';
+import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
@@ -3475,7 +3475,9 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
-    private async assertOrganizationNotBlocked(account: Account): Promise<void> {
+    private async assertOrganizationNotBlocked(
+        account: Account,
+    ): Promise<void> {
         const access =
             await this.organizationAccessService.getOrganizationAccess(account);
         if (access.status === OrganizationAccessStatus.TRIAL_EXPIRED) {

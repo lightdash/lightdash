@@ -82,7 +82,8 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
     const showTrialWarning =
         !isImpersonating &&
         !isCurrentProjectPreview &&
-        (organizationAccess?.status === OrganizationAccessStatus.TRIAL_WARNING ||
+        (organizationAccess?.status ===
+            OrganizationAccessStatus.TRIAL_WARNING ||
             organizationAccess?.status ===
                 OrganizationAccessStatus.TRIAL_EXPIRED);
 
