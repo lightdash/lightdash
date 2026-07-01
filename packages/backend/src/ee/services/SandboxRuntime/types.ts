@@ -167,13 +167,16 @@ export interface PersistentWorkspace {
  * A pointer to a persisted sandbox. `e2b-paused` is E2B's native in-memory
  * snapshot (the paused sandbox itself); `lambda-microvm-suspended` is the
  * equivalent for AWS Lambda MicroVMs (the suspended microVM, a Firecracker
- * memory+disk snapshot referenced by its opaque id); `s3-tar` is a portable
- * tarball of the declared workspace in object storage, used by providers without
- * native pause.
+ * memory+disk snapshot referenced by its opaque id); `azure-sandbox-suspended`
+ * is the equivalent for Azure Container Apps Sandboxes (the suspended sandbox, a
+ * memory+disk snapshot referenced by its id); `s3-tar` is a portable tarball of
+ * the declared workspace in object storage, used by providers without native
+ * pause (Docker).
  */
 export type SnapshotRef =
     | { kind: 'e2b-paused'; sandboxId: string }
     | { kind: 'lambda-microvm-suspended'; microVmId: string }
+    | { kind: 'azure-sandbox-suspended'; sandboxId: string }
     | { kind: 's3-tar'; key: string };
 
 /** Inputs for {@link SandboxProvider.persist}. */

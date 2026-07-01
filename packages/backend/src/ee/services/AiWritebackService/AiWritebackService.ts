@@ -56,6 +56,7 @@ import {
     SandboxExpiredError,
     SandboxManager,
     SandboxTimeoutError,
+    type AzureSandboxesConfig,
     type PersistentWorkspace,
     type SandboxHandle,
     type SandboxSpec,
@@ -928,17 +929,23 @@ export class AiWritebackService extends BaseService {
      */
     private getSandboxManager(): SandboxManager {
         if (!this.sandboxManager) {
+            const { sandboxProvider } = this.lightdashConfig.appRuntime;
             this.sandboxManager = createSandboxManager({
-                provider: this.lightdashConfig.appRuntime.sandboxProvider,
+                provider: sandboxProvider,
                 e2bApiKey: this.lightdashConfig.appRuntime.e2bApiKey,
                 dockerImage:
                     this.lightdashConfig.appRuntime
                         .sandboxAiWritebackDockerImage,
                 lambdaMicroVm: this.lightdashConfig.appRuntime.lambdaMicroVm,
-                // Object-store snapshots are Docker-only; native-pause providers
-                // never touch S3, so don't construct a client for them.
+                azureSandboxes:
+                    sandboxProvider === 'azure-sandboxes'
+                        ? this.getAzureSandboxesConfig()
+                        : null,
+                // Object-store snapshots are only for the Docker backend (no
+                // native pause); native-pause providers (E2B, Lambda, Azure
+                // Sandboxes) never touch S3, so don't construct a client.
                 snapshotStore:
-                    this.lightdashConfig.appRuntime.sandboxProvider === 'docker'
+                    sandboxProvider === 'docker'
                         ? new S3SnapshotStore({
                               lightdashConfig: this.lightdashConfig,
                           })
@@ -982,10 +989,50 @@ export class AiWritebackService extends BaseService {
             }
             return imageArn;
         }
+        if (sandboxProvider === 'azure-sandboxes') {
+            const diskImage =
+                this.lightdashConfig.appRuntime
+                    .azureSandboxesAiWritebackDiskImage;
+            if (!diskImage) {
+                throw new MissingConfigError(
+                    'Azure AI writeback sandbox disk image is not configured (AZURE_SANDBOXES_AI_WRITEBACK_DISK_IMAGE)',
+                );
+            }
+            return diskImage;
+        }
         return resolveSandboxTemplateRef({
             name: this.lightdashConfig.appRuntime.e2bAiWritebackTemplateName,
             tag: this.lightdashConfig.appRuntime.e2bAiWritebackTemplateTag,
         });
+    }
+
+    /** Assemble the `azure-sandboxes` provider config for the AI writeback
+     * pipeline (the writeback sandbox group + shared subscription/region settings). */
+    private getAzureSandboxesConfig(): AzureSandboxesConfig {
+        const {
+            azureSandboxes,
+            azureSandboxesAiWritebackGroup,
+            sandboxIdleTimeoutMs,
+        } = this.lightdashConfig.appRuntime;
+        if (
+            !azureSandboxes.subscriptionId ||
+            !azureSandboxes.resourceGroup ||
+            !azureSandboxesAiWritebackGroup
+        ) {
+            throw new MissingConfigError(
+                'Azure Sandboxes is not configured (AZURE_SANDBOXES_SUBSCRIPTION_ID / AZURE_SANDBOXES_RESOURCE_GROUP / AZURE_SANDBOXES_AI_WRITEBACK_GROUP)',
+            );
+        }
+        return {
+            subscriptionId: azureSandboxes.subscriptionId,
+            resourceGroup: azureSandboxes.resourceGroup,
+            region: azureSandboxes.region,
+            sandboxGroup: azureSandboxesAiWritebackGroup,
+            apiVersion: azureSandboxes.apiVersion,
+            tokenScope: azureSandboxes.tokenScope,
+            resourceTier: azureSandboxes.resourceTier,
+            autoSuspendIdleSeconds: Math.floor(sandboxIdleTimeoutMs / 1000),
+        };
     }
 
     private getAnthropicApiKey(): string {

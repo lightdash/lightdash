@@ -61,6 +61,7 @@
         "@aws-sdk/credential-providers": "3.995.0",
         "@aws-sdk/lib-storage": "3.995.0",
         "@aws-sdk/s3-request-presigner": "3.995.0",
+        "@azure/identity": "4.5.0",
         "@casl/ability": "6.8.0",
         "@cubejs-client/core": "0.35.23",
         "@godaddy/terminus": "4.12.0",

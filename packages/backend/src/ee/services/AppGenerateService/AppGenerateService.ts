@@ -108,6 +108,7 @@ import {
     S3SnapshotStore,
     SandboxCommandError,
     SandboxManager,
+    type AzureSandboxesConfig,
     type PersistentWorkspace,
     type SandboxHandle,
     type SandboxSpec,
@@ -458,15 +459,21 @@ export class AppGenerateService extends BaseService {
      */
     private getSandboxManager(): SandboxManager {
         if (!this.sandboxManager) {
+            const { sandboxProvider } = this.lightdashConfig.appRuntime;
             this.sandboxManager = createSandboxManager({
-                provider: this.lightdashConfig.appRuntime.sandboxProvider,
+                provider: sandboxProvider,
                 e2bApiKey: this.lightdashConfig.appRuntime.e2bApiKey,
                 dockerImage: this.lightdashConfig.appRuntime.sandboxDockerImage,
                 lambdaMicroVm: this.lightdashConfig.appRuntime.lambdaMicroVm,
-                // Object-store snapshots are Docker-only; native-pause providers
-                // never touch S3, so don't construct a client for them.
+                azureSandboxes:
+                    sandboxProvider === 'azure-sandboxes'
+                        ? this.getAzureSandboxesConfig()
+                        : null,
+                // Object-store snapshots are only for the Docker backend (no
+                // native pause); native-pause providers (E2B, Lambda, Azure
+                // Sandboxes) never touch S3, so don't construct a client.
                 snapshotStore:
-                    this.lightdashConfig.appRuntime.sandboxProvider === 'docker'
+                    sandboxProvider === 'docker'
                         ? new S3SnapshotStore({
                               lightdashConfig: this.lightdashConfig,
                           })
@@ -498,11 +505,50 @@ export class AppGenerateService extends BaseService {
             }
             return imageArn;
         }
+        if (sandboxProvider === 'azure-sandboxes') {
+            const diskImage =
+                this.lightdashConfig.appRuntime.azureSandboxesDataAppDiskImage;
+            if (!diskImage) {
+                throw new MissingConfigError(
+                    'Azure data-app sandbox disk image is not configured (AZURE_SANDBOXES_DATA_APP_DISK_IMAGE)',
+                );
+            }
+            return diskImage;
+        }
         // E2B treats `name` and `name:default` interchangeably, so an empty
         // tag is fine — it just resolves to the implicit `default` build.
         return e2bTemplateTag
             ? `${e2bTemplateName}:${e2bTemplateTag}`
             : e2bTemplateName;
+    }
+
+    /** Assemble the `azure-sandboxes` provider config for the data-app pipeline
+     * (the data-app sandbox group + shared subscription/region settings). */
+    private getAzureSandboxesConfig(): AzureSandboxesConfig {
+        const {
+            azureSandboxes,
+            azureSandboxesDataAppGroup,
+            sandboxIdleTimeoutMs,
+        } = this.lightdashConfig.appRuntime;
+        if (
+            !azureSandboxes.subscriptionId ||
+            !azureSandboxes.resourceGroup ||
+            !azureSandboxesDataAppGroup
+        ) {
+            throw new MissingConfigError(
+                'Azure Sandboxes is not configured (AZURE_SANDBOXES_SUBSCRIPTION_ID / AZURE_SANDBOXES_RESOURCE_GROUP / AZURE_SANDBOXES_DATA_APP_GROUP)',
+            );
+        }
+        return {
+            subscriptionId: azureSandboxes.subscriptionId,
+            resourceGroup: azureSandboxes.resourceGroup,
+            region: azureSandboxes.region,
+            sandboxGroup: azureSandboxesDataAppGroup,
+            apiVersion: azureSandboxes.apiVersion,
+            tokenScope: azureSandboxes.tokenScope,
+            resourceTier: azureSandboxes.resourceTier,
+            autoSuspendIdleSeconds: Math.floor(sandboxIdleTimeoutMs / 1000),
+        };
     }
 
     private buildSandboxSpec(): SandboxSpec {
