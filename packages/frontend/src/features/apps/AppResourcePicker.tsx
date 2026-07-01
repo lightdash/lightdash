@@ -30,6 +30,7 @@ import {
     IconDatabase,
     IconDatabasePlus,
     IconLayoutDashboard,
+    IconLink,
     IconPhoto,
     IconPlugConnected,
     IconPlus,
@@ -58,6 +59,8 @@ export type SelectedChart = {
      * actual values. Default false because rows can be sensitive.
      */
     includeSampleData: boolean;
+    /** When true the chart is linked (run live by uuid) rather than copied. */
+    linkLive: boolean;
 };
 
 export type SelectedDashboard = {
@@ -344,6 +347,7 @@ const QueryPickerView: FC<{
                     name: chart.name,
                     chartKind: chart.chartKind ?? ChartKind.VERTICAL_BAR,
                     includeSampleData: false,
+                    linkLive: false,
                 });
             }
         },
@@ -556,6 +560,50 @@ const InlineDataToggle: FC<{
     </Tooltip>
 );
 
+const AddLinkButton: FC<{ onClick: () => void; disabled?: boolean }> = ({
+    onClick,
+    disabled,
+}) => (
+    <Tooltip
+        label="Link live — run this chart by reference so the app updates when the chart changes in Lightdash."
+        multiline
+        w={260}
+        withArrow
+    >
+        <UnstyledButton
+            type="button"
+            onClick={onClick}
+            disabled={disabled}
+            className={classes.addDataButton}
+            aria-label="Link live"
+        >
+            <MantineIcon icon={IconLink} size={12} />
+        </UnstyledButton>
+    </Tooltip>
+);
+
+const InlineLinkToggle: FC<{ onClick: () => void; disabled?: boolean }> = ({
+    onClick,
+    disabled,
+}) => (
+    <Tooltip
+        label="Linked live — click to unlink (revert to a copied query)."
+        multiline
+        w={260}
+        withArrow
+    >
+        <UnstyledButton
+            type="button"
+            onClick={onClick}
+            disabled={disabled}
+            className={classes.inlineDataToggle}
+            aria-label="Linked: on"
+        >
+            <MantineIcon icon={IconLink} size={12} />
+        </UnstyledButton>
+    </Tooltip>
+);
+
 /**
  * Renders selected queries as a list using the same visual as the picker.
  * Each row carries a per-chart sample-data toggle; off by default because
@@ -565,8 +613,9 @@ export const SelectedQuerySection: FC<{
     charts: SelectedChart[];
     onRemove: (uuid: string) => void;
     onToggleSampleData: (uuid: string) => void;
+    onToggleLink: (uuid: string) => void;
     disabled?: boolean;
-}> = ({ charts, onRemove, onToggleSampleData, disabled }) => {
+}> = ({ charts, onRemove, onToggleSampleData, onToggleLink, disabled }) => {
     if (charts.length === 0) return null;
 
     return (
@@ -575,7 +624,7 @@ export const SelectedQuerySection: FC<{
                 <Box key={chart.uuid} className={classes.selectedQueryItemRow}>
                     <Box
                         className={`${classes.selectedQueryItem} ${
-                            chart.includeSampleData
+                            chart.includeSampleData || chart.linkLive
                                 ? classes.selectedQueryItemActive
                                 : ''
                         }`}
@@ -596,11 +645,20 @@ export const SelectedQuerySection: FC<{
                         >
                             {chart.name}
                         </Text>
-                        {chart.includeSampleData && (
-                            <InlineDataToggle
-                                onClick={() => onToggleSampleData(chart.uuid)}
+                        {chart.linkLive ? (
+                            <InlineLinkToggle
+                                onClick={() => onToggleLink(chart.uuid)}
                                 disabled={disabled}
                             />
+                        ) : (
+                            chart.includeSampleData && (
+                                <InlineDataToggle
+                                    onClick={() =>
+                                        onToggleSampleData(chart.uuid)
+                                    }
+                                    disabled={disabled}
+                                />
+                            )
                         )}
                         <ActionIcon
                             size="xs"
@@ -613,9 +671,15 @@ export const SelectedQuerySection: FC<{
                             <MantineIcon icon={IconX} size={10} />
                         </ActionIcon>
                     </Box>
-                    {!chart.includeSampleData && (
+                    {!chart.linkLive && !chart.includeSampleData && (
                         <AddDataButton
                             onClick={() => onToggleSampleData(chart.uuid)}
+                            disabled={disabled}
+                        />
+                    )}
+                    {!chart.linkLive && (
+                        <AddLinkButton
+                            onClick={() => onToggleLink(chart.uuid)}
                             disabled={disabled}
                         />
                     )}

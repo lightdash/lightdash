@@ -1510,6 +1510,7 @@ const AppGenerate: FC = () => {
                     ? selectedCharts.map((c) => ({
                           uuid: c.uuid,
                           includeSampleData: c.includeSampleData,
+                          linkLive: c.linkLive,
                       }))
                     : undefined;
             const externalConnections:
@@ -2552,6 +2553,25 @@ const AppGenerate: FC = () => {
                                                                               ...c,
                                                                               includeSampleData:
                                                                                   !c.includeSampleData,
+                                                                          }
+                                                                        : c,
+                                                                ),
+                                                        )
+                                                    }
+                                                    onToggleLink={(uuid) =>
+                                                        setSelectedCharts(
+                                                            (prev) =>
+                                                                prev.map((c) =>
+                                                                    c.uuid ===
+                                                                    uuid
+                                                                        ? {
+                                                                              ...c,
+                                                                              linkLive:
+                                                                                  !c.linkLive,
+                                                                              includeSampleData:
+                                                                                  c.linkLive
+                                                                                      ? c.includeSampleData
+                                                                                      : false,
                                                                           }
                                                                         : c,
                                                                 ),
