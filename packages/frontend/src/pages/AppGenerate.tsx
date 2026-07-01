@@ -883,6 +883,7 @@ const AppGenerate: FC = () => {
                 msgs.push({
                     role: 'assistant',
                     content:
+                        v.error ??
                         v.statusMessage ??
                         'Generation failed. Please try again.',
                     imagePreviewUrls: [],

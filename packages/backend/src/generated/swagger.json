@@ -11279,6 +11279,10 @@
                         "type": "string",
                         "format": "date-time"
                     },
+                    "error": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "statusMessage": {
                         "type": "string",
                         "nullable": true
@@ -11299,6 +11303,7 @@
                     "createdByUser",
                     "statusUpdatedAt",
                     "createdAt",
+                    "error",
                     "statusMessage",
                     "status",
                     "prompt",

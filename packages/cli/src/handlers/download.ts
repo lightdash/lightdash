@@ -1886,22 +1886,21 @@ export const uploadHandler = async (
                         ),
                     );
                 } catch (appErr) {
-                    if (
-                        appErr instanceof LightdashError &&
-                        appErr.statusCode === 404
-                    ) {
-                        GlobalState.log(
-                            styles.error(
-                                `App folder "${subDir.name}": data apps are not enabled on this instance, or the app was not found.`,
-                            ),
-                        );
-                    } else {
-                        GlobalState.log(
-                            styles.error(
-                                `Failed to upload app folder "${subDir.name}": ${getErrorMessage(appErr)}`,
-                            ),
-                        );
-                    }
+                    const status =
+                        appErr instanceof LightdashError
+                            ? appErr.statusCode
+                            : undefined;
+                    const hint =
+                        status === 404
+                            ? ' — the enterprise "data apps" feature may not be enabled on this instance'
+                            : '';
+                    GlobalState.log(
+                        styles.error(
+                            `Failed to upload app folder "${subDir.name}"${
+                                status ? ` [HTTP ${status}]` : ''
+                            }: ${getErrorMessage(appErr)}${hint}`,
+                        ),
+                    );
                 }
             }
         }
