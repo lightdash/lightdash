@@ -688,6 +688,49 @@ export type FilterAutocompleteConfig = {
     fetchFromWarehouse: boolean;
 };
 
+/**
+ * Whether a dimension's curated `filter_autocomplete` values can answer a value
+ * search without querying the warehouse. Mirrors the Explore filter UI
+ * (`useFieldValues`): always use curated values when the warehouse fetch is
+ * turned off; otherwise only as the fast path for an empty ("list all") search.
+ */
+export const shouldUseStaticFilterAutocomplete = (
+    filterAutocomplete: FilterAutocompleteConfig | undefined,
+    search: string,
+): boolean => {
+    if (!filterAutocomplete) return false;
+    const hasValues = (filterAutocomplete.values?.length ?? 0) > 0;
+    return (
+        !filterAutocomplete.fetchFromWarehouse ||
+        (hasValues && search.trim().length === 0)
+    );
+};
+
+export const filterStaticFilterAutocompleteValues = (
+    values: FilterAutocompleteValue[],
+    search: string,
+): string[] => {
+    const normalizedSearch = search.trim().toLowerCase();
+    const matched =
+        normalizedSearch.length === 0
+            ? values
+            : values.filter(
+                  ({ value, label }) =>
+                      value.toLowerCase().includes(normalizedSearch) ||
+                      (label?.toLowerCase().includes(normalizedSearch) ??
+                          false),
+              );
+    const seen = new Set<string>();
+    return matched
+        .map(({ value }) => value)
+        .filter((value) => {
+            if (seen.has(value)) return false;
+            seen.add(value);
+            return true;
+        })
+        .sort((a, b) => a.localeCompare(b));
+};
+
 export interface Dimension extends Field {
     fieldType: FieldType.DIMENSION;
     type: DimensionType;
