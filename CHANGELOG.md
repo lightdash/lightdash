@@ -1,3 +1,10 @@
+## [0.3283.1](https://github.com/lightdash/lightdash/compare/0.3283.0...0.3283.1) (2026-07-01)
+
+
+### Bug Fixes
+
+* overlapping hover of app thumbnails ([#25013](https://github.com/lightdash/lightdash/issues/25013)) ([36ed5d9](https://github.com/lightdash/lightdash/commit/36ed5d9eb34ffaed574724a2e534c3fc3d6aa459))
+
 # [0.3283.0](https://github.com/lightdash/lightdash/compare/0.3282.0...0.3283.0) (2026-07-01)
 
 
