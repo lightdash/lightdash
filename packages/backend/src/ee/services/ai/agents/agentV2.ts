@@ -70,6 +70,7 @@ import {
 } from '../utils/errorMessages';
 import { summarizeToolCall, summarizeToolResult } from '../utils/toolSummaries';
 import { getDiscoverFields } from './discoverFields/tool';
+import { buildQueryRetryStepOverride } from './queryRetryCap';
 import { getAgentTelemetryConfig, getAiAgentModelName } from './telemetry';
 
 const createAiAgentLogger =
@@ -228,30 +229,54 @@ const buildPrepareStep = ({
         messages: ModelMessage[];
     }) => {
         const forced = forcedFirstStep?.({ stepNumber }) ?? {};
+
+        const extraMessages: ModelMessage[] = [];
+        let activeTools: string[] | undefined;
+
+        // ZAP-574: bound repeated query-tool failures so a slow/looping
+        // visualization can't stack multi-minute warehouse scans in one turn.
+        const retryOverride = buildQueryRetryStepOverride(
+            messages,
+            Object.keys(tools),
+        );
+        if (retryOverride) {
+            activeTools = retryOverride.activeTools;
+            extraMessages.push({
+                role: 'user' as const,
+                content: retryOverride.nudge,
+            });
+            logger(
+                'Prepare Step',
+                `Query retry cap tripped for prompt UUID: ${args.promptUuid}`,
+            );
+        }
+
         const steers = await dependencies.consumePromptSteers({
             promptUuid: args.promptUuid,
             stepNumber,
         });
+        if (steers.length > 0) {
+            logger(
+                'Prepare Step',
+                `Injecting ${steers.length} steer(s) for prompt UUID: ${args.promptUuid}`,
+            );
+            extraMessages.push({
+                role: 'user' as const,
+                content: [
+                    'Additional guidance from the user while you were working:',
+                    ...steers.map((steer) => `- ${steer.message}`),
+                ].join('\n'),
+            });
+        }
 
-        if (steers.length === 0) return forced;
-
-        logger(
-            'Prepare Step',
-            `Injecting ${steers.length} steer(s) for prompt UUID: ${args.promptUuid}`,
-        );
+        if (extraMessages.length === 0 && activeTools === undefined) {
+            return forced;
+        }
 
         return {
             ...forced,
-            messages: [
-                ...messages,
-                {
-                    role: 'user' as const,
-                    content: [
-                        'Additional guidance from the user while you were working:',
-                        ...steers.map((steer) => `- ${steer.message}`),
-                    ].join('\n'),
-                },
-            ],
+            ...(activeTools !== undefined ? { activeTools } : {}),
+            messages: [...messages, ...extraMessages],
         };
     };
 };
