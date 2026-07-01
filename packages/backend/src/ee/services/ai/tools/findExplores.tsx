@@ -18,7 +18,7 @@ type Dependencies = {
 
 const toolDefinition = findExploresToolDefinition.for('agent');
 
-const generateExploreResponse = ({
+export const buildFindExploresStructuredContent = ({
     searchQuery,
     exploreSearchResults,
     topMatchingFields,
@@ -47,7 +47,7 @@ const generateExploreResponse = ({
             ? 'No field-level matches either.'
             : "Per-field matches across all explores. Each field's `exploreName` shows where it lives — pick the explore whose fields can answer the user's question.";
 
-    return formatToolJsonOutput({
+    return {
         searchQuery,
         description:
             "Two-pass catalog search whose goal is to identify the single explore for a follow-up query: a query runs against exactly one explore, so the chosen explore must contain the fields needed to answer the user's question. `searchResults` lists explores whose name/label/description/aiHints matched the query. `topMatchingFields` lists individual fields whose name/label/description matched, across all explores — use it to identify or disambiguate the explore to dig into when no explore matched directly, or when several matched.",
@@ -58,7 +58,7 @@ const generateExploreResponse = ({
                 exploreSearchResults?.map((result) => ({
                     name: result.name,
                     label: result.label,
-                    searchRank: result.searchRank?.toFixed(3) ?? 'N/A',
+                    searchRank: result.searchRank ?? null,
                     description: result.description
                         ? truncate(result.description, toolDescriptionMaxChars)
                         : null,
@@ -84,12 +84,12 @@ const generateExploreResponse = ({
                     label: field.label,
                     exploreName: field.tableName,
                     fieldType: field.fieldType,
-                    searchRank: field.searchRank?.toFixed(3) ?? 'N/A',
+                    searchRank: field.searchRank ?? null,
                     usageInCharts: field.chartUsage ?? 0,
                     usageInVerifiedCharts: field.verifiedChartUsage ?? 0,
                 })) ?? [],
         },
-    });
+    };
 };
 export const getFindExplores = ({
     findExplores,
@@ -111,13 +111,15 @@ export const getFindExplores = ({
                         searchQuery: args.searchQuery,
                     });
 
+                const structuredContent = buildFindExploresStructuredContent({
+                    searchQuery: args.searchQuery,
+                    exploreSearchResults,
+                    topMatchingFields,
+                    toolDescriptionMaxChars,
+                });
+
                 return {
-                    result: generateExploreResponse({
-                        searchQuery: args.searchQuery,
-                        exploreSearchResults,
-                        topMatchingFields,
-                        toolDescriptionMaxChars,
-                    }),
+                    result: formatToolJsonOutput(structuredContent),
                     metadata: {
                         status: 'success',
                         ranking: {

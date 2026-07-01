@@ -1140,6 +1140,9 @@ Usage tips:
                   "items": {
                     "additionalProperties": false,
                     "properties": {
+                      "error": {
+                        "type": "string",
+                      },
                       "label": {
                         "type": "string",
                       },
@@ -1211,6 +1214,13 @@ Usage tips:
                           "type": "object",
                         },
                         "type": "array",
+                      },
+                      "status": {
+                        "enum": [
+                          "success",
+                          "error",
+                        ],
+                        "type": "string",
                       },
                     },
                     "required": [

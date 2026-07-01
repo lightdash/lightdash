@@ -164,6 +164,258 @@ Output:
         "type": "object",
       },
       "name": "find_explores",
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": "string",
+          },
+          "relevantVerifiedAnswers": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "artifactType": {
+                  "enum": [
+                    "chart",
+                    "dashboard",
+                  ],
+                  "type": "string",
+                },
+                "artifactVersionUuid": {
+                  "type": "string",
+                },
+                "chartConfig": {
+                  "additionalProperties": {},
+                  "type": "object",
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "similarity": {
+                  "type": "number",
+                },
+                "title": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "verifiedQuestion": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+              },
+              "required": [
+                "artifactVersionUuid",
+                "chartConfig",
+                "artifactType",
+                "verifiedQuestion",
+                "title",
+                "description",
+                "similarity",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+          "searchQuery": {
+            "type": "string",
+          },
+          "searchResults": {
+            "additionalProperties": false,
+            "properties": {
+              "count": {
+                "type": "number",
+              },
+              "note": {
+                "type": "string",
+              },
+              "results": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "aiHints": {
+                      "items": {
+                        "type": "string",
+                      },
+                      "type": "array",
+                    },
+                    "description": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                    "joinedTables": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "count": {
+                          "type": "number",
+                        },
+                        "note": {
+                          "type": [
+                            "string",
+                            "null",
+                          ],
+                        },
+                        "tables": {
+                          "items": {
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
+                      },
+                      "required": [
+                        "count",
+                        "note",
+                        "tables",
+                      ],
+                      "type": "object",
+                    },
+                    "label": {
+                      "type": "string",
+                    },
+                    "name": {
+                      "type": "string",
+                    },
+                    "requiredFilters": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "fieldId": {
+                            "type": "string",
+                          },
+                          "fieldRef": {
+                            "type": "string",
+                          },
+                          "operator": {
+                            "type": "string",
+                          },
+                          "required": {
+                            "type": "boolean",
+                          },
+                          "settings": {},
+                          "tableName": {
+                            "type": "string",
+                          },
+                          "values": {
+                            "items": {},
+                            "type": "array",
+                          },
+                        },
+                        "required": [
+                          "fieldId",
+                          "fieldRef",
+                          "tableName",
+                          "operator",
+                          "required",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    "searchRank": {
+                      "type": [
+                        "number",
+                        "null",
+                      ],
+                    },
+                  },
+                  "required": [
+                    "name",
+                    "label",
+                    "searchRank",
+                    "description",
+                    "aiHints",
+                    "joinedTables",
+                    "requiredFilters",
+                  ],
+                  "type": "object",
+                },
+                "type": "array",
+              },
+            },
+            "required": [
+              "count",
+              "note",
+              "results",
+            ],
+            "type": "object",
+          },
+          "topMatchingFields": {
+            "additionalProperties": false,
+            "properties": {
+              "count": {
+                "type": "number",
+              },
+              "fields": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "exploreName": {
+                      "type": "string",
+                    },
+                    "fieldType": {
+                      "type": "string",
+                    },
+                    "label": {
+                      "type": "string",
+                    },
+                    "name": {
+                      "type": "string",
+                    },
+                    "searchRank": {
+                      "type": [
+                        "number",
+                        "null",
+                      ],
+                    },
+                    "usageInCharts": {
+                      "type": "number",
+                    },
+                    "usageInVerifiedCharts": {
+                      "type": "number",
+                    },
+                  },
+                  "required": [
+                    "name",
+                    "label",
+                    "exploreName",
+                    "fieldType",
+                    "searchRank",
+                    "usageInCharts",
+                    "usageInVerifiedCharts",
+                  ],
+                  "type": "object",
+                },
+                "type": "array",
+              },
+              "note": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "count",
+              "note",
+              "fields",
+            ],
+            "type": "object",
+          },
+        },
+        "required": [
+          "searchQuery",
+          "description",
+          "searchResults",
+          "topMatchingFields",
+        ],
+        "type": "object",
+      },
       "title": "Find explores",
     },
     {
@@ -223,6 +475,191 @@ Usage tips:
         "type": "object",
       },
       "name": "find_fields",
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "searchResults": {
+            "items": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "fields": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "aiHints": {
+                            "items": {
+                              "type": "string",
+                            },
+                            "type": "array",
+                          },
+                          "baseTable": {
+                            "type": "string",
+                          },
+                          "caseSensitiveFilters": {
+                            "type": [
+                              "boolean",
+                              "null",
+                            ],
+                          },
+                          "categories": {
+                            "items": {
+                              "type": "string",
+                            },
+                            "type": "array",
+                          },
+                          "chartUsage": {
+                            "type": [
+                              "number",
+                              "null",
+                            ],
+                          },
+                          "description": {
+                            "type": [
+                              "string",
+                              "null",
+                            ],
+                          },
+                          "emoji": {
+                            "type": [
+                              "string",
+                              "null",
+                            ],
+                          },
+                          "fieldFilterType": {
+                            "type": "string",
+                          },
+                          "fieldId": {
+                            "type": "string",
+                          },
+                          "fieldType": {
+                            "type": "string",
+                          },
+                          "isFromJoinedTable": {
+                            "type": "boolean",
+                          },
+                          "label": {
+                            "type": "string",
+                          },
+                          "name": {
+                            "type": "string",
+                          },
+                          "note": {
+                            "type": [
+                              "string",
+                              "null",
+                            ],
+                          },
+                          "searchRank": {
+                            "type": [
+                              "number",
+                              "null",
+                            ],
+                          },
+                          "type": {
+                            "type": "string",
+                          },
+                          "usageInVerifiedCharts": {
+                            "type": "number",
+                          },
+                        },
+                        "required": [
+                          "type",
+                          "baseTable",
+                          "name",
+                          "fieldId",
+                          "fieldType",
+                          "fieldFilterType",
+                          "usageInVerifiedCharts",
+                          "isFromJoinedTable",
+                          "caseSensitiveFilters",
+                          "note",
+                          "label",
+                          "aiHints",
+                          "description",
+                          "categories",
+                          "emoji",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    "page": {
+                      "type": [
+                        "number",
+                        "null",
+                      ],
+                    },
+                    "pageSize": {
+                      "type": [
+                        "number",
+                        "null",
+                      ],
+                    },
+                    "searchQuery": {
+                      "type": "string",
+                    },
+                    "status": {
+                      "const": "success",
+                      "type": "string",
+                    },
+                    "totalPageCount": {
+                      "type": [
+                        "number",
+                        "null",
+                      ],
+                    },
+                    "totalResults": {
+                      "type": [
+                        "number",
+                        "null",
+                      ],
+                    },
+                  },
+                  "required": [
+                    "status",
+                    "searchQuery",
+                    "page",
+                    "pageSize",
+                    "totalPageCount",
+                    "totalResults",
+                    "fields",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                    },
+                    "searchQuery": {
+                      "type": "string",
+                    },
+                    "status": {
+                      "const": "error",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                    "searchQuery",
+                    "error",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "type": "array",
+          },
+        },
+        "required": [
+          "searchResults",
+        ],
+        "type": "object",
+      },
       "title": "Find fields",
     },
     {

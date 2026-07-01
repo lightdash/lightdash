@@ -205,6 +205,7 @@ const makeMcpService = ({
     dashboardSearchResults = [],
     chartSearchResults = [],
     verifiedContent = [],
+    runtimeErrors = {},
 }: {
     context?: {
         projectUuid: string;
@@ -225,6 +226,11 @@ const makeMcpService = ({
     })[];
     chartSearchResults?: ReturnType<typeof makeChartSearchResult>[];
     verifiedContent?: Record<string, unknown>[];
+    runtimeErrors?: {
+        findExplores?: string;
+        findFields?: string;
+        findFieldsByQuery?: Record<string, string>;
+    };
 } = {}) => {
     const asyncQueryService = {
         executeAsyncSqlQuery: vi.fn(),
@@ -345,7 +351,20 @@ const makeMcpService = ({
                     ),
             );
 
-        return {
+        const toMcpRuntimeResult = async <TData>(
+            getData: () => Promise<TData>,
+        ) => {
+            try {
+                return { status: 'success' as const, data: await getData() };
+            } catch (error) {
+                return {
+                    status: 'error' as const,
+                    error,
+                };
+            }
+        };
+
+        const runtime = {
             listExplores: vi.fn(listScopedExplores),
             getExplore: vi.fn(async ({ table }: { table: string }) => {
                 const scopedExplores = await listScopedExplores();
@@ -355,32 +374,45 @@ const makeMcpService = ({
                 if (!explore) throw new NotFoundError('Explore not found');
                 return explore;
             }),
-            findExplores: vi.fn(async () => {
-                const scopedExplores = await listScopedExplores();
-                return {
-                    exploreSearchResults: scopedExplores.map((explore) => ({
-                        name: explore.name,
-                        label:
-                            (explore as { label?: string }).label ??
-                            explore.name,
-                        description: null,
-                        aiHints: undefined,
-                        searchRank: 1,
-                        joinedTables: [],
-                    })),
-                    topMatchingFields: [
-                        {
-                            name: 'orders_count',
-                            label: 'Orders Count',
-                            tableName: 'orders',
-                            fieldType: 'metric',
-                            searchRank: 1,
+            findExplores: vi.fn(
+                async (_args: {
+                    fieldSearchSize: number;
+                    searchQuery?: string;
+                }) => {
+                    const scopedExplores = await listScopedExplores();
+                    return {
+                        exploreSearchResults: scopedExplores.map((explore) => ({
+                            name: explore.name,
+                            label:
+                                (explore as { label?: string }).label ??
+                                explore.name,
                             description: null,
-                        },
-                    ],
-                };
-            }),
-            findFields: vi.fn(async () => ({ fields: [], pagination: {} })),
+                            aiHints: undefined,
+                            searchRank: 1,
+                            joinedTables: [],
+                        })),
+                        topMatchingFields: [
+                            {
+                                name: 'orders_count',
+                                label: 'Orders Count',
+                                tableName: 'orders',
+                                fieldType: 'metric',
+                                searchRank: 1,
+                                description: null,
+                            },
+                        ],
+                    };
+                },
+            ),
+            findField: vi.fn(
+                async (_args: {
+                    table: string;
+                    fieldSearchQuery: { label: string };
+                    page?: number;
+                    pageSize?: number;
+                    explore: ReturnType<typeof makeExplore>;
+                }) => ({ fields: [], pagination: {} }),
+            ),
             findContent: vi.fn(async () => ({
                 content: [
                     ...dashboardSearchResults.map((dashboard) => ({
@@ -414,6 +446,62 @@ const makeMcpService = ({
                     );
                 return results;
             }),
+        };
+
+        return {
+            ...runtime,
+            getExplore: vi.fn((args: { table: string }) =>
+                toMcpRuntimeResult(() => runtime.getExplore(args)),
+            ),
+            findExplores: vi.fn(
+                (args: { fieldSearchSize: number; searchQuery?: string }) =>
+                    toMcpRuntimeResult(() => {
+                        if (runtimeErrors.findExplores) {
+                            throw new Error(runtimeErrors.findExplores);
+                        }
+                        return runtime.findExplores(args);
+                    }),
+            ),
+            findFields: vi.fn(
+                (args: {
+                    table: string;
+                    fieldSearchQueries: Array<{ label: string }>;
+                    page?: number;
+                    pageSize?: number;
+                    explore: ReturnType<typeof makeExplore>;
+                }) =>
+                    toMcpRuntimeResult(async () =>
+                        Promise.all(
+                            args.fieldSearchQueries.map(
+                                async (fieldSearchQuery) => {
+                                    const fieldSearchError =
+                                        runtimeErrors.findFieldsByQuery?.[
+                                            fieldSearchQuery.label
+                                        ] ?? runtimeErrors.findFields;
+                                    if (fieldSearchError) {
+                                        return {
+                                            status: 'error' as const,
+                                            searchQuery: fieldSearchQuery.label,
+                                            error: fieldSearchError,
+                                        };
+                                    }
+                                    const result = await runtime.findField({
+                                        table: args.table,
+                                        fieldSearchQuery,
+                                        page: args.page,
+                                        pageSize: args.pageSize,
+                                        explore: args.explore,
+                                    });
+                                    return {
+                                        status: 'success' as const,
+                                        searchQuery: fieldSearchQuery.label,
+                                        ...result,
+                                    };
+                                },
+                            ),
+                        ),
+                    ),
+            ),
         };
     };
     const aiAgentToolsService = {
@@ -681,7 +769,103 @@ describe('MCP async query polling', () => {
         expect(getTextResult(result)).toContain('Revenue by month');
         expect(result).toMatchObject({
             structuredContent: {
+                searchQuery: 'Show me revenue by month',
+                searchResults: expect.objectContaining({
+                    results: expect.any(Array),
+                }),
+                topMatchingFields: {
+                    count: 1,
+                    fields: [
+                        expect.objectContaining({
+                            name: 'orders_count',
+                            exploreName: 'orders',
+                        }),
+                    ],
+                },
                 relevantVerifiedAnswers: [relevantVerifiedAnswer],
+            },
+        });
+    });
+
+    it('returns structured field search content in find_fields', async () => {
+        makeMcpService();
+
+        const result = await getToolCallback(McpToolName.FIND_FIELDS)(
+            {
+                table: 'orders',
+                fieldSearchQueries: [{ label: 'orders count' }],
+            },
+            extra,
+        );
+
+        expect(result).toMatchObject({
+            content: [
+                expect.objectContaining({
+                    text: expect.stringContaining('"searchResults"'),
+                }),
+            ],
+            structuredContent: {
+                searchResults: [
+                    expect.objectContaining({
+                        status: 'success',
+                        searchQuery: 'orders count',
+                        fields: [],
+                    }),
+                ],
+            },
+        });
+    });
+
+    it('returns MCP error content when find_explores runtime returns error', async () => {
+        makeMcpService({ runtimeErrors: { findExplores: 'Runtime failed' } });
+
+        const result = await getToolCallback(McpToolName.FIND_EXPLORES)(
+            { searchQuery: 'orders' },
+            extra,
+        );
+
+        expect(result).toMatchObject({
+            isError: true,
+            content: [
+                expect.objectContaining({
+                    text: 'Error finding explores: Runtime failed',
+                }),
+            ],
+        });
+    });
+
+    it('returns mixed per-query results when find_fields runtime returns errors', async () => {
+        makeMcpService({
+            runtimeErrors: {
+                findFieldsByQuery: { 'bad field': 'Runtime failed' },
+            },
+        });
+
+        const result = await getToolCallback(McpToolName.FIND_FIELDS)(
+            {
+                table: 'orders',
+                fieldSearchQueries: [
+                    { label: 'orders count' },
+                    { label: 'bad field' },
+                ],
+            },
+            extra,
+        );
+
+        expect(result).toMatchObject({
+            structuredContent: {
+                searchResults: [
+                    expect.objectContaining({
+                        status: 'success',
+                        searchQuery: 'orders count',
+                        fields: [],
+                    }),
+                    {
+                        status: 'error',
+                        searchQuery: 'bad field',
+                        error: 'Runtime failed',
+                    },
+                ],
             },
         });
     });

@@ -26,7 +26,7 @@ import {
     ExploreRepoFn,
     FindContentFn,
     FindExploresFn,
-    FindFieldFn,
+    FindFieldsFn,
     GetDashboardChartsFn,
     GetExploreFn,
     GetKnowledgeDocumentContentFn,
@@ -168,7 +168,7 @@ export type AiAgentDependencies = {
     getDashboardCharts: GetDashboardChartsFn;
     findExplores: FindExploresFn;
     getVerifiedFieldUsage: GetVerifiedFieldUsageFn;
-    findFields: FindFieldFn;
+    findFields: FindFieldsFn;
     searchSemanticLayer: SearchSemanticLayerFn;
     analyzeFieldImpact: AnalyzeFieldImpactFn;
     getExplore: GetExploreFn;

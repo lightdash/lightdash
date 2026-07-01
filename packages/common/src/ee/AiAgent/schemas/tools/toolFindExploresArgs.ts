@@ -89,6 +89,68 @@ export const findExploresRankingMetadataSchema = z.object({
         .optional(),
 });
 
+export const findExploresRequiredFilterSchema = z.object({
+    fieldId: z.string(),
+    fieldRef: z.string(),
+    tableName: z.string(),
+    operator: z.string(),
+    values: z.array(z.unknown()).optional(),
+    settings: z.unknown().optional(),
+    required: z.boolean(),
+});
+
+export const findExploresRelevantVerifiedAnswerSchema = z.object({
+    artifactVersionUuid: z.string(),
+    chartConfig: z.record(z.unknown()),
+    artifactType: z.enum(['chart', 'dashboard']),
+    verifiedQuestion: z.string().nullable(),
+    title: z.string().nullable(),
+    description: z.string().nullable(),
+    similarity: z.number(),
+});
+
+export const findExploresResultSchema = z.object({
+    searchQuery: z.string(),
+    description: z.string(),
+    searchResults: z.object({
+        count: z.number(),
+        note: z.string(),
+        results: z.array(
+            z.object({
+                name: z.string(),
+                label: z.string(),
+                searchRank: z.number().nullable(),
+                description: z.string().nullable(),
+                aiHints: z.array(z.string()),
+                joinedTables: z.object({
+                    count: z.number(),
+                    note: z.string().nullable(),
+                    tables: z.array(z.string()),
+                }),
+                requiredFilters: z.array(findExploresRequiredFilterSchema),
+            }),
+        ),
+    }),
+    topMatchingFields: z.object({
+        count: z.number(),
+        note: z.string(),
+        fields: z.array(
+            z.object({
+                name: z.string(),
+                label: z.string(),
+                exploreName: z.string(),
+                fieldType: z.string(),
+                searchRank: z.number().nullable(),
+                usageInCharts: z.number(),
+                usageInVerifiedCharts: z.number(),
+            }),
+        ),
+    }),
+    relevantVerifiedAnswers: z
+        .array(findExploresRelevantVerifiedAnswerSchema)
+        .optional(),
+});
+
 export const toolFindExploresOutputSchema = z.object({
     result: z.string(),
     metadata: baseOutputMetadataSchema.extend({
@@ -107,6 +169,7 @@ export type ToolFindExploresArgsV3 = z.infer<
 >;
 export type ToolFindExploresArgs = z.infer<typeof toolFindExploresArgsSchemaV3>;
 export type ToolFindExploresArgsTransformed = ToolFindExploresArgs;
+export type FindExploresResult = z.infer<typeof findExploresResultSchema>;
 export type ToolFindExploresOutput = z.infer<
     typeof toolFindExploresOutputSchema
 >;

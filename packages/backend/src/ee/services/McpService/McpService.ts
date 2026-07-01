@@ -23,6 +23,7 @@ import {
     ForbiddenError,
     getCurrentAgentToolDefinition,
     getCurrentProjectToolDefinition,
+    getErrorMessage,
     getItemLabelWithoutTableName,
     getItemMap,
     getLightdashVersionToolDefinition,
@@ -114,13 +115,14 @@ import {
 import { getCreateContent } from '../ai/tools/createContent';
 import { getEditContent } from '../ai/tools/editContent';
 import { getFindContent } from '../ai/tools/findContent';
-import { getFindExplores } from '../ai/tools/findExplores';
-import { getFindFields } from '../ai/tools/findFields';
+import { buildFindExploresStructuredContent } from '../ai/tools/findExplores';
+import { buildFindFieldsStructuredContent } from '../ai/tools/findFields';
 import { getListContent } from '../ai/tools/listContent';
 import { getMcpListExplores } from '../ai/tools/mcpListExplores';
 import { getReadContent } from '../ai/tools/readContent';
 import { validateRunQueryTool } from '../ai/tools/runQuery';
 import { getSearchFieldValues } from '../ai/tools/searchFieldValues';
+import { formatToolJsonOutput } from '../ai/tools/toolOutputFormat';
 import { getPivotedResults } from '../ai/utils/getPivotedResults';
 import {
     expandMetricsWithPopAdditionalMetrics,
@@ -128,8 +130,9 @@ import {
 } from '../ai/utils/populateCustomMetricsSQL';
 import { AiAgentService } from '../AiAgentService/AiAgentService';
 import {
-    AiAgentToolsRuntime,
     AiAgentToolsService,
+    McpAiAgentToolsRuntime,
+    unwrapMcpRuntimeResult,
 } from '../AiAgentToolsService/AiAgentToolsService';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { AiRouterService } from '../AiRouterService/AiRouterService';
@@ -553,9 +556,11 @@ export class McpService extends BaseService {
         userAttributeOverrides: UserAttributeValueMap | undefined;
     }> {
         const toolsRuntime = await this.getToolsRuntime(ctx, projectUuid);
-        const explore = await toolsRuntime.getExplore({
-            table: queryTool.queryConfig.exploreName,
-        });
+        const explore = unwrapMcpRuntimeResult(
+            await toolsRuntime.getExplore({
+                table: queryTool.queryConfig.exploreName,
+            }),
+        );
 
         // Full validation including groupBy, axis, and tableCalcs
         validateRunQueryTool(queryTool, explore);
@@ -597,7 +602,7 @@ export class McpService extends BaseService {
     private async getToolsRuntime(
         context: McpProtocolContext,
         projectUuid: string,
-    ): Promise<AiAgentToolsRuntime> {
+    ): Promise<McpAiAgentToolsRuntime> {
         const { user, account, organizationUuid } =
             McpService.getAccount(context);
 
@@ -652,9 +657,11 @@ export class McpService extends BaseService {
         metricQuery: MetricQuery;
     }) {
         const toolsRuntime = await this.getToolsRuntime(ctx, projectUuid);
-        const explore = await toolsRuntime.getExplore({
-            table: metricQuery.exploreName,
-        });
+        const explore = unwrapMcpRuntimeResult(
+            await toolsRuntime.getExplore({
+                table: metricQuery.exploreName,
+            }),
+        );
         McpService.assertMetricQueryFieldsInExplore(metricQuery, explore);
     }
 
@@ -1319,6 +1326,7 @@ export class McpService extends BaseService {
                 title: mcpFindExploresTool.title,
                 description: mcpFindExploresTool.description,
                 inputSchema: mcpFindExploresTool.inputSchema.shape,
+                outputSchema: mcpFindExploresTool.outputSchema.shape,
                 annotations: mcpFindExploresTool.annotations,
             },
             async (args, extra) => {
@@ -1326,7 +1334,6 @@ export class McpService extends BaseService {
                 const { user } = McpService.getAccount(ctx);
 
                 const projectUuid = await this.resolveProjectUuid(ctx);
-                const argsWithProject = { ...args, projectUuid };
 
                 this.trackToolCall(ctx, McpToolName.FIND_EXPLORES, projectUuid);
 
@@ -1334,27 +1341,26 @@ export class McpService extends BaseService {
                     ctx,
                     projectUuid,
                 );
-                const availableExplores = await toolsRuntime.listExplores();
-
-                const findExploresTool = getFindExplores({
-                    findExplores: toolsRuntime.findExplores,
-                    updateProgress: async () => {}, // No-op for MCP context
+                const runtimeResult = await toolsRuntime.findExplores({
                     fieldSearchSize: 200,
+                    searchQuery: args.searchQuery,
+                });
+                if (runtimeResult.status === 'error') {
+                    return mcpFindExploresTool.result.error(
+                        `Error finding explores: ${getErrorMessage(runtimeResult.error)}`,
+                    );
+                }
+
+                const { exploreSearchResults, topMatchingFields } =
+                    runtimeResult.data;
+                const structuredContent = buildFindExploresStructuredContent({
+                    searchQuery: args.searchQuery,
+                    exploreSearchResults,
+                    topMatchingFields,
                     toolDescriptionMaxChars:
                         this.lightdashConfig.ai.copilot.toolDescriptionMaxChars,
                 });
-                const result = await findExploresTool.execute!(
-                    {
-                        ...argsWithProject,
-                        searchQuery: args.searchQuery,
-                    },
-                    {
-                        toolCallId: '',
-                        messages: [],
-                        experimental_context: { availableExplores },
-                    },
-                );
-                const resultText = await McpService.streamToolResult(result);
+                const resultText = formatToolJsonOutput(structuredContent);
                 const metadata = await this.getActiveContextMetadata(ctx);
 
                 const verifiedAnswerContext = metadata.agentUuid
@@ -1380,7 +1386,11 @@ export class McpService extends BaseService {
                 return this.buildScopedResponse(
                     ctx,
                     `${resultText}${verifiedAnswersText}`,
-                    verifiedAnswerContext,
+                    {
+                        ...structuredContent,
+                        relevantVerifiedAnswers:
+                            verifiedAnswerContext.relevantVerifiedAnswers,
+                    },
                     projectUuid,
                 );
             },
@@ -1392,13 +1402,13 @@ export class McpService extends BaseService {
                 title: mcpFindFieldsTool.title,
                 description: mcpFindFieldsTool.description,
                 inputSchema: mcpFindFieldsTool.inputSchema.shape,
+                outputSchema: mcpFindFieldsTool.outputSchema.shape,
                 annotations: mcpFindFieldsTool.annotations,
             },
             async (args, extra) => {
                 const ctx = getMcpContext(extra);
 
                 const projectUuid = await this.resolveProjectUuid(ctx);
-                const argsWithProject = { ...args, projectUuid };
 
                 this.trackToolCall(ctx, McpToolName.FIND_FIELDS, projectUuid);
 
@@ -1406,24 +1416,41 @@ export class McpService extends BaseService {
                     ctx,
                     projectUuid,
                 );
+                const exploreResult = await toolsRuntime.getExplore({
+                    table: args.table,
+                });
+                if (exploreResult.status === 'error') {
+                    return mcpFindFieldsTool.result.error(
+                        `Error finding fields: ${getErrorMessage(exploreResult.error)}`,
+                    );
+                }
 
-                const findFieldsTool = getFindFields({
-                    getExplore: toolsRuntime.getExplore,
-                    findFields: toolsRuntime.findFields,
-                    updateProgress: async () => {}, // No-op for MCP context
+                const runtimeResult = await toolsRuntime.findFields({
+                    table: args.table,
+                    fieldSearchQueries: args.fieldSearchQueries,
+                    page: args.page ?? 1,
                     pageSize: 15,
+                    explore: exploreResult.data,
+                });
+                if (runtimeResult.status === 'error') {
+                    return mcpFindFieldsTool.result.error(
+                        `Error finding fields: ${getErrorMessage(runtimeResult.error)}`,
+                    );
+                }
+
+                const fieldSearchQueryResults = runtimeResult.data;
+
+                const structuredContent = buildFindFieldsStructuredContent({
+                    fieldSearchQueryResults,
                     toolDescriptionMaxChars:
                         this.lightdashConfig.ai.copilot.toolDescriptionMaxChars,
-                });
-                const result = await findFieldsTool.execute!(argsWithProject, {
-                    toolCallId: '',
-                    messages: [],
+                    explore: exploreResult.data,
                 });
 
                 return this.buildScopedResponse(
                     ctx,
-                    await McpService.streamToolResult(result),
-                    undefined,
+                    formatToolJsonOutput(structuredContent),
+                    structuredContent,
                     projectUuid,
                 );
             },
