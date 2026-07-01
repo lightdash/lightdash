@@ -66,7 +66,7 @@ const SaveQueryToLightdashModal: FC<Props> = ({
             onConfirm={handleSave}
             confirmLabel="Save"
             confirmLoading={createChart.isLoading}
-            confirmDisabled={!name.trim()}
+            confirmDisabled={!name.trim() || !selectedSpace}
         >
             <Stack gap="sm">
                 <TextInput

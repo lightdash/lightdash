@@ -77,6 +77,10 @@ const QueryRow: FC<{
         }
     }, [focused]);
 
+    const exploreUrl = query.exploreName
+        ? buildExploreUrl(projectUuid, query)
+        : null;
+
     return (
         <Box
             ref={rowRef}
@@ -132,28 +136,22 @@ const QueryRow: FC<{
                     <Box className={classes.queryDetails}>
                         {query.exploreName && (
                             <Group gap="md" wrap="nowrap">
-                                {(() => {
-                                    const exploreUrl = buildExploreUrl(
-                                        projectUuid,
-                                        query,
-                                    );
-                                    return exploreUrl ? (
-                                        <Anchor
-                                            href={exploreUrl}
-                                            target="_blank"
-                                            size="xs"
-                                            onClick={(e) => e.stopPropagation()}
-                                        >
-                                            <Group gap={4} wrap="nowrap">
-                                                <MantineIcon
-                                                    icon={IconExternalLink}
-                                                    size={12}
-                                                />
-                                                Open in Explore
-                                            </Group>
-                                        </Anchor>
-                                    ) : null;
-                                })()}
+                                {exploreUrl && (
+                                    <Anchor
+                                        href={exploreUrl}
+                                        target="_blank"
+                                        size="xs"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <Group gap={4} wrap="nowrap">
+                                            <MantineIcon
+                                                icon={IconExternalLink}
+                                                size={12}
+                                            />
+                                            Open in Explore
+                                        </Group>
+                                    </Anchor>
+                                )}
                                 {query.rawMetricQuery && (
                                     <Anchor
                                         component="button"
