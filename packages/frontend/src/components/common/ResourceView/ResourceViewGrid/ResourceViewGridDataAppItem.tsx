@@ -9,6 +9,7 @@ import { type FC, type ReactNode } from 'react';
 import AppThumbnailHoverCard from '../../../../features/apps/components/AppThumbnailHoverCard';
 import MantineIcon from '../../MantineIcon';
 import { ResourceIcon } from '../../ResourceIcon';
+import { ResourceInfoPopupContent } from '../../ResourceInfoPopup/ResourceInfoPopup';
 import ResourceViewActionMenu, {
     type ResourceViewActionMenuCommonProps,
 } from '../ResourceActionMenu';
@@ -35,6 +36,14 @@ const ResourceViewGridDataAppItem: FC<ResourceViewGridDataAppItemProps> = ({
     const { hovered, ref } = useHover();
     const [opened, handlers] = useDisclosure(false);
     const displayName = getAppDisplayName(item.data.name, item.data.uuid);
+    const latestVersion =
+        item.data.latestVersionNumber !== null &&
+        item.data.latestVersionStatus !== null
+            ? {
+                  number: item.data.latestVersionNumber,
+                  status: item.data.latestVersionStatus,
+              }
+            : null;
 
     return (
         <AppThumbnailHoverCard
@@ -47,86 +56,102 @@ const ResourceViewGridDataAppItem: FC<ResourceViewGridDataAppItemProps> = ({
             }
             position="top"
             fullWidthTarget
+            infoContent={
+                projectUuid && (item.data.description || latestVersion) ? (
+                    <ResourceInfoPopupContent
+                        resourceUuid={item.data.uuid}
+                        projectUuid={projectUuid}
+                        description={item.data.description}
+                        latestVersion={latestVersion}
+                    />
+                ) : undefined
+            }
         >
-            <Paper
-                ref={ref}
-                pos="relative"
-                p={0}
-                withBorder
-                className={classes.gridCard}
-                h="100%"
-            >
-                <Group
-                    p="md"
-                    align="center"
-                    gap="md"
-                    wrap="nowrap"
-                    className={classes.gridCardTopSection}
+            {({ hasThumbnailPreview }) => (
+                <Paper
+                    ref={ref}
+                    pos="relative"
+                    p={0}
+                    withBorder
+                    className={classes.gridCard}
+                    h="100%"
                 >
-                    {dragIcon}
-                    <ResourceIcon item={item} />
-
-                    <Tooltip
-                        label={item.data.description}
-                        position="top"
-                        variant="xs"
-                        maw={400}
-                        multiline
-                        disabled={!item.data.description}
+                    <Group
+                        p="md"
+                        align="center"
+                        gap="md"
+                        wrap="nowrap"
+                        className={classes.gridCardTopSection}
                     >
-                        <Text lineClamp={2} fz="sm" fw={600}>
-                            {displayName}
-                        </Text>
-                    </Tooltip>
-                </Group>
+                        {dragIcon}
+                        <ResourceIcon item={item} />
 
-                <Flex
-                    pl="md"
-                    pr="xs"
-                    h={32}
-                    justify="space-between"
-                    align="center"
-                >
-                    <Tooltip
-                        position="bottom-start"
-                        disabled={!item.data.views || !item.data.firstViewedAt}
-                        label={getResourceViewsSinceWhenDescription(item)}
-                    >
-                        <Flex align="center" gap={4}>
-                            <MantineIcon
-                                icon={IconEye}
-                                color="var(--mantine-color-ldGray-6)"
-                                size={14}
-                            />
-
-                            <Text c="ldGray.6" fz="xs">
-                                {item.data.views} views
+                        <Tooltip
+                            label={item.data.description}
+                            position="top"
+                            variant="xs"
+                            maw={400}
+                            multiline
+                            disabled={
+                                hasThumbnailPreview || !item.data.description
+                            }
+                        >
+                            <Text lineClamp={2} fz="sm" fw={600}>
+                                {displayName}
                             </Text>
-                        </Flex>
-                    </Tooltip>
+                        </Tooltip>
+                    </Group>
 
-                    <Box
-                        className={
-                            hovered || opened
-                                ? classes.gridCardActionBoxVisible
-                                : classes.gridCardActionBoxHidden
-                        }
-                        onClick={(e: React.MouseEvent<HTMLDivElement>) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                        }}
+                    <Flex
+                        pl="md"
+                        pr="xs"
+                        h={32}
+                        justify="space-between"
+                        align="center"
                     >
-                        <ResourceViewActionMenu
-                            item={item}
-                            isOpen={opened}
-                            allowDelete={allowDelete}
-                            onOpen={handlers.open}
-                            onClose={handlers.close}
-                            onAction={onAction}
-                        />
-                    </Box>
-                </Flex>
-            </Paper>
+                        <Tooltip
+                            position="bottom-start"
+                            disabled={
+                                !item.data.views || !item.data.firstViewedAt
+                            }
+                            label={getResourceViewsSinceWhenDescription(item)}
+                        >
+                            <Flex align="center" gap={4}>
+                                <MantineIcon
+                                    icon={IconEye}
+                                    color="var(--mantine-color-ldGray-6)"
+                                    size={14}
+                                />
+
+                                <Text c="ldGray.6" fz="xs">
+                                    {item.data.views} views
+                                </Text>
+                            </Flex>
+                        </Tooltip>
+
+                        <Box
+                            className={
+                                hovered || opened
+                                    ? classes.gridCardActionBoxVisible
+                                    : classes.gridCardActionBoxHidden
+                            }
+                            onClick={(e: React.MouseEvent<HTMLDivElement>) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                            }}
+                        >
+                            <ResourceViewActionMenu
+                                item={item}
+                                isOpen={opened}
+                                allowDelete={allowDelete}
+                                onOpen={handlers.open}
+                                onClose={handlers.close}
+                                onAction={onAction}
+                            />
+                        </Box>
+                    </Flex>
+                </Paper>
+            )}
         </AppThumbnailHoverCard>
     );
 };

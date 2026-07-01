@@ -22,7 +22,10 @@ import AppThumbnailHoverCard from '../../../features/apps/components/AppThumbnai
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../MantineIcon';
 import { ResourceIcon, ResourceIndicator } from '../ResourceIcon';
-import { ResourceInfoPopup } from '../ResourceInfoPopup/ResourceInfoPopup';
+import {
+    ResourceInfoPopup,
+    ResourceInfoPopupContent,
+} from '../ResourceInfoPopup/ResourceInfoPopup';
 import AttributeCount from './ResourceAttributeCount';
 import {
     getResourceTypeName,
@@ -166,8 +169,23 @@ const InfiniteResourceTableColumnName = ({
         isChartOrDashboard && !hasValidationErrors
             ? item.data.verification
             : null;
+    const latestVersion =
+        isResourceViewDataAppItem(item) &&
+        item.data.latestVersionNumber !== null &&
+        item.data.latestVersionStatus !== null
+            ? {
+                  number: item.data.latestVersionNumber,
+                  status: item.data.latestVersionStatus,
+              }
+            : null;
+    const showResourceInfo =
+        !isSpace &&
+        // If there is no description, don't show the info icon on dashboards or data apps.
+        // For charts we still show it for the dashboard list
+        (item.data.description || isResourceViewItemChart(item)) &&
+        (isChartOrDashboard || isResourceViewDataAppItem(item));
 
-    const content = (
+    const renderContent = (hideInlineInfo = false) => (
         <Anchor
             component={Link}
             c="unset"
@@ -200,38 +218,19 @@ const InfiniteResourceTableColumnName = ({
                         <ResourceVerifiedInlineBadge
                             verification={verification}
                         />
-                        {!isSpace &&
-                            // If there is no description, don't show the info icon on dashboards or data apps.
-                            // For charts we still show it for the dashboard list
-                            (item.data.description ||
-                                isResourceViewItemChart(item)) &&
-                            (isChartOrDashboard ||
-                                isResourceViewDataAppItem(item)) && (
-                                <Box>
-                                    <ResourceInfoPopup
-                                        resourceUuid={item.data.uuid}
-                                        projectUuid={projectUuid}
-                                        description={item.data.description}
-                                        withChartData={isResourceViewItemChart(
-                                            item,
-                                        )}
-                                        latestVersion={
-                                            isResourceViewDataAppItem(item) &&
-                                            item.data.latestVersionNumber !==
-                                                null &&
-                                            item.data.latestVersionStatus !==
-                                                null
-                                                ? {
-                                                      number: item.data
-                                                          .latestVersionNumber,
-                                                      status: item.data
-                                                          .latestVersionStatus,
-                                                  }
-                                                : null
-                                        }
-                                    />
-                                </Box>
-                            )}
+                        {showResourceInfo && !hideInlineInfo && (
+                            <Box>
+                                <ResourceInfoPopup
+                                    resourceUuid={item.data.uuid}
+                                    projectUuid={projectUuid}
+                                    description={item.data.description}
+                                    withChartData={isResourceViewItemChart(
+                                        item,
+                                    )}
+                                    latestVersion={latestVersion}
+                                />
+                            </Box>
+                        )}
                     </Group>
                     {showTypeAndViews && (
                         <Text fz={12} c="ldGray.6">
@@ -295,13 +294,25 @@ const InfiniteResourceTableColumnName = ({
                     !!item.data.latestVersionNumber
                 }
                 activateOnClosestRow
+                infoContent={
+                    showResourceInfo ? (
+                        <ResourceInfoPopupContent
+                            resourceUuid={item.data.uuid}
+                            projectUuid={projectUuid}
+                            description={item.data.description}
+                            latestVersion={latestVersion}
+                        />
+                    ) : undefined
+                }
             >
-                {content}
+                {({ hasThumbnailPreview }) =>
+                    renderContent(hasThumbnailPreview)
+                }
             </AppThumbnailHoverCard>
         );
     }
 
-    return content;
+    return renderContent();
 };
 
 export default InfiniteResourceTableColumnName;
