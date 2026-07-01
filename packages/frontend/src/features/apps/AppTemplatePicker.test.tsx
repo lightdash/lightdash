@@ -4,7 +4,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import AppTemplatePicker from './AppTemplatePicker';
 
 const setup = (
-    selected: 'dashboard' | 'slideshow' | 'pdf' | 'data_app_viz' | null,
+    selected: 'dashboard' | 'slideshow' | 'pdf' | 'custom' | null,
     onSelectedChange = vi.fn(),
 ) => {
     render(
@@ -31,7 +31,7 @@ describe('AppTemplatePicker', () => {
             screen.getByRole('button', { name: /PDF Report/i }),
         ).toBeInTheDocument();
         expect(
-            screen.getByRole('button', { name: /Data app visualization/i }),
+            screen.getByRole('button', { name: /From scratch/i }),
         ).toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: /Let's go/i }),

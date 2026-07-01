@@ -2,8 +2,8 @@ import { type DataAppTemplate } from '@lightdash/common';
 import {
     IconFileText,
     IconLayoutDashboard,
+    IconPencil,
     IconPresentation,
-    IconPuzzle,
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
 
@@ -36,11 +36,10 @@ export const TEMPLATES: TemplateDefinition[] = [
         icon: IconFileText,
     },
     {
-        id: 'data_app_viz',
-        title: 'Data app visualization',
-        description:
-            'A reusable single-tile chart you can apply to any query like a chart type.',
-        icon: IconPuzzle,
+        id: 'custom',
+        title: 'From scratch',
+        description: 'Start from scratch and describe whatever you want.',
+        icon: IconPencil,
     },
 ];
 
