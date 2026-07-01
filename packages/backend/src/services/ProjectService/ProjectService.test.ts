@@ -2792,4 +2792,22 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         expect(result).not.toBe(primaryAdapter);
         expect(buildMergedManifestAdapterSpy).toHaveBeenCalledTimes(1);
     });
+
+    it('propagates a ParameterError from buildMergedManifestAdapter when sources collide', async () => {
+        const { projectService } = buildServiceWithMocks(true, [
+            { name: 'jaffle-2' },
+        ]);
+        vi.spyOn(
+            projectService,
+            'buildMergedManifestAdapter',
+        ).mockRejectedValue(
+            new ParameterError(
+                'Merging dbt sources found 1 naming collision: nodes "model.dup" is defined in both "primary" and "jaffle-2". Rename or remove the duplicate(s) before deploying.',
+            ),
+        );
+
+        await expect(
+            projectService.resolveCompileAdapter(baseArgs),
+        ).rejects.toThrow(ParameterError);
+    });
 });

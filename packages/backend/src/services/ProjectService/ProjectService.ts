@@ -116,6 +116,7 @@ import {
     LightdashError,
     LightdashProjectConfig,
     LightdashUser,
+    ManifestCollision,
     ManifestSource,
     maybeOverrideDbtConnection,
     maybeOverrideWarehouseConnection,
@@ -3824,11 +3825,41 @@ export class ProjectService extends BaseService {
     }
 
     /**
+     * Formats a `ParameterError` message naming every colliding key so the user
+     * can tell exactly what to rename or remove — capped so a near-duplicate
+     * source pair (which can produce thousands of collisions) doesn't blow up
+     * the error message.
+     */
+    private static formatManifestCollisionsError(
+        collisions: ManifestCollision[],
+    ): string {
+        const MAX_COLLISIONS_IN_ERROR = 10;
+        const shown = collisions.slice(0, MAX_COLLISIONS_IN_ERROR);
+        const remainder = collisions.length - shown.length;
+        const details = shown
+            .map(
+                (c) =>
+                    `${c.section} "${c.key}" is defined in both "${c.winningSource}" and "${c.supersededSource}"`,
+            )
+            .join('; ');
+        return (
+            `Merging dbt sources found ${collisions.length} naming collision${
+                collisions.length === 1 ? '' : 's'
+            }: ${details}${remainder > 0 ? `; and ${remainder} more` : ''}. ` +
+            `Rename or remove the duplicate(s) before deploying.`
+        );
+    }
+
+    /**
      * Merge the primary source's manifest with every additional source's manifest
      * into one combined manifest, then return a MANIFEST adapter over it so a single
      * compile produces the union of all sources' explores with cross-source refs
      * resolved. Source adapters (git clones) are pushed onto `manifestFetchAdapters`
-     * for the caller to destroy.
+     * for the caller to destroy. A name collision fails the whole deploy by name,
+     * matching every other per-source failure above (broken clone, broken
+     * manifest, broken credentials) — silently letting one source's definition
+     * win would otherwise produce a green deploy that is quietly missing a
+     * sibling's model.
      */
     private async buildMergedManifestAdapter({
         projectUuid,
@@ -3947,6 +3978,9 @@ export class ProjectService extends BaseService {
             this.logger.warn(
                 `Merged ${manifestSources.length} dbt sources for project ${projectUuid} with ${collisions.length} name collision(s)`,
                 { projectUuid, collisions },
+            );
+            throw new ParameterError(
+                ProjectService.formatManifestCollisionsError(collisions),
             );
         }
 

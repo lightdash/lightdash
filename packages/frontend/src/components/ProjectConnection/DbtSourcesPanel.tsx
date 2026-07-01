@@ -363,7 +363,7 @@ const DbtSourcesPanel: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         w={300}
                         withinPortal
                         position="right"
-                        label="Merge models from other git-backed dbt projects. They're combined with this project's dbt connection on every deploy and preview — if a model name clashes, the connection above wins."
+                        label="Merge models from other git-backed dbt projects. They're combined with this project's dbt connection on every deploy and preview — if a name clashes between sources, the deploy fails until you rename or remove the duplicate."
                     >
                         <ActionIcon
                             variant="subtle"
