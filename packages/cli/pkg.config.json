@@ -4,7 +4,8 @@
     "bundle/**/*.node",
     "bundle/**/*.dylib",
     "bundle/ca-bundle-aws-redshift.crt",
-    "bundle/ca-bundle-aws-rds-global.pem"
+    "bundle/ca-bundle-aws-rds-global.pem",
+    "bundle/vendor/**/*"
   ],
   "targets": [
     "node20-macos-x64",

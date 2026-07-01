@@ -2,12 +2,26 @@ import { type DataAppCodeFile } from '@lightdash/common';
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import * as path from 'path';
 
-// Resolves vendor directory paths: built → dist/vendor, source → sandboxes/data-apps/template + src/authoring
+// Resolves vendor directory paths: built → dist/vendor or bundle/vendor, source → sandboxes/data-apps/template + src/authoring
 
-const builtVendorDir = path.join(__dirname, '..', '..', 'vendor');
+/**
+ * Returns the first path in `candidates` that exists on disk, or null if none do.
+ */
+export function firstExistingDir(candidates: string[]): string | null {
+    for (const candidate of candidates) {
+        if (existsSync(candidate)) return candidate;
+    }
+    return null;
+}
 
 function resolveVendorDirs(): { templateDir: string; authoringDir: string } {
-    if (existsSync(builtVendorDir)) {
+    // Probe both built layouts: dist (npm) and bundle (pkg binary)
+    const builtVendorDir = firstExistingDir([
+        path.join(__dirname, '..', '..', 'vendor'), // dist layout: dist/handlers/apps → dist/vendor
+        path.join(__dirname, 'vendor'), // bundle layout: bundle/index.js → bundle/vendor
+    ]);
+
+    if (builtVendorDir !== null) {
         return {
             templateDir: path.join(builtVendorDir, 'template'),
             authoringDir: path.join(builtVendorDir, 'authoring'),

@@ -1,4 +1,32 @@
-import { buildStaticAuthoringFiles, rewriteWorkspaceDeps } from './scaffolding';
+import { mkdtempSync } from 'fs';
+import { tmpdir } from 'os';
+import {
+    buildStaticAuthoringFiles,
+    firstExistingDir,
+    rewriteWorkspaceDeps,
+} from './scaffolding';
+
+describe('firstExistingDir', () => {
+    it('returns the first path that exists when a later candidate exists', () => {
+        const realDir = mkdtempSync(`${tmpdir()}/ld-test-`);
+        const result = firstExistingDir(['/nonexistent/path/xyz', realDir]);
+        expect(result).toBe(realDir);
+    });
+
+    it('returns the first candidate when it exists', () => {
+        const realDir = mkdtempSync(`${tmpdir()}/ld-test-`);
+        const result = firstExistingDir([realDir, '/nonexistent/path/xyz']);
+        expect(result).toBe(realDir);
+    });
+
+    it('returns null when all candidates are missing', () => {
+        const result = firstExistingDir([
+            '/nonexistent/path/aaa',
+            '/nonexistent/path/bbb',
+        ]);
+        expect(result).toBeNull();
+    });
+});
 
 describe('rewriteWorkspaceDeps', () => {
     it('replaces workspace protocol pins with a concrete version', () => {
