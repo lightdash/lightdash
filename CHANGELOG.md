@@ -1,3 +1,22 @@
+# [0.3272.0](https://github.com/lightdash/lightdash/compare/0.3271.1...0.3272.0) (2026-07-01)
+
+
+### Bug Fixes
+
+* **athena:** don't inherit parent assumeRoleArn in CLI previews ([#24975](https://github.com/lightdash/lightdash/issues/24975)) ([151250d](https://github.com/lightdash/lightdash/commit/151250dc29f6b7602b4338a6ba013795246285e2)), closes [#24974](https://github.com/lightdash/lightdash/issues/24974)
+* **common:** correct findExplores/findFields tool annotations for TS7 ([#24978](https://github.com/lightdash/lightdash/issues/24978)) ([5d631d1](https://github.com/lightdash/lightdash/commit/5d631d14dbb387fa198a9a28b677141d865af920)), closes [#24960](https://github.com/lightdash/lightdash/issues/24960)
+
+
+### Features
+
+* introduce parameter labels ([#20639](https://github.com/lightdash/lightdash/issues/20639)) ([0c28a1f](https://github.com/lightdash/lightdash/commit/0c28a1f168c6d833f33bbd76bd3ec6e4ac3cde76))
+
+
+### Performance Improvements
+
+* **common:** annotate AI tool definitions to cut declaration-emit time ([#24960](https://github.com/lightdash/lightdash/issues/24960)) ([005da06](https://github.com/lightdash/lightdash/commit/005da06a49d2b593fa67de8747892de1a85d0748))
+* **common:** drop redundant declaration-only build project ([#24961](https://github.com/lightdash/lightdash/issues/24961)) ([108fb79](https://github.com/lightdash/lightdash/commit/108fb797930a8234ecf5ff0ae88f7d9e2c1a6669))
+
 ## [0.3271.1](https://github.com/lightdash/lightdash/compare/0.3271.0...0.3271.1) (2026-07-01)
 
 
