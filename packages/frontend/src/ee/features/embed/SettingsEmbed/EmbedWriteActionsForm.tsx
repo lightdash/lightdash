@@ -1,4 +1,5 @@
 import {
+    ProjectMemberRole,
     ServiceAccountScope,
     type CreateEmbedJwt,
     type ServiceAccount,
@@ -49,6 +50,14 @@ const SYSTEM_ROLE_OPTIONS = [
     { value: ServiceAccountScope.SYSTEM_VIEWER, label: 'Viewer' },
 ];
 
+const AI_AGENT_SYSTEM_ROLE_OPTIONS = SYSTEM_ROLE_OPTIONS.filter(
+    (option) =>
+        ![
+            ServiceAccountScope.SYSTEM_INTERACTIVE_VIEWER,
+            ServiceAccountScope.SYSTEM_VIEWER,
+        ].includes(option.value),
+);
+
 const SCOPE_LABEL: Partial<Record<ServiceAccountScope, string>> = {
     [ServiceAccountScope.SYSTEM_ADMIN]: 'Admin',
     [ServiceAccountScope.SYSTEM_DEVELOPER]: 'Developer',
@@ -70,13 +79,27 @@ const WRITABLE_SERVICE_ACCOUNT_SCOPES = [
     ServiceAccountScope.ORG_EDIT,
 ];
 
+const SERVICE_ACCOUNT_SCOPE_PROJECT_ROLE_MAP: Partial<
+    Record<ServiceAccountScope, ProjectMemberRole>
+> = {
+    [ServiceAccountScope.SYSTEM_ADMIN]: ProjectMemberRole.ADMIN,
+    [ServiceAccountScope.SYSTEM_DEVELOPER]: ProjectMemberRole.DEVELOPER,
+    [ServiceAccountScope.SYSTEM_EDITOR]: ProjectMemberRole.EDITOR,
+};
+
 type Props = {
     projectUuid: string;
     value: CreateEmbedJwt['writeActions'] | undefined;
     onChange: (value: CreateEmbedJwt['writeActions'] | undefined) => void;
+    required?: boolean;
 };
 
-const EmbedWriteActionsForm: FC<Props> = ({ projectUuid, value, onChange }) => {
+const EmbedWriteActionsForm: FC<Props> = ({
+    projectUuid,
+    value,
+    onChange,
+    required = false,
+}) => {
     const { listAccounts, createAccount } = useServiceAccounts();
     const { listRoles } = useCustomRoles();
     const createSpaceMutation = useCreateMutation(projectUuid);
@@ -84,7 +107,7 @@ const EmbedWriteActionsForm: FC<Props> = ({ projectUuid, value, onChange }) => {
         projectUuid,
         true,
     );
-    const [isEnabled, setIsEnabled] = useState(!!value);
+    const [isEnabled, setIsEnabled] = useState(required || !!value);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isCreateSpaceModalOpen, setIsCreateSpaceModalOpen] = useState(false);
     const [selectedServiceAccountUuid, setSelectedServiceAccountUuid] =
@@ -96,7 +119,11 @@ const EmbedWriteActionsForm: FC<Props> = ({ projectUuid, value, onChange }) => {
         'Embedded customer content',
     );
     const [roleType, setRoleType] = useState<'system' | 'custom'>('system');
-    const [systemRole, setSystemRole] = useState(SYSTEM_ROLE_OPTIONS[1].value);
+    const [systemRole, setSystemRole] = useState(
+        required
+            ? ServiceAccountScope.SYSTEM_EDITOR
+            : SYSTEM_ROLE_OPTIONS[1].value,
+    );
     const [customRole, setCustomRole] = useState<string | null>(null);
 
     const serviceAccounts = useMemo(
@@ -119,15 +146,34 @@ const EmbedWriteActionsForm: FC<Props> = ({ projectUuid, value, onChange }) => {
         return map;
     }, [customRoleOptions]);
 
+    const systemRoleOptions = required
+        ? AI_AGENT_SYSTEM_ROLE_OPTIONS
+        : SYSTEM_ROLE_OPTIONS;
     const selectedRole = roleType === 'system' ? systemRole : customRole;
     const canCreateServiceAccount = roleType === 'system' || !!customRole;
 
+    const selectableServiceAccounts = useMemo(
+        () =>
+            required
+                ? serviceAccounts.filter(
+                      (account) =>
+                          account.roleUuid ||
+                          ('projectAccessCount' in account &&
+                              account.projectAccessCount > 0) ||
+                          account.scopes.some((scope) =>
+                              WRITABLE_SERVICE_ACCOUNT_SCOPES.includes(scope),
+                          ),
+                  )
+                : serviceAccounts,
+        [required, serviceAccounts],
+    );
+
     const selectedServiceAccount = useMemo(
         () =>
-            serviceAccounts.find(
+            selectableServiceAccounts.find(
                 (account) => account.uuid === selectedServiceAccountUuid,
             ),
-        [selectedServiceAccountUuid, serviceAccounts],
+        [selectableServiceAccounts, selectedServiceAccountUuid],
     );
     const selectedSpace = useMemo(
         () => spaces.find((space) => space.uuid === selectedSpaceUuid),
@@ -135,30 +181,47 @@ const EmbedWriteActionsForm: FC<Props> = ({ projectUuid, value, onChange }) => {
     );
 
     useEffect(() => {
-        const matchingAccount = serviceAccounts.find(
+        if (required) {
+            setIsEnabled(true);
+            if (
+                !AI_AGENT_SYSTEM_ROLE_OPTIONS.some(
+                    (option) => option.value === systemRole,
+                )
+            ) {
+                setSystemRole(ServiceAccountScope.SYSTEM_EDITOR);
+            }
+        }
+    }, [required, systemRole]);
+
+    useEffect(() => {
+        const matchingAccount = selectableServiceAccounts.find(
             (account) => account.userUuid === value?.serviceAccountUserUuid,
         );
         const defaultAccount =
-            serviceAccounts.find(
+            selectableServiceAccounts.find(
                 (account) =>
                     account.roleUuid ||
+                    ('projectAccessCount' in account &&
+                        account.projectAccessCount > 0) ||
                     account.scopes.some((scope) =>
                         WRITABLE_SERVICE_ACCOUNT_SCOPES.includes(scope),
                     ),
-            ) ?? serviceAccounts[0];
+            ) ?? selectableServiceAccounts[0];
         const nextServiceAccountUuid =
             matchingAccount?.uuid ?? defaultAccount?.uuid;
 
         setSelectedServiceAccountUuid((currentUuid) => {
             if (
                 currentUuid &&
-                serviceAccounts.some((account) => account.uuid === currentUuid)
+                selectableServiceAccounts.some(
+                    (account) => account.uuid === currentUuid,
+                )
             ) {
                 return currentUuid;
             }
             return nextServiceAccountUuid;
         });
-    }, [serviceAccounts, value?.serviceAccountUserUuid]);
+    }, [selectableServiceAccounts, value?.serviceAccountUserUuid]);
 
     useEffect(() => {
         const nextSpaceUuid =
@@ -206,12 +269,34 @@ const EmbedWriteActionsForm: FC<Props> = ({ projectUuid, value, onChange }) => {
     const handleCreateServiceAccount = async () => {
         const label =
             newServiceAccountDescription.trim() || 'Embedded customer actions';
+        const projectRole =
+            roleType === 'system'
+                ? SERVICE_ACCOUNT_SCOPE_PROJECT_ROLE_MAP[
+                      systemRole as ServiceAccountScope
+                  ]
+                : undefined;
+        if (required && roleType === 'system' && !projectRole) {
+            return;
+        }
         const newAccount = await createAccount.mutateAsync({
             description: label,
             expiresAt: null,
-            ...(roleType === 'system'
-                ? { scopes: [systemRole as ServiceAccountScope] }
-                : { roleUuid: customRole ?? undefined }),
+            ...(required
+                ? {
+                      scopes: [ServiceAccountScope.SYSTEM_MEMBER],
+                      projectAccess:
+                          roleType === 'system'
+                              ? [{ projectUuid, role: projectRole }]
+                              : [
+                                    {
+                                        projectUuid,
+                                        roleUuid: customRole ?? undefined,
+                                    },
+                                ],
+                  }
+                : roleType === 'system'
+                  ? { scopes: [systemRole as ServiceAccountScope] }
+                  : { roleUuid: customRole ?? undefined }),
         });
 
         setSelectedServiceAccountUuid(newAccount.uuid);
@@ -230,22 +315,26 @@ const EmbedWriteActionsForm: FC<Props> = ({ projectUuid, value, onChange }) => {
 
     return (
         <Stack gap="md">
-            <Switch
-                checked={isEnabled}
-                onChange={(event) => setIsEnabled(event.currentTarget.checked)}
-                label="Enable write actions"
-                description="Allow embedded users to perform actions that create or update Lightdash resources."
-            />
+            {!required && (
+                <Switch
+                    checked={isEnabled}
+                    onChange={(event) =>
+                        setIsEnabled(event.currentTarget.checked)
+                    }
+                    label="Enable write actions"
+                    description="Allow embedded users to perform actions that create or update Lightdash resources."
+                />
+            )}
 
             {isEnabled && (
                 <Stack gap="md">
-                    <Divider />
+                    {!required && <Divider />}
 
                     <Stack gap="xs">
                         <Title order={6}>Run actions as</Title>
                         <Text c="dimmed" fz="sm">
                             Select the service account Lightdash should use when
-                            an embed action needs write permissions.
+                            an embed action needs read or write permissions.
                         </Text>
                     </Stack>
 
@@ -279,27 +368,34 @@ const EmbedWriteActionsForm: FC<Props> = ({ projectUuid, value, onChange }) => {
                                     className={styles.dropdownScrollArea}
                                     type="auto"
                                 >
-                                    {serviceAccounts.map((account) => (
-                                        <Menu.Item
-                                            key={account.uuid}
-                                            onClick={() =>
-                                                setSelectedServiceAccountUuid(
-                                                    account.uuid,
-                                                )
-                                            }
-                                        >
-                                            <Stack gap={0}>
-                                                <Text fz="sm">
-                                                    {account.description}
-                                                </Text>
-                                                <Text fz="xs" c="dimmed">
-                                                    {getServiceAccountRoleLabel(
-                                                        account,
-                                                    )}
-                                                </Text>
-                                            </Stack>
-                                        </Menu.Item>
-                                    ))}
+                                    {selectableServiceAccounts.map(
+                                        (account) => (
+                                            <Menu.Item
+                                                key={account.uuid}
+                                                onClick={() =>
+                                                    setSelectedServiceAccountUuid(
+                                                        account.uuid,
+                                                    )
+                                                }
+                                            >
+                                                <Stack gap={0}>
+                                                    <Text fz="sm">
+                                                        {account.description}
+                                                    </Text>
+                                                    <Text fz="xs" c="dimmed">
+                                                        {getServiceAccountRoleLabel(
+                                                            account,
+                                                        )}
+                                                    </Text>
+                                                </Stack>
+                                            </Menu.Item>
+                                        ),
+                                    )}
+                                    {selectableServiceAccounts.length === 0 && (
+                                        <Menu.Label>
+                                            No compatible service accounts
+                                        </Menu.Label>
+                                    )}
                                 </ScrollArea.Autosize>
                                 <Menu.Divider />
                                 <Menu.Item
@@ -486,7 +582,7 @@ const EmbedWriteActionsForm: FC<Props> = ({ projectUuid, value, onChange }) => {
                         }
                         data={
                             roleType === 'system'
-                                ? SYSTEM_ROLE_OPTIONS
+                                ? systemRoleOptions
                                 : customRoleOptions
                         }
                         value={selectedRole}
