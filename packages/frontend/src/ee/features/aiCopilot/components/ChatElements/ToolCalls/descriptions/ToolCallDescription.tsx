@@ -111,6 +111,7 @@ export const ToolCallDescription: FC<{
                     searchQueries={toolArgsFindFields.fieldSearchQueries}
                 />
             );
+        /** @deprecated History-only description for old discoverFields tool calls. */
         case 'discoverFields':
             const discoverFieldsArgs = toolCall.toolArgs as DiscoverFieldsInput;
             return (

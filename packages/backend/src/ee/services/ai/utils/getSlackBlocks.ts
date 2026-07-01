@@ -167,6 +167,7 @@ const TOOL_TASK_TITLES: Record<string, string> = {
     runSavedChart: 'Running saved chart',
     runQuery: 'Running query',
     runSql: 'Reviewing SQL',
+    /** @deprecated History-only title for old discoverFields tool calls. */
     discoverFields: 'Choosing fields',
     generateVisualization: 'Building chart',
     generateDashboard: 'Creating dashboard',

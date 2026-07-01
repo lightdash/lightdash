@@ -3,17 +3,14 @@ import type { FC } from 'react';
 import { ToolCallRow } from './ToolCallRow';
 import type { ToolCallSummary } from './utils/types';
 
+/** @deprecated History-only trace entry for old discoverFields tool calls. */
 export type TraceEntry = {
     toolCallId: string;
     toolName: 'findExplores' | 'findFields';
     toolArgs: unknown;
 };
 
-/**
- * Renders the subagent's internal tool calls (findExplores / findFields)
- * as regular ToolCallRow entries so they look identical to the parent
- * agent's tool calls in the activity card.
- */
+/** @deprecated History-only renderer for old discoverFields tool calls. */
 export const DiscoverFieldsTrace: FC<{ trace: TraceEntry[] }> = ({ trace }) => {
     if (!trace || trace.length === 0) return null;
 

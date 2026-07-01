@@ -22,10 +22,11 @@ export const ToolNameSchema = z.enum([
     'findFields',
     'searchSemanticLayer',
     'analyzeFieldImpact',
-    'discoverFields',
     'grepFields',
     'getMetadata',
     'searchFieldValues',
+    /** @deprecated History-only old discoverFields tool. */
+    'discoverFields',
     'findDashboards',
     'findCharts',
     'getDashboardCharts',
@@ -72,6 +73,7 @@ export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     findFields: 'Finding relevant fields',
     searchSemanticLayer: 'Searching the semantic layer',
     analyzeFieldImpact: 'Analyzing field impact',
+    /** @deprecated History-only label for old discoverFields tool calls. */
     discoverFields: 'Discovering fields',
     grepFields: 'Grepping fields',
     getMetadata: 'Reading metadata',
@@ -117,6 +119,7 @@ export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
         findFields: 'Found relevant fields',
         searchSemanticLayer: 'Searched the semantic layer',
         analyzeFieldImpact: 'Analyzed field impact',
+        /** @deprecated History-only label for old discoverFields tool calls. */
         discoverFields: 'Discovered fields',
         findContent: 'Found relevant content',
         listContent: 'Listed content',

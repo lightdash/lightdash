@@ -16,6 +16,7 @@ type ActivityTitle = {
 const SEARCH_TOOLS = new Set([
     'findExplores',
     'findFields',
+    /** @deprecated History-only grouping for old discoverFields tool calls. */
     'discoverFields',
     'grepFields',
     'getMetadata',

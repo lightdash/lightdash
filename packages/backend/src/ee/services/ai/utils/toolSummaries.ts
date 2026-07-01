@@ -64,6 +64,7 @@ export const summarizeToolCall = (toolName: string, input: AnyType) => {
             );
         case 'loadProjectContext':
             return 'Reading project context';
+        // Deprecated history-only summary for old discoverFields tool calls.
         case 'discoverFields':
             return 'Finding the fields to answer this';
         case 'generateVisualization':
@@ -106,6 +107,7 @@ export const summarizeToolResult = (toolName: string, output: AnyType) => {
     if (toolName === 'findFields') {
         return 'Fields checked';
     }
+    // Deprecated history-only summary for old discoverFields tool calls.
     if (toolName === 'discoverFields') {
         return 'Fields selected';
     }

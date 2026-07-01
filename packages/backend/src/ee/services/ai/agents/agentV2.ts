@@ -26,6 +26,8 @@ import { getEditDbtProject } from '../tools/editDbtProject';
 import { getEditProjectContext } from '../tools/editProjectContext';
 import { getExploreRepo } from '../tools/exploreRepo';
 import { getFindContent } from '../tools/findContent';
+import { getFindExplores } from '../tools/findExplores';
+import { getFindFields } from '../tools/findFields';
 import { getGenerateDashboardV2 } from '../tools/generateDashboardV2';
 import { getGenerateHashes } from '../tools/generateHashes';
 import { getGenerateUuids } from '../tools/generateUuids';
@@ -69,7 +71,6 @@ import {
     getUserFacingErrorMessage,
 } from '../utils/errorMessages';
 import { summarizeToolCall, summarizeToolResult } from '../utils/toolSummaries';
-import { getDiscoverFields } from './discoverFields/tool';
 import { getAgentTelemetryConfig, getAiAgentModelName } from './telemetry';
 
 const createAiAgentLogger =
@@ -269,38 +270,27 @@ const getAgentTools = (
         `Getting agent tools for agent: ${args.agentSettings.name}`,
     );
 
-    const discoverFields = getDiscoverFields(
-        {
-            model: args.model,
-            callOptions: args.callOptions,
-            providerOptions: args.providerOptions,
-            availableExplores,
-            findExploresFieldSearchSize: args.findExploresFieldSearchSize,
-            findFieldsPageSize: args.findFieldsPageSize,
-            toolDescriptionMaxChars: args.toolDescriptionMaxChars,
-            promptUuid: args.promptUuid,
-            telemetry: {
-                agentSettings: args.agentSettings,
-                threadUuid: args.threadUuid,
-                promptUuid: args.promptUuid,
-                organizationId: args.organizationId,
-                userId: args.userId,
-                telemetryEnabled: args.telemetryEnabled,
-                model: args.model,
-            },
-        },
-        {
-            findExplores: dependencies.findExplores,
-            findFields: dependencies.findFields,
-            getExplore: dependencies.getExplore,
-            updateProgress: dependencies.updateProgress,
-            storeToolCall: dependencies.storeToolCall,
-            storeToolResults: dependencies.storeToolResults,
-        },
-    );
+    const findExplores = args.enableGrepFields
+        ? null
+        : getFindExplores({
+              fieldSearchSize: args.findExploresFieldSearchSize,
+              findExplores: dependencies.findExplores,
+              updateProgress: dependencies.updateProgress,
+              toolDescriptionMaxChars: args.toolDescriptionMaxChars,
+          });
 
-    // Experimental swap: when on, the main agent greps the in-memory annotated
-    // explores itself instead of delegating to the discoverFields sub-agent.
+    const findFields = args.enableGrepFields
+        ? null
+        : getFindFields({
+              getExplore: dependencies.getExplore,
+              findFields: dependencies.findFields,
+              updateProgress: dependencies.updateProgress,
+              pageSize: args.findFieldsPageSize,
+              toolDescriptionMaxChars: args.toolDescriptionMaxChars,
+          });
+
+    // Experimental discovery swap: when enabled, grep the in-memory annotated
+    // explores to identify both the explore and fields, then fetch metadata.
     const grepFields = args.enableGrepFields
         ? getGrepFields({
               availableExplores,
@@ -309,8 +299,6 @@ const getAgentTools = (
           })
         : null;
 
-    // Companion to grepFields: rich detail for the explores/fields the agent
-    // selected (joined tables, required filters, filter types, hints).
     const getMetadata = args.enableGrepFields
         ? getGetMetadata({ availableExplores })
         : null;
@@ -520,9 +508,9 @@ const getAgentTools = (
 
     const tools: ToolSet = {
         findContent,
-        // grepFields replaces discoverFields when the ai-grep-fields flag is on,
-        // with getMetadata as its rich-detail companion.
-        ...(grepFields ? { grepFields } : { discoverFields }),
+        ...(findExplores ? { findExplores } : {}),
+        ...(findFields ? { findFields } : {}),
+        ...(grepFields ? { grepFields } : {}),
         ...(getMetadata ? { getMetadata } : {}),
         analyzeFieldImpact,
         ...(args.enableSearchSemanticLayer ? { searchSemanticLayer } : {}),
@@ -1126,12 +1114,8 @@ export const streamAgentResponse = async ({
                         break;
 
                     case 'tool-result':
-                        // The discoverFields tool emits preliminary
-                        // tool-result chunks as it streams subagent progress.
-                        // Only persist the final, non-preliminary one — N
-                        // intermediate rows for the same toolCallId would be
-                        // wasteful and the intermediate output shapes carry
-                        // streaming state, not the parent-facing result.
+                        // Some streaming tools emit preliminary tool-result
+                        // chunks. Only persist the final, non-preliminary one.
                         if (event.chunk.preliminary) {
                             break;
                         }
