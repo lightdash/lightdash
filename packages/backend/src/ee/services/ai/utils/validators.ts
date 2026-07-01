@@ -1180,10 +1180,19 @@ export function validateAxisFields(
     selectedDimensions: string[],
     selectedMetrics: string[],
     tableCalculations?: TableCalcsSchema | TableCalculation[],
+    customMetrics?: CustomMetricBaseTransformed[] | null,
 ) {
     if (!chartConfig) {
         return;
     }
+
+    // Aggregation custom metrics are selected metrics too — they compile to
+    // "<table>_<name>" field ids and are valid on the axes. Fold them in like
+    // the sort / table-calculation / field-existence validators already do,
+    // otherwise a custom metric referenced in yAxisMetrics fails validation
+    // even though it is part of the query.
+    const customMetricIds = customMetrics?.map(getItemId) ?? [];
+    const selectableMetrics = [...selectedMetrics, ...customMetricIds];
 
     // Validate both axis fields
     const xAxisErrors = validateXAxisField(
@@ -1192,14 +1201,14 @@ export function validateAxisFields(
     );
     const yAxisErrors = validateYAxisMetrics(
         chartConfig.yAxisMetrics,
-        selectedMetrics,
+        selectableMetrics,
         tableCalculations,
     );
     if (chartConfig.secondaryYAxisMetric) {
         yAxisErrors.push(
             ...validateYAxisMetrics(
                 [chartConfig.secondaryYAxisMetric],
-                selectedMetrics,
+                selectableMetrics,
                 tableCalculations,
             ),
         );

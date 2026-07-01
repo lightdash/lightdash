@@ -125,6 +125,7 @@ export const validateRunQueryTool = (
         queryTool.queryConfig.dimensions,
         queryTool.queryConfig.metrics,
         queryTool.queryConfig.tableCalculations,
+        aggregations,
     );
 
     // Validate sort fields exist
