@@ -1,3 +1,10 @@
+# [0.3279.0](https://github.com/lightdash/lightdash/compare/0.3278.0...0.3279.0) (2026-07-01)
+
+
+### Features
+
+* **data-apps:** surface build error in the app UI ([#24979](https://github.com/lightdash/lightdash/issues/24979)) ([c97debd](https://github.com/lightdash/lightdash/commit/c97debda92e14840f88adf948cb874ca27c7e95e))
+
 # [0.3278.0](https://github.com/lightdash/lightdash/compare/0.3277.1...0.3278.0) (2026-07-01)
 
 
