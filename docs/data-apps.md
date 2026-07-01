@@ -887,6 +887,50 @@ Opt-in flags on the existing `lightdash download` / `lightdash upload` commands 
 - **Semantic-layer coupling:** a moved app's queries run against the **target project's** fields *by name*; fields missing in the target surface as in-app query errors, not upload failures.
 - **Security:** because the server only ever builds source in its trusted, network-locked sandbox and never serves client-supplied *built* code, the runtime trust model is unchanged from AI-generated apps. See [Security Model](#security-model). (Follow-up: the query bridge runs as the *viewing* user — a pre-existing consideration for any app, generated or uploaded.)
 
+### Local authoring (Phase 2)
+
+Phase 1 makes apps [downloadable and uploadable from source](#cli); Phase 2 makes the downloaded tree **locally buildable**, so you can verify changes compile before uploading.
+
+#### What `lightdash download --apps` now includes
+
+The download folder adds to the Phase 1 output (`src/` + `lightdash-app.yml`):
+
+- **Build scaffolding:** `package.json` (Lightdash App SDK pinned to the same published version the server uses), `vite.config.js`, `tailwind.config.js`, `postcss.config.js`, `tsconfig.json`, `index.html`
+- **Agent skills:** `.claude/skills/lightdash-data-app` (SDK reference) and `.claude/skills/developing-data-apps-locally` (local authoring workflow)
+- **Project files:** `AGENTS.md`, `README.md`, `.gitignore`
+- **Context snapshot** (`.lightdash/context/`): `semantic-layer.yml`, `parameters.yml` (if the app uses parameters), `prompt-history.md`, and `theme/`
+
+All scaffolding and context files are read-only reference — see [Upload is source-only](#upload-is-source-only) below.
+
+#### The local loop
+
+```sh
+edit src/  →  pnpm install && pnpm build  →  lightdash upload --apps  →  server rebuilds
+```
+
+1. Edit files under `src/`.
+2. Run `pnpm install && pnpm build` as a pre-flight compile check against the downloaded scaffolding.
+3. Upload with `lightdash upload --apps` (fire-and-forget, as in Phase 1). The server rebuilds in its trusted sandbox.
+
+**The server's build is authoritative.** Your local build is a compile check only; the deployed app is always the server's output.
+
+#### Upload is source-only
+
+Only `src/` is sent on upload. Scaffolding files and `.lightdash/context/` are local reference; the server ignores them and rebuilds against its own trusted template. Editing a local config file has **no effect** on the deployed app. The [Phase 1 trust model](#security-model) is unchanged — no new security surface.
+
+#### Context is a point-in-time snapshot
+
+`.lightdash/context/` reflects the **source project's** semantic layer at download time. On a cross-project or cross-instance upload, the target project's semantic layer may differ — queries referencing renamed or absent fields will fail in-app after upload (the existing [semantic-layer coupling caveat](#constraints--notes)). Re-download from the source project to refresh the snapshot.
+
+#### Theme asset cap
+
+If the org design linked to the app has more than **30 asset files**, the theme assets are skipped during download and a warning is printed; the theme instruction markdown is still written to `.lightdash/context/theme/`. An app whose theme was skipped may not build locally without those assets — the server-side rebuild is unaffected.
+
+#### Out of scope (Phase 3)
+
+- **Local preview against real data** — `pnpm build` is a compile check only, not a live data preview.
+- **Bring-your-own libraries** — running `pnpm add` locally has no effect on the server's sandbox. This is the "future bring your own libraries" path noted in [Constraints & notes](#constraints--notes).
+
 ---
 
 ## Frontend Architecture
