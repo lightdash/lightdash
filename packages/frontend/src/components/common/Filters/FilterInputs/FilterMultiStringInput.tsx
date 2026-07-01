@@ -1,7 +1,14 @@
 import { Group, MultiSelect, Text, type MultiSelectProps } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import uniq from 'lodash/uniq';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+    type FC,
+    type MutableRefObject,
+} from 'react';
 import MantineIcon from '../../MantineIcon';
 import MultiValuePastePopover from './MultiValuePastePopover';
 import { formatDisplayValue } from './utils';
@@ -9,6 +16,8 @@ import { formatDisplayValue } from './utils';
 type Props = Omit<MultiSelectProps, 'data' | 'onChange'> & {
     values: string[];
     onChange: (values: string[]) => void;
+    commitPendingValueRef?: MutableRefObject<(() => boolean) | undefined>;
+    onPendingValueChange?: (hasPendingValue: boolean) => void;
 };
 
 const FilterMultiStringInput: FC<Props> = ({
@@ -16,6 +25,8 @@ const FilterMultiStringInput: FC<Props> = ({
     disabled,
     onChange,
     placeholder,
+    commitPendingValueRef,
+    onPendingValueChange,
     ...rest
 }) => {
     const [search, setSearch] = useState('');
@@ -45,6 +56,33 @@ const FilterMultiStringInput: FC<Props> = ({
             return newValue;
         },
         [handleChange, values],
+    );
+
+    useEffect(() => {
+        if (!commitPendingValueRef) return undefined;
+
+        commitPendingValueRef.current = () => {
+            if (search === '') return false;
+
+            handleAdd(search);
+            handleResetSearch();
+            return true;
+        };
+
+        return () => {
+            commitPendingValueRef.current = undefined;
+        };
+    }, [commitPendingValueRef, handleAdd, handleResetSearch, search]);
+
+    useEffect(() => {
+        onPendingValueChange?.(search !== '');
+    }, [onPendingValueChange, search]);
+
+    useEffect(
+        () => () => {
+            onPendingValueChange?.(false);
+        },
+        [onPendingValueChange],
     );
 
     const handleAddMultiple = useCallback(

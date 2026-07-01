@@ -22,7 +22,13 @@ import {
     type PopoverProps,
 } from '@mantine/core';
 import { IconHelpCircle, IconX } from '@tabler/icons-react';
-import { useEffect, useMemo, useState, type FC } from 'react';
+import {
+    useEffect,
+    useMemo,
+    useState,
+    type FC,
+    type MutableRefObject,
+} from 'react';
 import FilterInputComponent from '../../../components/common/Filters/FilterInputs';
 import { filterOperatorDescription } from '../../../components/common/Filters/FilterInputs/constants';
 import { getFilterOperatorOptions } from '../../../components/common/Filters/FilterInputs/utils';
@@ -38,6 +44,8 @@ interface FilterSettingsProps {
     filterRule: DashboardFilterRule;
     popoverProps?: Omit<PopoverProps, 'children'>;
     onChangeFilterRule: (value: DashboardFilterRule) => void;
+    commitPendingValueRef?: MutableRefObject<(() => boolean) | undefined>;
+    onPendingValueChange?: (hasPendingValue: boolean) => void;
 }
 
 const FilterSettings: FC<FilterSettingsProps> = ({
@@ -48,6 +56,8 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     filterRule,
     popoverProps,
     onChangeFilterRule,
+    commitPendingValueRef,
+    onPendingValueChange,
 }) => {
     const { user } = useApp();
     const canManageExplore = user.data?.ability?.can('manage', 'Explore');
@@ -220,6 +230,8 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                         newFilterRule as DashboardFilterRule,
                                     )
                                 }
+                                commitPendingValueRef={commitPendingValueRef}
+                                onPendingValueChange={onPendingValueChange}
                             />
                         </Box>
                         {canManageExplore &&

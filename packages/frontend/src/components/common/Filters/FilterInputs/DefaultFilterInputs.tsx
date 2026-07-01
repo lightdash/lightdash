@@ -25,6 +25,8 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
     disabled,
     onChange,
     popoverProps,
+    commitPendingValueRef,
+    onPendingValueChange,
 }: FilterInputsProps<T>) => {
     const { getField } = useFiltersContext();
     const suggestions = isFilterRule(rule)
@@ -65,6 +67,8 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                             withinPortal={popoverProps?.withinPortal}
                             onDropdownOpen={popoverProps?.onOpen}
                             onDropdownClose={popoverProps?.onClose}
+                            commitPendingValueRef={commitPendingValueRef}
+                            onPendingValueChange={onPendingValueChange}
                             values={(rule.values || []).filter(isString)}
                             onChange={(values) =>
                                 onChange({
@@ -85,6 +89,8 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                             withinPortal={popoverProps?.withinPortal}
                             onDropdownOpen={popoverProps?.onOpen}
                             onDropdownClose={popoverProps?.onClose}
+                            commitPendingValueRef={commitPendingValueRef}
+                            onPendingValueChange={onPendingValueChange}
                             values={(rule.values || []).filter(isString)}
                             singleValue={isSingleValue}
                             showNullOption={

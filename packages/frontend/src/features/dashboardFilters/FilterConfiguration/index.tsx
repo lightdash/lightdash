@@ -33,7 +33,14 @@ import {
 } from '@mantine/core';
 import { IconRotate2, IconSql } from '@tabler/icons-react';
 import { produce } from 'immer';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../components/common/Filters/FieldLabel';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -100,6 +107,13 @@ const FilterConfiguration: FC<Props> = ({
     const [draftFilterRule, setDraftFilterRule] = useState<
         DashboardFilterRule | undefined
     >(defaultFilterRule);
+    const commitPendingValueRef = useRef<(() => boolean) | undefined>(
+        undefined,
+    );
+    const [hasPendingFilterInputValue, setHasPendingFilterInputValue] =
+        useState(false);
+    const [shouldSaveCommittedValue, setShouldSaveCommittedValue] =
+        useState(false);
 
     const isFilterModified = useMemo(() => {
         if (!originalFilterRule || !draftFilterRule) return false;
@@ -348,11 +362,28 @@ const FilterConfiguration: FC<Props> = ({
         ],
     );
 
-    const isApplyDisabled = !isFilterEnabled(
-        draftFilterRule,
-        isEditMode,
-        isCreatingNew,
-    );
+    const isApplyDisabled =
+        !hasPendingFilterInputValue &&
+        !isFilterEnabled(draftFilterRule, isEditMode, isCreatingNew);
+
+    useEffect(() => {
+        if (!shouldSaveCommittedValue) return;
+
+        setShouldSaveCommittedValue(false);
+        if (draftFilterRule) onSave(draftFilterRule);
+    }, [draftFilterRule, onSave, shouldSaveCommittedValue]);
+
+    const handleApply = useCallback(() => {
+        setSelectedTabId(FilterTabs.SETTINGS);
+
+        if (commitPendingValueRef.current?.()) {
+            setHasPendingFilterInputValue(false);
+            setShouldSaveCommittedValue(true);
+            return;
+        }
+
+        if (draftFilterRule) onSave(draftFilterRule);
+    }, [draftFilterRule, onSave]);
 
     const isLockedRequiredMissingValue =
         !!draftFilterRule?.lockedTabUuids?.length &&
@@ -493,6 +524,10 @@ const FilterConfiguration: FC<Props> = ({
                                 filterRule={draftFilterRule}
                                 onChangeFilterRule={handleChangeFilterRule}
                                 popoverProps={popoverProps}
+                                commitPendingValueRef={commitPendingValueRef}
+                                onPendingValueChange={
+                                    setHasPendingFilterInputValue
+                                }
                             />
                         )}
 
@@ -573,10 +608,7 @@ const FilterConfiguration: FC<Props> = ({
                             // mousedown and the subsequent click event never
                             // reaches the Apply button — so a real-user click
                             // would otherwise need two presses to apply.
-                            onMouseDown={() => {
-                                setSelectedTabId(FilterTabs.SETTINGS);
-                                if (!!draftFilterRule) onSave(draftFilterRule);
-                            }}
+                            onMouseDown={handleApply}
                         >
                             Apply
                         </Button>
