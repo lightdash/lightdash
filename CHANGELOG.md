@@ -1,3 +1,16 @@
+# [0.3274.0](https://github.com/lightdash/lightdash/compare/0.3273.0...0.3274.0) (2026-07-01)
+
+
+### Bug Fixes
+
+* **ai:** make invalid custom-metric baseDimensionName errors actionable ([#24983](https://github.com/lightdash/lightdash/issues/24983)) ([0747756](https://github.com/lightdash/lightdash/commit/074775692415250624c104df7ece8e2206ed793f))
+* **ai:** treat aggregation custom metrics as selected metrics in axis validation ([#24982](https://github.com/lightdash/lightdash/issues/24982)) ([1ba6d63](https://github.com/lightdash/lightdash/commit/1ba6d63324649ae95b2689e032f2d3e8bb9af33d))
+
+
+### Features
+
+* **data-apps:** allow all REST methods on external connections (GLITCH-540) ([#24984](https://github.com/lightdash/lightdash/issues/24984)) ([3651875](https://github.com/lightdash/lightdash/commit/3651875929c8ab1147595b5f40754db8dc1464fa))
+
 # [0.3273.0](https://github.com/lightdash/lightdash/compare/0.3272.1...0.3273.0) (2026-07-01)
 
 
