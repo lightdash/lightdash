@@ -155,22 +155,22 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             enableLineage,
             disableLineage,
             highlightLineage,
-        } = useAppSdkBridge(
+        } = useAppSdkBridge({
             iframeRef,
             expectedPreviewOrigin,
             projectUuid,
             appUuid,
             onQueryEvent,
             onElementSelected,
-            handleInspectorAnnounce,
-            handleScreenshotAnnounce,
+            onInspectorAvailable: handleInspectorAnnounce,
+            onScreenshotAvailable: handleScreenshotAnnounce,
             dashboardFilters,
             invalidateCache,
             capabilities,
-            handleLineageAnnounce,
+            onLineageAvailable: handleLineageAnnounce,
             onLineageSelected,
             onExternalRequestEvent,
-        );
+        });
         const { captureScreenshot } = useIframeScreenshot(iframeRef);
 
         useImperativeHandle(ref, () => ({ captureScreenshot }), [

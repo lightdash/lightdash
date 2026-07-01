@@ -172,8 +172,8 @@ export type ElementSelectedEvent = {
  * availability state itself — the parent owns it and is responsible for
  * resetting on iframe `src` change.
  */
-export function useAppSdkBridge(
-    iframeRef: RefObject<HTMLIFrameElement | null>,
+export type UseAppSdkBridgeParams = {
+    iframeRef: RefObject<HTMLIFrameElement | null>;
     /**
      * The origin this iframe is expected to load from. When previews are
      * served cross-origin this is `https://{customer}.lightdash.app`; in
@@ -184,45 +184,62 @@ export function useAppSdkBridge(
      * matching our iframe's contentWindow (unforgeable); origin is a
      * defence-in-depth check for the non-sandboxed/dev case.
      */
-    expectedPreviewOrigin: string,
+    expectedPreviewOrigin: string;
     /** Project the proxied EE external-fetch calls run against. */
-    projectUuid: string,
+    projectUuid: string;
     /** App the proxied EE external-fetch calls are attributed to. */
-    appUuid: string,
-    onQueryEvent?: (event: QueryEvent) => void,
-    onElementSelected?: (event: ElementSelectedEvent) => void,
-    onInspectorAvailable?: () => void,
-    onScreenshotAvailable?: () => void,
+    appUuid: string;
+    onQueryEvent?: (event: QueryEvent) => void;
+    onElementSelected?: (event: ElementSelectedEvent) => void;
+    onInspectorAvailable?: () => void;
+    onScreenshotAvailable?: () => void;
     /**
      * When set, these filters are stamped onto every intercepted metric-query
      * POST before it reaches the backend. Used by dashboard data-app tiles so
      * the dashboard filter bar applies to the app's queries. The iframe SDK
      * is not involved — generated apps stay filter-agnostic.
      */
-    dashboardFilters?: DashboardFilters,
+    dashboardFilters?: DashboardFilters;
     /**
      * When true, `invalidateCache` is stamped onto every intercepted
      * metric-query POST so the backend bypasses the warehouse results cache —
      * mirrors what chart tiles send after the dashboard refresh button is
      * pressed. Set by `DashboardDataAppTile`; left undefined elsewhere.
      */
-    invalidateCache?: boolean,
+    invalidateCache?: boolean;
     /**
      * Feature capabilities the host page opts into. Currently gates the
      * Google Sheets export flow — hosts that don't pass `gsheetExport: true`
      * will receive an error response for those requests.
      */
-    capabilities?: { gsheetExport?: boolean },
-    onLineageAvailable?: () => void,
-    onLineageSelected?: (event: { queryUuid: string }) => void,
+    capabilities?: { gsheetExport?: boolean };
+    onLineageAvailable?: () => void;
+    onLineageSelected?: (event: { queryUuid: string }) => void;
     /**
      * When provided, external-connection fetches proxied through this bridge
      * are reported for the external-requests inspector tab — mirrors
      * `onQueryEvent` for metric queries. Emits `pending` when the fetch starts
      * and a terminal `ready`/`error` event when it settles.
      */
-    onExternalRequestEvent?: (event: ExternalRequestEvent) => void,
-) {
+    onExternalRequestEvent?: (event: ExternalRequestEvent) => void;
+};
+
+export function useAppSdkBridge({
+    iframeRef,
+    expectedPreviewOrigin,
+    projectUuid,
+    appUuid,
+    onQueryEvent,
+    onElementSelected,
+    onInspectorAvailable,
+    onScreenshotAvailable,
+    dashboardFilters,
+    invalidateCache,
+    capabilities,
+    onLineageAvailable,
+    onLineageSelected,
+    onExternalRequestEvent,
+}: UseAppSdkBridgeParams) {
     // Embed mode adapts the bridge's outgoing fetches in two ways:
     //   - Attaches the embed JWT header in lieu of session cookies
     //     (the parent in embed mode has no session, only the JWT).
