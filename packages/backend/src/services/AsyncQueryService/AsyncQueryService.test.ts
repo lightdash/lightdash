@@ -3144,6 +3144,7 @@ describe('AsyncQueryService', () => {
                 service._getWarehouseClient = vi.fn(async () => ({
                     warehouseClient: mockWarehouseClient,
                     sshTunnel: mockSshTunnel,
+                    tunnelConnectMs: null,
                 }));
 
                 await service.executeAsyncSqlQuery({
@@ -3232,6 +3233,7 @@ describe('AsyncQueryService', () => {
                 service._getWarehouseClient = vi.fn(async () => ({
                     warehouseClient: mockWarehouseClient,
                     sshTunnel: mockSshTunnel,
+                    tunnelConnectMs: null,
                 }));
 
                 // WHEN: executeAsyncSqlQuery is called with SQL containing user attributes
@@ -3381,6 +3383,7 @@ describe('AsyncQueryService', () => {
                         streamQuery,
                     },
                     sshTunnel: mockSshTunnel,
+                    tunnelConnectMs: null,
                 }));
 
                 return { service, streamQuery };

@@ -3,6 +3,7 @@ import {
     PreAggregateMissReason,
     QueryExecutionContext,
     QueryHistoryStatus,
+    type WarehousePhaseTimings,
 } from '@lightdash/common';
 import { EventEmitter } from 'events';
 import express from 'express';
@@ -206,6 +207,8 @@ export default class PrometheusMetrics {
 
     private warehouseDurationHistogram: prometheus.Histogram | null = null;
 
+    private warehousePhaseDurationHistogram: prometheus.Histogram | null = null;
+
     private overheadDurationHistogram: prometheus.Histogram | null = null;
 
     private httpServerRequestsDurationSeconds: prometheus.Histogram<
@@ -297,6 +300,18 @@ export default class PrometheusMetrics {
                     buckets: [0.1, 0.5, 1, 2.5, 5, 10, 30, 60, 120],
                     ...rest,
                 });
+
+                this.warehousePhaseDurationHistogram = new prometheus.Histogram(
+                    {
+                        name: 'lightdash_query_warehouse_phase_duration_seconds',
+                        help: 'Warehouse query duration split by phase (connect/session/query/fetch)',
+                        labelNames: ['phase', 'warehouse_type', 'context'],
+                        buckets: [
+                            0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 120,
+                        ],
+                        ...rest,
+                    },
+                );
 
                 this.overheadDurationHistogram = new prometheus.Histogram({
                     name: 'lightdash_query_overhead_duration_seconds',
@@ -1127,6 +1142,24 @@ export default class PrometheusMetrics {
             },
             durationMs / 1000,
         );
+    }
+
+    public observeWarehousePhaseDurations(
+        phaseTimings: WarehousePhaseTimings,
+        warehouseType: string,
+        context: string,
+    ) {
+        const contextLabel = getQueryContextLabel(context);
+        Object.entries(phaseTimings).forEach(([phase, durationMs]) => {
+            this.warehousePhaseDurationHistogram?.observe(
+                {
+                    phase,
+                    warehouse_type: warehouseType,
+                    context: contextLabel,
+                },
+                durationMs / 1000,
+            );
+        });
     }
 
     public observeOverheadDuration(durationMs: number, context: string) {

@@ -57,6 +57,7 @@ export const warehouseClientMock: WarehouseClient = {
             queryMetadata: null,
             totalRows: 0,
             durationMs: 0,
+            phaseTimings: {},
         };
     },
     runQuery: () =>
@@ -162,6 +163,7 @@ export const bigqueryClientMock: WarehouseClient = {
         queryMetadata: null,
         totalRows: 0,
         durationMs: 0,
+        phaseTimings: {},
     }),
     runQuery: () =>
         Promise.resolve({
