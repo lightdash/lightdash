@@ -16,6 +16,16 @@ type SpotlightConfig = {
     };
 };
 
+export type LightdashParameterOption = {
+    label: string;
+    value: string | number;
+};
+
+export const isLightdashParameterOption = (
+    opt: unknown,
+): opt is LightdashParameterOption =>
+    typeof opt === 'object' && opt !== null && 'label' in opt && 'value' in opt;
+
 export type LightdashProjectParameter = {
     label: string;
     description?: string;
@@ -23,7 +33,7 @@ export type LightdashProjectParameter = {
     default?: ParameterValue;
     multiple?: boolean; // the parameter input will be a multi select
     allow_custom_values?: boolean; // allows users to input custom values beyond predefined options
-    options?: string[] | number[]; // hardcoded options - kept separate as they're always homogeneous arrays
+    options?: string[] | number[] | LightdashParameterOption[]; // hardcoded options - string/number arrays or label+value pairs
     options_from_dimension?: {
         // options will be populated from dimension values
         model: string;

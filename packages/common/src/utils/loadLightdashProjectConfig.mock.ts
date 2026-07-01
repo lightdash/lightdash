@@ -205,3 +205,16 @@ export const validConfigWithoutCustomGranularities = `
 spotlight:
   default_visibility: show
 `;
+
+export const validConfigWithLabeledOptions = `
+spotlight:
+  default_visibility: show
+parameters:
+  status:
+    label: Status
+    options:
+      - label: Active
+        value: "active_id_1"
+      - label: Inactive
+        value: "inactive_id_2"
+`;
