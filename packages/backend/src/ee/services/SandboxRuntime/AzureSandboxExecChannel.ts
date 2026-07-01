@@ -150,13 +150,15 @@ export class AzureSandboxExecChannel {
             options?: RunOptions,
         ): Promise<CommandResult> => {
             const controller = new AbortController();
-            const timer =
+            // Give the native exec a 5s grace period over the caller's timeout so
+            // the server's own timeout error surfaces before this client-side abort.
+            const abortAfterMs =
                 options?.timeoutMs && options.timeoutMs > 0
-                    ? setTimeout(
-                          () => controller.abort(),
-                          options.timeoutMs + 5_000,
-                      )
+                    ? options.timeoutMs + 5_000
                     : null;
+            const timer = abortAfterMs
+                ? setTimeout(() => controller.abort(), abortAfterMs)
+                : null;
             try {
                 const response = await this.send(
                     this.url(EXEC_PATH),
@@ -195,7 +197,7 @@ export class AzureSandboxExecChannel {
                     error.name === 'AbortError'
                 ) {
                     throw new SandboxTimeoutError(
-                        `Command timed out after ${options?.timeoutMs}ms`,
+                        `Command timed out after ${abortAfterMs}ms (configured ${options?.timeoutMs}ms)`,
                     );
                 }
                 throw error;
