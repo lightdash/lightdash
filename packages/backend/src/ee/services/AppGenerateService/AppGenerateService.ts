@@ -5125,6 +5125,21 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         );
         const { client: s3Client, bucket } = this.getS3Client();
 
+        let connectionUuidMap = new Map<string, string>();
+        try {
+            connectionUuidMap =
+                await this.externalConnectionModel.copyConnectionsToProject(
+                    sourceProjectUuid,
+                    previewProjectUuid,
+                );
+        } catch (error) {
+            this.logger.error(
+                `Preview duplication: failed to copy external connections from ${sourceProjectUuid} into preview ${previewProjectUuid}: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+        }
+
         const mappings: { sourceAppUuid: string; previewAppUuid: string }[] =
             [];
 
@@ -5136,6 +5151,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 previewProjectUuid,
                 previewProject.organizationUuid,
                 previewSpaceBySource,
+                connectionUuidMap,
                 s3Client,
                 bucket,
             );
@@ -5172,6 +5188,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         previewProjectUuid: string,
         previewOrganizationUuid: string,
         previewSpaceBySource: Map<string, string>,
+        connectionUuidMap: Map<string, string>,
         s3Client: S3Client,
         bucket: string,
     ): Promise<string | null> {
@@ -5183,6 +5200,25 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             // The tile (if any) keeps its read-through reference.
             return null;
         }
+
+        const sourceLinks = await this.externalConnectionModel.listAppLinks(
+            sourceApp.app_id,
+        );
+        const externalConnectionResources: AppVersionExternalConnectionResource[] =
+            sourceLinks.flatMap((link) => {
+                const previewConnectionUuid = connectionUuidMap.get(
+                    link.connection.externalConnectionUuid,
+                );
+                return previewConnectionUuid
+                    ? [
+                          {
+                              externalConnectionUuid: previewConnectionUuid,
+                              name: link.connection.name,
+                              alias: link.alias,
+                          },
+                      ]
+                    : [];
+            });
 
         // Place the copy in the preview's mirror of the source space. Spaceless
         // (personal) apps stay personal. A source space missing from the map
@@ -5208,9 +5244,12 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 ? sourceApp.design_uuid
                 : null;
 
-        const resources = AppGenerateService.buildCopiedResources(
-            sourceVersion.resources ?? null,
-        );
+        const resources: AppVersionResources = {
+            ...AppGenerateService.buildCopiedResources(
+                sourceVersion.resources ?? null,
+            ),
+            externalConnections: externalConnectionResources,
+        };
 
         const newAppUuid = uuidv4();
         const newVersion = 1;
@@ -5253,6 +5292,10 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             await this.appModel.setUpstreamAppUuid(
                 newAppUuid,
                 sourceApp.app_id,
+            );
+            await this.linkResolvedExternalConnections(
+                newAppUuid,
+                externalConnectionResources,
             );
             await this.appModel.updateStatusMessage(
                 newAppUuid,

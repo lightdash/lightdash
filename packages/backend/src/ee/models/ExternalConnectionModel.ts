@@ -148,6 +148,98 @@ export class ExternalConnectionModel {
         });
     }
 
+    /**
+     * Copy every (non-deleted) connection in `sourceProjectUuid` into
+     * `targetProjectUuid` — with its secret and saved samples — and return a
+     * source→target connection-uuid map. Used when a preview project is
+     * created: the copied data apps re-link to the preview's own connections
+     * instead of the upstream project's (which are separate, project-scoped
+     * entities the preview can't reference). The secret ciphertext is copied
+     * verbatim — `EncryptionUtil` is instance-wide, so the payload is portable
+     * across projects on the same instance (no decrypt/re-encrypt).
+     */
+    async copyConnectionsToProject(
+        sourceProjectUuid: string,
+        targetProjectUuid: string,
+    ): Promise<Map<string, string>> {
+        return this.database.transaction(async (trx) => {
+            const sources = await trx(ExternalConnectionsTableName)
+                .where('project_uuid', sourceProjectUuid)
+                .whereNull('deleted_at')
+                .select<DbExternalConnection[]>('*');
+
+            const map = new Map<string, string>();
+            /* eslint-disable no-await-in-loop */
+            for (const src of sources) {
+                const [row] = await trx(ExternalConnectionsTableName)
+                    .insert({
+                        project_uuid: targetProjectUuid,
+                        organization_uuid: src.organization_uuid,
+                        name: src.name,
+                        type: src.type,
+                        origin: src.origin,
+                        allowed_path_prefixes: JSON.stringify(
+                            src.allowed_path_prefixes,
+                        ),
+                        allowed_methods: JSON.stringify(src.allowed_methods),
+                        allowed_content_types: JSON.stringify(
+                            src.allowed_content_types,
+                        ),
+                        response_max_bytes: src.response_max_bytes,
+                        request_max_bytes: src.request_max_bytes,
+                        timeout_ms: src.timeout_ms,
+                        rate_limit_per_minute: src.rate_limit_per_minute,
+                        api_key_name: src.api_key_name,
+                        api_key_location: src.api_key_location,
+                        created_by_user_uuid: src.created_by_user_uuid,
+                        updated_by_user_uuid: src.updated_by_user_uuid,
+                    })
+                    .returning<{ external_connection_uuid: string }[]>(
+                        'external_connection_uuid',
+                    );
+                const targetUuid = row.external_connection_uuid;
+                map.set(src.external_connection_uuid, targetUuid);
+
+                const secret = await trx(ExternalConnectionSecretsTableName)
+                    .where(
+                        'external_connection_uuid',
+                        src.external_connection_uuid,
+                    )
+                    .first<{ encrypted_payload: Buffer } | undefined>(
+                        'encrypted_payload',
+                    );
+                if (secret) {
+                    await trx(ExternalConnectionSecretsTableName).insert({
+                        external_connection_uuid: targetUuid,
+                        encrypted_payload: secret.encrypted_payload,
+                    });
+                }
+
+                // Carry saved samples so in-preview iteration keeps the same
+                // code-gen grounding as upstream.
+                const samples = await trx(ExternalConnectionSamplesTableName)
+                    .where(
+                        'external_connection_uuid',
+                        src.external_connection_uuid,
+                    )
+                    .select<DbExternalConnectionSample[]>('*');
+                if (samples.length > 0) {
+                    await trx(ExternalConnectionSamplesTableName).insert(
+                        samples.map((sample) => ({
+                            external_connection_uuid: targetUuid,
+                            label: sample.label,
+                            request: JSON.stringify(sample.request),
+                            response: JSON.stringify(sample.response),
+                            created_by_user_uuid: sample.created_by_user_uuid,
+                        })),
+                    );
+                }
+            }
+            /* eslint-enable no-await-in-loop */
+            return map;
+        });
+    }
+
     async list(
         projectUuid: string,
         organizationUuid: string,
