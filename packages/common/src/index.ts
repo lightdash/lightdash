@@ -71,6 +71,7 @@ export * from './constants/sessionStorageKeys';
 export * from './constants/spaces';
 export * from './constants/sqlRunner';
 export { default as DbtSchemaEditor } from './dbt/DbtSchemaEditor/DbtSchemaEditor';
+export * from './dbt/manifest';
 export * from './dbt/validation';
 export * from './ee';
 export * from './preAggregates';
@@ -214,6 +215,7 @@ export type {
     CreateDucklakeDataPathS3,
     CreatePostgresCredentials,
     CreatePostgresLikeCredentials,
+    CreateProjectDbtSource,
     CreateRedshiftCredentials,
     CreateSnowflakeCredentials,
     CreateTrinoCredentials,
@@ -248,6 +250,14 @@ export type {
     PostgresCredentials,
     PreviewContentMapping,
     Project,
+    ApiCreateProjectDbtSource,
+    ApiProjectDbtSourceResponse,
+    ApiProjectDbtSourcesResponse,
+    ApiProjectDbtSourceWithConnectionResponse,
+    ApiUpdateProjectDbtSource,
+    ProjectDbtSource,
+    ProjectDbtSourceSummary,
+    ProjectDbtSourceWithConnection,
     ProjectSummary,
     RedshiftCredentials,
     SensitiveCredentialsFieldNames,
@@ -255,6 +265,7 @@ export type {
     SshTunnelConfiguration,
     SslConfiguration,
     TrinoCredentials,
+    UpdateProjectDbtSource,
     UpdateQueryTimezoneSettings,
     UpdateSchedulerSettings,
     WarehouseCredentials,

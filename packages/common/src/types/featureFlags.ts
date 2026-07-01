@@ -271,6 +271,17 @@ export enum FeatureFlags {
      * new behaviour be trialled per-org without a redeploy. Experimental.
      */
     AiFieldValueSearchGuard = 'ai-field-value-search-guard',
+
+    /**
+     * Allow a single Lightdash project to connect to multiple dbt sources
+     * (repos/CLI deploys). Each source stores its latest compiled manifest in
+     * S3; on every deploy or preview the backend merges all sources' manifests
+     * into one, compiles once, and writes a single combined explore set. Off by
+     * default; the N=0 short-circuit (a project with zero registered sources
+     * runs today's single-source code path byte-for-byte) is the regression
+     * firewall. Enable per-org for gradual rollout.
+     */
+    MultiDbtSources = 'multi-dbt-sources',
 }
 
 export type FeatureFlag = {

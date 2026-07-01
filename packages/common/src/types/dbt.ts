@@ -479,6 +479,16 @@ export interface DbtManifest {
     metadata: DbtRawManifestMetadata;
     metrics: Record<string, DbtMetric>;
     docs: Record<string, DbtDoc>;
+    /**
+     * Opaque manifest sections that Lightdash carries through the multi-source
+     * merge (`combineManifestSources`) but does not interpret during compile —
+     * the already-compiled `nodes` carry resolved relation_names, so these are
+     * not read today. Kept for faithful merging and future write-back source
+     * attribution. Optional: not every manifest (or test fixture) includes them.
+     */
+    sources?: Record<string, AnyType>;
+    macros?: Record<string, AnyType>;
+    semantic_models?: Record<string, AnyType>;
 }
 
 export interface DbtRawManifestMetadata {

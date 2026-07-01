@@ -196,6 +196,10 @@ import {
     PinnedSpaceTableName,
 } from '../database/entities/pinnedList';
 import {
+    ProjectDbtSourcesTable,
+    ProjectDbtSourcesTableName,
+} from '../database/entities/projectDbtSources';
+import {
     ProjectGroupAccessTable,
     ProjectGroupAccessTableName,
 } from '../database/entities/projectGroupAccess';
@@ -487,6 +491,7 @@ declare module 'knex/types/tables' {
         [UserWarehouseCredentialsTableName]: UserWarehouseCredentialsTable;
         [ProjectUserWarehouseCredentialPreferenceTableName]: ProjectUserWarehouseCredentialPreferenceTable;
         [ProjectTableName]: ProjectTable;
+        [ProjectDbtSourcesTableName]: ProjectDbtSourcesTable;
         [SavedChartsTableName]: SavedChartTable;
         [SavedChartVersionsTableName]: SavedChartVersionsTable;
         [SavedChartVersionFieldsTableName]: SavedChartVersionFieldsTable;

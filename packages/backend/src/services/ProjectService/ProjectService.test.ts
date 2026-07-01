@@ -1,6 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
     DbtProjectType,
+    DbtVersionOptionLatest,
     defineUserAbility,
     FeatureFlags,
     FilterOperator,
@@ -44,6 +45,7 @@ import { OrganizationModel } from '../../models/OrganizationModel';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
+import { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -55,6 +57,7 @@ import { UserModel } from '../../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import type { ProjectAdapter } from '../../types';
 import { metricQueryWithLimit } from '../../utils/csvLimitUtils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
@@ -266,6 +269,7 @@ const getMockedProjectService = (
         lightdashConfig,
         analytics: analyticsMock,
         projectModel: projectModel as unknown as ProjectModel,
+        projectDbtSourcesModel: {} as unknown as ProjectDbtSourcesModel,
         preAggregateModel: preAggregateModel as unknown as PreAggregateModel,
         onboardingModel: onboardingModel as unknown as OnboardingModel,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
@@ -2679,5 +2683,131 @@ describe('ProjectService._compileQuery reserved parameters', () => {
         expect(compiled.query).toContain("'weekly'");
         expect(compiled.query).not.toContain("'other'");
         expect(compiled.query).not.toContain('ld.parameters.date_zoom');
+    });
+});
+
+type ResolveCompileAdapterArgs = {
+    projectUuid: string;
+    organizationUuid: string | undefined;
+    userUuid: string;
+    primary: {
+        adapter: ProjectAdapter;
+        warehouseCredentials: CreateWarehouseCredentials;
+        cachedWarehouse: { warehouseCatalog: {}; warehouseTables: {} };
+        dbtVersionOption: DbtVersionOptionLatest;
+    };
+    manifestFetchAdapters: ProjectAdapter[];
+};
+
+// resolveCompileAdapter/buildMergedManifestAdapter/featureFlagModel/
+// projectDbtSourcesModel are private members; this narrow view exposes only
+// what these tests need to call/override, avoiding `any`.
+type ProjectServiceInternals = {
+    featureFlagModel: { get: (args: unknown) => Promise<unknown> };
+    projectDbtSourcesModel: { getSources: (projectUuid: string) => unknown };
+    resolveCompileAdapter: (
+        args: ResolveCompileAdapterArgs,
+    ) => Promise<ProjectAdapter>;
+    buildMergedManifestAdapter: (args: unknown) => Promise<ProjectAdapter>;
+};
+
+describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firewall)', () => {
+    const primaryAdapter = {
+        id: 'primary-adapter',
+    } as unknown as ProjectAdapter;
+    const primary = {
+        adapter: primaryAdapter,
+        warehouseCredentials: {} as CreateWarehouseCredentials,
+        cachedWarehouse: { warehouseCatalog: {}, warehouseTables: {} },
+        dbtVersionOption: DbtVersionOptionLatest.LATEST,
+    };
+    const baseArgs: ResolveCompileAdapterArgs = {
+        projectUuid: 'project-uuid',
+        organizationUuid: 'org-uuid',
+        userUuid: 'user-uuid',
+        primary,
+        manifestFetchAdapters: [],
+    };
+
+    const buildServiceWithMocks = (
+        flagEnabled: boolean,
+        sources: unknown[],
+    ) => {
+        const getSources = vi.fn(async () => sources);
+        const projectService = getMockedProjectService(
+            lightdashConfigMock,
+        ) as unknown as ProjectServiceInternals;
+        // featureFlagModel and projectDbtSourcesModel are private fields set in
+        // the constructor; override them post-construction for this test only.
+        projectService.featureFlagModel = {
+            get: vi.fn(async (args: unknown) => {
+                const { featureFlagId } = args as { featureFlagId: string };
+                return {
+                    id: featureFlagId,
+                    enabled:
+                        featureFlagId === FeatureFlags.MultiDbtSources
+                            ? flagEnabled
+                            : false,
+                };
+            }),
+        };
+        projectService.projectDbtSourcesModel = { getSources };
+        return { projectService, getSources };
+    };
+
+    it('flag OFF returns the primary adapter by identity and never queries getSources', async () => {
+        const { projectService, getSources } = buildServiceWithMocks(false, [
+            { name: 'jaffle-2' },
+        ]);
+
+        const result = await projectService.resolveCompileAdapter(baseArgs);
+
+        expect(result).toBe(primaryAdapter);
+        expect(getSources).not.toHaveBeenCalled();
+    });
+
+    it('flag ON with zero sources (N=0) returns the primary adapter by identity', async () => {
+        const { projectService, getSources } = buildServiceWithMocks(true, []);
+
+        const result = await projectService.resolveCompileAdapter(baseArgs);
+
+        expect(result).toBe(primaryAdapter);
+        expect(getSources).toHaveBeenCalledTimes(1);
+    });
+
+    it('flag ON with >=1 source delegates to buildMergedManifestAdapter instead of returning the primary adapter', async () => {
+        const mergedAdapter = {
+            id: 'merged-adapter',
+        } as unknown as ProjectAdapter;
+        const { projectService } = buildServiceWithMocks(true, [
+            { name: 'jaffle-2' },
+        ]);
+        const buildMergedManifestAdapterSpy = vi
+            .spyOn(projectService, 'buildMergedManifestAdapter')
+            .mockResolvedValue(mergedAdapter);
+
+        const result = await projectService.resolveCompileAdapter(baseArgs);
+
+        expect(result).toBe(mergedAdapter);
+        expect(result).not.toBe(primaryAdapter);
+        expect(buildMergedManifestAdapterSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('propagates a ParameterError from buildMergedManifestAdapter when sources collide', async () => {
+        const { projectService } = buildServiceWithMocks(true, [
+            { name: 'jaffle-2' },
+        ]);
+        vi.spyOn(
+            projectService,
+            'buildMergedManifestAdapter',
+        ).mockRejectedValue(
+            new ParameterError(
+                'Merging dbt sources found 1 naming collision: nodes "model.dup" is defined in both "primary" and "jaffle-2". Rename or remove the duplicate(s) before deploying.',
+            ),
+        );
+
+        await expect(
+            projectService.resolveCompileAdapter(baseArgs),
+        ).rejects.toThrow(ParameterError);
     });
 });
