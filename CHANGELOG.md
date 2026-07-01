@@ -1,3 +1,10 @@
+# [0.3284.0](https://github.com/lightdash/lightdash/compare/0.3283.1...0.3284.0) (2026-07-01)
+
+
+### Features
+
+* **sandbox:** Azure Container Apps Sandboxes provider (azure-sandboxes) ([#25003](https://github.com/lightdash/lightdash/issues/25003)) ([8ad8f37](https://github.com/lightdash/lightdash/commit/8ad8f379ff989c785551e452ea4a605bf4bfc63b))
+
 ## [0.3283.1](https://github.com/lightdash/lightdash/compare/0.3283.0...0.3283.1) (2026-07-01)
 
 
