@@ -3287,7 +3287,7 @@ export class AppGenerateService extends BaseService {
             };
             flagByUuid.set(c.uuid, {
                 sample: prev.sample || c.includeSampleData,
-                link: prev.link || c.linkLive,
+                link: prev.link || (c.linkLive ?? false),
             });
         }
         let dashboardName: string | null = null;
@@ -3388,7 +3388,7 @@ export class AppGenerateService extends BaseService {
             const prev = dedup.get(ref.uuid) ?? { sample: false, link: false };
             dedup.set(ref.uuid, {
                 sample: prev.sample || ref.includeSampleData,
-                link: prev.link || ref.linkLive,
+                link: prev.link || (ref.linkLive ?? false),
             });
         }
         if (dedup.size === 0) {

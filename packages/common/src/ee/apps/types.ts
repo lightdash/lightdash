@@ -75,8 +75,9 @@ export type AppChartReference = {
     uuid: string;
     includeSampleData: boolean;
     /** When true the app runs this chart live by UUID (linked) instead of
-     *  copying its metric query inline. Default false = copy (legacy). */
-    linkLive: boolean;
+     *  copying its metric query inline. Optional for backwards compatibility —
+     *  omitted (older clients) is treated as false (copy) on the server. */
+    linkLive?: boolean;
 };
 
 /**
