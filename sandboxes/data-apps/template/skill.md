@@ -177,6 +177,53 @@ A linked chart stays in sync with Lightdash and appears in the Queries panel
 like any other query. If it can't be run (deleted / no access), the app should
 show its normal error state — don't fabricate data.
 
+### Linked charts must be DATA-DRIVEN and crash-proof
+
+A linked chart's query can change in Lightdash *after* the app is generated (the
+user swaps the metric, renames a field, etc.). Your generated code MUST survive
+that. A `TypeError` here (`row.x` undefined, `.toFixed()` on undefined, a stale
+field id) is UNACCEPTABLE — it blanks the whole app.
+
+For every LINKED chart, render from the **runtime data**, never hardcoded field
+ids or labels:
+
+- **Discover fields from `columns`, not by name.** `useLightdash` returns
+  `columns: { name, label, type }[]`. Pick the x-axis as the `date`/`timestamp`
+  column and the metric(s) as the `number` column(s) — by `type`, not by a
+  hardcoded id like `orders_fulfillment_rate`.
+- **Titles / axis labels from `columns[].label`** — do NOT hardcode
+  "Fulfillment Rate"; read the metric column's `label` so a metric swap in
+  Lightdash relabels the app automatically.
+- **Format every value with `format(row, column.name)`** — it renders `%` vs
+  `$` vs dates correctly per field, so a units change follows automatically.
+- **Guard every aggregation.** No `Math.max(values)` on a possibly-empty array
+  (yields `-Infinity`), no divide-by-zero, no `.toFixed()` on a maybe-undefined
+  value. If a column is missing or there are no rows, render a neutral `—` —
+  never `NaN`/`Infinity`/a thrown error.
+
+Then WRAP each data/chart component in `<ErrorBoundary>` (from `@/lib/ErrorBoundary`):
+
+```jsx
+import { ErrorBoundary } from '@/lib/ErrorBoundary';
+
+<ErrorBoundary>
+    <RevenueChart />
+</ErrorBoundary>
+```
+
+so if a linked chart's shape changed and a component still can't render it, that
+ONE card shows a fallback while the rest of the app keeps working.
+
+**What "live" covers:** new data, filter / limit / sort / parameter changes, and
+metric swaps that keep the same shape (e.g. a weekly-% metric → a weekly-$
+metric) all flow through automatically when you render data-driven. A
+fundamentally different shape (different dimensions / a different chart type)
+can't reshape a fixed layout — degrade gracefully (the ErrorBoundary fallback)
+rather than crash; the user regenerates to get a new layout.
+
+(Copied charts — `linked: false` — don't need this: their shape is frozen at
+generation, so author them normally.)
+
 **Important:** The field IDs in metric queries use qualified names (e.g.,
 `orders_total_revenue`). When mapping to SDK calls:
 - **Base explore fields:** Strip the explore name prefix. `orders_total_revenue` → `total_revenue`
