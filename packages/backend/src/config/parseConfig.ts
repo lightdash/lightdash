@@ -1597,10 +1597,12 @@ export type AppRuntimeConfig = {
      * Which sandbox backend the data-app pipeline launches sandboxes on.
      * `e2b` keeps today's hosted path; `docker` runs a plain local container
      * (dev / self-host testbed — see docs/sandbox-runtime.md);
-     * `lambda-microvm` runs AWS Lambda MicroVMs (native suspend/resume).
+     * `lambda-microvm` runs AWS Lambda MicroVMs (native suspend/resume);
+     * `azure-sandboxes` runs Azure Container Apps Sandboxes (native
+     * suspend/resume — the Azure analog of E2B / Lambda MicroVMs).
      * Later: kubernetes | ecs | microsandbox.
      */
-    sandboxProvider: 'e2b' | 'docker' | 'lambda-microvm';
+    sandboxProvider: 'e2b' | 'docker' | 'lambda-microvm' | 'azure-sandboxes';
     /**
      * OCI image the `docker` sandbox provider launches data-app containers
      * from. Built locally from sandboxes/data-apps (e.g. `lightdash-sandbox:local`).
@@ -1656,6 +1658,39 @@ export type AppRuntimeConfig = {
      * Required only when `sandboxProvider === 'lambda-microvm'`.
      */
     lambdaMicroVmAiWritebackImageArn: string | null;
+    /**
+     * Shared config for the `azure-sandboxes` provider (subscription / resource
+     * group / region + ADC data-plane API version, Entra token scope, and sandbox
+     * resource tier). The per-feature sandbox group + disk image are separate
+     * fields below. Always populated (with defaults); `subscriptionId`/`resourceGroup`
+     * are only required when the provider is `azure-sandboxes`.
+     */
+    azureSandboxes: {
+        subscriptionId: string | null;
+        resourceGroup: string | null;
+        region: string;
+        apiVersion: string;
+        tokenScope: string;
+        resourceTier: string;
+    };
+    /**
+     * Sandbox group the data-app pipeline runs sandboxes in (one group + disk
+     * image per feature, mirroring the split Docker images / Lambda ARNs).
+     * Required only when `sandboxProvider === 'azure-sandboxes'`.
+     */
+    azureSandboxesDataAppGroup: string | null;
+    /** Disk image **id** (UUID assigned at registration) the data-app pipeline
+     * launches from — passed as `sourcesRef.diskImage.id`. Required only when
+     * `azure-sandboxes`. */
+    azureSandboxesDataAppDiskImage: string | null;
+    /**
+     * Sandbox group the AI writeback pipeline runs sandboxes in (decoupled from
+     * the data-app group). Required only when `sandboxProvider === 'azure-sandboxes'`.
+     */
+    azureSandboxesAiWritebackGroup: string | null;
+    /** Disk image the AI writeback pipeline launches (decoupled from the data-app
+     * image). Required only when `azure-sandboxes`. */
+    azureSandboxesAiWritebackDiskImage: string | null;
 };
 
 export type IntercomConfig = {
@@ -1825,6 +1860,7 @@ const parseSandboxProvider = (
 ): AppRuntimeConfig['sandboxProvider'] => {
     if (value === 'docker') return 'docker';
     if (value === 'lambda-microvm') return 'lambda-microvm';
+    if (value === 'azure-sandboxes') return 'azure-sandboxes';
     return 'e2b';
 };
 
@@ -1928,6 +1964,26 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             process.env.LAMBDA_MICROVM_DATA_APP_IMAGE_ARN || null,
         lambdaMicroVmAiWritebackImageArn:
             process.env.LAMBDA_MICROVM_AI_WRITEBACK_IMAGE_ARN || null,
+        azureSandboxes: {
+            subscriptionId: process.env.AZURE_SANDBOXES_SUBSCRIPTION_ID || null,
+            resourceGroup: process.env.AZURE_SANDBOXES_RESOURCE_GROUP || null,
+            region: process.env.AZURE_SANDBOXES_REGION || 'eastus2',
+            apiVersion:
+                process.env.AZURE_SANDBOXES_API_VERSION || '2026-02-01-preview',
+            // AAD resource for the Sandboxes ADC data plane.
+            tokenScope:
+                process.env.AZURE_SANDBOXES_TOKEN_SCOPE ||
+                'https://management.azuredevcompute.io/.default',
+            resourceTier: process.env.AZURE_SANDBOXES_RESOURCE_TIER || 'M',
+        },
+        azureSandboxesDataAppGroup:
+            process.env.AZURE_SANDBOXES_DATA_APP_GROUP || null,
+        azureSandboxesDataAppDiskImage:
+            process.env.AZURE_SANDBOXES_DATA_APP_DISK_IMAGE || null,
+        azureSandboxesAiWritebackGroup:
+            process.env.AZURE_SANDBOXES_AI_WRITEBACK_GROUP || null,
+        azureSandboxesAiWritebackDiskImage:
+            process.env.AZURE_SANDBOXES_AI_WRITEBACK_DISK_IMAGE || null,
     };
 };
 

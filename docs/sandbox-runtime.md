@@ -11,7 +11,8 @@ features:
 Both run the agent inside an **isolated sandbox** rather than on the Lightdash
 server. The sandbox runtime is the provider-neutral abstraction those features
 talk to, so the same feature code runs on whichever backend an operator has
-configured (hosted E2B, a local Docker container, or AWS Lambda MicroVMs).
+configured (hosted E2B, a local Docker container, AWS Lambda MicroVMs, or Azure
+Container Apps Sandboxes).
 
 This doc is the engineering reference for that abstraction: how it's structured,
 how to drive it from a feature, and how to add a backend. The operator-facing
@@ -114,6 +115,7 @@ Selected by the `SANDBOX_PROVIDER` env var; the factory is
 | `e2b` (default) | `E2bSandboxProvider.ts` | Production / managed | `true` | `e2b` SDK (passthrough) |
 | `docker` | `DockerSandboxProvider.ts` | Local dev / self-host testbed | `false` | `docker exec` over the socket |
 | `lambda-microvm` | `LambdaMicroVmSandboxProvider.ts` | AWS (native pause) | `true` | HTTPS to an in-VM exec agent |
+| `azure-sandboxes` | `AzureContainerAppsSandboxProvider.ts` | Azure (native pause) | `true` | HTTPS to the sandbox's native ADC data plane |
 
 - **E2B** — a near 1:1 passthrough to the `e2b` SDK. The reference implementation
   and the managed default. Egress is enforced via E2B's `network.allowOut`.
@@ -127,9 +129,25 @@ Selected by the `SANDBOX_PROVIDER` env var; the factory is
   data plane (`LambdaExecChannel.ts`) is HTTPS to a small in-microVM agent baked
   into the image, authenticated with a per-call `X-aws-proxy-auth` bearer. The AWS
   `idlePolicy` (auto-suspend / auto-terminate) owns idle expiry.
+- **Azure Container Apps Sandboxes** — the true Azure-native analog of E2B /
+  Lambda: **stateful** sandboxes with a native memory+disk snapshot suspend/resume
+  (sub-second restore), so it is a `pauseResume: true` backend
+  (`AzureContainerAppsSandboxProvider.ts`). The control plane
+  (`create`/`suspend`/`resume`/`delete`) maps 1:1 onto
+  `create`/`persist`/`resume`/`destroy`; per-sandbox ops go through the **ADC data
+  plane** (`management.azuredevcompute.io`), scoped to a sandbox group. Unlike
+  Dynamic Sessions / Lambda there is **no in-container exec agent** — the sandbox's
+  data plane exposes native `exec`/file operations, so the data plane
+  (`AzureSandboxExecChannel.ts`) is HTTPS to `{sandbox}/exec` and `{sandbox}/files`,
+  authenticated with an Entra bearer (`Authorization: Bearer`, minted by
+  `@azure/identity`'s `DefaultAzureCredential` — a workload identity with the
+  **SandboxGroup Data Owner** role in production). One **sandbox group + disk image
+  per feature** (data-app vs writeback), mirroring the split images on every other
+  backend. Egress is enforced natively via the sandbox's egress policy
+  (default-deny + an allow rule per host from `spec.egress.allow`).
 
-The Docker and Lambda providers don't have a native git helper, so both build
-`SandboxGit` on top of `commands`/`files` via the shared `createGitOverCommands`
+The Docker, Lambda, and Azure Sandboxes providers don't have a native git helper,
+so they build `SandboxGit` on top of `commands`/`files` via the shared `createGitOverCommands`
 (`gitOverCommands.ts`) — the system `git` binary inside the sandbox, with
 credentials passed per-invocation (an HTTPS `http.extraHeader`) and never written
 to the repo.
@@ -142,25 +160,25 @@ chosen by `capabilities.pauseResume`:
 
 | `pauseResume` | Providers | `persist()` does | `SnapshotRef` |
 | --- | --- | --- | --- |
-| `true` | E2B, Lambda | Suspends in memory (RAM + disk + live processes). The suspended sandbox **is** the snapshot. The container is **not** destroyed. | `e2b-paused` / `lambda-microvm-suspended` |
+| `true` | E2B, Lambda, Azure Sandboxes | Suspends in memory (RAM + disk + live processes). The suspended sandbox **is** the snapshot. The container is **not** destroyed. | `e2b-paused` / `lambda-microvm-suspended` / `azure-sandbox-suspended` |
 | `false` | Docker | Tars the declared workspace and uploads it to object storage, then the Manager **destroys** the container. | `s3-tar` |
 
 `PersistOptions.workspace` is a `PersistentWorkspace` — `{ include, exclude }`
 declaring the small slice of the filesystem worth keeping (e.g. the agent session
 dir and the working tree). Everything else (re-cloneable repo objects, installed
 deps) is re-derived on resume, keeping snapshots small and free of injected
-secrets. Native-pause providers ignore it (the whole VM is captured); the Docker
-provider passes the include set to `tar -C /`.
+secrets. Native-pause providers ignore it (the whole VM is captured); the
+object-store provider (Docker) passes the include set to `tar -C /`.
 
 `deleteSnapshot` is **provider-owned**: a no-op for native-pause backends (the
-suspended sandbox is reclaimed by `destroy`), and a blob delete for the Docker
-path. The Manager calls it on `destroy`/cleanup so storage handling stays next to
-the code that wrote the snapshot — the Manager never sees an object-store key or
-constructs an S3 client.
+suspended sandbox is reclaimed by `destroy`), and a blob delete for the
+object-store path. The Manager calls it on `destroy`/cleanup so storage handling
+stays next to the code that wrote the snapshot — the Manager never sees an
+object-store key or constructs an S3 client.
 
 The object store (`SnapshotStore.ts`) is a narrow `put`/`get`/`delete` over
 S3/MinIO (`S3SnapshotStore`), reusing the app's existing storage config. It's only
-constructed for the Docker provider; native-pause paths pass `null`.
+constructed for the object-store provider (Docker); native-pause paths pass `null`.
 
 ## Lifecycle of a turn
 
@@ -182,9 +200,12 @@ container, suspends it, and preserves state for a later resume.
 
 There is **no application-side reaper**. Every turn suspends its own sandbox, and
 native-pause backends own idle expiry themselves — E2B via its create-time
-`onTimeout: 'pause'`, Lambda via its AWS `idlePolicy`, which is fed by
-`SANDBOX_IDLE_TIMEOUT_MS` (auto-suspend) and `SANDBOX_SNAPSHOT_RETENTION_MS`
-(auto-terminate). The Docker provider is dev-only and has no idle handling.
+`onTimeout: 'pause'`, Lambda via its AWS `idlePolicy`, and Azure Sandboxes via the
+sandbox group's auto-suspend lifecycle policy (Memory mode), fed by
+`SANDBOX_IDLE_TIMEOUT_MS`; an idled-out sandbox auto-suspends to a memory snapshot
+and resumes sub-second, so the next turn loses nothing. `SANDBOX_SNAPSHOT_RETENTION_MS`
+feeds Lambda's AWS auto-terminate. The Docker provider is dev-only and has no idle
+handling.
 
 ## Using the runtime in a feature
 
@@ -226,20 +247,25 @@ Unit tests drive a fake `SandboxProvider`/`SandboxRegistryStore` (see
 Implement `SandboxProvider` and return a `SandboxHandle`. The work splits by
 whether the backend has a native memory snapshot:
 
-- **Native-pause backend** (like E2B / Lambda): set `capabilities.pauseResume =
-  true`; `persist` suspends and returns a ref that is just the id to resume;
-  `resume` reconnects; `deleteSnapshot` is a no-op (the suspended sandbox is
-  reclaimed by `destroy`). Add a new `SnapshotRef` variant in `types.ts`.
+- **Native-pause backend** (like E2B / Lambda / Azure Sandboxes): set
+  `capabilities.pauseResume = true`; `persist` suspends and returns a ref that is
+  just the id to resume; `resume` reconnects; `deleteSnapshot` is a no-op (the
+  suspended sandbox is reclaimed by `destroy`). Add a new `SnapshotRef` variant in
+  `types.ts`.
 - **No native pause** (like Docker): set `pauseResume = false`; reuse the
   object-store pattern — tar the declared workspace to a `SnapshotStore` in
   `persist`, restore it in `resume`, delete the blob in `deleteSnapshot` — and the
-  Manager will destroy the container after persisting.
+  Manager will destroy the container after persisting. Reuse the existing `s3-tar`
+  `SnapshotRef` rather than adding a new variant.
 
 If the backend has no native git helper, build `SandboxGit` with
 `createGitOverCommands(handle.commands, handle.files)` rather than reimplementing
-it. Normalize the backend's command/timeout errors to `SandboxCommandError` /
-`SandboxTimeoutError`. Wire the new kind into the `createSandboxProvider` factory
-and the `SANDBOX_PROVIDER` parsing in `parseConfig.ts`.
+it. Keep the backend's SDK/REST behind a typed control-plane seam (like
+`MicrovmControlPlane` / `SandboxGroupControlPlane`) so unit tests drive a fake and
+the vendor SDK never leaks into feature code. Normalize the backend's
+command/timeout errors to `SandboxCommandError` / `SandboxTimeoutError`. Wire the
+new kind into the `createSandboxProvider` factory and the `SANDBOX_PROVIDER`
+parsing in `parseConfig.ts`.
 
 ## Configuration
 
@@ -248,12 +274,23 @@ The full operator reference is on the public docs site. The values are parsed in
 
 | Variable | Used by | Notes |
 | --- | --- | --- |
-| `SANDBOX_PROVIDER` | all | `e2b` (default) · `docker` · `lambda-microvm` |
+| `SANDBOX_PROVIDER` | all | `e2b` (default) · `docker` · `lambda-microvm` · `azure-sandboxes` |
 | `E2B_API_KEY`, `E2B_*_TEMPLATE_NAME/TAG` | e2b | Separate data-app vs writeback templates |
 | `SANDBOX_DOCKER_IMAGE`, `SANDBOX_AI_WRITEBACK_DOCKER_IMAGE` | docker | Local images built from `sandboxes/<feature>/` |
 | `LAMBDA_MICROVM_*` (region, role, connectors, image ARNs) | lambda-microvm | Image ARNs are separate per feature |
-| `SANDBOX_IDLE_TIMEOUT_MS`, `SANDBOX_SNAPSHOT_RETENTION_MS` | lambda-microvm | Feed the AWS `idlePolicy`; ignored by e2b/docker |
+| `AZURE_SANDBOXES_SUBSCRIPTION_ID`, `AZURE_SANDBOXES_RESOURCE_GROUP`, `AZURE_SANDBOXES_REGION` | azure-sandboxes | Locate the sandbox groups (ADC data plane is regional) |
+| `AZURE_SANDBOXES_{DATA_APP,AI_WRITEBACK}_GROUP`, `AZURE_SANDBOXES_{DATA_APP,AI_WRITEBACK}_DISK_IMAGE` | azure-sandboxes | One sandbox group + disk image per feature |
+| `AZURE_SANDBOXES_API_VERSION`, `AZURE_SANDBOXES_TOKEN_SCOPE`, `AZURE_SANDBOXES_RESOURCE_TIER` | azure-sandboxes | Data-plane API version, Entra token scope, tier (`M` default) — sensible defaults |
+| `SANDBOX_IDLE_TIMEOUT_MS` | lambda-microvm, azure-sandboxes | Feeds the auto-suspend idle policy; ignored by e2b/docker |
+| `SANDBOX_SNAPSHOT_RETENTION_MS` | lambda-microvm | Feeds the AWS auto-terminate policy |
 | `ANTHROPIC_API_KEY` | all | The Claude Code agent runs inside the sandbox |
+
+The `azure-sandboxes` backend authenticates with `@azure/identity`'s
+`DefaultAzureCredential` — in production, a workload identity with the **Container
+Apps SandboxGroup Data Owner** role on the resource group; in dev, env/CLI
+credentials. No client secret is read from config. The exact ADC data-plane REST
+(paths, api-version, token audience) is pinned empirically during preview — see
+the `PINNED CONTRACT` note in `AzureContainerAppsSandboxProvider.ts`.
 
 The data-app and writeback features use **separate images/templates** on every
 backend (different toolchains), so each image setting comes in a pair.

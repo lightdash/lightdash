@@ -1,5 +1,11 @@
 import { LambdaMicrovms } from '@aws-sdk/client-lambda-microvms';
+import { DefaultAzureCredential } from '@azure/identity';
 import { MissingConfigError } from '@lightdash/common';
+import {
+    AzureContainerAppsSandboxProvider,
+    AzureSandboxGroupControlPlane,
+    type AzureSandboxesConfig,
+} from './AzureContainerAppsSandboxProvider';
 import { DockerSandboxProvider } from './DockerSandboxProvider';
 import { E2bSandboxProvider } from './E2bSandboxProvider';
 import {
@@ -11,12 +17,17 @@ import { SandboxManager, type SandboxRegistryStore } from './SandboxManager';
 import { type SnapshotStore } from './SnapshotStore';
 import { type SandboxLogger, type SandboxProvider } from './types';
 
+export * from './AzureContainerAppsSandboxProvider';
 export * from './errors';
 export * from './SandboxManager';
 export * from './SnapshotStore';
 export * from './types';
 
-export type SandboxProviderKind = 'e2b' | 'docker' | 'lambda-microvm';
+export type SandboxProviderKind =
+    | 'e2b'
+    | 'docker'
+    | 'lambda-microvm'
+    | 'azure-sandboxes';
 
 /** Static, non-per-sandbox config the Lambda MicroVMs provider needs. */
 export interface LambdaMicroVmProviderConfig extends LambdaMicroVmConfig {
@@ -30,9 +41,16 @@ export interface CreateSandboxProviderOptions {
     /** Required when `provider === 'lambda-microvm'`; ignored otherwise. */
     lambdaMicroVm: LambdaMicroVmProviderConfig | null;
     /**
+     * Required when `provider === 'azure-sandboxes'`; ignored otherwise. The
+     * per-feature sandbox group is resolved by the caller (one group + disk image
+     * per feature, like the split Docker images / Lambda ARNs).
+     */
+    azureSandboxes: AzureSandboxesConfig | null;
+    /**
      * Backing store for object-store snapshots. Required only by the Docker
-     * provider; native-pause providers (E2B, Lambda) keep the snapshot in the
-     * provider and pass `null` so no S3 client is constructed on those paths.
+     * provider (no native memory snapshot); native-pause providers (E2B, Lambda,
+     * Azure Sandboxes) keep the snapshot in the provider and pass `null` so no S3
+     * client is constructed on those paths.
      */
     snapshotStore: SnapshotStore | null;
     logger: SandboxLogger;
@@ -85,6 +103,26 @@ export const createSandboxProvider = (
                 options.logger,
             );
         }
+        case 'azure-sandboxes': {
+            const config = options.azureSandboxes;
+            if (!config || !config.sandboxGroup) {
+                throw new MissingConfigError(
+                    'Azure Sandboxes is not configured (AZURE_SANDBOXES_*)',
+                );
+            }
+            // `DefaultAzureCredential` resolves the workload identity in production
+            // (the SandboxGroup Data Owner role) and env/CLI creds in dev.
+            const controlPlane = new AzureSandboxGroupControlPlane(
+                new DefaultAzureCredential(),
+                config,
+                options.logger,
+            );
+            return new AzureContainerAppsSandboxProvider(
+                controlPlane,
+                config,
+                options.logger,
+            );
+        }
         default:
             throw new MissingConfigError(
                 `Unknown SANDBOX_PROVIDER: ${options.provider as string}`,
@@ -97,7 +135,9 @@ export interface CreateSandboxManagerOptions {
     e2bApiKey: string | null;
     dockerImage: string;
     lambdaMicroVm: LambdaMicroVmProviderConfig | null;
-    /** Forwarded to the provider; Docker-only (null on native-pause paths). */
+    /** Required when `provider === 'azure-sandboxes'`. */
+    azureSandboxes: AzureSandboxesConfig | null;
+    /** Forwarded to the provider; the Docker backend only (null otherwise). */
     snapshotStore: SnapshotStore | null;
     registryModel: SandboxRegistryStore;
     logger: SandboxLogger;
@@ -115,6 +155,7 @@ export const createSandboxManager = (
         e2bApiKey: options.e2bApiKey,
         dockerImage: options.dockerImage,
         lambdaMicroVm: options.lambdaMicroVm,
+        azureSandboxes: options.azureSandboxes,
         snapshotStore: options.snapshotStore,
         logger: options.logger,
     });
