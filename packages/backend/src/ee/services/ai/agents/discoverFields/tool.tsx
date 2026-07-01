@@ -1,5 +1,10 @@
-import { discoverFieldsToolDefinition, Explore } from '@lightdash/common';
 import {
+    assertUnreachable,
+    discoverFieldsToolDefinition,
+    type Explore,
+} from '@lightdash/common';
+import {
+    isToolUIPart,
     readUIMessageStream,
     tool,
     type CallSettings,
@@ -14,9 +19,11 @@ import {
     runDiscoverFieldsAgent,
     type DiscoverFieldsAgentDependencies,
 } from './agent';
-import {
-    discoverFieldsResultSchema,
-    type DiscoverFieldsResult,
+import { hydrateDiscoverFieldsSelection } from './hydrateResult';
+import type {
+    DiscoverFieldsResult,
+    DiscoverFieldsSelectionResult,
+    ToolDiscoverFieldsOutput,
 } from './schema';
 
 const discoverFieldsTool = discoverFieldsToolDefinition.for('agent');
@@ -32,8 +39,8 @@ const renderResolved = (
         >
             {result.explore.joinedTables.length > 0 && (
                 <joinedTables>
-                    {result.explore.joinedTables.map((t) => (
-                        <table>{t}</table>
+                    {result.explore.joinedTables.map((table) => (
+                        <table>{table}</table>
                     ))}
                 </joinedTables>
             )}
@@ -61,25 +68,25 @@ const renderResolved = (
                 )}
         </explore>
         <fields count={result.fields.length}>
-            {result.fields.map((f) => (
+            {result.fields.map((field) => (
                 <field
-                    fieldId={f.fieldId}
-                    name={f.name}
-                    label={f.label}
-                    table={f.table}
-                    type={f.fieldType}
-                    fieldValueType={f.fieldValueType}
-                    fieldFilterType={f.fieldFilterType}
-                    isFromJoinedTable={f.isFromJoinedTable}
-                    {...(f.caseSensitiveFilters === 'not_applicable'
+                    fieldId={field.fieldId}
+                    name={field.name}
+                    label={field.label}
+                    table={field.table}
+                    type={field.fieldType}
+                    fieldValueType={field.fieldValueType}
+                    fieldFilterType={field.fieldFilterType}
+                    isFromJoinedTable={field.isFromJoinedTable}
+                    {...(field.caseSensitiveFilters === 'not_applicable'
                         ? {}
                         : {
                               caseSensitiveFilters:
-                                  f.caseSensitiveFilters === 'true',
+                                  field.caseSensitiveFilters === 'true',
                           })}
                 >
-                    {f.description ? (
-                        <description>{f.description}</description>
+                    {field.description ? (
+                        <description>{field.description}</description>
                     ) : null}
                 </field>
             ))}
@@ -97,9 +104,12 @@ const renderAmbiguous = (
             suggestedQuestion. Do NOT call generateVisualization.
         </note>
         <candidates>
-            {result.candidates.map((c) => (
-                <candidate name={c.exploreName} label={c.exploreLabel}>
-                    {c.reason}
+            {result.candidates.map((candidate) => (
+                <candidate
+                    name={candidate.exploreName}
+                    label={candidate.exploreLabel}
+                >
+                    {candidate.reason}
                 </candidate>
             ))}
         </candidates>
@@ -124,40 +134,59 @@ const renderResult = (result: DiscoverFieldsResult): string => {
         case 'no_match':
             return renderNoMatch(result).toString();
         default:
-            return '';
+            return assertUnreachable(
+                result,
+                'Unknown discover fields result status',
+            );
     }
 };
 
-/**
- * Locate the subagent's final `submitResult` tool call in the accumulated
- * UIMessage and parse its input through the result schema. AI SDK has
- * already validated the input against the same schema before invoking
- * the tool, so this `safeParse` is defence-in-depth — but we keep it
- * because the input is `unknown` at this point in the type system and
- * we'd rather surface a schema error than cast.
- */
-const extractHandoffFromSubmitResult = (
-    message: UIMessage | undefined,
-): DiscoverFieldsResult | { error: string } => {
-    if (!message) {
-        return { error: 'Subagent produced no output.' };
+const getToolTraceSignature = (message: UIMessage): string =>
+    message.parts
+        .filter(isToolUIPart)
+        .map((part) => `${part.type}:${part.toolCallId}:${part.state}`)
+        .join('|');
+
+const toStreamingOutput = (message: UIMessage): ToolDiscoverFieldsOutput => ({
+    result: '',
+    metadata: {
+        status: 'streaming',
+        streamingMessage: message,
+    },
+});
+
+const toSuccessOutput = ({
+    discovery,
+    streamingMessage,
+}: {
+    discovery: DiscoverFieldsResult;
+    streamingMessage: UIMessage | undefined;
+}): ToolDiscoverFieldsOutput => ({
+    result: renderResult(discovery),
+    metadata: {
+        status: 'success',
+        discovery,
+        ...(streamingMessage ? { streamingMessage } : {}),
+    },
+});
+
+const toErrorOutput = (result: string): ToolDiscoverFieldsOutput => ({
+    result,
+    metadata: { status: 'error' },
+});
+
+type SelectionResult =
+    | { status: 'success'; data: DiscoverFieldsSelectionResult }
+    | { status: 'error'; error: unknown };
+
+const waitForSelectionResult = async (
+    selectionResult: PromiseLike<DiscoverFieldsSelectionResult>,
+): Promise<SelectionResult> => {
+    try {
+        return { status: 'success', data: await selectionResult };
+    } catch (error) {
+        return { status: 'error', error };
     }
-    const submitPart = message.parts.findLast(
-        (p): p is typeof p & { input?: unknown } =>
-            p.type === 'tool-submitResult',
-    );
-    if (!submitPart || submitPart.input === undefined) {
-        return {
-            error: 'Subagent did not call submitResult before the stream ended.',
-        };
-    }
-    const parsed = discoverFieldsResultSchema.safeParse(submitPart.input);
-    if (!parsed.success) {
-        return {
-            error: `submitResult payload failed schema validation: ${parsed.error.message}`,
-        };
-    }
-    return parsed.data.handoff;
 };
 
 type Dependencies = DiscoverFieldsAgentDependencies;
@@ -183,18 +212,6 @@ type ToolArgs = {
     >;
 };
 
-/**
- * Schema enforcement is structural, not prompt-based: the subagent's final
- * step is a `submitResult` tool call whose `inputSchema` is the result
- * union. AI SDK validates the args at the tool-call boundary, so the
- * handoff arrives already-typed — no JSON.parse, no fence stripping,
- * no post-stream coercion.
- *
- * The final yield extracts the handoff from the submitResult tool call
- * and renders the XML the parent model sees via `toModelOutput`.
- * Subagent's `storeToolCall` writes are awaited before the final yield
- * so the parent's tool-result row never commits before the children rows.
- */
 export const getDiscoverFields = (args: ToolArgs, dependencies: Dependencies) =>
     tool({
         ...discoverFieldsTool,
@@ -218,76 +235,65 @@ export const getDiscoverFields = (args: ToolArgs, dependencies: Dependencies) =>
                     },
                     dependencies,
                 );
+                const selectionResultPromise = waitForSelectionResult(
+                    stream.output,
+                );
 
                 let currentMessage: UIMessage | undefined;
-                // Yield only on tool-call structural changes; per-chunk
-                // yields re-emit the accumulated UIMessage and grow the
-                // parent stream quadratically.
                 let lastTraceSignature: string | null = null;
                 for await (const message of readUIMessageStream({
                     stream: stream.toUIMessageStream(),
                 })) {
                     currentMessage = message;
-                    const traceSignature = message.parts
-                        .filter((p) => p.type.startsWith('tool-'))
-                        .map((p) => {
-                            const toolPart = p as {
-                                type: string;
-                                toolCallId?: string;
-                                input?: unknown;
-                            };
-                            return `${toolPart.type}:${
-                                toolPart.toolCallId ?? ''
-                            }:${toolPart.input != null ? '1' : '0'}`;
-                        })
-                        .join('|');
+                    const traceSignature = getToolTraceSignature(message);
                     if (
                         traceSignature &&
                         traceSignature !== lastTraceSignature
                     ) {
                         lastTraceSignature = traceSignature;
-                        yield {
-                            result: '',
-                            metadata: {
-                                status: 'streaming' as const,
-                                streamingMessage: message,
-                            },
-                        };
+                        yield toStreamingOutput(message);
                     }
                 }
 
                 await flushPersistence();
 
-                const handoff = extractHandoffFromSubmitResult(currentMessage);
-                if ('error' in handoff) {
-                    // Soft, parent-recoverable model-output anomaly; parent retries on tool-error.
-                    yield {
-                        result: toolErrorHandler(
-                            new Error(handoff.error),
+                const selectionResult = await selectionResultPromise;
+                if (selectionResult.status === 'error') {
+                    yield toErrorOutput(
+                        toolErrorHandler(
+                            selectionResult.error,
                             'Error discovering fields.',
                             { captureToSentry: false },
                         ),
-                        metadata: { status: 'error' as const },
-                    };
+                    );
                     return;
                 }
 
-                yield {
-                    result: renderResult(handoff),
-                    metadata: {
-                        status: 'success' as const,
-                        discovery: handoff,
-                        streamingMessage: currentMessage,
-                    },
-                };
+                const hydrated = await hydrateDiscoverFieldsSelection({
+                    selection: selectionResult.data.handoff,
+                    availableExplores: args.availableExplores,
+                    getExplore: dependencies.getExplore,
+                    toolDescriptionMaxChars: args.toolDescriptionMaxChars,
+                });
+                if (hydrated.status === 'error') {
+                    yield toErrorOutput(
+                        toolErrorHandler(
+                            new Error(hydrated.error),
+                            'Error discovering fields.',
+                            { captureToSentry: false },
+                        ),
+                    );
+                    return;
+                }
+
+                yield toSuccessOutput({
+                    discovery: hydrated.discovery,
+                    streamingMessage: currentMessage,
+                });
             } catch (error) {
-                yield {
-                    result: toolErrorHandler(
-                        error,
-                        'Error discovering fields.',
-                    ),
-                    metadata: { status: 'error' as const },
-                };
+                yield toErrorOutput(
+                    toolErrorHandler(error, 'Error discovering fields.'),
+                );
             }
         },
         toModelOutput: ({ output }) => toModelOutput(output),
