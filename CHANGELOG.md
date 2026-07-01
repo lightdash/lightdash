@@ -1,3 +1,19 @@
+# [0.3280.0](https://github.com/lightdash/lightdash/compare/0.3279.0...0.3280.0) (2026-07-01)
+
+
+### Bug Fixes
+
+* **apps:** copy external connection links when duplicating a data app ([#25006](https://github.com/lightdash/lightdash/issues/25006)) ([0bc6103](https://github.com/lightdash/lightdash/commit/0bc610354f112a35daa584caa7212540ade1400e))
+
+
+### Features
+
+* **ai:** cap generateVisualization retry loops (ZAP-574) ([#24999](https://github.com/lightdash/lightdash/issues/24999)) ([64c0f84](https://github.com/lightdash/lightdash/commit/64c0f845da849cbe117da7c8c07d5e44174028ea))
+* **ai:** flag competing metric definitions in grepFields output (ZAP-572) ([#25004](https://github.com/lightdash/lightdash/issues/25004)) ([316e0bd](https://github.com/lightdash/lightdash/commit/316e0bd92824a665f75df45ecea191ff9f24a077))
+* **ai:** suggest closest fields when a filter targets an unknown field (ZAP-573) ([#25001](https://github.com/lightdash/lightdash/issues/25001)) ([6d87ae9](https://github.com/lightdash/lightdash/commit/6d87ae9d5f6019160378329b4b80509b26b14272))
+* **charts:** data app viz chart-config variant (GLITCH-551) ([#24951](https://github.com/lightdash/lightdash/issues/24951)) ([dc3206e](https://github.com/lightdash/lightdash/commit/dc3206eaa556fca789ce3cbc64f27c4b5ae614a8))
+* **data-apps:** link a Lightdash query by ID (live-linked charts) [GLITCH-534] ([#24987](https://github.com/lightdash/lightdash/issues/24987)) ([fc42ac6](https://github.com/lightdash/lightdash/commit/fc42ac6afdf066bfc26a5b44addc0525f2e4c561))
+
 # [0.3279.0](https://github.com/lightdash/lightdash/compare/0.3278.0...0.3279.0) (2026-07-01)
 
 
