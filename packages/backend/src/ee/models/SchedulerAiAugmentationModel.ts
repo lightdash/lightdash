@@ -1,7 +1,4 @@
-import {
-    SchedulerAiAugmentation,
-    SchedulerAiAugmentationType,
-} from '@lightdash/common';
+import { SchedulerAiAugmentation } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     DbSchedulerAiAugmentation,
@@ -9,9 +6,9 @@ import {
 } from '../database/entities/schedulerAiAugmentation';
 
 const fromRow = (row: DbSchedulerAiAugmentation): SchedulerAiAugmentation => {
-    if (row.augmentation_type === SchedulerAiAugmentationType.AGENT) {
+    if (row.augmentation_type === 'agent') {
         return {
-            type: SchedulerAiAugmentationType.AGENT,
+            type: 'agent',
             prompt: row.prompt,
             // agent_uuid is guaranteed non-null for 'agent' rows by the
             // scheduler_ai_augmentation_shape check constraint.
@@ -20,7 +17,7 @@ const fromRow = (row: DbSchedulerAiAugmentation): SchedulerAiAugmentation => {
         };
     }
     return {
-        type: SchedulerAiAugmentationType.FAST_MODEL,
+        type: 'fast_model',
         prompt: row.prompt,
     };
 };
@@ -39,14 +36,9 @@ const toRow = (
     scheduler_uuid: schedulerUuid,
     augmentation_type: augmentation.type,
     prompt: augmentation.prompt,
-    agent_uuid:
-        augmentation.type === SchedulerAiAugmentationType.AGENT
-            ? augmentation.agentUuid
-            : null,
+    agent_uuid: augmentation.type === 'agent' ? augmentation.agentUuid : null,
     source_thread_uuid:
-        augmentation.type === SchedulerAiAugmentationType.AGENT
-            ? augmentation.sourceThreadUuid
-            : null,
+        augmentation.type === 'agent' ? augmentation.sourceThreadUuid : null,
 });
 
 export class SchedulerAiAugmentationModel {

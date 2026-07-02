@@ -47,27 +47,42 @@ export type AiPromptTokenUsage = {
  * Every origin an ai_thread can be created from. Canonical source for the
  * DB column type and the admin/list filters — add new origins here.
  */
-export type AiThreadCreatedFrom = 'slack' | 'web_app' | 'evals' | 'scheduler';
+export const AI_THREAD_CREATED_FROM = [
+    'slack',
+    'web_app',
+    'evals',
+    'scheduler',
+] as const;
+export type AiThreadCreatedFrom = (typeof AI_THREAD_CREATED_FROM)[number];
 
-// Subsets are spelled out (not Exclude<>) because tsoa can't resolve mapped
-// types at API boundaries. The assertion below fails to compile if any subset
-// drifts outside the canonical union — e.g. after renaming a member — so they
-// can't silently diverge.
+// Subsets use indexed access over const arrays (not Exclude<>, which tsoa
+// can't resolve at API boundaries); `satisfies` keeps each subset inside the
+// canonical union.
 
 /** Origins for threads created through the web app path — everything but Slack. */
-export type AiWebAppThreadCreatedFrom = 'web_app' | 'evals' | 'scheduler';
+export const AI_WEB_APP_THREAD_CREATED_FROM = [
+    'web_app',
+    'evals',
+    'scheduler',
+] as const satisfies readonly AiThreadCreatedFrom[];
+export type AiWebAppThreadCreatedFrom =
+    (typeof AI_WEB_APP_THREAD_CREATED_FROM)[number];
 
 /** Origins handled through the Slack path. */
-export type AiSlackThreadCreatedFrom = 'slack' | 'web_app';
+export const AI_SLACK_THREAD_CREATED_FROM = [
+    'slack',
+    'web_app',
+] as const satisfies readonly AiThreadCreatedFrom[];
+export type AiSlackThreadCreatedFrom =
+    (typeof AI_SLACK_THREAD_CREATED_FROM)[number];
 
 /** Origins a thread can be cloned into — Slack and scheduler threads are never clone targets. */
-export type AiClonedThreadCreatedFrom = 'web_app' | 'evals';
-
-type AssertSubsetOfCreatedFrom<T extends AiThreadCreatedFrom> = T;
-export type AiCreatedFromSubsetsAreValid =
-    | AssertSubsetOfCreatedFrom<AiWebAppThreadCreatedFrom>
-    | AssertSubsetOfCreatedFrom<AiSlackThreadCreatedFrom>
-    | AssertSubsetOfCreatedFrom<AiClonedThreadCreatedFrom>;
+export const AI_CLONED_THREAD_CREATED_FROM = [
+    'web_app',
+    'evals',
+] as const satisfies readonly AiThreadCreatedFrom[];
+export type AiClonedThreadCreatedFrom =
+    (typeof AI_CLONED_THREAD_CREATED_FROM)[number];
 
 export type CreateSlackThread = {
     organizationUuid: string;

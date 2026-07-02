@@ -41,7 +41,6 @@ import {
     GoogleSheetsQuotaError,
     GoogleSheetsTransientError,
     GsheetsNotificationPayload,
-    hasSchedulerUuid,
     isChartScheduler,
     isChartValidationError,
     isCreateScheduler,
@@ -80,7 +79,6 @@ import {
     SavedChartDAO,
     ScheduledDeliveryPayload,
     SCHEDULER_TASKS,
-    SchedulerAiAugmentation,
     SchedulerAndTargets,
     SchedulerCreateProjectWithCompilePayload,
     SchedulerFormat,
@@ -195,7 +193,6 @@ export interface SchedulerAiAugmentationRunner {
     runForDelivery(args: {
         scheduler: SchedulerAndTargets | CreateSchedulerAndTargets;
         createdBy: string;
-        augmentation?: SchedulerAiAugmentation | null;
     }): Promise<string | null>;
 }
 
@@ -4137,54 +4134,13 @@ export default class SchedulerTask {
                 }
             }
 
-            // Generate the AI report (if this delivery is augmented) as the
-            // creator and use it as the message. A failure degrades to a
-            // partial failure — the delivery still ships with the stored
-            // message. GSHEETS carries no message so it is skipped, and this
-            // runs after the threshold gate so unmet alerts never pay for it.
-            let deliveryScheduler = scheduler;
-            const aiPartialFailures: PartialFailure[] = [];
-            if (
-                this.schedulerAiAugmentation &&
-                scheduler.format !== SchedulerFormat.GSHEETS
-            ) {
-                try {
-                    // An unsaved "send now" carries its augmentation inline;
-                    // a persisted delivery has the runner look it up by uuid.
-                    const inlineAugmentation = !hasSchedulerUuid(scheduler)
-                        ? (scheduler.aiAugmentation ?? null)
-                        : undefined;
-                    const aiMessage =
-                        await this.schedulerAiAugmentation.runForDelivery({
-                            scheduler,
-                            createdBy: userUuid,
-                            augmentation: inlineAugmentation,
-                        });
-                    if (aiMessage !== null) {
-                        deliveryScheduler = {
-                            ...scheduler,
-                            message: aiMessage,
-                        };
-                    }
-                } catch (e) {
-                    Logger.error(
-                        `AI augmentation failed for scheduler ${schedulerUuid}: ${getErrorMessage(
-                            e,
-                        )}`,
-                    );
-                    aiPartialFailures.push({
-                        type: PartialFailureType.AI_AUGMENTATION,
-                        error: getErrorMessage(e),
-                    });
-                }
-            }
-
             let page: NotificationPayloadBase['page'] | undefined;
             let perChannelPages:
                 | {
                       email?: NotificationPayloadBase['page'];
                       slack?: NotificationPayloadBase['page'];
                       msteams?: NotificationPayloadBase['page'];
+                      googlechat?: NotificationPayloadBase['page'];
                   }
                 | undefined;
 
@@ -4282,6 +4238,78 @@ export default class SchedulerTask {
                     pageByChannel.googlechat;
             }
 
+            // Generate the AI report (if this delivery is augmented) as the
+            // creator and use it as the message. Runs after the page render so
+            // the summary is never staler than the attachment. A failure
+            // degrades to a partial failure — appended to the page(s) so
+            // recipients see it in-channel — and the delivery still ships with
+            // the stored message. GSHEETS carries no message so it is skipped,
+            // and the threshold gate has already run so unmet alerts never pay
+            // for it.
+            let deliveryScheduler = scheduler;
+            const aiPartialFailures: PartialFailure[] = [];
+            if (
+                this.schedulerAiAugmentation &&
+                scheduler.format !== SchedulerFormat.GSHEETS
+            ) {
+                try {
+                    const aiMessage =
+                        await this.schedulerAiAugmentation.runForDelivery({
+                            scheduler,
+                            createdBy: userUuid,
+                        });
+                    if (aiMessage !== null) {
+                        deliveryScheduler = {
+                            ...scheduler,
+                            message: aiMessage,
+                        };
+                    }
+                } catch (e) {
+                    Logger.error(
+                        `AI augmentation failed for scheduler ${schedulerUuid}: ${getErrorMessage(
+                            e,
+                        )}`,
+                    );
+                    aiPartialFailures.push({
+                        type: PartialFailureType.AI_AUGMENTATION,
+                        error: getErrorMessage(e),
+                    });
+                }
+            }
+            if (aiPartialFailures.length > 0) {
+                // Channels can share a page object (same expiration); the map
+                // keeps that sharing so each page is augmented exactly once.
+                const augmentedPages = new Map<
+                    NotificationPayloadBase['page'],
+                    NotificationPayloadBase['page']
+                >();
+                const withAiFailures = (
+                    channelPage: NotificationPayloadBase['page'] | undefined,
+                ): NotificationPayloadBase['page'] | undefined => {
+                    if (!channelPage) return channelPage;
+                    const existing = augmentedPages.get(channelPage);
+                    if (existing) return existing;
+                    const augmented = {
+                        ...channelPage,
+                        failures: [
+                            ...(channelPage.failures ?? []),
+                            ...aiPartialFailures,
+                        ],
+                    };
+                    augmentedPages.set(channelPage, augmented);
+                    return augmented;
+                };
+                page = withAiFailures(page);
+                if (perChannelPages) {
+                    perChannelPages = {
+                        email: withAiFailures(perChannelPages.email),
+                        slack: withAiFailures(perChannelPages.slack),
+                        msteams: withAiFailures(perChannelPages.msteams),
+                        googlechat: withAiFailures(perChannelPages.googlechat),
+                    };
+                }
+            }
+
             const scheduledJobs =
                 await this.schedulerClient.generateJobsForSchedulerTargets(
                     scheduledTime,
@@ -4315,11 +4343,9 @@ export default class SchedulerTask {
                 }),
             );
 
-            // Page render failures plus any AI-augmentation failure.
-            const partialFailures = [
-                ...(page?.failures ?? []),
-                ...aiPartialFailures,
-            ];
+            // Page render failures; any AI-augmentation failure was already
+            // appended to the page above.
+            const partialFailures = page?.failures ?? [];
 
             await this.schedulerService.logSchedulerJob({
                 task: SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,

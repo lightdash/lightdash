@@ -1,10 +1,11 @@
+import { type SchedulerAiAugmentationType } from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const SchedulerAiAugmentationTableName = 'scheduler_ai_augmentation';
 
 export type DbSchedulerAiAugmentation = {
     scheduler_uuid: string;
-    augmentation_type: 'agent' | 'fast_model';
+    augmentation_type: SchedulerAiAugmentationType;
     prompt: string;
     agent_uuid: string | null;
     source_thread_uuid: string | null;

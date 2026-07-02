@@ -1,24 +1,14 @@
-import {
-    SchedulerAiAugmentationType,
-    SchedulerFormat,
-} from '@lightdash/common';
+import { SchedulerFormat } from '@lightdash/common';
 import { type FC } from 'react';
 import SchedulerModal from '../../../../../features/scheduler/components/SchedulerModal';
+import {
+    DEFAULT_AI_AUGMENTATION_PROMPT,
+    DELIVERY_FORMATS,
+} from '../../../../../features/scheduler/components/types';
 import {
     useChartSchedulerCreateMutation,
     useChartSchedulers,
 } from '../../../../../features/scheduler/hooks/useChartSchedulers';
-
-const DEFAULT_PROMPT =
-    'Summarise this delivery and call out any notable changes or trends.';
-
-// Matches the formats the chart scheduler form offers (excludes Google Sheets).
-const DELIVERY_FORMATS = [
-    SchedulerFormat.CSV,
-    SchedulerFormat.XLSX,
-    SchedulerFormat.IMAGE,
-    SchedulerFormat.PDF,
-];
 
 type Props = {
     chartUuid: string;
@@ -58,10 +48,10 @@ export const AiScheduleDeliveryModal: FC<Props> = ({
             initialFormValues={{
                 format: SchedulerFormat.IMAGE,
                 aiAugmentation: {
-                    type: SchedulerAiAugmentationType.AGENT,
+                    type: 'agent',
                     agentUuid,
                     sourceThreadUuid,
-                    prompt: DEFAULT_PROMPT,
+                    prompt: DEFAULT_AI_AUGMENTATION_PROMPT,
                 },
             }}
             onClose={onClose}

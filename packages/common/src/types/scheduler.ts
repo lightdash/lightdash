@@ -205,10 +205,7 @@ export type SchedulerAndTargets = Scheduler & {
     latestRun?: SchedulerRun | null;
 };
 
-export enum SchedulerAiAugmentationType {
-    AGENT = 'agent',
-    FAST_MODEL = 'fast_model',
-}
+export type SchedulerAiAugmentationType = 'agent' | 'fast_model';
 
 /**
  * Enterprise-only AI augmentation attached to a scheduled delivery. On each
@@ -218,13 +215,13 @@ export enum SchedulerAiAugmentationType {
  */
 export type SchedulerAiAugmentation =
     | {
-          type: SchedulerAiAugmentationType.AGENT;
+          type: 'agent';
           prompt: string;
           agentUuid: string;
           sourceThreadUuid: string | null;
       }
     | {
-          type: SchedulerAiAugmentationType.FAST_MODEL;
+          type: 'fast_model';
           prompt: string;
       };
 

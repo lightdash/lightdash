@@ -437,7 +437,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     schedulerService: repository.getSchedulerService(),
                     userModel: models.getUserModel(),
                     dashboardModel: models.getDashboardModel(),
-                    savedChartModel: models.getSavedChartModel(),
                     asyncQueryService: repository.getAsyncQueryService(),
                     aiAgentService:
                         repository.getAiAgentService<AiAgentService>(),

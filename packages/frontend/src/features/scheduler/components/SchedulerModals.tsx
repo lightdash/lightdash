@@ -1,4 +1,4 @@
-import { SchedulerFormat, type ItemsMap } from '@lightdash/common';
+import { type ItemsMap } from '@lightdash/common';
 import { useDebouncedValue } from '@mantine-8/hooks';
 import { useState, type FC } from 'react';
 import {
@@ -20,6 +20,7 @@ import {
     useDashboardSchedulers,
 } from '../hooks/useDashboardSchedulers';
 import SchedulerModal from './SchedulerModal';
+import { DELIVERY_FORMATS } from './types';
 
 interface DashboardSchedulersProps {
     dashboardUuid: string;
@@ -78,14 +79,6 @@ interface ChartSchedulersProps {
     /** If provided, opens directly in edit mode for this scheduler */
     initialSchedulerUuid?: string;
 }
-
-// Formats for scheduled deliveries (excludes Google Sheets which has its own modal)
-const DELIVERY_FORMATS = [
-    SchedulerFormat.CSV,
-    SchedulerFormat.XLSX,
-    SchedulerFormat.IMAGE,
-    SchedulerFormat.PDF,
-];
 
 interface AppSchedulersProps {
     projectUuid: string;

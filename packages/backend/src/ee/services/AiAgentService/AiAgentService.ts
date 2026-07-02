@@ -858,7 +858,7 @@ export class AiAgentService extends BaseService {
     // A pinned thread may live in another project (e.g. verifying a fix in a
     // preview environment against the original conversation), so access is
     // checked against the source thread's own agent.
-    private async validateThreadContextAccess(
+    public async validateThreadContextAccess(
         user: SessionUser,
         item: { threadUuid: string },
     ): Promise<void> {
@@ -1034,7 +1034,7 @@ export class AiAgentService extends BaseService {
         return this.lightdashConfig.ai.copilot.embeddingEnabled;
     }
 
-    private async getIsCopilotEnabled(
+    public async getIsCopilotEnabled(
         user: Pick<
             LightdashUser,
             'userUuid' | 'organizationUuid' | 'organizationName'

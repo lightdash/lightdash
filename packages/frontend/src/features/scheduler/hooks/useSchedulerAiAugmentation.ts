@@ -3,7 +3,7 @@ import {
     type ApiSchedulerAiAugmentationResponse,
     type SchedulerAiAugmentation,
 } from '@lightdash/common';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 
 const getSchedulerAiAugmentation = (schedulerUuid: string) =>
@@ -13,16 +13,17 @@ const getSchedulerAiAugmentation = (schedulerUuid: string) =>
         body: undefined,
     });
 
-export const useSchedulerAiAugmentation = (schedulerUuid: string | undefined) =>
+export const useSchedulerAiAugmentation = (
+    schedulerUuid: string | undefined,
+    { enabled = true }: { enabled?: boolean } = {},
+) =>
     useQuery<SchedulerAiAugmentation | null, ApiError>({
         queryKey: ['scheduler_ai_augmentation', schedulerUuid],
         queryFn: () => getSchedulerAiAugmentation(schedulerUuid!),
-        enabled: !!schedulerUuid,
+        enabled: !!schedulerUuid && enabled,
     });
 
-// Called imperatively as the second step of the scheduler save, once the
-// scheduler (and therefore its uuid) exists.
-export const upsertSchedulerAiAugmentation = (
+const upsertSchedulerAiAugmentation = (
     schedulerUuid: string,
     augmentation: SchedulerAiAugmentation,
 ) =>
@@ -32,9 +33,46 @@ export const upsertSchedulerAiAugmentation = (
         body: JSON.stringify(augmentation),
     });
 
-export const deleteSchedulerAiAugmentation = (schedulerUuid: string) =>
+export const useSchedulerAiAugmentationUpsertMutation = () => {
+    const queryClient = useQueryClient();
+    return useMutation<
+        SchedulerAiAugmentation | null,
+        ApiError,
+        { schedulerUuid: string; augmentation: SchedulerAiAugmentation }
+    >(
+        ({ schedulerUuid, augmentation }) =>
+            upsertSchedulerAiAugmentation(schedulerUuid, augmentation),
+        {
+            mutationKey: ['upsert_scheduler_ai_augmentation'],
+            onSuccess: async (_data, { schedulerUuid }) => {
+                await queryClient.invalidateQueries([
+                    'scheduler_ai_augmentation',
+                    schedulerUuid,
+                ]);
+            },
+        },
+    );
+};
+
+const deleteSchedulerAiAugmentation = (schedulerUuid: string) =>
     lightdashApi<undefined>({
         url: `/schedulers/${schedulerUuid}/ai-augmentation`,
         method: 'DELETE',
         body: undefined,
     });
+
+export const useSchedulerAiAugmentationDeleteMutation = () => {
+    const queryClient = useQueryClient();
+    return useMutation<undefined, ApiError, { schedulerUuid: string }>(
+        ({ schedulerUuid }) => deleteSchedulerAiAugmentation(schedulerUuid),
+        {
+            mutationKey: ['delete_scheduler_ai_augmentation'],
+            onSuccess: async (_data, { schedulerUuid }) => {
+                await queryClient.invalidateQueries([
+                    'scheduler_ai_augmentation',
+                    schedulerUuid,
+                ]);
+            },
+        },
+    );
+};

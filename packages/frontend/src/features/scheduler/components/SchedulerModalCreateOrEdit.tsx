@@ -27,6 +27,7 @@ import ErrorState from '../../../components/common/ErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import DocumentationHelpButton from '../../../components/DocumentationHelpButton';
+import { useAiAgentButtonVisibility } from '../../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -36,9 +37,9 @@ import { EventName } from '../../../types/Events';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
 import { useScheduler, useSendNowScheduler } from '../hooks/useScheduler';
 import {
-    deleteSchedulerAiAugmentation,
-    upsertSchedulerAiAugmentation,
     useSchedulerAiAugmentation,
+    useSchedulerAiAugmentationDeleteMutation,
+    useSchedulerAiAugmentationUpsertMutation,
 } from '../hooks/useSchedulerAiAugmentation';
 import { useSchedulersUpdateMutation } from '../hooks/useSchedulersUpdateMutation';
 import SchedulerForm from './SchedulerForm';
@@ -93,8 +94,17 @@ const useSchedulerFormModal = ({
     // For edit mode - update mutation
     const updateMutation = useSchedulersUpdateMutation(schedulerUuid ?? '');
 
-    // For edit mode - existing AI augmentation (separate sub-resource)
-    const aiAugmentation = useSchedulerAiAugmentation(schedulerUuid);
+    // For edit mode - existing AI augmentation (separate sub-resource).
+    // Gated on AI visibility so OSS/unentitled instances never call the
+    // EE-only endpoint.
+    const isAiVisible = useAiAgentButtonVisibility();
+    const aiAugmentation = useSchedulerAiAugmentation(schedulerUuid, {
+        enabled: isAiVisible,
+    });
+    const upsertAiAugmentationMutation =
+        useSchedulerAiAugmentationUpsertMutation();
+    const deleteAiAugmentationMutation =
+        useSchedulerAiAugmentationDeleteMutation();
 
     // Shared hooks
     const { data: user } = useUser(true);
@@ -222,6 +232,10 @@ const useSchedulerFormModal = ({
                 }
                 return null;
             },
+            aiAugmentation: (value) =>
+                value && value.prompt.trim().length === 0
+                    ? 'Instructions are required'
+                    : null,
         },
     });
 
@@ -243,30 +257,42 @@ const useSchedulerFormModal = ({
             filter.required && (!filter.values || filter.values.length === 0),
     );
 
-    // Sync form values when data is loaded
+    // Sync form values when data is loaded. The AI augmentation is omitted —
+    // it loads via a separate query and is synced by the effect below, so a
+    // late scheduler/dashboard sync can't clobber it.
     useEffect(() => {
         if (scheduler.data) {
-            form.setValues({
-                ...getFormValuesFromScheduler({
+            const { aiAugmentation: _initialAiAugmentation, ...formValues } =
+                getFormValuesFromScheduler({
                     ...scheduler.data,
                     ...getSelectedTabsForDashboardScheduler(
                         scheduler.data,
                         isDashboardTabsAvailable,
                         dashboard,
                     ),
-                }),
-                aiAugmentation: aiAugmentation.data ?? null,
-            });
+                });
+            form.setValues(formValues);
             form.resetDirty();
         }
         // We only want to sync when the data actually arrives or dashboard changes
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [
-        scheduler.data,
-        isDashboardTabsAvailable,
-        dashboard,
-        aiAugmentation.data,
-    ]);
+    }, [scheduler.data, isDashboardTabsAvailable, dashboard]);
+
+    // Sync only the AI augmentation when its sub-resource resolves, leaving
+    // any in-progress edits to the rest of the form untouched.
+    useEffect(() => {
+        if (
+            aiAugmentation.data !== undefined &&
+            !form.isDirty('aiAugmentation')
+        ) {
+            const wasDirty = form.isDirty();
+            form.setFieldValue('aiAugmentation', aiAugmentation.data ?? null);
+            if (!wasDirty) {
+                form.resetDirty();
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [aiAugmentation.data]);
 
     // Handle mutation success
     useEffect(() => {
@@ -287,20 +313,32 @@ const useSchedulerFormModal = ({
     const handleSubmit = useCallback(
         async (values: typeof form.values) => {
             const data = transformFormValues(values, formResource?.type);
-            const saved = isEditMode
-                ? await updateMutation.mutateAsync(data)
-                : await createMutation.mutateAsync({ resourceUuid, data });
+            let saved: SchedulerAndTargets;
+            try {
+                saved = isEditMode
+                    ? await updateMutation.mutateAsync(data)
+                    : await createMutation.mutateAsync({ resourceUuid, data });
+            } catch {
+                // The mutation's onError already toasts; stop before the AI
+                // step so the rejection doesn't escape the submit handler.
+                return;
+            }
 
             // AI augmentation is a separate sub-resource; persist it after the
             // scheduler exists. A failure here doesn't undo the saved delivery.
             try {
                 if (values.aiAugmentation) {
-                    await upsertSchedulerAiAugmentation(
-                        saved.schedulerUuid,
-                        values.aiAugmentation,
-                    );
-                } else if (isEditMode) {
-                    await deleteSchedulerAiAugmentation(saved.schedulerUuid);
+                    await upsertAiAugmentationMutation.mutateAsync({
+                        schedulerUuid: saved.schedulerUuid,
+                        augmentation: values.aiAugmentation,
+                    });
+                } else if (isEditMode && aiAugmentation.data) {
+                    // Only delete an augmentation known to exist — never while
+                    // its GET is still pending or errored, and never on OSS
+                    // where the EE endpoint is absent.
+                    await deleteAiAugmentationMutation.mutateAsync({
+                        schedulerUuid: saved.schedulerUuid,
+                    });
                 }
             } catch (e) {
                 showToastApiError({
@@ -316,6 +354,9 @@ const useSchedulerFormModal = ({
             resourceUuid,
             formResource?.type,
             showToastApiError,
+            aiAugmentation.data,
+            upsertAiAugmentationMutation,
+            deleteAiAugmentationMutation,
         ],
     );
 

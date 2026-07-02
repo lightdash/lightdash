@@ -1,7 +1,4 @@
-import {
-    SchedulerAiAugmentationType,
-    type SchedulerAiAugmentation,
-} from '@lightdash/common';
+import { type SchedulerAiAugmentation } from '@lightdash/common';
 import {
     Box,
     Group,
@@ -15,11 +12,9 @@ import { type FC } from 'react';
 import { AiAgentIcon } from '../../../../ee/features/aiCopilot/components/AiAgentIcon';
 import { useAiAgentButtonVisibility } from '../../../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useProjectAiAgents } from '../../../../ee/features/aiCopilot/hooks/useProjectAiAgents';
+import { DEFAULT_AI_AUGMENTATION_PROMPT } from '../types';
 import classes from './SchedulerFormAiInput.module.css';
 import { useSchedulerFormContext } from './schedulerFormContext';
-
-const DEFAULT_PROMPT =
-    'Summarise this delivery and call out any notable changes or trends.';
 
 type Props = {
     projectUuid: string | undefined;
@@ -44,9 +39,7 @@ export const SchedulerFormAiInput: FC<Props> = ({ projectUuid }) => {
     const augmentation = form.values.aiAugmentation;
     const isEnabled = augmentation !== null;
     const selectedAgentUuid =
-        augmentation?.type === SchedulerAiAugmentationType.AGENT
-            ? augmentation.agentUuid
-            : null;
+        augmentation?.type === 'agent' ? augmentation.agentUuid : null;
 
     const set = (value: SchedulerAiAugmentation | null) =>
         form.setFieldValue('aiAugmentation', value);
@@ -55,8 +48,8 @@ export const SchedulerFormAiInput: FC<Props> = ({ projectUuid }) => {
         set(
             on
                 ? {
-                      type: SchedulerAiAugmentationType.FAST_MODEL,
-                      prompt: DEFAULT_PROMPT,
+                      type: 'fast_model',
+                      prompt: DEFAULT_AI_AUGMENTATION_PROMPT,
                   }
                 : null,
         );
@@ -66,17 +59,16 @@ export const SchedulerFormAiInput: FC<Props> = ({ projectUuid }) => {
         set(
             agentUuid
                 ? {
-                      type: SchedulerAiAugmentationType.AGENT,
+                      type: 'agent',
                       prompt: augmentation.prompt,
                       agentUuid,
                       sourceThreadUuid:
-                          augmentation.type ===
-                          SchedulerAiAugmentationType.AGENT
+                          augmentation.type === 'agent'
                               ? augmentation.sourceThreadUuid
                               : null,
                   }
                 : {
-                      type: SchedulerAiAugmentationType.FAST_MODEL,
+                      type: 'fast_model',
                       prompt: augmentation.prompt,
                   },
         );
