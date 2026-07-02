@@ -63,6 +63,7 @@ import { SpotlightTableConfigModel } from './SpotlightTableConfigModel';
 import { SshKeyPairModel } from './SshKeyPairModel';
 import { TagsModel } from './TagsModel';
 import { UserAttributesModel } from './UserAttributesModel';
+import { UserAvatarModel } from './UserAvatarModel';
 import { UserFavoritesModel } from './UserFavoritesModel';
 import { UserModel } from './UserModel';
 import { UserWarehouseCredentialsModel } from './UserWarehouseCredentials/UserWarehouseCredentialsModel';
@@ -98,6 +99,7 @@ export type ModelManifest = {
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
     organizationDesignModel: OrganizationDesignModel;
     organizationMemberProfileModel: OrganizationMemberProfileModel;
+    userAvatarModel: UserAvatarModel;
     organizationModel: OrganizationModel;
     organizationDomainVerificationModel: OrganizationDomainVerificationModel;
     organizationSettingsModel: OrganizationSettingsModel;
@@ -448,6 +450,13 @@ export class ModelRepository
                 new OrganizationMemberProfileModel({
                     database: this.database,
                 }),
+        );
+    }
+
+    public getUserAvatarModel(): UserAvatarModel {
+        return this.getModel(
+            'userAvatarModel',
+            () => new UserAvatarModel({ database: this.database }),
         );
     }
 

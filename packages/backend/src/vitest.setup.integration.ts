@@ -153,6 +153,8 @@ export const setupIntegrationTest =
             organizationCreatedAt: new Date(),
             isTrackingAnonymized: false,
             isMarketingOptedIn: SEED_ORG_1_ADMIN.is_marketing_opted_in,
+            avatarUrl: null,
+            avatarGradient: null,
             timezone: null,
             isSetupComplete: SEED_ORG_1_ADMIN.is_setup_complete,
             userId: 1,

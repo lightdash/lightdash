@@ -98,6 +98,8 @@ const fakeUser: SessionUser = {
     organizationCreatedAt: new Date(),
     isTrackingAnonymized: false,
     isMarketingOptedIn: false,
+    avatarUrl: null,
+    avatarGradient: null,
     isSetupComplete: true,
     role: OrganizationMemberRole.ADMIN,
     ability: { can: () => true, cannot: () => false } as never,

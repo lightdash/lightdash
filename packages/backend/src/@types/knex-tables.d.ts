@@ -307,6 +307,10 @@ import {
     UserAttributeTable,
 } from '../database/entities/userAttributes';
 import {
+    UserAvatarsTable,
+    UserAvatarsTableName,
+} from '../database/entities/userAvatars';
+import {
     UserFavoritesTable,
     UserFavoritesTableName,
 } from '../database/entities/userFavorites';
@@ -483,6 +487,7 @@ declare module 'knex/types/tables' {
         [InviteLinkTableName]: InviteLinkTable;
         [OrganizationTableName]: OrganizationTable;
         [UserTableName]: UserTable;
+        [UserAvatarsTableName]: UserAvatarsTable;
         [EmailTableName]: EmailTable;
         [FeatureFlagsTableName]: FeatureFlagsTable;
         [FeatureFlagOverridesTableName]: FeatureFlagOverridesTable;

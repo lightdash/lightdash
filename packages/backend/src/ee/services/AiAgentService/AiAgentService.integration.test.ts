@@ -51,6 +51,8 @@ const getProjectUser = (
     organizationCreatedAt: context.testUser.organizationCreatedAt,
     isTrackingAnonymized: false,
     isMarketingOptedIn: false,
+    avatarUrl: null,
+    avatarGradient: null,
     timezone: null,
     isSetupComplete: true,
     userId: context.testUser.userId,

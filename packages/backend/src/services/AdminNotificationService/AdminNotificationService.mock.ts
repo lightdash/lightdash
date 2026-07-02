@@ -34,6 +34,8 @@ export const mockTargetUser: LightdashUser = {
     organizationCreatedAt: new Date('2024-01-01'),
     isTrackingAnonymized: false,
     isMarketingOptedIn: false,
+    avatarUrl: null,
+    avatarGradient: null,
     timezone: null,
     isSetupComplete: true,
     isActive: true,
@@ -53,6 +55,8 @@ export const mockOrgAdmin1: OrganizationMemberProfile = {
     roleUuid: undefined,
     isActive: true,
     isInviteExpired: false,
+    avatarUrl: null,
+    avatarGradient: null,
 };
 
 export const mockOrgAdmin2: OrganizationMemberProfile = {
@@ -67,6 +71,8 @@ export const mockOrgAdmin2: OrganizationMemberProfile = {
     roleUuid: undefined,
     isActive: true,
     isInviteExpired: false,
+    avatarUrl: null,
+    avatarGradient: null,
 };
 
 export const mockProjectAdmin: ProjectMemberProfile = {
@@ -132,6 +138,8 @@ const createMockAccount = (
             organizationCreatedAt: new Date('2024-01-01'),
             isTrackingAnonymized: false,
             isMarketingOptedIn: false,
+            avatarUrl: null,
+            avatarGradient: null,
             timezone: null,
             isSetupComplete: true,
             isActive: true,

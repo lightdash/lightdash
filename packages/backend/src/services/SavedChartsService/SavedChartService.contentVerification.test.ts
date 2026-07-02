@@ -72,6 +72,8 @@ const adminUser = {
     organizationCreatedAt: new Date(),
     isTrackingAnonymized: false,
     isMarketingOptedIn: false,
+    avatarUrl: null,
+    avatarGradient: null,
     timezone: null,
     isSetupComplete: true,
     userId: 1,

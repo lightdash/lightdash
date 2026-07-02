@@ -46,6 +46,8 @@ export const mockAccountWithPermission: SessionAccount = {
         lastName: 'User',
         isTrackingAnonymized: false,
         isMarketingOptedIn: false,
+        avatarUrl: null,
+        avatarGradient: null,
         timezone: null,
         isSetupComplete: true,
         userId: 1,

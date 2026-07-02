@@ -63,6 +63,8 @@ export interface LightdashSessionUser extends AccountUser {
     createdAt: Date;
     updatedAt: Date;
     timezone: string | null;
+    avatarUrl: string | null;
+    avatarGradient: UserAvatarGradientId | null;
     /* Whether the user doesn't have an authentication method (password or openId) */
     isPending?: boolean;
     /* Set only when an admin is impersonating this user via session auth */
