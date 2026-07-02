@@ -17,7 +17,18 @@ describe('toInternalFilters', () => {
         ]);
     });
 
-    it('spreads array values and carries relative-date settings', () => {
+    it('spreads array values into the values list', () => {
+        const [f] = toInternalFilters([
+            {
+                field: 'orders_status',
+                operator: 'include',
+                value: ['done', 'shipped'],
+            },
+        ]);
+        expect(f.values).toEqual(['done', 'shipped']);
+    });
+
+    it('carries relative-date settings for unit filters', () => {
         const [f] = toInternalFilters([
             {
                 field: 'orders_date',
