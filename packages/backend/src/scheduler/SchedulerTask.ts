@@ -41,6 +41,7 @@ import {
     GoogleSheetsQuotaError,
     GoogleSheetsTransientError,
     GsheetsNotificationPayload,
+    hasSchedulerUuid,
     isChartScheduler,
     isChartValidationError,
     isCreateScheduler,
@@ -79,6 +80,7 @@ import {
     SavedChartDAO,
     ScheduledDeliveryPayload,
     SCHEDULER_TASKS,
+    SchedulerAiAugmentation,
     SchedulerAndTargets,
     SchedulerCreateProjectWithCompilePayload,
     SchedulerFormat,
@@ -191,9 +193,9 @@ import { SchedulerDeliveryError } from './SchedulerDeliveryError';
 // and injected only by the commercial worker, so OSS deliveries skip it.
 export interface SchedulerAiAugmentationRunner {
     runForDelivery(args: {
-        schedulerUuid: string;
-        organizationUuid: string;
+        scheduler: SchedulerAndTargets | CreateSchedulerAndTargets;
         createdBy: string;
+        augmentation?: SchedulerAiAugmentation | null;
     }): Promise<string | null>;
 }
 
@@ -4143,16 +4145,20 @@ export default class SchedulerTask {
             let deliveryScheduler = scheduler;
             const aiPartialFailures: PartialFailure[] = [];
             if (
-                schedulerUuid &&
                 this.schedulerAiAugmentation &&
                 scheduler.format !== SchedulerFormat.GSHEETS
             ) {
                 try {
+                    // An unsaved "send now" carries its augmentation inline;
+                    // a persisted delivery has the runner look it up by uuid.
+                    const inlineAugmentation = !hasSchedulerUuid(scheduler)
+                        ? (scheduler.aiAugmentation ?? null)
+                        : undefined;
                     const aiMessage =
                         await this.schedulerAiAugmentation.runForDelivery({
-                            schedulerUuid,
-                            organizationUuid: schedulerPayload.organizationUuid,
+                            scheduler,
                             createdBy: userUuid,
+                            augmentation: inlineAugmentation,
                         });
                     if (aiMessage !== null) {
                         deliveryScheduler = {

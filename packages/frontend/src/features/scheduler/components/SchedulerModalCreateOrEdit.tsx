@@ -373,6 +373,8 @@ const useSchedulerFormModal = ({
             ...schedulerData,
             ...resource,
             createdBy: user.userUuid,
+            // Carry the (possibly unsaved) AI settings so send-now runs them.
+            aiAugmentation: form.values.aiAugmentation,
         };
 
         track({ name: EventName.SCHEDULER_SEND_NOW_BUTTON });

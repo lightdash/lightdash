@@ -1,7 +1,8 @@
 import {
     applyDimensionOverrides,
     assertUnreachable,
-    ForbiddenError,
+    CreateSchedulerAndTargets,
+    hasSchedulerUuid,
     isChartScheduler,
     isDashboardChartTileType,
     isDashboardScheduler,
@@ -16,7 +17,6 @@ import {
 import { fromSession } from '../../../auth/account/account';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
-import { SchedulerModel } from '../../../models/SchedulerModel';
 import { UserModel } from '../../../models/UserModel';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { SCHEDULER_POLLING_OPTIONS } from '../../../services/AsyncQueryService/types';
@@ -29,7 +29,6 @@ import type { AiService } from '../AiService/AiService';
 
 type Dependencies = {
     schedulerAiAugmentationModel: SchedulerAiAugmentationModel;
-    schedulerModel: SchedulerModel;
     schedulerService: SchedulerService;
     userModel: UserModel;
     dashboardModel: DashboardModel;
@@ -41,8 +40,6 @@ type Dependencies = {
 
 export class SchedulerAiAugmentationService {
     private readonly schedulerAiAugmentationModel: SchedulerAiAugmentationModel;
-
-    private readonly schedulerModel: SchedulerModel;
 
     private readonly schedulerService: SchedulerService;
 
@@ -61,7 +58,6 @@ export class SchedulerAiAugmentationService {
     constructor(dependencies: Dependencies) {
         this.schedulerAiAugmentationModel =
             dependencies.schedulerAiAugmentationModel;
-        this.schedulerModel = dependencies.schedulerModel;
         this.schedulerService = dependencies.schedulerService;
         this.userModel = dependencies.userModel;
         this.dashboardModel = dependencies.dashboardModel;
@@ -117,30 +113,42 @@ export class SchedulerAiAugmentationService {
 
     /**
      * Runs the augmentation for a firing delivery and returns the message, or
-     * null when the scheduler has no augmentation. Executes as the delivery's
-     * creator so their permissions apply. The fast model summarises the
-     * delivery's data (re-queried with the scheduler's filter/parameter
-     * overrides); the agent re-queries via its own tools.
+     * null when there is none. Executes as the delivery's creator so their
+     * permissions apply. `augmentation` is passed inline for an unsaved "send
+     * now"; otherwise the persisted row is looked up by the scheduler's uuid.
+     * The fast model summarises the delivery's data (re-queried with the
+     * scheduler's filter/parameter overrides); the agent re-queries via its own
+     * tools.
      */
     async runForDelivery({
-        schedulerUuid,
-        organizationUuid,
+        scheduler,
         createdBy,
+        augmentation: inlineAugmentation,
     }: {
-        schedulerUuid: string;
-        organizationUuid: string;
+        scheduler: SchedulerAndTargets | CreateSchedulerAndTargets;
         createdBy: string;
+        augmentation?: SchedulerAiAugmentation | null;
     }): Promise<string | null> {
-        const augmentation =
-            await this.schedulerAiAugmentationModel.find(schedulerUuid);
+        let augmentation: SchedulerAiAugmentation | null;
+        if (inlineAugmentation !== undefined) {
+            augmentation = inlineAugmentation;
+        } else if (hasSchedulerUuid(scheduler)) {
+            augmentation = await this.schedulerAiAugmentationModel.find(
+                scheduler.schedulerUuid,
+            );
+        } else {
+            augmentation = null;
+        }
         if (!augmentation) return null;
 
+        // The scheduler row doesn't carry its project; derive it from the
+        // resource (also gives the org for the creator lookup).
+        const { projectUuid, organizationUuid } =
+            await this.schedulerService.getSchedulerProjectContext(scheduler);
         const creator = await this.userModel.findSessionUserAndOrgByUuid(
             createdBy,
             organizationUuid,
         );
-        const scheduler =
-            await this.schedulerModel.getSchedulerAndTargets(schedulerUuid);
 
         switch (augmentation.type) {
             case SchedulerAiAugmentationType.AGENT:
@@ -152,19 +160,15 @@ export class SchedulerAiAugmentationService {
                     sourceThreadUuid: augmentation.sourceThreadUuid,
                 });
             case SchedulerAiAugmentationType.FAST_MODEL: {
-                if (!scheduler.projectUuid) {
-                    throw new ForbiddenError(
-                        'Scheduler is not attached to a project',
-                    );
-                }
                 const content = await this.getDeliveryContent(
                     creator,
                     scheduler,
+                    projectUuid,
                 );
                 return this.aiService.generateDeliverySummary(creator, {
                     prompt: augmentation.prompt,
                     content,
-                    projectUuid: scheduler.projectUuid,
+                    projectUuid,
                 });
             }
             default:
@@ -180,10 +184,10 @@ export class SchedulerAiAugmentationService {
     // summarises exactly what the delivery sends (for any format).
     private async getDeliveryContent(
         creator: SessionUser,
-        scheduler: SchedulerAndTargets,
+        scheduler: SchedulerAndTargets | CreateSchedulerAndTargets,
+        projectUuid: string,
     ): Promise<string> {
         const account = fromSession(creator);
-        const projectUuid = scheduler.projectUuid!;
 
         if (scheduler.savedChartUuid) {
             const { rows, fields } =
@@ -219,7 +223,7 @@ export class SchedulerAiAugmentationService {
     private async getDashboardDeliveryContent(
         account: Account,
         dashboardUuid: string,
-        scheduler: SchedulerAndTargets,
+        scheduler: SchedulerAndTargets | CreateSchedulerAndTargets,
     ): Promise<string> {
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
