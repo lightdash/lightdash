@@ -106,10 +106,12 @@ const signalLabels: Record<AiAgentTurnSignal, string> = {
 
 type ReviewSurface = 'findings' | 'signals';
 
+// Manual issues have no source thread, so the thread coordinates are null and
+// the detail modal renders from the review item alone.
 export type AiAgentAdminReviewItemPreviewTarget = {
-    projectUuid: string;
-    agentUuid: string;
-    threadUuid: string;
+    projectUuid: string | null;
+    agentUuid: string | null;
+    threadUuid: string | null;
     reviewItemUuid?: string | null;
 };
 
@@ -1208,20 +1210,21 @@ const AiAgentAdminReviewItemsTable = ({
             return {
                 className: styles.bodyRow,
                 style: {
-                    cursor: latestFinding ? 'pointer' : 'default',
+                    cursor: 'pointer',
                     backgroundColor: isSelected
                         ? theme.colors.ldGray[0]
                         : undefined,
                 },
-                onClick: latestFinding
-                    ? () =>
-                          onReviewItemSelect?.({
-                              projectUuid: latestFinding.projectUuid,
-                              agentUuid: latestFinding.agentUuid,
-                              threadUuid: latestFinding.threadUuid,
-                              reviewItemUuid: reviewItem.uuid,
-                          })
-                    : undefined,
+                onClick: () =>
+                    onReviewItemSelect?.({
+                        projectUuid:
+                            latestFinding?.projectUuid ??
+                            reviewItem.projectUuid,
+                        agentUuid:
+                            latestFinding?.agentUuid ?? reviewItem.agentUuid,
+                        threadUuid: latestFinding?.threadUuid ?? null,
+                        reviewItemUuid: reviewItem.uuid,
+                    }),
             };
         },
         renderTopToolbar: ({ table: tableInstance }) => {

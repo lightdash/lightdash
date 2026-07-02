@@ -83,7 +83,9 @@ export const AiReviewsSettingsPage = () => {
         const threadUuid = searchParams.get('reviewThreadUuid');
         const reviewItemUuid = searchParams.get('reviewItemUuid');
 
-        if (!projectUuid || !agentUuid || !threadUuid || !reviewItemUuid) {
+        // Manual issues have no source thread, so only the item uuid is
+        // required; thread coordinates are present for AI findings only.
+        if (!reviewItemUuid) {
             return null;
         }
 
@@ -141,9 +143,15 @@ export const AiReviewsSettingsPage = () => {
         nextParams.delete('reviewItemUuid');
 
         if (reviewItem) {
-            nextParams.set('reviewProjectUuid', reviewItem.projectUuid);
-            nextParams.set('reviewAgentUuid', reviewItem.agentUuid);
-            nextParams.set('reviewThreadUuid', reviewItem.threadUuid);
+            if (reviewItem.projectUuid) {
+                nextParams.set('reviewProjectUuid', reviewItem.projectUuid);
+            }
+            if (reviewItem.agentUuid) {
+                nextParams.set('reviewAgentUuid', reviewItem.agentUuid);
+            }
+            if (reviewItem.threadUuid) {
+                nextParams.set('reviewThreadUuid', reviewItem.threadUuid);
+            }
             if (reviewItem.reviewItemUuid) {
                 nextParams.set('reviewItemUuid', reviewItem.reviewItemUuid);
             }

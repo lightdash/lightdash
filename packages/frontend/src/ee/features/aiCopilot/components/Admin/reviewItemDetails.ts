@@ -164,8 +164,10 @@ const getTargetLabel = (targetRefs: AiAgentTargetRef[]): string | null => {
 };
 
 const isTriageReviewItem = (reviewItem: AiAgentReviewItemSummary): boolean =>
-    reviewItem.primaryRootCause === 'ambiguous' ||
-    reviewItem.latestFinding?.fixTargets.includes('feedback_needed') === true;
+    reviewItem.source !== 'manual' &&
+    (reviewItem.primaryRootCause === 'ambiguous' ||
+        reviewItem.latestFinding?.fixTargets.includes('feedback_needed') ===
+            true);
 
 export const getIssueTitle = (reviewItem: AiAgentReviewItemSummary): string => {
     if (isTriageReviewItem(reviewItem)) {
@@ -197,6 +199,10 @@ export const getCompactIssueTitle = (
 export const getWhyText = (reviewItem: AiAgentReviewItemSummary): string => {
     if (isTriageReviewItem(reviewItem)) {
         return 'Could be a real failure or a normal change in user intent.';
+    }
+
+    if (reviewItem.source === 'manual') {
+        return reviewItem.description || 'Manually filed issue.';
     }
 
     return (

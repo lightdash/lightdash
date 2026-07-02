@@ -180,10 +180,12 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                                     reviewRootCauseLabels[item.primaryRootCause]
                                 }
                             />
-                            <ReviewPriorityMenu
-                                fingerprint={item.fingerprint}
-                                priority={item.priority}
-                            />
+                            {!isExample && (
+                                <ReviewPriorityMenu
+                                    fingerprint={item.fingerprint}
+                                    priority={item.priority}
+                                />
+                            )}
                         </Group>
 
                         {!isExample && (

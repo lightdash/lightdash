@@ -37,7 +37,6 @@ import {
     getReviewReasoningText,
 } from './reviewItemDetails';
 import {
-    summarizeThreadReviewItems,
     THREAD_REVIEW_ITEM_STATUSES,
     threadReviewRootCauseColors,
     threadReviewRootCauseLabels,
@@ -45,9 +44,11 @@ import {
 } from './threadReviewContext';
 
 type Props = {
-    projectUuid: string;
-    agentUuid: string;
-    threadUuid: string;
+    // Thread coordinates are null for manual issues, which have no source
+    // thread — the modal then renders from the review item alone.
+    projectUuid: string | null;
+    agentUuid: string | null;
+    threadUuid: string | null;
     selectedReviewItemUuid: string;
     isOpen: boolean;
     onClose: () => void;
@@ -72,9 +73,10 @@ export const IssueDetailModal: FC<Props> = ({
     onClose,
 }) => {
     const [showEvidence, setShowEvidence] = useState(false);
+    const hasThread = Boolean(projectUuid && agentUuid && threadUuid);
     const { data: threadData, isLoading: isLoadingThread } = useAiAgentThread(
-        projectUuid,
-        agentUuid,
+        projectUuid ?? '',
+        agentUuid ?? undefined,
         threadUuid,
     );
     const { data: reviewItems = [], isLoading: isLoadingItems } =
@@ -84,16 +86,12 @@ export const IssueDetailModal: FC<Props> = ({
         );
     const { data: projects = [] } = useProjects();
 
-    const reviewSummary = useMemo(
-        () => summarizeThreadReviewItems(reviewItems, threadUuid),
-        [reviewItems, threadUuid],
-    );
     const item = useMemo(
         () =>
-            reviewSummary.items.find(
+            reviewItems.find(
                 (reviewItem) => reviewItem.uuid === selectedReviewItemUuid,
             ) ?? null,
-        [reviewSummary.items, selectedReviewItemUuid],
+        [reviewItems, selectedReviewItemUuid],
     );
 
     const projectName = useMemo(() => {
@@ -113,7 +111,7 @@ export const IssueDetailModal: FC<Props> = ({
             : `${formatReviewDate(item.firstSeenAt)} – ${formatReviewDate(item.lastSeenAt)}`
         : null;
     const reasoningText = item ? getReviewReasoningText(item) : null;
-    const isLoading = isLoadingThread || isLoadingItems;
+    const isLoading = isLoadingItems || (hasThread && isLoadingThread);
 
     const workspaceUrl = item
         ? `/generalSettings/ai/reviews/${encodeURIComponent(item.fingerprint)}`
@@ -147,7 +145,7 @@ export const IssueDetailModal: FC<Props> = ({
                 ) : null
             }
         >
-            {isLoading || !item || !threadData ? (
+            {isLoading || !item || (hasThread && !threadData) ? (
                 <Group justify="center" p="5rem">
                     <Loader color="gray" size="sm" />
                 </Group>
@@ -183,45 +181,50 @@ export const IssueDetailModal: FC<Props> = ({
                                 <Text className={styles.sectionLabel}>
                                     {showEvidence ? 'Evidence' : 'Activity'}
                                 </Text>
-                                <Group gap="md" wrap="nowrap">
-                                    {showEvidence && (
-                                        <Anchor
-                                            href={`/projects/${projectUuid}/ai-agents/${agentUuid}/threads/${threadUuid}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
+                                {hasThread && (
+                                    <Group gap="md" wrap="nowrap">
+                                        {showEvidence && (
+                                            <Anchor
+                                                href={`/projects/${projectUuid}/ai-agents/${agentUuid}/threads/${threadUuid}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className={styles.toggle}
+                                            >
+                                                Open full thread
+                                                <MantineIcon
+                                                    icon={IconExternalLink}
+                                                    size={13}
+                                                    stroke={1.5}
+                                                />
+                                            </Anchor>
+                                        )}
+                                        <UnstyledButton
                                             className={styles.toggle}
+                                            onClick={() =>
+                                                setShowEvidence((open) => !open)
+                                            }
                                         >
-                                            Open full thread
                                             <MantineIcon
-                                                icon={IconExternalLink}
+                                                icon={
+                                                    showEvidence
+                                                        ? IconArrowLeft
+                                                        : IconMessageCircle2
+                                                }
                                                 size={13}
                                                 stroke={1.5}
                                             />
-                                        </Anchor>
-                                    )}
-                                    <UnstyledButton
-                                        className={styles.toggle}
-                                        onClick={() =>
-                                            setShowEvidence((open) => !open)
-                                        }
-                                    >
-                                        <MantineIcon
-                                            icon={
-                                                showEvidence
-                                                    ? IconArrowLeft
-                                                    : IconMessageCircle2
-                                            }
-                                            size={13}
-                                            stroke={1.5}
-                                        />
-                                        {showEvidence
-                                            ? 'Back to activity'
-                                            : 'Show evidence'}
-                                    </UnstyledButton>
-                                </Group>
+                                            {showEvidence
+                                                ? 'Back to activity'
+                                                : 'Show evidence'}
+                                        </UnstyledButton>
+                                    </Group>
+                                )}
                             </Group>
 
-                            {showEvidence ? (
+                            {showEvidence &&
+                            threadData &&
+                            projectUuid &&
+                            agentUuid ? (
                                 <Box
                                     className={`${styles.panel} ${styles.evidenceScroll}`}
                                 >

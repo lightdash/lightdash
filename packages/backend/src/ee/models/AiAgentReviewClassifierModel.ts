@@ -1937,6 +1937,33 @@ export class AiAgentReviewClassifierModel {
         });
     }
 
+    // Legacy fingerprints promoted before item rows were written on promotion
+    // are listed with a synthesized 'triage' status but have no
+    // ai_agent_review_item row, so plain UPDATEs match nothing and event
+    // inserts violate the fingerprint FK. Insert the missing row first.
+    async ensureReviewItemRow(args: {
+        organizationUuid: string;
+        fingerprint: string;
+    }): Promise<void> {
+        const scope = await this.getReviewItemScope(
+            args.organizationUuid,
+            args.fingerprint,
+        );
+        if (!scope) {
+            return;
+        }
+        await this.database<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
+            .insert({
+                fingerprint: args.fingerprint,
+                organization_uuid: args.organizationUuid,
+                project_uuid: scope.projectUuid,
+                agent_uuid: scope.agentUuid,
+                status: 'triage',
+            })
+            .onConflict('fingerprint')
+            .ignore();
+    }
+
     async updateReviewItemAssignee(args: {
         fingerprint: string;
         organizationUuid: string;
@@ -2257,25 +2284,33 @@ export class AiAgentReviewClassifierModel {
                 }
 
                 // System-authored issue activity: first promotion opens the
-                // issue; a later promotion of the same fingerprint recurs it.
-                await this.createReviewItemEvent({
-                    fingerprint: newFingerprint,
-                    organizationUuid: turnSignal.subject.organizationUuid,
-                    event: existingItem
-                        ? {
-                              eventType: 'recurred',
-                              payload: {
-                                  threadUuid: turnSignal.subject.threadUuid,
-                                  promptUuid,
+                // issue; a promotion of the same fingerprint from a different
+                // turn recurs it. A re-review of the same turn (supersede path)
+                // is neither — it already produced this fingerprint's event.
+                const isSameTurnReReview =
+                    supersededFingerprints.includes(newFingerprint);
+                if (!isSameTurnReReview) {
+                    await this.createReviewItemEvent({
+                        fingerprint: newFingerprint,
+                        organizationUuid: turnSignal.subject.organizationUuid,
+                        event: existingItem
+                            ? {
+                                  eventType: 'recurred',
+                                  payload: {
+                                      threadUuid: turnSignal.subject.threadUuid,
+                                      promptUuid,
+                                  },
+                              }
+                            : {
+                                  eventType: 'created',
+                                  payload: {
+                                      rootCause: finding.primaryRootCause,
+                                  },
                               },
-                          }
-                        : {
-                              eventType: 'created',
-                              payload: { rootCause: finding.primaryRootCause },
-                          },
-                    createdByUserUuid: null,
-                    trx,
-                });
+                        createdByUserUuid: null,
+                        trx,
+                    });
+                }
             }
 
             // Reconcile: a superseded finding can leave its review item with no

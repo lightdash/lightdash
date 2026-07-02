@@ -390,6 +390,18 @@ export class AiAgentAdminService extends BaseService {
         }
     }
 
+    private async checkAssigneeInOrganization(
+        organizationUuid: string,
+        assignedToUserUuid: string,
+    ): Promise<void> {
+        const assignee = await this.userModel
+            .getUserDetailsByUuid(assignedToUserUuid)
+            .catch(() => null);
+        if (!assignee || assignee.organizationUuid !== organizationUuid) {
+            throw new NotFoundError('Assignee not found');
+        }
+    }
+
     private checkReviewAccess(
         user: SessionUser,
         organizationUuid: string,
@@ -711,7 +723,7 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        this.checkOrganizationAdminAccess(user);
+        this.checkReviewAccess(user, organizationUuid);
 
         const title = body.title.trim();
         if (title.length === 0) {
@@ -730,6 +742,13 @@ export class AiAgentAdminService extends BaseService {
             if (!agents.some((agent) => agent.uuid === body.agentUuid)) {
                 throw new NotFoundError('Agent not found');
             }
+        }
+
+        if (body.assignedToUserUuid) {
+            await this.checkAssigneeInOrganization(
+                organizationUuid,
+                body.assignedToUserUuid,
+            );
         }
 
         const item =
@@ -1233,21 +1252,35 @@ export class AiAgentAdminService extends BaseService {
                 organizationUuid,
                 fingerprint,
             );
+        if (!previousItem) {
+            throw new NotFoundError('Review item not found');
+        }
 
+        if (assignedToUserUuid !== null) {
+            await this.checkAssigneeInOrganization(
+                organizationUuid,
+                assignedToUserUuid,
+            );
+        }
+
+        await this.aiAgentReviewClassifierModel.ensureReviewItemRow({
+            organizationUuid,
+            fingerprint,
+        });
         await this.aiAgentReviewClassifierModel.updateReviewItemAssignee({
             fingerprint,
             organizationUuid,
             assignedToUserUuid,
         });
 
-        if (previousItem?.assignedToUserUuid !== assignedToUserUuid) {
+        if (previousItem.assignedToUserUuid !== assignedToUserUuid) {
             await this.aiAgentReviewClassifierModel.createReviewItemEvent({
                 fingerprint,
                 organizationUuid,
                 event: {
                     eventType: 'assignee_changed',
                     payload: {
-                        fromUserUuid: previousItem?.assignedToUserUuid ?? null,
+                        fromUserUuid: previousItem.assignedToUserUuid,
                         toUserUuid: assignedToUserUuid,
                     },
                 },
@@ -1279,22 +1312,26 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        this.checkOrganizationAdminAccess(user);
+        this.checkReviewAccess(user, organizationUuid);
 
         const previousReviewItem =
             await this.aiAgentReviewClassifierModel.getReviewItem(
                 organizationUuid,
                 fingerprint,
             );
+        if (!previousReviewItem) {
+            throw new NotFoundError('Review item not found');
+        }
+        await this.aiAgentReviewClassifierModel.ensureReviewItemRow({
+            organizationUuid,
+            fingerprint,
+        });
         await this.aiAgentReviewClassifierModel.setReviewItemPriority({
             fingerprint,
             organizationUuid,
             priority: update.priority,
         });
-        if (
-            previousReviewItem &&
-            previousReviewItem.priority !== update.priority
-        ) {
+        if (previousReviewItem.priority !== update.priority) {
             await this.aiAgentReviewClassifierModel.createReviewItemEvent({
                 fingerprint,
                 organizationUuid,
@@ -1970,7 +2007,7 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        this.checkOrganizationAdminAccess(user);
+        this.checkReviewAccess(user, organizationUuid);
 
         const comment = body.trim();
         if (comment.length === 0) {
@@ -1986,6 +2023,10 @@ export class AiAgentAdminService extends BaseService {
             throw new NotFoundError('Review item not found');
         }
 
+        await this.aiAgentReviewClassifierModel.ensureReviewItemRow({
+            organizationUuid,
+            fingerprint,
+        });
         await this.aiAgentReviewClassifierModel.createReviewItemEvent({
             fingerprint,
             organizationUuid,

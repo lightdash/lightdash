@@ -271,6 +271,7 @@ const makeService = ({
             createReviewItemEvent: vi.fn().mockResolvedValue(undefined),
             listReviewItemEvents: vi.fn().mockResolvedValue([]),
             upsertReviewItemState: vi.fn().mockResolvedValue(undefined),
+            ensureReviewItemRow: vi.fn().mockResolvedValue(undefined),
             getThreadWritebackPullRequests: vi
                 .fn()
                 .mockResolvedValue(
@@ -365,6 +366,9 @@ const makeService = ({
         },
         userModel: {
             findSessionUserByUUID: vi.fn().mockResolvedValue(makeAdminUser()),
+            getUserDetailsByUuid: vi
+                .fn()
+                .mockResolvedValue({ organizationUuid: ORGANIZATION_UUID }),
             ...userModel,
         },
         aiAgentReviewNotificationService: {
