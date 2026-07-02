@@ -1,3 +1,17 @@
+# [0.3296.0](https://github.com/lightdash/lightdash/compare/0.3295.0...0.3296.0) (2026-07-02)
+
+
+### Bug Fixes
+
+* **backend:** apply manifest name/description on app code upload [GLITCH-583] ([#25074](https://github.com/lightdash/lightdash/issues/25074)) ([0b8d060](https://github.com/lightdash/lightdash/commit/0b8d06026bf3fb8451d5db6c0142088e98063e68))
+* **cli:** count app uploads in summary; guard cross-project app creates [GLITCH-584 GLITCH-581] ([#25072](https://github.com/lightdash/lightdash/issues/25072)) ([6b321eb](https://github.com/lightdash/lightdash/commit/6b321eb822b72d973295c4efe362eeaec233eafe))
+
+
+### Features
+
+* **avatars:** gradient ids, deterministic picker and avatar payload types ([#25053](https://github.com/lightdash/lightdash/issues/25053)) ([bab53db](https://github.com/lightdash/lightdash/commit/bab53db8e29de1d909c1c056c2bdbebbbb66751f)), closes [#25054](https://github.com/lightdash/lightdash/issues/25054) [#25055](https://github.com/lightdash/lightdash/issues/25055) [#25056](https://github.com/lightdash/lightdash/issues/25056)
+* **external-connections:** let the wizard test step choose an HTTP method ([#25085](https://github.com/lightdash/lightdash/issues/25085)) ([e6207ce](https://github.com/lightdash/lightdash/commit/e6207ce65aa5f7a794265461808e2f963b714e8b))
+
 # [0.3295.0](https://github.com/lightdash/lightdash/compare/0.3294.1...0.3295.0) (2026-07-02)
 
 
