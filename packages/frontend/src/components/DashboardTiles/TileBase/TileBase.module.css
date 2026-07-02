@@ -44,8 +44,9 @@
     text-decoration: none;
 
     display: block;
-    flex: 1;
+    flex: 0 1 auto;
     min-width: 0;
+    max-width: 100%;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
