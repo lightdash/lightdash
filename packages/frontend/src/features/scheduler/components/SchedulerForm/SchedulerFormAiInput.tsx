@@ -91,21 +91,18 @@ export const SchedulerFormAiInput: FC<Props> = ({ projectUuid }) => {
             <Group justify="space-between" wrap="nowrap" align="center">
                 <Group gap="sm" wrap="nowrap" align="center">
                     <AiAgentIcon size={18} animated calm />
-                    <Stack gap={2}>
-                        <Text fw={600} fz="sm">
-                            AI-enhanced message
-                        </Text>
-                        <Text fz="xs" c="ldGray.6">
-                            Writes the delivery message from your data on every
-                            send.
-                        </Text>
-                    </Stack>
+                    <Text fw={600} fz="sm">
+                        AI-enhanced message
+                    </Text>
                 </Group>
                 <Switch
                     checked={isEnabled}
                     onChange={(event) => toggle(event.currentTarget.checked)}
                 />
             </Group>
+            <Text fz="xs" c="ldGray.6" mt={2} className={classes.subtitle}>
+                Writes the delivery message from your data on every send.
+            </Text>
 
             {augmentation && (
                 <Stack gap="sm" mt="md">
