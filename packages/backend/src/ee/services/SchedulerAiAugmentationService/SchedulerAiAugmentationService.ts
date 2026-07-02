@@ -91,20 +91,21 @@ export class SchedulerAiAugmentationService {
     /**
      * Runs the augmentation for a firing delivery and returns the message, or
      * null when the scheduler has no augmentation. Executes as the delivery's
-     * creator so their permissions apply. `content` is the delivery's rendered
-     * data (filters and parameters already applied); the fast model summarises
-     * it directly, while the agent re-queries via its own tools.
+     * creator so their permissions apply. `computeContent` yields the delivery's
+     * rendered data (filters and parameters already applied) and is only invoked
+     * for the fast model — the agent re-queries via its own tools, so agent
+     * deliveries never pay for it.
      */
     async runForDelivery({
         schedulerUuid,
         organizationUuid,
         createdBy,
-        content,
+        computeContent,
     }: {
         schedulerUuid: string;
         organizationUuid: string;
         createdBy: string;
-        content: string;
+        computeContent: () => Promise<string>;
     }): Promise<string | null> {
         const augmentation =
             await this.schedulerAiAugmentationModel.find(schedulerUuid);
@@ -134,7 +135,7 @@ export class SchedulerAiAugmentationService {
                 }
                 return this.aiService.generateDeliverySummary(creator, {
                     prompt: augmentation.prompt,
-                    content,
+                    content: await computeContent(),
                     projectUuid: scheduler.projectUuid,
                 });
             default:
