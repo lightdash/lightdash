@@ -22724,8 +22724,59 @@
                 "type": "object",
                 "description": "One action the writeback sandbox took, in a generic shape the chat UI can\ngroup and render as step rows without knowing anything about writeback.\n`kind` buckets the action (consecutive same-kind steps are grouped, e.g.\n\"Read 3 files\"); `label` is the file basename or a stage description."
             },
+            "AiWritebackDbtSourceOption": {
+                "properties": {
+                    "projectSubPath": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "branch": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "repository": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "isPrimary": {
+                        "type": "boolean"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "projectDbtSourceUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "projectSubPath",
+                    "branch",
+                    "repository",
+                    "isPrimary",
+                    "name",
+                    "projectDbtSourceUuid"
+                ],
+                "type": "object",
+                "description": "One dbt source a writeback run can target, surfaced when a project has more\nthan one and the run needs the caller to choose. `projectDbtSourceUuid` is\nthe project's own uuid for the primary source and a row uuid for additional\nsources — the same identifier the project's dbt-sources list returns, so the\ncaller can echo it straight back as `dbtSourceUuid`."
+            },
             "AiWritebackRunResult": {
                 "properties": {
+                    "dbtSourceOptions": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiWritebackDbtSourceOption"
+                        },
+                        "type": "array",
+                        "description": "The dbt sources to choose from when `needsDbtSourceSelection` is set."
+                    },
+                    "needsDbtSourceSelection": {
+                        "type": "boolean",
+                        "description": "Set when the project has several dbt sources and the run could not decide\nwhich one the prompt targets. No sandbox is started and no pull request is\nopened; `dbtSourceOptions` lists the choices and the caller should re-run\nwith `dbtSourceUuid` set to one of them. Absent on a normal run."
+                    },
+                    "dbtSourceUuid": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The dbt source this run targeted: a `project_dbt_sources` row uuid for an\nadditional source, or `null` for the project's primary dbt connection. A\nthread stays bound to this source across resumes — one thread, one PR.\nOptional so an older server's response (which omits it) doesn't surface as\n`undefined` on a newer typed client."
+                    },
                     "steps": {
                         "items": {
                             "$ref": "#/components/schemas/AiWritebackStep"
@@ -22808,13 +22859,17 @@
             },
             "AiWritebackRequestBody": {
                 "properties": {
+                    "dbtSourceUuid": {
+                        "type": "string",
+                        "description": "Which of the project's dbt sources to target, when it has more than one\n(see {@link AiWritebackDbtSourceOption}). Pass the project's own uuid (or\nomit) to target the primary dbt connection. When omitted and the project\nhas several sources, the run infers the target from the prompt and asks\nthe caller to choose if it can't (see `needsDbtSourceSelection`)."
+                    },
                     "prompt": {
                         "type": "string"
                     }
                 },
                 "required": ["prompt"],
                 "type": "object",
-                "description": "Body for kicking off an AI writeback run. The target repository is\ncloned into a sandbox, the prompt is executed by the Claude Code CLI, and a\npull request is opened against the repo if the agent changes any files.\n\nThe target repository (owner, repo) and the dbt project sub-folder are\nresolved server-side from the Lightdash project's dbt connection — identified\nby the `projectUuid` path parameter — so the caller only supplies the prompt."
+                "description": "Body for kicking off an AI writeback run. The target repository is\ncloned into a sandbox, the prompt is executed by the Claude Code CLI, and a\npull request is opened against the repo if the agent changes any files.\n\nThe target repository (owner, repo) and the dbt project sub-folder are\nresolved server-side from the chosen dbt source — by default the Lightdash\nproject's primary dbt connection (identified by the `projectUuid` path\nparameter), or the source named by `dbtSourceUuid` when the project has more\nthan one dbt source."
             },
             "ProjectCiStatus": {
                 "properties": {
