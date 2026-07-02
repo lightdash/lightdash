@@ -174,7 +174,9 @@ Each file has a `linked` boolean and a `chartUuid`:
   via `.filters()` and the query re-runs. Filter field ids on a linked chart are
   the QUALIFIED ids exactly as they appear in the result columns (e.g.
   `orders_status`) — do NOT strip the explore prefix like you would for
-  `query(...)`. Never filter a linked chart's rows client-side in JS — the rows
+  `query(...)`. `.filters()` accepts DIMENSION fields only — filtering on a
+  metric column fails the whole run with a 400; if the user needs a metric
+  threshold, that belongs in the saved chart itself. Never filter a linked chart's rows client-side in JS — the rows
   are limit-truncated, so client-side filtering silently shows wrong data. If
   the user needs a different SHAPE (other dimensions/metrics), build an inline
   `query(...)` instead of linking. Do NOT copy the metricQuery.
@@ -1221,7 +1223,18 @@ export function RevenueBySegment() {
 
 **This applies to every `useLightdash()` call — no exceptions.** A chart that ignores `filtersFor(EXPLORE)` silently shows stale or contradictory data after the user filters.
 
-**Linked charts take global filters too — but with QUALIFIED field ids.** `savedChart(...).filters(...)` expects qualified ids (see "Linked vs. copied charts"), while global filters store fields in the inline `query(...)` convention. Convert when applying: `savedChart("<uuid>").filters(filtersFor(EXPLORE).map((f) => ({ ...f, field: f.field.includes('.') ? f.field.replace(/\./g, '_') : `${EXPLORE}_${f.field}` })))`. A filter whose field doesn't exist on the chart's explore fails the WHOLE run with a 400 error — only pass filters whose fields exist on that chart (its result `columns` list them).
+**Linked charts take global filters too — but with QUALIFIED field ids.** `savedChart(...).filters(...)` expects qualified ids (see "Linked vs. copied charts"), while global filters may carry inline-convention fields (short or dot-notation) or already-qualified ids (added from a linked chart's own menu). Qualify without double-prefixing, and only pass filters whose fields exist on that chart — an unknown field fails the WHOLE run with a 400 error:
+
+```tsx
+const qualify = (field) =>
+    field.includes('.') ? field.replace(/\./g, '_')
+    : field.startsWith(`${EXPLORE}_`) ? field
+    : `${EXPLORE}_${field}`;
+const chartFieldIds = new Set(columns.map((c) => c.name)); // from a prior useLightdash result
+const linkedFilters = filtersFor(EXPLORE)
+    .map((f) => ({ ...f, field: qualify(f.field) }))
+    .filter((f) => chartFieldIds.has(f.field));
+```
 
 #### Active filters bar
 
