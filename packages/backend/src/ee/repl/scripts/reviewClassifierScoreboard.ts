@@ -509,6 +509,93 @@ export function getReviewClassifierScoreboardScripts(
         return { captured, missing, failed };
     }
 
+    /**
+     * Capture via the deployed admin API instead of a direct DB connection —
+     * needs the AiReviewReplayCapture feature flag enabled for the org and an
+     * org-admin PAT. Produces the same fixture format as the DB capture.
+     */
+    async function captureReviewScoreboardFixtureFromApi(args: {
+        siteUrl: string;
+        apiKey: string;
+        verdictsCsvPath: string;
+        outPath: string;
+        batchSize?: number;
+    }): Promise<{ captured: number; missing: number; failed: number }> {
+        const labels = parseVerdictsCsv(
+            await readFile(args.verdictsCsvPath, 'utf8'),
+        );
+        const labelsBySignalUuid = new Map(
+            labels.map((label) => [label.signalUuid, label]),
+        );
+        const batchSize = Math.min(args.batchSize ?? 25, 50);
+        const entries: ScoreboardFixtureEntry[] = [];
+
+        for (let start = 0; start < labels.length; start += batchSize) {
+            const batch = labels.slice(start, start + batchSize);
+            // eslint-disable-next-line no-await-in-loop
+            const response = await fetch(
+                `${args.siteUrl}/api/v1/aiAgents/admin/review-replay-capture`,
+                {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `ApiKey ${args.apiKey}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        signalUuids: batch.map((label) => label.signalUuid),
+                    }),
+                },
+            );
+            if (!response.ok) {
+                throw new Error(
+                    `Capture request failed (${response.status}): ${
+                        // eslint-disable-next-line no-await-in-loop
+                        await response.text()
+                    }`,
+                );
+            }
+            // eslint-disable-next-line no-await-in-loop
+            const payload = (await response.json()) as {
+                results: {
+                    signalUuid: string;
+                    promptUuid: string | null;
+                    threadUuid: string | null;
+                    captureError: string | null;
+                    input: AiAgentReviewJudgeReplayInput | null;
+                }[];
+            };
+            payload.results.forEach((result) => {
+                const label = labelsBySignalUuid.get(result.signalUuid);
+                if (!label) {
+                    return;
+                }
+                entries.push({
+                    label,
+                    promptUuid: result.promptUuid,
+                    threadUuid: result.threadUuid,
+                    input: result.input,
+                    captureError: result.captureError,
+                });
+            });
+            console.log(
+                `Captured ${Math.min(start + batchSize, labels.length)}/${
+                    labels.length
+                }`,
+            );
+        }
+
+        await writeFile(args.outPath, JSON.stringify(entries, null, 2));
+        const captured = entries.filter((e) => e.input !== null).length;
+        const missing = entries.filter(
+            (e) => e.captureError === 'signal not found',
+        ).length;
+        const failed = entries.length - captured - missing;
+        console.log(
+            `Captured ${captured}/${entries.length} judge inputs to ${args.outPath} (${missing} signals missing, ${failed} failed)`,
+        );
+        return { captured, missing, failed };
+    }
+
     async function scoreReviewScoreboard(args: {
         fixturePath: string;
         outPath?: string;
@@ -613,6 +700,7 @@ export function getReviewClassifierScoreboardScripts(
     return {
         printReviewScoreboardBaseline,
         captureReviewScoreboardFixture,
+        captureReviewScoreboardFixtureFromApi,
         scoreReviewScoreboard,
     };
 }
