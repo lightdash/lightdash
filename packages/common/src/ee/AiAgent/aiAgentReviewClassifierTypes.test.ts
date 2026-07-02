@@ -457,6 +457,12 @@ describe('getAiAgentConfigSnapshotHash', () => {
                 },
             },
         ],
+        mcpServers: [
+            {
+                name: 'Linear',
+                enabledToolNames: ['list_issues', 'create_issue'],
+            },
+        ],
     };
 
     it('is stable when unordered snapshot arrays are reordered', () => {

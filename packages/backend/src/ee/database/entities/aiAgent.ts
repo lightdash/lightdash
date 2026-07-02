@@ -286,6 +286,11 @@ export const AiAgentMcpServerToolPermissionModes = [
 export type DbAiAgentMcpServerToolPermissionMode =
     (typeof AiAgentMcpServerToolPermissionModes)[number];
 
+export const AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_ALLOW: DbAiAgentMcpServerToolPermissionMode =
+    'always_allow';
+export const AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_DENY: DbAiAgentMcpServerToolPermissionMode =
+    'always_deny';
+
 export type DbAiAgentMcpServerTool = {
     ai_agent_uuid: string;
     ai_mcp_server_uuid: string;

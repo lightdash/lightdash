@@ -128,6 +128,8 @@ import {
     type AiSqlApprovalDecision,
 } from '../database/entities/ai';
 import {
+    AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_ALLOW,
+    AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_DENY,
     AiAgentGroupAccessTableName,
     AiAgentInstructionVersionsTableName,
     AiAgentIntegrationTableName,
@@ -182,10 +184,10 @@ type Dependencies = {
     encryptionUtil: EncryptionUtil;
 };
 
-export const AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_ALLOW: DbAiAgentMcpServerToolPermissionMode =
-    'always_allow';
-export const AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_DENY: DbAiAgentMcpServerToolPermissionMode =
-    'always_deny';
+export {
+    AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_ALLOW,
+    AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_DENY,
+};
 
 export type AiAgentMcpServerToolPermissionSetting = AiMcpServerTool & {
     agentUuid: string;

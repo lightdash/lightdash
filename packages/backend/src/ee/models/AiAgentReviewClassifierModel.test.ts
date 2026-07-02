@@ -39,6 +39,7 @@ const snapshot = {
     instructionHash: 'hash',
     instructionSummary: 'Use finance definitions.',
     knowledgeDocuments: [],
+    mcpServers: [],
 };
 
 const makeRunRow = (overrides: Partial<Record<string, unknown>> = {}) => ({
