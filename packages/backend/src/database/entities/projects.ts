@@ -35,6 +35,7 @@ export type DbProject = {
     scheduler_failure_contact_override: string | null;
     created_by_user_uuid: string | null;
     has_default_user_spaces: boolean;
+    system_explores_enabled: boolean;
     project_defaults: ProjectDefaults | null;
     color_palette_uuid: string | null;
     table_groups: Record<string, GroupType> | null;
@@ -77,6 +78,7 @@ type UpdateDbProject = Partial<
         | 'scheduler_failure_include_contact'
         | 'scheduler_failure_contact_override'
         | 'has_default_user_spaces'
+        | 'system_explores_enabled'
         | 'project_defaults'
         | 'color_palette_uuid'
         | 'table_groups'
