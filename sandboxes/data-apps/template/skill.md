@@ -1221,6 +1221,8 @@ export function RevenueBySegment() {
 
 **This applies to every `useLightdash()` call — no exceptions.** A chart that ignores `filtersFor(EXPLORE)` silently shows stale or contradictory data after the user filters.
 
+**Linked charts take global filters too — but with QUALIFIED field ids.** `savedChart(...).filters(...)` expects qualified ids (see "Linked vs. copied charts"), while global filters store fields in the inline `query(...)` convention. Convert when applying: `savedChart("<uuid>").filters(filtersFor(EXPLORE).map((f) => ({ ...f, field: f.field.includes('.') ? f.field.replace(/\./g, '_') : `${EXPLORE}_${f.field}` })))`. A filter whose field doesn't exist on the chart's explore fails the WHOLE run with a 400 error — only pass filters whose fields exist on that chart (its result `columns` list them).
+
 #### Active filters bar
 
 Render the active filters above the dashboard so the user can see what's applied, dismiss them individually, or clear them all. Read `allFilters` from `useGlobalFilters()` and design the bar to match the app's visual style — `frontend-design` drives the look. Show the explore alongside the field so users can tell which chart contributed each filter, and call `removeFilter(f)` / `clearFilters()` from your dismiss buttons.
