@@ -1673,7 +1673,6 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['none'] },
                 { dataType: 'enum', enums: ['api_key'] },
                 { dataType: 'enum', enums: ['bearer_token'] },
-                { dataType: 'enum', enums: ['google_service_account'] },
             ],
             validators: {},
         },
@@ -1730,14 +1729,6 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 hasSecret: { dataType: 'boolean', required: true },
-                oauthScopes: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'array', array: { dataType: 'string' } },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
                 apiKeyLocation: {
                     dataType: 'union',
                     subSchemas: [
@@ -1823,13 +1814,6 @@ const models: TsoaRoute.Models = {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                },
-                oauthScopes: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'array', array: { dataType: 'string' } },
                         { dataType: 'enum', enums: [null] },
                     ],
                 },
@@ -2014,14 +1998,6 @@ const models: TsoaRoute.Models = {
                     dataType: 'union',
                     subSchemas: [
                         { ref: 'ApiKeyLocation' },
-                        { dataType: 'enum', enums: [null] },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                oauthScopes: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'array', array: { dataType: 'string' } },
                         { dataType: 'enum', enums: [null] },
                         { dataType: 'undefined' },
                     ],
@@ -9917,13 +9893,6 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                vizSchema: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'DataAppVizSchema' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                },
                 design: {
                     dataType: 'union',
                     subSchemas: [
@@ -15685,6 +15654,130 @@ const models: TsoaRoute.Models = {
                                                             dataType:
                                                                 'nestedObjectLiteral',
                                                             nestedProperties: {
+                                                                fields: {
+                                                                    dataType:
+                                                                        'array',
+                                                                    array: {
+                                                                        dataType:
+                                                                            'nestedObjectLiteral',
+                                                                        nestedProperties:
+                                                                            {
+                                                                                isFromJoinedTable:
+                                                                                    {
+                                                                                        dataType:
+                                                                                            'boolean',
+                                                                                        required: true,
+                                                                                    },
+                                                                                caseSensitiveFilters:
+                                                                                    {
+                                                                                        dataType:
+                                                                                            'union',
+                                                                                        subSchemas:
+                                                                                            [
+                                                                                                {
+                                                                                                    dataType:
+                                                                                                        'enum',
+                                                                                                    enums: [
+                                                                                                        'true',
+                                                                                                    ],
+                                                                                                },
+                                                                                                {
+                                                                                                    dataType:
+                                                                                                        'enum',
+                                                                                                    enums: [
+                                                                                                        'false',
+                                                                                                    ],
+                                                                                                },
+                                                                                                {
+                                                                                                    dataType:
+                                                                                                        'enum',
+                                                                                                    enums: [
+                                                                                                        'not_applicable',
+                                                                                                    ],
+                                                                                                },
+                                                                                            ],
+                                                                                        required: true,
+                                                                                    },
+                                                                                fieldValueType:
+                                                                                    {
+                                                                                        dataType:
+                                                                                            'string',
+                                                                                        required: true,
+                                                                                    },
+                                                                                fieldFilterType:
+                                                                                    {
+                                                                                        dataType:
+                                                                                            'string',
+                                                                                        required: true,
+                                                                                    },
+                                                                                fieldType:
+                                                                                    {
+                                                                                        dataType:
+                                                                                            'union',
+                                                                                        subSchemas:
+                                                                                            [
+                                                                                                {
+                                                                                                    dataType:
+                                                                                                        'enum',
+                                                                                                    enums: [
+                                                                                                        'dimension',
+                                                                                                    ],
+                                                                                                },
+                                                                                                {
+                                                                                                    dataType:
+                                                                                                        'enum',
+                                                                                                    enums: [
+                                                                                                        'metric',
+                                                                                                    ],
+                                                                                                },
+                                                                                            ],
+                                                                                        required: true,
+                                                                                    },
+                                                                                description:
+                                                                                    {
+                                                                                        dataType:
+                                                                                            'union',
+                                                                                        subSchemas:
+                                                                                            [
+                                                                                                {
+                                                                                                    dataType:
+                                                                                                        'string',
+                                                                                                },
+                                                                                                {
+                                                                                                    dataType:
+                                                                                                        'enum',
+                                                                                                    enums: [
+                                                                                                        null,
+                                                                                                    ],
+                                                                                                },
+                                                                                            ],
+                                                                                        required: true,
+                                                                                    },
+                                                                                label: {
+                                                                                    dataType:
+                                                                                        'string',
+                                                                                    required: true,
+                                                                                },
+                                                                                fieldId:
+                                                                                    {
+                                                                                        dataType:
+                                                                                            'string',
+                                                                                        required: true,
+                                                                                    },
+                                                                                name: {
+                                                                                    dataType:
+                                                                                        'string',
+                                                                                    required: true,
+                                                                                },
+                                                                                table: {
+                                                                                    dataType:
+                                                                                        'string',
+                                                                                    required: true,
+                                                                                },
+                                                                            },
+                                                                    },
+                                                                    required: true,
+                                                                },
                                                                 rationale: {
                                                                     dataType:
                                                                         'union',
@@ -15813,130 +15906,6 @@ const models: TsoaRoute.Models = {
                                                                                 required: true,
                                                                             },
                                                                         },
-                                                                    required: true,
-                                                                },
-                                                                fields: {
-                                                                    dataType:
-                                                                        'array',
-                                                                    array: {
-                                                                        dataType:
-                                                                            'nestedObjectLiteral',
-                                                                        nestedProperties:
-                                                                            {
-                                                                                isFromJoinedTable:
-                                                                                    {
-                                                                                        dataType:
-                                                                                            'boolean',
-                                                                                        required: true,
-                                                                                    },
-                                                                                caseSensitiveFilters:
-                                                                                    {
-                                                                                        dataType:
-                                                                                            'union',
-                                                                                        subSchemas:
-                                                                                            [
-                                                                                                {
-                                                                                                    dataType:
-                                                                                                        'enum',
-                                                                                                    enums: [
-                                                                                                        'true',
-                                                                                                    ],
-                                                                                                },
-                                                                                                {
-                                                                                                    dataType:
-                                                                                                        'enum',
-                                                                                                    enums: [
-                                                                                                        'false',
-                                                                                                    ],
-                                                                                                },
-                                                                                                {
-                                                                                                    dataType:
-                                                                                                        'enum',
-                                                                                                    enums: [
-                                                                                                        'not_applicable',
-                                                                                                    ],
-                                                                                                },
-                                                                                            ],
-                                                                                        required: true,
-                                                                                    },
-                                                                                fieldValueType:
-                                                                                    {
-                                                                                        dataType:
-                                                                                            'string',
-                                                                                        required: true,
-                                                                                    },
-                                                                                fieldFilterType:
-                                                                                    {
-                                                                                        dataType:
-                                                                                            'string',
-                                                                                        required: true,
-                                                                                    },
-                                                                                fieldType:
-                                                                                    {
-                                                                                        dataType:
-                                                                                            'union',
-                                                                                        subSchemas:
-                                                                                            [
-                                                                                                {
-                                                                                                    dataType:
-                                                                                                        'enum',
-                                                                                                    enums: [
-                                                                                                        'dimension',
-                                                                                                    ],
-                                                                                                },
-                                                                                                {
-                                                                                                    dataType:
-                                                                                                        'enum',
-                                                                                                    enums: [
-                                                                                                        'metric',
-                                                                                                    ],
-                                                                                                },
-                                                                                            ],
-                                                                                        required: true,
-                                                                                    },
-                                                                                description:
-                                                                                    {
-                                                                                        dataType:
-                                                                                            'union',
-                                                                                        subSchemas:
-                                                                                            [
-                                                                                                {
-                                                                                                    dataType:
-                                                                                                        'string',
-                                                                                                },
-                                                                                                {
-                                                                                                    dataType:
-                                                                                                        'enum',
-                                                                                                    enums: [
-                                                                                                        null,
-                                                                                                    ],
-                                                                                                },
-                                                                                            ],
-                                                                                        required: true,
-                                                                                    },
-                                                                                label: {
-                                                                                    dataType:
-                                                                                        'string',
-                                                                                    required: true,
-                                                                                },
-                                                                                fieldId:
-                                                                                    {
-                                                                                        dataType:
-                                                                                            'string',
-                                                                                        required: true,
-                                                                                    },
-                                                                                name: {
-                                                                                    dataType:
-                                                                                        'string',
-                                                                                    required: true,
-                                                                                },
-                                                                                table: {
-                                                                                    dataType:
-                                                                                        'string',
-                                                                                    required: true,
-                                                                                },
-                                                                            },
-                                                                    },
                                                                     required: true,
                                                                 },
                                                                 status: {
@@ -25348,14 +25317,34 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'union',
             subSchemas: [
-                { dataType: 'enum', enums: ['dusk'] },
-                { dataType: 'enum', enums: ['ocean'] },
-                { dataType: 'enum', enums: ['ember'] },
-                { dataType: 'enum', enums: ['meadow'] },
-                { dataType: 'enum', enums: ['tide'] },
-                { dataType: 'enum', enums: ['plum'] },
-                { dataType: 'enum', enums: ['sand'] },
+                { dataType: 'enum', enums: ['lilac'] },
+                { dataType: 'enum', enums: ['blush'] },
+                { dataType: 'enum', enums: ['amethyst'] },
+                { dataType: 'enum', enums: ['sunrise'] },
                 { dataType: 'enum', enums: ['slate'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HexColor: {
+        dataType: 'refAlias',
+        type: { dataType: 'string', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SolidColor: {
+        dataType: 'refAlias',
+        type: { dataType: 'string', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    UserAvatarColorValue: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'UserAvatarGradientId' },
+                { ref: 'HexColor' },
+                { ref: 'SolidColor' },
             ],
             validators: {},
         },
@@ -25403,7 +25392,7 @@ const models: TsoaRoute.Models = {
             avatarGradient: {
                 dataType: 'union',
                 subSchemas: [
-                    { ref: 'UserAvatarGradientId' },
+                    { ref: 'UserAvatarColorValue' },
                     { dataType: 'enum', enums: [null] },
                 ],
                 required: true,

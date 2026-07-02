@@ -3,7 +3,7 @@ import { type MemberAbility } from '../authorization/types';
 import { type AnyType } from './any';
 import { type OpenIdIdentityIssuerType } from './openIdIdentity';
 import { type OrganizationMemberRole } from './organizationMemberProfile';
-import { type UserAvatarGradientId } from './userAvatars';
+import { type UserAvatarColorValue } from './userAvatars';
 
 export type AccountUser = {
     /**
@@ -43,7 +43,7 @@ export interface LightdashUser {
     /* Content-addressed path to the uploaded avatar image; null when none uploaded. */
     avatarUrl: string | null;
     /* Explicit gradient placeholder override; null falls back to the deterministic gradient. */
-    avatarGradient: UserAvatarGradientId | null;
+    avatarGradient: UserAvatarColorValue | null;
     /* Whether the user doesn't have an authentication method (password or openId) */
     isPending?: boolean;
 }
@@ -64,7 +64,7 @@ export interface LightdashSessionUser extends AccountUser {
     updatedAt: Date;
     timezone: string | null;
     avatarUrl: string | null;
-    avatarGradient: UserAvatarGradientId | null;
+    avatarGradient: UserAvatarColorValue | null;
     /* Whether the user doesn't have an authentication method (password or openId) */
     isPending?: boolean;
     /* Set only when an admin is impersonating this user via session auth */

@@ -273,7 +273,7 @@ import {
     type LoginOptions,
     type UserAllowedOrganization,
 } from './user';
-import { type UserAvatarGradientId } from './userAvatars';
+import { type UserAvatarColorValue } from './userAvatars';
 import { type UserWarehouseCredentials } from './userWarehouseCredentials';
 import {
     type ApiChartValidationResponse,
@@ -901,7 +901,7 @@ export type UpdateUserArgs = {
        default. Null clears the preference and falls back to the project. */
     timezone: string | null;
     /* Explicit gradient placeholder override; null falls back to the deterministic gradient. */
-    avatarGradient: UserAvatarGradientId | null;
+    avatarGradient: UserAvatarColorValue | null;
 };
 
 export type ApiUserAvatarResponse = {
