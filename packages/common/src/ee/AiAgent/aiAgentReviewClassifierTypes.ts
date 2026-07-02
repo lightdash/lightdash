@@ -948,6 +948,25 @@ export type ApiAiAgentReviewSignalsResponse = ApiSuccess<
     AiAgentReviewSignalSummary[]
 >;
 
+export type AiAgentReviewReplayCaptureRequest = {
+    signalUuids: string[];
+};
+
+export type AiAgentReviewReplayCaptureEntry = {
+    signalUuid: string;
+    promptUuid: string | null;
+    threadUuid: string | null;
+    captureError: string | null;
+    // Opaque judge replay payload (candidate + evidence packet). Its shape is
+    // owned by the backend classifier service and consumed verbatim by the
+    // eval scoreboard's replayJudge — it is not a stable API contract.
+    input: unknown;
+};
+
+export type ApiAiAgentReviewReplayCaptureResponse = ApiSuccess<
+    AiAgentReviewReplayCaptureEntry[]
+>;
+
 export type AiAgentReviewClassifierRunStatus =
     | 'queued'
     | 'running'

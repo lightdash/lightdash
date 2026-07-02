@@ -2,12 +2,14 @@ import {
     AiAgentAdminFilters,
     AiAgentAdminSort,
     AiAgentReviewItemStatus,
+    AiAgentReviewReplayCaptureRequest,
     ApiAiAgentAdminConversationsResponse,
     ApiAiAgentAdminPromptActivityResponse,
     ApiAiAgentReviewItemActivityResponse,
     ApiAiAgentReviewItemPrDiffResponse,
     ApiAiAgentReviewItemResponse,
     ApiAiAgentReviewItemsResponse,
+    ApiAiAgentReviewReplayCaptureResponse,
     ApiAiAgentReviewSignalsResponse,
     ApiAiAgentSummaryResponse,
     ApiAiOrganizationSettingsResponse,
@@ -247,6 +249,31 @@ export class AiAgentAdminController extends BaseController {
                 toSessionUser(req.account),
                 fingerprint,
             ),
+        };
+    }
+
+    /**
+     * Rebuild judge replay inputs for historical review signals so the eval
+     * scoreboard can replay the judge offline. Read-only; feature-flag gated.
+     * @summary Capture AI review judge replay inputs
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/review-replay-capture')
+    @OperationId('captureAiAgentReviewReplayInputs')
+    async captureReviewReplayInputs(
+        @Request() req: express.Request,
+        @Body() body: AiAgentReviewReplayCaptureRequest,
+    ): Promise<ApiAiAgentReviewReplayCaptureResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getAiAgentAdminService().captureReviewReplayInputs(
+                    toSessionUser(req.account),
+                    body,
+                ),
         };
     }
 
