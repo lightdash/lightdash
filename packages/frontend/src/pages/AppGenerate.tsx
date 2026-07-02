@@ -11,6 +11,7 @@ import {
     type AppExternalConnectionReference,
     type DataAppClaudeModel,
     type DataAppTemplate,
+    type DataAppVizContext,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -94,6 +95,7 @@ import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
 import AppSpaceChip from '../features/apps/components/AppSpaceChip';
 import DataAppVizResultCard from '../features/apps/components/DataAppVizResultCard';
+import DataAppVizTestPanel from '../features/apps/components/DataAppVizTestPanel';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppImageUpload } from '../features/apps/hooks/useAppImageUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
@@ -203,6 +205,7 @@ type AppPreviewProps = {
     onLineageSelected?: (event: { queryUuid: string }) => void;
     lineageHighlightQueryUuid?: string | null;
     onLineageCancelled?: () => void;
+    dataAppVizContext?: DataAppVizContext;
 };
 
 const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
@@ -225,6 +228,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
             onLineageSelected,
             lineageHighlightQueryUuid,
             onLineageCancelled,
+            dataAppVizContext,
         },
         ref,
     ) => {
@@ -283,6 +287,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
                 lineageHighlightQueryUuid={lineageHighlightQueryUuid}
                 onLineageCancelled={onLineageCancelled}
                 capabilities={{ gsheetExport: true }}
+                dataAppVizContext={dataAppVizContext}
             />
         );
     },
@@ -670,6 +675,7 @@ const AppGenerate: FC = () => {
         setThemeChipOverride(null);
         setPendingClarification(null);
         setClarificationAnswers([]);
+        setTestVizContext(null);
         versionCacheRef.current.clear();
         versionCacheAppRef.current = undefined;
         sentImagesByPrompt.current.forEach((urls) =>
@@ -1267,6 +1273,11 @@ const AppGenerate: FC = () => {
     // semantic-layer change and wants to see it reflected without waiting
     // on the in-progress code-gen iteration.
     const [previewRefreshKey, setPreviewRefreshKey] = useState(0);
+    // Set imperatively by the "test with data" panel (later task) when the
+    // user runs a query; pushed into the preview iframe so the generated
+    // data-app-viz renders with real result rows instead of mock data.
+    const [testVizContext, setTestVizContext] =
+        useState<DataAppVizContext | null>(null);
     // Latched on by the first manual refresh: a refresh means "show me fresh
     // data", so from then on the preview's queries bypass the warehouse cache.
     // Starts false so the initial load can still serve cached results fast.
@@ -2244,11 +2255,28 @@ const AppGenerate: FC = () => {
                                                             }
                                                         />
                                                         {msg.vizSchema ? (
-                                                            <DataAppVizResultCard
-                                                                schema={
-                                                                    msg.vizSchema
-                                                                }
-                                                            />
+                                                            msg.version !==
+                                                                null &&
+                                                            msg.version ===
+                                                                latestReadyVersion?.version ? (
+                                                                <DataAppVizTestPanel
+                                                                    projectUuid={
+                                                                        projectUuid
+                                                                    }
+                                                                    schema={
+                                                                        msg.vizSchema
+                                                                    }
+                                                                    onContextChange={
+                                                                        setTestVizContext
+                                                                    }
+                                                                />
+                                                            ) : (
+                                                                <DataAppVizResultCard
+                                                                    schema={
+                                                                        msg.vizSchema
+                                                                    }
+                                                                />
+                                                            )
                                                         ) : msg.appUuid ? (
                                                             <AiMarkdown>
                                                                 {msg.content}
@@ -3052,6 +3080,9 @@ const AppGenerate: FC = () => {
                                         }
                                         onLineageCancelled={
                                             handleLineageCancelled
+                                        }
+                                        dataAppVizContext={
+                                            testVizContext ?? undefined
                                         }
                                     />
                                 ) : (
