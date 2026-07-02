@@ -175,6 +175,72 @@ describe('hasMatchingConditionalRules', () => {
             expect(result).toBe(true);
         });
     });
+
+    describe('color range config', () => {
+        const colorRangeConfig = {
+            target: null,
+            color: { start: '#ffffff', end: '#000000' },
+            rule: { min: 100, max: 1000 },
+        };
+
+        it('should match values within the range', () => {
+            expect(
+                hasMatchingConditionalRules(
+                    mockNumericField,
+                    500,
+                    {},
+                    colorRangeConfig,
+                ),
+            ).toBe(true);
+        });
+
+        it('should match values above the max so they can clamp to the end color', () => {
+            expect(
+                hasMatchingConditionalRules(
+                    mockNumericField,
+                    2397,
+                    {},
+                    colorRangeConfig,
+                ),
+            ).toBe(true);
+        });
+
+        it('should match values below the min so they can clamp to the start color', () => {
+            expect(
+                hasMatchingConditionalRules(
+                    mockNumericField,
+                    38,
+                    {},
+                    colorRangeConfig,
+                ),
+            ).toBe(true);
+        });
+
+        it('should not match when min is greater than max', () => {
+            expect(
+                hasMatchingConditionalRules(
+                    mockNumericField,
+                    500,
+                    {},
+                    {
+                        ...colorRangeConfig,
+                        rule: { min: 1000, max: 100 },
+                    },
+                ),
+            ).toBe(false);
+        });
+
+        it('should not match non-numeric values', () => {
+            expect(
+                hasMatchingConditionalRules(
+                    mockNumericField,
+                    'not a number',
+                    {},
+                    colorRangeConfig,
+                ),
+            ).toBe(false);
+        });
+    });
 });
 
 describe('getConditionalFormattingConfig', () => {
