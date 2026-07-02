@@ -43,10 +43,34 @@ export type AiPromptTokenUsage = {
     totalTokens: number;
 };
 
+/**
+ * Every origin an ai_thread can be created from. Canonical source for the
+ * DB column type and the admin/list filters — add new origins here and the
+ * derived subsets below track them. Subsets use Exclude (not Extract) so a
+ * rename of a member surfaces as a type error everywhere instead of silently
+ * dropping from the subset.
+ */
+export type AiThreadCreatedFrom = 'slack' | 'web_app' | 'evals' | 'scheduler';
+
+/** Origins for threads created through the web app path — everything but Slack. */
+export type AiWebAppThreadCreatedFrom = Exclude<AiThreadCreatedFrom, 'slack'>;
+
+/** Origins handled through the Slack path. */
+export type AiSlackThreadCreatedFrom = Exclude<
+    AiThreadCreatedFrom,
+    'evals' | 'scheduler'
+>;
+
+/** Origins a thread can be cloned into — Slack and scheduler threads are never clone targets. */
+export type AiClonedThreadCreatedFrom = Exclude<
+    AiThreadCreatedFrom,
+    'slack' | 'scheduler'
+>;
+
 export type CreateSlackThread = {
     organizationUuid: string;
     projectUuid: string;
-    createdFrom: 'slack' | 'web_app';
+    createdFrom: AiSlackThreadCreatedFrom;
     slackUserId: string;
     slackChannelId: string;
     slackThreadTs: string;
@@ -57,7 +81,7 @@ export type CreateWebAppThread = {
     organizationUuid: string;
     projectUuid: string;
     userUuid: string;
-    createdFrom: 'web_app' | 'evals';
+    createdFrom: AiWebAppThreadCreatedFrom;
     agentUuid: string | null;
     embedSpaceUuid?: string | null;
 };
@@ -327,5 +351,5 @@ export type CloneThread = {
     sourceThreadUuid: string;
     sourcePromptUuid: string;
     targetUserUuid: string;
-    createdFrom?: 'web_app' | 'evals';
+    createdFrom?: AiClonedThreadCreatedFrom;
 };
