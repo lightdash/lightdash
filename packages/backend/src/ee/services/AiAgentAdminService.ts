@@ -1735,6 +1735,13 @@ export class AiAgentAdminService extends BaseService {
                     await this.aiAgentReviewClassifierModel.getThreadWritebackPullRequests(
                         [workThreadUuid],
                     );
+                // "Latest wins": a remediation thread is forced to
+                // editDbtProject above (single dbt repo), so it opens at most
+                // one PR per run and `[0]` (newest first) is the PR this run
+                // produced. If this is ever switched to the general editRepo
+                // tool (multi-repo, multiple PRs per turn), this selection
+                // would silently drop all but the newest PR — handle every
+                // entry instead of taking `[0]`.
                 prUrl = writebackPrs.get(workThreadUuid)?.[0]?.prUrl ?? null;
                 pullRequest = prUrl
                     ? await this.pullRequestsModel.findByProjectAndUrl(

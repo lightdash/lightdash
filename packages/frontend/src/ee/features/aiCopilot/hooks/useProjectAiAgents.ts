@@ -15,6 +15,7 @@ import type {
     ApiAiAgentThreadMessageVizQuery,
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadShareResponse,
+    ApiAiAgentThreadWorkstreamsResponse,
     ApiAiAgentVerifiedQuestionsResponse,
     ApiAppendInstructionRequest,
     ApiAppendInstructionResponse,
@@ -595,6 +596,48 @@ export const useAiAgentThread = (
         ...options,
     });
 };
+
+const getAgentThreadWorkstreams = async (
+    projectUuid: string,
+    agentUuid: string,
+    threadUuid: string,
+) =>
+    lightdashApi<ApiAiAgentThreadWorkstreamsResponse['results']>({
+        url: `${getAiAgentApiBase(
+            projectUuid,
+        )}/${agentUuid}/threads/${threadUuid}/pull-requests`,
+        method: 'GET',
+        body: undefined,
+    });
+
+/**
+ * The pull requests (workstreams) the coding agent has opened in this thread,
+ * each with live PR state where available. Drives the in-thread workstreams
+ * panel. Silent on error — the panel is non-critical chrome.
+ */
+export const useAiAgentThreadWorkstreams = (
+    projectUuid: string,
+    agentUuid: string | undefined,
+    threadUuid: string | null | undefined,
+    options?: UseQueryOptions<
+        ApiAiAgentThreadWorkstreamsResponse['results'],
+        ApiError
+    >,
+) =>
+    useQuery<ApiAiAgentThreadWorkstreamsResponse['results'], ApiError>({
+        queryKey: [
+            AI_AGENTS_KEY,
+            projectUuid,
+            agentUuid,
+            'threads',
+            threadUuid,
+            'workstreams',
+        ],
+        queryFn: () =>
+            getAgentThreadWorkstreams(projectUuid, agentUuid!, threadUuid!),
+        enabled: !!agentUuid && !!threadUuid,
+        ...options,
+    });
 
 // Helper functions for thread creation
 

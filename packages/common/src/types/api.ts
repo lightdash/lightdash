@@ -26,6 +26,7 @@ import type {
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadShareResponse,
     ApiAiAgentThreadSummaryListResponse,
+    ApiAiAgentThreadWorkstreamsResponse,
     ApiAiAgentVerifiedArtifactsResponse,
     ApiAiDashboardSummaryResponse,
     ApiAiGenerateChartMetadataResponse,
@@ -1131,6 +1132,7 @@ type ApiResults =
     | ApiAiAgentReviewItemPrDiffResponse['results']
     | ApiAiAgentReviewItemActivityResponse['results']
     | ApiAiAgentThreadPullRequestResponse['results']
+    | ApiAiAgentThreadWorkstreamsResponse['results']
     | ApiAiAgentEvaluationSummaryListResponse['results']
     | ApiAiAgentEvaluationResponse['results']
     | ApiAiAgentEvaluationRunResponse['results']
