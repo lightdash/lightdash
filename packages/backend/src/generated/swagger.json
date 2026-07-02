@@ -16863,6 +16863,66 @@
                                                         "anyOf": [
                                                             {
                                                                 "properties": {
+                                                                    "fields": {
+                                                                        "items": {
+                                                                            "properties": {
+                                                                                "isFromJoinedTable": {
+                                                                                    "type": "boolean"
+                                                                                },
+                                                                                "caseSensitiveFilters": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                        "true",
+                                                                                        "false",
+                                                                                        "not_applicable"
+                                                                                    ]
+                                                                                },
+                                                                                "fieldValueType": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "fieldFilterType": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "fieldType": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                        "dimension",
+                                                                                        "metric"
+                                                                                    ]
+                                                                                },
+                                                                                "description": {
+                                                                                    "type": "string",
+                                                                                    "nullable": true
+                                                                                },
+                                                                                "label": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "fieldId": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "name": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "table": {
+                                                                                    "type": "string"
+                                                                                }
+                                                                            },
+                                                                            "required": [
+                                                                                "isFromJoinedTable",
+                                                                                "caseSensitiveFilters",
+                                                                                "fieldValueType",
+                                                                                "fieldFilterType",
+                                                                                "fieldType",
+                                                                                "description",
+                                                                                "label",
+                                                                                "fieldId",
+                                                                                "name",
+                                                                                "table"
+                                                                            ],
+                                                                            "type": "object"
+                                                                        },
+                                                                        "type": "array"
+                                                                    },
                                                                     "rationale": {
                                                                         "type": "string",
                                                                         "nullable": true
@@ -16928,66 +16988,6 @@
                                                                         ],
                                                                         "type": "object"
                                                                     },
-                                                                    "fields": {
-                                                                        "items": {
-                                                                            "properties": {
-                                                                                "isFromJoinedTable": {
-                                                                                    "type": "boolean"
-                                                                                },
-                                                                                "caseSensitiveFilters": {
-                                                                                    "type": "string",
-                                                                                    "enum": [
-                                                                                        "true",
-                                                                                        "false",
-                                                                                        "not_applicable"
-                                                                                    ]
-                                                                                },
-                                                                                "fieldValueType": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "fieldFilterType": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "fieldType": {
-                                                                                    "type": "string",
-                                                                                    "enum": [
-                                                                                        "dimension",
-                                                                                        "metric"
-                                                                                    ]
-                                                                                },
-                                                                                "description": {
-                                                                                    "type": "string",
-                                                                                    "nullable": true
-                                                                                },
-                                                                                "label": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "fieldId": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "name": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "table": {
-                                                                                    "type": "string"
-                                                                                }
-                                                                            },
-                                                                            "required": [
-                                                                                "isFromJoinedTable",
-                                                                                "caseSensitiveFilters",
-                                                                                "fieldValueType",
-                                                                                "fieldFilterType",
-                                                                                "fieldType",
-                                                                                "description",
-                                                                                "label",
-                                                                                "fieldId",
-                                                                                "name",
-                                                                                "table"
-                                                                            ],
-                                                                            "type": "object"
-                                                                        },
-                                                                        "type": "array"
-                                                                    },
                                                                     "status": {
                                                                         "type": "string",
                                                                         "enum": [
@@ -16997,9 +16997,9 @@
                                                                     }
                                                                 },
                                                                 "required": [
+                                                                    "fields",
                                                                     "rationale",
                                                                     "explore",
-                                                                    "fields",
                                                                     "status"
                                                                 ],
                                                                 "type": "object"
@@ -25529,14 +25529,31 @@
             "UserAvatarGradientId": {
                 "type": "string",
                 "enum": [
-                    "dusk",
-                    "ocean",
-                    "ember",
-                    "meadow",
-                    "tide",
-                    "plum",
-                    "sand",
-                    "slate"
+                    "lilac",
+                    "blush",
+                    "amethyst",
+                    "sunrise",
+                    "slate",
+                    "pearl"
+                ]
+            },
+            "HexColor": {
+                "type": "string"
+            },
+            "SolidColor": {
+                "type": "string"
+            },
+            "UserAvatarColorValue": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/UserAvatarGradientId"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HexColor"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SolidColor"
+                    }
                 ]
             },
             "LightdashUser": {
@@ -25604,7 +25621,7 @@
                     "avatarGradient": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/UserAvatarGradientId"
+                                "$ref": "#/components/schemas/UserAvatarColorValue"
                             }
                         ],
                         "nullable": true
@@ -35619,7 +35636,7 @@
                     "avatarGradient": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/UserAvatarGradientId"
+                                "$ref": "#/components/schemas/UserAvatarColorValue"
                             }
                         ],
                         "nullable": true,

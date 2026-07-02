@@ -12,3 +12,55 @@
         0 0 6px rgba(80, 80, 80, 0.25),
         inset 0 0 0 1px rgba(120, 120, 120, 0.15);
 }
+
+/* Classic "no fill" swatch: light circle with a red diagonal slash. */
+.noColorSwatch {
+    position: relative;
+    display: block;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    overflow: hidden;
+    background-color: var(--mantine-color-body);
+    border: 1px solid var(--mantine-color-ldGray-4);
+}
+
+.noColorSwatch::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: -4px;
+    bottom: -4px;
+    width: 2px;
+    background-color: var(--mantine-color-red-6);
+    transform: rotate(45deg);
+}
+
+.avatarEditWrapper {
+    position: relative;
+    display: inline-flex;
+    border: none;
+    background: none;
+    padding: 0;
+    border-radius: 50%;
+    cursor: pointer;
+    line-height: 0;
+}
+
+.avatarEditOverlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    pointer-events: none;
+}
+
+.avatarEditWrapper:hover .avatarEditOverlay,
+.avatarEditWrapper:focus-visible .avatarEditOverlay {
+    opacity: 1;
+}

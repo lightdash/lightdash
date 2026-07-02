@@ -13,7 +13,7 @@ import {
     getUserAvatarUrl,
     InvalidUser,
     isOpenIdUser,
-    isUserAvatarGradientId,
+    isUserAvatarColorValue,
     LightdashMode,
     LightdashUser,
     LightdashUserWithAbilityRules,
@@ -122,7 +122,7 @@ export const mapDbUserDetailsToLightdashUser = (
         ? getUserAvatarUrl(user.user_uuid, user.avatar_content_hash)
         : null,
     avatarGradient:
-        user.avatar_gradient && isUserAvatarGradientId(user.avatar_gradient)
+        user.avatar_gradient && isUserAvatarColorValue(user.avatar_gradient)
             ? user.avatar_gradient
             : null,
     isPending: !hasAuthentication,
