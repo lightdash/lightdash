@@ -44,6 +44,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../config/parseConfig';
 import { type ExternalConnectionEvent } from '../ee/analytics';
 import { VERSION } from '../version';
+import type { EventStreamSink } from './eventStream/EventStreamSink';
 
 type Identify = {
     userId: string;
@@ -55,7 +56,7 @@ type Identify = {
         is_marketing_opted_in?: boolean;
     };
 };
-type BaseTrack = Omit<AnalyticsTrack, 'context'>;
+export type BaseTrack = Omit<AnalyticsTrack, 'context'>;
 type Group = {
     userId: string;
     groupId: string;
@@ -294,6 +295,32 @@ type QueryErrorEvent = BaseTrack & {
         projectId: string;
         warehouseType: WarehouseTypes | undefined;
         executionSource: QueryExecutionSource;
+    };
+};
+
+/**
+ * Single terminal event per async query, emitted once the outcome is known
+ * (warehouse completion, cache hit, or pre-execution error). This is the
+ * only query event consumed by the usage event stream sink.
+ */
+export type QueryCompletedEvent = BaseTrack & {
+    event: 'query.completed';
+    properties: {
+        queryId: string;
+        organizationId: string;
+        projectId: string;
+        isPreviewProject: boolean;
+        status: 'success' | 'error';
+        context: QueryExecutionContext;
+        exploreName: string | null;
+        chartId: string | null;
+        dashboardId: string | null;
+        cacheHit: boolean;
+        executionSource: QueryExecutionSource | null;
+        warehouseType: WarehouseTypes | null;
+        warehouseExecutionTimeMs: number | null;
+        totalRowCount: number | null;
+        columnsCount: number | null;
     };
 };
 
@@ -2378,6 +2405,7 @@ type TypedEvent =
     | QueryExecutionEvent
     | QueryReadyEvent
     | QueryErrorEvent
+    | QueryCompletedEvent
     | PreAggregateQueryEvent
     | MaterializationEvent
     | QueryPageEvent
@@ -2518,6 +2546,7 @@ type LightdashAnalyticsArguments = {
     dataPlaneUrl: string;
     options?: ConstructorParameters<typeof Analytics>[1];
     eventEmitter?: EventEmitter;
+    eventStreamSink?: EventStreamSink;
 };
 
 export class LightdashAnalytics extends Analytics {
@@ -2527,17 +2556,21 @@ export class LightdashAnalytics extends Analytics {
 
     private readonly eventEmitter?: EventEmitter;
 
+    private readonly eventStreamSink?: EventStreamSink;
+
     constructor({
         lightdashConfig,
         writeKey,
         dataPlaneUrl,
         options,
         eventEmitter,
+        eventStreamSink,
     }: LightdashAnalyticsArguments) {
         super(writeKey, { ...options, dataPlaneUrl });
 
         this.lightdashConfig = lightdashConfig;
         this.eventEmitter = eventEmitter;
+        this.eventStreamSink = eventStreamSink;
         this.lightdashContext = {
             app: {
                 namespace: 'lightdash',
@@ -2569,6 +2602,9 @@ export class LightdashAnalytics extends Analytics {
     }
 
     track<T extends BaseTrack>(payload: TypedEvent | UntypedEvent<T>) {
+        // Usage event stream fires regardless of Rudderstack/anonymization settings
+        this.eventStreamSink?.handle(payload);
+
         if (
             this.lightdashConfig.prometheus.enabled &&
             this.lightdashConfig.prometheus.eventMetricsEnabled

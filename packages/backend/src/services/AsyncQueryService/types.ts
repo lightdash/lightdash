@@ -200,6 +200,7 @@ export type RunAsyncWarehouseQueryArgs = {
     projectUuid: string;
     userUuid: string;
     organizationUuid: string;
+    isPreviewProject: boolean;
     queryUuid: string;
     isRegisteredUser: boolean;
     isServiceAccount?: boolean;
