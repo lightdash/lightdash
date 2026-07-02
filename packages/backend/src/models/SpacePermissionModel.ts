@@ -1,7 +1,9 @@
 import {
     DirectSpaceAccess,
     DirectSpaceAccessOrigin,
+    getUserAvatarUrl,
     InvalidSpaceStateError,
+    isUserAvatarColorValue,
     NotFoundError,
     OrganizationSpaceAccess,
     ProjectSpaceAccess,
@@ -24,6 +26,7 @@ import {
     SpaceTableName,
     SpaceUserAccessTableName,
 } from '../database/entities/spaces';
+import { UserAvatarsTableName } from '../database/entities/userAvatars';
 import { UserTableName } from '../database/entities/users';
 import { wrapSentryTransaction } from '../utils';
 
@@ -453,24 +456,52 @@ export class SpacePermissionModel {
                             `${EmailTableName}.user_id`,
                         ).andOnVal(`${EmailTableName}.is_primary`, true);
                     })
+                    .leftJoin(
+                        UserAvatarsTableName,
+                        `${UserTableName}.user_uuid`,
+                        `${UserAvatarsTableName}.user_uuid`,
+                    )
                     .whereIn(`${UserTableName}.user_uuid`, userUuids)
                     .select<
-                        (SpaceAccessUserMetadata & {
+                        {
                             userUuid: string;
+                            firstName: string;
+                            lastName: string;
                             email: string | null;
-                        })[]
+                            isInternal: boolean;
+                            avatarGradient: string | null;
+                            avatarContentHash: string | null;
+                        }[]
                     >({
                         userUuid: `${UserTableName}.user_uuid`,
                         firstName: `${UserTableName}.first_name`,
                         lastName: `${UserTableName}.last_name`,
                         email: `${EmailTableName}.email`,
                         isInternal: `${UserTableName}.is_internal`,
+                        avatarGradient: `${UserTableName}.avatar_gradient`,
+                        avatarContentHash: `${UserAvatarsTableName}.content_hash`,
                     });
 
                 return Object.fromEntries(
                     rows.map((r) => [
                         r.userUuid,
-                        { ...r, email: r.email ?? '' },
+                        {
+                            firstName: r.firstName,
+                            lastName: r.lastName,
+                            email: r.email ?? '',
+                            isInternal: r.isInternal,
+                            avatarUrl: r.avatarContentHash
+                                ? getUserAvatarUrl(
+                                      r.userUuid,
+                                      r.avatarContentHash,
+                                  )
+                                : null,
+                            avatarGradient:
+                                r.avatarGradient &&
+                                isUserAvatarColorValue(r.avatarGradient)
+                                    ? r.avatarGradient
+                                    : null,
+                        },
                     ]),
                 );
             },
