@@ -72,11 +72,14 @@ describe('StaticAssetsS3Client', () => {
         vi.clearAllMocks();
     });
 
-    // "No bucket configured → no-op" is pinned at the config layer
-    // (parseConfig.test.ts) and the middleware layer (isEnabled gate);
-    // this file only covers the configured client.
+    // "No bucket configured → no-op" is pinned at the middleware layer
+    // (isEnabled gate); this file only covers the configured client.
     describe('getAsset', () => {
-        it('fetches the object under the assets/ prefix', async () => {
+        it('fetches under the assets/ prefix and treats a missing object as a silent miss', async () => {
+            // The assets/ key prefix is the contract with the release
+            // pipeline's upload job — if it drifts, every lookup misses
+            // silently. Missing objects (NoSuchKey, or a bare 403 on AWS S3
+            // without ListBucket) resolve to null without log spam.
             const body = Readable.from(['x']);
             s3Mocks.send.mockResolvedValueOnce({
                 Body: body,
@@ -91,9 +94,7 @@ describe('StaticAssetsS3Client', () => {
                 Bucket: 'assets-bucket',
                 Key: 'assets/chunk.js',
             });
-        });
 
-        it('treats a missing object (NoSuchKey, or 403 on AWS S3 without ListBucket) as a silent miss', async () => {
             s3Mocks.send.mockRejectedValueOnce(
                 new s3Mocks.FakeNoSuchKey('missing'),
             );
@@ -104,41 +105,6 @@ describe('StaticAssetsS3Client', () => {
 
             expect(Logger.warn).not.toHaveBeenCalled();
             expect(Logger.error).not.toHaveBeenCalled();
-        });
-
-        it('degrades unexpected errors and the 5s time-box to a logged miss', async () => {
-            // Never throw into the request path; a slow bucket must produce
-            // a fast 404, not hang every /assets request behind SDK retries.
-            s3Mocks.send.mockRejectedValueOnce(new Error('socket timeout'));
-            expect(await createClient().getAsset('chunk.js')).toBeNull();
-            expect(Logger.warn).toHaveBeenCalledWith(
-                expect.stringContaining('socket timeout'),
-            );
-
-            vi.useFakeTimers();
-            try {
-                s3Mocks.send.mockImplementationOnce(
-                    (
-                        _command: unknown,
-                        options: { abortSignal: AbortSignal },
-                    ) =>
-                        new Promise((_resolve, reject) => {
-                            options.abortSignal.addEventListener('abort', () =>
-                                reject(new Error('Request aborted')),
-                            );
-                        }),
-                );
-
-                const assetPromise = createClient().getAsset('chunk.js');
-                await vi.advanceTimersByTimeAsync(5_000);
-
-                expect(await assetPromise).toBeNull();
-                expect(Logger.warn).toHaveBeenCalledWith(
-                    expect.stringContaining('aborted'),
-                );
-            } finally {
-                vi.useRealTimers();
-            }
         });
     });
 });

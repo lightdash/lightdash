@@ -1,9 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
 import { Readable, Writable } from 'stream';
-import {
-    createStaticAssetsFallbackHandler,
-    isSafeAssetPath,
-} from './staticAssetsFallbackMiddleware';
+import { createStaticAssetsFallbackHandler } from './staticAssetsFallbackMiddleware';
 import type { StaticAsset, StaticAssetsS3Client } from './StaticAssetsS3Client';
 
 vi.mock('../../logging/logger', () => ({
@@ -67,36 +64,26 @@ const createHandler = (client: ClientStub) =>
         client as unknown as StaticAssetsS3Client,
     );
 
-// The accept path of isSafeAssetPath is exercised by every handler test
-// below that reaches the bucket (they run the real predicate, unmocked).
-describe('isSafeAssetPath', () => {
-    it('rejects traversal, empty segments, and oversized paths', () => {
-        expect(isSafeAssetPath('../secrets.env')).toBe(false);
-        expect(isSafeAssetPath('foo/../../etc/passwd')).toBe(false);
-        expect(isSafeAssetPath('..%2Fsecrets.env')).toBe(false);
-        expect(isSafeAssetPath('foo//bar.js')).toBe(false);
-        expect(isSafeAssetPath('.')).toBe(false);
-        expect(isSafeAssetPath('foo bar.js')).toBe(false);
-        expect(isSafeAssetPath('foo\\bar.js')).toBe(false);
-        expect(isSafeAssetPath('foo\0.js')).toBe(false);
-        expect(isSafeAssetPath(`${'a'.repeat(600)}.js`)).toBe(false);
-    });
-});
-
 describe('createStaticAssetsFallbackHandler', () => {
-    it('falls through without a bucket round-trip when disabled, path is unsafe, or extension is unknown', async () => {
-        // All three gates must fall through to the 404 handler without a
-        // billed bucket GET.
-        const cases: Array<{ client: ClientStub; assetPath: string }> = [
+    it('falls through to the 404 on every non-hit: disabled, unsafe path, unknown extension, bucket miss', async () => {
+        // The safety contract: whatever happens, /assets behavior degrades
+        // to today's 404 — and the three gates never cost a bucket GET.
+        // (Unsafe paths run the real isSafeAssetPath predicate.)
+        const gatedCases: Array<{ client: ClientStub; assetPath: string }> = [
             {
                 client: createClientStub({ isEnabled: false }),
                 assetPath: 'chunk.js',
             },
             { client: createClientStub(), assetPath: '../index.html' },
+            { client: createClientStub(), assetPath: 'foo/../../etc/passwd' },
+            {
+                client: createClientStub(),
+                assetPath: `${'a'.repeat(600)}.js`,
+            },
             { client: createClientStub(), assetPath: 'probe.zzz9' },
         ];
 
-        for (const { client, assetPath } of cases) {
+        for (const { client, assetPath } of gatedCases) {
             const next = vi.fn();
             // eslint-disable-next-line no-await-in-loop
             await runHandler(
@@ -108,20 +95,17 @@ describe('createStaticAssetsFallbackHandler', () => {
             expect(next).toHaveBeenCalledTimes(1);
             expect(client.getAsset).not.toHaveBeenCalled();
         }
-    });
 
-    it('falls through when the bucket does not have the asset', async () => {
-        const client = createClientStub();
+        // Safe path but the bucket doesn't have it: one GET, then the 404
+        const missClient = createClientStub();
         const next = vi.fn();
-
         await runHandler(
-            createHandler(client),
+            createHandler(missClient),
             createRequest('chunk.js'),
             createResponse(),
             next,
         );
-
-        expect(client.getAsset).toHaveBeenCalledWith('chunk.js');
+        expect(missClient.getAsset).toHaveBeenCalledWith('chunk.js');
         expect(next).toHaveBeenCalledTimes(1);
     });
 

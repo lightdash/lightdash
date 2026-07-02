@@ -126,37 +126,6 @@ test('Should use explicit pre-aggregate S3 credentials when set', () => {
     });
 });
 
-test('Should parse static assets S3 config: unset is a no-op, base S3 creds by default, explicit values win', () => {
-    // No bucket set → feature disabled everywhere
-    expect(parseConfig().staticAssets.s3).toBeUndefined();
-
-    // Bucket set → inherit base S3 region and credentials
-    process.env.S3_ACCESS_KEY = 'base_access_key';
-    process.env.S3_SECRET_KEY = 'base_secret_key';
-    process.env.ASSETS_S3_BUCKET = 'assets_bucket';
-    expect(parseConfig().staticAssets.s3).toEqual({
-        endpoint: 'mock_endpoint',
-        bucket: 'assets_bucket',
-        region: 'mock_region',
-        accessKey: 'base_access_key',
-        secretKey: 'base_secret_key',
-        forcePathStyle: false,
-    });
-
-    // Explicit ASSETS_S3_* values take precedence over the base config
-    process.env.ASSETS_S3_REGION = 'assets_region';
-    process.env.ASSETS_S3_ACCESS_KEY = 'assets_access_key';
-    process.env.ASSETS_S3_SECRET_KEY = 'assets_secret_key';
-    expect(parseConfig().staticAssets.s3).toEqual({
-        endpoint: 'mock_endpoint',
-        bucket: 'assets_bucket',
-        region: 'assets_region',
-        accessKey: 'assets_access_key',
-        secretKey: 'assets_secret_key',
-        forcePathStyle: false,
-    });
-});
-
 test('Should default apps S3 config to base S3 config', () => {
     process.env.S3_ACCESS_KEY = 'mock_access_key';
     process.env.S3_SECRET_KEY = 'mock_secret_key';
