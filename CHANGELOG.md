@@ -1,3 +1,10 @@
+# [0.3300.0](https://github.com/lightdash/lightdash/compare/0.3299.0...0.3300.0) (2026-07-02)
+
+
+### Features
+
+* **ai:** rename grepFields UX label from "grep" to "search" ([#25104](https://github.com/lightdash/lightdash/issues/25104)) ([712f945](https://github.com/lightdash/lightdash/commit/712f94538347627a344135d659b10abf0f1b5775))
+
 # [0.3299.0](https://github.com/lightdash/lightdash/compare/0.3298.0...0.3299.0) (2026-07-02)
 
 
