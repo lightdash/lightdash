@@ -573,11 +573,13 @@ export class ProjectService extends BaseService {
         metricQuery: MetricQuery;
         dateZoom: DateZoom | undefined;
         chartUuid: string | undefined;
-        queryTags: Record<string, unknown>;
+        queryTags: Omit<RunQueryTags, 'query_context'>;
         explore: Explore;
         parameters: ParametersValuesMap | undefined;
     }): MetricQueryExecutionProperties {
         return {
+            exploreName: explore.name,
+            dashboardId: queryTags.dashboard_uuid ?? null,
             dimensionsCount: metricQuery.dimensions.length,
             metricsCount: metricQuery.metrics.length,
             filtersCount: countTotalFilterRules(metricQuery.filters),
@@ -655,9 +657,6 @@ export class ProjectService extends BaseService {
             ...countCustomDimensionsInMetricQuery(metricQuery),
             dateZoomGranularity: dateZoom?.granularity || null,
             timezone: metricQuery.timezone,
-            ...(queryTags?.dashboard_uuid
-                ? { dashboardId: queryTags.dashboard_uuid }
-                : {}),
             chartId: chartUuid,
             ...(explore.type === ExploreType.VIRTUAL
                 ? { virtualViewId: explore.name }
