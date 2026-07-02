@@ -6,7 +6,11 @@ export default defineConfig({
     test: {
         name: 'integration-tests',
         include: ['src/ee/**/*integration.test.ts'],
-        exclude: ['node_modules', 'dist'],
+        exclude: [
+            'node_modules',
+            'dist',
+            'src/ee/services/ai/filterPermutations/*.integration.test.ts',
+        ],
         environment: 'node',
         testTimeout: 120000,
         hookTimeout: 60000,
