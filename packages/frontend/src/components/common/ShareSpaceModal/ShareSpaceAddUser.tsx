@@ -371,6 +371,9 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                             size="sm"
                             radius="xl"
                             color="blue"
+                            userUuid={user.userUuid}
+                            avatarUrl={user.avatarUrl}
+                            avatarGradient={user.avatarGradient}
                         />
                         <Stack gap={2}>
                             {user.firstName || user.lastName ? (

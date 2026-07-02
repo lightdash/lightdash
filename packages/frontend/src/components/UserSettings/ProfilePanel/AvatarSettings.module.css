@@ -1,0 +1,13 @@
+.swatchButton {
+    border: none;
+    background: none;
+    padding: 0;
+    border-radius: 50%;
+    cursor: pointer;
+    line-height: 0;
+}
+
+.swatchSelected {
+    outline: 2px solid var(--mantine-color-blue-5);
+    outline-offset: 2px;
+}
