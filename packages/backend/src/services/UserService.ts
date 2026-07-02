@@ -24,7 +24,7 @@ import {
     InviteLink,
     isOpenIdIdentityIssuerType,
     isOpenIdUser,
-    isUserAvatarGradientId,
+    isUserAvatarColorValue,
     isUserWithOrg,
     isValidTimezone,
     LightdashMode,
@@ -1452,7 +1452,7 @@ export class UserService extends BaseService {
         if (
             data.avatarGradient !== undefined &&
             data.avatarGradient !== null &&
-            !isUserAvatarGradientId(data.avatarGradient)
+            !isUserAvatarColorValue(data.avatarGradient)
         ) {
             throw new ParameterError(
                 `Invalid avatar gradient: ${data.avatarGradient}`,

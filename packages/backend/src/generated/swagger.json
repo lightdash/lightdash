@@ -1662,12 +1662,7 @@
             },
             "ExternalConnectionAuthType": {
                 "type": "string",
-                "enum": [
-                    "none",
-                    "api_key",
-                    "bearer_token",
-                    "google_service_account"
-                ]
+                "enum": ["none", "api_key", "bearer_token"]
             },
             "ExternalConnectionMethod": {
                 "type": "string",
@@ -1697,13 +1692,6 @@
                     },
                     "hasSecret": {
                         "type": "boolean"
-                    },
-                    "oauthScopes": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "nullable": true
                     },
                     "apiKeyLocation": {
                         "allOf": [
@@ -1781,7 +1769,6 @@
                     "updatedByUserUuid",
                     "createdByUserUuid",
                     "hasSecret",
-                    "oauthScopes",
                     "apiKeyLocation",
                     "apiKeyName",
                     "rateLimitPerMinute",
@@ -1820,13 +1807,6 @@
                 "properties": {
                     "secret": {
                         "type": "string",
-                        "nullable": true
-                    },
-                    "oauthScopes": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
                         "nullable": true
                     },
                     "apiKeyLocation": {
@@ -1979,13 +1959,6 @@
                                 "$ref": "#/components/schemas/ApiKeyLocation"
                             }
                         ],
-                        "nullable": true
-                    },
-                    "oauthScopes": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
                         "nullable": true
                     },
                     "secret": {
@@ -11283,14 +11256,6 @@
             },
             "AppVersionResources": {
                 "properties": {
-                    "vizSchema": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/DataAppVizSchema"
-                            }
-                        ],
-                        "nullable": true
-                    },
                     "design": {
                         "allOf": [
                             {
@@ -16863,6 +16828,66 @@
                                                         "anyOf": [
                                                             {
                                                                 "properties": {
+                                                                    "fields": {
+                                                                        "items": {
+                                                                            "properties": {
+                                                                                "isFromJoinedTable": {
+                                                                                    "type": "boolean"
+                                                                                },
+                                                                                "caseSensitiveFilters": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                        "true",
+                                                                                        "false",
+                                                                                        "not_applicable"
+                                                                                    ]
+                                                                                },
+                                                                                "fieldValueType": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "fieldFilterType": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "fieldType": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                        "dimension",
+                                                                                        "metric"
+                                                                                    ]
+                                                                                },
+                                                                                "description": {
+                                                                                    "type": "string",
+                                                                                    "nullable": true
+                                                                                },
+                                                                                "label": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "fieldId": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "name": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "table": {
+                                                                                    "type": "string"
+                                                                                }
+                                                                            },
+                                                                            "required": [
+                                                                                "isFromJoinedTable",
+                                                                                "caseSensitiveFilters",
+                                                                                "fieldValueType",
+                                                                                "fieldFilterType",
+                                                                                "fieldType",
+                                                                                "description",
+                                                                                "label",
+                                                                                "fieldId",
+                                                                                "name",
+                                                                                "table"
+                                                                            ],
+                                                                            "type": "object"
+                                                                        },
+                                                                        "type": "array"
+                                                                    },
                                                                     "rationale": {
                                                                         "type": "string",
                                                                         "nullable": true
@@ -16928,66 +16953,6 @@
                                                                         ],
                                                                         "type": "object"
                                                                     },
-                                                                    "fields": {
-                                                                        "items": {
-                                                                            "properties": {
-                                                                                "isFromJoinedTable": {
-                                                                                    "type": "boolean"
-                                                                                },
-                                                                                "caseSensitiveFilters": {
-                                                                                    "type": "string",
-                                                                                    "enum": [
-                                                                                        "true",
-                                                                                        "false",
-                                                                                        "not_applicable"
-                                                                                    ]
-                                                                                },
-                                                                                "fieldValueType": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "fieldFilterType": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "fieldType": {
-                                                                                    "type": "string",
-                                                                                    "enum": [
-                                                                                        "dimension",
-                                                                                        "metric"
-                                                                                    ]
-                                                                                },
-                                                                                "description": {
-                                                                                    "type": "string",
-                                                                                    "nullable": true
-                                                                                },
-                                                                                "label": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "fieldId": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "name": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "table": {
-                                                                                    "type": "string"
-                                                                                }
-                                                                            },
-                                                                            "required": [
-                                                                                "isFromJoinedTable",
-                                                                                "caseSensitiveFilters",
-                                                                                "fieldValueType",
-                                                                                "fieldFilterType",
-                                                                                "fieldType",
-                                                                                "description",
-                                                                                "label",
-                                                                                "fieldId",
-                                                                                "name",
-                                                                                "table"
-                                                                            ],
-                                                                            "type": "object"
-                                                                        },
-                                                                        "type": "array"
-                                                                    },
                                                                     "status": {
                                                                         "type": "string",
                                                                         "enum": [
@@ -16997,9 +16962,9 @@
                                                                     }
                                                                 },
                                                                 "required": [
+                                                                    "fields",
                                                                     "rationale",
                                                                     "explore",
-                                                                    "fields",
                                                                     "status"
                                                                 ],
                                                                 "type": "object"
@@ -25528,15 +25493,25 @@
             },
             "UserAvatarGradientId": {
                 "type": "string",
-                "enum": [
-                    "dusk",
-                    "ocean",
-                    "ember",
-                    "meadow",
-                    "tide",
-                    "plum",
-                    "sand",
-                    "slate"
+                "enum": ["lilac", "blush", "amethyst", "sunrise", "slate"]
+            },
+            "HexColor": {
+                "type": "string"
+            },
+            "SolidColor": {
+                "type": "string"
+            },
+            "UserAvatarColorValue": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/UserAvatarGradientId"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HexColor"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SolidColor"
+                    }
                 ]
             },
             "LightdashUser": {
@@ -25604,7 +25579,7 @@
                     "avatarGradient": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/UserAvatarGradientId"
+                                "$ref": "#/components/schemas/UserAvatarColorValue"
                             }
                         ],
                         "nullable": true
@@ -42926,7 +42901,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3295.0",
+        "version": "0.3292.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
