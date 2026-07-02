@@ -36,6 +36,8 @@ export type ExecuteAsyncSavedChartRequestParams =
         versionUuid?: string;
         limit?: number | null | undefined;
         pivotResults?: boolean;
+        // ANDed onto the chart's own filters server-side (narrowing only).
+        filters?: Filters;
     };
 
 export type ExecuteAsyncDashboardChartRequestParams =
