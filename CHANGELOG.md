@@ -1,3 +1,10 @@
+# [0.3286.0](https://github.com/lightdash/lightdash/compare/0.3285.1...0.3286.0) (2026-07-02)
+
+
+### Features
+
+* **ai:** grep-filter loadProjectContext (ZAP-579) ([#25014](https://github.com/lightdash/lightdash/issues/25014)) ([d36cad3](https://github.com/lightdash/lightdash/commit/d36cad31b04ef569443575d6091ea288256a8a07))
+
 ## [0.3285.1](https://github.com/lightdash/lightdash/compare/0.3285.0...0.3285.1) (2026-07-02)
 
 
