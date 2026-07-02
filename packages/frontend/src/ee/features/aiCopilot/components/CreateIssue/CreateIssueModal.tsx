@@ -8,6 +8,7 @@ import {
     Group,
     Select,
     Stack,
+    Text,
     Textarea,
     TextInput,
 } from '@mantine-8/core';
@@ -15,6 +16,7 @@ import {
     IconChartBar,
     IconLayoutDashboard,
     IconPlus,
+    IconWand,
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC, type FormEvent } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -26,6 +28,7 @@ import {
     useAiAgentAdminAgents,
     useCreateAiAgentReviewItem,
 } from '../../hooks/useAiAgentAdmin';
+import { useAiRouterRoute } from '../../hooks/useAiRouter';
 import { type CreateIssueContext } from '../../store/createIssueSlice';
 
 const rootCauseOptions: { value: AiAgentRootCause; label: string }[] = [
@@ -96,6 +99,7 @@ export const CreateIssueModal: FC<Props> = ({ opened, onClose, context }) => {
     const { data: projects = [] } = useProjects();
     const { data: agents = [] } = useAiAgentAdminAgents();
     const createIssue = useCreateAiAgentReviewItem();
+    const routeAgent = useAiRouterRoute();
 
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
@@ -105,6 +109,9 @@ export const CreateIssueModal: FC<Props> = ({ opened, onClose, context }) => {
         context?.projectUuid ?? null,
     );
     const [agentUuid, setAgentUuid] = useState<string | null>(null);
+    const [suggestionReasoning, setSuggestionReasoning] = useState<
+        string | null
+    >(null);
     const [primaryRootCause, setPrimaryRootCause] =
         useState<AiAgentRootCause | null>(null);
     const [priority, setPriority] = useState<AiAgentReviewItemPriority>('none');
@@ -127,8 +134,27 @@ export const CreateIssueModal: FC<Props> = ({ opened, onClose, context }) => {
         setDescription('');
         setProjectUuid(context?.projectUuid ?? null);
         setAgentUuid(null);
+        setSuggestionReasoning(null);
         setPrimaryRootCause(null);
         setPriority('none');
+    };
+
+    // Reuse the AI router to pick the best-fit agent from the issue title +
+    // description, then pre-select it (the user can still override).
+    const handleSuggestAgent = () => {
+        if (!projectUuid || title.trim().length === 0) return;
+        const prompt = [title.trim(), description.trim()]
+            .filter(Boolean)
+            .join('\n\n');
+        routeAgent.mutate(
+            { prompt, projectUuid },
+            {
+                onSuccess: (result) => {
+                    setAgentUuid(result.decision.suggestedAgentUuid);
+                    setSuggestionReasoning(result.decision.reasoning);
+                },
+            },
+        );
     };
 
     const handleClose = () => {
@@ -207,15 +233,46 @@ export const CreateIssueModal: FC<Props> = ({ opened, onClose, context }) => {
                         required
                         disabled={projectLocked}
                     />
-                    <Select
-                        label="Agent"
-                        data={agentOptions}
-                        value={agentUuid}
-                        onChange={setAgentUuid}
-                        searchable
-                        clearable
-                        disabled={!projectUuid}
-                    />
+                    <Stack gap={4}>
+                        <Group
+                            justify="space-between"
+                            align="flex-end"
+                            gap="xs"
+                        >
+                            <Select
+                                label="Agent"
+                                data={agentOptions}
+                                value={agentUuid}
+                                onChange={(value) => {
+                                    setAgentUuid(value);
+                                    setSuggestionReasoning(null);
+                                }}
+                                searchable
+                                clearable
+                                disabled={!projectUuid}
+                                flex={1}
+                            />
+                            {agentOptions.length > 0 && (
+                                <Button
+                                    variant="subtle"
+                                    size="compact-sm"
+                                    leftSection={
+                                        <MantineIcon icon={IconWand} />
+                                    }
+                                    loading={routeAgent.isLoading}
+                                    disabled={!projectUuid || !title.trim()}
+                                    onClick={handleSuggestAgent}
+                                >
+                                    Suggest
+                                </Button>
+                            )}
+                        </Group>
+                        {suggestionReasoning && (
+                            <Text c="dimmed" fz="xs">
+                                Suggested: {suggestionReasoning}
+                            </Text>
+                        )}
+                    </Stack>
                     <Select
                         label="Root cause"
                         data={rootCauseOptions}
