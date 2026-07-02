@@ -44,6 +44,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../config/parseConfig';
 import { type ExternalConnectionEvent } from '../ee/analytics';
 import { VERSION } from '../version';
+import type { EventStreamSink } from './eventStream/EventStreamSink';
 
 type Identify = {
     userId: string;
@@ -55,7 +56,7 @@ type Identify = {
         is_marketing_opted_in?: boolean;
     };
 };
-type BaseTrack = Omit<AnalyticsTrack, 'context'>;
+export type BaseTrack = Omit<AnalyticsTrack, 'context'>;
 type Group = {
     userId: string;
     groupId: string;
@@ -255,7 +256,7 @@ type SqlExecutionProperties = {
     usingStreaming: boolean;
 };
 
-type QueryExecutionEvent = BaseTrack & {
+export type QueryExecutionEvent = BaseTrack & {
     event: 'query.executed';
     properties: {
         context: QueryExecutionContext;
@@ -272,7 +273,7 @@ type QueryExecutionEvent = BaseTrack & {
 
 type QueryExecutionSource = 'warehouse' | 'pre_aggregate_duckdb';
 
-type QueryReadyEvent = BaseTrack & {
+export type QueryReadyEvent = BaseTrack & {
     event: 'query.ready';
     properties: {
         queryId: string;
@@ -286,7 +287,7 @@ type QueryReadyEvent = BaseTrack & {
     };
 };
 
-type QueryErrorEvent = BaseTrack & {
+export type QueryErrorEvent = BaseTrack & {
     event: 'query.error';
     properties: {
         queryId: string;
@@ -2518,6 +2519,7 @@ type LightdashAnalyticsArguments = {
     dataPlaneUrl: string;
     options?: ConstructorParameters<typeof Analytics>[1];
     eventEmitter?: EventEmitter;
+    eventStreamSink?: EventStreamSink;
 };
 
 export class LightdashAnalytics extends Analytics {
@@ -2527,17 +2529,21 @@ export class LightdashAnalytics extends Analytics {
 
     private readonly eventEmitter?: EventEmitter;
 
+    private readonly eventStreamSink?: EventStreamSink;
+
     constructor({
         lightdashConfig,
         writeKey,
         dataPlaneUrl,
         options,
         eventEmitter,
+        eventStreamSink,
     }: LightdashAnalyticsArguments) {
         super(writeKey, { ...options, dataPlaneUrl });
 
         this.lightdashConfig = lightdashConfig;
         this.eventEmitter = eventEmitter;
+        this.eventStreamSink = eventStreamSink;
         this.lightdashContext = {
             app: {
                 namespace: 'lightdash',
@@ -2569,6 +2575,9 @@ export class LightdashAnalytics extends Analytics {
     }
 
     track<T extends BaseTrack>(payload: TypedEvent | UntypedEvent<T>) {
+        // Usage event stream fires regardless of Rudderstack/anonymization settings
+        this.eventStreamSink?.handle(payload);
+
         if (
             this.lightdashConfig.prometheus.enabled &&
             this.lightdashConfig.prometheus.eventMetricsEnabled
