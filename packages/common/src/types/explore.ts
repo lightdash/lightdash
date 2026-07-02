@@ -61,6 +61,8 @@ export enum ExploreType {
     VIRTUAL = 'virtual',
     DEFAULT = 'default',
     PRE_AGGREGATE = 'pre_aggregate',
+    /** Code-generated explore over Lightdash's own usage analytics data */
+    SYSTEM = 'system',
 }
 
 export enum InlineErrorType {
