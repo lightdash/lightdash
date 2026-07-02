@@ -444,6 +444,7 @@ export class AiAgentModel {
                 enableDataAccess: `${AiAgentTableName}.enable_data_access`,
                 enableSelfImprovement: `${AiAgentTableName}.enable_self_improvement`,
                 enableContentTools: `${AiAgentTableName}.enable_content_tools`,
+                enableUserContext: `${AiAgentTableName}.enable_user_context`,
                 adminOnly: `${AiAgentTableName}.admin_only`,
                 modelConfig: `${AiAgentTableName}.model_config`,
                 version: `${AiAgentTableName}.version`,
@@ -581,6 +582,7 @@ export class AiAgentModel {
                 enableDataAccess: `${AiAgentTableName}.enable_data_access`,
                 enableSelfImprovement: `${AiAgentTableName}.enable_self_improvement`,
                 enableContentTools: `${AiAgentTableName}.enable_content_tools`,
+                enableUserContext: `${AiAgentTableName}.enable_user_context`,
                 adminOnly: `${AiAgentTableName}.admin_only`,
                 modelConfig: `${AiAgentTableName}.model_config`,
                 version: `${AiAgentTableName}.version`,
@@ -1741,6 +1743,7 @@ export class AiAgentModel {
             | 'enableDataAccess'
             | 'enableSelfImprovement'
             | 'enableContentTools'
+            | 'enableUserContext'
             | 'adminOnly'
             | 'modelConfig'
             | 'version'
@@ -1770,6 +1773,7 @@ export class AiAgentModel {
                     enable_data_access: args.enableDataAccess,
                     enable_self_improvement: args.enableSelfImprovement,
                     enable_content_tools: args.enableContentTools ?? false,
+                    enable_user_context: args.enableUserContext ?? false,
                     admin_only: args.adminOnly ?? false,
                     model_config: args.modelConfig ?? null,
                     version: args.version,
@@ -1873,6 +1877,7 @@ export class AiAgentModel {
                 enableDataAccess: agent.enable_data_access,
                 enableSelfImprovement: agent.enable_self_improvement,
                 enableContentTools: agent.enable_content_tools,
+                enableUserContext: agent.enable_user_context,
                 adminOnly: agent.admin_only,
                 modelConfig: agent.model_config,
                 version: agent.version,
@@ -1927,6 +1932,7 @@ export class AiAgentModel {
                 enableDataAccess: true,
                 enableSelfImprovement: false,
                 enableContentTools: false,
+                enableUserContext: false,
                 modelConfig: null,
                 version: 1,
                 mcpServerUuids: [],
@@ -1987,6 +1993,9 @@ export class AiAgentModel {
                         : {}),
                     ...(args.enableContentTools !== undefined
                         ? { enable_content_tools: args.enableContentTools }
+                        : {}),
+                    ...(args.enableUserContext !== undefined
+                        ? { enable_user_context: args.enableUserContext }
                         : {}),
                     ...(args.adminOnly !== undefined
                         ? { admin_only: args.adminOnly }
@@ -2161,6 +2170,7 @@ export class AiAgentModel {
                 enableDataAccess: agent.enable_data_access,
                 enableSelfImprovement: agent.enable_self_improvement,
                 enableContentTools: agent.enable_content_tools,
+                enableUserContext: agent.enable_user_context,
                 adminOnly: agent.admin_only,
                 modelConfig: agent.model_config,
                 version: agent.version,

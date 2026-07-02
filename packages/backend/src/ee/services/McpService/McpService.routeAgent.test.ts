@@ -97,6 +97,7 @@ const selectedAgent: AiAgentWithContext = {
     enableDataAccess: true,
     enableSelfImprovement: true,
     enableContentTools: true,
+    enableUserContext: false,
     adminOnly: false,
     modelConfig: null,
     version: 1,

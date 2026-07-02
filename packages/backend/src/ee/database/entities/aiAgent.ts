@@ -16,6 +16,7 @@ export type DbAiAgent = {
     enable_data_access: boolean;
     enable_self_improvement: boolean;
     enable_content_tools: boolean;
+    enable_user_context: boolean;
     admin_only: boolean;
     model_config: AiAgentModelConfig | null;
     /**
