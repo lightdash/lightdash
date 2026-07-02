@@ -92,6 +92,28 @@ export const DeleteWithWarning: Story = {
 };
 
 /**
+ * Alert dialog that can't be dismissed by accident.
+ * Set `role="alertdialog"` for confirmations that must be answered — it disables
+ * click-outside and Escape dismissal and sets the `alertdialog` ARIA role, so the
+ * user must choose Cancel or the confirm action.
+ *
+ * `variant="delete"` already defaults to `role="alertdialog"`, so you only set
+ * `role` explicitly here because this destructive confirmation isn't a delete.
+ */
+export const AlertDialog: Story = {
+    args: {
+        opened: true,
+        onClose: () => {},
+        title: 'Regenerate secret',
+        role: 'alertdialog',
+        description:
+            'This invalidates the current secret and breaks any embeds using it. Clicking outside won’t dismiss this dialog.',
+        confirmLabel: 'Regenerate',
+        onConfirm: () => {},
+    },
+};
+
+/**
  * Modal with left-side actions (e.g., "New Space" button).
  * Uses the `leftActions` prop to position secondary actions on the left.
  */
