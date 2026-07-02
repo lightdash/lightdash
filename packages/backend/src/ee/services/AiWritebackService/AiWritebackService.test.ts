@@ -535,6 +535,7 @@ describe('AiWritebackService.prepareTurn', () => {
                 get: vi.fn().mockResolvedValue(githubProject()),
             } as AnyType,
             aiWritebackThreadModel: {
+                findByAiThreadUuid: vi.fn().mockResolvedValue(null),
                 findActiveWorkstreamByRepo,
                 findByAiThreadUuidAndPrUrl,
             } as AnyType,
@@ -568,8 +569,11 @@ describe('AiWritebackService.prepareTurn', () => {
         );
         expect(findByAiThreadUuidAndPrUrl).not.toHaveBeenCalled();
         expect(turn).toMatchObject({
-            existingRow: workstreamRow,
-            isResume: true,
+            kind: 'run',
+            turn: {
+                existingRow: workstreamRow,
+                isResume: true,
+            },
         });
     });
 
@@ -584,6 +588,7 @@ describe('AiWritebackService.prepareTurn', () => {
                 get: vi.fn().mockResolvedValue(githubProject()),
             } as AnyType,
             aiWritebackThreadModel: {
+                findByAiThreadUuid: vi.fn().mockResolvedValue(null),
                 findActiveWorkstreamByRepo,
                 findByAiThreadUuidAndPrUrl,
             } as AnyType,
@@ -598,7 +603,10 @@ describe('AiWritebackService.prepareTurn', () => {
 
         expect(findActiveWorkstreamByRepo).not.toHaveBeenCalled();
         expect(findByAiThreadUuidAndPrUrl).not.toHaveBeenCalled();
-        expect(turn).toMatchObject({ existingRow: null, isResume: false });
+        expect(turn).toMatchObject({
+            kind: 'run',
+            turn: { existingRow: null, isResume: false },
+        });
     });
 });
 
@@ -2284,12 +2292,14 @@ describe('AiWritebackService.prepareTurn (stale-PR recovery, M4)', () => {
                 get: vi.fn().mockResolvedValue({ enabled: true }),
             } as AnyType,
             aiWritebackThreadModel: {
+                findByAiThreadUuid: vi.fn().mockResolvedValue(null),
                 findActiveWorkstreamByRepo,
                 findByAiThreadUuidAndPrUrl: vi.fn(),
             } as AnyType,
         });
 
-        const turn = await prepare(service);
+        const prepared = await prepare(service);
+        const turn = prepared.kind === 'run' ? prepared.turn : prepared;
 
         // The stale row is discarded so the turn opens a fresh PR rather than
         // resuming onto a dead branch and throwing later (M4).
