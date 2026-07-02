@@ -31,6 +31,7 @@ const setData = (data: DataAppViz[]) => {
     mockedUseDataAppVisualizations.mockReturnValue({
         data: { pages: [{ data }], pageParams: [1] },
         isInitialLoading: false,
+        isFetching: false,
         error: null,
         hasNextPage: false,
         fetchNextPage: vi.fn(),
@@ -43,9 +44,14 @@ const render = (onSelect: (id: string) => void): ReactElement =>
         <DataAppVizLibraryPicker
             projectUuid="project-1"
             selectedDataAppVizUuid={null}
+            selectedDataAppViz={null}
             onSelect={onSelect}
         />,
     ) as unknown as ReactElement;
+
+// Options live in the Select dropdown, which only mounts once opened.
+const openDropdown = () =>
+    fireEvent.click(screen.getByPlaceholderText('Select a visualization'));
 
 describe('DataAppVizLibraryPicker', () => {
     beforeEach(() => {
@@ -58,6 +64,7 @@ describe('DataAppVizLibraryPicker', () => {
             makeDataAppViz({ dataAppVizUuid: 'b', name: 'Bar race' }),
         ]);
         render(vi.fn());
+        openDropdown();
 
         expect(screen.getByText('Radial gauge')).toBeDefined();
         expect(screen.getByText('Bar race')).toBeDefined();
@@ -69,6 +76,7 @@ describe('DataAppVizLibraryPicker', () => {
         ]);
         const onSelect = vi.fn();
         render(onSelect);
+        openDropdown();
 
         fireEvent.click(screen.getByText('Pick me'));
 
@@ -78,6 +86,7 @@ describe('DataAppVizLibraryPicker', () => {
     it('shows an empty state when there are no bindable vizs', () => {
         setData([]);
         render(vi.fn());
+        openDropdown();
 
         expect(
             screen.getByText(/No data app visualizations yet/),

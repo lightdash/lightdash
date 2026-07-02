@@ -131,6 +131,7 @@ export class AppGenerateController extends BaseController {
         @Path() projectUuid: string,
         @Query() page?: number,
         @Query() pageSize?: number,
+        @Query() search?: string,
     ): Promise<ApiListDataAppVizsResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -139,6 +140,7 @@ export class AppGenerateController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 page && pageSize ? { page, pageSize } : undefined,
+                search,
             );
         return {
             status: 'ok',

@@ -5686,6 +5686,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         user: SessionUser,
         projectUuid: string,
         paginateArgs?: KnexPaginateArgs,
+        search?: string,
     ): Promise<KnexPaginatedData<DataAppViz[]>> {
         await this.assertDataAppsEnabled(user);
         const { organizationUuid } =
@@ -5703,6 +5704,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             await this.appModel.listDataAppVisualizations(
                 projectUuid,
                 paginateArgs,
+                search,
             );
         return { data: data.map(AppGenerateService.mapDataAppViz), pagination };
     }

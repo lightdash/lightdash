@@ -110,6 +110,7 @@ describe('AppGenerateService data app vizs', () => {
         expect(appModel.listDataAppVisualizations).toHaveBeenCalledWith(
             'project-1',
             { page: 1, pageSize: 25 },
+            undefined,
         );
         expect(result).toEqual({
             data: [
@@ -126,6 +127,34 @@ describe('AppGenerateService data app vizs', () => {
             ],
             pagination,
         });
+    });
+
+    it('forwards the search term to the model', async () => {
+        const pagination = {
+            page: 1,
+            pageSize: 25,
+            totalPageCount: 1,
+            totalResults: 1,
+        };
+        const appModel = {
+            listDataAppVisualizations: vi
+                .fn()
+                .mockResolvedValue({ data: [makeDataAppVizRow()], pagination }),
+        };
+        const service = buildService(appModel);
+
+        await service.listDataAppVisualizations(
+            USER,
+            'project-1',
+            { page: 1, pageSize: 25 },
+            'gauge',
+        );
+
+        expect(appModel.listDataAppVisualizations).toHaveBeenCalledWith(
+            'project-1',
+            { page: 1, pageSize: 25 },
+            'gauge',
+        );
     });
 
     it('404s getDataAppVisualization for an id that is not a data app viz', async () => {
