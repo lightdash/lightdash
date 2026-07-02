@@ -1,3 +1,10 @@
+## [0.3292.1](https://github.com/lightdash/lightdash/compare/0.3292.0...0.3292.1) (2026-07-02)
+
+
+### Bug Fixes
+
+* **cli:** surface app download failures and old-server responses [GLITCH-576 GLITCH-577 GLITCH-578] ([#25049](https://github.com/lightdash/lightdash/issues/25049)) ([732c6f1](https://github.com/lightdash/lightdash/commit/732c6f1840bb2c18e2f8d9eb26a304d7da38bc2f))
+
 # [0.3292.0](https://github.com/lightdash/lightdash/compare/0.3291.0...0.3292.0) (2026-07-02)
 
 
