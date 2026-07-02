@@ -1,7 +1,4 @@
-import {
-    getUserAvatarGradient,
-    type UserAvatarGradientId,
-} from '@lightdash/common';
+import { type UserAvatarGradientId } from '@lightdash/common';
 import { Avatar, type AvatarProps } from '@mantine-8/core';
 import { forwardRef } from 'react';
 import classes from './Avatar.module.css';
@@ -25,33 +22,41 @@ const mergeClassNames = (extra?: AvatarClassNames): AvatarClassNames => ({
         .join(' '),
 });
 
+// No photo and no explicit gradient choice falls back to the original plain avatar.
 export const LightdashUserAvatar = forwardRef<HTMLDivElement, Props>(
     ({ userUuid, avatarUrl, avatarGradient, classNames, ...props }, ref) => {
-        if (!userUuid) {
+        if (avatarUrl) {
             return (
                 <Avatar
                     ref={ref}
-                    variant="light"
                     radius="100%"
                     color="initials"
+                    src={avatarUrl}
+                    imageProps={{ loading: 'lazy' }}
                     classNames={classNames}
                     {...props}
                 />
             );
         }
-        const gradient = getUserAvatarGradient(
-            userUuid,
-            avatarGradient ?? null,
-        );
+        if (userUuid && avatarGradient) {
+            return (
+                <Avatar
+                    ref={ref}
+                    radius="100%"
+                    color="initials"
+                    data-avatar-gradient={avatarGradient}
+                    classNames={mergeClassNames(classNames)}
+                    {...props}
+                />
+            );
+        }
         return (
             <Avatar
                 ref={ref}
+                variant="light"
                 radius="100%"
                 color="initials"
-                src={avatarUrl ?? undefined}
-                imageProps={{ loading: 'lazy' }}
-                data-avatar-gradient={gradient}
-                classNames={mergeClassNames(classNames)}
+                classNames={classNames}
                 {...props}
             />
         );
