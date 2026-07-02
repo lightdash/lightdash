@@ -1,4 +1,27 @@
-import { buildPreviewEnv } from './preview';
+import { type DataAppCode } from '@lightdash/common';
+import { promises as fs } from 'fs';
+import * as os from 'os';
+import * as path from 'path';
+import { writeBundleToDir } from './appCodeFiles';
+import {
+    assertNodeModulesPresent,
+    buildPreviewEnv,
+    resolvePreviewTarget,
+} from './preview';
+
+const previewBundle: DataAppCode = {
+    manifest: {
+        codeVersion: 1 as const,
+        appUuid: 'app-uuid-1',
+        projectUuid: 'proj-uuid-1',
+        version: 2,
+        name: 'Preview App',
+        description: '',
+        template: null,
+        downloadedAt: '2026-07-01T00:00:00.000Z',
+    },
+    files: [],
+};
 
 describe('buildPreviewEnv', () => {
     it('renders the three VITE vars exactly, with trailing newline', () => {
@@ -22,5 +45,50 @@ describe('buildPreviewEnv', () => {
             projectUuid: 'p',
         });
         expect(env).toContain('VITE_LIGHTDASH_URL=http://localhost:3000\n');
+    });
+});
+
+describe('resolvePreviewTarget', () => {
+    it('defaults appDir to cwd and project to the manifest projectUuid', async () => {
+        const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-prev-'));
+        await writeBundleToDir(dir, previewBundle);
+        const target = await resolvePreviewTarget({ cwd: dir });
+        expect(target.appDir).toBe(dir);
+        expect(target.projectUuid).toBe('proj-uuid-1');
+    });
+
+    it('resolves a relative path arg against cwd and honors --project override', async () => {
+        const parent = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-prev-'));
+        const appDir = path.join(parent, 'apps', 'my-app');
+        await writeBundleToDir(appDir, previewBundle);
+        const target = await resolvePreviewTarget({
+            pathArg: 'apps/my-app',
+            projectFlag: 'other-proj',
+            cwd: parent,
+        });
+        expect(target.appDir).toBe(appDir);
+        expect(target.projectUuid).toBe('other-proj');
+    });
+
+    it('errors clearly when the folder has no manifest', async () => {
+        const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-prev-'));
+        await expect(resolvePreviewTarget({ cwd: dir })).rejects.toThrow(
+            /No lightdash-app\.yml found in/,
+        );
+    });
+});
+
+describe('assertNodeModulesPresent', () => {
+    it('passes when node_modules exists', async () => {
+        const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-prev-'));
+        await fs.mkdir(path.join(dir, 'node_modules'));
+        await expect(assertNodeModulesPresent(dir)).resolves.toBeUndefined();
+    });
+
+    it('errors telling the user to pnpm install, without installing', async () => {
+        const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-prev-'));
+        await expect(assertNodeModulesPresent(dir)).rejects.toThrow(
+            /Run 'pnpm install' in .* \(preview does not auto-install\)/,
+        );
     });
 });
