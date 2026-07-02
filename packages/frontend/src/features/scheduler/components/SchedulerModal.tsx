@@ -59,6 +59,12 @@ const SchedulersModal: FC<
         >;
         /** If provided, opens directly in edit mode for this scheduler */
         initialSchedulerUuid?: string;
+        /** Opens directly in create mode, skipping the list. */
+        defaultCreate?: boolean;
+        /** Create-mode only: pre-fills the new delivery. */
+        initialFormValues?: React.ComponentProps<
+            typeof SchedulerModalCreateOrEdit
+        >['initialFormValues'];
         searchQuery?: string;
         onSearchQueryChange?: (searchQuery: string | undefined) => void;
     }
@@ -75,11 +81,18 @@ const SchedulersModal: FC<
     availableParameters,
     onClose = () => {},
     initialSchedulerUuid,
+    defaultCreate = false,
+    initialFormValues,
     searchQuery,
     onSearchQueryChange,
 }) => {
     const [modalState, setModalState] = useState<States>(
-        initialSchedulerUuid ? States.EDIT : States.LIST,
+        // eslint-disable-next-line no-nested-ternary
+        initialSchedulerUuid
+            ? States.EDIT
+            : defaultCreate
+              ? States.CREATE
+              : States.LIST,
     );
     const [schedulerUuidToEdit, setSchedulerUuidToEdit] = useState<
         string | undefined
@@ -266,6 +279,9 @@ const SchedulersModal: FC<
                 resourceUuid={resourceUuid}
                 schedulerUuidToEdit={
                     modalState === States.EDIT ? schedulerUuidToEdit : undefined
+                }
+                initialFormValues={
+                    modalState === States.CREATE ? initialFormValues : undefined
                 }
                 createMutation={createMutation}
                 onClose={onClose}
