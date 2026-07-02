@@ -252,6 +252,7 @@ import {
     AiAgentArgs,
     AiAgentDependencies,
     type AiAgentMcpServer,
+    type AiAgentRequestingUser,
 } from '../ai/types/aiAgent';
 import {
     DiscoverReposFn,
@@ -7347,6 +7348,21 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                       },
                   )));
 
+        // Slack without aiRequireOAuth resolves the actor to the workspace
+        // installer, not the requester — omit rather than describe the wrong person.
+        let requestingUser: AiAgentRequestingUser | null = null;
+        if (hasTrustedPromptUserIdentity && user.organizationUuid) {
+            const userGroups = await this.groupsModel.findUserGroups({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+            });
+            requestingUser = {
+                name: [user.firstName, user.lastName].filter(Boolean).join(' '),
+                role: user.role ?? null,
+                groups: userGroups.map((group) => group.name),
+            };
+        }
+
         const args: AiAgentArgs = {
             organizationId: user.organizationUuid,
             userId: user.userUuid,
@@ -7354,6 +7370,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             ...modelProperties,
 
             agentSettings,
+            requestingUser,
             knowledgeDocuments,
             projectContext,
             projectContextEnabled,

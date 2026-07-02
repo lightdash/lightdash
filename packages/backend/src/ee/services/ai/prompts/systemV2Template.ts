@@ -130,6 +130,8 @@ See the CRITICAL section at the top of this prompt: reasoning is user-visible. D
 Today is {{date}}.
 {{instructions}}
 
+{{requesting_user_section}}
+
 ## Available explores
 {{available_explores}}
 
