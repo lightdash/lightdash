@@ -1570,11 +1570,16 @@ const PivotTable: FC<PivotTableProps> = ({
                               )
                         : buildRowFieldsFromVisibleCells(row, undefined);
 
+                    // Subtotal (grouped) rows are treated as totals for
+                    // conditional-formatting scope.
+                    const isSubtotalRow = row.getIsGrouped();
+
                     const rowBackgroundColor = getRowConditionalFormattingColor(
                         {
                             conditionalFormattings,
                             rowFields: rowLevelFields,
                             minMaxMap,
+                            isTotal: isSubtotalRow,
                         },
                     );
 
@@ -1583,6 +1588,7 @@ const PivotTable: FC<PivotTableProps> = ({
                             conditionalFormattings,
                             rowFields: rowLevelFields,
                             minMaxMap,
+                            isTotal: isSubtotalRow,
                         });
 
                     return (
@@ -1726,6 +1732,10 @@ const PivotTable: FC<PivotTableProps> = ({
                                           currentHeaderInfo,
                                       );
 
+                                // A cell is a total when it sits in the row-
+                                // total ("Total") column or in a subtotal row.
+                                const isTotalCell = isRowTotal || isSubtotalRow;
+
                                 const cellConditionalFormattingConfig =
                                     getConditionalFormattingConfig({
                                         field: item,
@@ -1735,6 +1745,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                         rowFields: rowFieldsForCell,
                                         applyTo:
                                             ConditionalFormattingColorApplyTo.CELL,
+                                        isTotal: isTotalCell,
                                     });
                                 const textConditionalFormattingConfig =
                                     getConditionalFormattingConfig({
@@ -1745,6 +1756,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                         rowFields: rowFieldsForCell,
                                         applyTo:
                                             ConditionalFormattingColorApplyTo.TEXT,
+                                        isTotal: isTotalCell,
                                     });
 
                                 const cellConditionalFormattingResult =

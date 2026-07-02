@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    ConditionalFormattingAppliesTo,
     ConditionalFormattingColorApplyTo,
     ConditionalFormattingComparisonType,
     ConditionalFormattingConfigType,
@@ -363,6 +364,17 @@ export const ConditionalFormattingItem: FC<Props> = ({
         [handleChange, config],
     );
 
+    const handleChangeAppliesTo = useCallback(
+        (newAppliesTo: ConditionalFormattingAppliesTo) => {
+            handleChange(
+                produce(config, (draft) => {
+                    draft.appliesTo = newAppliesTo;
+                }),
+            );
+        },
+        [handleChange, config],
+    );
+
     const handleToggleTextStyle = useCallback(
         (key: keyof ConditionalFormattingTextStyle) => {
             handleChange(
@@ -526,6 +538,36 @@ export const ConditionalFormattingItem: FC<Props> = ({
                                 onChange={(value) =>
                                     handleChangeApplyTo(
                                         value as ConditionalFormattingColorApplyTo,
+                                    )
+                                }
+                            />
+                        </Group>
+
+                        <Group gap="xs">
+                            <Config.Label>Totals</Config.Label>
+
+                            <SegmentedControl
+                                data={[
+                                    {
+                                        value: ConditionalFormattingAppliesTo.ALL,
+                                        label: 'Include',
+                                    },
+                                    {
+                                        value: ConditionalFormattingAppliesTo.DATA,
+                                        label: 'Exclude',
+                                    },
+                                    {
+                                        value: ConditionalFormattingAppliesTo.TOTALS,
+                                        label: 'Only',
+                                    },
+                                ]}
+                                value={
+                                    config.appliesTo ??
+                                    ConditionalFormattingAppliesTo.ALL
+                                }
+                                onChange={(value) =>
+                                    handleChangeAppliesTo(
+                                        value as ConditionalFormattingAppliesTo,
                                     )
                                 }
                             />
