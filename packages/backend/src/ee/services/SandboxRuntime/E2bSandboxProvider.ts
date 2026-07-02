@@ -1,12 +1,9 @@
 import { ALL_TRAFFIC, CommandExitError, Sandbox, TimeoutError } from 'e2b';
+import { capOutput } from './commandOutput';
 import { SandboxCommandError, SandboxTimeoutError } from './errors';
+import { createGitOverCommands } from './gitOverCommands';
 import {
     type CommandResult,
-    type GitAddTarget,
-    type GitCloneOptions,
-    type GitCommitOptions,
-    type GitPushOptions,
-    type GitStatus,
     type PersistOptions,
     type RunOptions,
     type SandboxCapabilities,
@@ -32,8 +29,8 @@ const normalizeError = (error: unknown): never => {
     if (error instanceof CommandExitError) {
         throw new SandboxCommandError(
             error.exitCode,
-            error.stderr,
-            error.stdout,
+            capOutput(error.stderr),
+            capOutput(error.stdout),
         );
     }
     if (error instanceof TimeoutError) {
@@ -63,8 +60,8 @@ class E2bSandboxHandle implements SandboxHandle {
                     onStderr: options?.onStderr,
                 });
                 return {
-                    stdout: result.stdout,
-                    stderr: result.stderr,
+                    stdout: capOutput(result.stdout),
+                    stderr: capOutput(result.stderr),
                     exitCode: result.exitCode,
                 };
             } catch (error) {
@@ -97,61 +94,11 @@ class E2bSandboxHandle implements SandboxHandle {
         },
     };
 
-    // Near 1:1 passthrough to the E2B git helper. Errors surface as the SDK's
-    // own git errors (auth/upstream) — those are control-plane failures the
-    // feature already handles, not the command/timeout pair the shim normalizes.
-    readonly git: SandboxGit = {
-        clone: async (url: string, options: GitCloneOptions): Promise<void> => {
-            await this.sandbox.git.clone(url, {
-                path: options.path,
-                username: options.username,
-                password: options.password,
-                ...(options.depth !== undefined
-                    ? { depth: options.depth }
-                    : {}),
-                ...(options.timeoutMs !== undefined
-                    ? { timeoutMs: options.timeoutMs }
-                    : {}),
-                ...(options.branch !== undefined
-                    ? { branch: options.branch }
-                    : {}),
-            });
-        },
-        status: async (path: string): Promise<GitStatus> => {
-            const status = await this.sandbox.git.status(path);
-            return {
-                currentBranch: status.currentBranch ?? null,
-                hasChanges: status.hasChanges,
-            };
-        },
-        createBranch: async (path: string, branch: string): Promise<void> => {
-            await this.sandbox.git.createBranch(path, branch);
-        },
-        add: async (path: string, target: GitAddTarget): Promise<void> => {
-            await this.sandbox.git.add(path, target);
-        },
-        commit: async (
-            path: string,
-            message: string,
-            options: GitCommitOptions,
-        ): Promise<void> => {
-            await this.sandbox.git.commit(path, message, {
-                authorName: options.authorName,
-                authorEmail: options.authorEmail,
-            });
-        },
-        push: async (path: string, options: GitPushOptions): Promise<void> => {
-            await this.sandbox.git.push(path, {
-                remote: options.remote,
-                branch: options.branch,
-                username: options.username,
-                password: options.password,
-                ...(options.setUpstream !== undefined
-                    ? { setUpstream: options.setUpstream }
-                    : {}),
-            });
-        },
-    };
+    // Build git on top of the (error-normalizing) `commands`/`files` data plane
+    // via the shared helper, so a git failure surfaces as `SandboxCommandError`
+    // like every other command — rather than leaking the E2B SDK's own git
+    // error types the way the previous passthrough did.
+    readonly git: SandboxGit = createGitOverCommands(this.commands, this.files);
 }
 
 /**

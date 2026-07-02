@@ -106,13 +106,12 @@ import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient'
 import { getModel } from '../ai/models';
 import { getAiCallTelemetry } from '../ai/utils/aiCallTelemetry';
 import {
-    createSandboxManager,
-    S3SnapshotStore,
+    resolveSandboxRuntime,
     SandboxCommandError,
     SandboxManager,
-    type AzureSandboxesConfig,
     type PersistentWorkspace,
     type SandboxHandle,
+    type SandboxRuntime,
     type SandboxSpec,
 } from '../SandboxRuntime';
 import { assertCanViewApp as assertUserCanViewApp } from './appAuthz';
@@ -276,7 +275,7 @@ export class AppGenerateService extends BaseService {
     private readonly sandboxRegistryModel: SandboxRegistryModel;
 
     // Lazily built from config on first use; memoized for the service lifetime.
-    private sandboxManager: SandboxManager | undefined;
+    private sandboxRuntime: SandboxRuntime | undefined;
 
     constructor({
         lightdashConfig,
@@ -456,109 +455,31 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
-     * The sandbox manager over the provider selected by `SANDBOX_PROVIDER`
-     * (e2b | docker). Memoized — the feature talks only to the manager for
-     * lifecycle (acquire/resume/suspend/destroy via the stable `sandbox_uuid`)
-     * and to the returned {@link SandboxHandle} for the data plane.
-     * See docs/sandbox-runtime.md.
+     * The sandbox runtime (manager + image/template ref) over the provider
+     * selected by `SANDBOX_PROVIDER`. Memoized — the feature talks only to the
+     * manager for lifecycle (acquire/resume/suspend/destroy via the stable
+     * `sandbox_uuid`) and to the returned {@link SandboxHandle} for the data
+     * plane. See docs/sandbox-runtime.md.
      */
-    private getSandboxManager(): SandboxManager {
-        if (!this.sandboxManager) {
-            const { sandboxProvider } = this.lightdashConfig.appRuntime;
-            this.sandboxManager = createSandboxManager({
-                provider: sandboxProvider,
-                e2bApiKey: this.lightdashConfig.appRuntime.e2bApiKey,
-                dockerImage: this.lightdashConfig.appRuntime.sandboxDockerImage,
-                lambdaMicroVm: this.lightdashConfig.appRuntime.lambdaMicroVm,
-                azureSandboxes:
-                    sandboxProvider === 'azure-sandboxes'
-                        ? this.getAzureSandboxesConfig()
-                        : null,
-                // Object-store snapshots are only for the Docker backend (no
-                // native pause); native-pause providers (E2B, Lambda, Azure
-                // Sandboxes) never touch S3, so don't construct a client.
-                snapshotStore:
-                    sandboxProvider === 'docker'
-                        ? new S3SnapshotStore({
-                              lightdashConfig: this.lightdashConfig,
-                          })
-                        : null,
+    private getSandboxRuntime(): SandboxRuntime {
+        if (!this.sandboxRuntime) {
+            this.sandboxRuntime = resolveSandboxRuntime({
+                lightdashConfig: this.lightdashConfig,
+                feature: 'data-app',
                 registryModel: this.sandboxRegistryModel,
                 logger: this.logger,
             });
         }
-        return this.sandboxManager;
+        return this.sandboxRuntime;
     }
 
-    /**
-     * Resolve the template/image ref the active provider launches from. E2B
-     * composes `name:tag`; Docker uses the local image name.
-     */
-    private getSandboxTemplateRef(): string {
-        const { sandboxProvider, e2bTemplateName, e2bTemplateTag } =
-            this.lightdashConfig.appRuntime;
-        if (sandboxProvider === 'docker') {
-            return this.lightdashConfig.appRuntime.sandboxDockerImage;
-        }
-        if (sandboxProvider === 'lambda-microvm') {
-            const imageArn =
-                this.lightdashConfig.appRuntime.lambdaMicroVmDataAppImageArn;
-            if (!imageArn) {
-                throw new MissingConfigError(
-                    'Lambda MicroVM data-app image ARN is not configured (LAMBDA_MICROVM_DATA_APP_IMAGE_ARN)',
-                );
-            }
-            return imageArn;
-        }
-        if (sandboxProvider === 'azure-sandboxes') {
-            const diskImage =
-                this.lightdashConfig.appRuntime.azureSandboxesDataAppDiskImage;
-            if (!diskImage) {
-                throw new MissingConfigError(
-                    'Azure data-app sandbox disk image is not configured (AZURE_SANDBOXES_DATA_APP_DISK_IMAGE)',
-                );
-            }
-            return diskImage;
-        }
-        // E2B treats `name` and `name:default` interchangeably, so an empty
-        // tag is fine — it just resolves to the implicit `default` build.
-        return e2bTemplateTag
-            ? `${e2bTemplateName}:${e2bTemplateTag}`
-            : e2bTemplateName;
-    }
-
-    /** Assemble the `azure-sandboxes` provider config for the data-app pipeline
-     * (the data-app sandbox group + shared subscription/region settings). */
-    private getAzureSandboxesConfig(): AzureSandboxesConfig {
-        const {
-            azureSandboxes,
-            azureSandboxesDataAppGroup,
-            sandboxIdleTimeoutMs,
-        } = this.lightdashConfig.appRuntime;
-        if (
-            !azureSandboxes.subscriptionId ||
-            !azureSandboxes.resourceGroup ||
-            !azureSandboxesDataAppGroup
-        ) {
-            throw new MissingConfigError(
-                'Azure Sandboxes is not configured (AZURE_SANDBOXES_SUBSCRIPTION_ID / AZURE_SANDBOXES_RESOURCE_GROUP / AZURE_SANDBOXES_DATA_APP_GROUP)',
-            );
-        }
-        return {
-            subscriptionId: azureSandboxes.subscriptionId,
-            resourceGroup: azureSandboxes.resourceGroup,
-            region: azureSandboxes.region,
-            sandboxGroup: azureSandboxesDataAppGroup,
-            apiVersion: azureSandboxes.apiVersion,
-            tokenScope: azureSandboxes.tokenScope,
-            resourceTier: azureSandboxes.resourceTier,
-            autoSuspendIdleSeconds: Math.floor(sandboxIdleTimeoutMs / 1000),
-        };
+    private getSandboxManager(): SandboxManager {
+        return this.getSandboxRuntime().manager;
     }
 
     private buildSandboxSpec(): SandboxSpec {
         return {
-            templateRef: this.getSandboxTemplateRef(),
+            templateRef: this.getSandboxRuntime().templateRef,
             timeoutMs: 60 * 60 * 1000,
             egress: {
                 allow: claudeCodeAllowedHosts(this.lightdashConfig.ai.copilot),
@@ -1302,7 +1223,6 @@ export class AppGenerateService extends BaseService {
             await this.getSandboxManager().suspend({
                 sandboxUuid,
                 handle: sandbox,
-                workspace: DATA_APP_WORKSPACE,
             });
             const durationMs = AppGenerateService.elapsed(start);
             this.logger.info(
@@ -1318,11 +1238,15 @@ export class AppGenerateService extends BaseService {
     private async resumeSandbox(
         sandboxUuid: string,
         appUuid: string,
+        organizationUuid: string,
+        projectUuid: string,
     ): Promise<{ sandbox: SandboxHandle; durationMs: number }> {
         const start = performance.now();
         const sandbox = await this.getSandboxManager().resume({
             sandboxUuid,
             spec: this.buildSandboxSpec(),
+            expectedOrganizationUuid: organizationUuid,
+            expectedProjectUuid: projectUuid,
         });
         const durationMs = AppGenerateService.elapsed(start);
         this.logger.info(
@@ -1397,6 +1321,8 @@ export class AppGenerateService extends BaseService {
                 const result = await this.resumeSandbox(
                     app.sandbox_id,
                     appUuid,
+                    organizationUuid,
+                    projectUuid,
                 );
                 durations.resumeMs = result.durationMs;
                 return {
@@ -2865,6 +2791,8 @@ export class AppGenerateService extends BaseService {
                 const result = await this.resumeSandbox(
                     app.sandbox_id,
                     appUuid,
+                    app.organization_uuid,
+                    app.project_uuid,
                 );
                 sandbox = result.sandbox;
                 sandboxUuid = app.sandbox_id;
@@ -4364,6 +4292,8 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 const resumed = await this.resumeSandbox(
                     app.sandbox_id,
                     appUuid,
+                    app.organization_uuid,
+                    app.project_uuid,
                 );
                 sandbox = resumed.sandbox;
                 await this.resyncSandboxFromS3(
@@ -5501,7 +5431,11 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         // so no spurious failed analytics event fires on top of the cancel.
         if (app.sandbox_id) {
             try {
-                await this.getSandboxManager().suspendByUuid(app.sandbox_id);
+                await this.getSandboxManager().suspendByUuid({
+                    sandboxUuid: app.sandbox_id,
+                    expectedOrganizationUuid: app.organization_uuid,
+                    expectedProjectUuid: app.project_uuid,
+                });
                 this.logger.info(
                     `App ${appUuid}: sandbox suspended after cancel (sandboxUuid=${app.sandbox_id})`,
                 );
@@ -5960,10 +5894,20 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             // Suspending the sandbox interrupts any in-flight pipeline so it
             // doesn't keep running against a now-hidden app, while preserving
             // its state in case the app is restored.
-            await this.suspendSandboxIfExists(app.sandbox_id, appUuid);
+            await this.suspendSandboxIfExists(
+                app.sandbox_id,
+                appUuid,
+                app.organization_uuid,
+                app.project_uuid,
+            );
             await this.appModel.softDelete(appUuid, projectUuid, user.userUuid);
         } else {
-            await this.killSandboxIfExists(app.sandbox_id, appUuid);
+            await this.killSandboxIfExists(
+                app.sandbox_id,
+                appUuid,
+                app.organization_uuid,
+                app.project_uuid,
+            );
             await this.deleteAppS3Prefix(appUuid);
             await this.appModel.permanentDelete(appUuid, projectUuid);
         }
@@ -6056,7 +6000,12 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             );
         }
 
-        await this.killSandboxIfExists(app.sandbox_id, appUuid);
+        await this.killSandboxIfExists(
+            app.sandbox_id,
+            appUuid,
+            app.organization_uuid,
+            app.project_uuid,
+        );
         await this.deleteAppS3Prefix(appUuid);
         await this.appModel.permanentDelete(appUuid, projectUuid);
 
@@ -6075,10 +6024,16 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     private async suspendSandboxIfExists(
         sandboxUuid: string | null,
         appUuid: string,
+        organizationUuid: string,
+        projectUuid: string,
     ): Promise<void> {
         if (!sandboxUuid) return;
         try {
-            await this.getSandboxManager().suspendByUuid(sandboxUuid);
+            await this.getSandboxManager().suspendByUuid({
+                sandboxUuid,
+                expectedOrganizationUuid: organizationUuid,
+                expectedProjectUuid: projectUuid,
+            });
             this.logger.info(
                 `App ${appUuid}: sandbox suspended during delete (sandboxUuid=${sandboxUuid})`,
             );
@@ -6092,10 +6047,16 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     private async killSandboxIfExists(
         sandboxUuid: string | null,
         appUuid: string,
+        organizationUuid: string,
+        projectUuid: string,
     ): Promise<void> {
         if (!sandboxUuid) return;
         try {
-            await this.getSandboxManager().destroy({ sandboxUuid });
+            await this.getSandboxManager().destroy({
+                sandboxUuid,
+                expectedOrganizationUuid: organizationUuid,
+                expectedProjectUuid: projectUuid,
+            });
             this.logger.info(
                 `App ${appUuid}: sandbox killed during hard delete (sandboxUuid=${sandboxUuid})`,
             );

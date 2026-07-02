@@ -136,6 +136,7 @@ agent-harness/cloud/credentials.env
 .agents
 .codex
 .claude/*.lock
+.claude/worktrees/
 AGENTS.md
 
 # octarine

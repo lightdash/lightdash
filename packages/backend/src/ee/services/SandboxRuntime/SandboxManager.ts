@@ -116,19 +116,45 @@ export class SandboxManager {
 
     /**
      * Re-materialize a previously-suspended sandbox by its stable id, restoring
-     * from the recorded snapshot (or reconnecting to a still-live one).
+     * from the recorded snapshot (or reconnecting to a still-live one). A row
+     * owned by a different org/project is treated as not-found.
      */
     async resume(input: {
         sandboxUuid: string;
         spec: SandboxSpec;
+        expectedOrganizationUuid: string;
+        expectedProjectUuid: string;
     }): Promise<SandboxHandle> {
         const row = await this.registry.findBySandboxUuid(input.sandboxUuid);
-        if (!row) {
+        if (
+            !row ||
+            !SandboxManager.ownedBy(
+                row,
+                input.expectedOrganizationUuid,
+                input.expectedProjectUuid,
+            )
+        ) {
             throw new SandboxExpiredError(input.sandboxUuid);
         }
         const handle = await this.resumeRow(row, input.spec);
         await this.registry.markRunning(input.sandboxUuid, handle.sandboxId);
         return handle;
+    }
+
+    /**
+     * Ownership guard: a caller proves which org/project a sandbox belongs to,
+     * so a stable id leaked or guessed across tenants can't be resumed,
+     * suspended, or destroyed. A mismatch is treated exactly like a missing row.
+     */
+    private static ownedBy(
+        row: SandboxRegistryRecord,
+        organizationUuid: string,
+        projectUuid: string,
+    ): boolean {
+        return (
+            row.organizationUuid === organizationUuid &&
+            row.projectUuid === projectUuid
+        );
     }
 
     private async resumeRow(
@@ -147,35 +173,70 @@ export class SandboxManager {
     /**
      * End-of-turn suspend. Native-pause backends pause in place; object-store
      * backends snapshot the workspace then destroy the container (the snapshot
-     * is the resumable state). The workspace is passed in (or read from the
-     * registry row by {@link suspendByUuid}) so a caller holding no handle can
-     * still suspend.
+     * is the resumable state). The workspace to capture is read from the
+     * registry row (recorded at {@link acquire}) — the single source of truth —
+     * so a caller holding no handle can still suspend.
      */
     async suspend(input: {
         sandboxUuid: string;
         handle: SandboxHandle;
-        workspace: PersistentWorkspace;
     }): Promise<void> {
+        const row = await this.registry.findBySandboxUuid(input.sandboxUuid);
+        if (!row) {
+            throw new SandboxExpiredError(input.sandboxUuid);
+        }
+        // The snapshot a prior turn left on the row is about to be overwritten
+        // by the new one below. Object-store backends write a fresh key each
+        // suspend, so the old blob would leak unless we GC it once the row
+        // points at its replacement.
+        const priorRef = row.snapshotRef;
         const ref = await this.provider.persist(input.handle, {
-            workspace: input.workspace,
+            workspace: row.workspace,
         });
         if (this.provider.capabilities.pauseResume) {
             await this.registry.markSuspended(input.sandboxUuid, {
                 snapshotRef: ref,
                 providerSandboxId: input.handle.sandboxId,
             });
+        } else {
+            // Destroy before marking suspended, not after: if destroy throws,
+            // the row stays `running` with its live `providerSandboxId`. That is
+            // deliberately retryable — resume still works by reconnecting to the
+            // live container. The row is only marked `suspended` (promising the
+            // snapshot is the resumable state) once the container is actually
+            // gone.
+            await this.provider.destroy(input.handle.sandboxId);
+            await this.registry.markSuspended(input.sandboxUuid, {
+                snapshotRef: ref,
+                providerSandboxId: null,
+            });
+        }
+        await this.gcConsumedSnapshot(priorRef, ref);
+    }
+
+    /**
+     * GC the snapshot a resumed turn consumed, now that the row points at its
+     * replacement. Best-effort — a leaked blob must never fail an otherwise
+     * successful suspend. A no-op for native-pause backends (their snapshot is
+     * the suspended sandbox itself, reclaimed by `destroy`) and when the prior
+     * ref is unchanged.
+     */
+    private async gcConsumedSnapshot(
+        priorRef: SnapshotRef | null,
+        newRef: SnapshotRef,
+    ): Promise<void> {
+        if (!priorRef || JSON.stringify(priorRef) === JSON.stringify(newRef)) {
             return;
         }
-        // Destroy before marking suspended, not after: if destroy throws, the
-        // row stays `running` with its live `providerSandboxId`. That is
-        // deliberately retryable — resume still works by reconnecting to the
-        // live container. The row is only marked `suspended` (promising the
-        // snapshot is the resumable state) once the container is actually gone.
-        await this.provider.destroy(input.handle.sandboxId);
-        await this.registry.markSuspended(input.sandboxUuid, {
-            snapshotRef: ref,
-            providerSandboxId: null,
-        });
+        try {
+            await this.provider.deleteSnapshot(priorRef);
+        } catch (error) {
+            this.logger.warn(
+                `Failed to delete prior snapshot after suspend: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+        }
     }
 
     /**
@@ -185,20 +246,47 @@ export class SandboxManager {
      * state for a later resume. A row with no live sandbox is GC'd (nothing to
      * preserve); an already-gone row is a no-op.
      */
-    async suspendByUuid(sandboxUuid: string): Promise<void> {
-        const row = await this.registry.findBySandboxUuid(sandboxUuid);
-        if (!row) {
+    async suspendByUuid(input: {
+        sandboxUuid: string;
+        expectedOrganizationUuid: string;
+        expectedProjectUuid: string;
+    }): Promise<void> {
+        const row = await this.registry.findBySandboxUuid(input.sandboxUuid);
+        if (
+            !row ||
+            !SandboxManager.ownedBy(
+                row,
+                input.expectedOrganizationUuid,
+                input.expectedProjectUuid,
+            )
+        ) {
             return;
         }
         await this.suspendOrphan(row);
     }
 
-    /** Permanently dispose of a sandbox: kill it, GC its snapshot, drop the row. */
+    /**
+     * Permanently dispose of a sandbox: kill it, GC its snapshot, drop the row.
+     * A row owned by a different org/project is treated as not-found and left
+     * untouched (throws {@link SandboxExpiredError}).
+     */
     async destroy(input: {
         sandboxUuid: string;
         handle?: SandboxHandle;
+        expectedOrganizationUuid: string;
+        expectedProjectUuid: string;
     }): Promise<void> {
         const row = await this.registry.findBySandboxUuid(input.sandboxUuid);
+        if (
+            row &&
+            !SandboxManager.ownedBy(
+                row,
+                input.expectedOrganizationUuid,
+                input.expectedProjectUuid,
+            )
+        ) {
+            throw new SandboxExpiredError(input.sandboxUuid);
+        }
         const liveId =
             input.handle?.sandboxId ?? row?.providerSandboxId ?? null;
         if (liveId) {
@@ -212,15 +300,19 @@ export class SandboxManager {
 
     private async suspendOrphan(row: SandboxRegistryRecord): Promise<void> {
         if (!row.providerSandboxId) {
-            // No live sandbox to snapshot — nothing to preserve.
-            await this.destroy({ sandboxUuid: row.sandboxUuid });
+            // No live sandbox to snapshot — nothing to preserve. The row's own
+            // org/project trivially satisfy the ownership guard.
+            await this.destroy({
+                sandboxUuid: row.sandboxUuid,
+                expectedOrganizationUuid: row.organizationUuid,
+                expectedProjectUuid: row.projectUuid,
+            });
             return;
         }
         const handle = await this.provider.connect(row.providerSandboxId);
         await this.suspend({
             sandboxUuid: row.sandboxUuid,
             handle,
-            workspace: row.workspace,
         });
     }
 }
