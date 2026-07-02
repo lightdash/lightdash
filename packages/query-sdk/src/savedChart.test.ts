@@ -311,6 +311,17 @@ describe('executeSavedChart underlying data', () => {
                     },
                 ],
             },
+            metrics: {
+                id: 'chart-metrics-root',
+                and: [
+                    {
+                        id: 'chart-metrics-0',
+                        target: { fieldId: 'orders_revenue' },
+                        operator: 'greaterThan',
+                        values: [10000],
+                    },
+                ],
+            },
         },
     };
 
@@ -378,14 +389,16 @@ describe('executeSavedChart underlying data', () => {
             underlyingDataItemId: 'orders_revenue',
         });
         const body = underlyingPost!.body as {
-            filters: { dimensions: { and: unknown[] } };
+            filters: { dimensions: { and: unknown[] }; metrics?: unknown };
         };
         const { and } = body.filters.dimensions;
-        // chart's own filter group survives...
-        expect(JSON.stringify(and)).toContain('orders_region');
+        // chart's own dimension filter group survives NESTED, not flattened...
+        expect(and[0]).toEqual(chartMetricQuery.filters.dimensions);
         // ...and the clicked row pins the dimension value
         expect(JSON.stringify(and)).toContain('orders_status');
         expect(JSON.stringify(and)).toContain('done');
+        // the chart's metric (HAVING) filters must never leak into a drill-down
+        expect(body.filters).not.toHaveProperty('metrics');
     });
 
     it('rejects a metric not present in the chart', async () => {

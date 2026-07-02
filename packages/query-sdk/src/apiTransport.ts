@@ -427,6 +427,9 @@ function buildSavedChartUnderlyingDataBody({
         underlyingDataSourceQueryUuid: queryUuid,
         underlyingDataItemId: metricId,
         filters: {
+            // Dimension filters only — the chart's metric (HAVING) filters must
+            // not apply at the underlying rows' grain (mirrors the app's own
+            // drill-down).
             ...(dimensionRules.length > 0
                 ? {
                       dimensions: {
@@ -434,9 +437,6 @@ function buildSavedChartUnderlyingDataBody({
                           and: dimensionRules,
                       },
                   }
-                : {}),
-            ...(metricQuery.filters?.metrics
-                ? { metrics: metricQuery.filters.metrics }
                 : {}),
         },
         ...(limit !== undefined ? { limit } : {}),
