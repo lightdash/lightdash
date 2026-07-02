@@ -1204,7 +1204,6 @@ export class AppGenerateService extends BaseService {
             await this.getSandboxManager().suspend({
                 sandboxUuid,
                 handle: sandbox,
-                workspace: DATA_APP_WORKSPACE,
             });
             const durationMs = AppGenerateService.elapsed(start);
             this.logger.info(
@@ -1220,11 +1219,15 @@ export class AppGenerateService extends BaseService {
     private async resumeSandbox(
         sandboxUuid: string,
         appUuid: string,
+        organizationUuid: string,
+        projectUuid: string,
     ): Promise<{ sandbox: SandboxHandle; durationMs: number }> {
         const start = performance.now();
         const sandbox = await this.getSandboxManager().resume({
             sandboxUuid,
             spec: this.buildSandboxSpec(),
+            expectedOrganizationUuid: organizationUuid,
+            expectedProjectUuid: projectUuid,
         });
         const durationMs = AppGenerateService.elapsed(start);
         this.logger.info(
@@ -1299,6 +1302,8 @@ export class AppGenerateService extends BaseService {
                 const result = await this.resumeSandbox(
                     app.sandbox_id,
                     appUuid,
+                    organizationUuid,
+                    projectUuid,
                 );
                 durations.resumeMs = result.durationMs;
                 return {
@@ -2719,6 +2724,8 @@ export class AppGenerateService extends BaseService {
                 const result = await this.resumeSandbox(
                     app.sandbox_id,
                     appUuid,
+                    app.organization_uuid,
+                    app.project_uuid,
                 );
                 sandbox = result.sandbox;
                 sandboxUuid = app.sandbox_id;
@@ -4175,6 +4182,8 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 const resumed = await this.resumeSandbox(
                     app.sandbox_id,
                     appUuid,
+                    app.organization_uuid,
+                    app.project_uuid,
                 );
                 sandbox = resumed.sandbox;
                 await this.resyncSandboxFromS3(
@@ -5252,7 +5261,11 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         // so no spurious failed analytics event fires on top of the cancel.
         if (app.sandbox_id) {
             try {
-                await this.getSandboxManager().suspendByUuid(app.sandbox_id);
+                await this.getSandboxManager().suspendByUuid({
+                    sandboxUuid: app.sandbox_id,
+                    expectedOrganizationUuid: app.organization_uuid,
+                    expectedProjectUuid: app.project_uuid,
+                });
                 this.logger.info(
                     `App ${appUuid}: sandbox suspended after cancel (sandboxUuid=${app.sandbox_id})`,
                 );
@@ -5608,10 +5621,20 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             // Suspending the sandbox interrupts any in-flight pipeline so it
             // doesn't keep running against a now-hidden app, while preserving
             // its state in case the app is restored.
-            await this.suspendSandboxIfExists(app.sandbox_id, appUuid);
+            await this.suspendSandboxIfExists(
+                app.sandbox_id,
+                appUuid,
+                app.organization_uuid,
+                app.project_uuid,
+            );
             await this.appModel.softDelete(appUuid, projectUuid, user.userUuid);
         } else {
-            await this.killSandboxIfExists(app.sandbox_id, appUuid);
+            await this.killSandboxIfExists(
+                app.sandbox_id,
+                appUuid,
+                app.organization_uuid,
+                app.project_uuid,
+            );
             await this.deleteAppS3Prefix(appUuid);
             await this.appModel.permanentDelete(appUuid, projectUuid);
         }
@@ -5704,7 +5727,12 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             );
         }
 
-        await this.killSandboxIfExists(app.sandbox_id, appUuid);
+        await this.killSandboxIfExists(
+            app.sandbox_id,
+            appUuid,
+            app.organization_uuid,
+            app.project_uuid,
+        );
         await this.deleteAppS3Prefix(appUuid);
         await this.appModel.permanentDelete(appUuid, projectUuid);
 
@@ -5723,10 +5751,16 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     private async suspendSandboxIfExists(
         sandboxUuid: string | null,
         appUuid: string,
+        organizationUuid: string,
+        projectUuid: string,
     ): Promise<void> {
         if (!sandboxUuid) return;
         try {
-            await this.getSandboxManager().suspendByUuid(sandboxUuid);
+            await this.getSandboxManager().suspendByUuid({
+                sandboxUuid,
+                expectedOrganizationUuid: organizationUuid,
+                expectedProjectUuid: projectUuid,
+            });
             this.logger.info(
                 `App ${appUuid}: sandbox suspended during delete (sandboxUuid=${sandboxUuid})`,
             );
@@ -5740,10 +5774,16 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     private async killSandboxIfExists(
         sandboxUuid: string | null,
         appUuid: string,
+        organizationUuid: string,
+        projectUuid: string,
     ): Promise<void> {
         if (!sandboxUuid) return;
         try {
-            await this.getSandboxManager().destroy({ sandboxUuid });
+            await this.getSandboxManager().destroy({
+                sandboxUuid,
+                expectedOrganizationUuid: organizationUuid,
+                expectedProjectUuid: projectUuid,
+            });
             this.logger.info(
                 `App ${appUuid}: sandbox killed during hard delete (sandboxUuid=${sandboxUuid})`,
             );
