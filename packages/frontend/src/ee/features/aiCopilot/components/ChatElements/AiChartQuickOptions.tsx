@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     type AiAgentMessageAssistant,
     type AiArtifact,
@@ -16,6 +17,7 @@ import {
     IconExternalLink,
     IconEye,
     IconLayoutDashboard,
+    IconSend,
     IconTableShortcut,
     IconTerminal2,
 } from '@tabler/icons-react';
@@ -45,6 +47,7 @@ import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
+import { AiScheduleDeliveryModal } from './AiScheduleDeliveryModal';
 
 type Props = {
     projectUuid: string;
@@ -81,10 +84,20 @@ export const AiChartQuickOptions = ({
     const [isSavingToDashboard, setIsSavingToDashboard] = useState(false);
 
     const [opened, { open, close }] = useDisclosure(false);
+    const [scheduleOpened, { open: openSchedule, close: closeSchedule }] =
+        useDisclosure(false);
     const [
         verifyModalOpened,
         { open: openVerifyModal, close: closeVerifyModal },
     ] = useDisclosure(false);
+
+    const canCreateScheduledDeliveries = user.data?.ability?.can(
+        'create',
+        subject('ScheduledDeliveries', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
     const {
         visualizationConfig,
         columnOrder,
@@ -353,16 +366,30 @@ export const AiChartQuickOptions = ({
                         <Menu.Label>Quick actions</Menu.Label>
                         {message.savedQueryUuid ? (
                             !isEmbed && (
-                                <Menu.Item
-                                    component={Link}
-                                    to={`/projects/${projectUuid}/saved/${message.savedQueryUuid}`}
-                                    target="_blank"
-                                    leftSection={
-                                        <MantineIcon icon={IconTableShortcut} />
-                                    }
-                                >
-                                    View saved chart
-                                </Menu.Item>
+                                <>
+                                    <Menu.Item
+                                        component={Link}
+                                        to={`/projects/${projectUuid}/saved/${message.savedQueryUuid}`}
+                                        target="_blank"
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconTableShortcut}
+                                            />
+                                        }
+                                    >
+                                        View saved chart
+                                    </Menu.Item>
+                                    {canCreateScheduledDeliveries && (
+                                        <Menu.Item
+                                            onClick={openSchedule}
+                                            leftSection={
+                                                <MantineIcon icon={IconSend} />
+                                            }
+                                        >
+                                            Schedule delivery
+                                        </Menu.Item>
+                                    )}
+                                </>
                             )
                         ) : (
                             <>
@@ -509,6 +536,15 @@ export const AiChartQuickOptions = ({
                     </Button>
                 }
             />
+            {scheduleOpened && message.savedQueryUuid && (
+                <AiScheduleDeliveryModal
+                    chartUuid={message.savedQueryUuid}
+                    chartName={saveChartOptions.name ?? ''}
+                    agentUuid={agentUuid}
+                    sourceThreadUuid={message.threadUuid}
+                    onClose={closeSchedule}
+                />
+            )}
         </Fragment>
     );
 };
