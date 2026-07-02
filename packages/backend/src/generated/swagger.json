@@ -1662,7 +1662,12 @@
             },
             "ExternalConnectionAuthType": {
                 "type": "string",
-                "enum": ["none", "api_key", "bearer_token"]
+                "enum": [
+                    "none",
+                    "api_key",
+                    "bearer_token",
+                    "google_service_account"
+                ]
             },
             "ExternalConnectionMethod": {
                 "type": "string",
@@ -1692,6 +1697,13 @@
                     },
                     "hasSecret": {
                         "type": "boolean"
+                    },
+                    "oauthScopes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
                     },
                     "apiKeyLocation": {
                         "allOf": [
@@ -1769,6 +1781,7 @@
                     "updatedByUserUuid",
                     "createdByUserUuid",
                     "hasSecret",
+                    "oauthScopes",
                     "apiKeyLocation",
                     "apiKeyName",
                     "rateLimitPerMinute",
@@ -1807,6 +1820,13 @@
                 "properties": {
                     "secret": {
                         "type": "string",
+                        "nullable": true
+                    },
+                    "oauthScopes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
                         "nullable": true
                     },
                     "apiKeyLocation": {
@@ -1959,6 +1979,13 @@
                                 "$ref": "#/components/schemas/ApiKeyLocation"
                             }
                         ],
+                        "nullable": true
+                    },
+                    "oauthScopes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
                         "nullable": true
                     },
                     "secret": {

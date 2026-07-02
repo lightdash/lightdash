@@ -41,6 +41,7 @@ const makeDbConnection = (overrides: Record<string, unknown> = {}) => ({
     rate_limit_per_minute: null,
     api_key_name: null,
     api_key_location: null,
+    oauth_scopes: null,
     created_by_user_uuid: USER_UUID,
     updated_by_user_uuid: USER_UUID,
     created_at: new Date('2026-01-01T00:00:00Z'),

@@ -23,6 +23,8 @@ const authLabel = (type: ExternalConnection['type']): string => {
             return 'API key';
         case 'bearer_token':
             return 'Bearer token';
+        case 'google_service_account':
+            return 'Google service account';
         default:
             return assertUnreachable(type, `Unknown auth type ${type}`);
     }

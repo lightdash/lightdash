@@ -71,6 +71,7 @@ export class ExternalConnectionModel {
             rateLimitPerMinute: row.rate_limit_per_minute,
             apiKeyName: row.api_key_name,
             apiKeyLocation: row.api_key_location,
+            oauthScopes: row.oauth_scopes,
             hasSecret,
             createdByUserUuid: row.created_by_user_uuid,
             updatedByUserUuid: row.updated_by_user_uuid,
@@ -128,6 +129,9 @@ export class ExternalConnectionModel {
                     rate_limit_per_minute: data.rateLimitPerMinute ?? null,
                     api_key_name: data.apiKeyName ?? null,
                     api_key_location: data.apiKeyLocation ?? null,
+                    oauth_scopes: data.oauthScopes
+                        ? JSON.stringify(data.oauthScopes)
+                        : null,
                     created_by_user_uuid: userUuid,
                     updated_by_user_uuid: userUuid,
                 })
@@ -401,6 +405,10 @@ export class ExternalConnectionModel {
                 updatePayload.api_key_name = data.apiKeyName;
             if (data.apiKeyLocation !== undefined)
                 updatePayload.api_key_location = data.apiKeyLocation;
+            if (data.oauthScopes !== undefined)
+                updatePayload.oauth_scopes = data.oauthScopes
+                    ? JSON.stringify(data.oauthScopes)
+                    : null;
 
             await trx(ExternalConnectionsTableName)
                 .where('external_connection_uuid', uuid)

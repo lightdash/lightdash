@@ -67,6 +67,7 @@ import { CommercialCacheService } from './services/CommercialCacheService';
 import { CommercialSlackIntegrationService } from './services/CommercialSlackIntegrationService';
 import { EmbedService } from './services/EmbedService/EmbedService';
 import { ExternalConnectionService } from './services/ExternalConnectionService/ExternalConnectionService';
+import { GoogleServiceAccountTokenProvider } from './services/ExternalConnectionService/GoogleServiceAccountTokenProvider';
 import { ManagedAgentService } from './services/ManagedAgentService/ManagedAgentService';
 import { McpService } from './services/McpService/McpService';
 import { OrganizationWarehouseCredentialsService } from './services/OrganizationWarehouseCredentialsService';
@@ -455,6 +456,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     appModel: models.getAppModel(),
                     spacePermissionService:
                         repository.getSpacePermissionService(),
+                    googleTokenProvider:
+                        new GoogleServiceAccountTokenProvider(),
                 }),
             slackIntegrationService: ({ models, context, clients }) =>
                 new CommercialSlackIntegrationService({

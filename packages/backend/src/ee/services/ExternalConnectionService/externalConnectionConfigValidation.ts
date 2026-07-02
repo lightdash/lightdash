@@ -39,7 +39,48 @@ export type ValidatableExternalConnectionConfig = {
     rateLimitPerMinute?: number | null;
     apiKeyName?: string | null;
     apiKeyLocation?: ApiKeyLocation | null;
+    oauthScopes?: string[] | null;
 };
+
+/**
+ * Validate a Google service account keyfile (the decrypted secret for a
+ * 'google_service_account' connection). Called where the plaintext secret is
+ * available (create / update-with-secret / testConfig) — the shape-only
+ * validateExternalConnectionConfig can't see the secret value itself.
+ */
+export function validateServiceAccountKeyfile(secret: string): void {
+    let parsed: unknown;
+    try {
+        parsed = JSON.parse(secret);
+    } catch {
+        throw new ParameterError('Service account key must be valid JSON');
+    }
+    if (!parsed || typeof parsed !== 'object') {
+        throw new ParameterError('Service account key must be a JSON object');
+    }
+    const keyfile = parsed as Record<string, unknown>;
+    if (keyfile.type !== 'service_account') {
+        throw new ParameterError(
+            'Service account key must have type "service_account"',
+        );
+    }
+    if (
+        typeof keyfile.client_email !== 'string' ||
+        keyfile.client_email.length === 0
+    ) {
+        throw new ParameterError(
+            'Service account key must include a client_email',
+        );
+    }
+    if (
+        typeof keyfile.private_key !== 'string' ||
+        keyfile.private_key.length === 0
+    ) {
+        throw new ParameterError(
+            'Service account key must include a private_key',
+        );
+    }
+}
 
 const assertBoundedInt = (
     value: number | undefined,
@@ -161,6 +202,15 @@ export function validateExternalConnectionConfig(
     }
 
     // --- auth invariants ---
+    if (
+        config.type !== 'google_service_account' &&
+        config.oauthScopes &&
+        config.oauthScopes.length > 0
+    ) {
+        throw new ParameterError(
+            'OAuth scopes are only valid for type "google_service_account"',
+        );
+    }
     switch (config.type) {
         case 'none':
             if (hasSecretAfter) {
@@ -196,6 +246,33 @@ export function validateExternalConnectionConfig(
                     'type "api_key" requires apiKeyLocation of "header" or "query"',
                 );
             }
+            break;
+        case 'google_service_account':
+            if (!hasSecretAfter) {
+                throw new ParameterError(
+                    'type "google_service_account" requires a service account key',
+                );
+            }
+            if (config.apiKeyName || config.apiKeyLocation) {
+                throw new ParameterError(
+                    'type "google_service_account" must not set an api key name or location',
+                );
+            }
+            if (!config.oauthScopes || config.oauthScopes.length === 0) {
+                throw new ParameterError(
+                    'type "google_service_account" requires at least one OAuth scope',
+                );
+            }
+            config.oauthScopes.forEach((scope) => {
+                if (
+                    typeof scope !== 'string' ||
+                    !/^https:\/\/\S+$/.test(scope)
+                ) {
+                    throw new ParameterError(
+                        `Invalid OAuth scope: ${JSON.stringify(scope)}`,
+                    );
+                }
+            });
             break;
         default:
             assertUnreachable(

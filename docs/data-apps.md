@@ -813,6 +813,8 @@ A connection lives on the `external_connections` table (`packages/backend/src/ee
 
 The **instructions** are usage guidance for the app builder — auth quirks, pagination, which endpoints matter, response caveats — injected into the generation prompt (see [Saved samples → `/tmp/external-data`](#saved-samples--tmpexternal-data) below). They inherit the same admin-trust boundary as the rest of the connection: only `manage:ExternalConnection` (project admin) can set them, and an admin authoring prose is strictly weaker than an admin who already pins the host, secret, and allowed methods.
 
+The auth method (`type`) is one of **`none`**, **`api_key`** (header or query, named by `apiKeyName`/`apiKeyLocation`), **`bearer_token`**, or **`google_service_account`**. For a Google service account the encrypted secret is the service-account **keyfile JSON** and `oauth_scopes` holds the admin-entered OAuth scopes (e.g. `https://www.googleapis.com/auth/bigquery`); the proxy mints a short-lived Google access token from them per request (cached in memory by `GoogleServiceAccountTokenProvider`) and injects it as `Authorization: Bearer …`. This is what lets a data app write back to BigQuery via its REST API.
+
 Runtime fetches resolve the alias against `app_external_connections` (`resolveAppAlias`), so the link rows — not the version `resources` snapshot — are what grant an app access. When an app is **duplicated** (`AppGenerateService.duplicateApp`), its live links are copied onto the new app so the duplicate can make the same external fetches; both apps share a project, so the connection UUIDs stay valid. **Preview duplication** is the cross-project case: the target preview project has none of the source's connections, so it first clones the connections themselves (see [Preview environments](#preview-environments-copy-on-preview)) and re-links the copied apps onto those clones. **Promotion** (`promoteApp`, preview → upstream) still does **not** carry links across today — the upstream project's connections are separate entities and would need identity mapping to re-link.
 
 ### Proxy security model
@@ -821,7 +823,7 @@ The sandboxed preview iframe has no network access of its own (`default-src 'non
 
 1. The app SDK requests an external fetch over postMessage.
 2. The parent forwards it to the backend external-fetch route, which loads the linked connection, decrypts its secret server-side, and runs the request through `executeExternalFetch`.
-3. `executeExternalFetch` validates the request, enforces the SSRF guard (the request must resolve under the connection's configured base URL/host; private/loopback/link-local targets are rejected), injects the secret as the configured auth, reads a **bounded** response body, and returns `{ status, contentType, body, truncated }`.
+3. `executeExternalFetch` validates the request, enforces the SSRF guard (the request must resolve under the connection's configured base URL/host; private/loopback/link-local targets are rejected), injects the secret as the configured auth (for `google_service_account`, it first mints a short-lived OAuth access token from the stored keyfile + scopes — that token mint calls Google's fixed token endpoint directly, outside the SSRF-guarded fetch), reads a **bounded** response body, and returns `{ status, contentType, body, truncated }`.
 4. The bounded response is posted back to the iframe. The decrypted secret never crosses to the frontend.
 
 ### Method rules

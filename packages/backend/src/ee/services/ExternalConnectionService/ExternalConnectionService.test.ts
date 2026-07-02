@@ -34,6 +34,7 @@ const connection: ExternalConnection = {
     rateLimitPerMinute: null,
     apiKeyName: null,
     apiKeyLocation: null,
+    oauthScopes: null,
     hasSecret: true,
     createdByUserUuid: 'user-1',
     updatedByUserUuid: 'user-1',
@@ -121,6 +122,9 @@ function buildService(opts: {
             getSpaceAccessContext: vi.fn().mockResolvedValue({}),
         } as never,
         analytics: { track: vi.fn() } as never,
+        googleTokenProvider: {
+            getAccessToken: vi.fn().mockResolvedValue('test-access-token'),
+        } as never,
     });
     return { service, model };
 }
