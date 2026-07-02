@@ -20,12 +20,12 @@ describe('LightdashUserAvatar', () => {
         renderWithProviders(
             <LightdashUserAvatar
                 userUuid={UUID_A}
-                avatarGradient="ember"
+                avatarGradient="lilac"
                 name="Ada Lovelace"
             />,
         );
         expect(
-            document.querySelector('[data-avatar-gradient="ember"]'),
+            document.querySelector('[data-avatar-gradient="lilac"]'),
         ).toBeInTheDocument();
     });
 
