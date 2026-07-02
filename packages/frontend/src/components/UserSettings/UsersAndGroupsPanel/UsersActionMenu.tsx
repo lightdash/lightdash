@@ -252,6 +252,7 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                 onClose={() =>
                     !isDeleting ? setIsDeleteDialogOpen(false) : undefined
                 }
+                role="alertdialog"
                 title="Delete user"
                 icon={IconTrash}
                 cancelDisabled={isDeleting}

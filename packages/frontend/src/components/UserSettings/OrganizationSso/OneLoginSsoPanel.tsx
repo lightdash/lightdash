@@ -334,6 +334,7 @@ const OneLoginSsoPanel: FC = () => {
                 <MantineModal
                     opened
                     onClose={() => setDeleteOpen(false)}
+                    role="alertdialog"
                     title="Remove OneLogin configuration"
                     icon={IconShieldCheck}
                     cancelLabel="Cancel"

@@ -352,6 +352,7 @@ const GenericOidcSsoPanel: FC = () => {
                 <MantineModal
                     opened
                     onClose={() => setDeleteOpen(false)}
+                    role="alertdialog"
                     title="Remove OpenID Connect configuration"
                     icon={IconShieldCheck}
                     cancelLabel="Cancel"

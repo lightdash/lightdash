@@ -252,6 +252,7 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
         <MantineModal
             opened={isOpen}
             onClose={closeModal}
+            role="alertdialog"
             title="New Service Account"
             icon={IconKey}
             cancelLabel={token ? false : 'Cancel'}

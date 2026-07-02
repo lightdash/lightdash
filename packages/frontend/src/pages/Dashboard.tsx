@@ -896,6 +896,7 @@ const Dashboard: FC = () => {
                     onClose={() => {
                         blocker.reset();
                     }}
+                    role="alertdialog"
                     title="Unsaved changes"
                     icon={IconAlertCircle}
                     cancelLabel="Stay"

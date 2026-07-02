@@ -137,6 +137,7 @@ const VerifiedDomainsPanel: FC = () => {
                 <MantineModal
                     opened
                     onClose={() => setDomainToDelete(null)}
+                    role="alertdialog"
                     title="Remove verified domain"
                     icon={IconWorldCheck}
                     cancelLabel="Cancel"
