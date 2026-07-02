@@ -86,11 +86,11 @@ const bundle = {
     },
     files: [
         {
-            path: 'assets/app.js',
+            path: 'src/assets/app.js',
             contentBase64: Buffer.from('console.log(1)').toString('base64'),
         },
         {
-            path: 'index.html',
+            path: 'src/index.html',
             contentBase64: Buffer.from('<html>').toString('base64'),
         },
     ],
@@ -99,9 +99,9 @@ const bundle = {
 it('writes then reads back an identical bundle', async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-app-'));
     await writeBundleToDir(dir, bundle);
-    expect(await fs.readFile(path.join(dir, 'assets/app.js'), 'utf-8')).toBe(
-        'console.log(1)',
-    );
+    expect(
+        await fs.readFile(path.join(dir, 'src/assets/app.js'), 'utf-8'),
+    ).toBe('console.log(1)');
     const read = await readBundleFromDir(dir);
     expect(read).toEqual(bundle);
 });
@@ -126,6 +126,25 @@ it('writes a manifest-only bundle with no files', async () => {
     await writeBundleToDir(dir, { ...bundle, files: [] });
     const read = await readBundleFromDir(dir);
     expect(read).toEqual({ ...bundle, files: [] });
+});
+
+it('upload reads back only src/ files, ignoring scaffolding and context', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-app-'));
+    await writeBundleToDir(dir, bundle); // bundle.files are src/*
+    // simulate Phase 2 extra files on disk:
+    await fs.mkdir(path.join(dir, '.lightdash/context'), { recursive: true });
+    await fs.mkdir(path.join(dir, '.claude/skills/x'), { recursive: true });
+    await fs.writeFile(path.join(dir, 'package.json'), '{"name":"x"}');
+    await fs.writeFile(
+        path.join(dir, '.lightdash/context/semantic-layer.yml'),
+        'models: []',
+    );
+    await fs.writeFile(path.join(dir, '.claude/skills/x/SKILL.md'), '# skill');
+    const read = await readBundleFromDir(dir);
+    expect(read.files.every((f) => f.path.startsWith('src/'))).toBe(true);
+    expect(read.files.map((f) => f.path).sort()).toEqual(
+        bundle.files.map((f) => f.path).sort(),
+    );
 });
 
 it('throws a clear error when the manifest is not valid YAML', async () => {

@@ -14,6 +14,7 @@ export type DataAppManifest = {
     // "Custom" or apps predating template persistence.
     template: Exclude<DataAppTemplate, 'custom'> | null;
     downloadedAt: string; // ISO
+    scaffoldingVersion?: string; // CLI/SDK version the vendored scaffolding came from (Phase 2)
 };
 
 export type DataAppCodeFile = {
