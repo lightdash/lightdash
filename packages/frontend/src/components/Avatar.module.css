@@ -7,152 +7,137 @@
 }
 
 .root[data-avatar-gradient='dusk'] .placeholder {
-    background: conic-gradient(
-        from 0deg,
-        #a499ff,
-        #8372d9,
-        #5e4cff,
-        #8372d9,
-        #a499ff
+    background: radial-gradient(
+        circle at 50% 50%,
+        #8372d9 0%,
+        #8372d9 30%,
+        #6b5fbe 60%,
+        #5e4cff 100%
     );
 }
 .root[data-avatar-gradient='lilac'] .placeholder {
-    background: conic-gradient(
-        from 0deg,
-        #d1ccff,
-        #bfb4ff,
-        #a499ff,
-        #bfb4ff,
-        #d1ccff
+    background: radial-gradient(
+        circle at 50% 50%,
+        #d1ccff 0%,
+        #c5baff 35%,
+        #b3a0ff 70%,
+        #a499ff 100%
     );
 }
 .root[data-avatar-gradient='ocean'] .placeholder {
-    background: conic-gradient(
-        from 0deg,
-        #8001fe,
-        #4a319f,
-        #1200b2,
-        #4a319f,
-        #8001fe
+    background: radial-gradient(
+        circle at 50% 50%,
+        #4a319f 0%,
+        #4527a0 40%,
+        #381ea0 70%,
+        #1200b2 100%
     );
 }
 .root[data-avatar-gradient='ember'] .placeholder {
-    background: conic-gradient(
-        from 0deg,
-        #b267fe,
-        #6d3690,
-        #26004c,
-        #6d3690,
-        #b267fe
+    background: radial-gradient(
+        circle at 50% 50%,
+        #6d3690 0%,
+        #642c8a 40%,
+        #521d7f 70%,
+        #26004c 100%
     );
 }
 .root[data-avatar-gradient='blush'] .placeholder {
-    background: conic-gradient(
-        from 0deg,
-        #ffd1e8,
-        #f0c5e3,
-        #d9b3ff,
-        #f0c5e3,
-        #ffd1e8
+    background: radial-gradient(
+        circle at 50% 50%,
+        #f0c5e3 0%,
+        #e8b3d9 40%,
+        #dfa5d0 70%,
+        #d9b3ff 100%
     );
 }
 .root[data-avatar-gradient='minty'] .placeholder {
-    background: conic-gradient(
-        from 0deg,
-        #edfbd0,
-        #e5fb9e,
-        #dbfe95,
-        #e5fb9e,
-        #edfbd0
+    background: radial-gradient(
+        circle at 50% 50%,
+        #e5fb9e 0%,
+        #e1f896 40%,
+        #ddf58e 70%,
+        #dbfe95 100%
     );
 }
 .root[data-avatar-gradient='forest'] .placeholder {
-    background: conic-gradient(
-        from 0deg,
-        #1d7c51,
-        #1a3f71,
-        #1200b2,
-        #1a3f71,
-        #1d7c51
+    background: radial-gradient(
+        circle at 50% 50%,
+        #1a3f71 0%,
+        #193575 40%,
+        #182b7a 70%,
+        #1200b2 100%
     );
 }
 .root[data-avatar-gradient='sunrise'] .placeholder {
-    background: conic-gradient(
-        from 0deg,
-        #d1ccff,
-        #d0e1bf,
-        #daf6a2,
-        #d0e1bf,
-        #d1ccff
+    background: radial-gradient(
+        circle at 50% 50%,
+        #d0e1bf 0%,
+        #ced7b9 40%,
+        #cccdb3 70%,
+        #daf6a2 100%
     );
 }
 .root[data-avatar-gradient='twilight'] .placeholder {
-    background: conic-gradient(
-        from 0deg,
-        #26004c,
-        #172038,
-        #0e3e29,
-        #172038,
-        #26004c
+    background: radial-gradient(
+        circle at 50% 50%,
+        #172038 0%,
+        #151b32 40%,
+        #13162c 70%,
+        #0e3e29 100%
     );
 }
 .root[data-avatar-gradient='lavender'] .placeholder {
-    background: conic-gradient(
-        from 0deg,
-        #d1ccff,
-        #d5bfff,
-        #d9b3ff,
-        #d5bfff,
-        #d1ccff
+    background: radial-gradient(
+        circle at 50% 50%,
+        #d5bfff 0%,
+        #d1b8ff 40%,
+        #cdb0ff 70%,
+        #d9b3ff 100%
     );
 }
 .root[data-avatar-gradient='emerald'] .placeholder {
-    background: conic-gradient(
-        from 0deg,
-        #30cf87,
-        #1f6b52,
-        #0e3e29,
-        #1f6b52,
-        #30cf87
+    background: radial-gradient(
+        circle at 50% 50%,
+        #1f6b52 0%,
+        #1d6450 40%,
+        #1b5d4e 70%,
+        #0e3e29 100%
     );
 }
 .root[data-avatar-gradient='amethyst'] .placeholder {
-    background: conic-gradient(
-        from 0deg,
-        #8001fe,
-        #7043d6,
-        #5e4cff,
-        #7043d6,
-        #8001fe
+    background: radial-gradient(
+        circle at 50% 50%,
+        #7043d6 0%,
+        #6a3acd 40%,
+        #6331c4 70%,
+        #5e4cff 100%
     );
 }
 .root[data-avatar-gradient='sage'] .placeholder {
-    background: conic-gradient(
-        from 0deg,
-        #edfbd0,
-        #c5e8ac,
-        #83e2b7,
-        #c5e8ac,
-        #edfbd0
+    background: radial-gradient(
+        circle at 50% 50%,
+        #c5e8ac 0%,
+        #bfe19f 40%,
+        #b9da92 70%,
+        #83e2b7 100%
     );
 }
 .root[data-avatar-gradient='orchid'] .placeholder {
-    background: conic-gradient(
-        from 0deg,
-        #d9b3ff,
-        #b589f0,
-        #8001fe,
-        #b589f0,
-        #d9b3ff
+    background: radial-gradient(
+        circle at 50% 50%,
+        #b589f0 0%,
+        #ae7ae9 40%,
+        #a76be2 70%,
+        #8001fe 100%
     );
 }
 .root[data-avatar-gradient='jungle'] .placeholder {
-    background: conic-gradient(
-        from 0deg,
-        #3b5408,
-        #2e6527,
-        #1d7c51,
-        #2e6527,
-        #3b5408
+    background: radial-gradient(
+        circle at 50% 50%,
+        #2e6527 0%,
+        #2d5f26 40%,
+        #2c5825 70%,
+        #1d7c51 100%
     );
 }
