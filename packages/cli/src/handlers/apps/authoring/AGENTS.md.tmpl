@@ -5,3 +5,5 @@ Two skills in `.claude/skills/` describe how to edit this app:
 - `developing-data-apps-locally` — the local workflow: edit `src/`, `pnpm build`, `lightdash upload --apps`; the SDK is the only data access; `.lightdash/context/` holds the project's semantic layer and theme.
 
 Edit only `src/`. Root config files are read-only reference — the server rebuilds against a trusted template.
+
+The local `pnpm install && pnpm build` is an optional pre-check. If install fails, skip it and upload — never modify machine config, npmrc, or dependency files to force it; the server rebuild is authoritative.

@@ -15,8 +15,14 @@ You are editing a Lightdash **data app** that was downloaded with `lightdash dow
 ## The edit → build → upload loop
 
 1. Edit files under `src/` only.
-2. `pnpm install` then `pnpm build` to check it compiles. This is a **local pre-check**.
+2. Optionally, `pnpm install` then `pnpm build` to check it compiles. This is an **optional local pre-check** — see below.
 3. `lightdash upload --apps` — the **server** rebuilds and serves the app. The server rebuild, not your local build, is what ships.
+
+## The local build is optional — never fight a failing install
+
+- If `pnpm install` fails (registry policy, an unavailable pinned SDK version, no network access), **skip the local build entirely and go straight to upload**. The server rebuild is authoritative and surfaces build errors on the app page.
+- Do **not** modify machine configuration, `.npmrc` files, registry settings, or the project's dependency files to force an install to work.
+- A missing `node_modules` is a normal state, not a problem to fix. Never run installs just because it is absent.
 
 ## Project context (read-only reference)
 
