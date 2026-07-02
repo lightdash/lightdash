@@ -41,7 +41,7 @@ import { getAiCallTelemetry } from './ai/utils/aiCallTelemetry';
 import { type AiAgentReviewNotificationService } from './AiAgentReviewNotificationService';
 
 const REVIEW_AGENT_VERSION = 'llm-judge-v1';
-const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v10';
+const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v11';
 const WRITEBACK_TOOL_NAMES = new Set([
     'editDbtProject',
     'propose_writeback',
@@ -370,12 +370,17 @@ export class AiAgentReviewClassifierService extends BaseService {
         if (successfulWritebackEvidence) {
             return { suppressed: 'writeback_in_progress', judgeOutput: null };
         }
+        const judgeOutput = await this.judgeTurn(
+            input.candidate,
+            input.evidencePacket,
+        );
         return {
             suppressed: null,
-            judgeOutput: await this.judgeTurn(
-                input.candidate,
-                input.evidencePacket,
-            ),
+            judgeOutput:
+                AiAgentReviewClassifierService.enforceNextUserSignalGrounding(
+                    judgeOutput,
+                    input.evidencePacket.nextUserPrompt !== null,
+                ),
         };
     }
 
@@ -647,6 +652,49 @@ export class AiAgentReviewClassifierService extends BaseService {
         }
     }
 
+    /**
+     * next_user_* signals require a real next user turn. When there is none,
+     * strip them, and demote the finding when nothing else promotable remains
+     * — the promotion was built on fabricated evidence.
+     */
+    static enforceNextUserSignalGrounding(
+        judgeOutput: AiAgentReviewClassifierJudgeOutput,
+        hasNextUserPrompt: boolean,
+    ): AiAgentReviewClassifierJudgeOutput {
+        if (hasNextUserPrompt) {
+            return judgeOutput;
+        }
+        const nextUserSources = new Set([
+            'next_user_correction',
+            'next_user_dispute',
+            'next_user_retry',
+        ]);
+        const fabricatedSources = judgeOutput.implicitSignalSources.filter(
+            (source) => nextUserSources.has(source),
+        );
+        if (fabricatedSources.length === 0) {
+            return judgeOutput;
+        }
+        const implicitSignalSources = judgeOutput.implicitSignalSources.filter(
+            (source) => !nextUserSources.has(source),
+        );
+        const remainingPromotableSources = implicitSignalSources.filter(
+            (source) => source !== 'output_shape_correction',
+        );
+        const shouldDemote =
+            judgeOutput.promotedToFinding &&
+            remainingPromotableSources.length === 0;
+        if (!shouldDemote) {
+            return { ...judgeOutput, implicitSignalSources };
+        }
+        return {
+            ...judgeOutput,
+            implicitSignalSources,
+            promotedToFinding: false,
+            promotionReason: 'next_user_signal_without_next_user_prompt',
+        };
+    }
+
     private async classifyTurnWithJudge(
         candidate: AiAgentReviewClassifierTurnCandidate,
         agentConfig: AiAgentReviewAgentConfigEvidence,
@@ -683,10 +731,28 @@ export class AiAgentReviewClassifierService extends BaseService {
             candidate,
             agentConfig,
         );
-        const judgeOutput = await this.judgeTurn(
+        const rawJudgeOutput = await this.judgeTurn(
             candidate,
             reviewEvidence.evidencePacket,
         );
+        const judgeOutput =
+            AiAgentReviewClassifierService.enforceNextUserSignalGrounding(
+                rawJudgeOutput,
+                reviewEvidence.evidencePacket.nextUserPrompt !== null,
+            );
+        if (judgeOutput !== rawJudgeOutput) {
+            this.debugLog('NextUserSignalGroundingApplied', {
+                promptUuid: candidate.subject.assistantPromptUuid,
+                threadUuid: candidate.subject.threadUuid,
+                strippedSources: rawJudgeOutput.implicitSignalSources.filter(
+                    (source) =>
+                        !judgeOutput.implicitSignalSources.includes(source),
+                ),
+                demoted:
+                    rawJudgeOutput.promotedToFinding &&
+                    !judgeOutput.promotedToFinding,
+            });
+        }
         const signal: AiAgentReviewClassifierTurnSignal = {
             subject: candidate.subject,
             interactionSource: candidate.interactionSource,
@@ -1141,6 +1207,11 @@ Implicit signal definitions — set these whenever the evidence supports them:
 - tool_error: a tool call errored, timed out, or returned an empty / error result the assistant did not recover from.
 - product_capability_request: the user asked for something Lightdash cannot currently express.
 - human_intervention: an admin or engineer had to step in.
+
+Grounding rules for next_user_* signals — these override everything below:
+- The evidence packet's nextUserPrompt field is the ONLY evidence for next_user_correction, next_user_dispute, and next_user_retry. When nextUserPrompt is null there is no next user turn: never emit these signals, and never imagine or predict what the user would say next.
+- Never derive next_user_* signals from the reviewed turn's own userPrompt, from the assistant's answer, or from caveats, hedging, or self-critique inside the assistant's answer.
+- A clarifying or interrogative question asked BY THE ASSISTANT is not a user retry, correction, or dispute.
 
 Decision rules — apply in order:
 
