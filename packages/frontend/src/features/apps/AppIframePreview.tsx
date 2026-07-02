@@ -1,4 +1,7 @@
-import { type DashboardFilters } from '@lightdash/common';
+import {
+    type DataAppVizContext,
+    type DashboardFilters,
+} from '@lightdash/common';
 import {
     forwardRef,
     useCallback,
@@ -85,6 +88,9 @@ type Props = {
      *  serve untrusted viewers (embed/JWT) must omit each capability flag.
      *  `gsheetExport`: enables `exportToSheets()` from the iframe SDK. */
     capabilities?: { gsheetExport?: boolean };
+    // Render context for data app vizs: the field mapping + host rows, pushed
+    // into the iframe over the SDK bridge. Undefined for ordinary data apps.
+    dataAppVizContext?: DataAppVizContext;
 };
 
 /**
@@ -132,6 +138,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             invalidateCache,
             onIframeLoad,
             capabilities,
+            dataAppVizContext,
         },
         ref,
     ) => {
@@ -170,6 +177,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onLineageAvailable: handleLineageAnnounce,
             onLineageSelected,
             onExternalRequestEvent,
+            dataAppVizContext,
         });
         const { captureScreenshot } = useIframeScreenshot(iframeRef);
 

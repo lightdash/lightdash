@@ -3,7 +3,11 @@ import '@/lib/globalErrorHandler';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { createClient, LightdashProvider } from '@lightdash/query-sdk';
+import {
+    createClient,
+    LightdashProvider,
+    VizContextProvider,
+} from '@lightdash/query-sdk';
 import { FilterProvider } from '@/lib/filters';
 import { ErrorBoundary } from '@/lib/ErrorBoundary';
 import App from './App';
@@ -30,7 +34,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <LightdashProvider client={lightdash}>
                 <FilterProvider>
                     <ErrorBoundary>
-                        <App />
+                        <VizContextProvider>
+                            <App />
+                        </VizContextProvider>
                     </ErrorBoundary>
                 </FilterProvider>
             </LightdashProvider>

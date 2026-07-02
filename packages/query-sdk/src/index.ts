@@ -80,7 +80,12 @@ export type {
 } from './exportToSheets';
 
 // Data app viz render context (host-pushed rows + field mapping)
-export { useVizContext, getFormatted, getRaw } from './vizContext';
+export {
+    VizContextProvider,
+    useVizContext,
+    getFormatted,
+    getRaw,
+} from './vizContext';
 export type {
     VizContext,
     VizContextCell,

@@ -32,39 +32,37 @@ Build a print-optimized report:
 - Prefer narrative copy with charts as supporting evidence, not a dense dashboard grid.`;
 
 const DATA_APP_VIZ_INSTRUCTIONS = `[Data app viz]
-You are building a reusable **data app viz**, NOT a multi-panel app, and NOT a normal data app. A data app viz is data-agnostic: the HOST owns the query and pushes the already-fetched rows + a field mapping into your iframe. You are ONLY the renderer. Both numbered deliverables below are MANDATORY.
+You are building ONE reusable chart component. You do NOT fetch data or run queries: Lightdash runs the query, then gives you the result rows plus a mapping from your field names to the columns in those rows. The same component is reused across many different queries, so never hardcode column names — just render whatever data you are handed.
 
-1. Render a SINGLE visualization (one chart) filling the available space. No dashboard, navigation, multiple panels, or page chrome.
+Three requirements, all mandatory:
 
-2. Do NOT use the normal Lightdash app SDK / \`client\` to run queries, and do NOT hardcode field/column names. Receive your data over the postMessage bridge — the host sends exactly one message type you must listen for:
+1. Build ONE chart visualization component whose job is to make the mapped data easy to read at a glance. Build the chart type the user asked for; only if they didn't specify one, pick what best fits the fields (bars to compare categories, a line for a trend over time, etc.). Either way, get the fundamentals right: clear axes and labels, readable spacing, and a tooltip on hover. This is a single reusable visualization, not an app: no dashboard, navigation, multiple panels, filters, or page chrome. Recharts, echarts, D3, or plain SVG all work.
+   Fill the viewport: give your root element \`height: 100vh\` (or \`position: fixed; inset: 0\`), NOT \`height: 100%\` — that collapses to a 0-height invisible box unless every ancestor also sets a height. This gives auto-sizing charts like recharts \`<ResponsiveContainer>\` a real height to measure. Confirm the chart actually renders and isn't a blank box.
 
-   window.addEventListener('message', (event) => {
-     const data = event.data;
-     if (!data || data.type !== 'lightdash:sdk:data-app-viz-context') return;
-     const { fieldMapping, rows } = data;
-     // fieldMapping: { [yourFieldName]: queryFieldId }
-     // rows: Lightdash result rows. Each row is keyed by field id; each cell
-     //       is { value: { raw, formatted } }.
-     //   display string:  row[fieldId].value.formatted
-     //   numeric value:   row[fieldId].value.raw
-     // Re-render every time this fires (host re-sends on query/mapping change).
-   });
+2. Get your data from the \`useVizContext()\` hook — do not add a message listener or fetch anything yourself:
 
-   Resolve each declared field's query field id via \`fieldMapping[fieldName]\`, then read that field's cell from each row. Example for fields "category" (dimension) + "value" (metric):
-     const catField = fieldMapping['category'];
+   import { useVizContext, getFormatted, getRaw } from '@lightdash/query-sdk';
+
+   function Chart() {
+     const { fieldMapping, rows, ready } = useVizContext();
+     if (!ready) return <Placeholder />;            // data hasn't arrived yet
+     const catField = fieldMapping['category'];     // your field name -> column id
      const valField = fieldMapping['value'];
-     const data = rows.map((r) => ({
-       label: r[catField]?.value?.formatted ?? '',
-       value: Number(r[valField]?.value?.raw ?? 0),
+     const data = rows.map((row) => ({
+       label: getFormatted(row, catField),          // display text, e.g. "Completed"
+       value: Number(getRaw(row, valField) ?? 0),   // raw number
      }));
-   Render an empty/placeholder state before the first message arrives or when a field is unbound / rows are empty. Recharts, echarts, or plain SVG/HTML are all fine.
+     // ...render \`data\`
+   }
 
-3. Declare the field schema for your renderer — the typed inputs it reads from \`fieldMapping\`. It is collected as the run's structured output (do NOT write a file); the host uses it to build the field mapping UI, so the viz is unusable without it. For each field:
-   - \`name\` = the machine key your renderer reads from \`fieldMapping\` (unique, non-empty, no spaces) — must match the keys you used in step 2.
-   - \`label\` = human label shown in the field mapping UI.
-   - \`type\` = \`dimension\` (categorical/grouping), \`metric\` (numeric measure), or \`series\` (a dimension used to split/colour).
-   - \`required\` = false only when the viz can render without that field.
-   Declare exactly the fields your renderer reads — no more, no less. Example: a field "category" (type dimension, required) plus a field "value" (type metric, required).`;
+   Show a clearly visible placeholder (readable, good contrast — never near-white on white) while \`!ready\`, when a field is unmapped, or when there are no rows.
+
+3. Declare the fields your component reads. This is collected as structured output (do NOT write a file); Lightdash uses it to build the field-mapping UI, so the component is unusable without it. For each field:
+   - \`name\`: the key you read from \`fieldMapping\` (unique, no spaces) — must match what you used above.
+   - \`label\`: human label shown in the mapping UI.
+   - \`type\`: \`dimension\` (category/grouping), \`metric\` (number), or \`series\` (a dimension used to split/colour).
+   - \`required\`: false only if the chart still renders without it.
+   Declare exactly what you read — no more, no less. e.g. "category" (dimension, required) + "value" (metric, required).`;
 
 export const getTemplateInstructions = (
     template: DataAppTemplate,

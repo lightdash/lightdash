@@ -1,6 +1,5 @@
 import {
     ChartType,
-    type DataAppVizChart,
     type CustomDimension,
     type DashboardFilters,
     type DateZoom,
@@ -20,6 +19,7 @@ import { type CartesianTypeOptions } from '../../hooks/cartesianChartConfig/useC
 import type useTableConfig from '../../hooks/tableVisualization/useTableConfig';
 import type useBigNumberConfig from '../../hooks/useBigNumberConfig';
 import type useCustomVisualizationConfig from '../../hooks/useCustomVisualizationConfig';
+import type useDataAppVizVisualizationConfig from '../../hooks/useDataAppVizVisualizationConfig';
 import type useFunnelChartConfig from '../../hooks/useFunnelChartConfig';
 import type useGaugeChartConfig from '../../hooks/useGaugeChartConfig';
 import type usePieChartConfig from '../../hooks/usePieChartConfig';
@@ -204,9 +204,7 @@ export type VisualizationCustomConfigProps =
 
 export type VisualizationConfigDataAppViz = {
     chartType: ChartType.DATA_APP_VIZ;
-    chartConfig: {
-        validConfig: DataAppVizChart | undefined;
-    };
+    chartConfig: ReturnType<typeof useDataAppVizVisualizationConfig>;
 };
 
 export const isDataAppVizVisualizationConfig = (
