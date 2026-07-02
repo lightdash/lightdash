@@ -42,6 +42,8 @@ export const mockScimAccount = {
         abilityRules: [] as any, // eslint-disable-line @typescript-eslint/no-explicit-any
         isTrackingAnonymized: false,
         isMarketingOptedIn: false,
+        avatarUrl: null,
+        avatarGradient: null,
         timezone: null,
         isSetupComplete: true,
         userId: 1,
@@ -75,6 +77,8 @@ export const mockUser: OrganizationMemberProfile = {
     userCreatedAt: new Date(),
     userUpdatedAt: new Date(),
     organizationUuid: 'org-uuid',
+    avatarUrl: null,
+    avatarGradient: null,
 };
 
 // Mock projects for testing

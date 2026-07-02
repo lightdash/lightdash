@@ -1,5 +1,6 @@
 import { type Group } from './groups';
 import { type KnexPaginatedData } from './knex-paginate';
+import { type UserAvatarGradientId } from './userAvatars';
 
 export enum OrganizationMemberRole {
     MEMBER = 'member',
@@ -62,6 +63,14 @@ export type OrganizationMemberProfile = {
      * Whether the user doesn't have an authentication method (password or openId)
      */
     isPending?: boolean;
+    /**
+     * Content-addressed path to the uploaded avatar image; null when none uploaded
+     */
+    avatarUrl: string | null;
+    /**
+     * Explicit gradient placeholder override; null falls back to the deterministic gradient
+     */
+    avatarGradient: UserAvatarGradientId | null;
 };
 
 export type OrganizationMemberProfileWithGroups = OrganizationMemberProfile & {

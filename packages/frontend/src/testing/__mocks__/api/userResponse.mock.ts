@@ -21,6 +21,8 @@ export function mockUserResponse(
         role: OrganizationMemberRole.ADMIN,
         isActive: true,
         timezone: null,
+        avatarUrl: null,
+        avatarGradient: null,
         abilityRules: [
             {
                 action: 'view',

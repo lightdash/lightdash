@@ -30,6 +30,8 @@ export const defaultSessionUser: SessionUser = {
     isActive: true,
     isTrackingAnonymized: false,
     isMarketingOptedIn: false,
+    avatarUrl: null,
+    avatarGradient: null,
     timezone: null,
     isSetupComplete: true,
     createdAt: new Date('2024-01-01'),

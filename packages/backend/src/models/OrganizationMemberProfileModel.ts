@@ -1,4 +1,6 @@
 import {
+    getUserAvatarUrl,
+    isUserAvatarGradientId,
     KnexPaginateArgs,
     KnexPaginatedData,
     NotFoundError,
@@ -23,6 +25,7 @@ import {
     DbOrganization,
     OrganizationTableName,
 } from '../database/entities/organizations';
+import { UserAvatarsTableName } from '../database/entities/userAvatars';
 import { DbUser, UserTableName } from '../database/entities/users';
 import KnexPaginate from '../database/pagination';
 import { getColumnMatchRegexQuery } from './SearchModel/utils/search';
@@ -40,6 +43,8 @@ type DbOrganizationMemberProfile = {
     role: OrganizationMemberRole;
     role_uuid: string | null;
     expires_at?: Date;
+    avatar_gradient: string | null;
+    avatar_content_hash: string | null;
 };
 
 const SelectColumns = [
@@ -54,6 +59,8 @@ const SelectColumns = [
     `${InviteLinkTableName}.expires_at`,
     `${UserTableName}.created_at as user_created_at`,
     `${UserTableName}.updated_at as user_updated_at`,
+    `${UserTableName}.avatar_gradient`,
+    `${UserAvatarsTableName}.content_hash as avatar_content_hash`,
 ];
 
 export class OrganizationMemberProfileModel {
@@ -90,6 +97,11 @@ export class OrganizationMemberProfileModel {
                     InviteLinkTableName,
                     `${UserTableName}.user_uuid`,
                     `${InviteLinkTableName}.user_uuid`,
+                )
+                .leftJoin(
+                    UserAvatarsTableName,
+                    `${UserTableName}.user_uuid`,
+                    `${UserAvatarsTableName}.user_uuid`,
                 );
     }
 
@@ -114,6 +126,14 @@ export class OrganizationMemberProfileModel {
             isPending,
             userCreatedAt: member.user_created_at,
             userUpdatedAt: member.user_updated_at,
+            avatarUrl: member.avatar_content_hash
+                ? getUserAvatarUrl(member.user_uuid, member.avatar_content_hash)
+                : null,
+            avatarGradient:
+                member.avatar_gradient &&
+                isUserAvatarGradientId(member.avatar_gradient)
+                    ? member.avatar_gradient
+                    : null,
         };
     }
 
@@ -251,6 +271,11 @@ export class OrganizationMemberProfileModel {
                 `${UserTableName}.user_uuid`,
                 `${InviteLinkTableName}.user_uuid`,
             )
+            .leftJoin(
+                UserAvatarsTableName,
+                `${UserTableName}.user_uuid`,
+                `${UserAvatarsTableName}.user_uuid`,
+            )
             .groupBy(
                 `${UserTableName}.user_uuid`,
                 `${UserTableName}.user_id`,
@@ -262,6 +287,8 @@ export class OrganizationMemberProfileModel {
                 `${OrganizationMembershipsTableName}.role`,
                 `${OrganizationMembershipsTableName}.role_uuid`,
                 `${InviteLinkTableName}.expires_at`,
+                `${UserTableName}.avatar_gradient`,
+                `${UserAvatarsTableName}.content_hash`,
             )
             .select(
                 `${UserTableName}.user_uuid`,
@@ -276,6 +303,8 @@ export class OrganizationMemberProfileModel {
                 `${InviteLinkTableName}.expires_at`,
                 `${UserTableName}.created_at as user_created_at`,
                 `${UserTableName}.updated_at as user_updated_at`,
+                `${UserTableName}.avatar_gradient`,
+                `${UserAvatarsTableName}.content_hash as avatar_content_hash`,
             )
             .select<DbOrganizationMemberProfile[]>(
                 this.database.raw(

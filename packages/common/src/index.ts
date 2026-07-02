@@ -295,6 +295,7 @@ export * from './types/tags';
 export * from './types/timeFrames';
 export * from './types/timezone';
 export * from './types/user';
+export * from './types/userAvatars';
 export * from './types/userAttributes';
 export * from './types/userWarehouseCredentials';
 export * from './types/validation';

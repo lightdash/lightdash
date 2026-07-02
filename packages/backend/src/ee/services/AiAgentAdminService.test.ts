@@ -121,6 +121,8 @@ const makeAdminUser = (): SessionUser => ({
     role: OrganizationMemberRole.ADMIN,
     isTrackingAnonymized: false,
     isMarketingOptedIn: false,
+    avatarUrl: null,
+    avatarGradient: null,
     isSetupComplete: true,
     isActive: true,
     createdAt: NOW,

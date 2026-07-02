@@ -20,6 +20,8 @@ const userWithSourceCode: SessionUser = {
     organizationUuid,
     isTrackingAnonymized: false,
     isMarketingOptedIn: false,
+    avatarUrl: null,
+    avatarGradient: null,
     isSetupComplete: true,
     timezone: null,
     userId: 0,

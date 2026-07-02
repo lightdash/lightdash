@@ -64,6 +64,8 @@ const userDetails: DbUserDetails = {
     created_at: new Date('2024-01-01'),
     is_tracking_anonymized: false,
     is_marketing_opted_in: false,
+    avatar_gradient: null,
+    avatar_content_hash: null,
     email: 'service-account@example.com',
     organization_uuid: 'org-1',
     organization_name: 'Org 1',

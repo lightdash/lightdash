@@ -39,6 +39,8 @@ const baseUser = {
     organizationCreatedAt: new Date(),
     isTrackingAnonymized: false,
     isMarketingOptedIn: false,
+    avatarUrl: null,
+    avatarGradient: null,
     isSetupComplete: true,
     isActive: true,
     timezone: null,

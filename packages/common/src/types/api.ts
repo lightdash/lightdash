@@ -273,6 +273,7 @@ import {
     type LoginOptions,
     type UserAllowedOrganization,
 } from './user';
+import { type UserAvatarGradientId } from './userAvatars';
 import { type UserWarehouseCredentials } from './userWarehouseCredentials';
 import {
     type ApiChartValidationResponse,
@@ -899,6 +900,13 @@ export type UpdateUserArgs = {
     /* IANA timezone (e.g. 'America/New_York') used as the user's per-viewer
        default. Null clears the preference and falls back to the project. */
     timezone: string | null;
+    /* Explicit gradient placeholder override; null falls back to the deterministic gradient. */
+    avatarGradient: UserAvatarGradientId | null;
+};
+
+export type ApiUserAvatarResponse = {
+    status: 'ok';
+    results: { avatarUrl: string };
 };
 
 export type PasswordResetLink = {
