@@ -1,3 +1,10 @@
+# [0.3290.0](https://github.com/lightdash/lightdash/compare/0.3289.1...0.3290.0) (2026-07-02)
+
+
+### Features
+
+* **cli:** data apps as code — local buildable project + agent skills [GLITCH-568] ([#25010](https://github.com/lightdash/lightdash/issues/25010)) ([4e44dde](https://github.com/lightdash/lightdash/commit/4e44ddea1b8b69c071d62b55581a3100ce43bd8c))
+
 ## [0.3289.1](https://github.com/lightdash/lightdash/compare/0.3289.0...0.3289.1) (2026-07-02)
 
 
