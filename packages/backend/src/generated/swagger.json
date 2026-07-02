@@ -35594,7 +35594,7 @@
                     "avatarGradient": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/UserAvatarGradientId"
+                                "$ref": "#/components/schemas/UserAvatarColorValue"
                             }
                         ],
                         "nullable": true,

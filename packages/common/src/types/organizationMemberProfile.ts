@@ -1,6 +1,6 @@
 import { type Group } from './groups';
 import { type KnexPaginatedData } from './knex-paginate';
-import { type UserAvatarGradientId } from './userAvatars';
+import { type UserAvatarColorValue } from './userAvatars';
 
 export enum OrganizationMemberRole {
     MEMBER = 'member',
@@ -70,7 +70,7 @@ export type OrganizationMemberProfile = {
     /**
      * Explicit gradient placeholder override; null falls back to the deterministic gradient
      */
-    avatarGradient: UserAvatarGradientId | null;
+    avatarGradient: UserAvatarColorValue | null;
 };
 
 export type OrganizationMemberProfileWithGroups = OrganizationMemberProfile & {

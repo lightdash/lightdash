@@ -1,6 +1,6 @@
 import {
     getUserAvatarUrl,
-    isUserAvatarGradientId,
+    isUserAvatarColorValue,
     KnexPaginateArgs,
     KnexPaginatedData,
     NotFoundError,
@@ -131,7 +131,7 @@ export class OrganizationMemberProfileModel {
                 : null,
             avatarGradient:
                 member.avatar_gradient &&
-                isUserAvatarGradientId(member.avatar_gradient)
+                isUserAvatarColorValue(member.avatar_gradient)
                     ? member.avatar_gradient
                     : null,
         };

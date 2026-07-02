@@ -35291,7 +35291,7 @@ const models: TsoaRoute.Models = {
                 avatarGradient: {
                     dataType: 'union',
                     subSchemas: [
-                        { ref: 'UserAvatarGradientId' },
+                        { ref: 'UserAvatarColorValue' },
                         { dataType: 'enum', enums: [null] },
                     ],
                     required: true,
