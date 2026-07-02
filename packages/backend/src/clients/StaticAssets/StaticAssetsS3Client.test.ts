@@ -72,14 +72,9 @@ describe('StaticAssetsS3Client', () => {
         vi.clearAllMocks();
     });
 
-    it('is disabled and inert without configuration', async () => {
-        const client = createClient(lightdashConfigMock);
-
-        expect(client.isEnabled).toBe(false);
-        expect(await client.getAsset('chunk.js')).toBeNull();
-        expect(s3Mocks.send).not.toHaveBeenCalled();
-    });
-
+    // "No bucket configured → no-op" is pinned at the config layer
+    // (parseConfig.test.ts) and the middleware layer (isEnabled gate);
+    // this file only covers the configured client.
     describe('getAsset', () => {
         it('fetches the object under the assets/ prefix', async () => {
             const body = Readable.from(['x']);
@@ -122,6 +117,35 @@ describe('StaticAssetsS3Client', () => {
             expect(Logger.warn).toHaveBeenCalledWith(
                 expect.stringContaining('socket timeout'),
             );
+        });
+
+        it('degrades to a fast miss when the bucket exceeds the 5s time-box', async () => {
+            // A slow bucket must produce a 404, not hang every /assets
+            // request behind SDK retries.
+            vi.useFakeTimers();
+            try {
+                s3Mocks.send.mockImplementationOnce(
+                    (
+                        _command: unknown,
+                        options: { abortSignal: AbortSignal },
+                    ) =>
+                        new Promise((_resolve, reject) => {
+                            options.abortSignal.addEventListener('abort', () =>
+                                reject(new Error('Request aborted')),
+                            );
+                        }),
+                );
+
+                const assetPromise = createClient().getAsset('chunk.js');
+                await vi.advanceTimersByTimeAsync(5_000);
+
+                expect(await assetPromise).toBeNull();
+                expect(Logger.warn).toHaveBeenCalledWith(
+                    expect.stringContaining('aborted'),
+                );
+            } finally {
+                vi.useRealTimers();
+            }
         });
     });
 });

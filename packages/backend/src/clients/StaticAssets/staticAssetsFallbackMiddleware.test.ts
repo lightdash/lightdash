@@ -67,12 +67,9 @@ const createHandler = (client: ClientStub) =>
         client as unknown as StaticAssetsS3Client,
     );
 
+// The accept path of isSafeAssetPath is exercised by every handler test
+// below that reaches the bucket (they run the real predicate, unmocked).
 describe('isSafeAssetPath', () => {
-    it('accepts hashed chunk filenames and nested paths', () => {
-        expect(isSafeAssetPath('index-DhQ0k3aF.js')).toBe(true);
-        expect(isSafeAssetPath('fonts/inter-Bold.woff2')).toBe(true);
-    });
-
     it('rejects traversal, empty segments, and oversized paths', () => {
         expect(isSafeAssetPath('../secrets.env')).toBe(false);
         expect(isSafeAssetPath('foo/../../etc/passwd')).toBe(false);
@@ -169,6 +166,38 @@ describe('createStaticAssetsFallbackHandler', () => {
         expect(next).toHaveBeenCalledTimes(2);
     });
 
+    it('re-hits the bucket once the miss-cache TTL lapses', async () => {
+        // If expiry ever breaks, a pod that misses a chunk once would 404 it
+        // forever — even after a release uploads it. This is the recovery
+        // half of the negative-cache contract.
+        vi.useFakeTimers();
+        try {
+            const client = createClientStub();
+            const handler = createHandler(client);
+            const next = vi.fn();
+
+            await runHandler(
+                handler,
+                createRequest('chunk.js'),
+                createResponse(),
+                next,
+            );
+            expect(client.getAsset).toHaveBeenCalledTimes(1);
+
+            vi.advanceTimersByTime(61_000);
+
+            await runHandler(
+                handler,
+                createRequest('chunk.js'),
+                createResponse(),
+                next,
+            );
+            expect(client.getAsset).toHaveBeenCalledTimes(2);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     it('streams a bucket hit with immutable caching headers', async () => {
         const asset: StaticAsset = {
             body: Readable.from(['chunk contents']),
@@ -201,29 +230,25 @@ describe('createStaticAssetsFallbackHandler', () => {
         );
         expect(res.setHeader).toHaveBeenCalledWith('Content-Length', 123);
         expect(res.writtenBody()).toBe('chunk contents');
-    });
 
-    it('omits Content-Length when the bucket does not report one', async () => {
-        const asset: StaticAsset = {
-            body: Readable.from(['x']),
-            contentLength: undefined,
-        };
-        const client = createClientStub({
-            getAsset: vi.fn().mockResolvedValue(asset),
+        // Same path with an unknown length: header omitted, not sent as 0
+        const noLengthClient = createClientStub({
+            getAsset: vi.fn().mockResolvedValue({
+                body: Readable.from(['x']),
+                contentLength: undefined,
+            } satisfies StaticAsset),
         });
-        const res = createWritableResponse();
-
+        const noLengthRes = createWritableResponse();
         await runHandler(
-            createHandler(client),
-            createRequest('chunk.js'),
-            res as unknown as Response,
+            createHandler(noLengthClient),
+            createRequest('other.js'),
+            noLengthRes as unknown as Response,
             vi.fn(),
         );
         await new Promise((resolve) => {
-            res.on('finish', resolve);
+            noLengthRes.on('finish', resolve);
         });
-
-        expect(res.setHeader).not.toHaveBeenCalledWith(
+        expect(noLengthRes.setHeader).not.toHaveBeenCalledWith(
             'Content-Length',
             expect.anything(),
         );
