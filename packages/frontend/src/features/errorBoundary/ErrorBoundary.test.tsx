@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import { type ReactElement } from 'react';
 import {
     afterAll,
     afterEach,
@@ -8,21 +9,26 @@ import {
     it,
     vi,
 } from 'vitest';
-import ChunkErrorRouteBoundary from './ChunkErrorRouteBoundary';
+import ErrorBoundary from './ErrorBoundary';
 
-const mockUseRouteError = vi.fn();
 const mockIsChunkLoadErrorObject = vi.fn();
 const mockCaptureException = vi.fn((_error: unknown) => 'event-123');
 
-vi.mock('react-router', () => ({
-    useRouteError: () => mockUseRouteError(),
-}));
+// Drive the fallback directly with a controlled error, bypassing the need for a
+// child that actually throws.
+let boundaryError: unknown = null;
 
 vi.mock('../chunkErrorHandler', () => ({
     isChunkLoadErrorObject: (e: unknown) => mockIsChunkLoadErrorObject(e),
 }));
 
 vi.mock('@sentry/react', () => ({
+    ErrorBoundary: ({
+        fallback,
+    }: {
+        fallback: (props: { eventId: string; error: unknown }) => ReactElement;
+        children: unknown;
+    }) => fallback({ eventId: 'event-123', error: boundaryError }),
     captureException: (e: unknown) => mockCaptureException(e),
 }));
 
@@ -33,7 +39,7 @@ vi.mock('./ErrorFallbacks', () => ({
     ),
 }));
 
-describe('ChunkErrorRouteBoundary', () => {
+describe('ErrorBoundary', () => {
     const reloadSpy = vi.fn();
     const originalLocation = window.location;
 
@@ -53,29 +59,36 @@ describe('ChunkErrorRouteBoundary', () => {
 
     afterEach(() => {
         vi.clearAllMocks();
+        boundaryError = null;
     });
 
     it('shows the chunk fallback and never reloads on a chunk error', () => {
-        mockUseRouteError.mockReturnValue(new Error('Failed to fetch'));
+        boundaryError = new Error('Failed to fetch');
         mockIsChunkLoadErrorObject.mockReturnValue(true);
 
-        render(<ChunkErrorRouteBoundary />);
+        render(
+            <ErrorBoundary>
+                <div>child</div>
+            </ErrorBoundary>,
+        );
 
         expect(screen.getByText('chunk-fallback')).toBeInTheDocument();
         expect(reloadSpy).not.toHaveBeenCalled();
-        expect(mockCaptureException).not.toHaveBeenCalled();
     });
 
-    it('captures non-chunk errors to Sentry and shows the general fallback', () => {
-        mockUseRouteError.mockReturnValue(new Error('boom'));
+    it('shows the general fallback on a non-chunk error', () => {
+        boundaryError = new Error('boom');
         mockIsChunkLoadErrorObject.mockReturnValue(false);
 
-        render(<ChunkErrorRouteBoundary />);
+        render(
+            <ErrorBoundary>
+                <div>child</div>
+            </ErrorBoundary>,
+        );
 
-        expect(mockCaptureException).toHaveBeenCalledTimes(1);
-        expect(reloadSpy).not.toHaveBeenCalled();
         expect(
             screen.getByText('general-fallback:event-123'),
         ).toBeInTheDocument();
+        expect(reloadSpy).not.toHaveBeenCalled();
     });
 });

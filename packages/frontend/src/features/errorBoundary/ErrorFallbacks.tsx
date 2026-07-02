@@ -3,21 +3,23 @@ import { Prism } from '@mantine/prism';
 import { IconAlertCircle, IconRefresh } from '@tabler/icons-react';
 import { type FC } from 'react';
 import SuboptimalState from '../../components/common/SuboptimalState/SuboptimalState';
-import { triggerChunkErrorReload } from '../chunkErrorHandler';
 
 /**
- * Fallback UI shown when a chunk load error occurs after auto-reload has failed.
- * This happens when the browser cache is aggressive or there are network issues.
+ * Fallback UI shown when a file (JS/CSS chunk) fails to load, usually because a
+ * new version has been deployed and the old chunk is gone. We never reload
+ * automatically, so the user refreshes on their own terms once their work is
+ * saved.
  */
 export const ChunkErrorFallback: FC = () => (
     <SuboptimalState
         icon={IconAlertCircle}
-        title="Application update required"
+        title="File not found, please refresh the page"
         description={
             <Box>
                 <Text mb="xs">
-                    A new version of Lightdash is available. Please refresh your
-                    browser to load the latest version.
+                    A new version of Lightdash is available. Save any unsaved
+                    changes, then refresh your browser to load the latest
+                    version.
                 </Text>
                 <Text size="sm" c="dimmed">
                     If this persists after refreshing, try clearing your browser
@@ -30,7 +32,7 @@ export const ChunkErrorFallback: FC = () => (
                 variant="default"
                 size="xs"
                 leftSection={<IconRefresh size={16} />}
-                onClick={triggerChunkErrorReload}
+                onClick={() => window.location.reload()}
             >
                 Refresh page
             </Button>

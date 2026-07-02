@@ -16,10 +16,7 @@ import {
     useNavigationType,
     useParams,
 } from 'react-router';
-import {
-    hasRecentChunkReload,
-    isChunkLoadErrorObject,
-} from '../../features/chunkErrorHandler';
+import { isChunkLoadErrorObject } from '../../features/chunkErrorHandler';
 
 const sentrySpotlightEnabled =
     import.meta.env.DEV && import.meta.env.VITE_SENTRY_SPOTLIGHT;
@@ -86,11 +83,9 @@ const useSentry = (
                 replaysOnErrorSampleRate: 1.0,
                 beforeSend(event, hint) {
                     const error = hint.originalException;
-                    // For chunk load errors, only send to Sentry if auto-reload already failed
-                    if (
-                        isChunkLoadErrorObject(error) &&
-                        !hasRecentChunkReload()
-                    ) {
+                    // Chunk load errors are benign stale-deploy artifacts that
+                    // the user resolves by refreshing, so keep them out of Sentry.
+                    if (isChunkLoadErrorObject(error)) {
                         return null;
                     }
 

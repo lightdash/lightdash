@@ -9,7 +9,6 @@ import {
 } from './ee/CommercialRoutes';
 import { AiAgentsGlobalProvider } from './ee/features/aiCopilot/components/Launcher/AiAgentsGlobalProvider';
 import { parseEmbedThemeParams } from './ee/providers/Embed/parseEmbedThemeParams';
-import { installChunkLoadErrorHandler } from './features/chunkErrorHandler';
 import ChunkErrorRouteBoundary from './features/errorBoundary/ChunkErrorRouteBoundary';
 import ErrorBoundary from './features/errorBoundary/ErrorBoundary';
 import { SourceCodeEditorProvider } from './features/sourceCodeEditor';
@@ -26,8 +25,6 @@ import SchedulerJobsProvider from './providers/SchedulerJobs/SchedulerJobsProvid
 import ThirdPartyProvider from './providers/ThirdPartyServicesProvider';
 import TrackingProvider from './providers/Tracking/TrackingProvider';
 import Routes from './Routes';
-
-installChunkLoadErrorHandler();
 
 // const isMobile =
 //     /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(

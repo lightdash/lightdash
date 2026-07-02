@@ -1,7 +1,1 @@
-export {
-    hasRecentChunkReload,
-    installChunkLoadErrorHandler,
-    isChunkLoadError,
-    isChunkLoadErrorObject,
-    triggerChunkErrorReload,
-} from './chunkErrorHandler';
+export { isChunkLoadError, isChunkLoadErrorObject } from './chunkErrorHandler';
