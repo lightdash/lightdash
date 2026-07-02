@@ -949,25 +949,22 @@ export const parseStaticAssetsS3Config = ():
         return undefined;
     }
 
+    // parseBaseS3Config throws its own ParseError when S3_ENDPOINT /
+    // S3_BUCKET / S3_REGION are missing, so no endpoint/region check is
+    // needed here
     const baseS3Config = parseBaseS3Config();
-    const endpoint = baseS3Config?.endpoint;
-    const region = process.env.ASSETS_S3_REGION || baseS3Config?.region;
-
-    if (!endpoint || !region) {
-        throw new ParseError(
-            'ASSETS_S3_REGION and S3_ENDPOINT must be set when ASSETS_S3_BUCKET is configured.',
-            {},
-        );
+    if (!baseS3Config) {
+        return undefined;
     }
 
     return {
-        endpoint,
-        forcePathStyle: baseS3Config?.forcePathStyle,
+        endpoint: baseS3Config.endpoint,
+        forcePathStyle: baseS3Config.forcePathStyle,
         bucket,
-        region,
-        accessKey: process.env.ASSETS_S3_ACCESS_KEY || baseS3Config?.accessKey,
-        secretKey: process.env.ASSETS_S3_SECRET_KEY || baseS3Config?.secretKey,
-        useCredentialsFrom: baseS3Config?.useCredentialsFrom,
+        region: process.env.ASSETS_S3_REGION || baseS3Config.region,
+        accessKey: process.env.ASSETS_S3_ACCESS_KEY || baseS3Config.accessKey,
+        secretKey: process.env.ASSETS_S3_SECRET_KEY || baseS3Config.secretKey,
+        useCredentialsFrom: baseS3Config.useCredentialsFrom,
     };
 };
 

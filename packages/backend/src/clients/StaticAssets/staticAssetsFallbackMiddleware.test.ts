@@ -27,8 +27,8 @@ const createClientStub = (overrides?: Partial<ClientStub>): ClientStub => ({
     ...overrides,
 });
 
-const createRequest = (assetPath: string): Request =>
-    ({ params: { 0: assetPath } }) as unknown as Request;
+const createRequest = (assetPath: string, method = 'GET'): Request =>
+    ({ params: { 0: assetPath }, method }) as unknown as Request;
 
 const createResponse = (): Response =>
     ({ setHeader: vi.fn() }) as unknown as Response;
@@ -56,14 +56,16 @@ const createWritableResponse = (): WritableResponse => {
 };
 
 const runHandler = async (
-    client: ClientStub,
+    handler: ReturnType<typeof createStaticAssetsFallbackHandler>,
     req: Request,
     res: Response,
     next: NextFunction,
-) =>
+) => handler(req, res, next);
+
+const createHandler = (client: ClientStub) =>
     createStaticAssetsFallbackHandler(
         client as unknown as StaticAssetsS3Client,
-    )(req, res, next);
+    );
 
 describe('isSafeAssetPath', () => {
     it('accepts hashed chunk filenames and nested paths', () => {
@@ -71,7 +73,7 @@ describe('isSafeAssetPath', () => {
         expect(isSafeAssetPath('fonts/inter-Bold.woff2')).toBe(true);
     });
 
-    it('rejects traversal and empty segments', () => {
+    it('rejects traversal, empty segments, and oversized paths', () => {
         expect(isSafeAssetPath('../secrets.env')).toBe(false);
         expect(isSafeAssetPath('foo/../../etc/passwd')).toBe(false);
         expect(isSafeAssetPath('..%2Fsecrets.env')).toBe(false);
@@ -80,6 +82,7 @@ describe('isSafeAssetPath', () => {
         expect(isSafeAssetPath('foo bar.js')).toBe(false);
         expect(isSafeAssetPath('foo\\bar.js')).toBe(false);
         expect(isSafeAssetPath('foo\0.js')).toBe(false);
+        expect(isSafeAssetPath(`${'a'.repeat(600)}.js`)).toBe(false);
     });
 });
 
@@ -89,7 +92,7 @@ describe('createStaticAssetsFallbackHandler', () => {
         const next = vi.fn();
 
         await runHandler(
-            client,
+            createHandler(client),
             createRequest('chunk.js'),
             createResponse(),
             next,
@@ -104,8 +107,23 @@ describe('createStaticAssetsFallbackHandler', () => {
         const next = vi.fn();
 
         await runHandler(
-            client,
+            createHandler(client),
             createRequest('../index.html'),
+            createResponse(),
+            next,
+        );
+
+        expect(next).toHaveBeenCalledTimes(1);
+        expect(client.getAsset).not.toHaveBeenCalled();
+    });
+
+    it('falls through without hitting the bucket for unknown extensions', async () => {
+        const client = createClientStub();
+        const next = vi.fn();
+
+        await runHandler(
+            createHandler(client),
+            createRequest('probe.zzz9'),
             createResponse(),
             next,
         );
@@ -119,7 +137,7 @@ describe('createStaticAssetsFallbackHandler', () => {
         const next = vi.fn();
 
         await runHandler(
-            client,
+            createHandler(client),
             createRequest('chunk.js'),
             createResponse(),
             next,
@@ -129,10 +147,31 @@ describe('createStaticAssetsFallbackHandler', () => {
         expect(next).toHaveBeenCalledTimes(1);
     });
 
+    it('does not re-hit the bucket for a recently missed path', async () => {
+        const client = createClientStub();
+        const handler = createHandler(client);
+        const next = vi.fn();
+
+        await runHandler(
+            handler,
+            createRequest('chunk.js'),
+            createResponse(),
+            next,
+        );
+        await runHandler(
+            handler,
+            createRequest('chunk.js'),
+            createResponse(),
+            next,
+        );
+
+        expect(client.getAsset).toHaveBeenCalledTimes(1);
+        expect(next).toHaveBeenCalledTimes(2);
+    });
+
     it('streams a bucket hit with immutable caching headers', async () => {
         const asset: StaticAsset = {
             body: Readable.from(['chunk contents']),
-            contentType: 'text/javascript; charset=utf-8',
             contentLength: 123,
         };
         const client = createClientStub({
@@ -142,7 +181,7 @@ describe('createStaticAssetsFallbackHandler', () => {
         const next = vi.fn();
 
         await runHandler(
-            client,
+            createHandler(client),
             createRequest('chunk.js'),
             res as unknown as Response,
             next,
@@ -158,20 +197,70 @@ describe('createStaticAssetsFallbackHandler', () => {
         );
         expect(res.setHeader).toHaveBeenCalledWith(
             'Content-Type',
-            'text/javascript; charset=utf-8',
+            'application/javascript; charset=UTF-8',
         );
         expect(res.setHeader).toHaveBeenCalledWith('Content-Length', 123);
         expect(res.writtenBody()).toBe('chunk contents');
     });
 
-    it('ends the response with a 500 when the stream errors before any data', async () => {
+    it('omits Content-Length when the bucket does not report one', async () => {
+        const asset: StaticAsset = {
+            body: Readable.from(['x']),
+            contentLength: undefined,
+        };
+        const client = createClientStub({
+            getAsset: vi.fn().mockResolvedValue(asset),
+        });
+        const res = createWritableResponse();
+
+        await runHandler(
+            createHandler(client),
+            createRequest('chunk.js'),
+            res as unknown as Response,
+            vi.fn(),
+        );
+        await new Promise((resolve) => {
+            res.on('finish', resolve);
+        });
+
+        expect(res.setHeader).not.toHaveBeenCalledWith(
+            'Content-Length',
+            expect.anything(),
+        );
+    });
+
+    it('answers HEAD requests with headers only and discards the body', async () => {
+        const body = Readable.from(['chunk contents']);
+        const asset: StaticAsset = { body, contentLength: 123 };
+        const client = createClientStub({
+            getAsset: vi.fn().mockResolvedValue(asset),
+        });
+        const res = createWritableResponse();
+        const next = vi.fn();
+
+        await runHandler(
+            createHandler(client),
+            createRequest('chunk.js', 'HEAD'),
+            res as unknown as Response,
+            next,
+        );
+        await new Promise((resolve) => {
+            res.on('finish', resolve);
+        });
+
+        expect(next).not.toHaveBeenCalled();
+        expect(res.setHeader).toHaveBeenCalledWith('Content-Length', 123);
+        expect(res.writtenBody()).toBe('');
+        expect(body.destroyed).toBe(true);
+    });
+
+    it('tears the response down without a late status write when the stream errors', async () => {
         const asset: StaticAsset = {
             body: new Readable({
                 read() {
                     this.destroy(new Error('connection reset'));
                 },
             }),
-            contentType: 'text/javascript; charset=utf-8',
             contentLength: 123,
         };
         const client = createClientStub({
@@ -181,7 +270,7 @@ describe('createStaticAssetsFallbackHandler', () => {
         const next = vi.fn();
 
         await runHandler(
-            client,
+            createHandler(client),
             createRequest('chunk.js'),
             res as unknown as Response,
             next,
@@ -190,7 +279,8 @@ describe('createStaticAssetsFallbackHandler', () => {
             res.on('close', resolve);
         });
 
-        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.destroyed).toBe(true);
+        expect(res.status).not.toHaveBeenCalled();
         expect(next).not.toHaveBeenCalled();
     });
 });

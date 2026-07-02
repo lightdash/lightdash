@@ -126,6 +126,46 @@ test('Should use explicit pre-aggregate S3 credentials when set', () => {
     });
 });
 
+test('Should leave static assets S3 config undefined when no bucket is set', () => {
+    const config = parseConfig();
+    expect(config.staticAssets.s3).toBeUndefined();
+});
+
+test('Should fall back to base S3 region and credentials for static assets S3 config', () => {
+    process.env.S3_ACCESS_KEY = 'base_access_key';
+    process.env.S3_SECRET_KEY = 'base_secret_key';
+    process.env.ASSETS_S3_BUCKET = 'assets_bucket';
+
+    const config = parseConfig();
+    expect(config.staticAssets.s3).toEqual({
+        endpoint: 'mock_endpoint',
+        bucket: 'assets_bucket',
+        region: 'mock_region',
+        accessKey: 'base_access_key',
+        secretKey: 'base_secret_key',
+        forcePathStyle: false,
+    });
+});
+
+test('Should use explicit static assets S3 config when set', () => {
+    process.env.S3_ACCESS_KEY = 'base_access_key';
+    process.env.S3_SECRET_KEY = 'base_secret_key';
+    process.env.ASSETS_S3_BUCKET = 'assets_bucket';
+    process.env.ASSETS_S3_REGION = 'assets_region';
+    process.env.ASSETS_S3_ACCESS_KEY = 'assets_access_key';
+    process.env.ASSETS_S3_SECRET_KEY = 'assets_secret_key';
+
+    const config = parseConfig();
+    expect(config.staticAssets.s3).toEqual({
+        endpoint: 'mock_endpoint',
+        bucket: 'assets_bucket',
+        region: 'assets_region',
+        accessKey: 'assets_access_key',
+        secretKey: 'assets_secret_key',
+        forcePathStyle: false,
+    });
+});
+
 test('Should default apps S3 config to base S3 config', () => {
     process.env.S3_ACCESS_KEY = 'mock_access_key';
     process.env.S3_SECRET_KEY = 'mock_secret_key';

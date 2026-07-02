@@ -729,9 +729,10 @@ export default class App {
         );
 
         // Chunks from recent builds that this image no longer ships are
-        // retained in a bucket for ~24h, so stale tabs survive a deploy.
+        // retained in a bucket for ~3 days, so stale tabs survive a deploy.
         // No-op (falls through to the 404 below) when the bucket is not
-        // configured.
+        // configured. Constructed directly rather than via ClientRepository:
+        // it is HTTP wiring only, nothing in the service layer needs it.
         const staticAssetsClient = new StaticAssetsS3Client({
             lightdashConfig: this.lightdashConfig,
         });
