@@ -1,5 +1,7 @@
 import {
     Comment,
+    getUserAvatarUrl,
+    isUserAvatarColorValue,
     LightdashUser,
     NotFoundError,
     sanitizeHtml,
@@ -15,6 +17,7 @@ import {
     DashboardVersionsTableName,
 } from '../../database/entities/dashboards';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
+import { UserAvatarsTableName } from '../../database/entities/userAvatars';
 import { DbUser, UserTableName } from '../../database/entities/users';
 
 type CommentModelArguments = {
@@ -30,7 +33,10 @@ export class CommentModel {
 
     private static parseComments(
         commentsWithUsers: (DbDashboardTileComments &
-            Pick<DbUser, 'first_name' | 'last_name'>)[],
+            Pick<DbUser, 'first_name' | 'last_name'> & {
+                avatar_gradient: string | null;
+                avatar_content_hash: string | null;
+            })[],
         userUuid?: string,
         canUserRemoveAnyComment?: boolean,
     ) {
@@ -49,7 +55,21 @@ export class CommentModel {
                 text: comment.text,
                 textHtml: comment.text_html,
                 replyTo: comment.reply_to ?? undefined,
-                user: { name: `${comment.first_name} ${comment.last_name}` },
+                user: {
+                    name: `${comment.first_name} ${comment.last_name}`,
+                    userUuid: comment.user_uuid,
+                    avatarUrl: comment.avatar_content_hash
+                        ? getUserAvatarUrl(
+                              comment.user_uuid,
+                              comment.avatar_content_hash,
+                          )
+                        : null,
+                    avatarGradient:
+                        comment.avatar_gradient &&
+                        isUserAvatarColorValue(comment.avatar_gradient)
+                            ? comment.avatar_gradient
+                            : null,
+                },
                 createdAt: comment.created_at,
                 resolved: comment.resolved,
                 replies: [],
@@ -182,7 +202,12 @@ export class CommentModel {
             text: comment.text,
             textHtml: comment.text_html,
             replyTo: comment.reply_to ?? undefined,
-            user: { name: `${user.firstName} ${user.lastName}` },
+            user: {
+                name: `${user.firstName} ${user.lastName}`,
+                userUuid: user.userUuid,
+                avatarUrl: user.avatarUrl,
+                avatarGradient: user.avatarGradient,
+            },
             createdAt: comment.created_at,
             resolved: comment.resolved,
             replies: [],
@@ -226,10 +251,18 @@ export class CommentModel {
                 '=',
                 `${UserTableName}.user_uuid`,
             )
+            .leftJoin(
+                UserAvatarsTableName,
+                `${DashboardTileCommentsTableName}.user_uuid`,
+                '=',
+                `${UserAvatarsTableName}.user_uuid`,
+            )
             .select(
                 `${DashboardTileCommentsTableName}.*`,
                 `${UserTableName}.first_name`,
                 `${UserTableName}.last_name`,
+                `${UserTableName}.avatar_gradient`,
+                `${UserAvatarsTableName}.content_hash as avatar_content_hash`,
                 `${DashboardTileCommentsTableName}.dashboard_tile_uuid`,
             )
             .whereIn(
