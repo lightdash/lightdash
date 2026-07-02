@@ -334,21 +334,31 @@ type ToolCallEvidenceRow = {
 
 const TOOL_NAME_PRIORITY = new Map<string, number>([
     ['editDbtProject', 95],
+    ['proposeWriteback', 95],
     ['propose_writeback', 95],
     ['runAiWriteback', 95],
     ['run_ai_writeback', 95],
     ['findFields', 80],
     ['find_fields', 80],
+    ['editContent', 75],
+    ['createContent', 75],
     ['findExplores', 70],
     ['find_explores', 70],
+    ['repoShell', 70],
+    ['exploreRepo', 70],
     ['runQuery', 65],
     ['run_metric_query', 65],
     ['runSql', 60],
     ['run_sql', 60],
+    ['generateVisualization', 60],
     ['searchFieldValues', 55],
     ['search_field_values', 55],
+    ['getDashboardCharts', 55],
     ['discoverFields', 50],
 ]);
+
+const MCP_TOOL_NAME_PREFIX = 'mcp_';
+const MCP_TOOL_NAME_SCORE = 50;
 
 const TOOL_RESULT_ERROR_PATTERN =
     /no match|no relevant|not found|empty|error|failed/i;
@@ -397,7 +407,11 @@ const rankToolCallEvidence = ({
                     ? (100 * overlapCount) / queryTokens.size
                     : 0;
 
-            const nameScore = TOOL_NAME_PRIORITY.get(row.tool_name) ?? 10;
+            const nameScore =
+                TOOL_NAME_PRIORITY.get(row.tool_name) ??
+                (row.tool_name.startsWith(MCP_TOOL_NAME_PREFIX)
+                    ? MCP_TOOL_NAME_SCORE
+                    : 10);
             const parentBonus = row.parent_tool_call_id ? 15 : 0;
             const errorBonus = TOOL_RESULT_ERROR_PATTERN.test(resultText)
                 ? 25
@@ -959,6 +973,10 @@ export class AiAgentReviewClassifierModel {
                     .whereIn(
                         'tool_call.tool_name',
                         Array.from(TOOL_NAME_PRIORITY.keys()),
+                    )
+                    .orWhereILike(
+                        'tool_call.tool_name',
+                        `${MCP_TOOL_NAME_PREFIX.replace('_', '\\_')}%`,
                     )
                     .orWhereNotNull('tool_call.parent_tool_call_id');
             });

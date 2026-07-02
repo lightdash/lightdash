@@ -376,6 +376,62 @@ describe('aiAgentReviewClassifierJudgeOutputSchema', () => {
             }).success,
         ).toBe(true);
     });
+
+    it.each([
+        'normal_refinement',
+        'output_shape_correction',
+        'new_question',
+        'acceptance_or_continuation',
+    ] as const)('rejects a promoted finding with signal %s', (signal) => {
+        expect(
+            aiAgentReviewClassifierJudgeOutputSchema.safeParse({
+                ...baseJudgeOutput,
+                signal,
+            }).success,
+        ).toBe(false);
+    });
+
+    it('accepts a non-failure signal when not promoted', () => {
+        expect(
+            aiAgentReviewClassifierJudgeOutputSchema.safeParse({
+                ...baseJudgeOutput,
+                signal: 'acceptance_or_continuation',
+                promotedToFinding: false,
+                primaryRootCause: 'not_a_failure',
+            }).success,
+        ).toBe(true);
+    });
+
+    it('rejects a promoted finding whose recommendation is no_action', () => {
+        expect(
+            aiAgentReviewClassifierJudgeOutputSchema.safeParse({
+                ...baseJudgeOutput,
+                recommendation: {
+                    actionType: 'no_action',
+                    title: 'Nothing to do',
+                    rationale: 'n/a',
+                    targetRefs: [],
+                },
+            }).success,
+        ).toBe(false);
+    });
+
+    it('accepts a no_action recommendation when not promoted', () => {
+        expect(
+            aiAgentReviewClassifierJudgeOutputSchema.safeParse({
+                ...baseJudgeOutput,
+                promotedToFinding: false,
+                primaryRootCause: 'not_a_failure',
+                signal: 'new_question',
+                recommendation: {
+                    actionType: 'no_action',
+                    title: 'Nothing to do',
+                    rationale: 'n/a',
+                    targetRefs: [],
+                },
+            }).success,
+        ).toBe(true);
+    });
 });
 
 describe('getAiAgentConfigSnapshotHash', () => {
