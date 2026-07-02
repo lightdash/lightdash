@@ -1,3 +1,10 @@
+## [0.3289.1](https://github.com/lightdash/lightdash/compare/0.3289.0...0.3289.1) (2026-07-02)
+
+
+### Bug Fixes
+
+* **apps:** prevent Add data app connection modal from closing on outside click ([#25033](https://github.com/lightdash/lightdash/issues/25033)) ([ecdc0b6](https://github.com/lightdash/lightdash/commit/ecdc0b6c825330c353ac10dd480502bbbadc2246))
+
 # [0.3289.0](https://github.com/lightdash/lightdash/compare/0.3288.0...0.3289.0) (2026-07-02)
 
 
