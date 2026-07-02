@@ -814,10 +814,14 @@ export default class App {
 
         // Populate the assets bucket with this build's chunks; the bucket
         // lifecycle rule ages out chunks no build re-uploads anymore.
-        // syncLocalAssets never throws, it logs failures instead.
-        void staticAssetsClient.syncLocalAssets(
-            path.join(__dirname, '../../frontend/build/assets'),
-        );
+        // syncLocalAssets never throws, it logs failures instead. Disabled
+        // (ASSETS_S3_SYNC_ENABLED=false) when a release pipeline populates
+        // the bucket at publish time and pods must stay read-only.
+        if (this.lightdashConfig.staticAssets.syncEnabled) {
+            void staticAssetsClient.syncLocalAssets(
+                path.join(__dirname, '../../frontend/build/assets'),
+            );
+        }
 
         // Errors
         Sentry.setupExpressErrorHandler(expressApp);

@@ -59,6 +59,7 @@ const configWithAssets: LightdashConfig = {
             accessKey: 'access',
             secretKey: 'secret',
         },
+        syncEnabled: true,
     },
 };
 

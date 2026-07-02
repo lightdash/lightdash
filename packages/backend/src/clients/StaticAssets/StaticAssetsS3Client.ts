@@ -53,10 +53,13 @@ const isMissingObjectError = (error: unknown): boolean => {
 };
 
 /**
- * Retains hashed frontend assets across deploys. Every pod uploads its
- * bundled assets on startup; a bucket lifecycle rule ages out chunks once
- * they are no longer part of any running build, so stale browser tabs can
- * still load chunks the latest image no longer ships.
+ * Retains hashed frontend assets across deploys so stale browser tabs can
+ * still load chunks the latest image no longer ships. The bucket is filled
+ * either by each pod on startup (syncLocalAssets, the default) or by the
+ * release pipeline at image-publish time (see push-static-assets in
+ * .github/workflows/post-release.yml) with pod sync disabled via
+ * ASSETS_S3_SYNC_ENABLED=false. A bucket lifecycle rule ages out chunks
+ * that no release re-uploads anymore.
  */
 export class StaticAssetsS3Client extends S3BaseClient {
     private readonly configuration: LightdashConfig['staticAssets']['s3'];
