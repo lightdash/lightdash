@@ -51,6 +51,17 @@ export const ensureDownloadedAppContext = (
 export type AppDownloadFailure = { appUuid: string; message: string };
 
 /**
+ * Shown when a newly created app's folder manifest was NOT retargeted —
+ * spells out the consequence and the manual fix.
+ */
+export const manifestRetargetHint = (args: {
+    folder: string;
+    appUuid: string;
+    projectUuid: string;
+}): string =>
+    `${args.folder}/lightdash-app.yml still targets the original app, so future uploads here will ask to create again. To update the new app instead, set appUuid: ${args.appUuid} and projectUuid: ${args.projectUuid} in lightdash-app.yml.`;
+
+/**
  * Sums changes entries that represent actual upserts — excluding both
  * 'skipped' and 'failed' keys so that failures don't suppress the
  * "all content was skipped" warning.
