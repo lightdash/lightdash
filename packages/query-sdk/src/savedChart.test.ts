@@ -108,12 +108,12 @@ describe('savedChart filters', () => {
     it('keeps field ids as-is (qualified) — no explore-name stripping', () => {
         const q = savedChart('chart-1').filters([
             {
-                field: 'orders_total_revenue',
-                operator: 'greaterThan',
-                value: 100,
+                field: 'orders_shipping_method',
+                operator: 'equals',
+                value: 'overnight',
             },
         ]);
-        expect(q.filterValues?.[0].fieldId).toBe('orders_total_revenue');
+        expect(q.filterValues?.[0].fieldId).toBe('orders_shipping_method');
     });
 
     it('includes filters in the useLightdash query key', async () => {
