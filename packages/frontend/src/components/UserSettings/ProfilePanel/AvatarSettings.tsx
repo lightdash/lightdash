@@ -1,5 +1,12 @@
 import { USER_AVATAR_GRADIENT_IDS } from '@lightdash/common';
-import { Button, FileButton, Group, Tooltip } from '@mantine-8/core';
+import {
+    Button,
+    Divider,
+    FileButton,
+    Group,
+    Text,
+    Tooltip,
+} from '@mantine-8/core';
 import { type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
@@ -51,16 +58,23 @@ const AvatarSettings: FC = () => {
                 accept="image/png,image/jpeg,image/webp"
             >
                 {(fileProps) => (
-                    <Button
-                        variant="default"
-                        size="xs"
-                        loading={uploadMutation.isLoading}
+                    <Text
+                        component="button"
+                        size="sm"
+                        c="dimmed"
                         {...fileProps}
+                        style={{
+                            cursor: 'pointer',
+                            border: 'none',
+                            background: 'none',
+                            padding: 0,
+                        }}
                     >
-                        Upload photo
-                    </Button>
+                        upload
+                    </Text>
                 )}
             </FileButton>
+            <Divider orientation="vertical" />
             {avatarUrl && (
                 <Button
                     variant="subtle"
