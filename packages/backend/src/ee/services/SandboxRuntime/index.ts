@@ -1,5 +1,6 @@
 import { LambdaMicrovms } from '@aws-sdk/client-lambda-microvms';
-import { MissingConfigError } from '@lightdash/common';
+import { assertUnreachable, MissingConfigError } from '@lightdash/common';
+import { type LightdashConfig } from '../../../config/parseConfig';
 import { DockerSandboxProvider } from './DockerSandboxProvider';
 import { E2bSandboxProvider } from './E2bSandboxProvider';
 import {
@@ -8,7 +9,7 @@ import {
     type LambdaMicroVmConfig,
 } from './LambdaMicroVmSandboxProvider';
 import { SandboxManager, type SandboxRegistryStore } from './SandboxManager';
-import { type SnapshotStore } from './SnapshotStore';
+import { S3SnapshotStore, type SnapshotStore } from './SnapshotStore';
 import { type SandboxLogger, type SandboxProvider } from './types';
 
 export * from './errors';
@@ -23,20 +24,30 @@ export interface LambdaMicroVmProviderConfig extends LambdaMicroVmConfig {
     region: string;
 }
 
-export interface CreateSandboxProviderOptions {
-    provider: SandboxProviderKind;
-    e2bApiKey: string | null;
-    dockerImage: string;
-    /** Required when `provider === 'lambda-microvm'`; ignored otherwise. */
-    lambdaMicroVm: LambdaMicroVmProviderConfig | null;
-    /**
-     * Backing store for object-store snapshots. Required only by the Docker
-     * provider; native-pause providers (E2B, Lambda) keep the snapshot in the
-     * provider and pass `null` so no S3 client is constructed on those paths.
-     */
-    snapshotStore: SnapshotStore | null;
-    logger: SandboxLogger;
-}
+/**
+ * Provider-construction options, one variant per `SANDBOX_PROVIDER`. Keyed on
+ * `provider` so each backend only carries the config it actually uses: invalid
+ * combinations (a Docker image without a snapshot store, Lambda config on the
+ * E2B path, …) are unrepresentable rather than "ignored otherwise".
+ */
+export type CreateSandboxProviderOptions =
+    | {
+          provider: 'e2b';
+          e2bApiKey: string | null;
+          logger: SandboxLogger;
+      }
+    | {
+          provider: 'docker';
+          dockerImage: string;
+          /** Backing store for object-store snapshots — Docker-only. */
+          snapshotStore: SnapshotStore;
+          logger: SandboxLogger;
+      }
+    | {
+          provider: 'lambda-microvm';
+          lambdaMicroVm: LambdaMicroVmProviderConfig;
+          logger: SandboxLogger;
+      };
 
 /**
  * Build the sandbox provider selected by `SANDBOX_PROVIDER`. Throws a clear
@@ -54,11 +65,6 @@ export const createSandboxProvider = (
             }
             return new E2bSandboxProvider(options.e2bApiKey);
         case 'docker':
-            if (!options.snapshotStore) {
-                throw new MissingConfigError(
-                    'Docker sandbox provider requires an object store for snapshots',
-                );
-            }
             return new DockerSandboxProvider(
                 options.dockerImage,
                 options.logger,
@@ -66,11 +72,6 @@ export const createSandboxProvider = (
             );
         case 'lambda-microvm': {
             const config = options.lambdaMicroVm;
-            if (!config) {
-                throw new MissingConfigError(
-                    'Lambda MicroVMs is not configured (LAMBDA_MICROVM_*)',
-                );
-            }
             if (!config.ingressConnectorArn || !config.egressConnectorArn) {
                 throw new MissingConfigError(
                     'Lambda MicroVMs ingress/egress connector ARNs are not configured',
@@ -86,42 +87,143 @@ export const createSandboxProvider = (
             );
         }
         default:
-            throw new MissingConfigError(
-                `Unknown SANDBOX_PROVIDER: ${options.provider as string}`,
+            return assertUnreachable(
+                options,
+                `Unknown SANDBOX_PROVIDER: ${
+                    (options as { provider: string }).provider
+                }`,
             );
     }
 };
 
-export interface CreateSandboxManagerOptions {
-    provider: SandboxProviderKind;
-    e2bApiKey: string | null;
-    dockerImage: string;
-    lambdaMicroVm: LambdaMicroVmProviderConfig | null;
-    /** Forwarded to the provider; Docker-only (null on native-pause paths). */
-    snapshotStore: SnapshotStore | null;
+/** The two sandboxed features; each launches from its own image/template. */
+export type SandboxFeature = 'data-app' | 'ai-writeback';
+
+/** A configured lifecycle surface plus the image/template it launches from. */
+export interface SandboxRuntime {
+    manager: SandboxManager;
+    templateRef: string;
+}
+
+export interface ResolveSandboxRuntimeOptions {
+    lightdashConfig: LightdashConfig;
+    feature: SandboxFeature;
     registryModel: SandboxRegistryStore;
     logger: SandboxLogger;
 }
 
+/** E2B treats `name` and `name:default` interchangeably, so an empty tag is fine. */
+const composeE2bTemplateRef = (name: string, tag: string): string =>
+    tag ? `${name}:${tag}` : name;
+
+/** Resolve the image/template the active provider launches `feature` from. */
+const resolveTemplateRef = (
+    appRuntime: LightdashConfig['appRuntime'],
+    feature: SandboxFeature,
+): string => {
+    const isDataApp = feature === 'data-app';
+    switch (appRuntime.sandboxProvider) {
+        case 'docker':
+            return isDataApp
+                ? appRuntime.sandboxDockerImage
+                : appRuntime.sandboxAiWritebackDockerImage;
+        case 'lambda-microvm': {
+            const arn = isDataApp
+                ? appRuntime.lambdaMicroVmDataAppImageArn
+                : appRuntime.lambdaMicroVmAiWritebackImageArn;
+            if (!arn) {
+                throw new MissingConfigError(
+                    isDataApp
+                        ? 'Lambda MicroVM data-app image ARN is not configured (LAMBDA_MICROVM_DATA_APP_IMAGE_ARN)'
+                        : 'Lambda MicroVM AI writeback image ARN is not configured (LAMBDA_MICROVM_AI_WRITEBACK_IMAGE_ARN)',
+                );
+            }
+            return arn;
+        }
+        case 'e2b':
+            return isDataApp
+                ? composeE2bTemplateRef(
+                      appRuntime.e2bTemplateName,
+                      appRuntime.e2bTemplateTag,
+                  )
+                : composeE2bTemplateRef(
+                      appRuntime.e2bAiWritebackTemplateName,
+                      appRuntime.e2bAiWritebackTemplateTag,
+                  );
+        default:
+            return assertUnreachable(
+                appRuntime.sandboxProvider,
+                `Unknown SANDBOX_PROVIDER: ${
+                    appRuntime.sandboxProvider as string
+                }`,
+            );
+    }
+};
+
+/** Assemble the per-provider construction options for `feature`. */
+const buildProviderOptions = (
+    lightdashConfig: LightdashConfig,
+    feature: SandboxFeature,
+    logger: SandboxLogger,
+): CreateSandboxProviderOptions => {
+    const { appRuntime } = lightdashConfig;
+    switch (appRuntime.sandboxProvider) {
+        case 'e2b':
+            return {
+                provider: 'e2b',
+                e2bApiKey: appRuntime.e2bApiKey,
+                logger,
+            };
+        case 'docker':
+            return {
+                provider: 'docker',
+                dockerImage:
+                    feature === 'data-app'
+                        ? appRuntime.sandboxDockerImage
+                        : appRuntime.sandboxAiWritebackDockerImage,
+                // Object-store snapshots are Docker-only; native-pause providers
+                // never touch S3, so a client is constructed only on this path.
+                snapshotStore: new S3SnapshotStore({ lightdashConfig }),
+                logger,
+            };
+        case 'lambda-microvm':
+            return {
+                provider: 'lambda-microvm',
+                lambdaMicroVm: appRuntime.lambdaMicroVm,
+                logger,
+            };
+        default:
+            return assertUnreachable(
+                appRuntime.sandboxProvider,
+                `Unknown SANDBOX_PROVIDER: ${
+                    appRuntime.sandboxProvider as string
+                }`,
+            );
+    }
+};
+
 /**
- * Build a {@link SandboxManager} over the configured provider. The single entry
- * point feature services and the reaper use to get a lifecycle surface.
+ * Build the {@link SandboxRuntime} (a {@link SandboxManager} + the feature's
+ * image/template ref) for the provider selected by `SANDBOX_PROVIDER`. The
+ * single entry point feature services use to get a lifecycle surface —
+ * snapshot-store construction is hidden inside, so callers never branch on the
+ * provider or touch S3.
  */
-export const createSandboxManager = (
-    options: CreateSandboxManagerOptions,
-): SandboxManager => {
-    const provider = createSandboxProvider({
-        provider: options.provider,
-        e2bApiKey: options.e2bApiKey,
-        dockerImage: options.dockerImage,
-        lambdaMicroVm: options.lambdaMicroVm,
-        snapshotStore: options.snapshotStore,
-        logger: options.logger,
-    });
-    return new SandboxManager({
+export const resolveSandboxRuntime = ({
+    lightdashConfig,
+    feature,
+    registryModel,
+    logger,
+}: ResolveSandboxRuntimeOptions): SandboxRuntime => {
+    const { appRuntime } = lightdashConfig;
+    const provider = createSandboxProvider(
+        buildProviderOptions(lightdashConfig, feature, logger),
+    );
+    const manager = new SandboxManager({
         provider,
-        providerKind: options.provider,
-        registryModel: options.registryModel,
-        logger: options.logger,
+        providerKind: appRuntime.sandboxProvider,
+        registryModel,
+        logger,
     });
+    return { manager, templateRef: resolveTemplateRef(appRuntime, feature) };
 };

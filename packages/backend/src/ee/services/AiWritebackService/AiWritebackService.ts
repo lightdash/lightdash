@@ -50,14 +50,14 @@ import type {
 } from '../../models/AiWritebackThreadModel';
 import type { SandboxRegistryModel } from '../../models/SandboxRegistryModel';
 import {
-    createSandboxManager,
-    S3SnapshotStore,
+    resolveSandboxRuntime,
     SandboxCommandError,
     SandboxExpiredError,
     SandboxManager,
     SandboxTimeoutError,
     type PersistentWorkspace,
     type SandboxHandle,
+    type SandboxRuntime,
     type SandboxSpec,
 } from '../SandboxRuntime';
 import {
@@ -118,7 +118,6 @@ import {
     progressTextForStage,
     resolvePrMetadataValue,
     resolveSandboxDbtVersion,
-    resolveSandboxTemplateRef,
     splitStreamBuffer,
     summarizeToolInput,
 } from './utils';
@@ -261,8 +260,8 @@ export class AiWritebackService extends BaseService {
 
     private readonly projectService: ProjectService;
 
-    /** Memoized sandbox provider (e2b | docker), selected by SANDBOX_PROVIDER. */
-    private sandboxManager: SandboxManager | undefined;
+    /** Memoized sandbox runtime (manager + template ref), selected by SANDBOX_PROVIDER. */
+    private sandboxRuntime: SandboxRuntime | undefined;
 
     constructor({
         lightdashConfig,
@@ -921,71 +920,35 @@ export class AiWritebackService extends BaseService {
     }
 
     /**
-     * The sandbox manager over the provider selected by `SANDBOX_PROVIDER`
-     * (e2b | docker). Memoized — the feature talks only to the manager for
-     * lifecycle and to the returned {@link SandboxHandle} for the data plane.
-     * See SandboxRuntime/DESIGN.md.
+     * The sandbox runtime (manager + image/template ref) over the provider
+     * selected by `SANDBOX_PROVIDER`. Memoized — the feature talks only to the
+     * manager for lifecycle and to the returned {@link SandboxHandle} for the
+     * data plane. See SandboxRuntime/DESIGN.md.
      */
-    private getSandboxManager(): SandboxManager {
-        if (!this.sandboxManager) {
-            this.sandboxManager = createSandboxManager({
-                provider: this.lightdashConfig.appRuntime.sandboxProvider,
-                e2bApiKey: this.lightdashConfig.appRuntime.e2bApiKey,
-                dockerImage:
-                    this.lightdashConfig.appRuntime
-                        .sandboxAiWritebackDockerImage,
-                lambdaMicroVm: this.lightdashConfig.appRuntime.lambdaMicroVm,
-                // Object-store snapshots are Docker-only; native-pause providers
-                // never touch S3, so don't construct a client for them.
-                snapshotStore:
-                    this.lightdashConfig.appRuntime.sandboxProvider === 'docker'
-                        ? new S3SnapshotStore({
-                              lightdashConfig: this.lightdashConfig,
-                          })
-                        : null,
+    private getSandboxRuntime(): SandboxRuntime {
+        if (!this.sandboxRuntime) {
+            this.sandboxRuntime = resolveSandboxRuntime({
+                lightdashConfig: this.lightdashConfig,
+                feature: 'ai-writeback',
                 registryModel: this.sandboxRegistryModel,
                 logger: this.logger,
             });
         }
-        return this.sandboxManager;
+        return this.sandboxRuntime;
+    }
+
+    private getSandboxManager(): SandboxManager {
+        return this.getSandboxRuntime().manager;
     }
 
     private buildSandboxSpec(): SandboxSpec {
         return {
-            templateRef: this.getSandboxTemplateRef(),
+            templateRef: this.getSandboxRuntime().templateRef,
             timeoutMs: SANDBOX_TIMEOUT_MS,
             egress: {
                 allow: ['api.anthropic.com', 'github.com', 'gitlab.com'],
             },
         };
-    }
-
-    /**
-     * Resolve the template/image ref the active provider launches from. E2B
-     * composes the writeback `name:tag`; Docker uses the writeback-specific
-     * local image (separate from the data-app image — different toolchain).
-     */
-    private getSandboxTemplateRef(): string {
-        const { sandboxProvider } = this.lightdashConfig.appRuntime;
-        if (sandboxProvider === 'docker') {
-            return this.lightdashConfig.appRuntime
-                .sandboxAiWritebackDockerImage;
-        }
-        if (sandboxProvider === 'lambda-microvm') {
-            const imageArn =
-                this.lightdashConfig.appRuntime
-                    .lambdaMicroVmAiWritebackImageArn;
-            if (!imageArn) {
-                throw new MissingConfigError(
-                    'Lambda MicroVM AI writeback image ARN is not configured (LAMBDA_MICROVM_AI_WRITEBACK_IMAGE_ARN)',
-                );
-            }
-            return imageArn;
-        }
-        return resolveSandboxTemplateRef({
-            name: this.lightdashConfig.appRuntime.e2bAiWritebackTemplateName,
-            tag: this.lightdashConfig.appRuntime.e2bAiWritebackTemplateTag,
-        });
     }
 
     private getAnthropicApiKey(): string {
