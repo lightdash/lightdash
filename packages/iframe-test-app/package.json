@@ -26,6 +26,6 @@
         "typescript": "npm:@typescript/typescript6@6.0.1",
         "typescript-7": "npm:typescript@7.0.1-rc",
         "typescript-eslint": "8.43.0",
-        "vite": "8.0.5"
+        "vite": "8.0.16"
     }
 }
