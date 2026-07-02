@@ -126,10 +126,10 @@ jobs:
   # Job 2: Push static assets to the Cloud retention buckets
   #
   # Stale browser tabs request hashed chunks that a new deploy no longer
-  # ships; the backend falls back to these buckets (StaticAssetsS3Client).
-  # Cloud pods run with ASSETS_S3_SYNC_ENABLED=false, so this job is the
-  # only writer. Assets are extracted from the published image (never
-  # rebuilt here) so uploaded hashes always match what the image serves.
+  # ships; the backend falls back to these buckets (StaticAssetsS3Client,
+  # read-only — this job is the only writer). Assets are extracted from the
+  # published image (never rebuilt here) so uploaded hashes always match
+  # what the image serves.
   # `gsutil cp` is deliberately unconditional: rewriting unchanged objects
   # resets their lifecycle age, which keeps long-lived chunks (e.g. vendor
   # bundles) alive while superseded ones expire.

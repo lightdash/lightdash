@@ -152,9 +152,7 @@ export const lightdashConfigMock: LightdashConfig = {
             region: 'mock_region',
         },
     },
-    staticAssets: {
-        syncEnabled: true,
-    },
+    staticAssets: {},
     natsWorker: {
         enabled: false,
         url: undefined,

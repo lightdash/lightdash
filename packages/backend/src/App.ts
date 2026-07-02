@@ -729,10 +729,11 @@ export default class App {
         );
 
         // Chunks from recent builds that this image no longer ships are
-        // retained in a bucket for ~3 days, so stale tabs survive a deploy.
-        // No-op (falls through to the 404 below) when the bucket is not
-        // configured. Constructed directly rather than via ClientRepository:
-        // it is HTTP wiring only, nothing in the service layer needs it.
+        // retained in a bucket populated at release time, so stale tabs
+        // survive a deploy. Read-only here; no-op (falls through to the 404
+        // below) when the bucket is not configured. Constructed directly
+        // rather than via ClientRepository: it is HTTP wiring only, nothing
+        // in the service layer needs it.
         const staticAssetsClient = new StaticAssetsS3Client({
             lightdashConfig: this.lightdashConfig,
         });
@@ -811,17 +812,6 @@ export default class App {
                 );
             }
         });
-
-        // Populate the assets bucket with this build's chunks; the bucket
-        // lifecycle rule ages out chunks no build re-uploads anymore.
-        // syncLocalAssets never throws, it logs failures instead. Disabled
-        // (ASSETS_S3_SYNC_ENABLED=false) when a release pipeline populates
-        // the bucket at publish time and pods must stay read-only.
-        if (this.lightdashConfig.staticAssets.syncEnabled) {
-            void staticAssetsClient.syncLocalAssets(
-                path.join(__dirname, '../../frontend/build/assets'),
-            );
-        }
 
         // Errors
         Sentry.setupExpressErrorHandler(expressApp);

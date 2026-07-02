@@ -1343,18 +1343,12 @@ export type LightdashConfig = {
     staticAssets: {
         /**
          * Fallback origin for hashed frontend chunks that a deploy removed
-         * from the pod image but stale browser tabs still reference.
+         * from the pod image but stale browser tabs still reference. The
+         * backend only reads from this bucket; it is populated at release
+         * time (push-static-assets in post-release.yml, or your own deploy
+         * pipeline when self-hosting).
          */
         s3?: Omit<S3Config, 'expirationTime'>;
-        /**
-         * Whether each pod uploads its build's chunks to the bucket on
-         * startup. Default on so any deployment gets retention with no
-         * pipeline work. Disable (ASSETS_S3_SYNC_ENABLED=false) when a
-         * release pipeline populates the bucket instead — required when the
-         * bucket is shared across tenants, where pods must be read-only so
-         * one compromised tenant cannot overwrite chunks served to others.
-         */
-        syncEnabled: boolean;
     };
     natsWorker: {
         enabled: boolean;
@@ -2537,7 +2531,6 @@ export const parseConfig = (): LightdashConfig => {
         },
         staticAssets: {
             s3: parseStaticAssetsS3Config(),
-            syncEnabled: process.env.ASSETS_S3_SYNC_ENABLED !== 'false',
         },
         natsWorker: {
             enabled: natsWorkerEnabled,

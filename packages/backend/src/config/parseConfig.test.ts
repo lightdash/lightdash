@@ -147,17 +147,6 @@ test('Should fall back to base S3 region and credentials for static assets S3 co
     });
 });
 
-test('Should enable static assets startup sync by default', () => {
-    const config = parseConfig();
-    expect(config.staticAssets.syncEnabled).toBe(true);
-});
-
-test('Should disable static assets startup sync when ASSETS_S3_SYNC_ENABLED is false', () => {
-    process.env.ASSETS_S3_SYNC_ENABLED = 'false';
-    const config = parseConfig();
-    expect(config.staticAssets.syncEnabled).toBe(false);
-});
-
 test('Should use explicit static assets S3 config when set', () => {
     process.env.S3_ACCESS_KEY = 'base_access_key';
     process.env.S3_SECRET_KEY = 'base_secret_key';

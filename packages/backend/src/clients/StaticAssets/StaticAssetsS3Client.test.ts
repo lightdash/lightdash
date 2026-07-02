@@ -1,6 +1,3 @@
-import * as fs from 'fs/promises';
-import * as os from 'os';
-import * as path from 'path';
 import { Readable } from 'stream';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -43,7 +40,6 @@ const s3Mocks = vi.hoisted(() => {
 vi.mock('@aws-sdk/client-s3', () => ({
     S3: s3Mocks.FakeS3,
     GetObjectCommand: class extends s3Mocks.FakeCommand {},
-    PutObjectCommand: class extends s3Mocks.FakeCommand {},
     NoSuchKey: s3Mocks.FakeNoSuchKey,
     NotFound: s3Mocks.FakeNotFound,
     S3ServiceException: s3Mocks.FakeS3ServiceException,
@@ -59,7 +55,6 @@ const configWithAssets: LightdashConfig = {
             accessKey: 'access',
             secretKey: 'secret',
         },
-        syncEnabled: true,
     },
 };
 
@@ -82,7 +77,6 @@ describe('StaticAssetsS3Client', () => {
 
         expect(client.isEnabled).toBe(false);
         expect(await client.getAsset('chunk.js')).toBeNull();
-        await client.syncLocalAssets('/nonexistent/assets');
         expect(s3Mocks.send).not.toHaveBeenCalled();
     });
 
@@ -127,83 +121,6 @@ describe('StaticAssetsS3Client', () => {
             expect(await createClient().getAsset('chunk.js')).toBeNull();
             expect(Logger.warn).toHaveBeenCalledWith(
                 expect.stringContaining('socket timeout'),
-            );
-        });
-    });
-
-    describe('syncLocalAssets', () => {
-        let assetsDir: string;
-
-        beforeEach(async () => {
-            assetsDir = await fs.mkdtemp(
-                path.join(os.tmpdir(), 'static-assets-test-'),
-            );
-            await fs.writeFile(path.join(assetsDir, 'index-abc.js'), 'js');
-            await fs.writeFile(path.join(assetsDir, 'style.css'), 'css');
-            await fs.writeFile(path.join(assetsDir, 'index-abc.js.map'), '{}');
-            await fs.writeFile(path.join(assetsDir, 'index-abc.js.gzip'), 'gz');
-            await fs.mkdir(path.join(assetsDir, 'fonts'));
-            await fs.writeFile(
-                path.join(assetsDir, 'fonts', 'inter.woff2'),
-                'font',
-            );
-        });
-
-        afterEach(async () => {
-            await fs.rm(assetsDir, { recursive: true, force: true });
-        });
-
-        it('uploads assets with content types, skipping .gzip and .map files', async () => {
-            s3Mocks.send.mockResolvedValue({});
-
-            await createClient().syncLocalAssets(assetsDir);
-
-            const inputs = s3Mocks.send.mock.calls.map(
-                ([command]) => command.input,
-            );
-            expect(inputs.map((input) => input.Key).sort()).toEqual([
-                'assets/fonts/inter.woff2',
-                'assets/index-abc.js',
-                'assets/style.css',
-            ]);
-            const jsUpload = inputs.find(
-                (input) => input.Key === 'assets/index-abc.js',
-            );
-            expect(jsUpload).toMatchObject({
-                Bucket: 'assets-bucket',
-                ContentType: 'application/javascript; charset=UTF-8',
-                ContentLength: 2,
-                CacheControl: 'public, max-age=31536000, immutable',
-            });
-            expect(Logger.info).toHaveBeenCalledWith(
-                expect.stringContaining('Uploaded 3/3 static assets'),
-            );
-        });
-
-        it('never rejects and reports partial upload failures', async () => {
-            s3Mocks.send
-                .mockRejectedValueOnce(new Error('put failed'))
-                .mockResolvedValue({});
-
-            await expect(
-                createClient().syncLocalAssets(assetsDir),
-            ).resolves.toBeUndefined();
-
-            expect(Logger.error).toHaveBeenCalledWith(
-                expect.stringContaining('put failed'),
-            );
-            expect(Logger.info).toHaveBeenCalledWith(
-                expect.stringContaining('Uploaded 2/3 static assets'),
-            );
-        });
-
-        it('never rejects when the assets directory is unreadable', async () => {
-            await expect(
-                createClient().syncLocalAssets('/nonexistent/assets'),
-            ).resolves.toBeUndefined();
-
-            expect(Logger.error).toHaveBeenCalledWith(
-                expect.stringContaining('Failed to sync static assets'),
             );
         });
     });
