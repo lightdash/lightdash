@@ -1,3 +1,12 @@
+# [0.3298.0](https://github.com/lightdash/lightdash/compare/0.3297.0...0.3298.0) (2026-07-02)
+
+
+### Features
+
+* **ai-writeback:** target the right dbt source when a project has several ([#24967](https://github.com/lightdash/lightdash/issues/24967)) ([9b85052](https://github.com/lightdash/lightdash/commit/9b850523722eebc53aef6dcdc39ae6ac20710435))
+* **frontend:** add alertdialog role to MantineModal ([#25070](https://github.com/lightdash/lightdash/issues/25070)) ([ed6e865](https://github.com/lightdash/lightdash/commit/ed6e865add7309be6ce9ce57334909acac87139c))
+* **frontend:** mark destructive modals as alertdialog ([#25071](https://github.com/lightdash/lightdash/issues/25071)) ([cc7a7b8](https://github.com/lightdash/lightdash/commit/cc7a7b815b502cc3efd70e901089b97facde81c9))
+
 # [0.3297.0](https://github.com/lightdash/lightdash/compare/0.3296.0...0.3297.0) (2026-07-02)
 
 
