@@ -61,7 +61,7 @@ const AvatarSettings: FC = () => {
                     </Button>
                 )}
             </FileButton>
-            <Divider orientation="vertical" my={0} h={24} />
+            <Divider orientation="vertical" my="auto" h={20} />
             {avatarUrl && (
                 <Button
                     variant="subtle"
