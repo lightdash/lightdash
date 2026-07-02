@@ -514,6 +514,8 @@ export function getReviewClassifierScoreboardScripts(
         outPath?: string;
         limit?: number;
         concurrency?: number;
+        /** false = A/B the fast gate tier alone (no strong-model escalation) */
+        escalation?: boolean;
     }): Promise<ScoreboardMetrics> {
         const service = getService();
         let entries: ScoreboardFixtureEntry[];
@@ -553,7 +555,9 @@ export function getReviewClassifierScoreboardScripts(
                     };
                 }
                 try {
-                    const result = await service.replayJudge(entry.input);
+                    const result = await service.replayJudge(entry.input, {
+                        escalationEnabled: args.escalation ?? true,
+                    });
                     console.log(
                         `[${index + 1}/${entries.length}] ${
                             entry.label.signalUuid

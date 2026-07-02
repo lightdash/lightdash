@@ -71,9 +71,16 @@ export const resolveReviewJudgeProvider = (
 ): LightdashConfig['ai']['copilot']['defaultProvider'] | undefined =>
     copilot.providers.anthropic ? 'anthropic' : undefined;
 
+export type AiAgentReviewJudgeOptions = {
+    // Escalate promoted turns to the strong (non-fast) model. Defaults to
+    // true; the replay scoreboard passes false to A/B the gate tier alone.
+    escalationEnabled?: boolean;
+};
+
 type AiAgentReviewClassifierJudge = (
     candidate: AiAgentReviewClassifierTurnCandidate,
     evidencePacket: AiAgentReviewJudgeEvidencePacket,
+    opts?: AiAgentReviewJudgeOptions,
 ) => Promise<AiAgentReviewClassifierJudgeOutput>;
 
 type AiAgentReviewClassifierJudgeTargetRef =
@@ -291,8 +298,8 @@ export class AiAgentReviewClassifierService extends BaseService {
         this.lightdashConfig = dependencies.lightdashConfig;
         this.judgeTurn =
             dependencies.judgeTurn ??
-            ((candidate, evidencePacket) =>
-                this.judgeTurnWithLlm(candidate, evidencePacket));
+            ((candidate, evidencePacket, opts) =>
+                this.judgeTurnWithLlm(candidate, evidencePacket, opts));
     }
 
     private debugLog(context: string, payload: Record<string, unknown>): void {
@@ -381,6 +388,7 @@ export class AiAgentReviewClassifierService extends BaseService {
      */
     async replayJudge(
         input: AiAgentReviewJudgeReplayInput,
+        opts?: AiAgentReviewJudgeOptions,
     ): Promise<AiAgentReviewJudgeReplayResult> {
         const successfulWritebackEvidence =
             AiAgentReviewClassifierService.getSuccessfulWritebackEvidence(
@@ -392,6 +400,7 @@ export class AiAgentReviewClassifierService extends BaseService {
         const judgeOutput = await this.judgeTurn(
             input.candidate,
             input.evidencePacket,
+            opts,
         );
         return {
             suppressed: null,
@@ -1240,17 +1249,23 @@ export class AiAgentReviewClassifierService extends BaseService {
     private async judgeTurnWithLlm(
         candidate: AiAgentReviewClassifierTurnCandidate,
         evidencePacket: AiAgentReviewJudgeEvidencePacket,
+        opts?: AiAgentReviewJudgeOptions & {
+            tier?: 'gate' | 'escalation';
+        },
     ): Promise<AiAgentReviewClassifierJudgeOutput> {
+        const tier = opts?.tier ?? 'gate';
         const model = getModel(this.lightdashConfig.ai.copilot, {
             provider: resolveReviewJudgeProvider(
                 this.lightdashConfig.ai.copilot,
             ),
-            useFastModel: true,
+            useFastModel: tier === 'gate',
         });
 
         this.debugLog('JudgeRequest', {
             promptUuid: candidate.subject.assistantPromptUuid,
             threadUuid: candidate.subject.threadUuid,
+            tier,
+            judgeModelId: model.model.modelId,
             modelProvider: candidate.modelMetadata.provider,
             modelName: candidate.modelMetadata.model,
             previousTurnCount: evidencePacket.previousTurns.length,
@@ -1273,7 +1288,10 @@ export class AiAgentReviewClassifierService extends BaseService {
             ...model.callOptions,
             providerOptions: model.providerOptions,
             experimental_telemetry: getAiCallTelemetry({
-                functionId: 'aiAgentReviewClassifierJudge',
+                functionId:
+                    tier === 'gate'
+                        ? 'aiAgentReviewClassifierJudge'
+                        : 'aiAgentReviewClassifierJudgeEscalation',
                 feature: 'review-classifier',
                 organizationUuid: candidate.subject.organizationUuid,
                 projectUuid: candidate.subject.projectUuid,
@@ -1388,7 +1406,49 @@ Set projectContextEntry ONLY when primaryRootCause=project_context and a single 
             ],
         });
 
-        return result.object as AiAgentReviewClassifierJudgeOutput;
+        const output = result.object as AiAgentReviewClassifierJudgeOutput;
+
+        // Two-tier judge: the fast model is a promotion gate; turns it wants
+        // to promote re-run through the strong model, whose verdict wins —
+        // root cause and targetRefs are what mint review items and route PRs.
+        const escalationEnabled = opts?.escalationEnabled ?? true;
+        if (
+            tier === 'gate' &&
+            escalationEnabled &&
+            output.promotedToFinding &&
+            this.hasDistinctEscalationJudgeModel(model.model.modelId)
+        ) {
+            const escalatedOutput = await this.judgeTurnWithLlm(
+                candidate,
+                evidencePacket,
+                { tier: 'escalation' },
+            );
+            this.debugLog('JudgeEscalationCompleted', {
+                promptUuid: candidate.subject.assistantPromptUuid,
+                threadUuid: candidate.subject.threadUuid,
+                gatePromoted: output.promotedToFinding,
+                gateRootCause: output.primaryRootCause,
+                escalatedPromoted: escalatedOutput.promotedToFinding,
+                escalatedRootCause: escalatedOutput.primaryRootCause,
+            });
+            return escalatedOutput;
+        }
+
+        return output;
+    }
+
+    private hasDistinctEscalationJudgeModel(gateModelId: string): boolean {
+        try {
+            const escalationModel = getModel(this.lightdashConfig.ai.copilot, {
+                provider: resolveReviewJudgeProvider(
+                    this.lightdashConfig.ai.copilot,
+                ),
+                useFastModel: false,
+            });
+            return escalationModel.model.modelId !== gateModelId;
+        } catch {
+            return false;
+        }
     }
 
     private async isEnabled(args: {
