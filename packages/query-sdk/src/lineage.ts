@@ -6,7 +6,7 @@
  * `data-ld-query` stamp) and can highlight where a given query renders.
  *
  * Protocol (parent <-> iframe), all over postMessage:
- *   iframe -> parent : lightdash:lineage:available           (on mount)
+ *   iframe -> parent : lightdash:lineage:available           (once the app has [data-ld-query] stamps)
  *   parent -> iframe : lightdash:lineage:enable | :disable    (click-select mode)
  *   iframe -> parent : lightdash:lineage:selected {queryUuid} (on click, while enabled)
  *   parent -> iframe : lightdash:lineage:highlight {queryUuid|null}  (hover, any time)
@@ -64,6 +64,24 @@ let enabled = false;
 let parentWindow: Window | null = null;
 let clickListenerAttached = false;
 let messageListenerAttached = false;
+let availabilityAnnounced = false;
+let stampObserver: MutationObserver | null = null;
+
+// Only announce once the app actually has stamped elements — an unconditional
+// announce enables the parent's Inspect-data toggle even when the generated
+// app never spread `{...lineage}`, leaving a toggle that does nothing.
+function announceIfStamped(): boolean {
+    if (availabilityAnnounced) return true;
+    if (!document.querySelector('[data-ld-query]')) return false;
+    availabilityAnnounced = true;
+    parentWindow?.postMessage(
+        {
+            type: 'lightdash:lineage:available',
+        } satisfies LineageAvailableMessage,
+        '*',
+    );
+    return true;
+}
 
 function onClick(e: MouseEvent) {
     if (!enabled) return;
@@ -98,10 +116,24 @@ export function mountLineage(parent: Window): void {
         window.addEventListener('click', onClick, true);
     }
 
-    parent.postMessage(
-        { type: 'lightdash:lineage:available' } satisfies LineageAvailableMessage,
-        '*',
-    );
+    // Stamps render after data loads, so a one-shot check at mount isn't
+    // enough — watch for the first stamp, then disconnect.
+    if (!announceIfStamped() && !stampObserver) {
+        stampObserver = new MutationObserver(() => {
+            if (announceIfStamped()) {
+                stampObserver?.disconnect();
+                stampObserver = null;
+            }
+        });
+        // documentElement (not body): body may not exist yet if the app's
+        // module code runs before the parser reaches <body>.
+        stampObserver.observe(document.documentElement, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['data-ld-query'],
+        });
+    }
 
     if (messageListenerAttached) return;
     messageListenerAttached = true;
