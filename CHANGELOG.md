@@ -1,3 +1,10 @@
+## [0.3285.1](https://github.com/lightdash/lightdash/compare/0.3285.0...0.3285.1) (2026-07-02)
+
+
+### Bug Fixes
+
+* **apps:** hide data app viz from the app template picker ([#25021](https://github.com/lightdash/lightdash/issues/25021)) ([9ab4083](https://github.com/lightdash/lightdash/commit/9ab408325943e2ddccd057aafc2e56440fc26087))
+
 # [0.3285.0](https://github.com/lightdash/lightdash/compare/0.3284.0...0.3285.0) (2026-07-01)
 
 
