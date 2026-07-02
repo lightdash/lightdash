@@ -869,6 +869,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     context.serviceRepository.getProjectContextService<ProjectContextService>(),
                 projectModel: context.models.getProjectModel(),
                 openIdIdentityModel: context.models.getOpenIdIdentityModel(),
+                prometheusMetrics: context.prometheusMetrics,
             }),
         clientProviders: {
             schedulerClient: ({ context, models }) =>
