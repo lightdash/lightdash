@@ -1,6 +1,11 @@
-import { type DataAppManifest } from '@lightdash/common';
+import { AuthorizationError, type DataAppManifest } from '@lightdash/common';
+import execa from 'execa';
 import { promises as fs } from 'fs';
 import * as path from 'path';
+import { getConfig } from '../../config';
+import GlobalState from '../../globalState';
+import * as styles from '../../styles';
+import { checkLightdashVersion, lightdashApi } from '../dbt/apiClient';
 import { readManifestFromDir } from './appCodeFiles';
 
 export const buildPreviewEnv = (args: {
@@ -56,4 +61,80 @@ export const assertNodeModulesPresent = async (
             `Dependencies are not installed. Run 'pnpm install' in ${appDir} first (preview does not auto-install).`,
         );
     }
+};
+
+type AppsPreviewOptions = {
+    project?: string;
+    url?: string;
+    token?: string;
+    verbose: boolean;
+};
+
+export const appsPreviewHandler = async (
+    pathArg: string | undefined,
+    options: AppsPreviewOptions,
+): Promise<void> => {
+    GlobalState.setVerbose(options.verbose);
+
+    const config = await getConfig();
+    const serverUrl = options.url ?? config.context?.serverUrl;
+    const apiKey = options.token ?? config.context?.apiKey;
+    if (!serverUrl || !apiKey) {
+        throw new AuthorizationError(
+            `Not logged in or missing server URL. Run 'lightdash login <url>' first, or pass --url and --token.`,
+        );
+    }
+
+    const target = await resolvePreviewTarget({
+        pathArg,
+        projectFlag: options.project,
+        cwd: process.cwd(),
+    });
+    await assertNodeModulesPresent(target.appDir);
+
+    // Pre-flight the credential before starting vite: an expired/revoked
+    // token would otherwise surface as opaque query failures inside the app.
+    if (options.url || options.token) {
+        // lightdashApi reads the stored config, so flag-overridden
+        // credentials can't be pre-flighted through it; skip the check.
+        GlobalState.debug('Skipping credential pre-flight (--url/--token).');
+    } else {
+        await checkLightdashVersion();
+        try {
+            await lightdashApi({
+                method: 'GET',
+                url: '/api/v1/user',
+                body: undefined,
+            });
+        } catch (err) {
+            throw new AuthorizationError(
+                `Your Lightdash credential was rejected by ${serverUrl}. Run 'lightdash login ${serverUrl}' to refresh it.`,
+            );
+        }
+    }
+
+    const envPath = path.join(target.appDir, '.env.local');
+    await fs.writeFile(
+        envPath,
+        buildPreviewEnv({
+            serverUrl,
+            apiKey,
+            projectUuid: target.projectUuid,
+        }),
+        'utf-8',
+    );
+    GlobalState.log(
+        `Wrote ${envPath} (gitignored; contains your API key — do not commit or share it).`,
+    );
+    GlobalState.log(
+        styles.warning(
+            `Preview renders YOUR data with YOUR permissions and user attributes — viewers of the deployed app may see different data.`,
+        ),
+    );
+    GlobalState.log(`Starting dev server (Ctrl-C to stop)…`);
+
+    await execa('pnpm', ['dev'], {
+        cwd: target.appDir,
+        stdio: 'inherit',
+    });
 };
