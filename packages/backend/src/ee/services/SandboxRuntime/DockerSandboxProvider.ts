@@ -2,7 +2,11 @@ import type Docker from 'dockerode';
 import type { Container } from 'dockerode';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { posix } from 'node:path';
-import { Writable } from 'node:stream';
+import { PassThrough, Writable, type Readable } from 'node:stream';
+import {
+    CappedOutput,
+    MAX_CAPTURED_OUTPUT_BYTES,
+} from './commandOutput';
 import { SandboxCommandError, SandboxTimeoutError } from './errors';
 import { createGitOverCommands, shQuote } from './gitOverCommands';
 import { type SnapshotStore } from './SnapshotStore';
@@ -60,6 +64,12 @@ class DockerSandboxHandle implements SandboxHandle {
             envs?: Record<string, string>;
             timeoutMs?: number;
             stdin?: Buffer;
+            /**
+             * Per-stream byte cap for the captured stdout/stderr (protects the
+             * worker's heap from a command that floods output). Omit for the
+             * uncapped file-read path, where the full bytes are the result.
+             */
+            maxOutputBytes?: number;
             onStdout?: (chunk: Buffer) => void;
             onStderr?: (chunk: Buffer) => void;
         },
@@ -79,18 +89,19 @@ class DockerSandboxHandle implements SandboxHandle {
             stdin: opts.stdin !== undefined,
         });
 
-        const stdoutChunks: Buffer[] = [];
-        const stderrChunks: Buffer[] = [];
+        const cap = opts.maxOutputBytes ?? Number.POSITIVE_INFINITY;
+        const stdout = new CappedOutput(cap);
+        const stderr = new CappedOutput(cap);
         const stdoutSink = new Writable({
             write: (chunk: Buffer, _enc, cb) => {
-                stdoutChunks.push(chunk);
+                stdout.append(chunk);
                 opts.onStdout?.(chunk);
                 cb();
             },
         });
         const stderrSink = new Writable({
             write: (chunk: Buffer, _enc, cb) => {
-                stderrChunks.push(chunk);
+                stderr.append(chunk);
                 opts.onStderr?.(chunk);
                 cb();
             },
@@ -128,10 +139,37 @@ class DockerSandboxHandle implements SandboxHandle {
 
         const info = await exec.inspect();
         return {
-            stdout: Buffer.concat(stdoutChunks),
-            stderr: Buffer.concat(stderrChunks),
+            stdout: stdout.toBuffer(),
+            stderr: stderr.toBuffer(),
             exitCode: info.ExitCode ?? 0,
         };
+    }
+
+    /**
+     * Stream a file's raw bytes out of the container via `cat`, demuxed from the
+     * exec stream. Used to pipe a large artifact (the snapshot tarball) straight
+     * to object storage without buffering the whole file in the worker's heap.
+     * `stderr` is drained; a `cat` failure surfaces as a stream error.
+     */
+    async openReadStream(path: string): Promise<Readable> {
+        const exec = await this.container.exec({
+            Cmd: ['cat', path],
+            AttachStdout: true,
+            AttachStderr: true,
+            AttachStdin: false,
+            Tty: false,
+        });
+        const stream = await exec.start({ hijack: true, stdin: false });
+        const stdout = new PassThrough();
+        const stderr = new PassThrough();
+        stderr.resume();
+        this.container.modem.demuxStream(stream, stdout, stderr);
+        stream.on('end', () => {
+            stdout.end();
+            stderr.end();
+        });
+        stream.on('error', (error) => stdout.destroy(error));
+        return stdout;
     }
 
     readonly commands = {
@@ -143,6 +181,7 @@ class DockerSandboxHandle implements SandboxHandle {
                 cwd: options?.cwd,
                 envs: options?.envs,
                 timeoutMs: options?.timeoutMs,
+                maxOutputBytes: MAX_CAPTURED_OUTPUT_BYTES,
                 onStdout: options?.onStdout
                     ? (chunk) => options.onStdout!(chunk.toString('utf8'))
                     : undefined,
@@ -331,9 +370,16 @@ export class DockerSandboxProvider implements SandboxProvider {
         await handle.commands.run(
             `tar czf ${shQuote(archivePath)} --ignore-failed-read ${excludeFlags} -C / ${includeArgs}`,
         );
+        if (!(handle instanceof DockerSandboxHandle)) {
+            throw new Error(
+                'DockerSandboxProvider.persist requires a DockerSandboxHandle',
+            );
+        }
         try {
-            const archive = await handle.files.readBytes(archivePath);
-            await this.snapshotStore.put(snapshotKey, archive);
+            // Stream the tarball straight from the container to object storage
+            // rather than buffering the whole archive in the worker's heap.
+            const archiveStream = await handle.openReadStream(archivePath);
+            await this.snapshotStore.putStream(snapshotKey, archiveStream);
         } finally {
             await handle.files.remove(archivePath);
         }

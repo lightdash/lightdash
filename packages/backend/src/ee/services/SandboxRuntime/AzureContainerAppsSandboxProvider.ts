@@ -1,4 +1,7 @@
-import { AzureSandboxExecChannel } from './AzureSandboxExecChannel';
+import {
+    assertValidEnvKeys,
+    AzureSandboxExecChannel,
+} from './AzureSandboxExecChannel';
 import { createGitOverCommands } from './gitOverCommands';
 import {
     type PersistOptions,
@@ -346,6 +349,9 @@ export class AzureContainerAppsSandboxProvider implements SandboxProvider {
     ) {}
 
     async create(spec: SandboxSpec): Promise<SandboxHandle> {
+        // Validate create-time env keys up front — they are passed natively to
+        // the sandbox (spec.envs → `environment`), never via a command line.
+        if (spec.envs) assertValidEnvKeys(spec.envs);
         const { cpu, memory } =
             TIER_RESOURCES[this.config.resourceTier] ?? TIER_RESOURCES.M;
         const { sandboxId, state } = await this.controlPlane.createSandbox({

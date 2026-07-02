@@ -1,3 +1,4 @@
+import { CappedOutput } from './commandOutput';
 import { SandboxCommandError, SandboxTimeoutError } from './errors';
 import {
     type CommandResult,
@@ -58,8 +59,11 @@ const consumeExecStream = async (
     const chunks = body as unknown as AsyncIterable<Uint8Array>;
     const decoder = new TextDecoder();
     let buffered = '';
-    let stdout = '';
-    let stderr = '';
+    // Cap the captured output so a command that floods stdout/stderr cannot
+    // exhaust the worker's heap; the streaming callbacks below still see every
+    // chunk. See {@link CappedOutput}.
+    const stdout = new CappedOutput();
+    const stderr = new CappedOutput();
 
     const handleEvent = (event: ExecEvent): CommandResult | null => {
         if ('timeout' in event) {
@@ -69,16 +73,24 @@ const consumeExecStream = async (
         }
         if ('exitCode' in event) {
             if (event.exitCode !== 0) {
-                throw new SandboxCommandError(event.exitCode, stderr, stdout);
+                throw new SandboxCommandError(
+                    event.exitCode,
+                    stderr.toString(),
+                    stdout.toString(),
+                );
             }
-            return { stdout, stderr, exitCode: event.exitCode };
+            return {
+                stdout: stdout.toString(),
+                stderr: stderr.toString(),
+                exitCode: event.exitCode,
+            };
         }
         const text = Buffer.from(event.data, 'base64').toString('utf8');
         if (event.stream === 'stdout') {
-            stdout += text;
+            stdout.append(text);
             options?.onStdout?.(text);
         } else {
-            stderr += text;
+            stderr.append(text);
             options?.onStderr?.(text);
         }
         return null;
@@ -96,14 +108,14 @@ const consumeExecStream = async (
             throw new SandboxCommandError(
                 -1,
                 `exec agent emitted a non-JSON frame: ${trimmed.slice(0, 200)}`,
-                stdout,
+                stdout.toString(),
             );
         }
         if (!isExecEvent(parsed)) {
             throw new SandboxCommandError(
                 -1,
                 `exec agent emitted an unknown frame: ${trimmed.slice(0, 200)}`,
-                stdout,
+                stdout.toString(),
             );
         }
         return handleEvent(parsed);
@@ -127,7 +139,7 @@ const consumeExecStream = async (
     throw new SandboxCommandError(
         -1,
         `exec agent stream ended without an exit code for: ${command}`,
-        stdout,
+        stdout.toString(),
     );
 };
 
