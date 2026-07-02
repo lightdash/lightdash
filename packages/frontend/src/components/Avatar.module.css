@@ -19,39 +19,39 @@
 
 .root[data-avatar-gradient='lilac'] .placeholder {
     background:
-        radial-gradient(circle at 20% 20%, #a499ff 0%, transparent 50%),
-        radial-gradient(circle at 80% 20%, #8f6fff 0%, transparent 50%),
-        radial-gradient(circle at 80% 80%, #b884ff 0%, transparent 50%),
-        radial-gradient(circle at 20% 80%, #9970ff 0%, transparent 50%),
-        radial-gradient(circle at 50% 50%, #9d7fff 0%, transparent 50%), #a383ff;
+        radial-gradient(circle at 25% 30%, #d1ccff 0%, transparent 45%),
+        radial-gradient(circle at 70% 15%, #a499ff 0%, transparent 55%),
+        radial-gradient(circle at 80% 70%, #8f6fff 0%, transparent 50%),
+        radial-gradient(circle at 15% 65%, #b884ff 0%, transparent 55%),
+        radial-gradient(circle at 55% 50%, #9d7fff 0%, transparent 60%), #a383ff;
     border: 1px solid rgba(159, 111, 255, 0.6);
 }
 .root[data-avatar-gradient='blush'] .placeholder {
     background:
-        radial-gradient(circle at 20% 20%, #ff99d9 0%, transparent 50%),
-        radial-gradient(circle at 80% 20%, #c499ff 0%, transparent 50%),
-        radial-gradient(circle at 80% 80%, #d98ac0 0%, transparent 50%),
-        radial-gradient(circle at 20% 80%, #d87fb8 0%, transparent 50%),
-        radial-gradient(circle at 50% 50%, #d984c8 0%, transparent 50%), #d987c8;
+        radial-gradient(circle at 30% 25%, #ffd1e8 0%, transparent 48%),
+        radial-gradient(circle at 65% 10%, #ff99d9 0%, transparent 50%),
+        radial-gradient(circle at 85% 65%, #c499ff 0%, transparent 52%),
+        radial-gradient(circle at 10% 70%, #d98ac0 0%, transparent 55%),
+        radial-gradient(circle at 50% 55%, #d984c8 0%, transparent 58%), #d987c8;
     border: 1px solid rgba(255, 100, 190, 0.6);
 }
 .root[data-avatar-gradient='minty'] .placeholder {
     background:
-        radial-gradient(circle at 20% 20%, #d4e066 0%, transparent 50%),
-        radial-gradient(circle at 80% 20%, #b8e037 0%, transparent 50%),
-        radial-gradient(circle at 80% 80%, #a8d729 0%, transparent 50%),
-        radial-gradient(circle at 20% 80%, #c4dd55 0%, transparent 50%),
-        radial-gradient(circle at 50% 50%, #bfd93f 0%, transparent 50%), #b8d73a;
+        radial-gradient(circle at 35% 20%, #e8ff99 0%, transparent 48%),
+        radial-gradient(circle at 75% 35%, #b8e037 0%, transparent 52%),
+        radial-gradient(circle at 65% 75%, #7cd68c 0%, transparent 50%),
+        radial-gradient(circle at 15% 60%, #a8d729 0%, transparent 55%),
+        radial-gradient(circle at 45% 45%, #c4dd55 0%, transparent 60%), #b8d73a;
     border: 1px solid rgba(168, 215, 41, 0.6);
 }
 .root[data-avatar-gradient='amethyst'] .placeholder {
     background:
-        radial-gradient(circle at 20% 20%, #5e4cff 0%, transparent 50%),
-        radial-gradient(circle at 80% 20%, #83e2b7 0%, transparent 50%),
-        radial-gradient(circle at 80% 80%, #30cf87 0%, transparent 50%),
-        radial-gradient(circle at 20% 80%, #c1f1db 0%, transparent 50%),
-        radial-gradient(circle at 50% 50%, #6fa0d8 0%, transparent 50%), #7fb5c2;
-    border: 1px solid rgba(94, 76, 255, 0.6);
+        radial-gradient(circle at 15% 35%, #8001fe 0%, transparent 45%),
+        radial-gradient(circle at 75% 20%, #6f00ff 0%, transparent 55%),
+        radial-gradient(circle at 85% 75%, #4c0198 0%, transparent 50%),
+        radial-gradient(circle at 25% 70%, #7500e8 0%, transparent 55%),
+        radial-gradient(circle at 60% 45%, #5e4cff 0%, transparent 60%), #6a3dff;
+    border: 1px solid rgba(128, 1, 254, 0.6);
 }
 .root[data-avatar-gradient='sunrise'] .placeholder {
     background:
