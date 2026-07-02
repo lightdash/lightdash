@@ -1,3 +1,15 @@
+# [0.3291.0](https://github.com/lightdash/lightdash/compare/0.3290.0...0.3291.0) (2026-07-02)
+
+
+### Bug Fixes
+
+* disable AI agent embed autoscroll ([#25043](https://github.com/lightdash/lightdash/issues/25043)) ([2e7c7ba](https://github.com/lightdash/lightdash/commit/2e7c7ba1ce2a07f0fbc03d3e2594ca1c3e64b0d9))
+
+
+### Features
+
+* **apps:** searchable data app viz picker + cartesian-style fields ([#25027](https://github.com/lightdash/lightdash/issues/25027)) ([761eef4](https://github.com/lightdash/lightdash/commit/761eef4438357d0a2a8b274ae15a498b7d8cc569))
+
 # [0.3290.0](https://github.com/lightdash/lightdash/compare/0.3289.1...0.3290.0) (2026-07-02)
 
 
