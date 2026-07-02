@@ -50,6 +50,48 @@ export const ensureDownloadedAppContext = (
 
 export type AppDownloadFailure = { appUuid: string; message: string };
 
+/**
+ * Sums changes entries that represent actual upserts — excluding both
+ * 'skipped' and 'failed' keys so that failures don't suppress the
+ * "all content was skipped" warning.
+ */
+export const computeUpsertedTotal = (changes: Record<string, number>): number =>
+    Object.entries(changes)
+        .filter(([key]) => !key.includes('skipped') && !key.includes('failed'))
+        .reduce((sum, [, value]) => sum + value, 0);
+
+/**
+ * Returns true when there is at least one skipped item and zero upserted
+ * items — the condition that should display the "all skipped" warning.
+ */
+export const shouldWarnAllSkipped = (
+    changes: Record<string, number>,
+): boolean => {
+    const totalSkipped = Object.entries(changes)
+        .filter(([key]) => key.includes('skipped'))
+        .reduce((sum, [, value]) => sum + value, 0);
+    return totalSkipped > 0 && computeUpsertedTotal(changes) === 0;
+};
+
+/**
+ * Determines how an app upload should proceed given a potential project
+ * mismatch between the manifest and the upload target.
+ *
+ * 'proceed'            — upload immediately (same project, or --create-new).
+ * 'needs-confirmation' — projects differ and --create-new was not passed;
+ *                        caller must prompt (TTY) or reject (non-TTY).
+ */
+export const classifyAppUpload = (
+    manifestProjectUuid: string,
+    targetProjectUuid: string,
+    createNew: boolean,
+): 'proceed' | 'needs-confirmation' => {
+    if (createNew || manifestProjectUuid === targetProjectUuid) {
+        return 'proceed';
+    }
+    return 'needs-confirmation';
+};
+
 export const appsDownloadSummary = (
     successCount: number,
     total: number,

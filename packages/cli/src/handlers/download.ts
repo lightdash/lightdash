@@ -49,9 +49,11 @@ import {
 import {
     appsDownloadSummary,
     capListedApps,
+    classifyAppUpload,
     ensureDownloadedAppContext,
     MAX_INCLUDE_APPS,
     selectAppsToDownload,
+    shouldWarnAllSkipped,
     type AppDownloadFailure,
 } from './apps/appsDownload';
 import { buildStaticAuthoringFiles } from './apps/scaffolding';
@@ -1262,14 +1264,7 @@ const logUploadChanges = (changes: Record<string, number>) => {
         console.info(`Total ${key}: ${value} `);
     });
 
-    const totalSkipped = Object.entries(changes)
-        .filter(([key]) => key.includes('skipped'))
-        .reduce((sum, [, value]) => sum + value, 0);
-    const totalUpserted = Object.entries(changes)
-        .filter(([key]) => !key.includes('skipped'))
-        .reduce((sum, [, value]) => sum + value, 0);
-
-    if (totalSkipped > 0 && totalUpserted === 0) {
+    if (shouldWarnAllSkipped(changes)) {
         console.warn(
             styles.warning(
                 `\nAll content was skipped (no local changes detected). Use --force to upload all content, e.g. when uploading to a new project.`,
@@ -1864,6 +1859,11 @@ export const uploadHandler = async (
             appsOption !== false &&
             appsOption !== undefined;
 
+        let appsCreated = 0;
+        let appsUpdated = 0;
+        let appsFailed = 0;
+        let appsSkipped = 0;
+
         if (shouldUploadApps) {
             const filterUuids: Set<string> | null =
                 Array.isArray(appsOption) && appsOption.length > 0
@@ -1916,6 +1916,46 @@ export const uploadHandler = async (
                         continue;
                     }
 
+                    // Guard: cross-project create
+                    const uploadDecision = classifyAppUpload(
+                        code.manifest.projectUuid,
+                        projectId,
+                        options.createNew === true,
+                    );
+
+                    if (uploadDecision === 'needs-confirmation') {
+                        if (process.stdin.isTTY && process.stdout.isTTY) {
+                            // eslint-disable-next-line no-await-in-loop
+                            const { confirmed } = await inquirer.prompt<{
+                                confirmed: boolean;
+                            }>([
+                                {
+                                    type: 'confirm',
+                                    name: 'confirmed',
+                                    message: `"${subDir.name}" was downloaded from project ${code.manifest.projectUuid}, but you are uploading to project ${projectId}. This will CREATE a new app. Continue?`,
+                                    default: false,
+                                },
+                            ]);
+                            if (!confirmed) {
+                                GlobalState.log(
+                                    `Skipped "${subDir.name}" (cross-project create declined). Pass --create-new to make this explicit.`,
+                                );
+                                appsSkipped += 1;
+                                // eslint-disable-next-line no-continue
+                                continue;
+                            }
+                        } else {
+                            GlobalState.log(
+                                styles.error(
+                                    `Cannot upload "${subDir.name}": its manifest targets project ${code.manifest.projectUuid} but you are uploading to project ${projectId}. Pass --create-new to create a new app in the target project.`,
+                                ),
+                            );
+                            appsFailed += 1;
+                            // eslint-disable-next-line no-continue
+                            continue;
+                        }
+                    }
+
                     const body = buildImportBody(code, projectId, {
                         createNew: options.createNew === true,
                     });
@@ -1928,6 +1968,12 @@ export const uploadHandler = async (
                         url: `/api/v1/ee/projects/${projectId}/apps/upload`,
                         body: JSON.stringify(body),
                     });
+
+                    if (action === 'create') {
+                        appsCreated += 1;
+                    } else {
+                        appsUpdated += 1;
+                    }
 
                     const actionLabel =
                         action === 'create' ? 'created' : 'updated';
@@ -1975,6 +2021,7 @@ export const uploadHandler = async (
                         }
                     }
                 } catch (appErr) {
+                    appsFailed += 1;
                     const status =
                         appErr instanceof LightdashError
                             ? appErr.statusCode
@@ -1992,6 +2039,11 @@ export const uploadHandler = async (
                     );
                 }
             }
+
+            if (appsCreated > 0) changes['data apps created'] = appsCreated;
+            if (appsUpdated > 0) changes['data apps updated'] = appsUpdated;
+            if (appsFailed > 0) changes['data apps failed'] = appsFailed;
+            if (appsSkipped > 0) changes['data apps skipped'] = appsSkipped;
         }
 
         const end = Date.now();
