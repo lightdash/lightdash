@@ -35,6 +35,8 @@ import {
 } from './clients/ClientRepository';
 import { setGithubRateLimitObserver } from './clients/github/Github';
 import { SlackClient } from './clients/Slack/SlackClient';
+import { createStaticAssetsFallbackHandler } from './clients/StaticAssets/staticAssetsFallbackMiddleware';
+import { StaticAssetsS3Client } from './clients/StaticAssets/StaticAssetsS3Client';
 import { LightdashConfig } from './config/parseConfig';
 import {
     apiKeyPassportStrategy,
@@ -726,6 +728,18 @@ export default class App {
             ),
         );
 
+        // Chunks from recent builds that this image no longer ships are
+        // retained in a bucket for ~24h, so stale tabs survive a deploy.
+        // No-op (falls through to the 404 below) when the bucket is not
+        // configured.
+        const staticAssetsClient = new StaticAssetsS3Client({
+            lightdashConfig: this.lightdashConfig,
+        });
+        expressApp.get(
+            '/assets/*',
+            createStaticAssetsFallbackHandler(staticAssetsClient),
+        );
+
         // Return 404 for missing assets (don't fall through index.html)
         // This ensures chunks are not serving the index.html file.
         expressApp.use('/assets/*', (req, res) => {
@@ -796,6 +810,13 @@ export default class App {
                 );
             }
         });
+
+        // Populate the assets bucket with this build's chunks; the bucket
+        // lifecycle rule ages out chunks no build re-uploads anymore.
+        // syncLocalAssets never throws, it logs failures instead.
+        void staticAssetsClient.syncLocalAssets(
+            path.join(__dirname, '../../frontend/build/assets'),
+        );
 
         // Errors
         Sentry.setupExpressErrorHandler(expressApp);

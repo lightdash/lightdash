@@ -940,6 +940,37 @@ export const parsePreAggregateResultsS3Config = ():
     };
 };
 
+export const parseStaticAssetsS3Config = ():
+    | Omit<S3Config, 'expirationTime'>
+    | undefined => {
+    const bucket = process.env.ASSETS_S3_BUCKET;
+
+    if (!bucket) {
+        return undefined;
+    }
+
+    const baseS3Config = parseBaseS3Config();
+    const endpoint = baseS3Config?.endpoint;
+    const region = process.env.ASSETS_S3_REGION || baseS3Config?.region;
+
+    if (!endpoint || !region) {
+        throw new ParseError(
+            'ASSETS_S3_REGION and S3_ENDPOINT must be set when ASSETS_S3_BUCKET is configured.',
+            {},
+        );
+    }
+
+    return {
+        endpoint,
+        forcePathStyle: baseS3Config?.forcePathStyle,
+        bucket,
+        region,
+        accessKey: process.env.ASSETS_S3_ACCESS_KEY || baseS3Config?.accessKey,
+        secretKey: process.env.ASSETS_S3_SECRET_KEY || baseS3Config?.secretKey,
+        useCredentialsFrom: baseS3Config?.useCredentialsFrom,
+    };
+};
+
 const validateTaskList = (tasks: string[], envVarName: string) => {
     const validTasks: SchedulerTaskName[] = [];
     const invalidTasks: string[] = [];
@@ -1310,6 +1341,13 @@ export type LightdashConfig = {
         cacheEnabled: boolean;
         autocompleteEnabled: boolean;
         cacheStateTimeSeconds: number;
+        s3?: Omit<S3Config, 'expirationTime'>;
+    };
+    staticAssets: {
+        /**
+         * Fallback origin for hashed frontend chunks that a deploy removed
+         * from the pod image but stale browser tabs still reference.
+         */
         s3?: Omit<S3Config, 'expirationTime'>;
     };
     natsWorker: {
@@ -2490,6 +2528,9 @@ export const parseConfig = (): LightdashConfig => {
                 10,
             ),
             s3: parseResultsS3Config(),
+        },
+        staticAssets: {
+            s3: parseStaticAssetsS3Config(),
         },
         natsWorker: {
             enabled: natsWorkerEnabled,
