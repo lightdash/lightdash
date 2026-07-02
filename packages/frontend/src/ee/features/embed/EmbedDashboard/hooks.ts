@@ -11,6 +11,7 @@ export const useEmbedDashboard = (
         queryKey: ['embed-dashboard', projectUuid, paletteUuid],
         queryFn: () => postEmbedDashboard(projectUuid!, { paletteUuid }),
         enabled: !!projectUuid && enabled,
-        retry: false,
+        // Inherits the app-wide retry policy: transient NetworkErrors retry
+        // with backoff; real API errors (e.g. expired JWT) surface at once.
     });
 };
