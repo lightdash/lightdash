@@ -625,6 +625,9 @@ export type AiAgentReviewItem = {
     description: string;
     primaryRootCause: AiAgentRootCause;
     priority: AiAgentReviewItemPriority;
+    // Explores/fields the issue is about. For AI findings these come from the
+    // latest finding; for manual issues, from the captured related explores.
+    targetRefs: AiAgentTargetRef[];
     status: AiAgentReviewItemStatus;
     dismissedReason: AiAgentReviewItemDismissedReason | null;
     ownerType: AiAgentReviewItemOwnerType;

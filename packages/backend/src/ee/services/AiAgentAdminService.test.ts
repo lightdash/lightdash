@@ -50,6 +50,7 @@ const makeReviewItem = (
     description: 'The agent could not answer because a metric was missing.',
     primaryRootCause: 'semantic_layer',
     priority: 'none',
+    targetRefs: [],
     status: 'open',
     dismissedReason: null,
     ownerType: 'semantic_layer_owner',
