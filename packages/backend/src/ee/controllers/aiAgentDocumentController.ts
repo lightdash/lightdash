@@ -1,9 +1,11 @@
 import {
+    ApiAiAgentDocumentContentResponse,
     ApiAiAgentDocumentResponse,
     ApiAiAgentDocumentSummaryListResponse,
     ApiCreateAiAgentDocument,
     ApiErrorPayload,
     ApiSuccessEmpty,
+    ApiUpdateAiAgentDocument,
     assertRegisteredAccount,
 } from '@lightdash/common';
 import {
@@ -12,6 +14,7 @@ import {
     Get,
     Middlewares,
     OperationId,
+    Patch,
     Path,
     Post,
     Query,
@@ -74,6 +77,50 @@ export class AiAgentDocumentController extends BaseController {
             status: 'ok',
             results: await this.getService().createDocument(
                 toSessionUser(req.account),
+                body,
+            ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{documentUuid}/content')
+    @OperationId('getAiAgentDocumentContent')
+    async getDocumentContent(
+        @Request() req: express.Request,
+        @Path() documentUuid: string,
+    ): Promise<ApiAiAgentDocumentContentResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getService().getDocumentContent(
+                toSessionUser(req.account),
+                documentUuid,
+            ),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('/{documentUuid}')
+    @OperationId('updateAiAgentDocument')
+    async updateDocument(
+        @Request() req: express.Request,
+        @Path() documentUuid: string,
+        @Body() body: ApiUpdateAiAgentDocument,
+    ): Promise<ApiAiAgentDocumentResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getService().updateDocument(
+                toSessionUser(req.account),
+                documentUuid,
                 body,
             ),
         };

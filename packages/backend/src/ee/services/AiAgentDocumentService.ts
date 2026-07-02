@@ -3,8 +3,10 @@ import {
     AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES,
     AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES,
     AiAgentDocument,
+    AiAgentDocumentContent,
     AiAgentDocumentSummary,
     ApiCreateAiAgentDocument,
+    ApiUpdateAiAgentDocument,
     CommercialFeatureFlags,
     Explore,
     ForbiddenError,
@@ -16,6 +18,7 @@ import { v4 as uuidv4 } from 'uuid';
 import {
     AiAgentDocumentCreatedEvent,
     AiAgentDocumentDeletedEvent,
+    AiAgentDocumentUpdatedEvent,
     LightdashAnalytics,
 } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -99,9 +102,9 @@ export class AiAgentDocumentService extends BaseService {
      */
     private async getProjectExploresForSummarization(
         user: SessionUser,
-        body: ApiCreateAiAgentDocument,
+        args: { agentUuid?: string; projectUuid: string | null },
     ): Promise<Explore[]> {
-        const primaryAgentUuid = body.agentAccess?.[0];
+        const primaryAgentUuid = args.agentUuid;
         try {
             if (primaryAgentUuid) {
                 const agent = await this.aiAgentService.getAgent(
@@ -114,10 +117,10 @@ export class AiAgentDocumentService extends BaseService {
                     agent.tags,
                 );
             }
-            if (body.projectUuid) {
+            if (args.projectUuid) {
                 return await this.aiAgentService.getAvailableExplores(
                     user,
-                    body.projectUuid,
+                    args.projectUuid,
                     null,
                 );
             }
@@ -128,6 +131,49 @@ export class AiAgentDocumentService extends BaseService {
                 { error: e },
             );
             return [];
+        }
+    }
+
+    /**
+     * Generate a structured summary grounded in the same explore context the
+     * agent sees at conversation time. Falls back to a default summary if the
+     * LLM call fails so uploads/edits never hard-fail on summarization.
+     */
+    private async generateSummary(
+        user: SessionUser,
+        organizationUuid: string,
+        args: {
+            name: string;
+            content: string;
+            agentUuid?: string;
+            projectUuid: string | null;
+        },
+    ): Promise<AiAgentDocument['summary']> {
+        const projectExplores = await this.getProjectExploresForSummarization(
+            user,
+            { agentUuid: args.agentUuid, projectUuid: args.projectUuid },
+        );
+        const modelOptions = {
+            ...getModel(this.lightdashConfig.ai.copilot, {
+                enableReasoning: false,
+                useFastModel: true,
+            }),
+            telemetry: {
+                organizationUuid,
+                userUuid: user.userUuid,
+            },
+        };
+        try {
+            return await generateDocumentSummary(modelOptions, {
+                name: args.name,
+                content: args.content,
+                projectExplores,
+            });
+        } catch (error) {
+            this.logger.error(
+                `Failed to generate summary for document "${args.name}", storing a fallback summary: ${error}`,
+            );
+            return createFallbackDocumentSummary(args.name);
         }
     }
 
@@ -214,6 +260,15 @@ export class AiAgentDocumentService extends BaseService {
         return document;
     }
 
+    async getDocumentContent(
+        user: SessionUser,
+        documentUuid: string,
+    ): Promise<AiAgentDocumentContent> {
+        // getDocument enforces copilot + org + view permission checks
+        await this.getDocument(user, documentUuid);
+        return this.aiAgentDocumentModel.getContent(documentUuid);
+    }
+
     async createDocument(
         user: SessionUser,
         body: ApiCreateAiAgentDocument,
@@ -257,33 +312,12 @@ export class AiAgentDocumentService extends BaseService {
             body.originalFilename,
         );
 
-        const projectExplores = await this.getProjectExploresForSummarization(
-            user,
-            body,
-        );
-        const modelOptions = {
-            ...getModel(this.lightdashConfig.ai.copilot, {
-                enableReasoning: false,
-                useFastModel: true,
-            }),
-            telemetry: {
-                organizationUuid,
-                userUuid: user.userUuid,
-            },
-        };
-        let summary: AiAgentDocument['summary'];
-        try {
-            summary = await generateDocumentSummary(modelOptions, {
-                name: body.name,
-                content: body.content,
-                projectExplores,
-            });
-        } catch (error) {
-            this.logger.error(
-                `Failed to generate summary for document "${body.name}", storing a fallback summary: ${error}`,
-            );
-            summary = createFallbackDocumentSummary(body.name);
-        }
+        const summary = await this.generateSummary(user, organizationUuid, {
+            name: body.name,
+            content: body.content,
+            agentUuid: body.agentAccess?.[0],
+            projectUuid: body.projectUuid ?? null,
+        });
 
         const storageKey = `org/${organizationUuid}/doc/${uuidv4()}.${
             mimeType === 'text/markdown' ? 'md' : 'txt'
@@ -316,6 +350,93 @@ export class AiAgentDocumentService extends BaseService {
         });
 
         return document;
+    }
+
+    async updateDocument(
+        user: SessionUser,
+        documentUuid: string,
+        body: ApiUpdateAiAgentDocument,
+    ): Promise<AiAgentDocument> {
+        const existing = await this.getDocument(user, documentUuid);
+        this.assertCanManageDocuments(
+            user,
+            existing.organizationUuid,
+            existing.projectUuid,
+        );
+
+        const existingContent =
+            await this.aiAgentDocumentModel.getContent(documentUuid);
+        const contentChanged =
+            body.content !== undefined &&
+            body.content !== existingContent.content;
+
+        let summary: AiAgentDocument['summary'] | undefined;
+        let newContentSizeBytes = existing.contentSizeBytes;
+
+        if (contentChanged) {
+            const content = body.content!;
+            const contentBytes = Buffer.byteLength(content, 'utf8');
+            if (contentBytes > AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES) {
+                throw new PayloadTooLargeError(
+                    `Content exceeds the ${AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES} byte limit.`,
+                    {
+                        contentSizeBytes: contentBytes,
+                        maxBytes: AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES,
+                    },
+                );
+            }
+
+            const existingTotal =
+                await this.aiAgentDocumentModel.getOrganizationContentSize(
+                    existing.organizationUuid,
+                );
+            const projectedTotal =
+                existingTotal - existing.contentSizeBytes + contentBytes;
+            if (projectedTotal > AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES) {
+                throw new PayloadTooLargeError(
+                    `Organization document quota of ${AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES} bytes would be exceeded`,
+                    {
+                        currentBytes: existingTotal,
+                        incomingBytes: contentBytes,
+                        quotaBytes: AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES,
+                    },
+                );
+            }
+
+            newContentSizeBytes = contentBytes;
+            summary = await this.generateSummary(
+                user,
+                existing.organizationUuid,
+                {
+                    name: body.name ?? existing.name,
+                    content,
+                    agentUuid: existing.agentAccess[0],
+                    projectUuid: existing.projectUuid,
+                },
+            );
+        }
+
+        const updated = await this.aiAgentDocumentModel.update({
+            uuid: documentUuid,
+            name: body.name,
+            content: contentChanged ? body.content : undefined,
+            summary,
+            updatedByUserUuid: user.userUuid,
+        });
+
+        this.analytics.track<AiAgentDocumentUpdatedEvent>({
+            event: 'ai_agent_document.updated',
+            userId: user.userUuid,
+            properties: {
+                organizationId: existing.organizationUuid,
+                projectId: existing.projectUuid,
+                documentId: documentUuid,
+                contentChanged,
+                contentSizeBytes: newContentSizeBytes,
+            },
+        });
+
+        return updated;
     }
 
     async deleteDocument(
