@@ -317,6 +317,10 @@ export type CreateSchedulerAndTargets = Omit<
     | 'savedSqlName'
 > & {
     targets: CreateSchedulerTarget[];
+    // Transient: carries the AI augmentation for an unsaved "send now" so the
+    // worker can run it without a persisted row. Never written to the scheduler
+    // table (persisted separately via the ai-augmentation sub-resource).
+    aiAugmentation?: SchedulerAiAugmentation | null;
 };
 
 export type CreateSchedulerAndTargetsWithoutIds = Omit<

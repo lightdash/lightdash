@@ -434,7 +434,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new SchedulerAiAugmentationService({
                     schedulerAiAugmentationModel:
                         models.getSchedulerAiAugmentationModel<SchedulerAiAugmentationModel>(),
-                    schedulerModel: models.getSchedulerModel(),
                     schedulerService: repository.getSchedulerService(),
                     userModel: models.getUserModel(),
                     dashboardModel: models.getDashboardModel(),
