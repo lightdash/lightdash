@@ -3,6 +3,7 @@ import {
     DbtProjectType,
     DbtVersionOptionLatest,
     defineUserAbility,
+    DimensionType,
     FeatureFlags,
     FilterOperator,
     ForbiddenError,
@@ -1770,6 +1771,69 @@ describe('ProjectService', () => {
                                    ORDER BY "a_dim1"
                                    LIMIT 10`),
             );
+        });
+        test('returns resultsWithLabels deduped by value for a label dimension', async () => {
+            const exploreWithLabelDimension: Explore = {
+                ...validExplore,
+                tables: {
+                    ...validExplore.tables,
+                    a: {
+                        ...validExplore.tables.a,
+                        dimensions: {
+                            ...validExplore.tables.a.dimensions,
+                            dim1: {
+                                ...validExplore.tables.a.dimensions.dim1,
+                                filterAutocomplete: {
+                                    fetchFromWarehouse: true,
+                                    labelDimension: 'label_dim',
+                                },
+                            },
+                            label_dim: {
+                                ...validExplore.tables.a.dimensions.dim1,
+                                name: 'label_dim',
+                                label: 'label_dim',
+                            },
+                        },
+                    },
+                },
+            };
+            (
+                projectModel.findExploreByTableName as import('vitest').Mock
+            ).mockResolvedValueOnce(exploreWithLabelDimension);
+
+            const runQueryMock = vi.fn(async () => ({
+                fields: {
+                    a_dim1: { type: DimensionType.STRING },
+                    a_label_dim: { type: DimensionType.STRING },
+                },
+                rows: [
+                    { a_dim1: 'u1', a_label_dim: 'Alice' },
+                    { a_dim1: 'u1', a_label_dim: 'Alice dup' },
+                    { a_dim1: 'u2', a_label_dim: null },
+                ],
+            }));
+            (
+                projectModel.getWarehouseClientFromCredentials as import('vitest').Mock
+            ).mockImplementation(() => ({
+                ...warehouseClientMock,
+                runQuery: runQueryMock,
+            }));
+
+            const result = await service.searchFieldUniqueValues(
+                user,
+                projectUuid,
+                'a',
+                'a_dim1',
+                '',
+                10,
+                undefined,
+            );
+
+            expect(result.results).toEqual(['u1', 'u2']);
+            expect(result.resultsWithLabels).toEqual([
+                { value: 'u1', label: 'Alice' },
+                { value: 'u2', label: 'u2' },
+            ]);
         });
         test('should query unique values with valid filters', async () => {
             const runQueryMock = vi.fn(async (_sql: string) => resultsWith1Row);

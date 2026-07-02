@@ -168,6 +168,9 @@ const convertFilterAutocomplete = (
         filterAutocomplete: {
             ...(uniqueValues ? { values: uniqueValues } : {}),
             fetchFromWarehouse: filterAutocomplete.fetch_from_warehouse ?? true,
+            ...(filterAutocomplete.label_dimension
+                ? { labelDimension: filterAutocomplete.label_dimension }
+                : {}),
         },
         warnings,
     };

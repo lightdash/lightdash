@@ -1,4 +1,6 @@
 import {
+    DimensionType,
+    FieldType,
     FilterOperator,
     NotFoundError,
     ParameterError,
@@ -7,6 +9,38 @@ import {
 } from '@lightdash/common';
 import { getFieldValuesMetricQuery } from './fieldValuesQueryBuilder';
 import { validExplore } from './ProjectService.mock';
+
+const exploreWithLabelDimension = (labelDimension: string): Explore => ({
+    ...validExplore,
+    tables: {
+        ...validExplore.tables,
+        a: {
+            ...validExplore.tables.a,
+            dimensions: {
+                ...validExplore.tables.a.dimensions,
+                dim1: {
+                    ...validExplore.tables.a.dimensions.dim1,
+                    filterAutocomplete: {
+                        fetchFromWarehouse: true,
+                        labelDimension,
+                    },
+                },
+                label_dim: {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    name: 'label_dim',
+                    label: 'label_dim',
+                    table: 'a',
+                    tableLabel: '',
+                    sql: '',
+                    hidden: false,
+                    compiledSql: '',
+                    tablesReferences: ['a'],
+                },
+            },
+        },
+    },
+});
 
 const mockExploreResolver = {
     findExploreByTableName: vi.fn(),
@@ -215,6 +249,112 @@ describe('getFieldValuesMetricQuery', () => {
             getFieldValuesMetricQuery({
                 projectUuid: 'project-uuid',
                 table: undefined as unknown as string,
+                initialFieldId: 'a_dim1',
+                search: '',
+                limit: 10,
+                maxLimit: 5000,
+                filters: undefined,
+                exploreResolver: mockExploreResolver,
+            }),
+        ).rejects.toThrow(ParameterError);
+    });
+
+    test('adds label dimension as a second column and searches/sorts by it', async () => {
+        mockExploreResolver.findExploreByTableName.mockResolvedValue(
+            exploreWithLabelDimension('label_dim'),
+        );
+
+        const result = await getFieldValuesMetricQuery({
+            projectUuid: 'project-uuid',
+            table: 'a',
+            initialFieldId: 'a_dim1',
+            search: 'test',
+            limit: 10,
+            maxLimit: 5000,
+            filters: undefined,
+            exploreResolver: mockExploreResolver,
+        });
+
+        expect(result.metricQuery.dimensions).toEqual([
+            'a_dim1',
+            'a_label_dim',
+        ]);
+        expect(result.metricQuery.sorts).toEqual([
+            { fieldId: 'a_label_dim', descending: false },
+        ]);
+        expect(result.labelFieldId).toBe('a_label_dim');
+
+        const dims = result.metricQuery.filters?.dimensions;
+        const filterRules = dims && 'and' in dims ? dims.and : [];
+        const searchGroup = filterRules?.[0];
+        const orRules =
+            searchGroup && 'or' in searchGroup ? searchGroup.or : [];
+        expect(orRules).toMatchObject([
+            {
+                operator: FilterOperator.INCLUDE,
+                values: ['test'],
+                target: { fieldId: 'a_label_dim' },
+            },
+            {
+                operator: FilterOperator.INCLUDE,
+                values: ['test'],
+                target: { fieldId: 'a_dim1' },
+            },
+        ]);
+        expect(filterRules?.[1]).toMatchObject({
+            operator: FilterOperator.NOT_NULL,
+            target: { fieldId: 'a_dim1' },
+        });
+    });
+
+    test('ignores label dimension that references the value field itself', async () => {
+        mockExploreResolver.findExploreByTableName.mockResolvedValue(
+            exploreWithLabelDimension('dim1'),
+        );
+
+        const result = await getFieldValuesMetricQuery({
+            projectUuid: 'project-uuid',
+            table: 'a',
+            initialFieldId: 'a_dim1',
+            search: '',
+            limit: 10,
+            maxLimit: 5000,
+            filters: undefined,
+            exploreResolver: mockExploreResolver,
+        });
+
+        expect(result.labelFieldId).toBeNull();
+        expect(result.metricQuery.dimensions).toEqual(['a_dim1']);
+    });
+
+    test('throws NotFoundError when label dimension does not exist', async () => {
+        mockExploreResolver.findExploreByTableName.mockResolvedValue(
+            exploreWithLabelDimension('missing_dim'),
+        );
+
+        await expect(
+            getFieldValuesMetricQuery({
+                projectUuid: 'project-uuid',
+                table: 'a',
+                initialFieldId: 'a_dim1',
+                search: '',
+                limit: 10,
+                maxLimit: 5000,
+                filters: undefined,
+                exploreResolver: mockExploreResolver,
+            }),
+        ).rejects.toThrow(NotFoundError);
+    });
+
+    test('throws ParameterError when label dimension is a metric', async () => {
+        mockExploreResolver.findExploreByTableName.mockResolvedValue(
+            exploreWithLabelDimension('met1'),
+        );
+
+        await expect(
+            getFieldValuesMetricQuery({
+                projectUuid: 'project-uuid',
+                table: 'a',
                 initialFieldId: 'a_dim1',
                 search: '',
                 limit: 10,
