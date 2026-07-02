@@ -84,49 +84,30 @@ describe('isSafeAssetPath', () => {
 });
 
 describe('createStaticAssetsFallbackHandler', () => {
-    it('falls through when the client is not configured', async () => {
-        const client = createClientStub({ isEnabled: false });
-        const next = vi.fn();
+    it('falls through without a bucket round-trip when disabled, path is unsafe, or extension is unknown', async () => {
+        // All three gates must fall through to the 404 handler without a
+        // billed bucket GET.
+        const cases: Array<{ client: ClientStub; assetPath: string }> = [
+            {
+                client: createClientStub({ isEnabled: false }),
+                assetPath: 'chunk.js',
+            },
+            { client: createClientStub(), assetPath: '../index.html' },
+            { client: createClientStub(), assetPath: 'probe.zzz9' },
+        ];
 
-        await runHandler(
-            createHandler(client),
-            createRequest('chunk.js'),
-            createResponse(),
-            next,
-        );
-
-        expect(next).toHaveBeenCalledTimes(1);
-        expect(client.getAsset).not.toHaveBeenCalled();
-    });
-
-    it('falls through without hitting the bucket for unsafe paths', async () => {
-        const client = createClientStub();
-        const next = vi.fn();
-
-        await runHandler(
-            createHandler(client),
-            createRequest('../index.html'),
-            createResponse(),
-            next,
-        );
-
-        expect(next).toHaveBeenCalledTimes(1);
-        expect(client.getAsset).not.toHaveBeenCalled();
-    });
-
-    it('falls through without hitting the bucket for unknown extensions', async () => {
-        const client = createClientStub();
-        const next = vi.fn();
-
-        await runHandler(
-            createHandler(client),
-            createRequest('probe.zzz9'),
-            createResponse(),
-            next,
-        );
-
-        expect(next).toHaveBeenCalledTimes(1);
-        expect(client.getAsset).not.toHaveBeenCalled();
+        for (const { client, assetPath } of cases) {
+            const next = vi.fn();
+            // eslint-disable-next-line no-await-in-loop
+            await runHandler(
+                createHandler(client),
+                createRequest(assetPath),
+                createResponse(),
+                next,
+            );
+            expect(next).toHaveBeenCalledTimes(1);
+            expect(client.getAsset).not.toHaveBeenCalled();
+        }
     });
 
     it('falls through when the bucket does not have the asset', async () => {
@@ -144,32 +125,11 @@ describe('createStaticAssetsFallbackHandler', () => {
         expect(next).toHaveBeenCalledTimes(1);
     });
 
-    it('does not re-hit the bucket for a recently missed path', async () => {
-        const client = createClientStub();
-        const handler = createHandler(client);
-        const next = vi.fn();
-
-        await runHandler(
-            handler,
-            createRequest('chunk.js'),
-            createResponse(),
-            next,
-        );
-        await runHandler(
-            handler,
-            createRequest('chunk.js'),
-            createResponse(),
-            next,
-        );
-
-        expect(client.getAsset).toHaveBeenCalledTimes(1);
-        expect(next).toHaveBeenCalledTimes(2);
-    });
-
-    it('re-hits the bucket once the miss-cache TTL lapses', async () => {
-        // If expiry ever breaks, a pod that misses a chunk once would 404 it
-        // forever — even after a release uploads it. This is the recovery
-        // half of the negative-cache contract.
+    it('caches a miss within the TTL and re-hits the bucket once it lapses', async () => {
+        // Both halves of the negative-cache contract: repeated misses cost
+        // one bucket GET (probe protection), and expiry recovers — if it
+        // ever broke, a pod that missed a chunk once would 404 it forever,
+        // even after a release uploads it.
         vi.useFakeTimers();
         try {
             const client = createClientStub();
@@ -182,7 +142,14 @@ describe('createStaticAssetsFallbackHandler', () => {
                 createResponse(),
                 next,
             );
+            await runHandler(
+                handler,
+                createRequest('chunk.js'),
+                createResponse(),
+                next,
+            );
             expect(client.getAsset).toHaveBeenCalledTimes(1);
+            expect(next).toHaveBeenCalledTimes(2);
 
             vi.advanceTimersByTime(61_000);
 
@@ -198,7 +165,7 @@ describe('createStaticAssetsFallbackHandler', () => {
         }
     });
 
-    it('streams a bucket hit with immutable caching headers', async () => {
+    it('serves a bucket hit: streamed GET with immutable headers, no Content-Length when unknown, headers-only HEAD', async () => {
         const asset: StaticAsset = {
             body: Readable.from(['chunk contents']),
             contentLength: 123,
@@ -252,31 +219,29 @@ describe('createStaticAssetsFallbackHandler', () => {
             'Content-Length',
             expect.anything(),
         );
-    });
 
-    it('answers HEAD requests with headers only and discards the body', async () => {
-        const body = Readable.from(['chunk contents']);
-        const asset: StaticAsset = { body, contentLength: 123 };
-        const client = createClientStub({
-            getAsset: vi.fn().mockResolvedValue(asset),
+        // HEAD (express routes it to GET handlers): headers only, and the
+        // bucket stream must be destroyed, not leaked
+        const headBody = Readable.from(['chunk contents']);
+        const headClient = createClientStub({
+            getAsset: vi.fn().mockResolvedValue({
+                body: headBody,
+                contentLength: 123,
+            } satisfies StaticAsset),
         });
-        const res = createWritableResponse();
-        const next = vi.fn();
-
+        const headRes = createWritableResponse();
         await runHandler(
-            createHandler(client),
+            createHandler(headClient),
             createRequest('chunk.js', 'HEAD'),
-            res as unknown as Response,
-            next,
+            headRes as unknown as Response,
+            vi.fn(),
         );
         await new Promise((resolve) => {
-            res.on('finish', resolve);
+            headRes.on('finish', resolve);
         });
-
-        expect(next).not.toHaveBeenCalled();
-        expect(res.setHeader).toHaveBeenCalledWith('Content-Length', 123);
-        expect(res.writtenBody()).toBe('');
-        expect(body.destroyed).toBe(true);
+        expect(headRes.setHeader).toHaveBeenCalledWith('Content-Length', 123);
+        expect(headRes.writtenBody()).toBe('');
+        expect(headBody.destroyed).toBe(true);
     });
 
     it('tears the response down without a late status write when the stream errors', async () => {

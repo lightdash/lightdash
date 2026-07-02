@@ -93,35 +93,28 @@ describe('StaticAssetsS3Client', () => {
             });
         });
 
-        it('treats NoSuchKey as a silent miss', async () => {
+        it('treats a missing object (NoSuchKey, or 403 on AWS S3 without ListBucket) as a silent miss', async () => {
             s3Mocks.send.mockRejectedValueOnce(
                 new s3Mocks.FakeNoSuchKey('missing'),
             );
-
             expect(await createClient().getAsset('chunk.js')).toBeNull();
+
+            s3Mocks.send.mockRejectedValueOnce(forbiddenError(403));
+            expect(await createClient().getAsset('chunk.js')).toBeNull();
+
             expect(Logger.warn).not.toHaveBeenCalled();
             expect(Logger.error).not.toHaveBeenCalled();
         });
 
-        it('treats a 403 (AWS S3 without ListBucket) as a silent miss', async () => {
-            s3Mocks.send.mockRejectedValueOnce(forbiddenError(403));
-
-            expect(await createClient().getAsset('chunk.js')).toBeNull();
-            expect(Logger.warn).not.toHaveBeenCalled();
-        });
-
-        it('logs and returns null on unexpected errors', async () => {
+        it('degrades unexpected errors and the 5s time-box to a logged miss', async () => {
+            // Never throw into the request path; a slow bucket must produce
+            // a fast 404, not hang every /assets request behind SDK retries.
             s3Mocks.send.mockRejectedValueOnce(new Error('socket timeout'));
-
             expect(await createClient().getAsset('chunk.js')).toBeNull();
             expect(Logger.warn).toHaveBeenCalledWith(
                 expect.stringContaining('socket timeout'),
             );
-        });
 
-        it('degrades to a fast miss when the bucket exceeds the 5s time-box', async () => {
-            // A slow bucket must produce a 404, not hang every /assets
-            // request behind SDK retries.
             vi.useFakeTimers();
             try {
                 s3Mocks.send.mockImplementationOnce(
