@@ -5,9 +5,9 @@ import type {
     SupportedDbtVersions,
     WarehouseTypes,
 } from '@lightdash/common';
-import type { SandboxHandle } from '../SandboxRuntime';
 import type { AiWritebackFailureStage } from '../../../analytics/LightdashAnalytics';
 import type { ResumableWritebackThread } from '../../models/AiWritebackThreadModel';
+import type { SandboxHandle } from '../SandboxRuntime';
 import type { GitProvider } from './providers/GitProvider';
 
 /**
@@ -177,7 +177,10 @@ export type CodingAgentConfig = {
      * that don't belong in the prompt (dbt: install the secret-stripping compile
      * wrapper, push warehouse skills, reset the compile-timings log).
      */
-    beforeAgentRun: (sandbox: SandboxHandle, turn: TurnContext) => Promise<void>;
+    beforeAgentRun: (
+        sandbox: SandboxHandle,
+        turn: TurnContext,
+    ) => Promise<void>;
     /**
      * Hook run immediately after the Claude CLI exits — for diagnostics that
      * depend on what the agent did (dbt: read + report the compile timings).
