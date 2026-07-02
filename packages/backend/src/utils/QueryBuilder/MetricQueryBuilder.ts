@@ -642,14 +642,13 @@ export class MetricQueryBuilder {
      * extractable intervals.
      *
      * Base dims with `convert_timezone: false` are skipped — the dim renders
-     * in its raw warehouse value. Pass `respectConvertTimezone: false` from
-     * filter rendering so WHERE clauses keep wrapping regardless.
+     * in its raw warehouse value, on both the SELECT and the WHERE side so
+     * filters compare against the stored value.
      */
     private getTimezoneAwareDimensionSql(
         dimension: CompiledDimension,
         adapterType: SupportedDbtAdapter,
         startOfWeek: WeekDay | null | undefined,
-        respectConvertTimezone: boolean = true,
     ): string {
         const { timezone, useTimezoneAwareDateTrunc } = this.args;
 
@@ -680,7 +679,7 @@ export class MetricQueryBuilder {
             return dimension.compiledSql;
         }
 
-        if (respectConvertTimezone && baseDimension.skipTimezoneConversion) {
+        if (baseDimension.skipTimezoneConversion) {
             return dimension.compiledSql;
         }
 
@@ -1724,8 +1723,9 @@ export class MetricQueryBuilder {
         }
 
         // Override filter dimension SQL to match the timezone-aware SELECT
-        // clause. Filters always wrap by project tz — even for dims with
-        // `convert_timezone: false` — so pass `respectConvertTimezone: false`.
+        // clause. This honours `convert_timezone: false` so the WHERE column
+        // expression stays unwrapped, exactly like the SELECT — the filter
+        // value side still resolves relative windows in the project timezone.
         const filterField = isDimension(field)
             ? {
                   ...field,
@@ -1733,7 +1733,6 @@ export class MetricQueryBuilder {
                       field,
                       adapterType,
                       startOfWeek,
-                      false,
                   ),
               }
             : field;

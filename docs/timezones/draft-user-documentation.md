@@ -104,7 +104,7 @@ columns:
         convert_timezone: false
 ```
 
-Use cases: audit logs, system timestamps, pre-converted values. The column will render exactly what the warehouse stores.
+Use cases: audit logs, system timestamps, pre-converted values. The column will render exactly what the warehouse stores. Filtering on the column uses the same raw value, so a filter matches the day the row displays under.
 
 ### `wall_clock_timezone:` — declare a non-UTC source zone for one column
 
