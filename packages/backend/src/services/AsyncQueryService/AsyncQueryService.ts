@@ -2714,6 +2714,7 @@ export class AsyncQueryService extends ProjectService {
                 event: 'query.ready',
                 properties: {
                     queryId: queryUuid,
+                    organizationId: organizationUuid,
                     projectId: projectUuid,
                     warehouseType: warehouseClient.credentials.type,
                     executionSource,
@@ -2879,6 +2880,7 @@ export class AsyncQueryService extends ProjectService {
                 event: 'query.error',
                 properties: {
                     queryId: queryUuid,
+                    organizationId: organizationUuid,
                     projectId: projectUuid,
                     warehouseType: warehouseCredentialsType,
                     executionSource,
