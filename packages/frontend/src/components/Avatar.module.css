@@ -8,91 +8,91 @@
 
 .root[data-avatar-gradient='dusk'] .placeholder {
     background:
-        radial-gradient(130% 130% at 30% 30%, #a499ff 0%, transparent 55%),
-        radial-gradient(130% 130% at 70% 70%, #5e4cff 0%, transparent 55%),
-        #8270cc;
+        radial-gradient(180% 180% at 20% 20%, #a499ff 0%, transparent 50%),
+        radial-gradient(180% 180% at 80% 80%, #5e4cff 0%, transparent 50%),
+        #8372d9;
 }
 .root[data-avatar-gradient='lilac'] .placeholder {
     background:
-        radial-gradient(130% 130% at 30% 30%, #d1ccff 0%, transparent 55%),
-        radial-gradient(130% 130% at 70% 70%, #a499ff 0%, transparent 55%),
-        #c0b6ff;
+        radial-gradient(180% 180% at 20% 20%, #d1ccff 0%, transparent 50%),
+        radial-gradient(180% 180% at 80% 80%, #a499ff 0%, transparent 50%),
+        #bfb4ff;
 }
 .root[data-avatar-gradient='ocean'] .placeholder {
     background:
-        radial-gradient(130% 130% at 30% 30%, #8001fe 0%, transparent 55%),
-        radial-gradient(130% 130% at 70% 70%, #1200b2 0%, transparent 55%),
-        #4a2f9e;
+        radial-gradient(180% 180% at 20% 20%, #8001fe 0%, transparent 50%),
+        radial-gradient(180% 180% at 80% 80%, #1200b2 0%, transparent 50%),
+        #4a319f;
 }
 .root[data-avatar-gradient='ember'] .placeholder {
     background:
-        radial-gradient(130% 130% at 30% 30%, #b267fe 0%, transparent 55%),
-        radial-gradient(130% 130% at 70% 70%, #26004c 0%, transparent 55%),
-        #6d2d8a;
+        radial-gradient(180% 180% at 20% 20%, #b267fe 0%, transparent 50%),
+        radial-gradient(180% 180% at 80% 80%, #26004c 0%, transparent 50%),
+        #6d3690;
 }
 .root[data-avatar-gradient='blush'] .placeholder {
     background:
-        radial-gradient(130% 130% at 30% 30%, #ffd1e8 0%, transparent 55%),
-        radial-gradient(130% 130% at 70% 70%, #d9b3ff 0%, transparent 55%),
-        #f0c0e0;
+        radial-gradient(180% 180% at 20% 20%, #ffd1e8 0%, transparent 50%),
+        radial-gradient(180% 180% at 80% 80%, #d9b3ff 0%, transparent 50%),
+        #f0c5e3;
 }
 .root[data-avatar-gradient='minty'] .placeholder {
     background:
-        radial-gradient(130% 130% at 30% 30%, #edfbd0 0%, transparent 55%),
-        radial-gradient(130% 130% at 70% 70%, #dbfe95 0%, transparent 55%),
-        #e5faa0;
+        radial-gradient(180% 180% at 20% 20%, #edfbd0 0%, transparent 50%),
+        radial-gradient(180% 180% at 80% 80%, #dbfe95 0%, transparent 50%),
+        #e5fb9e;
 }
 .root[data-avatar-gradient='forest'] .placeholder {
     background:
-        radial-gradient(130% 130% at 30% 30%, #1d7c51 0%, transparent 55%),
-        radial-gradient(130% 130% at 70% 70%, #1200b2 0%, transparent 55%),
+        radial-gradient(180% 180% at 20% 20%, #1d7c51 0%, transparent 50%),
+        radial-gradient(180% 180% at 80% 80%, #1200b2 0%, transparent 50%),
         #1a3f71;
 }
 .root[data-avatar-gradient='sunrise'] .placeholder {
     background:
-        radial-gradient(130% 130% at 30% 30%, #d1ccff 0%, transparent 55%),
-        radial-gradient(130% 130% at 70% 70%, #daf6a2 0%, transparent 55%),
-        #d0e1b8;
+        radial-gradient(180% 180% at 20% 20%, #d1ccff 0%, transparent 50%),
+        radial-gradient(180% 180% at 80% 80%, #daf6a2 0%, transparent 50%),
+        #d0e1bf;
 }
 .root[data-avatar-gradient='twilight'] .placeholder {
     background:
-        radial-gradient(130% 130% at 30% 30%, #26004c 0%, transparent 55%),
-        radial-gradient(130% 130% at 70% 70%, #0e3e29 0%, transparent 55%),
+        radial-gradient(180% 180% at 20% 20%, #26004c 0%, transparent 50%),
+        radial-gradient(180% 180% at 80% 80%, #0e3e29 0%, transparent 50%),
         #172038;
 }
 .root[data-avatar-gradient='lavender'] .placeholder {
     background:
-        radial-gradient(130% 130% at 30% 30%, #d1ccff 0%, transparent 55%),
-        radial-gradient(130% 130% at 70% 70%, #d9b3ff 0%, transparent 55%),
+        radial-gradient(180% 180% at 20% 20%, #d1ccff 0%, transparent 50%),
+        radial-gradient(180% 180% at 80% 80%, #d9b3ff 0%, transparent 50%),
         #d5bfff;
 }
 .root[data-avatar-gradient='emerald'] .placeholder {
     background:
-        radial-gradient(130% 130% at 30% 30%, #30cf87 0%, transparent 55%),
-        radial-gradient(130% 130% at 70% 70%, #0e3e29 0%, transparent 55%),
+        radial-gradient(180% 180% at 20% 20%, #30cf87 0%, transparent 50%),
+        radial-gradient(180% 180% at 80% 80%, #0e3e29 0%, transparent 50%),
         #1f6b52;
 }
 .root[data-avatar-gradient='amethyst'] .placeholder {
     background:
-        radial-gradient(130% 130% at 30% 30%, #8001fe 0%, transparent 55%),
-        radial-gradient(130% 130% at 70% 70%, #5e4cff 0%, transparent 55%),
+        radial-gradient(180% 180% at 20% 20%, #8001fe 0%, transparent 50%),
+        radial-gradient(180% 180% at 80% 80%, #5e4cff 0%, transparent 50%),
         #7043d6;
 }
 .root[data-avatar-gradient='sage'] .placeholder {
     background:
-        radial-gradient(130% 130% at 30% 30%, #edfbd0 0%, transparent 55%),
-        radial-gradient(130% 130% at 70% 70%, #83e2b7 0%, transparent 55%),
-        #c5e8a8;
+        radial-gradient(180% 180% at 20% 20%, #edfbd0 0%, transparent 50%),
+        radial-gradient(180% 180% at 80% 80%, #83e2b7 0%, transparent 50%),
+        #c5e8ac;
 }
 .root[data-avatar-gradient='orchid'] .placeholder {
     background:
-        radial-gradient(130% 130% at 30% 30%, #d9b3ff 0%, transparent 55%),
-        radial-gradient(130% 130% at 70% 70%, #8001fe 0%, transparent 55%),
+        radial-gradient(180% 180% at 20% 20%, #d9b3ff 0%, transparent 50%),
+        radial-gradient(180% 180% at 80% 80%, #8001fe 0%, transparent 50%),
         #b589f0;
 }
 .root[data-avatar-gradient='jungle'] .placeholder {
     background:
-        radial-gradient(130% 130% at 30% 30%, #3b5408 0%, transparent 55%),
-        radial-gradient(130% 130% at 70% 70%, #1d7c51 0%, transparent 55%),
+        radial-gradient(180% 180% at 20% 20%, #3b5408 0%, transparent 50%),
+        radial-gradient(180% 180% at 80% 80%, #1d7c51 0%, transparent 50%),
         #2e6527;
 }
