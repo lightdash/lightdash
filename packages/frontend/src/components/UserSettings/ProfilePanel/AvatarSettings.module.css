@@ -8,6 +8,7 @@
 }
 
 .swatchSelected {
-    outline: 1px solid #000;
-    outline-offset: 2px;
+    box-shadow:
+        0 0 8px rgba(60, 60, 60, 0.5),
+        inset 0 0 0 1px rgba(100, 100, 100, 0.3);
 }
