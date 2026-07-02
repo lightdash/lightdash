@@ -123,7 +123,60 @@ jobs:
             SENTRY_ENVIRONMENT=cloud_beta
 
   # ============================================================================
-  # Job 2: QA Blast Radius
+  # Job 2: Push static assets to the Cloud retention buckets
+  #
+  # Stale browser tabs request hashed chunks that a new deploy no longer
+  # ships; the backend falls back to these buckets (StaticAssetsS3Client,
+  # read-only — this job is the only writer). Assets are extracted from the
+  # published image (never rebuilt here) so uploaded hashes always match
+  # what the image serves.
+  # `gsutil cp` is deliberately unconditional: rewriting unchanged objects
+  # resets their lifecycle age, which keeps long-lived chunks (e.g. vendor
+  # bundles) alive while superseded ones expire.
+  # ============================================================================
+  push-static-assets:
+    name: Push Static Assets to GCS
+    runs-on: ubuntu-latest
+    needs: build-and-push-images
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - id: 'auth'
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          credentials_json: '${{ secrets.GCP_CREDENTIALS_IMAGE_DEPLOY }}'
+
+      - name: 'Set up Cloud SDK'
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+        with:
+          version: '>= 381.0.0'
+
+      - name: Extract assets from the published image
+        run: |
+          gcloud auth configure-docker us-docker.pkg.dev --quiet
+          IMAGE="us-docker.pkg.dev/lightdash-containers/lightdash/lightdash:${{ github.event.release.tag_name }}-commercial"
+          docker pull "$IMAGE"
+          CONTAINER_ID=$(docker create "$IMAGE")
+          docker cp "$CONTAINER_ID":/usr/app/packages/frontend/build/assets ./assets
+          docker rm "$CONTAINER_ID"
+          # Sourcemaps and precompressed companions are never served from
+          # the bucket (see StaticAssetsS3Client.syncLocalAssets)
+          find ./assets -name '*.map' -delete
+          find ./assets -name '*.gzip' -delete
+          echo "Extracted $(find ./assets -type f | wc -l) asset files"
+
+      - name: Upload assets to retention buckets
+        run: |
+          for BUCKET in lightdash-static-assets-us lightdash-static-assets-eu lightdash-static-assets-staging; do
+            echo "Uploading to gs://$BUCKET/assets/"
+            gsutil -m -h "Cache-Control:public, max-age=31536000, immutable" \
+              cp -r ./assets/* "gs://$BUCKET/assets/"
+          done
+
+  # ============================================================================
+  # Job 3: QA Blast Radius
   # ============================================================================
   qa-blast-radius:
     name: Generate QA Blast Radius
@@ -177,7 +230,7 @@ jobs:
             --clobber
 
   # ============================================================================
-  # Job 3: CLI Release Binaries
+  # Job 4: CLI Release Binaries
   # ============================================================================
   check-cli-changes:
     name: Check if CLI files changed
@@ -477,7 +530,7 @@ jobs:
           git push origin main
 
   # ============================================================================
-  # Job 4: Data App E2B template — publish a tag matching this release
+  # Job 5: Data App E2B template — publish a tag matching this release
   # ============================================================================
   # Two paths:
   #   build  — full E2B template rebuild when sandboxes/data-apps/** or
@@ -623,7 +676,7 @@ jobs:
         run: pnpm exec tsx assign-tag.ts
 
   # ============================================================================
-  # Job 5: AI Writeback E2B template — publish a tag matching this release
+  # Job 6: AI Writeback E2B template — publish a tag matching this release
   # ============================================================================
   # Mirrors the data-app template jobs above. Two paths:
   #   build  — full E2B template rebuild when sandboxes/ai-writeback/**

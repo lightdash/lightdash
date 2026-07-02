@@ -35,6 +35,8 @@ import {
 } from './clients/ClientRepository';
 import { setGithubRateLimitObserver } from './clients/github/Github';
 import { SlackClient } from './clients/Slack/SlackClient';
+import { createStaticAssetsFallbackHandler } from './clients/StaticAssets/staticAssetsFallbackMiddleware';
+import { StaticAssetsS3Client } from './clients/StaticAssets/StaticAssetsS3Client';
 import { LightdashConfig } from './config/parseConfig';
 import {
     apiKeyPassportStrategy,
@@ -724,6 +726,20 @@ export default class App {
                     },
                 },
             ),
+        );
+
+        // Chunks from recent builds that this image no longer ships are
+        // retained in a bucket populated at release time, so stale tabs
+        // survive a deploy. Read-only here; no-op (falls through to the 404
+        // below) when the bucket is not configured. Constructed directly
+        // rather than via ClientRepository: it is HTTP wiring only, nothing
+        // in the service layer needs it.
+        const staticAssetsClient = new StaticAssetsS3Client({
+            lightdashConfig: this.lightdashConfig,
+        });
+        expressApp.get(
+            '/assets/*',
+            createStaticAssetsFallbackHandler(staticAssetsClient),
         );
 
         // Return 404 for missing assets (don't fall through index.html)
