@@ -1,5 +1,13 @@
 import { USER_AVATAR_GRADIENT_IDS } from '@lightdash/common';
-import { Button, Divider, FileButton, Group, Tooltip } from '@mantine-8/core';
+import {
+    Button,
+    Divider,
+    FileButton,
+    Group,
+    Popover,
+    Text,
+    Tooltip,
+} from '@mantine-8/core';
 import { type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
@@ -74,54 +82,78 @@ const AvatarSettings: FC = () => {
                 </Button>
             )}
             {!avatarUrl && (
-                <Group gap="xs" wrap="nowrap" align="center">
-                    <Tooltip label="No color (default)">
-                        <button
-                            type="button"
-                            aria-label="Use default avatar"
-                            className={
-                                !avatarGradient
-                                    ? `${classes.swatchButton} ${classes.swatchSelected}`
-                                    : classes.swatchButton
-                            }
-                            onClick={() =>
-                                updateUserMutation.mutate({
-                                    avatarGradient: null,
-                                })
-                            }
-                        >
-                            <LightdashUserAvatar size="sm">
-                                {initials}
-                            </LightdashUserAvatar>
-                        </button>
-                    </Tooltip>
-                    {USER_AVATAR_GRADIENT_IDS.map((gradientId) => (
-                        <Tooltip key={gradientId} label={gradientId}>
+                <Popover width={200} position="bottom-start" withArrow>
+                    <Popover.Target>
+                        <Tooltip label="Choose color">
                             <button
                                 type="button"
-                                aria-label={`Use ${gradientId} avatar color`}
-                                className={
-                                    gradientId === avatarGradient
-                                        ? `${classes.swatchButton} ${classes.swatchSelected}`
-                                        : classes.swatchButton
-                                }
-                                onClick={() =>
-                                    updateUserMutation.mutate({
-                                        avatarGradient: gradientId,
-                                    })
-                                }
+                                aria-label="Choose avatar color"
+                                className={classes.swatchButton}
                             >
                                 <LightdashUserAvatar
                                     size="sm"
                                     userUuid={userUuid}
-                                    avatarGradient={gradientId}
+                                    avatarGradient={avatarGradient}
                                 >
                                     {initials}
                                 </LightdashUserAvatar>
                             </button>
                         </Tooltip>
-                    ))}
-                </Group>
+                    </Popover.Target>
+                    <Popover.Dropdown>
+                        <Text size="xs" c="dimmed" fw={500} mb="xs">
+                            Avatar color
+                        </Text>
+                        <Group gap="xs" wrap="wrap">
+                            <Tooltip label="No color (default)">
+                                <button
+                                    type="button"
+                                    aria-label="Use default avatar"
+                                    className={
+                                        !avatarGradient
+                                            ? `${classes.swatchButton} ${classes.swatchSelected}`
+                                            : classes.swatchButton
+                                    }
+                                    onClick={() =>
+                                        updateUserMutation.mutate({
+                                            avatarGradient: null,
+                                        })
+                                    }
+                                >
+                                    <LightdashUserAvatar size="sm">
+                                        {initials}
+                                    </LightdashUserAvatar>
+                                </button>
+                            </Tooltip>
+                            {USER_AVATAR_GRADIENT_IDS.map((gradientId) => (
+                                <Tooltip key={gradientId} label={gradientId}>
+                                    <button
+                                        type="button"
+                                        aria-label={`Use ${gradientId} avatar color`}
+                                        className={
+                                            gradientId === avatarGradient
+                                                ? `${classes.swatchButton} ${classes.swatchSelected}`
+                                                : classes.swatchButton
+                                        }
+                                        onClick={() =>
+                                            updateUserMutation.mutate({
+                                                avatarGradient: gradientId,
+                                            })
+                                        }
+                                    >
+                                        <LightdashUserAvatar
+                                            size="sm"
+                                            userUuid={userUuid}
+                                            avatarGradient={gradientId}
+                                        >
+                                            {initials}
+                                        </LightdashUserAvatar>
+                                    </button>
+                                </Tooltip>
+                            ))}
+                        </Group>
+                    </Popover.Dropdown>
+                </Popover>
             )}
         </Group>
     );
