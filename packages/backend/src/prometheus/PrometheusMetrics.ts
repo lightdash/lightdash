@@ -169,6 +169,15 @@ export default class PrometheusMetrics {
 
     public queryCacheHitCounter: prometheus.Counter<string> | null = null;
 
+    // Usage event stream writer metrics
+    public usageEventsPushedCounter: prometheus.Counter | null = null;
+
+    public usageEventsFlushedCounter: prometheus.Counter | null = null;
+
+    public usageEventsDroppedCounter: prometheus.Counter | null = null;
+
+    public usageEventsPutFailuresCounter: prometheus.Counter | null = null;
+
     public preAggregateMaterializationFileSizeHistogram: prometheus.Histogram<string> | null =
         null;
 
@@ -759,6 +768,31 @@ export default class PrometheusMetrics {
                     ...rest,
                 });
 
+                // Usage event stream writer metrics
+                this.usageEventsPushedCounter = new prometheus.Counter({
+                    name: 'lightdash_usage_events_pushed_total',
+                    help: 'Total usage events pushed into the event stream buffer',
+                    ...rest,
+                });
+
+                this.usageEventsFlushedCounter = new prometheus.Counter({
+                    name: 'lightdash_usage_events_flushed_total',
+                    help: 'Total usage events flushed to the S3 raw zone',
+                    ...rest,
+                });
+
+                this.usageEventsDroppedCounter = new prometheus.Counter({
+                    name: 'lightdash_usage_events_dropped_total',
+                    help: 'Total usage events dropped because the buffer was full',
+                    ...rest,
+                });
+
+                this.usageEventsPutFailuresCounter = new prometheus.Counter({
+                    name: 'lightdash_usage_events_put_failures_total',
+                    help: 'Total usage event batches dropped after exhausting S3 PUT retries',
+                    ...rest,
+                });
+
                 const app = express();
                 this.server = http.createServer(app);
                 app.get(metricsPath, async (req, res) => {
@@ -1339,6 +1373,22 @@ export default class PrometheusMetrics {
 
     public observeAiWritebackStageDuration(stage: string, durationMs: number) {
         this.aiWritebackStageDurationHistogram?.observe({ stage }, durationMs);
+    }
+
+    public incrementUsageEventsPushed() {
+        this.usageEventsPushedCounter?.inc();
+    }
+
+    public incrementUsageEventsFlushed(count: number) {
+        this.usageEventsFlushedCounter?.inc(count);
+    }
+
+    public incrementUsageEventsDropped() {
+        this.usageEventsDroppedCounter?.inc();
+    }
+
+    public incrementUsageEventsPutFailure() {
+        this.usageEventsPutFailuresCounter?.inc();
     }
 
     public monitorEventMetrics(eventEmitter: EventEmitter) {

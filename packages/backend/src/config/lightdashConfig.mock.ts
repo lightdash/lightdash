@@ -360,6 +360,13 @@ export const lightdashConfigMock: LightdashConfig = {
             region: 'mock_region',
         },
     },
+    usageEvents: {
+        enabled: false,
+        flushIntervalMs: 60000,
+        flushBatchSize: 1000,
+        bufferMaxSize: 10000,
+        s3: null,
+    },
     appRuntime: {
         enabled: false,
         lightdashOrigin: 'https://test.lightdash.cloud',
