@@ -7,6 +7,7 @@ import type {
     ItemsMap,
 } from '..';
 import {
+    ConditionalFormattingAppliesTo,
     ConditionalFormattingColorApplyTo,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
@@ -519,6 +520,31 @@ export const hasMatchingConditionalRules = (
     return assertUnreachable(config, 'Unknown conditional formatting config');
 };
 
+/**
+ * Whether a config should apply to a cell given whether that cell is a total
+ * (row/column total or subtotal). `appliesTo` defaults to ALL so charts saved
+ * before this option existed behave exactly as before.
+ */
+export const conditionalFormattingConfigAppliesToCell = (
+    config: ConditionalFormattingConfig,
+    isTotal: boolean,
+): boolean => {
+    const appliesTo = config.appliesTo ?? ConditionalFormattingAppliesTo.ALL;
+    switch (appliesTo) {
+        case ConditionalFormattingAppliesTo.ALL:
+            return true;
+        case ConditionalFormattingAppliesTo.DATA:
+            return !isTotal;
+        case ConditionalFormattingAppliesTo.TOTALS:
+            return isTotal;
+        default:
+            return assertUnreachable(
+                appliesTo,
+                'Unknown conditional formatting appliesTo',
+            );
+    }
+};
+
 export const getConditionalFormattingConfig = ({
     field,
     value,
@@ -526,6 +552,7 @@ export const getConditionalFormattingConfig = ({
     conditionalFormattings,
     rowFields,
     applyTo,
+    isTotal = false,
 }: {
     field: ItemsMap[string] | undefined;
     value: unknown | undefined;
@@ -533,6 +560,8 @@ export const getConditionalFormattingConfig = ({
     conditionalFormattings: ConditionalFormattingConfig[] | undefined;
     rowFields?: ConditionalFormattingRowFields;
     applyTo?: ConditionalFormattingColorApplyTo;
+    /** True when the cell is a row/column total or subtotal */
+    isTotal?: boolean;
 }) => {
     // For backwards compatibility with old table calculations without type
     const isCalculationTypeUndefined =
@@ -552,6 +581,10 @@ export const getConditionalFormattingConfig = ({
             (config.applyTo ?? ConditionalFormattingColorApplyTo.CELL) !==
                 applyTo
         ) {
+            return false;
+        }
+
+        if (!conditionalFormattingConfigAppliesToCell(config, isTotal)) {
             return false;
         }
 
@@ -761,15 +794,21 @@ export const getRowConditionalFormattingConfig = ({
     conditionalFormattings,
     rowFields,
     minMaxMap = {},
+    isTotal = false,
 }: {
     conditionalFormattings: ConditionalFormattingConfig[] | undefined;
     rowFields: ConditionalFormattingRowFields;
     minMaxMap: ConditionalFormattingMinMaxMap | undefined;
+    /** True when the row is a total or subtotal row */
+    isTotal?: boolean;
 }): ConditionalFormattingConfig | undefined => {
     if (!conditionalFormattings) return undefined;
 
     return conditionalFormattings.find((config) => {
         if (config.applyTo !== ConditionalFormattingColorApplyTo.ROW) {
+            return false;
+        }
+        if (!conditionalFormattingConfigAppliesToCell(config, isTotal)) {
             return false;
         }
         const targetFieldId = config.target?.fieldId;
@@ -795,6 +834,8 @@ export const getRowConditionalFormattingColor = (args: {
     conditionalFormattings: ConditionalFormattingConfig[] | undefined;
     rowFields: ConditionalFormattingRowFields;
     minMaxMap: ConditionalFormattingMinMaxMap | undefined;
+    /** True when the row is a total or subtotal row */
+    isTotal?: boolean;
 }): string | null => {
     const match = getRowConditionalFormattingConfig(args);
 

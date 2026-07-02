@@ -549,6 +549,11 @@
             "enum": ["raw", "percentage"],
             "type": "string"
         },
+        "ConditionalFormattingAppliesTo": {
+            "description": "Scopes a conditional formatting rule to data cells, total cells (row/column\ntotals and subtotals), or both. Defaults to ALL for backwards compatibility\nwith charts saved before this option existed.",
+            "enum": ["all", "data", "totals"],
+            "type": "string"
+        },
         "ConditionalFormattingColorApplyTo": {
             "enum": ["cell", "text", "row"],
             "type": "string"
@@ -579,6 +584,10 @@
         },
         "ConditionalFormattingConfigWithColorRange": {
             "properties": {
+                "appliesTo": {
+                    "$ref": "#/$defs/ConditionalFormattingAppliesTo",
+                    "description": "Scope the rule to data cells only, total cells only, or both (default)"
+                },
                 "applyTo": {
                     "$ref": "#/$defs/ConditionalFormattingColorApplyTo",
                     "description": "Apply formatting to cell background or text"
@@ -616,6 +625,10 @@
         },
         "ConditionalFormattingConfigWithSingleColor": {
             "properties": {
+                "appliesTo": {
+                    "$ref": "#/$defs/ConditionalFormattingAppliesTo",
+                    "description": "Scope the rule to data cells only, total cells only, or both (default)"
+                },
                 "applyTo": {
                     "$ref": "#/$defs/ConditionalFormattingColorApplyTo",
                     "description": "Apply formatting to cell background or text"

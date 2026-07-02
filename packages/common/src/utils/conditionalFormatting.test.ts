@@ -1,7 +1,11 @@
-import { ConditionalFormattingColorApplyTo } from '../types/conditionalFormatting';
+import {
+    ConditionalFormattingAppliesTo,
+    ConditionalFormattingColorApplyTo,
+} from '../types/conditionalFormatting';
 import { DimensionType, FieldType } from '../types/field';
 import { FilterOperator } from '../types/filter';
 import {
+    conditionalFormattingConfigAppliesToCell,
     createConditionalFormattingConfigWithSingleColor,
     createConditionalFormattingRuleWithValues,
     getConditionalFormattingConfig,
@@ -220,6 +224,121 @@ describe('getConditionalFormattingConfig', () => {
                 conditionalFormattings,
             }),
         ).toBe(textConfig);
+    });
+});
+
+describe('conditionalFormattingConfigAppliesToCell', () => {
+    const config = createConditionalFormattingConfigWithSingleColor('#ff0000');
+
+    it('applies everywhere when appliesTo is unset (backwards compatible)', () => {
+        expect(conditionalFormattingConfigAppliesToCell(config, false)).toBe(
+            true,
+        );
+        expect(conditionalFormattingConfigAppliesToCell(config, true)).toBe(
+            true,
+        );
+    });
+
+    it('applies everywhere when appliesTo is ALL', () => {
+        const allConfig = {
+            ...config,
+            appliesTo: ConditionalFormattingAppliesTo.ALL,
+        };
+        expect(conditionalFormattingConfigAppliesToCell(allConfig, false)).toBe(
+            true,
+        );
+        expect(conditionalFormattingConfigAppliesToCell(allConfig, true)).toBe(
+            true,
+        );
+    });
+
+    it('applies to data cells only when appliesTo is DATA', () => {
+        const dataConfig = {
+            ...config,
+            appliesTo: ConditionalFormattingAppliesTo.DATA,
+        };
+        expect(conditionalFormattingConfigAppliesToCell(dataConfig, false)).toBe(
+            true,
+        );
+        expect(conditionalFormattingConfigAppliesToCell(dataConfig, true)).toBe(
+            false,
+        );
+    });
+
+    it('applies to total cells only when appliesTo is TOTALS', () => {
+        const totalsConfig = {
+            ...config,
+            appliesTo: ConditionalFormattingAppliesTo.TOTALS,
+        };
+        expect(
+            conditionalFormattingConfigAppliesToCell(totalsConfig, false),
+        ).toBe(false);
+        expect(
+            conditionalFormattingConfigAppliesToCell(totalsConfig, true),
+        ).toBe(true);
+    });
+});
+
+describe('getConditionalFormattingConfig with totals scope', () => {
+    const buildConfig = (appliesTo: ConditionalFormattingAppliesTo) => {
+        const config =
+            createConditionalFormattingConfigWithSingleColor('#ff0000');
+        config.appliesTo = appliesTo;
+        config.rules[0].operator = FilterOperator.GREATER_THAN_OR_EQUAL;
+        config.rules[0].values = [0];
+        return config;
+    };
+
+    it('skips DATA-scoped rules on total cells but keeps them on data cells', () => {
+        const conditionalFormattings = [
+            buildConfig(ConditionalFormattingAppliesTo.DATA),
+        ];
+
+        expect(
+            getConditionalFormattingConfig({
+                field: mockNumericField,
+                value: 5,
+                minMaxMap: {},
+                conditionalFormattings,
+                isTotal: false,
+            }),
+        ).toBe(conditionalFormattings[0]);
+
+        expect(
+            getConditionalFormattingConfig({
+                field: mockNumericField,
+                value: 5,
+                minMaxMap: {},
+                conditionalFormattings,
+                isTotal: true,
+            }),
+        ).toBeUndefined();
+    });
+
+    it('applies TOTALS-scoped rules only on total cells', () => {
+        const conditionalFormattings = [
+            buildConfig(ConditionalFormattingAppliesTo.TOTALS),
+        ];
+
+        expect(
+            getConditionalFormattingConfig({
+                field: mockNumericField,
+                value: 5,
+                minMaxMap: {},
+                conditionalFormattings,
+                isTotal: false,
+            }),
+        ).toBeUndefined();
+
+        expect(
+            getConditionalFormattingConfig({
+                field: mockNumericField,
+                value: 5,
+                minMaxMap: {},
+                conditionalFormattings,
+                isTotal: true,
+            }),
+        ).toBe(conditionalFormattings[0]);
     });
 });
 
