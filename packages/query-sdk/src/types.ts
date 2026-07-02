@@ -303,6 +303,7 @@ export type Transport = {
         label?: string;
         limit?: number;
         parameters?: ParametersValuesMap;
+        filters?: InternalFilterDefinition[];
     }) => Promise<QueryResult>;
     getUser: () => Promise<LightdashUser>;
     externalFetch: (
