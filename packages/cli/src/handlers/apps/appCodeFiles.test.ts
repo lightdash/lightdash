@@ -6,6 +6,7 @@ import {
     appFolderName,
     buildImportBody,
     readBundleFromDir,
+    retargetManifest,
     writeBundleToDir,
     writeContextToDir,
 } from './appCodeFiles';
@@ -71,6 +72,21 @@ describe('buildImportBody', () => {
         const code = makeCode('app-uuid-1', 'proj-uuid-1');
         const body = buildImportBody(code, 'proj-uuid-1', {});
         expect(body.code).toBe(code);
+    });
+
+    it('forces a create when createNew is set, even in the same project', () => {
+        const code = makeCode('app-uuid-1', 'proj-uuid-1');
+        const body = buildImportBody(code, 'proj-uuid-1', { createNew: true });
+        expect(body.targetAppUuid).toBeUndefined();
+    });
+
+    it('createNew overrides an explicit app target', () => {
+        const code = makeCode('app-uuid-1', 'proj-uuid-1');
+        const body = buildImportBody(code, 'proj-uuid-1', {
+            app: 'explicit-app-uuid',
+            createNew: true,
+        });
+        expect(body.targetAppUuid).toBeUndefined();
     });
 });
 
@@ -146,6 +162,24 @@ it('upload reads back only src/ files, ignoring scaffolding and context', async 
     expect(read.files.map((f) => f.path).sort()).toEqual(
         bundle.files.map((f) => f.path).sort(),
     );
+});
+
+describe('retargetManifest', () => {
+    it('rewrites appUuid, projectUuid and version, preserving other fields', async () => {
+        const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-app-'));
+        await writeBundleToDir(dir, bundle);
+        await retargetManifest(dir, {
+            appUuid: 'new-app-uuid',
+            projectUuid: 'new-proj-uuid',
+            version: 1,
+        });
+        const read = await readBundleFromDir(dir);
+        expect(read.manifest.appUuid).toBe('new-app-uuid');
+        expect(read.manifest.projectUuid).toBe('new-proj-uuid');
+        expect(read.manifest.version).toBe(1);
+        expect(read.manifest.name).toBe('N');
+        expect(read.manifest.downloadedAt).toBe('2026-06-30T00:00:00.000Z');
+    });
 });
 
 it('throws a clear error when the manifest is not valid YAML', async () => {

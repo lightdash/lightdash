@@ -126,10 +126,13 @@ const collectFiles = async (
 export const buildImportBody = (
     code: DataAppCode,
     targetProjectUuid: string,
-    opts: { app?: string; space?: string },
+    opts: { app?: string; space?: string; createNew?: boolean },
 ): ImportAppCodeRequestBody => {
     let targetAppUuid: string | undefined;
-    if (opts.app) {
+    if (opts.createNew) {
+        // No target app -> the server always creates a new app
+        targetAppUuid = undefined;
+    } else if (opts.app) {
         targetAppUuid = opts.app;
     } else if (targetProjectUuid === code.manifest.projectUuid) {
         targetAppUuid = code.manifest.appUuid;
@@ -140,6 +143,25 @@ export const buildImportBody = (
         targetAppUuid,
         spaceUuid: opts.space,
     };
+};
+
+/**
+ * Points a downloaded app folder's manifest at a different app, so future
+ * uploads update that app instead of the one it was downloaded from.
+ */
+export const retargetManifest = async (
+    dir: string,
+    target: { appUuid: string; projectUuid: string; version: number },
+): Promise<void> => {
+    const manifestPath = path.join(dir, MANIFEST_FILENAME);
+    const manifest = YAML.parse(
+        await fs.readFile(manifestPath, 'utf-8'),
+    ) as DataAppManifest;
+    await fs.writeFile(
+        manifestPath,
+        YAML.stringify({ ...manifest, ...target }),
+        'utf-8',
+    );
 };
 
 export const readBundleFromDir = async (dir: string): Promise<DataAppCode> => {
