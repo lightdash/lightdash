@@ -1,3 +1,15 @@
+# [0.3289.0](https://github.com/lightdash/lightdash/compare/0.3288.0...0.3289.0) (2026-07-02)
+
+
+### Bug Fixes
+
+* **apps:** prevent clearing mandatory 'Send key as' select ([#25029](https://github.com/lightdash/lightdash/issues/25029)) ([51022f8](https://github.com/lightdash/lightdash/commit/51022f80aef042e39c5be519c409b9a5b74349e3))
+
+
+### Features
+
+* **apps:** re-add data app viz to the app template picker (GLITCH-571) ([#25026](https://github.com/lightdash/lightdash/issues/25026)) ([94b57d7](https://github.com/lightdash/lightdash/commit/94b57d7ab91fce3209cd7e65b1d5ca1797fa21e0))
+
 # [0.3288.0](https://github.com/lightdash/lightdash/compare/0.3287.0...0.3288.0) (2026-07-02)
 
 
