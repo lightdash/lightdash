@@ -4,7 +4,6 @@ import {
 } from '@lightdash/common';
 import {
     Box,
-    Collapse,
     Group,
     Select,
     Stack,
@@ -12,8 +11,7 @@ import {
     Text,
     Textarea,
 } from '@mantine-8/core';
-import { useReducedMotion } from '@mantine-8/hooks';
-import { useRef, type FC } from 'react';
+import { type FC } from 'react';
 import { AiAgentIcon } from '../../../../ee/features/aiCopilot/components/AiAgentIcon';
 import { useAiAgentButtonVisibility } from '../../../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useProjectAiAgents } from '../../../../ee/features/aiCopilot/hooks/useProjectAiAgents';
@@ -37,27 +35,17 @@ export const SchedulerFormAiInput: FC<Props> = ({ projectUuid }) => {
         redirectOnUnauthorized: false,
         options: { enabled: isAiVisible },
     });
-    const reduceMotion = useReducedMotion();
-
-    const augmentation = form.values.aiAugmentation;
-
-    // Keep the last settings mounted so the controls still show their real
-    // values while the panel animates closed after the toggle is turned off.
-    const lastAugmentationRef = useRef(augmentation);
-    if (augmentation) {
-        lastAugmentationRef.current = augmentation;
-    }
 
     if (!isAiVisible) {
         return null;
     }
 
     const agents = agentsData ?? [];
+    const augmentation = form.values.aiAugmentation;
     const isEnabled = augmentation !== null;
-    const shown = augmentation ?? lastAugmentationRef.current;
     const selectedAgentUuid =
-        shown?.type === SchedulerAiAugmentationType.AGENT
-            ? shown.agentUuid
+        augmentation?.type === SchedulerAiAugmentationType.AGENT
+            ? augmentation.agentUuid
             : null;
 
     const set = (value: SchedulerAiAugmentation | null) =>
@@ -116,45 +104,39 @@ export const SchedulerFormAiInput: FC<Props> = ({ projectUuid }) => {
                 Writes the delivery message from your data on every send.
             </Text>
 
-            <Collapse
-                in={isEnabled}
-                transitionDuration={reduceMotion ? 0 : 220}
-                transitionTimingFunction="ease-out"
-            >
-                {shown && (
-                    <Stack gap="sm" mt="md">
-                        <Textarea
-                            label="Instructions"
-                            autosize
-                            minRows={2}
-                            value={shown.prompt}
-                            onChange={(event) =>
-                                setPrompt(event.currentTarget.value)
-                            }
-                            error={
-                                shown.prompt.trim().length === 0
-                                    ? 'Instructions are required'
-                                    : undefined
-                            }
+            {augmentation && (
+                <Stack gap="sm" mt="md">
+                    <Textarea
+                        label="Instructions"
+                        autosize
+                        minRows={2}
+                        value={augmentation.prompt}
+                        onChange={(event) =>
+                            setPrompt(event.currentTarget.value)
+                        }
+                        error={
+                            augmentation.prompt.trim().length === 0
+                                ? 'Instructions are required'
+                                : undefined
+                        }
+                    />
+                    {agents.length > 0 && (
+                        <Select
+                            label="AI agent (optional)"
+                            description="Uses the agent's tools and context."
+                            placeholder="None"
+                            clearable
+                            data={agents.map((agent) => ({
+                                value: agent.uuid,
+                                label: agent.name,
+                            }))}
+                            value={selectedAgentUuid}
+                            onChange={chooseAgent}
+                            comboboxProps={{ withinPortal: true }}
                         />
-                        {agents.length > 0 && (
-                            <Select
-                                label="AI agent (optional)"
-                                description="Uses the agent's tools and context."
-                                placeholder="None"
-                                clearable
-                                data={agents.map((agent) => ({
-                                    value: agent.uuid,
-                                    label: agent.name,
-                                }))}
-                                value={selectedAgentUuid}
-                                onChange={chooseAgent}
-                                comboboxProps={{ withinPortal: true }}
-                            />
-                        )}
-                    </Stack>
-                )}
-            </Collapse>
+                    )}
+                </Stack>
+            )}
         </Box>
     );
 };
