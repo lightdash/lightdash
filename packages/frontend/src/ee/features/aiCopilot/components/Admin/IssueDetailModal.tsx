@@ -14,13 +14,12 @@ import {
     IconArrowRight,
     IconExternalLink,
     IconGitPullRequest,
-    IconLayoutColumns,
     IconMessages,
 } from '@tabler/icons-react';
 import { type FC, useMemo } from 'react';
-import { Link } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
+import { CategoryBadge } from '../../../../../components/common/CategoryBadge';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { useProjects } from '../../../../../hooks/useProjects';
@@ -45,6 +44,8 @@ import {
     writebackBlockedReasonDescriptions,
     writebackBlockedReasonLabels,
 } from './reviewItemDetails';
+import { ReviewPriorityMenu } from './ReviewPriorityMenu';
+import { ReviewWorkspaceSummary } from './ReviewWorkspaceSummary';
 import {
     THREAD_REVIEW_ITEM_STATUSES,
     threadReviewRootCauseColors,
@@ -96,7 +97,10 @@ export const IssueDetailModal: FC<Props> = ({
             { enabled: isOpen },
         );
     const { data: projects = [] } = useProjects();
-    const { data: agent } = useProjectAiAgent(projectUuid, agentUuid);
+    const { data: agent } = useProjectAiAgent(
+        projectUuid ?? undefined,
+        agentUuid ?? undefined,
+    );
 
     const item = useMemo(
         () =>
@@ -143,10 +147,6 @@ export const IssueDetailModal: FC<Props> = ({
         ? (writebackBlockedReasonDescriptions[blockedReason] ?? null)
         : null;
 
-    const workspaceUrl = item
-        ? `/generalSettings/ai/reviews/${encodeURIComponent(item.fingerprint)}`
-        : null;
-
     const headerTitle = item ? getIssueTitle(item) : 'Issue';
 
     return (
@@ -168,23 +168,13 @@ export const IssueDetailModal: FC<Props> = ({
                 modalBodyProps={{ py: 'lg' }}
                 bodyScrollAreaMaxHeight="calc(85vh - 120px)"
                 headerActions={
-                    item?.remediation && workspaceUrl ? (
-                        <Button
-                            component={Link}
-                            to={workspaceUrl}
-                            onClick={onClose}
-                            size="xs"
-                            variant="default"
-                            radius="md"
-                            leftSection={
-                                <MantineIcon
-                                    icon={IconLayoutColumns}
-                                    size={14}
-                                />
-                            }
-                        >
-                            Open workspace
-                        </Button>
+                    item ? (
+                        <ReviewItemActions
+                            reviewItem={item}
+                            mode="header"
+                            hideWorkspaceLink
+                            hideBlockedReason
+                        />
                     ) : null
                 }
             >
@@ -201,39 +191,30 @@ export const IssueDetailModal: FC<Props> = ({
                                 wrap="wrap"
                                 className={styles.metaRow}
                             >
-                                <Box
-                                    component="span"
-                                    className={styles.causeBadge}
-                                >
-                                    <Box
-                                        component="span"
-                                        className={styles.causeDot}
-                                        bg={`${threadReviewRootCauseColors[item.primaryRootCause]}.6`}
-                                    />
-                                    {
+                                <CategoryBadge
+                                    color={
+                                        threadReviewRootCauseColors[
+                                            item.primaryRootCause
+                                        ]
+                                    }
+                                    label={
                                         threadReviewRootCauseLabels[
                                             item.primaryRootCause
                                         ]
                                     }
-                                </Box>
+                                />
                                 {targetAnchor && (
-                                    <>
-                                        <Box
-                                            component="span"
-                                            className={styles.metaSep}
-                                        />
-                                        <Tooltip
-                                            label={targetAnchor}
-                                            withArrow
-                                            openDelay={300}
-                                            multiline
-                                            maw={340}
-                                        >
-                                            <Text className={styles.targetChip}>
-                                                {targetAnchor}
-                                            </Text>
-                                        </Tooltip>
-                                    </>
+                                    <Tooltip
+                                        label={targetAnchor}
+                                        withArrow
+                                        openDelay={300}
+                                        multiline
+                                        maw={340}
+                                    >
+                                        <Text className={styles.targetChip}>
+                                            {targetAnchor}
+                                        </Text>
+                                    </Tooltip>
                                 )}
                                 {item.findingCount > 1 && (
                                     <>
@@ -369,6 +350,14 @@ export const IssueDetailModal: FC<Props> = ({
                                             </Text>
                                         </Box>
                                     </RailRow>
+                                    <RailRow label="Priority">
+                                        <ReviewPriorityMenu
+                                            fingerprint={item.fingerprint}
+                                            priority={item.priority}
+                                            bordered={false}
+                                            className={styles.railBadge}
+                                        />
+                                    </RailRow>
                                     <RailRow label="Assignee">
                                         <ReviewAssigneeMenu
                                             projectUuid={item.projectUuid}
@@ -376,6 +365,7 @@ export const IssueDetailModal: FC<Props> = ({
                                             assignedToUserUuid={
                                                 item.assignedToUserUuid
                                             }
+                                            withName
                                         />
                                     </RailRow>
                                     {agent && (
@@ -427,6 +417,11 @@ export const IssueDetailModal: FC<Props> = ({
                                     )}
                                 </Stack>
 
+                                <ReviewWorkspaceSummary
+                                    reviewItem={item}
+                                    onNavigate={onClose}
+                                />
+
                                 {blockedReasonDescription && (
                                     <Stack
                                         gap={3}
@@ -440,15 +435,6 @@ export const IssueDetailModal: FC<Props> = ({
                                         </Text>
                                     </Stack>
                                 )}
-
-                                <Box className={styles.railActions}>
-                                    <ReviewItemActions
-                                        reviewItem={item}
-                                        mode="drawer"
-                                        hideWorkspaceLink
-                                        hideBlockedReason
-                                    />
-                                </Box>
                             </Box>
                         </Stack>
                     </Box>

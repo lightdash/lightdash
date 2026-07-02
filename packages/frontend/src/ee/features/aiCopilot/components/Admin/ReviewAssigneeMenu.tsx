@@ -1,5 +1,6 @@
 import {
     Box,
+    Group,
     Menu,
     ScrollArea,
     Text,
@@ -21,6 +22,8 @@ type Props = {
     assignedToUserUuid: string | null;
     /** CSS module class applied to the wrapper Box (for hover visibility control) */
     className?: string;
+    /** Compact avatar + name row (e.g. the issue rail) instead of avatar only. */
+    withName?: boolean;
 };
 
 export const ReviewAssigneeMenu: FC<Props> = ({
@@ -28,6 +31,7 @@ export const ReviewAssigneeMenu: FC<Props> = ({
     fingerprint,
     assignedToUserUuid,
     className,
+    withName = false,
 }) => {
     // Source the candidate list from the same hook the project users & groups
     // table uses, so anyone who can access the project is assignable — not just
@@ -81,26 +85,40 @@ export const ReviewAssigneeMenu: FC<Props> = ({
                         onPointerDown={(e) => e.stopPropagation()}
                     >
                         <Tooltip label={assigneeName ?? 'Assign'} withinPortal>
-                            {assignee ? (
-                                <LightdashUserAvatar
-                                    name={assigneeName ?? undefined}
-                                    size="sm"
-                                    radius="xl"
-                                />
-                            ) : (
-                                <LightdashUserAvatar
-                                    size="sm"
-                                    radius="xl"
-                                    variant="light"
-                                    color="gray"
-                                >
-                                    <MantineIcon
-                                        icon={IconUserPlus}
-                                        size={12}
-                                        color="dimmed"
+                            <Group gap={6} wrap="nowrap">
+                                {assignee ? (
+                                    <LightdashUserAvatar
+                                        name={assigneeName ?? undefined}
+                                        size={withName ? 18 : 'sm'}
+                                        radius="xl"
                                     />
-                                </LightdashUserAvatar>
-                            )}
+                                ) : (
+                                    <LightdashUserAvatar
+                                        size={withName ? 18 : 'sm'}
+                                        radius="xl"
+                                        variant="light"
+                                        color="gray"
+                                    >
+                                        <MantineIcon
+                                            icon={IconUserPlus}
+                                            size={12}
+                                            color="dimmed"
+                                        />
+                                    </LightdashUserAvatar>
+                                )}
+                                {withName && (
+                                    // ff needed: the UnstyledButton ancestor
+                                    // reintroduces the UA's button font.
+                                    <Text
+                                        fz={12}
+                                        fw={500}
+                                        c="ldGray.9"
+                                        ff="var(--mantine-font-family)"
+                                    >
+                                        {assigneeName ?? 'Assign'}
+                                    </Text>
+                                )}
+                            </Group>
                         </Tooltip>
                     </UnstyledButton>
                 </Menu.Target>

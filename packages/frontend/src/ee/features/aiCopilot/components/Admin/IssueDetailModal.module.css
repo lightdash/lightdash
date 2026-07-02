@@ -38,23 +38,6 @@
     margin-bottom: var(--mantine-spacing-xl);
 }
 
-/* Root-cause marker — a bare dot + label, no chip fill. */
-.causeBadge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--mantine-color-ldGray-7);
-}
-
-.causeDot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    flex-shrink: 0;
-}
-
 .metaSep {
     width: 3px;
     height: 3px;
@@ -65,7 +48,7 @@
 /* Target ref — quiet monospace, no chip background. */
 .targetChip {
     display: inline-block;
-    max-width: 24rem;
+    max-width: 32rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -177,7 +160,7 @@
 }
 
 .railRow {
-    min-height: 26px;
+    min-height: 28px;
     padding: 3px 0;
 }
 
@@ -204,11 +187,35 @@
     overflow-wrap: anywhere;
 }
 
-/* Status — a bare dot + label, no pill. */
+/* Status — a bare dot + label, no pill. The dot sits in an 18px column
+   (6px dot + 6px side margins) so it middle-aligns with the 18px avatars in
+   the Assignee/Agent rows and every value's text starts at the same x. */
 .statusPill {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
+    gap: 6px;
+}
+
+.statusPill .statusDot {
+    margin: 0 6px;
+}
+
+/* Priority dot badge, tuned to read identically to the Status row: same
+   6px dot in the same 18px column, same 12px/500 value text. Doubled
+   selector so it reliably outranks CategoryBadge's own module class
+   regardless of import order. */
+.railBadge.railBadge {
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: var(--mantine-font-family);
+    color: var(--mantine-color-ldGray-9);
+}
+
+.railBadge.railBadge > div:first-of-type {
+    width: 6px;
+    height: 6px;
+    margin: 0 6px;
 }
 
 .statusDot {
@@ -234,12 +241,6 @@
         var(--mantine-color-indigo-7),
         var(--mantine-color-indigo-4)
     );
-}
-
-.railActions {
-    margin-top: var(--mantine-spacing-lg);
-    padding-top: var(--mantine-spacing-md);
-    border-top: 1px solid var(--mantine-color-ldGray-1);
 }
 
 @keyframes fade-in {

@@ -11,6 +11,10 @@ import {
 type Props = {
     fingerprint: string;
     priority: AiAgentReviewItemPriority;
+    /** Render as a bare dot + label (no chip) — e.g. in the issue rail. */
+    bordered?: boolean;
+    /** Extra class for the badge — e.g. rail typography overrides. */
+    className?: string;
 };
 
 const priorities: AiAgentReviewItemPriority[] = [
@@ -21,7 +25,12 @@ const priorities: AiAgentReviewItemPriority[] = [
     'none',
 ];
 
-export const ReviewPriorityMenu: FC<Props> = ({ fingerprint, priority }) => {
+export const ReviewPriorityMenu: FC<Props> = ({
+    fingerprint,
+    priority,
+    bordered = true,
+    className,
+}) => {
     const updatePriority = useUpdateAiAgentReviewItemPriority();
 
     return (
@@ -35,6 +44,8 @@ export const ReviewPriorityMenu: FC<Props> = ({ fingerprint, priority }) => {
                     <CategoryBadge
                         color={reviewPriorityColors[priority]}
                         label={reviewPriorityLabels[priority]}
+                        bordered={bordered}
+                        className={className}
                     />
                 </UnstyledButton>
             </Menu.Target>

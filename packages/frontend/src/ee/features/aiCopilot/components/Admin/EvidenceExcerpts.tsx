@@ -1,6 +1,6 @@
 import { type AiAgentEvidenceExcerpt } from '@lightdash/common';
-import { Box, Stack, Text } from '@mantine-8/core';
-import { type FC } from 'react';
+import { Box, Text } from '@mantine-8/core';
+import { Fragment, type FC } from 'react';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import {
     cleanExcerptText,
@@ -9,13 +9,13 @@ import {
 import styles from './EvidenceExcerpts.module.css';
 
 const SOURCE_LABELS: Record<AiAgentEvidenceExcerpt['source'], string> = {
-    user_prompt: 'User asked',
-    assistant_answer: 'Assistant answered',
-    next_user_prompt: 'User then said',
+    user_prompt: 'User',
+    assistant_answer: 'Assistant',
+    next_user_prompt: 'User reply',
     conversation_context: 'Context',
     tool_call: 'Tool call',
     tool_result: 'Tool result',
-    agent_config: 'Agent config',
+    agent_config: 'Config',
 };
 
 const PRIMARY_SOURCES = new Set<AiAgentEvidenceExcerpt['source']>([
@@ -24,10 +24,21 @@ const PRIMARY_SOURCES = new Set<AiAgentEvidenceExcerpt['source']>([
     'next_user_prompt',
 ]);
 
+const MONO_SOURCES = new Set<AiAgentEvidenceExcerpt['source']>([
+    'tool_call',
+    'tool_result',
+]);
+
 type Props = {
     excerpts: AiAgentEvidenceExcerpt[];
 };
 
+/**
+ * Cited turns rendered as a compact transcript ledger: speaker in a
+ * right-aligned gutter (the same column grammar as the Activity timeline),
+ * the quoted text beside it. Consecutive turns from the same speaker keep
+ * one label so the exchange reads as a conversation, not a list of blocks.
+ */
 export const EvidenceExcerpts: FC<Props> = ({ excerpts }) => {
     const renderable = getRenderableExcerpts(excerpts);
 
@@ -49,35 +60,40 @@ export const EvidenceExcerpts: FC<Props> = ({ excerpts }) => {
     }
 
     return (
-        <Stack
-            data-testid="evidence-excerpts"
-            className={styles.excerpts}
-            gap="md"
-        >
-            {deduped.map((excerpt) => {
+        <Box data-testid="evidence-excerpts" className={styles.transcript}>
+            {deduped.map((excerpt, index) => {
+                const label = SOURCE_LABELS[excerpt.source];
+                const repeated =
+                    index > 0 &&
+                    SOURCE_LABELS[deduped[index - 1].source] === label;
                 const muted = !PRIMARY_SOURCES.has(excerpt.source);
+                const mono = MONO_SOURCES.has(excerpt.source);
                 return (
-                    <Stack
+                    <Fragment
                         key={`${excerpt.source}-${excerpt.text.slice(0, 48)}`}
-                        gap={3}
                     >
                         <Text
-                            className={styles.label}
+                            className={styles.speaker}
                             data-muted={muted || undefined}
                         >
-                            {SOURCE_LABELS[excerpt.source]}
+                            {repeated ? '' : label}
                         </Text>
                         <Box
                             className={styles.text}
                             data-muted={muted || undefined}
+                            data-mono={mono || undefined}
                         >
-                            <AiMarkdown>
-                                {cleanExcerptText(excerpt.text)}
-                            </AiMarkdown>
+                            {mono ? (
+                                cleanExcerptText(excerpt.text)
+                            ) : (
+                                <AiMarkdown>
+                                    {cleanExcerptText(excerpt.text)}
+                                </AiMarkdown>
+                            )}
                         </Box>
-                    </Stack>
+                    </Fragment>
                 );
             })}
-        </Stack>
+        </Box>
     );
 };

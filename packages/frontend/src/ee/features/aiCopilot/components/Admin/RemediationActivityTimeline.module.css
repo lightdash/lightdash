@@ -2,6 +2,9 @@
    same index reads as the same semantic shade in both schemes — no
    light-dark() needed for grays here. */
 
+/* Log layout: a fixed timestamp gutter on the left, the spine and typed
+   node next, then the event. Timestamps align as a column of tabular
+   numerals so the lifecycle reads like a ledger. */
 .timeline {
     list-style: none;
     margin: 0;
@@ -12,26 +15,38 @@
 .timeline::before {
     content: '';
     position: absolute;
-    left: 2.5px;
-    top: 7px;
-    bottom: 7px;
+    left: 66.5px;
+    top: 8px;
+    bottom: 8px;
     width: 1px;
     background: var(--mantine-color-ldGray-1);
 }
 
 .item {
-    position: relative;
-    padding: 0 0 14px 18px;
+    display: grid;
+    grid-template-columns: 52px 6px minmax(0, 1fr);
+    column-gap: 12px;
+    padding: 0 0 16px 0;
 }
 
 .item:last-child {
     padding-bottom: 0;
 }
 
+.when {
+    grid-column: 1;
+    text-align: right;
+    font-size: 10.5px;
+    font-variant-numeric: tabular-nums;
+    line-height: 17px;
+    color: var(--mantine-color-ldGray-5);
+    white-space: nowrap;
+}
+
 .node {
-    position: absolute;
-    left: 0;
-    top: 5px;
+    grid-column: 2;
+    align-self: start;
+    margin-top: 5.5px;
     width: 6px;
     height: 6px;
     border-radius: 50%;
@@ -41,11 +56,53 @@
 }
 
 .item[data-done] .node {
-    background: var(--mantine-color-ldGray-5);
-    border-color: var(--mantine-color-ldGray-5);
+    background: var(--mantine-color-ldGray-4);
+    border-color: var(--mantine-color-ldGray-4);
+}
+
+/* Typed nodes — the color answers "what kind of step was this" at a glance. */
+.item[data-tone='progress'] .node {
+    background: light-dark(
+        var(--mantine-color-teal-6),
+        var(--mantine-color-teal-5)
+    );
+    border-color: transparent;
+}
+
+.item[data-tone='pr'] .node {
+    background: light-dark(
+        var(--mantine-color-indigo-6),
+        var(--mantine-color-indigo-4)
+    );
+    border-color: transparent;
+}
+
+.item[data-tone='success'] .node {
+    background: light-dark(
+        var(--mantine-color-green-6),
+        var(--mantine-color-green-5)
+    );
+    border-color: transparent;
+}
+
+.item[data-tone='danger'] .node {
+    background: light-dark(
+        var(--mantine-color-red-6),
+        var(--mantine-color-red-5)
+    );
+    border-color: transparent;
+}
+
+.item[data-tone='attention'] .node {
+    background: light-dark(
+        var(--mantine-color-orange-5),
+        var(--mantine-color-orange-4)
+    );
+    border-color: transparent;
 }
 
 .item[data-live] .node {
+    background: var(--mantine-color-body);
     border-color: light-dark(
         var(--mantine-color-teal-8),
         var(--mantine-color-teal-4)
@@ -55,14 +112,16 @@
 }
 
 .event {
+    grid-column: 3;
     display: flex;
     align-items: center;
     flex-wrap: wrap;
     gap: 6px;
-    font-size: 12px;
-    font-weight: 450;
+    font-size: 12.5px;
+    font-weight: 500;
     letter-spacing: -0.01em;
-    color: var(--mantine-color-ldGray-8);
+    line-height: 17px;
+    color: var(--mantine-color-ldGray-9);
 }
 
 .author {
@@ -79,18 +138,11 @@
     color: light-dark(var(--mantine-color-teal-8), var(--mantine-color-teal-4));
 }
 
-.when {
-    float: right;
-    font-size: 10px;
-    font-variant-numeric: tabular-nums;
-    color: var(--mantine-color-ldGray-4);
-    margin-left: var(--mantine-spacing-xs);
-}
-
 .meta {
-    font-size: 11px;
-    line-height: 1.4;
-    margin-top: 1px;
+    grid-column: 3;
+    font-size: 11.5px;
+    line-height: 1.5;
+    margin-top: 2px;
     color: var(--mantine-color-ldGray-6);
     overflow-wrap: anywhere;
 }

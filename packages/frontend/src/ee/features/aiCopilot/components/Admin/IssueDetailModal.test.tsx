@@ -91,6 +91,10 @@ vi.mock('../../hooks/useAiAgentAdmin', () => ({
         isLoading: false,
         mutate: vi.fn(),
     }),
+    useUpdateAiAgentReviewItemPriority: () => ({
+        isLoading: false,
+        mutate: vi.fn(),
+    }),
 }));
 
 vi.mock('../../hooks/useProjectAiAgents', () => ({
@@ -158,7 +162,7 @@ describe('IssueDetailModal', () => {
         expect(screen.getByText('Activity')).toBeInTheDocument();
 
         // Curated excerpts are shown inline; the full chat is NOT rendered yet.
-        expect(screen.getByText('User asked')).toBeInTheDocument();
+        expect(screen.getByText('User')).toBeInTheDocument();
         expect(
             screen.getByText('What is our total revenue?'),
         ).toBeInTheDocument();

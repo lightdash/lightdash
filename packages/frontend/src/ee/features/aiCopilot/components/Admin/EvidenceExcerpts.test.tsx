@@ -63,11 +63,11 @@ describe('EvidenceExcerpts', () => {
             />,
         );
 
-        expect(screen.getByText('User asked')).toBeInTheDocument();
+        expect(screen.getByText('User')).toBeInTheDocument();
         expect(screen.getByText('What is our revenue?')).toBeInTheDocument();
-        expect(screen.getByText('Assistant answered')).toBeInTheDocument();
+        expect(screen.getByText('Assistant')).toBeInTheDocument();
         expect(screen.getByText('It is $4,149.12')).toBeInTheDocument();
-        expect(screen.getByText('User then said')).toBeInTheDocument();
+        expect(screen.getByText('User reply')).toBeInTheDocument();
         expect(screen.getByText("That's wrong")).toBeInTheDocument();
     });
 
