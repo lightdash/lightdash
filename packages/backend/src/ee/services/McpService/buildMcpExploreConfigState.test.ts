@@ -107,6 +107,9 @@ describe('buildMcpExploreConfigState', () => {
             columnOrder: ['enrollments_campus', 'enrollments_count'],
         });
 
-        expect(configState.chartConfig).toEqual({ type: ChartType.TABLE });
+        expect(configState.chartConfig).toEqual({
+            type: ChartType.TABLE,
+            config: { showTableNames: false },
+        });
     });
 });
