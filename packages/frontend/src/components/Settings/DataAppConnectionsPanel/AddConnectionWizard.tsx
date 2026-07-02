@@ -382,6 +382,7 @@ export const AddConnectionWizard: FC<Props> = ({
             title="Add data app connection"
             icon={IconPlugConnected}
             size="lg"
+            modalRootProps={{ closeOnClickOutside: false }}
             {...footerProps}
         >
             <Stepper
