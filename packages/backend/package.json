@@ -176,7 +176,7 @@
         "prom-client": "15.1.2",
         "qs": "6.15.2",
         "redoc-express": "1.0.0",
-        "scim-patch": "0.8.3",
+        "scim-patch": "0.9.1",
         "scim2-parse-filter": "0.2.10",
         "sharp": "0.35.2",
         "simple-git": "3.36.0",
