@@ -26,14 +26,33 @@ const collapse = (text: string, max = 240): string =>
 // agent. Safe here: this tool only renders the few fields explicitly requested.
 const FIELD_DESCRIPTION_MAX = 2000;
 
+// Field-id lists in the explore summary are capped so an unusually wide table
+// can't flood the context; the overflow marker tells the agent how to see the
+// rest. High enough that typical base tables list in full.
+const FIELD_LIST_MAX = 120;
+
+// One comma-separated line of the base table's visible field ids. This listing
+// is the agent's ground truth for "does field X exist here" — search tools
+// (grep/FTS) are lossy, so the summary must not defer back to them for the
+// full list, or a search miss becomes unfalsifiable.
+const renderFieldList = (
+    kind: 'dimensions' | 'metrics',
+    fields: { table: string; name: string; hidden?: boolean }[],
+): string => {
+    const ids = fields
+        .filter((f) => !f.hidden)
+        .map((f) => `${f.table}_${f.name}`);
+    if (ids.length === 0) return `  base ${kind}: none`;
+    const shown = ids.slice(0, FIELD_LIST_MAX);
+    const overflow =
+        ids.length > shown.length
+            ? `, +${ids.length - shown.length} more (grepFields lists them)`
+            : '';
+    return `  base ${kind} (${ids.length}): ${shown.join(', ')}${overflow}`;
+};
+
 const renderExplore = (explore: Explore): string => {
     const baseTable = explore.tables[explore.baseTable];
-    const dimensionCount = Object.values(baseTable?.dimensions ?? {}).filter(
-        (d) => !d.hidden,
-    ).length;
-    const metricCount = Object.values(baseTable?.metrics ?? {}).filter(
-        (m) => !m.hidden,
-    ).length;
     const lines = [`Explore: ${explore.name} (${explore.label})`];
     if (baseTable?.description) {
         lines.push(`  description: ${collapse(baseTable.description)}`);
@@ -43,12 +62,20 @@ const renderExplore = (explore: Explore): string => {
     lines.push(`  base table: ${explore.baseTable}`);
     const joined = explore.joinedTables.map((j) => j.table);
     if (joined.length > 0) {
-        lines.push(`  joined tables (usable in queries): ${joined.join(', ')}`);
+        lines.push(
+            `  joined tables (usable in queries, grep with exploreName="${explore.name}" to list their fields): ${joined.join(
+                ', ',
+            )}`,
+        );
     }
     const required = summarizeRequiredFilters(explore);
     if (required) lines.push(`  ${required}`);
     lines.push(
-        `  fields: ${dimensionCount} dimensions, ${metricCount} metrics (use grepFields to list them)`,
+        renderFieldList(
+            'dimensions',
+            Object.values(baseTable?.dimensions ?? {}),
+        ),
+        renderFieldList('metrics', Object.values(baseTable?.metrics ?? {})),
     );
     return lines.join('\n');
 };

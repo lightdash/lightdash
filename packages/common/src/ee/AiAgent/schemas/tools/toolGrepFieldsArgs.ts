@@ -29,9 +29,23 @@ export const grepFieldsInputSchema = z.object({
 
 export type ToolGrepFieldsArgs = z.infer<typeof grepFieldsInputSchema>;
 
+// Per-pattern match stats, persisted with the tool result so grep quality is
+// observable in production. `matchedAllFields` is the fingerprint of a
+// too-broad or broken grep (the pattern discriminated nothing in its scope).
+export const grepFieldsPatternStatsSchema = z.array(
+    z.object({
+        pattern: z.string(),
+        matchCount: z.number(),
+        scopeSize: z.number(),
+        matchedAllFields: z.boolean(),
+    }),
+);
+
 export const toolGrepFieldsOutputSchema = z.object({
     result: z.string(),
-    metadata: baseOutputMetadataSchema,
+    metadata: baseOutputMetadataSchema.extend({
+        patternStats: grepFieldsPatternStatsSchema.optional(),
+    }),
 });
 
 export type ToolGrepFieldsOutput = z.infer<typeof toolGrepFieldsOutputSchema>;

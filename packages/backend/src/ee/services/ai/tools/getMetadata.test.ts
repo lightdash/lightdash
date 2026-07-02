@@ -108,3 +108,49 @@ describe('getMetadata description truncation', () => {
         expect(descriptionLine).not.toContain("'value_39'");
     });
 });
+
+describe('getMetadata explore field listing', () => {
+    // The explore summary must list the base table's field ids directly: when
+    // field discovery (grep/FTS) misbehaves, this is the agent's ground-truth
+    // escape hatch before claiming a field doesn't exist. Pointing back at
+    // grepFields ("use grepFields to list them") was circular.
+    it('lists base-table field ids in the explore summary', async () => {
+        const explore = makeExplore({});
+        const result = await execute(explore, [
+            { type: 'explore', exploreIds: ['sales'] },
+        ]);
+
+        expect(result.metadata).toEqual({ status: 'success' });
+        expect(result.result).toContain('orders_status');
+        expect(result.result).not.toContain('use grepFields to list them');
+    });
+
+    it('does not list hidden fields', async () => {
+        const explore = makeExplore({});
+        explore.tables.orders.dimensions.secret = {
+            ...explore.tables.orders.dimensions.status,
+            name: 'secret',
+            label: 'Secret',
+            hidden: true,
+        };
+        const result = await execute(explore, [
+            { type: 'explore', exploreIds: ['sales'] },
+        ]);
+        expect(result.result).not.toContain('orders_secret');
+    });
+
+    it('truncates very wide base tables with a "+N more" marker', async () => {
+        const explore = makeExplore({});
+        for (let i = 0; i < 150; i += 1) {
+            explore.tables.orders.dimensions[`attr_${i}`] = {
+                ...explore.tables.orders.dimensions.status,
+                name: `attr_${i}`,
+                label: `Attr ${i}`,
+            };
+        }
+        const result = await execute(explore, [
+            { type: 'explore', exploreIds: ['sales'] },
+        ]);
+        expect(result.result).toMatch(/\+\d+ more \(grepFields lists them\)/);
+    });
+});
