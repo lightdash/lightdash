@@ -1,6 +1,7 @@
 import {
     type AiAgentModelConfig,
     type AiChartRuntimeOverrides,
+    type AiThreadCreatedFrom,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
@@ -13,7 +14,7 @@ export type DbAiThread = {
     created_at: Date;
     organization_uuid: string;
     project_uuid: string;
-    created_from: 'slack' | 'web_app' | 'evals'; // slack, web_app, evals etc
+    created_from: AiThreadCreatedFrom;
     title: string | null;
     title_generated_at: Date | null;
 };

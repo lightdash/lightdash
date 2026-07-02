@@ -245,6 +245,7 @@ import {
     type ApiSchedulersResponse,
     type ApiUserSchedulersSummaryResponse,
     type GsheetExportProgress,
+    type SchedulerAiAugmentation,
     type SchedulerAndTargets,
     type SchedulerJobStatus,
 } from './scheduler';
@@ -993,6 +994,7 @@ type ApiResults =
     | UserActivity
     | SchedulerAndTargets
     | SchedulerAndTargets[]
+    | SchedulerAiAugmentation
     | FieldValueSearchResult
     | ApiDownloadCsv
     | AllowedEmailDomains

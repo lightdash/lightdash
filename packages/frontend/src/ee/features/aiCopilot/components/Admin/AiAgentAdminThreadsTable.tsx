@@ -329,12 +329,13 @@ const AiAgentAdminThreadsTable = ({
             ),
             Cell: ({ row }) => {
                 const thread = row.original;
-                let label = thread.createdFrom;
-                if (label === 'slack') {
-                    label = 'Slack';
-                } else if (label === 'web_app') {
-                    label = 'Web';
-                }
+                const isSlack = thread.createdFrom === 'slack';
+                const label =
+                    thread.createdFrom === 'slack'
+                        ? 'Slack'
+                        : thread.createdFrom === 'web_app'
+                          ? 'Web'
+                          : thread.createdFrom;
 
                 const slackUrl =
                     thread.slackChannelId &&
@@ -349,7 +350,7 @@ const AiAgentAdminThreadsTable = ({
 
                 return (
                     <Group gap="two">
-                        {label === 'Slack' ? (
+                        {isSlack ? (
                             <SlackSvg
                                 style={{
                                     width: '12px',

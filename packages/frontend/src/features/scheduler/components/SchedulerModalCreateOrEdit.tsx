@@ -28,12 +28,18 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import DocumentationHelpButton from '../../../components/DocumentationHelpButton';
 import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useUser from '../../../hooks/user/useUser';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
 import { useScheduler, useSendNowScheduler } from '../hooks/useScheduler';
+import {
+    deleteSchedulerAiAugmentation,
+    upsertSchedulerAiAugmentation,
+    useSchedulerAiAugmentation,
+} from '../hooks/useSchedulerAiAugmentation';
 import { useSchedulersUpdateMutation } from '../hooks/useSchedulersUpdateMutation';
 import SchedulerForm from './SchedulerForm';
 import {
@@ -44,6 +50,7 @@ import {
     SchedulerFormProvider,
     transformFormValues,
     useSchedulerForm,
+    type SchedulerFormValues,
 } from './SchedulerForm/schedulerFormContext';
 import { Limit } from './types';
 
@@ -61,6 +68,7 @@ interface UseSchedulerFormModalProps {
     onBack: () => void;
     itemsMap?: ItemsMap;
     currentParameterValues?: ParametersValuesMap;
+    initialFormValues?: Partial<SchedulerFormValues>;
 }
 
 const useSchedulerFormModal = ({
@@ -73,6 +81,7 @@ const useSchedulerFormModal = ({
     onBack,
     itemsMap,
     currentParameterValues,
+    initialFormValues,
 }: UseSchedulerFormModalProps) => {
     const isEditMode = !!schedulerUuid;
 
@@ -84,9 +93,13 @@ const useSchedulerFormModal = ({
     // For edit mode - update mutation
     const updateMutation = useSchedulersUpdateMutation(schedulerUuid ?? '');
 
+    // For edit mode - existing AI augmentation (separate sub-resource)
+    const aiAugmentation = useSchedulerAiAugmentation(schedulerUuid);
+
     // Shared hooks
     const { data: user } = useUser(true);
     const { track } = useTracking();
+    const { showToastApiError } = useToaster();
     const { mutate: sendNow, isLoading: isLoadingSendNow } =
         useSendNowScheduler();
 
@@ -166,6 +179,7 @@ const useSchedulerFormModal = ({
                             Object.keys(dashboardParameterValues).length > 0
                                 ? dashboardParameterValues
                                 : undefined,
+                        ...initialFormValues,
                     },
         validateInputOnBlur: ['options.customLimit'],
 
@@ -232,8 +246,8 @@ const useSchedulerFormModal = ({
     // Sync form values when data is loaded
     useEffect(() => {
         if (scheduler.data) {
-            form.setValues(
-                getFormValuesFromScheduler({
+            form.setValues({
+                ...getFormValuesFromScheduler({
                     ...scheduler.data,
                     ...getSelectedTabsForDashboardScheduler(
                         scheduler.data,
@@ -241,12 +255,18 @@ const useSchedulerFormModal = ({
                         dashboard,
                     ),
                 }),
-            );
+                aiAugmentation: aiAugmentation.data ?? null,
+            });
             form.resetDirty();
         }
         // We only want to sync when the data actually arrives or dashboard changes
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [scheduler.data, isDashboardTabsAvailable, dashboard]);
+    }, [
+        scheduler.data,
+        isDashboardTabsAvailable,
+        dashboard,
+        aiAugmentation.data,
+    ]);
 
     // Handle mutation success
     useEffect(() => {
@@ -265,12 +285,28 @@ const useSchedulerFormModal = ({
 
     // Submit handler
     const handleSubmit = useCallback(
-        (values: typeof form.values) => {
+        async (values: typeof form.values) => {
             const data = transformFormValues(values, formResource?.type);
-            if (isEditMode) {
-                updateMutation.mutate(data);
-            } else {
-                createMutation.mutate({ resourceUuid, data });
+            const saved = isEditMode
+                ? await updateMutation.mutateAsync(data)
+                : await createMutation.mutateAsync({ resourceUuid, data });
+
+            // AI augmentation is a separate sub-resource; persist it after the
+            // scheduler exists. A failure here doesn't undo the saved delivery.
+            try {
+                if (values.aiAugmentation) {
+                    await upsertSchedulerAiAugmentation(
+                        saved.schedulerUuid,
+                        values.aiAugmentation,
+                    );
+                } else if (isEditMode) {
+                    await deleteSchedulerAiAugmentation(saved.schedulerUuid);
+                }
+            } catch (e) {
+                showToastApiError({
+                    title: 'Failed to save the AI settings for this delivery',
+                    apiError: (e as ApiError).error,
+                });
             }
         },
         [
@@ -279,6 +315,7 @@ const useSchedulerFormModal = ({
             createMutation,
             resourceUuid,
             formResource?.type,
+            showToastApiError,
         ],
     );
 
@@ -336,6 +373,8 @@ const useSchedulerFormModal = ({
             ...schedulerData,
             ...resource,
             createdBy: user.userUuid,
+            // Carry the (possibly unsaved) AI settings so send-now runs them.
+            aiAugmentation: form.values.aiAugmentation,
         };
 
         track({ name: EventName.SCHEDULER_SEND_NOW_BUTTON });
@@ -401,12 +440,15 @@ interface Props {
     availableParameters?: ParameterDefinitions;
     /** undefined = create mode, string = edit mode */
     schedulerUuidToEdit: string | undefined;
+    /** Create-mode only: pre-fills the new delivery. */
+    initialFormValues?: Partial<SchedulerFormValues>;
 }
 
 export const SchedulerModalCreateOrEdit: FC<Props> = ({
     resourceUuid,
     createMutation,
     schedulerUuidToEdit,
+    initialFormValues,
     isChart = false,
     isApp,
     isThresholdAlert,
@@ -446,6 +488,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
         onBack,
         itemsMap,
         currentParameterValues,
+        initialFormValues,
     });
 
     return (

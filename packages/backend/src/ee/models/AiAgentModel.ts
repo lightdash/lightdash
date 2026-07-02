@@ -25,6 +25,7 @@ import {
     AiAgentUser,
     AiAgentUserPreferences,
     AiArtifact,
+    AiClonedThreadCreatedFrom,
     AiEvalRunResultAssessment,
     AiMcpCredentialScope,
     AiMcpServer,
@@ -39,6 +40,7 @@ import {
     AiResultType,
     AiThread,
     AiThreadCompaction,
+    AiThreadCreatedFrom,
     AiWebAppPrompt,
     AlreadyExistsError,
     ApiAppendEvaluationRequest,
@@ -2733,7 +2735,7 @@ export class AiAgentModel {
         projectUuid: string;
         userUuid: string;
         agentUuids?: string[];
-        createdFrom?: ('web_app' | 'slack' | 'evals')[];
+        createdFrom?: AiThreadCreatedFrom[];
         search?: string;
         paginateArgs?: KnexPaginateArgs;
     }): Promise<
@@ -7696,7 +7698,7 @@ export class AiAgentModel {
         sourceThreadUuid: string;
         sourcePromptUuid: string;
         targetUserUuid: string;
-        createdFrom?: 'web_app' | 'evals';
+        createdFrom?: AiClonedThreadCreatedFrom;
         includeSelectedPromptResponse?: boolean;
         shareSourceThreadShareUuid?: string;
         copyTitle?: boolean;

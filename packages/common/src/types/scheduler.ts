@@ -205,6 +205,29 @@ export type SchedulerAndTargets = Scheduler & {
     latestRun?: SchedulerRun | null;
 };
 
+export enum SchedulerAiAugmentationType {
+    AGENT = 'agent',
+    FAST_MODEL = 'fast_model',
+}
+
+/**
+ * Enterprise-only AI augmentation attached to a scheduled delivery. On each
+ * fire the agent (or ambient fast model) writes the delivery message from the
+ * delivery's content and the prompt. Persisted in the EE `scheduler_ai_augmentation`
+ * satellite table, not on the scheduler itself, so OSS carries none of it.
+ */
+export type SchedulerAiAugmentation =
+    | {
+          type: SchedulerAiAugmentationType.AGENT;
+          prompt: string;
+          agentUuid: string;
+          sourceThreadUuid: string | null;
+      }
+    | {
+          type: SchedulerAiAugmentationType.FAST_MODEL;
+          prompt: string;
+      };
+
 export type SchedulerSlackTarget = {
     schedulerSlackTargetUuid: string;
     createdAt: Date;
@@ -294,6 +317,10 @@ export type CreateSchedulerAndTargets = Omit<
     | 'savedSqlName'
 > & {
     targets: CreateSchedulerTarget[];
+    // Transient: carries the AI augmentation for an unsaved "send now" so the
+    // worker can run it without a persisted row. Never written to the scheduler
+    // table (persisted separately via the ai-augmentation sub-resource).
+    aiAugmentation?: SchedulerAiAugmentation | null;
 };
 
 export type CreateSchedulerAndTargetsWithoutIds = Omit<
@@ -485,6 +512,11 @@ export const isSchedulerGsheetsOptions = (
 export type ApiSchedulerAndTargetsResponse = {
     status: 'ok';
     results: SchedulerAndTargets;
+};
+
+export type ApiSchedulerAiAugmentationResponse = {
+    status: 'ok';
+    results: SchedulerAiAugmentation | null;
 };
 
 export type ApiAppSchedulersResponse = {

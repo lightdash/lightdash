@@ -43,10 +43,36 @@ export type AiPromptTokenUsage = {
     totalTokens: number;
 };
 
+/**
+ * Every origin an ai_thread can be created from. Canonical source for the
+ * DB column type and the admin/list filters — add new origins here.
+ */
+export type AiThreadCreatedFrom = 'slack' | 'web_app' | 'evals' | 'scheduler';
+
+// Subsets are spelled out (not Exclude<>) because tsoa can't resolve mapped
+// types at API boundaries. The assertion below fails to compile if any subset
+// drifts outside the canonical union — e.g. after renaming a member — so they
+// can't silently diverge.
+
+/** Origins for threads created through the web app path — everything but Slack. */
+export type AiWebAppThreadCreatedFrom = 'web_app' | 'evals' | 'scheduler';
+
+/** Origins handled through the Slack path. */
+export type AiSlackThreadCreatedFrom = 'slack' | 'web_app';
+
+/** Origins a thread can be cloned into — Slack and scheduler threads are never clone targets. */
+export type AiClonedThreadCreatedFrom = 'web_app' | 'evals';
+
+type AssertSubsetOfCreatedFrom<T extends AiThreadCreatedFrom> = T;
+export type AiCreatedFromSubsetsAreValid =
+    | AssertSubsetOfCreatedFrom<AiWebAppThreadCreatedFrom>
+    | AssertSubsetOfCreatedFrom<AiSlackThreadCreatedFrom>
+    | AssertSubsetOfCreatedFrom<AiClonedThreadCreatedFrom>;
+
 export type CreateSlackThread = {
     organizationUuid: string;
     projectUuid: string;
-    createdFrom: 'slack' | 'web_app';
+    createdFrom: AiSlackThreadCreatedFrom;
     slackUserId: string;
     slackChannelId: string;
     slackThreadTs: string;
@@ -57,7 +83,7 @@ export type CreateWebAppThread = {
     organizationUuid: string;
     projectUuid: string;
     userUuid: string;
-    createdFrom: 'web_app' | 'evals';
+    createdFrom: AiWebAppThreadCreatedFrom;
     agentUuid: string | null;
     embedSpaceUuid?: string | null;
 };
@@ -327,5 +353,5 @@ export type CloneThread = {
     sourceThreadUuid: string;
     sourcePromptUuid: string;
     targetUserUuid: string;
-    createdFrom?: 'web_app' | 'evals';
+    createdFrom?: AiClonedThreadCreatedFrom;
 };

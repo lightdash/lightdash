@@ -23,6 +23,7 @@ import {
     TableCalculationType,
     UnexpectedServerError,
 } from '@lightdash/common';
+import { generateText } from 'ai';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
 import { LightdashConfig } from '../../../config/parseConfig';
@@ -625,5 +626,52 @@ export class AiService {
         return {
             html: result.html,
         };
+    }
+
+    /**
+     * Single-shot summary of a scheduled delivery's already-rendered content
+     * using the ambient fast model. The content is the data the delivery sends
+     * (filters and parameters already applied upstream), so the model never
+     * re-queries the warehouse.
+     */
+    async generateDeliverySummary(
+        user: SessionUser,
+        {
+            prompt,
+            content,
+            projectUuid,
+        }: {
+            prompt: string;
+            content: string;
+            projectUuid: string;
+        },
+    ): Promise<string> {
+        const modelOptions = await this.getAmbientAiModel(user, {
+            projectUuid,
+        });
+
+        const result = await generateText({
+            model: modelOptions.model,
+            ...modelOptions.callOptions,
+            providerOptions: modelOptions.providerOptions,
+            messages: [
+                {
+                    role: 'system',
+                    content: `You write concise summaries of scheduled analytics deliveries.
+Given the delivery's data and the user's instructions, return a short plain-text
+report suitable for an email or Slack message. Only use the data provided —
+never invent figures. Do not repeat the raw table.`,
+                },
+                {
+                    role: 'user',
+                    content: [
+                        `Instructions:\n${prompt}`,
+                        `Delivery data:\n${content}`,
+                    ].join('\n\n'),
+                },
+            ],
+        });
+
+        return result.text.trim();
     }
 }

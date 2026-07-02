@@ -214,6 +214,31 @@ const PartialFailureText: FC<{
                     </Text>
                 </Stack>
             );
+        case PartialFailureType.AI_AUGMENTATION:
+            return (
+                <Stack
+                    gap={4}
+                    p="xs"
+                    style={{
+                        borderRadius: theme.radius.sm,
+                        backgroundColor: theme.colors.orange[0],
+                    }}
+                >
+                    <Text fz="xs" fw={500} c="orange.9">
+                        AI summary could not be generated
+                    </Text>
+                    <Code
+                        c="orange.9"
+                        bg="transparent"
+                        style={{
+                            fontSize: '11px',
+                            padding: 0,
+                        }}
+                    >
+                        {failure.error}
+                    </Code>
+                </Stack>
+            );
         default:
             return assertUnreachable(failure, 'Unknown partial failure type');
     }

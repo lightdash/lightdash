@@ -891,7 +891,7 @@ const makeThread = (scenario: ThreadScenario): AiAgentThread => {
         uuid: threadUuid,
         agentUuid: 'agent-story',
         createdAt,
-        createdFrom: 'storybook',
+        createdFrom: 'web_app',
         title: scenario.title,
         titleGeneratedAt: createdAt,
         firstMessage: {

@@ -41,6 +41,7 @@ import {
     GoogleSheetsQuotaError,
     GoogleSheetsTransientError,
     GsheetsNotificationPayload,
+    hasSchedulerUuid,
     isChartScheduler,
     isChartValidationError,
     isCreateScheduler,
@@ -79,6 +80,7 @@ import {
     SavedChartDAO,
     ScheduledDeliveryPayload,
     SCHEDULER_TASKS,
+    SchedulerAiAugmentation,
     SchedulerAndTargets,
     SchedulerCreateProjectWithCompilePayload,
     SchedulerFormat,
@@ -187,9 +189,20 @@ import { sanitizeGenericFileName } from '../utils/FileDownloadUtils/FileDownload
 import { SchedulerClient } from './SchedulerClient';
 import { SchedulerDeliveryError } from './SchedulerDeliveryError';
 
+// AI augmentation runner. Implemented by the EE SchedulerAiAugmentationService
+// and injected only by the commercial worker, so OSS deliveries skip it.
+export interface SchedulerAiAugmentationRunner {
+    runForDelivery(args: {
+        scheduler: SchedulerAndTargets | CreateSchedulerAndTargets;
+        createdBy: string;
+        augmentation?: SchedulerAiAugmentation | null;
+    }): Promise<string | null>;
+}
+
 export type SchedulerTaskArguments = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
+    schedulerAiAugmentation?: SchedulerAiAugmentationRunner;
     csvService: CsvService;
     dashboardService: DashboardService;
     deployService: DeployService;
@@ -347,6 +360,8 @@ export default class SchedulerTask {
 
     protected readonly analytics: LightdashAnalytics;
 
+    protected readonly schedulerAiAugmentation?: SchedulerAiAugmentationRunner;
+
     protected readonly csvService: CsvService;
 
     protected readonly dashboardService: DashboardService;
@@ -398,6 +413,7 @@ export default class SchedulerTask {
     constructor(args: SchedulerTaskArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
+        this.schedulerAiAugmentation = args.schedulerAiAugmentation;
         this.csvService = args.csvService;
         this.dashboardService = args.dashboardService;
         this.deployService = args.deployService;
@@ -4121,6 +4137,48 @@ export default class SchedulerTask {
                 }
             }
 
+            // Generate the AI report (if this delivery is augmented) as the
+            // creator and use it as the message. A failure degrades to a
+            // partial failure — the delivery still ships with the stored
+            // message. GSHEETS carries no message so it is skipped, and this
+            // runs after the threshold gate so unmet alerts never pay for it.
+            let deliveryScheduler = scheduler;
+            const aiPartialFailures: PartialFailure[] = [];
+            if (
+                this.schedulerAiAugmentation &&
+                scheduler.format !== SchedulerFormat.GSHEETS
+            ) {
+                try {
+                    // An unsaved "send now" carries its augmentation inline;
+                    // a persisted delivery has the runner look it up by uuid.
+                    const inlineAugmentation = !hasSchedulerUuid(scheduler)
+                        ? (scheduler.aiAugmentation ?? null)
+                        : undefined;
+                    const aiMessage =
+                        await this.schedulerAiAugmentation.runForDelivery({
+                            scheduler,
+                            createdBy: userUuid,
+                            augmentation: inlineAugmentation,
+                        });
+                    if (aiMessage !== null) {
+                        deliveryScheduler = {
+                            ...scheduler,
+                            message: aiMessage,
+                        };
+                    }
+                } catch (e) {
+                    Logger.error(
+                        `AI augmentation failed for scheduler ${schedulerUuid}: ${getErrorMessage(
+                            e,
+                        )}`,
+                    );
+                    aiPartialFailures.push({
+                        type: PartialFailureType.AI_AUGMENTATION,
+                        error: getErrorMessage(e),
+                    });
+                }
+            }
+
             let page: NotificationPayloadBase['page'] | undefined;
             let perChannelPages:
                 | {
@@ -4227,7 +4285,7 @@ export default class SchedulerTask {
             const scheduledJobs =
                 await this.schedulerClient.generateJobsForSchedulerTargets(
                     scheduledTime,
-                    scheduler,
+                    deliveryScheduler,
                     page,
                     jobId,
                     traceProperties,
@@ -4257,8 +4315,11 @@ export default class SchedulerTask {
                 }),
             );
 
-            // Use page failures directly as partialFailures for logging
-            const partialFailures = page?.failures;
+            // Page render failures plus any AI-augmentation failure.
+            const partialFailures = [
+                ...(page?.failures ?? []),
+                ...aiPartialFailures,
+            ];
 
             await this.schedulerService.logSchedulerJob({
                 task: SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
@@ -4271,8 +4332,7 @@ export default class SchedulerTask {
                     projectUuid: schedulerPayload.projectUuid,
                     organizationUuid: schedulerPayload.organizationUuid,
                     createdByUserUuid: schedulerPayload.userUuid,
-                    ...(partialFailures &&
-                        partialFailures.length > 0 && { partialFailures }),
+                    ...(partialFailures.length > 0 && { partialFailures }),
                 },
             });
 
