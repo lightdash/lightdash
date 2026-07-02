@@ -3,6 +3,7 @@ import { type MemberAbility } from '../authorization/types';
 import { type AnyType } from './any';
 import { type OpenIdIdentityIssuerType } from './openIdIdentity';
 import { type OrganizationMemberRole } from './organizationMemberProfile';
+import { type UserAvatarGradientId } from './userAvatars';
 
 export type AccountUser = {
     /**
@@ -39,6 +40,10 @@ export interface LightdashUser {
     updatedAt: Date;
     /* IANA timezone the user prefers query results rendered in. */
     timezone: string | null;
+    /* Content-addressed path to the uploaded avatar image; null when none uploaded. */
+    avatarUrl: string | null;
+    /* Explicit gradient placeholder override; null falls back to the deterministic gradient. */
+    avatarGradient: UserAvatarGradientId | null;
     /* Whether the user doesn't have an authentication method (password or openId) */
     isPending?: boolean;
 }
