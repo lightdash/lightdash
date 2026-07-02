@@ -957,7 +957,7 @@ describe('enforceNextUserSignalGrounding', () => {
         expect(
             AiAgentReviewClassifierService.enforceNextUserSignalGrounding(
                 output,
-                true,
+                { hasNextUserPrompt: true, hasHumanFeedback: false },
             ),
         ).toBe(output);
     });
@@ -969,7 +969,7 @@ describe('enforceNextUserSignalGrounding', () => {
         expect(
             AiAgentReviewClassifierService.enforceNextUserSignalGrounding(
                 output,
-                false,
+                { hasNextUserPrompt: false, hasHumanFeedback: false },
             ),
         ).toBe(output);
     });
@@ -983,7 +983,7 @@ describe('enforceNextUserSignalGrounding', () => {
                         'next_user_retry',
                     ],
                 }),
-                false,
+                { hasNextUserPrompt: false, hasHumanFeedback: false },
             );
         expect(result.implicitSignalSources).toEqual([]);
         expect(result.promotedToFinding).toBe(false);
@@ -1001,13 +1001,13 @@ describe('enforceNextUserSignalGrounding', () => {
                         'tool_error',
                     ],
                 }),
-                false,
+                { hasNextUserPrompt: false, hasHumanFeedback: false },
             );
         expect(result.implicitSignalSources).toEqual(['tool_error']);
         expect(result.promotedToFinding).toBe(true);
     });
 
-    it('demotes when only output_shape_correction remains after stripping', () => {
+    it('strips output_shape_correction as next-turn-derived and demotes', () => {
         const result =
             AiAgentReviewClassifierService.enforceNextUserSignalGrounding(
                 promotedWithNextUserSignal({
@@ -1016,11 +1016,30 @@ describe('enforceNextUserSignalGrounding', () => {
                         'output_shape_correction',
                     ],
                 }),
-                false,
+                { hasNextUserPrompt: false, hasHumanFeedback: false },
             );
-        expect(result.implicitSignalSources).toEqual([
-            'output_shape_correction',
-        ]);
+        expect(result.implicitSignalSources).toEqual([]);
+        expect(result.promotedToFinding).toBe(false);
+    });
+
+    it('keeps the promotion when explicit human feedback grounds it', () => {
+        const result =
+            AiAgentReviewClassifierService.enforceNextUserSignalGrounding(
+                promotedWithNextUserSignal(),
+                { hasNextUserPrompt: false, hasHumanFeedback: true },
+            );
+        expect(result.implicitSignalSources).toEqual([]);
+        expect(result.promotedToFinding).toBe(true);
+    });
+
+    it('demotes a promotion built only on fabricated output_shape_correction', () => {
+        const result =
+            AiAgentReviewClassifierService.enforceNextUserSignalGrounding(
+                promotedWithNextUserSignal({
+                    implicitSignalSources: ['output_shape_correction'],
+                }),
+                { hasNextUserPrompt: false, hasHumanFeedback: false },
+            );
         expect(result.promotedToFinding).toBe(false);
     });
 
@@ -1031,7 +1050,7 @@ describe('enforceNextUserSignalGrounding', () => {
                     promotedToFinding: false,
                     promotionReason: null,
                 }),
-                false,
+                { hasNextUserPrompt: false, hasHumanFeedback: false },
             );
         expect(result.implicitSignalSources).toEqual([]);
         expect(result.promotedToFinding).toBe(false);

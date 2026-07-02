@@ -390,6 +390,13 @@ const isToolOutcomeName = (toolName: string): boolean =>
 
 const SQL_APPROVAL_TIMEOUT_PATTERN = /sql approval timed out/i;
 
+// For mutation/MCP outcomes only — narrower than TOOL_RESULT_ERROR_PATTERN
+// because 'empty'/'no match'/'not found' are normal content in successful
+// results (e.g. an MCP issue list mentioning failed CI checks is not an error,
+// but a discovery tool returning 'no match' is).
+const TOOL_OUTCOME_ERROR_PATTERN =
+    /\berror\b|\bfailed\b|timed out|no pull request was opened|made no file changes/i;
+
 const TOOL_RESULT_ERROR_PATTERN =
     /no match|no relevant|not found|empty|error|failed/i;
 
@@ -1093,15 +1100,24 @@ export class AiAgentReviewClassifierModel {
             .where('tool_call.ai_prompt_uuid', promptUuid)
             .orderBy('tool_call.created_at', 'asc');
 
+        const toolOutcomeStatus = (
+            result: string | null,
+        ): 'success' | 'error' | 'unknown' => {
+            if (result === null) {
+                return 'unknown';
+            }
+            return TOOL_OUTCOME_ERROR_PATTERN.test(result)
+                ? 'error'
+                : 'success';
+        };
+
         return {
             toolOutcomes: rows
                 .filter((row) => isToolOutcomeName(row.tool_name))
                 .map((row) => ({
                     toolCallId: row.tool_call_id,
                     toolName: row.tool_name,
-                    status: TOOL_RESULT_ERROR_PATTERN.test(row.result ?? '')
-                        ? ('error' as const)
-                        : ('success' as const),
+                    status: toolOutcomeStatus(row.result),
                 })),
             pendingApprovalTimeout: rows.some((row) =>
                 SQL_APPROVAL_TIMEOUT_PATTERN.test(row.result ?? ''),

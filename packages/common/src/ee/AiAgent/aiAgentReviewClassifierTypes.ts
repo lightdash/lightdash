@@ -1060,7 +1060,9 @@ export type AiAgentReviewClassifierTurnCandidate = {
 export type AiAgentReviewClassifierToolOutcome = {
     toolCallId: string;
     toolName: string;
-    status: 'success' | 'error';
+    // 'unknown' = the tool call has no persisted result (crash, aborted
+    // stream) — the judge must not read it as either success or failure.
+    status: 'success' | 'error' | 'unknown';
 };
 
 export type AiAgentReviewClassifierQueryHistorySummary = {

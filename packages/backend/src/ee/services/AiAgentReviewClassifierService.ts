@@ -47,7 +47,7 @@ import { getAiCallTelemetry } from './ai/utils/aiCallTelemetry';
 import { type AiAgentReviewNotificationService } from './AiAgentReviewNotificationService';
 
 const REVIEW_AGENT_VERSION = 'llm-judge-v1';
-const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v13';
+const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v14';
 const WRITEBACK_TOOL_NAMES = new Set([
     'editDbtProject',
     'propose_writeback',
@@ -160,12 +160,19 @@ export type AiAgentReviewJudgeEvidencePacket = {
     pendingApprovalTimeout: boolean;
 };
 
+// What a tag-restricted agent can see, mirroring filterExploreByTags.
+// Computed once per agent per run; null = unrestricted (no tags).
+type AiAgentReviewCatalogVisibility = {
+    visibleExploreNames: Set<string>;
+    visibleTables: Set<string>;
+    visibleFields: Set<string>;
+};
+
 type AiAgentReviewAgentConfigEvidence =
     AiAgentReviewJudgeEvidencePacket['agentConfig'] & {
         snapshot: AiAgentConfigSnapshot | null;
         agentUpdatedAt: Date | null;
-        // Agent explore-tag restriction, used to agent-scope the catalog.
-        exploreTags: string[] | null;
+        catalogVisibility: AiAgentReviewCatalogVisibility | null;
     };
 
 type RunArgs = {
@@ -407,7 +414,13 @@ export class AiAgentReviewClassifierService extends BaseService {
             judgeOutput:
                 AiAgentReviewClassifierService.enforceNextUserSignalGrounding(
                     judgeOutput,
-                    input.evidencePacket.nextUserPrompt !== null,
+                    {
+                        hasNextUserPrompt:
+                            input.evidencePacket.nextUserPrompt !== null,
+                        hasHumanFeedback:
+                            input.evidencePacket.humanFeedback.score !== null ||
+                            !!input.evidencePacket.humanFeedback.comment,
+                    },
                 ),
         };
     }
@@ -503,8 +516,34 @@ export class AiAgentReviewClassifierService extends BaseService {
             return null;
         }
 
+        // One config per agent in the run — a multi-agent backfill must not
+        // apply the first agent's tags/knowledge/MCP to other agents' turns.
+        const agentConfigsByAgentUuid = new Map<
+            string,
+            AiAgentReviewAgentConfigEvidence
+        >();
+        await Promise.all(
+            [
+                ...new Map(
+                    args.candidates.map((candidate) => [
+                        candidate.subject.agentUuid,
+                        candidate,
+                    ]),
+                ).values(),
+            ].map(async (candidate) => {
+                agentConfigsByAgentUuid.set(
+                    candidate.subject.agentUuid,
+                    await this.captureAgentConfigSnapshot(candidate),
+                );
+            }),
+        );
+        const getAgentConfig = (
+            agentUuid: string,
+        ): AiAgentReviewAgentConfigEvidence =>
+            agentConfigsByAgentUuid.get(agentUuid) ??
+            AiAgentReviewClassifierService.emptyAgentConfigEvidence();
         const runAgentConfig = args.candidates[0]
-            ? await this.captureAgentConfigSnapshot(args.candidates[0])
+            ? getAgentConfig(args.candidates[0].subject.agentUuid)
             : AiAgentReviewClassifierService.emptyAgentConfigEvidence();
         const aiWritebackFlag = await this.featureFlagService.get({
             featureFlagId: FeatureFlags.AiWriteback,
@@ -552,15 +591,49 @@ export class AiAgentReviewClassifierService extends BaseService {
             shouldPersistFindings && !!args.promoteFindingsToReviewItems;
 
         try {
-            const reviewedTurns = await Promise.all(
-                args.candidates.map(async (candidate) => ({
-                    candidate,
-                    classifiedTurn: await this.classifyTurnWithJudge(
-                        candidate,
-                        runAgentConfig,
-                        { projectContextEnabled: aiWritebackFlag.enabled },
-                    ),
-                })),
+            // Per-candidate isolation: one turn erroring (schema violation,
+            // provider failure) must not fail the run and drop every other
+            // turn's signal.
+            const reviewedTurns = (
+                await Promise.all(
+                    args.candidates.map(async (candidate) => {
+                        try {
+                            return {
+                                candidate,
+                                classifiedTurn:
+                                    await this.classifyTurnWithJudge(
+                                        candidate,
+                                        getAgentConfig(
+                                            candidate.subject.agentUuid,
+                                        ),
+                                        {
+                                            projectContextEnabled:
+                                                aiWritebackFlag.enabled,
+                                        },
+                                    ),
+                            };
+                        } catch (error) {
+                            Logger.error(
+                                'AI review judge failed for turn; skipping',
+                                {
+                                    promptUuid:
+                                        candidate.subject.assistantPromptUuid,
+                                    threadUuid: candidate.subject.threadUuid,
+                                    errorMessage:
+                                        error instanceof Error
+                                            ? error.message
+                                            : String(error),
+                                },
+                            );
+                            return null;
+                        }
+                    }),
+                )
+            ).filter(
+                (
+                    reviewedTurn,
+                ): reviewedTurn is AiAgentReviewClassifierReviewedTurn =>
+                    reviewedTurn !== null,
             );
 
             const report = AiAgentReviewClassifierService.buildReport({
@@ -681,21 +754,27 @@ export class AiAgentReviewClassifierService extends BaseService {
     }
 
     /**
-     * next_user_* signals require a real next user turn. When there is none,
-     * strip them, and demote the finding when nothing else promotable remains
-     * — the promotion was built on fabricated evidence.
+     * Next-turn-derived signals require a real next user turn. When there is
+     * none, strip them, and demote the finding when nothing else supports the
+     * promotion — the promotion was built on fabricated evidence. Explicit
+     * human feedback (score/comment) is independent grounds for promotion, so
+     * it always blocks the demotion.
      */
     static enforceNextUserSignalGrounding(
         judgeOutput: AiAgentReviewClassifierJudgeOutput,
-        hasNextUserPrompt: boolean,
+        grounding: {
+            hasNextUserPrompt: boolean;
+            hasHumanFeedback: boolean;
+        },
     ): AiAgentReviewClassifierJudgeOutput {
-        if (hasNextUserPrompt) {
+        if (grounding.hasNextUserPrompt) {
             return judgeOutput;
         }
         const nextUserSources = new Set([
             'next_user_correction',
             'next_user_dispute',
             'next_user_retry',
+            'output_shape_correction',
         ]);
         const fabricatedSources = judgeOutput.implicitSignalSources.filter(
             (source) => nextUserSources.has(source),
@@ -706,12 +785,10 @@ export class AiAgentReviewClassifierService extends BaseService {
         const implicitSignalSources = judgeOutput.implicitSignalSources.filter(
             (source) => !nextUserSources.has(source),
         );
-        const remainingPromotableSources = implicitSignalSources.filter(
-            (source) => source !== 'output_shape_correction',
-        );
         const shouldDemote =
             judgeOutput.promotedToFinding &&
-            remainingPromotableSources.length === 0;
+            implicitSignalSources.length === 0 &&
+            !grounding.hasHumanFeedback;
         if (!shouldDemote) {
             return { ...judgeOutput, implicitSignalSources };
         }
@@ -766,7 +843,14 @@ export class AiAgentReviewClassifierService extends BaseService {
         const judgeOutput =
             AiAgentReviewClassifierService.enforceNextUserSignalGrounding(
                 rawJudgeOutput,
-                reviewEvidence.evidencePacket.nextUserPrompt !== null,
+                {
+                    hasNextUserPrompt:
+                        reviewEvidence.evidencePacket.nextUserPrompt !== null,
+                    hasHumanFeedback:
+                        reviewEvidence.evidencePacket.humanFeedback.score !==
+                            null ||
+                        !!reviewEvidence.evidencePacket.humanFeedback.comment,
+                },
             );
         if (judgeOutput !== rawJudgeOutput) {
             this.debugLog('NextUserSignalGroundingApplied', {
@@ -993,7 +1077,7 @@ export class AiAgentReviewClassifierService extends BaseService {
     }> {
         const semanticContext = await this.buildSemanticContext(
             candidate,
-            agentConfig.exploreTags,
+            agentConfig.catalogVisibility,
         );
         const threadWritebackPullRequests =
             (
@@ -1102,7 +1186,10 @@ export class AiAgentReviewClassifierService extends BaseService {
                 knowledgeDocumentCount: snapshot.knowledgeDocuments.length,
                 knowledgeDocuments: snapshot.knowledgeDocuments,
                 mcpServers: snapshot.mcpServers,
-                exploreTags: agent.tags,
+                catalogVisibility: await this.computeCatalogVisibility(
+                    candidate.subject.projectUuid,
+                    agent.tags,
+                ),
             };
         } catch (error) {
             this.debugLog('AgentConfigSnapshotFailed', {
@@ -1130,67 +1217,101 @@ export class AiAgentReviewClassifierService extends BaseService {
             knowledgeDocumentCount: 0,
             knowledgeDocuments: [],
             mcpServers: [],
-            exploreTags: null,
+            catalogVisibility: null,
         };
     }
 
     /**
-     * Restricts the catalog to what the reviewed agent can actually see,
-     * mirroring the runtime filterExploreByTags scoping. Without this the
-     * judge cannot distinguish "field is missing" (semantic_layer) from
-     * "field exists but this agent cannot access it" (agent_configuration).
+     * Computes what a tag-restricted agent can see, mirroring the runtime
+     * filterExploreByTags scoping. Loads the explore cache once per agent per
+     * run (called from captureAgentConfigSnapshot, not per candidate). A
+     * failure here degrades to unscoped rather than dropping the whole
+     * agent config.
      */
-    private async scopeCatalogToAgent(
-        catalogItems: CatalogItemSummary[],
+    private async computeCatalogVisibility(
         projectUuid: string,
         exploreTags: string[] | null,
-    ): Promise<CatalogItemSummary[]> {
+    ): Promise<AiAgentReviewCatalogVisibility | null> {
         if (!exploreTags || exploreTags.length === 0) {
+            return null;
+        }
+        try {
+            const explores = Object.values(
+                await this.projectModel.findExploresFromCache(
+                    projectUuid,
+                    'name',
+                ),
+            );
+            const visibleExploreNames = new Set<string>();
+            const visibleTables = new Set<string>();
+            const visibleFields = new Set<string>();
+            explores
+                .filter(
+                    (explore): explore is Explore => !isExploreError(explore),
+                )
+                .forEach((explore) => {
+                    const filtered = filterExploreByTags({
+                        explore,
+                        availableTags: exploreTags,
+                    });
+                    if (!filtered) {
+                        return;
+                    }
+                    Object.entries(filtered.tables).forEach(
+                        ([tableName, table]) => {
+                            const fieldNames = [
+                                ...Object.keys(table.dimensions),
+                                ...Object.keys(table.metrics),
+                            ];
+                            if (fieldNames.length === 0) {
+                                return;
+                            }
+                            visibleExploreNames.add(explore.name);
+                            visibleTables.add(tableName);
+                            fieldNames.forEach((fieldName) =>
+                                visibleFields.add(`${tableName}.${fieldName}`),
+                            );
+                        },
+                    );
+                });
+            return { visibleExploreNames, visibleTables, visibleFields };
+        } catch (error) {
+            this.debugLog('CatalogVisibilityFailed', {
+                projectUuid,
+                errorMessage:
+                    error instanceof Error ? error.message : String(error),
+            });
+            return null;
+        }
+    }
+
+    /**
+     * Restricts the catalog to what the reviewed agent can actually see.
+     * Without this the judge cannot distinguish "field is missing"
+     * (semantic_layer) from "field exists but this agent cannot access it"
+     * (agent_configuration). Table-type catalog items are named after the
+     * explore, so they match on explore name as well as table name.
+     */
+    private static scopeCatalogToAgent(
+        catalogItems: CatalogItemSummary[],
+        visibility: AiAgentReviewCatalogVisibility | null,
+    ): CatalogItemSummary[] {
+        if (!visibility) {
             return catalogItems;
         }
-
-        const explores = Object.values(
-            await this.projectModel.findExploresFromCache(projectUuid, 'name'),
-        );
-        const visibleTables = new Set<string>();
-        const visibleFields = new Set<string>();
-        explores
-            .filter((explore): explore is Explore => !isExploreError(explore))
-            .forEach((explore) => {
-                const filtered = filterExploreByTags({
-                    explore,
-                    availableTags: exploreTags,
-                });
-                if (!filtered) {
-                    return;
-                }
-                Object.entries(filtered.tables).forEach(
-                    ([tableName, table]) => {
-                        const fieldNames = [
-                            ...Object.keys(table.dimensions),
-                            ...Object.keys(table.metrics),
-                        ];
-                        if (fieldNames.length === 0) {
-                            return;
-                        }
-                        visibleTables.add(tableName);
-                        fieldNames.forEach((fieldName) =>
-                            visibleFields.add(`${tableName}.${fieldName}`),
-                        );
-                    },
-                );
-            });
-
         return catalogItems.filter((item) =>
             item.type === CatalogType.Table
-                ? visibleTables.has(item.name)
-                : visibleFields.has(`${item.tableName}.${item.name}`),
+                ? visibility.visibleExploreNames.has(item.name) ||
+                  visibility.visibleTables.has(item.name)
+                : visibility.visibleFields.has(
+                      `${item.tableName}.${item.name}`,
+                  ),
         );
     }
 
     private async buildSemanticContext(
         candidate: AiAgentReviewClassifierTurnCandidate,
-        exploreTags: string[] | null,
+        catalogVisibility: AiAgentReviewCatalogVisibility | null,
     ): Promise<AiAgentReviewJudgeEvidencePacket['semanticContext']> {
         const queriedExploreNames = [
             ...new Set(
@@ -1211,13 +1332,13 @@ export class AiAgentReviewClassifierService extends BaseService {
         ];
 
         try {
-            const catalogItems = await this.scopeCatalogToAgent(
-                await this.catalogModel.getCatalogItemsSummary(
-                    candidate.subject.projectUuid,
-                ),
-                candidate.subject.projectUuid,
-                exploreTags,
-            );
+            const catalogItems =
+                AiAgentReviewClassifierService.scopeCatalogToAgent(
+                    await this.catalogModel.getCatalogItemsSummary(
+                        candidate.subject.projectUuid,
+                    ),
+                    catalogVisibility,
+                );
 
             return {
                 queriedExploreNames,
@@ -1336,7 +1457,7 @@ Decision rules — apply in order:
 
 1. First, populate implicitSignalSources by inspecting the evidence packet. Do not skip this step.
 
-2. The evidence packet field toolOutcomes lists the success/error outcome of EVERY content-mutating, writeback, preview-deploy, and MCP tool call in the turn — it is complete even when the corresponding trace is not in supportingEvidence. A success there means the action really happened: never claim the assistant lacks a capability, fabricated an action, or failed to execute when toolOutcomes shows that tool succeeding. If the evidence shows the assistant successfully called a writeback tool (for example editDbtProject or runAiWriteback) and opened or updated a pull request, do not promote this as a semantic_layer or project_context finding. The remediation is already in progress; use promotedToFinding=false, signal=acceptance_or_continuation, primaryRootCause=not_a_failure, and promotionReason=writeback_tool_already_started. The evidence packet field threadWritebackPullRequests lists PRs the agent has already opened in this thread — when it is non-empty a real pull request exists, so do not infer from prose that the assistant fabricated it. Only consider writeback turns promotable when the tool failed, opened no pull request despite a clear requested change, or the user later says the PR is wrong.
+2. The evidence packet field toolOutcomes lists the outcome (success | error | unknown) of EVERY content-mutating, writeback, preview-deploy, and MCP tool call in the turn — it is complete even when the corresponding trace is not in supportingEvidence. A success there means the action really happened: never claim the assistant lacks a capability, fabricated an action, or failed to execute when toolOutcomes shows that tool succeeding. status=unknown means the result was never recorded — treat it as inconclusive, not as success or failure; status=error is a text heuristic, so cross-check it against supportingEvidence before promoting on it. If the evidence shows the assistant successfully called a writeback tool (for example editDbtProject or runAiWriteback) and opened or updated a pull request, do not promote this as a semantic_layer or project_context finding. The remediation is already in progress; use promotedToFinding=false, signal=acceptance_or_continuation, primaryRootCause=not_a_failure, and promotionReason=writeback_tool_already_started. The evidence packet field threadWritebackPullRequests lists PRs the agent has already opened in this thread — when it is non-empty a real pull request exists, so do not infer from prose that the assistant fabricated it. Only consider writeback turns promotable when the tool failed, opened no pull request despite a clear requested change, or the user later says the PR is wrong.
 
 3. Treat implicitSignalSources as strong evidence of unresolved user intent, not as decoration. Promote when the implicit signal points to likely assistant failure:
    - Always promote assistant_no_answer, next_user_dispute, tool_error, product_capability_request, and human_intervention.
@@ -1418,20 +1539,37 @@ Set projectContextEntry ONLY when primaryRootCause=project_context and a single 
             output.promotedToFinding &&
             this.hasDistinctEscalationJudgeModel(model.model.modelId)
         ) {
-            const escalatedOutput = await this.judgeTurnWithLlm(
-                candidate,
-                evidencePacket,
-                { tier: 'escalation' },
-            );
-            this.debugLog('JudgeEscalationCompleted', {
-                promptUuid: candidate.subject.assistantPromptUuid,
-                threadUuid: candidate.subject.threadUuid,
-                gatePromoted: output.promotedToFinding,
-                gateRootCause: output.primaryRootCause,
-                escalatedPromoted: escalatedOutput.promotedToFinding,
-                escalatedRootCause: escalatedOutput.primaryRootCause,
-            });
-            return escalatedOutput;
+            try {
+                const escalatedOutput = await this.judgeTurnWithLlm(
+                    candidate,
+                    evidencePacket,
+                    { tier: 'escalation' },
+                );
+                this.debugLog('JudgeEscalationCompleted', {
+                    promptUuid: candidate.subject.assistantPromptUuid,
+                    threadUuid: candidate.subject.threadUuid,
+                    gatePromoted: output.promotedToFinding,
+                    gateRootCause: output.primaryRootCause,
+                    escalatedPromoted: escalatedOutput.promotedToFinding,
+                    escalatedRootCause: escalatedOutput.primaryRootCause,
+                });
+                return escalatedOutput;
+            } catch (error) {
+                // The gate verdict is still a valid classification — never
+                // lose the turn because the strong model was unavailable.
+                Logger.error(
+                    'AI review judge escalation failed; keeping gate verdict',
+                    {
+                        promptUuid: candidate.subject.assistantPromptUuid,
+                        threadUuid: candidate.subject.threadUuid,
+                        errorMessage:
+                            error instanceof Error
+                                ? error.message
+                                : String(error),
+                    },
+                );
+                return output;
+            }
         }
 
         return output;

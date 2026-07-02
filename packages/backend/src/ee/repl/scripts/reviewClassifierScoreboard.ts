@@ -527,7 +527,7 @@ export function getReviewClassifierScoreboardScripts(
         const labelsBySignalUuid = new Map(
             labels.map((label) => [label.signalUuid, label]),
         );
-        const batchSize = Math.min(args.batchSize ?? 25, 50);
+        const batchSize = Math.min(args.batchSize ?? 10, 20);
         const entries: ScoreboardFixtureEntry[] = [];
 
         for (let start = 0; start < labels.length; start += batchSize) {

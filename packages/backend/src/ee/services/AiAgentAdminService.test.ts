@@ -492,14 +492,37 @@ describe('AiAgentAdminService.captureReviewReplayInputs', () => {
         ).rejects.toThrow();
     });
 
-    it('rejects batches over 50 signals', async () => {
+    it('rejects batches over 20 signals', async () => {
         const service = makeService();
 
         await expect(
             service.captureReviewReplayInputs(makeAdminUser(), {
-                signalUuids: Array.from({ length: 51 }, (_, i) => `s-${i}`),
+                signalUuids: Array.from({ length: 21 }, (_, i) => `s-${i}`),
             }),
-        ).rejects.toThrow('at most 50 signals');
+        ).rejects.toThrow('at most 20 signals');
+    });
+
+    it('returns a per-entry error for malformed uuids without querying them', async () => {
+        const findTurnSignalSubjects = vi.fn().mockResolvedValue([]);
+        const service = makeService({
+            aiAgentReviewClassifierModel: { findTurnSignalSubjects },
+        });
+
+        const results = await service.captureReviewReplayInputs(
+            makeAdminUser(),
+            { signalUuids: ['not-a-uuid'] },
+        );
+
+        expect(findTurnSignalSubjects).not.toHaveBeenCalled();
+        expect(results).toEqual([
+            {
+                signalUuid: 'not-a-uuid',
+                promptUuid: null,
+                threadUuid: null,
+                captureError: 'invalid signal uuid',
+                input: null,
+            },
+        ]);
     });
 
     it('resolves signals to prompts and returns captured inputs', async () => {
@@ -507,7 +530,7 @@ describe('AiAgentAdminService.captureReviewReplayInputs', () => {
         const captureJudgeReplayInput = vi.fn().mockResolvedValue(replayInput);
         const findTurnSignalSubjects = vi.fn().mockResolvedValue([
             {
-                signalUuid: 'signal-1',
+                signalUuid: '11111111-1111-4111-8111-111111111111',
                 promptUuid: 'prompt-1',
                 threadUuid: 'thread-1',
             },
@@ -519,12 +542,20 @@ describe('AiAgentAdminService.captureReviewReplayInputs', () => {
 
         const results = await service.captureReviewReplayInputs(
             makeAdminUser(),
-            { signalUuids: ['signal-1', 'signal-2'] },
+            {
+                signalUuids: [
+                    '11111111-1111-4111-8111-111111111111',
+                    '22222222-2222-4222-8222-222222222222',
+                ],
+            },
         );
 
         expect(findTurnSignalSubjects).toHaveBeenCalledWith({
             organizationUuid: ORGANIZATION_UUID,
-            signalUuids: ['signal-1', 'signal-2'],
+            signalUuids: [
+                '11111111-1111-4111-8111-111111111111',
+                '22222222-2222-4222-8222-222222222222',
+            ],
         });
         expect(captureJudgeReplayInput).toHaveBeenCalledWith({
             organizationUuid: ORGANIZATION_UUID,
@@ -532,14 +563,14 @@ describe('AiAgentAdminService.captureReviewReplayInputs', () => {
         });
         expect(results).toEqual([
             {
-                signalUuid: 'signal-1',
+                signalUuid: '11111111-1111-4111-8111-111111111111',
                 promptUuid: 'prompt-1',
                 threadUuid: 'thread-1',
                 captureError: null,
                 input: replayInput,
             },
             {
-                signalUuid: 'signal-2',
+                signalUuid: '22222222-2222-4222-8222-222222222222',
                 promptUuid: null,
                 threadUuid: null,
                 captureError: 'signal not found',

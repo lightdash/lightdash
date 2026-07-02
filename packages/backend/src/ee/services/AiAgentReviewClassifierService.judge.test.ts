@@ -240,3 +240,27 @@ describe('two-tier judge escalation', () => {
         expect(result.judgeOutput).toEqual(gateOutput);
     });
 });
+
+describe('two-tier judge escalation resilience', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        getModelMock.mockImplementation(
+            (_config, options) =>
+                (options?.useFastModel
+                    ? GATE_MODEL
+                    : ESCALATION_MODEL) as never,
+        );
+    });
+
+    it('keeps the gate verdict when the escalation call fails', async () => {
+        const gateOutput = judgeOutput();
+        generateObjectMock
+            .mockResolvedValueOnce({ object: gateOutput } as never)
+            .mockRejectedValueOnce(new Error('rate limited'));
+
+        const result = await makeService().replayJudge(replayInput);
+
+        expect(generateObjectMock).toHaveBeenCalledTimes(2);
+        expect(result.judgeOutput).toEqual(gateOutput);
+    });
+});
