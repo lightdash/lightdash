@@ -93,7 +93,7 @@ type AiAgentReviewCatalogEvidenceItem = {
     description: string | null;
 };
 
-type AiAgentReviewJudgeEvidencePacket = {
+export type AiAgentReviewJudgeEvidencePacket = {
     subject: AiAgentReviewClassifierTurnCandidate['subject'];
     interactionSource: AiAgentReviewClassifierTurnCandidate['interactionSource'];
     targetTurn: AiAgentReviewClassifierTurnCandidate['targetTurn'];
@@ -221,6 +221,15 @@ export type AiAgentReviewClassifierReviewedTurn = {
     classifiedTurn: AiAgentReviewClassifierClassifiedTurn;
 };
 
+export type AiAgentReviewJudgeReplayInput = {
+    candidate: AiAgentReviewClassifierTurnCandidate;
+    evidencePacket: AiAgentReviewJudgeEvidencePacket;
+};
+
+export type AiAgentReviewJudgeReplayResult =
+    | { suppressed: 'writeback_in_progress'; judgeOutput: null }
+    | { suppressed: null; judgeOutput: AiAgentReviewClassifierJudgeOutput };
+
 export class AiAgentReviewClassifierService extends BaseService {
     private readonly aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
 
@@ -311,6 +320,55 @@ export class AiAgentReviewClassifierService extends BaseService {
             throw new ForbiddenError('AI agent review agent is not enabled');
         }
         return result;
+    }
+
+    /**
+     * Read-only eval surface for the replay scoreboard
+     * (repl/scripts/reviewClassifierScoreboard.ts): builds the exact judge
+     * inputs for one historical turn without persisting anything.
+     */
+    async captureJudgeReplayInput(args: {
+        organizationUuid: string;
+        promptUuid: string;
+    }): Promise<AiAgentReviewJudgeReplayInput | null> {
+        const [candidate] =
+            await this.aiAgentReviewClassifierModel.listTurnReviewCandidates({
+                organizationUuid: args.organizationUuid,
+                promptUuid: args.promptUuid,
+                limit: 1,
+            });
+        if (!candidate) {
+            return null;
+        }
+        const agentConfig = await this.captureAgentConfigSnapshot(candidate);
+        const { evidencePacket } = await this.buildReviewEvidence(
+            candidate,
+            agentConfig,
+        );
+        return { candidate, evidencePacket };
+    }
+
+    /**
+     * Runs the judge over a captured input, applying the same pre-judge
+     * writeback suppression as the live path. Never persists anything.
+     */
+    async replayJudge(
+        input: AiAgentReviewJudgeReplayInput,
+    ): Promise<AiAgentReviewJudgeReplayResult> {
+        const successfulWritebackEvidence =
+            AiAgentReviewClassifierService.getSuccessfulWritebackEvidence(
+                input.candidate,
+            );
+        if (successfulWritebackEvidence) {
+            return { suppressed: 'writeback_in_progress', judgeOutput: null };
+        }
+        return {
+            suppressed: null,
+            judgeOutput: await this.judgeTurn(
+                input.candidate,
+                input.evidencePacket,
+            ),
+        };
     }
 
     async runLiveEvent(
