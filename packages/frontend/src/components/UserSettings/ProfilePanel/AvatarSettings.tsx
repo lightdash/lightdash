@@ -1,14 +1,20 @@
-import { USER_AVATAR_GRADIENT_IDS } from '@lightdash/common';
+import {
+    USER_AVATAR_GRADIENT_IDS,
+    type UserAvatarGradientId,
+} from '@lightdash/common';
 import {
     Button,
+    ColorPicker,
     Divider,
     FileButton,
     Group,
     Popover,
+    Stack,
     Text,
     Tooltip,
 } from '@mantine-8/core';
-import { type FC } from 'react';
+import { useDisclosure } from '@mantine-8/hooks';
+import { type FC, useState } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
     useAvatarDeleteMutation,
@@ -19,12 +25,30 @@ import useApp from '../../../providers/App/useApp';
 import { LightdashUserAvatar } from '../../Avatar';
 import classes from './AvatarSettings.module.css';
 
+const DEFAULT_SWATCH_COLOR = '#ced4da';
+
+const GRADIENT_SWATCH_COLORS: Record<UserAvatarGradientId, string> = {
+    lilac: '#9d7fff',
+    blush: '#ff6fc4',
+    amethyst: '#5e4cff',
+    sunrise: '#b3a0ff',
+    slate: '#2a2a2a',
+};
+
+const gradientIdForColor = (color: string): UserAvatarGradientId | null =>
+    USER_AVATAR_GRADIENT_IDS.find(
+        (id) => GRADIENT_SWATCH_COLORS[id] === color,
+    ) ?? null;
+
 const AvatarSettings: FC = () => {
     const { user } = useApp();
     const { showToastError } = useToaster();
     const uploadMutation = useAvatarUploadMutation();
     const deleteMutation = useAvatarDeleteMutation();
     const updateUserMutation = useUserUpdateMutation();
+    const [opened, { toggle, close }] = useDisclosure(false);
+    const [previewGradient, setPreviewGradient] =
+        useState<UserAvatarGradientId | null>(null);
 
     if (!user.data) return null;
 
@@ -42,6 +66,18 @@ const AvatarSettings: FC = () => {
                 });
             },
         });
+    };
+
+    const handleToggle = () => {
+        if (!opened) {
+            setPreviewGradient(avatarGradient ?? null);
+        }
+        toggle();
+    };
+
+    const handleApply = () => {
+        updateUserMutation.mutate({ avatarGradient: previewGradient });
+        close();
     };
 
     return (
@@ -82,13 +118,22 @@ const AvatarSettings: FC = () => {
                 </Button>
             )}
             {!avatarUrl && (
-                <Popover width={200} position="bottom-start" withArrow>
+                <Popover
+                    opened={opened}
+                    onChange={(isOpen) => {
+                        if (!isOpen) close();
+                    }}
+                    width={220}
+                    position="bottom-start"
+                    withArrow
+                >
                     <Popover.Target>
                         <Tooltip label="Choose color">
                             <button
                                 type="button"
                                 aria-label="Choose avatar color"
                                 className={classes.swatchButton}
+                                onClick={handleToggle}
                             >
                                 <LightdashUserAvatar
                                     size="sm"
@@ -101,57 +146,59 @@ const AvatarSettings: FC = () => {
                         </Tooltip>
                     </Popover.Target>
                     <Popover.Dropdown>
-                        <Text size="xs" c="dimmed" fw={500} mb="xs">
-                            Avatar color
-                        </Text>
-                        <Group gap="xs" wrap="wrap">
-                            <Tooltip label="No color (default)">
-                                <button
-                                    type="button"
-                                    aria-label="Use default avatar"
-                                    className={
-                                        !avatarGradient
-                                            ? `${classes.swatchButton} ${classes.swatchSelected}`
-                                            : classes.swatchButton
-                                    }
-                                    onClick={() =>
-                                        updateUserMutation.mutate({
-                                            avatarGradient: null,
-                                        })
-                                    }
+                        <Stack gap="sm">
+                            <Group justify="space-between" align="center">
+                                <Text size="xs" c="dimmed" fw={500}>
+                                    Avatar color
+                                </Text>
+                                <LightdashUserAvatar
+                                    size="sm"
+                                    userUuid={userUuid}
+                                    avatarGradient={previewGradient}
                                 >
-                                    <LightdashUserAvatar size="sm">
-                                        {initials}
-                                    </LightdashUserAvatar>
-                                </button>
-                            </Tooltip>
-                            {USER_AVATAR_GRADIENT_IDS.map((gradientId) => (
-                                <Tooltip key={gradientId} label={gradientId}>
-                                    <button
-                                        type="button"
-                                        aria-label={`Use ${gradientId} avatar color`}
-                                        className={
-                                            gradientId === avatarGradient
-                                                ? `${classes.swatchButton} ${classes.swatchSelected}`
-                                                : classes.swatchButton
-                                        }
-                                        onClick={() =>
-                                            updateUserMutation.mutate({
-                                                avatarGradient: gradientId,
-                                            })
-                                        }
-                                    >
-                                        <LightdashUserAvatar
-                                            size="sm"
-                                            userUuid={userUuid}
-                                            avatarGradient={gradientId}
-                                        >
-                                            {initials}
-                                        </LightdashUserAvatar>
-                                    </button>
-                                </Tooltip>
-                            ))}
-                        </Group>
+                                    {initials}
+                                </LightdashUserAvatar>
+                            </Group>
+                            <ColorPicker
+                                withPicker={false}
+                                format="hex"
+                                swatchesPerRow={6}
+                                swatches={[
+                                    DEFAULT_SWATCH_COLOR,
+                                    ...USER_AVATAR_GRADIENT_IDS.map(
+                                        (id) => GRADIENT_SWATCH_COLORS[id],
+                                    ),
+                                ]}
+                                value={
+                                    previewGradient
+                                        ? GRADIENT_SWATCH_COLORS[
+                                              previewGradient
+                                          ]
+                                        : DEFAULT_SWATCH_COLOR
+                                }
+                                onChange={(color) =>
+                                    setPreviewGradient(
+                                        gradientIdForColor(color),
+                                    )
+                                }
+                            />
+                            <Group justify="flex-end" gap="xs">
+                                <Button
+                                    variant="subtle"
+                                    size="xs"
+                                    onClick={close}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    size="xs"
+                                    loading={updateUserMutation.isLoading}
+                                    onClick={handleApply}
+                                >
+                                    Apply
+                                </Button>
+                            </Group>
+                        </Stack>
                     </Popover.Dropdown>
                 </Popover>
             )}
