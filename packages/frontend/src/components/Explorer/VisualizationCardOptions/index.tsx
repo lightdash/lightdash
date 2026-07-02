@@ -30,8 +30,8 @@ import MantineIcon from '../../common/MantineIcon';
 import {
     isBigNumberVisualizationConfig,
     isCartesianVisualizationConfig,
-    isDataAppVizVisualizationConfig,
     isCustomVisualizationConfig,
+    isDataAppVizVisualizationConfig,
     isFunnelVisualizationConfig,
     isGaugeVisualizationConfig,
     isMapVisualizationConfig,

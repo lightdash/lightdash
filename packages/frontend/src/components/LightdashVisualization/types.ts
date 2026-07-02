@@ -18,8 +18,8 @@ import type useCartesianChartConfig from '../../hooks/cartesianChartConfig/useCa
 import { type CartesianTypeOptions } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import type useTableConfig from '../../hooks/tableVisualization/useTableConfig';
 import type useBigNumberConfig from '../../hooks/useBigNumberConfig';
-import type useDataAppVizVisualizationConfig from '../../hooks/useDataAppVizVisualizationConfig';
 import type useCustomVisualizationConfig from '../../hooks/useCustomVisualizationConfig';
+import type useDataAppVizVisualizationConfig from '../../hooks/useDataAppVizVisualizationConfig';
 import type useFunnelChartConfig from '../../hooks/useFunnelChartConfig';
 import type useGaugeChartConfig from '../../hooks/useGaugeChartConfig';
 import type usePieChartConfig from '../../hooks/usePieChartConfig';
