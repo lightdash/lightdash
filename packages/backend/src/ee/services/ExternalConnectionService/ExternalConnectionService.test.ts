@@ -24,6 +24,7 @@ const connection: ExternalConnection = {
     name: 'Test API',
     type: 'bearer_token',
     origin: 'https://api.example.com',
+    instructions: null,
     allowedPathPrefixes: ['/v1/'],
     allowedMethods: ['GET', 'POST'],
     allowedContentTypes: ['application/json'],

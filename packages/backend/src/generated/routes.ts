@@ -1770,6 +1770,14 @@ const models: TsoaRoute.Models = {
                     array: { dataType: 'string' },
                     required: true,
                 },
+                instructions: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 origin: { dataType: 'string', required: true },
                 type: { ref: 'ExternalConnectionAuthType', required: true },
                 name: { dataType: 'string', required: true },
@@ -1847,6 +1855,13 @@ const models: TsoaRoute.Models = {
                     array: { dataType: 'string' },
                     required: true,
                 },
+                instructions: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 origin: { dataType: 'string', required: true },
                 type: { ref: 'ExternalConnectionAuthType', required: true },
                 name: { dataType: 'string', required: true },
@@ -1894,6 +1909,14 @@ const models: TsoaRoute.Models = {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                instructions: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
                         { dataType: 'undefined' },
                     ],
                 },

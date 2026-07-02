@@ -19,6 +19,7 @@ vi.mock('ai', () => ({
 type AppExternalConnectionDoc = {
     alias: string;
     origin: string;
+    instructions?: string | null;
     allowedMethods: string[];
     allowedPathPrefixes: string[];
     samples: ExternalConnectionSample[];
@@ -201,6 +202,54 @@ describe('AppGenerateService.writeExternalConnectionSamples', () => {
         expect(written.allowedMethods).toEqual(['GET']);
         expect(written.samples).toEqual([]);
         expect(block).toContain('/tmp/external-data/weather.json');
+    });
+
+    it('embeds admin instructions in the doc and prompt block when set, omits when absent', async () => {
+        const sandbox = makeSandbox();
+        const docs: AppExternalConnectionDoc[] = [
+            {
+                alias: 'withdocs',
+                origin: 'https://api.docs.test',
+                instructions: 'Paginate with ?page=. Rates are in USD.',
+                allowedMethods: ['GET'],
+                allowedPathPrefixes: ['/v1/'],
+                samples: [],
+            },
+            {
+                alias: 'blank',
+                origin: 'https://api.blank.test',
+                instructions: '   ',
+                allowedMethods: ['GET'],
+                allowedPathPrefixes: ['/v1/'],
+                samples: [],
+            },
+        ];
+        const { service } = buildService();
+
+        const block = await service.writeExternalConnectionSamples(
+            sandbox,
+            'app-1',
+            docs,
+        );
+
+        const writeMock = sandbox.files.write as import('vitest').Mock;
+        const withDocsDoc = JSON.parse(
+            writeMock.mock.calls.find(
+                ([path]) => path === '/tmp/external-data/withdocs.json',
+            )![1],
+        );
+        expect(withDocsDoc.instructions).toBe(
+            'Paginate with ?page=. Rates are in USD.',
+        );
+
+        const blankDoc = JSON.parse(
+            writeMock.mock.calls.find(
+                ([path]) => path === '/tmp/external-data/blank.json',
+            )![1],
+        );
+        expect(blankDoc).not.toHaveProperty('instructions');
+
+        expect(block).toContain('instructions');
     });
 
     it('does not mkdir or write when there are no linked connections', async () => {

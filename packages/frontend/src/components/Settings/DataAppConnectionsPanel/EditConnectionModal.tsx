@@ -2,7 +2,7 @@ import {
     type ExternalConnection,
     type UpdateExternalConnection,
 } from '@lightdash/common';
-import { Button, Tabs } from '@mantine-8/core';
+import { Button, Stack, Tabs, Text, Textarea } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { IconPencil } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -39,6 +39,7 @@ const EditConnectionModalContent: FC<Props> = ({
         initialValues: {
             name: connection.name,
             origin: connection.origin,
+            instructions: connection.instructions ?? '',
             type: connection.type,
             secret: '',
             apiKeyName: connection.apiKeyName ?? '',
@@ -77,6 +78,7 @@ const EditConnectionModalContent: FC<Props> = ({
         const data: UpdateExternalConnection = {
             name: values.name,
             origin: values.origin,
+            instructions: values.instructions.trim() || null,
             type: values.type,
             allowedMethods: values.allowedMethods,
             allowedPathPrefixes: resolvePathPrefixes(
@@ -129,6 +131,7 @@ const EditConnectionModalContent: FC<Props> = ({
                 <Tabs defaultValue="details" keepMounted={false}>
                     <Tabs.List mb="md">
                         <Tabs.Tab value="details">Connection details</Tabs.Tab>
+                        <Tabs.Tab value="instructions">Instructions</Tabs.Tab>
                         <Tabs.Tab value="examples">Examples</Tabs.Tab>
                     </Tabs.List>
 
@@ -138,6 +141,27 @@ const EditConnectionModalContent: FC<Props> = ({
                             disabled={isSaving}
                             hasSecret={connection.hasSecret}
                         />
+                    </Tabs.Panel>
+
+                    <Tabs.Panel value="instructions">
+                        <Stack gap="sm">
+                            <Text c="ldGray.6" fz="sm">
+                                Notes on how apps should use this API — auth
+                                quirks, pagination, which endpoints matter,
+                                response caveats. Passed to the app builder when
+                                generating apps, alongside the technical spec.
+                                Markdown is supported.
+                            </Text>
+                            <Textarea
+                                aria-label="Usage instructions"
+                                placeholder="e.g. Paginate with ?page= and ?per_page=. The /issues endpoint returns open issues only unless state=all is passed."
+                                autosize
+                                minRows={10}
+                                maxRows={24}
+                                disabled={isSaving}
+                                {...form.getInputProps('instructions')}
+                            />
+                        </Stack>
                     </Tabs.Panel>
 
                     <Tabs.Panel value="examples">

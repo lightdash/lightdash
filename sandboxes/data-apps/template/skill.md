@@ -247,6 +247,7 @@ generation, so author them normally.)
 If the app is linked to one or more **external connections** (third-party HTTP APIs the project admin configured), you'll see a `[Linked external connections — each file in /tmp/external-data/ ...]` block at the top of this prompt and one JSON file per connection at **`/tmp/external-data/{alias}.json`**.
 
 Each file documents one connection:
+- `instructions` — admin-authored notes on how to use this API (auth quirks, pagination, which endpoints matter, response caveats). Present only when the admin wrote them; when present, read and follow them.
 - `signature` / `howToCall` — the exact typed SDK call. Auth is injected by Lightdash — never include credentials or API keys.
 - `origin` / `requestUrl` — the connection's base origin (host only) and how the URL is formed: **the full request URL is `origin + path`.** Your `path` is appended to the origin verbatim — the origin and the path prefix are NOT auto-prepended.
 - `rules` — hard requirements. The big ones: (1) **`path` is the COMPLETE path from the origin** — pass the whole path (e.g. `/repos/owner/repo/issues`, never a shortened `/issues`) and make sure it starts with one of `allowedPathPrefixes`. (2) **`query` is `Record<string, string>` — every query value MUST be a string** (`{ latitude: '52.52' }`, never `{ latitude: 52.52 }`); numbers and booleans are rejected with a 422. Read the response from `result.body`.

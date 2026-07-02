@@ -1740,6 +1740,10 @@
                         },
                         "type": "array"
                     },
+                    "instructions": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "origin": {
                         "type": "string"
                     },
@@ -1774,6 +1778,7 @@
                     "allowedContentTypes",
                     "allowedMethods",
                     "allowedPathPrefixes",
+                    "instructions",
                     "origin",
                     "type",
                     "name",
@@ -1851,6 +1856,10 @@
                         },
                         "type": "array"
                     },
+                    "instructions": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "origin": {
                         "type": "string"
                     },
@@ -1899,6 +1908,10 @@
                     },
                     "origin": {
                         "type": "string"
+                    },
+                    "instructions": {
+                        "type": "string",
+                        "nullable": true
                     },
                     "allowedPathPrefixes": {
                         "items": {

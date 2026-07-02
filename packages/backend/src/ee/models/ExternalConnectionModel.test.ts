@@ -31,6 +31,7 @@ const makeDbConnection = (overrides: Record<string, unknown> = {}) => ({
     name: 'Acme API',
     type: 'bearer_token',
     origin: 'https://api.acme.com',
+    instructions: null,
     allowed_path_prefixes: ['/v1/'],
     allowed_methods: ['GET'],
     allowed_content_types: ['application/json'],

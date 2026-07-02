@@ -21,6 +21,7 @@ export type ExternalConnection = {
     name: string;
     type: ExternalConnectionAuthType;
     origin: string;
+    instructions: string | null;
     allowedPathPrefixes: string[];
     allowedMethods: ExternalConnectionMethod[];
     allowedContentTypes: string[];
@@ -42,6 +43,7 @@ export type CreateExternalConnection = {
     name: string;
     type: ExternalConnectionAuthType;
     origin: string;
+    instructions?: string | null;
     allowedPathPrefixes: string[];
     allowedMethods: ExternalConnectionMethod[];
     allowedContentTypes: string[];

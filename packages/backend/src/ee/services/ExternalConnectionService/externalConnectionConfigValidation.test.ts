@@ -57,6 +57,32 @@ describe('validateExternalConnectionConfig', () => {
         });
     });
 
+    describe('instructions', () => {
+        it('accepts absent, null, or reasonably-sized instructions', () => {
+            expect(() =>
+                validateExternalConnectionConfig(
+                    { ...base, instructions: null },
+                    false,
+                ),
+            ).not.toThrow();
+            expect(() =>
+                validateExternalConnectionConfig(
+                    { ...base, instructions: 'Paginate with ?page=.' },
+                    false,
+                ),
+            ).not.toThrow();
+        });
+
+        it('rejects instructions over the character cap', () => {
+            expect(() =>
+                validateExternalConnectionConfig(
+                    { ...base, instructions: 'x'.repeat(10_001) },
+                    false,
+                ),
+            ).toThrow(ParameterError);
+        });
+    });
+
     describe('auth invariants', () => {
         it('rejects a none connection that carries a secret', () => {
             expect(() => validateExternalConnectionConfig(base, true)).toThrow(

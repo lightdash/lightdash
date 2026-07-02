@@ -21,6 +21,7 @@ const baseConnection = (
     name: 'Weather API',
     type: 'none',
     origin: 'https://api.example.com',
+    instructions: null,
     allowedPathPrefixes: ['/v1/'],
     allowedMethods: ['GET', 'POST'],
     allowedContentTypes: ['application/json'],

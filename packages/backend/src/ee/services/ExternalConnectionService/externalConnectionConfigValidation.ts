@@ -12,6 +12,7 @@ const MAX_RESPONSE_BYTES = 25 * 1024 * 1024; // 25 MiB
 const MAX_REQUEST_BYTES = 10 * 1024 * 1024; // 10 MiB
 const MAX_TIMEOUT_MS = 120_000; // 2 minutes
 const MAX_RATE_LIMIT = 100_000;
+const MAX_INSTRUCTIONS_CHARS = 10_000;
 
 const SUPPORTED_METHODS = new Set<string>(EXTERNAL_CONNECTION_METHODS);
 // RFC 7230 token chars — valid for HTTP header names and a safe set for query keys.
@@ -28,6 +29,7 @@ const PATH_PREFIX = /^\/[^\s?#]*$/;
 export type ValidatableExternalConnectionConfig = {
     type: ExternalConnectionAuthType;
     origin: string;
+    instructions?: string | null;
     allowedPathPrefixes: string[];
     allowedMethods: string[];
     allowedContentTypes: string[];
@@ -84,6 +86,15 @@ export function validateExternalConnectionConfig(
     }
     if (!url.hostname) {
         throw new ParameterError('origin must include a host');
+    }
+
+    if (
+        config.instructions != null &&
+        config.instructions.length > MAX_INSTRUCTIONS_CHARS
+    ) {
+        throw new ParameterError(
+            `instructions must be at most ${MAX_INSTRUCTIONS_CHARS} characters`,
+        );
     }
 
     // --- path prefixes: absolute, no traversal ---
