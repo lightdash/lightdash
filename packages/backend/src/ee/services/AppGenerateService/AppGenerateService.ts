@@ -6943,8 +6943,11 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         await this.assertDataAppsEnabled(user);
 
         const code = validateDataAppCode(body.code);
-        if (!code.files.some((f) => f.path.startsWith('src/'))) {
-            throw new ParameterError('bundle has no src/ files to build');
+        const sourceFiles = code.files.filter((f) => f.path.startsWith('src/'));
+        if (sourceFiles.length === 0) {
+            throw new ParameterError(
+                'Uploaded bundle has no src/ files to build',
+            );
         }
 
         // Determine mode: append to existing app or create new one
@@ -7039,11 +7042,11 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             packer.on('error', reject);
 
             const addNext = (index: number): void => {
-                if (index >= code.files.length) {
+                if (index >= sourceFiles.length) {
                     packer.finalize();
                     return;
                 }
-                const file = code.files[index];
+                const file = sourceFiles[index];
                 const content = Buffer.from(file.contentBase64, 'base64');
                 packer.entry({ name: file.path }, content, (err) => {
                     if (err) {
