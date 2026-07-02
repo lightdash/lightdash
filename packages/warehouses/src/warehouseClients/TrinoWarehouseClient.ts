@@ -29,6 +29,8 @@ import { normalizeUnicode } from '../utils/sql';
 import WarehouseBaseClient from './WarehouseBaseClient';
 import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
 
+const TRINO_CLIENT_TAGS_HEADER = 'X-Trino-Client-Tags';
+
 export enum TrinoTypes {
     BOOLEAN = 'boolean',
     TINYINT = 'tinyint',
@@ -281,18 +283,32 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
     ): Promise<void> {
         const { session, close } = await this.getSession();
         let query: Iterator<QueryResult>;
+        let clientTagHeaders: Record<string, string> = {};
         try {
             let alteredQuery = sql;
             if (options?.tags) {
                 alteredQuery = `${alteredQuery}\n-- ${JSON.stringify(
                     options?.tags,
                 )}`;
+                clientTagHeaders = {
+                    [TRINO_CLIENT_TAGS_HEADER]: Object.entries(options.tags)
+                        .map(([k, v]) => `${k}=${v}`)
+                        .join(','),
+                };
             }
             if (options?.timezone) {
                 console.debug(`Setting Trino timezone to ${options?.timezone}`);
                 await session.query(`SET TIME ZONE '${options?.timezone}'`);
             }
-            query = await session.query(alteredQuery);
+
+            query = await session.query(
+                options?.tags
+                    ? {
+                          query: alteredQuery,
+                          extraHeaders: clientTagHeaders,
+                      }
+                    : alteredQuery,
+            );
 
             let queryResult = await query.next();
 
