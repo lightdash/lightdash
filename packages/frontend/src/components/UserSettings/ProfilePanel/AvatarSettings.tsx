@@ -1,12 +1,5 @@
 import { USER_AVATAR_GRADIENT_IDS } from '@lightdash/common';
-import {
-    Button,
-    FileButton,
-    Group,
-    Stack,
-    Text,
-    Tooltip,
-} from '@mantine-8/core';
+import { Button, FileButton, Group, Tooltip } from '@mantine-8/core';
 import { type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
@@ -44,7 +37,7 @@ const AvatarSettings: FC = () => {
     };
 
     return (
-        <Group align="center" gap="lg">
+        <Group align="center" gap="md" wrap="nowrap">
             <LightdashUserAvatar
                 size={64}
                 userUuid={userUuid}
@@ -53,87 +46,80 @@ const AvatarSettings: FC = () => {
             >
                 {initials}
             </LightdashUserAvatar>
-            <Stack gap="xs">
-                <Group gap="sm">
-                    <FileButton
-                        onChange={handleFile}
-                        accept="image/png,image/jpeg,image/webp"
+            <FileButton
+                onChange={handleFile}
+                accept="image/png,image/jpeg,image/webp"
+            >
+                {(fileProps) => (
+                    <Button
+                        variant="default"
+                        size="xs"
+                        loading={uploadMutation.isLoading}
+                        {...fileProps}
                     >
-                        {(fileProps) => (
-                            <Button
-                                variant="default"
-                                size="xs"
-                                loading={uploadMutation.isLoading}
-                                {...fileProps}
-                            >
-                                Upload photo
-                            </Button>
-                        )}
-                    </FileButton>
-                    {avatarUrl && (
-                        <Button
-                            variant="subtle"
-                            color="red"
-                            size="xs"
-                            loading={deleteMutation.isLoading}
-                            onClick={() => deleteMutation.mutate()}
-                        >
-                            Remove photo
-                        </Button>
-                    )}
-                </Group>
-                <Text size="xs" c="dimmed">
-                    Or pick a color — it shows when you have no photo.
-                </Text>
-                <Group gap="xs">
-                    <Tooltip label="No color (default)">
+                        Upload photo
+                    </Button>
+                )}
+            </FileButton>
+            {avatarUrl && (
+                <Button
+                    variant="subtle"
+                    color="red"
+                    size="xs"
+                    loading={deleteMutation.isLoading}
+                    onClick={() => deleteMutation.mutate()}
+                >
+                    Remove photo
+                </Button>
+            )}
+            <Group gap="xs" wrap="nowrap">
+                <Tooltip label="No color (default)">
+                    <button
+                        type="button"
+                        aria-label="Use default avatar"
+                        className={
+                            !avatarGradient
+                                ? `${classes.swatchButton} ${classes.swatchSelected}`
+                                : classes.swatchButton
+                        }
+                        onClick={() =>
+                            updateUserMutation.mutate({
+                                avatarGradient: null,
+                            })
+                        }
+                    >
+                        <LightdashUserAvatar size="sm">
+                            {initials}
+                        </LightdashUserAvatar>
+                    </button>
+                </Tooltip>
+                {USER_AVATAR_GRADIENT_IDS.map((gradientId) => (
+                    <Tooltip key={gradientId} label={gradientId}>
                         <button
                             type="button"
-                            aria-label="Use default avatar"
+                            aria-label={`Use ${gradientId} avatar color`}
                             className={
-                                !avatarGradient
+                                gradientId === avatarGradient
                                     ? `${classes.swatchButton} ${classes.swatchSelected}`
                                     : classes.swatchButton
                             }
                             onClick={() =>
                                 updateUserMutation.mutate({
-                                    avatarGradient: null,
+                                    avatarGradient: gradientId,
                                 })
                             }
                         >
-                            <LightdashUserAvatar size="sm">
+                            <LightdashUserAvatar
+                                size="sm"
+                                userUuid={userUuid}
+                                avatarGradient={gradientId}
+                            >
                                 {initials}
                             </LightdashUserAvatar>
                         </button>
                     </Tooltip>
-                    {USER_AVATAR_GRADIENT_IDS.map((gradientId) => (
-                        <Tooltip key={gradientId} label={gradientId}>
-                            <button
-                                type="button"
-                                aria-label={`Use ${gradientId} avatar color`}
-                                className={
-                                    gradientId === avatarGradient
-                                        ? `${classes.swatchButton} ${classes.swatchSelected}`
-                                        : classes.swatchButton
-                                }
-                                onClick={() =>
-                                    updateUserMutation.mutate({
-                                        avatarGradient: gradientId,
-                                    })
-                                }
-                            >
-                                <LightdashUserAvatar
-                                    size="sm"
-                                    userUuid={userUuid}
-                                    avatarGradient={gradientId}
-                                >
-                                    {initials}
-                                </LightdashUserAvatar>
-                            </button>
-                        </Tooltip>
-                    ))}
-                </Group>
-            </Stack>
+                ))}
+            </Group>
         </Group>
     );
 };
