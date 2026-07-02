@@ -1,3 +1,11 @@
+# [0.3287.0](https://github.com/lightdash/lightdash/compare/0.3286.0...0.3287.0) (2026-07-02)
+
+
+### Features
+
+* **apps:** add instructions to external connections (GLITCH-567) ([#25023](https://github.com/lightdash/lightdash/issues/25023)) ([87255bf](https://github.com/lightdash/lightdash/commit/87255bff8e101301fcd97f361bf2cf52f240d166))
+* **apps:** data app viz render context via SDK bridge (GLITCH-553) ([#24954](https://github.com/lightdash/lightdash/issues/24954)) ([235f7dd](https://github.com/lightdash/lightdash/commit/235f7dd3bab155c43ae55f0568f1d7c6929e9709))
+
 # [0.3286.0](https://github.com/lightdash/lightdash/compare/0.3285.1...0.3286.0) (2026-07-02)
 
 
