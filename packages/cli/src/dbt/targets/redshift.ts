@@ -136,6 +136,26 @@ export const convertRedshiftSchema = (
                     `Redshift IAM target requires a region: "region"`,
                 );
             }
+            // dbt-redshift resolves IAM credentials locally via boto3's
+            // credential chain (env vars, a named profile via
+            // "iam_profile", or an EC2/ECS/EKS role). Only the standard AWS
+            // env vars are portable to the Lightdash backend - a local
+            // named profile or role-based identity has no meaning outside
+            // this machine, so if that's all we have we can't forward a
+            // working identity. Fail fast here instead of creating a
+            // connection that will fail to mint credentials on every query.
+            const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+            const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+            const sessionToken = process.env.AWS_SESSION_TOKEN;
+            if (!accessKeyId || !secretAccessKey) {
+                throw new ParseError(
+                    `Redshift IAM target ("method: iam") requires AWS credentials that can be forwarded to the Lightdash backend. Set the AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables (and AWS_SESSION_TOKEN if using temporary credentials) before running this command${
+                        target.iam_profile
+                            ? ` - a local named AWS profile ("iam_profile: ${target.iam_profile}") cannot be forwarded to the Lightdash backend`
+                            : ''
+                    }.`,
+                );
+            }
             // dbt-redshift represents serverless purely via the host endpoint
             // (no cluster_id); derive the workgroup from it so the connection
             // round-trips to the runtime client correctly.
@@ -157,6 +177,9 @@ export const convertRedshiftSchema = (
                 ...(isServerless
                     ? { workgroupName: target.host.split('.')[0] }
                     : { clusterIdentifier: target.cluster_id }),
+                accessKeyId,
+                secretAccessKey,
+                ...(sessionToken ? { sessionToken } : {}),
                 autoCreate: target.autocreate,
             };
         }
