@@ -44,6 +44,12 @@ import {
     writeContextToDir,
     writeFilesToDir,
 } from './apps/appCodeFiles';
+import {
+    appsDownloadSummary,
+    ensureDownloadedAppContext,
+    selectAppsToDownload,
+    type AppDownloadFailure,
+} from './apps/appsDownload';
 import { buildStaticAuthoringFiles } from './apps/scaffolding';
 import {
     checkLightdashVersion,
@@ -1005,16 +1011,14 @@ export const downloadHandler = async (
             appsOption !== undefined;
 
         if (shouldDownloadApps) {
-            // Normalize: true or [] means all apps; string[] means specific UUIDs
-            const specificAppUuids: string[] | null =
-                Array.isArray(appsOption) && appsOption.length > 0
-                    ? appsOption
-                    : null;
+            const appsSelection = selectAppsToDownload(
+                Array.isArray(appsOption) ? appsOption : true,
+            );
 
             let appUuidsToDownload: string[];
 
-            if (specificAppUuids) {
-                appUuidsToDownload = specificAppUuids;
+            if (appsSelection.mode === 'explicit') {
+                appUuidsToDownload = appsSelection.appUuids;
             } else {
                 // List all apps via content API (paginated)
                 spinner.start(`Listing data apps in project`);
@@ -1054,15 +1058,19 @@ export const downloadHandler = async (
                 const appsDir = path.join(baseDir, 'apps');
                 const takenFolders = new Set<string>();
                 let appSuccessCount = 0;
+                const appFailures: AppDownloadFailure[] = [];
 
                 for (const appUuid of appUuidsToDownload) {
                     try {
                         // eslint-disable-next-line no-await-in-loop
-                        const code = await lightdashApi<DataAppCodeDownload>({
-                            method: 'GET',
-                            url: `/api/v1/ee/projects/${projectId}/apps/${appUuid}/download`,
-                            body: undefined,
-                        });
+                        const code = ensureDownloadedAppContext(
+                            appUuid,
+                            await lightdashApi<DataAppCodeDownload>({
+                                method: 'GET',
+                                url: `/api/v1/ee/projects/${projectId}/apps/${appUuid}/download`,
+                                body: undefined,
+                            }),
+                        );
 
                         const folder = appFolderName(
                             code.manifest.name,
@@ -1090,28 +1098,34 @@ export const downloadHandler = async (
                         await writeContextToDir(appDir, code.context);
                         appSuccessCount += 1;
                     } catch (appErr) {
-                        if (
+                        const message =
                             appErr instanceof LightdashError &&
                             appErr.statusCode === 404
-                        ) {
-                            GlobalState.log(
-                                styles.warning(
-                                    `Data apps are not enabled on this instance, or app ${appUuid} was not found.`,
-                                ),
-                            );
-                        } else {
-                            GlobalState.log(
-                                styles.error(
-                                    `Failed to download app ${appUuid}: ${getErrorMessage(appErr)}`,
-                                ),
-                            );
-                        }
+                                ? `Data apps are not enabled on this instance, or app ${appUuid} was not found.`
+                                : getErrorMessage(appErr);
+                        appFailures.push({ appUuid, message });
+                        GlobalState.log(
+                            styles.error(
+                                `Failed to download app ${appUuid}: ${message}`,
+                            ),
+                        );
                     }
                 }
 
-                spinner.succeed(
-                    `Downloaded ${appSuccessCount} of ${appUuidsToDownload.length} data app(s) to ${appsDir}`,
+                const summary = appsDownloadSummary(
+                    appSuccessCount,
+                    appUuidsToDownload.length,
+                    appFailures,
+                    appsDir,
                 );
+                if (summary.ok) {
+                    spinner.succeed(summary.message);
+                } else {
+                    spinner.warn(styles.warning(summary.message));
+                    summary.failureLines.forEach((line) =>
+                        GlobalState.log(styles.warning(line)),
+                    );
+                }
             }
         }
 
