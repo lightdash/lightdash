@@ -1,9 +1,11 @@
 import type {
+    ApiAiAgentDocumentContentResponse,
     ApiAiAgentDocumentResponse,
     ApiAiAgentDocumentSummaryListResponse,
     ApiCreateAiAgentDocument,
     ApiError,
     ApiSuccessEmpty,
+    ApiUpdateAiAgentDocument,
 } from '@lightdash/common';
 import {
     useMutation,
@@ -29,6 +31,25 @@ const createDocument = async (body: ApiCreateAiAgentDocument) =>
         version: 'v1',
         url: `/aiAgents/documents`,
         method: 'POST',
+        body: JSON.stringify(body),
+    });
+
+const getDocumentContent = async (documentUuid: string) =>
+    lightdashApi<ApiAiAgentDocumentContentResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/documents/${documentUuid}/content`,
+        method: 'GET',
+        body: undefined,
+    });
+
+const updateDocument = async (
+    documentUuid: string,
+    body: ApiUpdateAiAgentDocument,
+) =>
+    lightdashApi<ApiAiAgentDocumentResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/documents/${documentUuid}`,
+        method: 'PATCH',
         body: JSON.stringify(body),
     });
 
@@ -69,6 +90,47 @@ export const useCreateAiAgentDocument = () => {
         onError: ({ error }) => {
             showToastApiError({
                 title: 'Failed to upload document',
+                apiError: error,
+            });
+        },
+    });
+};
+
+export const useAiAgentDocumentContent = (
+    documentUuid: string | null,
+    options?: UseQueryOptions<
+        ApiAiAgentDocumentContentResponse['results'],
+        ApiError
+    >,
+) =>
+    useQuery<ApiAiAgentDocumentContentResponse['results'], ApiError>({
+        queryKey: [AI_AGENT_DOCUMENTS_KEY, documentUuid, 'content'],
+        queryFn: () => getDocumentContent(documentUuid!),
+        enabled: !!documentUuid,
+        ...options,
+    });
+
+export const useUpdateAiAgentDocument = () => {
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+    return useMutation<
+        ApiAiAgentDocumentResponse['results'],
+        ApiError,
+        { documentUuid: string; data: ApiUpdateAiAgentDocument }
+    >({
+        mutationFn: ({ documentUuid, data }) =>
+            updateDocument(documentUuid, data),
+        onSuccess: async (_result, { documentUuid }) => {
+            await queryClient.invalidateQueries({
+                queryKey: [AI_AGENT_DOCUMENTS_KEY],
+            });
+            await queryClient.invalidateQueries({
+                queryKey: [AI_AGENT_DOCUMENTS_KEY, documentUuid, 'content'],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to update document',
                 apiError: error,
             });
         },

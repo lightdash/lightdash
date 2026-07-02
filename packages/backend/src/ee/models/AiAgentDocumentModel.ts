@@ -114,6 +114,29 @@ export class AiAgentDocumentModel {
         return doc;
     }
 
+    async getContent(uuid: string): Promise<AiAgentDocumentContent> {
+        const row = await this.database(AiAgentDocumentTableName)
+            .select<
+                Pick<
+                    DbAiAgentDocument,
+                    'ai_agent_document_uuid' | 'name' | 'mime_type' | 'content'
+                >
+            >('ai_agent_document_uuid', 'name', 'mime_type', 'content')
+            .where(`${AiAgentDocumentTableName}.ai_agent_document_uuid`, uuid)
+            .first();
+
+        if (!row) {
+            throw new NotFoundError(`AI agent document ${uuid} not found`);
+        }
+
+        return {
+            uuid: row.ai_agent_document_uuid,
+            name: row.name,
+            mimeType: row.mime_type,
+            content: row.content ?? '',
+        };
+    }
+
     async getOrganizationContentSize(
         organizationUuid: string,
     ): Promise<number> {
@@ -174,6 +197,42 @@ export class AiAgentDocumentModel {
             }
             return created;
         });
+    }
+
+    async update(args: {
+        uuid: string;
+        name?: string;
+        content?: string;
+        summary?: AiAgentDocumentStructuredSummary;
+        updatedByUserUuid: string | null;
+    }): Promise<AiAgentDocument> {
+        const patch: Omit<Partial<DbAiAgentDocument>, 'updated_at'> & {
+            updated_at: Knex.Raw;
+        } = {
+            updated_by_user_uuid: args.updatedByUserUuid,
+            updated_at: this.database.fn.now(),
+        };
+        if (args.name !== undefined) {
+            patch.name = args.name;
+        }
+        if (args.content !== undefined) {
+            patch.content = args.content;
+            patch.content_size_bytes = Buffer.byteLength(args.content, 'utf8');
+        }
+        if (args.summary !== undefined) {
+            patch.summary = args.summary;
+        }
+
+        const updated = await this.database(AiAgentDocumentTableName)
+            .where('ai_agent_document_uuid', args.uuid)
+            .update(patch)
+            .returning('ai_agent_document_uuid');
+
+        if (updated.length === 0) {
+            throw new NotFoundError(`AI agent document ${args.uuid} not found`);
+        }
+
+        return this.get(args.uuid);
     }
 
     private static agentAccessSubquery(qb: Knex, agentUuid: string) {
