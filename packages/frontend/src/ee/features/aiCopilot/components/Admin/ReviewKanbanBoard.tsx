@@ -91,13 +91,12 @@ type Props = {
 
 const toTarget = (
     item: AiAgentReviewItemSummary,
-): AiAgentAdminReviewItemPreviewTarget | null => {
+): AiAgentAdminReviewItemPreviewTarget => {
     const finding = item.latestFinding;
-    if (!finding) return null;
     return {
-        projectUuid: finding.projectUuid,
-        agentUuid: finding.agentUuid,
-        threadUuid: finding.threadUuid,
+        projectUuid: finding?.projectUuid ?? item.projectUuid,
+        agentUuid: finding?.agentUuid ?? item.agentUuid,
+        threadUuid: finding?.threadUuid ?? null,
         reviewItemUuid: item.uuid,
     };
 };
@@ -604,26 +603,23 @@ export const ReviewKanbanBoard: FC<Props> = ({
                                                         </Text>
                                                     </Box>
                                                 ) : (
-                                                    displayed.map((item) => {
-                                                        const target =
-                                                            toTarget(item);
-                                                        return (
-                                                            <SortableCard
-                                                                key={item.uuid}
-                                                                item={item}
-                                                                isSelected={
-                                                                    selectedReviewItemUuid ===
-                                                                    item.uuid
-                                                                }
-                                                                onSelect={() => {
-                                                                    if (target)
-                                                                        onReviewItemSelect(
-                                                                            target,
-                                                                        );
-                                                                }}
-                                                            />
-                                                        );
-                                                    })
+                                                    displayed.map((item) => (
+                                                        <SortableCard
+                                                            key={item.uuid}
+                                                            item={item}
+                                                            isSelected={
+                                                                selectedReviewItemUuid ===
+                                                                item.uuid
+                                                            }
+                                                            onSelect={() =>
+                                                                onReviewItemSelect(
+                                                                    toTarget(
+                                                                        item,
+                                                                    ),
+                                                                )
+                                                            }
+                                                        />
+                                                    ))
                                                 )}
                                                 {hasMore && (
                                                     <Button

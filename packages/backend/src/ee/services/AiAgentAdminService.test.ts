@@ -42,12 +42,14 @@ const makeReviewItem = (
 ): AiAgentReviewItemSummary => ({
     uuid: 'fingerprint-1',
     fingerprint: 'fingerprint-1',
+    source: 'ai_finding',
     organizationUuid: 'org-1',
     projectUuid: 'project-1',
     agentUuid: 'agent-1',
     title: 'Missing metric',
     description: 'The agent could not answer because a metric was missing.',
     primaryRootCause: 'semantic_layer',
+    priority: 'none',
     status: 'open',
     dismissedReason: null,
     ownerType: 'semantic_layer_owner',
@@ -63,6 +65,7 @@ const makeReviewItem = (
     prWritebackStatus: null,
     prWritebackMessage: null,
     boardPosition: null,
+    createdByUserUuid: null,
     createdAt: NOW,
     updatedAt: NOW,
     writebackEligible: false,
@@ -251,6 +254,10 @@ const makeService = ({
                 projectUuid: PROJECT_UUID,
                 agentUuid: AGENT_UUID,
             }),
+            getReviewItemScope: vi.fn().mockResolvedValue({
+                projectUuid: PROJECT_UUID,
+                agentUuid: AGENT_UUID,
+            }),
             updateReviewItemWritebackProgress: vi
                 .fn()
                 .mockResolvedValue(undefined),
@@ -261,6 +268,10 @@ const makeService = ({
             setReviewItemWritebackStatus: vi.fn().mockResolvedValue(undefined),
             createRemediationEvent: vi.fn().mockResolvedValue(undefined),
             listRemediationEvents: vi.fn().mockResolvedValue([]),
+            createReviewItemEvent: vi.fn().mockResolvedValue(undefined),
+            listReviewItemEvents: vi.fn().mockResolvedValue([]),
+            upsertReviewItemState: vi.fn().mockResolvedValue(undefined),
+            ensureReviewItemRow: vi.fn().mockResolvedValue(undefined),
             getThreadWritebackPullRequests: vi
                 .fn()
                 .mockResolvedValue(
@@ -355,6 +366,9 @@ const makeService = ({
         },
         userModel: {
             findSessionUserByUUID: vi.fn().mockResolvedValue(makeAdminUser()),
+            getUserDetailsByUuid: vi
+                .fn()
+                .mockResolvedValue({ organizationUuid: ORGANIZATION_UUID }),
             ...userModel,
         },
         aiAgentReviewNotificationService: {
@@ -477,6 +491,166 @@ describe('AiAgentAdminService.updateReviewItemAssignee', () => {
     });
 });
 
+describe('AiAgentAdminService issue activity', () => {
+    it('records status_changed only when the status actually changes', async () => {
+        const createReviewItemEvent = vi.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            aiAgentReviewClassifierModel: {
+                createReviewItemEvent,
+                getReviewItem: vi
+                    .fn()
+                    .mockResolvedValue(makeReviewItem({ status: 'open' })),
+            },
+        });
+
+        await service.updateReviewItemStatus(makeAdminUser(), 'fingerprint-1', {
+            status: 'in_progress',
+            dismissedReason: null,
+        });
+
+        expect(createReviewItemEvent).toHaveBeenCalledWith(
+            expect.objectContaining({
+                fingerprint: 'fingerprint-1',
+                event: expect.objectContaining({
+                    eventType: 'status_changed',
+                }),
+                createdByUserUuid: USER_UUID,
+            }),
+        );
+    });
+
+    it('does not record status_changed when the status is unchanged', async () => {
+        const createReviewItemEvent = vi.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            aiAgentReviewClassifierModel: {
+                createReviewItemEvent,
+                getReviewItem: vi
+                    .fn()
+                    .mockResolvedValue(makeReviewItem({ status: 'open' })),
+            },
+        });
+
+        await service.updateReviewItemStatus(makeAdminUser(), 'fingerprint-1', {
+            status: 'open',
+            dismissedReason: null,
+        });
+
+        expect(createReviewItemEvent).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: expect.objectContaining({
+                    eventType: 'status_changed',
+                }),
+            }),
+        );
+    });
+
+    it('records assignee_changed when the assignee changes', async () => {
+        const createReviewItemEvent = vi.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            aiAgentReviewClassifierModel: {
+                createReviewItemEvent,
+                updateReviewItemAssignee: vi.fn().mockResolvedValue(undefined),
+                getReviewItem: vi
+                    .fn()
+                    .mockResolvedValue(
+                        makeReviewItem({ assignedToUserUuid: null }),
+                    ),
+            },
+        });
+
+        await service.updateReviewItemAssignee(
+            makeAdminUser(),
+            'fingerprint-1',
+            'user-2',
+        );
+
+        expect(createReviewItemEvent).toHaveBeenCalledWith(
+            expect.objectContaining({
+                fingerprint: 'fingerprint-1',
+                event: expect.objectContaining({
+                    eventType: 'assignee_changed',
+                }),
+                createdByUserUuid: USER_UUID,
+            }),
+        );
+    });
+
+    it('merges issue + remediation events sorted by occurredAt', async () => {
+        const service = makeService({
+            aiAgentReviewClassifierModel: {
+                getReviewItem: vi
+                    .fn()
+                    .mockResolvedValue(
+                        makeReviewItem({ remediation: makeRemediation() }),
+                    ),
+                listReviewItemEvents: vi.fn().mockResolvedValue([
+                    {
+                        uuid: 'i1',
+                        fingerprint: 'fingerprint-1',
+                        occurredAt: new Date('2026-06-24T09:00:00Z'),
+                        createdByUserUuid: 'u1',
+                        eventType: 'created',
+                        payload: { rootCause: 'semantic_layer' },
+                    },
+                ]),
+                listRemediationEvents: vi.fn().mockResolvedValue([
+                    {
+                        uuid: 'r1',
+                        remediationUuid: REMEDIATION_UUID,
+                        occurredAt: new Date('2026-06-24T10:00:00Z'),
+                        createdByUserUuid: null,
+                        eventType: 'pr_opened',
+                        payload: { prUrl: 'x', prNumber: 1 },
+                    },
+                ]),
+            },
+        });
+
+        const activity = await service.getReviewItemActivity(
+            makeAdminUser(),
+            'fingerprint-1',
+        );
+
+        expect(activity.events.map((e) => [e.kind, e.eventType])).toEqual([
+            ['issue', 'created'],
+            ['remediation', 'pr_opened'],
+        ]);
+    });
+
+    it('returns issue events even with no remediation', async () => {
+        const service = makeService({
+            aiAgentReviewClassifierModel: {
+                getReviewItem: vi
+                    .fn()
+                    .mockResolvedValue(makeReviewItem({ remediation: null })),
+                listReviewItemEvents: vi.fn().mockResolvedValue([
+                    {
+                        uuid: 'i1',
+                        fingerprint: 'fingerprint-1',
+                        occurredAt: new Date('2026-06-24T09:00:00Z'),
+                        createdByUserUuid: 'u1',
+                        eventType: 'status_changed',
+                        payload: {
+                            from: 'open',
+                            to: 'resolved',
+                            dismissedReason: null,
+                        },
+                    },
+                ]),
+            },
+        });
+
+        const activity = await service.getReviewItemActivity(
+            makeAdminUser(),
+            'fingerprint-1',
+        );
+
+        expect(activity.events).toHaveLength(1);
+        expect(activity.events[0].kind).toBe('issue');
+        expect(activity.liveState).toBeNull();
+    });
+});
+
 describe('AiAgentAdminService review notification settings', () => {
     it('allows developers to read settings', async () => {
         const getSettings = vi.fn().mockResolvedValue({
@@ -556,6 +730,53 @@ describe('getAiAgentReviewItemWritebackEligibility', () => {
             provider: PullRequestProvider.GITLAB,
             strategy: 'semantic_layer',
             reason: null,
+        });
+    });
+
+    it('allows manual project context writeback without a generated finding entry', () => {
+        expect(
+            getAiAgentReviewItemWritebackEligibility({
+                item: makeReviewItem({
+                    source: 'manual',
+                    latestFinding: null,
+                    findingCount: 0,
+                    primaryRootCause: 'project_context',
+                }),
+                reviewsEnabled: true,
+                projectContextEnabled: true,
+                projectAccess: {
+                    provider: PullRequestProvider.GITHUB,
+                    hasGitAppInstallation: true,
+                },
+                hasSemanticWritebackConfig: false,
+                sourceThreadHasWritebackPr: false,
+            }),
+        ).toEqual({
+            eligible: true,
+            provider: PullRequestProvider.GITHUB,
+            strategy: 'project_context',
+            reason: null,
+        });
+    });
+
+    it('blocks writeback when no agent is linked', () => {
+        expect(
+            getAiAgentReviewItemWritebackEligibility({
+                item: makeReviewItem({ agentUuid: null }),
+                reviewsEnabled: true,
+                projectContextEnabled: false,
+                projectAccess: {
+                    provider: PullRequestProvider.GITHUB,
+                    hasGitAppInstallation: true,
+                },
+                hasSemanticWritebackConfig: true,
+                sourceThreadHasWritebackPr: false,
+            }),
+        ).toEqual({
+            eligible: false,
+            provider: null,
+            strategy: 'semantic_layer',
+            reason: 'missing_agent',
         });
     });
 
@@ -707,6 +928,10 @@ describe('AiAgentAdminService.updateReviewItemStatus', () => {
         });
         const aiAgentReviewClassifierModel = {
             getPromotedFingerprintScope: vi.fn().mockResolvedValue({
+                projectUuid: PROJECT_UUID,
+                agentUuid: AGENT_UUID,
+            }),
+            getReviewItemScope: vi.fn().mockResolvedValue({
                 projectUuid: PROJECT_UUID,
                 agentUuid: AGENT_UUID,
             }),
@@ -1138,6 +1363,7 @@ describe('AiAgentAdminService.getReviewItemActivity', () => {
                 .fn()
                 .mockResolvedValue(makeReviewItem({ remediation: null })),
             listRemediationEvents: vi.fn(),
+            listReviewItemEvents: vi.fn().mockResolvedValue([]),
         };
         const service = makeService({ aiAgentReviewClassifierModel });
 
@@ -1153,8 +1379,11 @@ describe('AiAgentAdminService.getReviewItemActivity', () => {
             verdictStale: false,
         });
         expect(
-            aiAgentReviewClassifierModel.listRemediationEvents,
-        ).not.toHaveBeenCalled();
+            aiAgentReviewClassifierModel.listReviewItemEvents,
+        ).toHaveBeenCalledWith({
+            organizationUuid: ORGANIZATION_UUID,
+            fingerprint: 'fingerprint-1',
+        });
     });
 });
 

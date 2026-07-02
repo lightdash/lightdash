@@ -345,6 +345,7 @@ export type AiAgentReviewItemWritebackBlockedReason =
     | 'reviews_disabled'
     | 'unsupported_root_cause'
     | 'missing_project'
+    | 'missing_agent'
     | 'missing_project_context_entry'
     | 'project_context_disabled'
     | 'unsupported_source_control'
@@ -381,9 +382,9 @@ export type AiAgentReviewRemediation = {
     uuid: string;
     fingerprint: string;
     organizationUuid: string;
-    sourceFindingUuid: string;
-    sourcePromptUuid: string;
-    sourceThreadUuid: string;
+    sourceFindingUuid: string | null;
+    sourcePromptUuid: string | null;
+    sourceThreadUuid: string | null;
     sourceProjectUuid: string;
     sourceAgentUuid: string;
     workThreadUuid: string | null;
@@ -608,12 +609,14 @@ export type AiAgentReviewClassifierJudgeOutput = z.infer<
 export type AiAgentReviewItem = {
     uuid: string;
     fingerprint: string;
+    source: AiAgentReviewItemSource;
     organizationUuid: string;
     projectUuid: string | null;
     agentUuid: string | null;
     title: string;
     description: string;
     primaryRootCause: AiAgentRootCause;
+    priority: AiAgentReviewItemPriority;
     status: AiAgentReviewItemStatus;
     dismissedReason: AiAgentReviewItemDismissedReason | null;
     ownerType: AiAgentReviewItemOwnerType;
@@ -630,9 +633,19 @@ export type AiAgentReviewItem = {
     prWritebackMessage: string | null;
     // Manual board sort key; null = default (last-seen) order.
     boardPosition: number | null;
+    createdByUserUuid: string | null;
     createdAt: Date;
     updatedAt: Date;
 };
+
+export type AiAgentReviewItemSource = 'ai_finding' | 'manual';
+
+export type AiAgentReviewItemPriority =
+    | 'urgent'
+    | 'high'
+    | 'medium'
+    | 'low'
+    | 'none';
 
 export type AiAgentReviewItemSummary = AiAgentReviewItem & {
     /**
@@ -672,6 +685,24 @@ export type UpdateAiAgentReviewItemStatus = {
 
 export type UpdateAiAgentReviewItemAssignee = {
     assignedToUserUuid: string | null;
+};
+
+export type CreateAiAgentReviewItem = {
+    title: string;
+    description: string | null;
+    projectUuid: string;
+    agentUuid: string | null;
+    assignedToUserUuid: string | null;
+    primaryRootCause: AiAgentRootCause | null;
+    priority: AiAgentReviewItemPriority;
+};
+
+export type UpdateAiAgentReviewItemPriority = {
+    priority: AiAgentReviewItemPriority;
+};
+
+export type CreateAiAgentReviewItemComment = {
+    body: string;
 };
 
 // Persists the board's manual card order: the fingerprints of one lane in their
@@ -726,8 +757,8 @@ export type AiAgentReviewRemediationEventDetail =
           eventType: 'finding_opened';
           payload: {
               excerpt: string | null;
-              sourceThreadUuid: string;
-              sourcePromptUuid: string;
+              sourceThreadUuid: string | null;
+              sourcePromptUuid: string | null;
           };
       }
     | {
@@ -761,10 +792,55 @@ export type AiAgentReviewRemediationEventType =
 
 export type AiAgentReviewRemediationEvent = {
     uuid: string;
-    remediationUuid: string;
+    remediationUuid: string | null;
     occurredAt: Date;
     createdByUserUuid: string | null;
 } & AiAgentReviewRemediationEventDetail;
+
+export type AiAgentReviewItemEventDetail =
+    | { eventType: 'created'; payload: { rootCause: AiAgentRootCause | null } }
+    | {
+          eventType: 'status_changed';
+          payload: {
+              from: AiAgentReviewItemStatus | null;
+              to: AiAgentReviewItemStatus;
+              dismissedReason: AiAgentReviewItemDismissedReason | null;
+          };
+      }
+    | {
+          eventType: 'assignee_changed';
+          payload: {
+              fromUserUuid: string | null;
+              toUserUuid: string | null;
+          };
+      }
+    | {
+          eventType: 'recurred';
+          payload: { threadUuid: string; promptUuid: string };
+      }
+    | {
+          eventType: 'priority_changed';
+          payload: {
+              from: AiAgentReviewItemPriority;
+              to: AiAgentReviewItemPriority;
+          };
+      }
+    | { eventType: 'comment_added'; payload: { body: string } };
+
+export type AiAgentReviewItemEventType =
+    AiAgentReviewItemEventDetail['eventType'];
+
+export type AiAgentReviewItemEvent = {
+    uuid: string;
+    fingerprint: string;
+    occurredAt: Date;
+    createdByUserUuid: string | null;
+} & AiAgentReviewItemEventDetail;
+
+/** One row of the merged issue activity feed. */
+export type AiAgentReviewActivityEvent =
+    | ({ kind: 'remediation' } & AiAgentReviewRemediationEvent)
+    | ({ kind: 'issue' } & AiAgentReviewItemEvent);
 
 /**
  * The in-flight step of a remediation, derived from current status + which
@@ -776,7 +852,7 @@ export type AiAgentReviewRemediationLiveState =
     | 'verifying';
 
 export type AiAgentReviewItemActivity = {
-    events: AiAgentReviewRemediationEvent[];
+    events: AiAgentReviewActivityEvent[];
     liveState: AiAgentReviewRemediationLiveState | null;
     /** Streaming progress text for the live row (writeback step messages). */
     liveMessage: string | null;

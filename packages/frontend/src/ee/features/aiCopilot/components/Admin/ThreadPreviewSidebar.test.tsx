@@ -91,6 +91,23 @@ vi.mock('../../hooks/useAiAgentAdmin', () => ({
         isLoading: false,
         mutate: vi.fn(),
     }),
+    useAddAiAgentReviewItemComment: () => ({
+        isLoading: false,
+        mutate: vi.fn(),
+    }),
+    useUpdateAiAgentReviewItemPriority: () => ({
+        isLoading: false,
+        mutate: vi.fn(),
+    }),
+    useAiAgentReviewItemActivity: () => ({
+        data: {
+            events: [],
+            liveState: null,
+            liveMessage: null,
+            verdictStale: false,
+        },
+        isLoading: false,
+    }),
 }));
 
 vi.mock('../../hooks/useProjectAiAgents', () => ({

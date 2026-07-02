@@ -22,6 +22,7 @@ const makeExampleReviewItem = (
         >,
 ): AiAgentReviewItemSummary => ({
     fingerprint: overrides.uuid,
+    source: 'ai_finding',
     organizationUuid: '',
     projectUuid: null,
     agentUuid: null,
@@ -31,6 +32,7 @@ const makeExampleReviewItem = (
     firstSeenAt: EXAMPLE_SEEN_AT,
     lastSeenAt: EXAMPLE_SEEN_AT,
     findingCount: 1,
+    priority: 'none',
     statusUpdatedAt: EXAMPLE_SEEN_AT,
     statusUpdatedByUserUuid: null,
     linkedIssueUrl: null,
@@ -47,6 +49,7 @@ const makeExampleReviewItem = (
     },
     remediation: null,
     boardPosition: null,
+    createdByUserUuid: null,
     createdAt: EXAMPLE_SEEN_AT,
     updatedAt: EXAMPLE_SEEN_AT,
     latestFinding: null,

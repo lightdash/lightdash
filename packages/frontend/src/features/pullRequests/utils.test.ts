@@ -51,7 +51,7 @@ describe('pullRequests utils', () => {
         });
     });
 
-    it('builds a reviews deep link for pull requests tied to findings', () => {
+    it('builds an issues deep link for pull requests tied to findings', () => {
         expect(
             getReviewPath(
                 makeRow({
@@ -69,7 +69,7 @@ describe('pullRequests utils', () => {
                 }),
             ),
         ).toBe(
-            '/generalSettings/ai/reviews?reviewProjectUuid=review-project-1&reviewAgentUuid=review-agent-1&reviewThreadUuid=review-thread-1&reviewItemUuid=fingerprint-1',
+            '/generalSettings/ai/issues?reviewProjectUuid=review-project-1&reviewAgentUuid=review-agent-1&reviewThreadUuid=review-thread-1&reviewItemUuid=fingerprint-1',
         );
     });
 

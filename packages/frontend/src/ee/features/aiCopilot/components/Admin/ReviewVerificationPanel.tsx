@@ -99,7 +99,7 @@ export const ReviewVerificationPanel: FC<Props> = ({
     const isResolved = reviewItem.status === 'resolved';
     const previewProjectUuid = remediation?.previewProjectUuid ?? null;
     const sourceThreadUrl =
-        remediation &&
+        remediation?.sourceThreadUuid &&
         `/projects/${remediation.sourceProjectUuid}/ai-agents/${remediation.sourceAgentUuid}/threads/${remediation.sourceThreadUuid}`;
 
     const { data: prDiff, isLoading: isLoadingPrDiff } =
@@ -373,11 +373,11 @@ export const ReviewVerificationPanel: FC<Props> = ({
                 {isResolved ? (
                     <Anchor
                         component={Link}
-                        to="/generalSettings/ai/reviews"
+                        to="/generalSettings/ai/issues"
                         fz="sm"
                         fw={500}
                     >
-                        Back to reviews
+                        Back to issues
                     </Anchor>
                 ) : (
                     <Button

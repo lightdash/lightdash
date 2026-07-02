@@ -47,7 +47,7 @@ vi.mock('../AiAgentAdminReviewItemsTable', () => ({
                     })
                 }
             >
-                Open review
+                Open issue
             </button>
         );
     },
@@ -57,15 +57,17 @@ vi.mock('../ReviewKanbanBoard', () => ({
     ReviewKanbanBoard: () => <div>Board view</div>,
 }));
 
-vi.mock('../ThreadPreviewSidebar', () => ({
-    ThreadPreviewSidebar: (props: {
+vi.mock('../IssueDetailModal', () => ({
+    IssueDetailModal: (props: {
         threadUuid: string;
-        selectedReviewItemUuid?: string;
-    }) => (
-        <div>
-            Sidebar thread {props.threadUuid} / {props.selectedReviewItemUuid}
-        </div>
-    ),
+        selectedReviewItemUuid: string;
+        isOpen: boolean;
+    }) =>
+        props.isOpen ? (
+            <div>
+                Modal thread {props.threadUuid} / {props.selectedReviewItemUuid}
+            </div>
+        ) : null,
 }));
 
 describe('AiReviewsSettingsPage', () => {
@@ -74,14 +76,14 @@ describe('AiReviewsSettingsPage', () => {
         localStorage.clear();
     });
 
-    it('opens the drawer after selecting a finding from the table', async () => {
+    it('opens the drawer after selecting an issue from the table', async () => {
         const user = userEvent.setup();
 
         renderWithProviders(
-            <MemoryRouter initialEntries={['/generalSettings/ai/reviews']}>
+            <MemoryRouter initialEntries={['/generalSettings/ai/issues']}>
                 <Routes>
                     <Route
-                        path="/generalSettings/ai/reviews"
+                        path="/generalSettings/ai/issues"
                         element={<AiReviewsSettingsPage />}
                     />
                 </Routes>
@@ -90,10 +92,10 @@ describe('AiReviewsSettingsPage', () => {
 
         // Board is the default view; switch to the table for this flow.
         await user.click(screen.getByText('Table'));
-        await user.click(screen.getByRole('button', { name: 'Open review' }));
+        await user.click(screen.getByRole('button', { name: 'Open issue' }));
 
         expect(
-            await screen.findByText('Sidebar thread thread-1 / demo-review:1'),
+            await screen.findByText('Modal thread thread-1 / demo-review:1'),
         ).toBeInTheDocument();
     });
 
@@ -101,12 +103,12 @@ describe('AiReviewsSettingsPage', () => {
         renderWithProviders(
             <MemoryRouter
                 initialEntries={[
-                    '/generalSettings/ai/reviews?reviewProjectUuid=project-1&reviewAgentUuid=agent-1&reviewThreadUuid=thread-1&reviewItemUuid=demo-review:1',
+                    '/generalSettings/ai/issues?reviewProjectUuid=project-1&reviewAgentUuid=agent-1&reviewThreadUuid=thread-1&reviewItemUuid=demo-review:1',
                 ]}
             >
                 <Routes>
                     <Route
-                        path="/generalSettings/ai/reviews"
+                        path="/generalSettings/ai/issues"
                         element={<AiReviewsSettingsPage />}
                     />
                 </Routes>
@@ -114,7 +116,7 @@ describe('AiReviewsSettingsPage', () => {
         );
 
         expect(
-            screen.getByText('Sidebar thread thread-1 / demo-review:1'),
+            screen.getByText('Modal thread thread-1 / demo-review:1'),
         ).toBeInTheDocument();
     });
 });

@@ -20,6 +20,9 @@ import type {
     AiAgentReviewClassifierTurnCandidate,
     AiAgentReviewClassifierTurnSignal,
     AiAgentReviewItemDismissedReason,
+    AiAgentReviewItemEvent,
+    AiAgentReviewItemEventDetail,
+    AiAgentReviewItemPriority,
     AiAgentReviewItemPrState,
     AiAgentReviewItemStatus,
     AiAgentReviewItemSummary,
@@ -35,6 +38,7 @@ import type {
     AiAgentTurnSignal,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import { v4 as uuidv4 } from 'uuid';
 import { ProjectTableName } from '../../database/entities/projects';
 import { PullRequestsTableName } from '../../database/entities/pullRequests';
 import { QueryHistoryTableName } from '../../database/entities/queryHistory';
@@ -49,17 +53,20 @@ import {
 } from '../database/entities/ai';
 import {
     AiAgentReviewClassifierRunTableName,
+    AiAgentReviewItemEventsTableName,
     AiAgentReviewItemTableName,
     AiAgentReviewRemediationEventsTableName,
     AiAgentReviewRemediationTableName,
     AiAgentTurnSignalTableName,
     type AiAgentReviewClassifierRunTable,
+    type AiAgentReviewItemEventsTable,
     type AiAgentReviewItemTable,
     type AiAgentReviewRemediationEventsTable,
     type AiAgentReviewRemediationTable,
     type AiAgentTurnSignalTable,
     type DbAiAgentReviewClassifierRun,
     type DbAiAgentReviewItem,
+    type DbAiAgentReviewItemEvent,
     type DbAiAgentReviewRemediation,
     type DbAiAgentReviewRemediationEvent,
     type DbAiAgentTurnSignal,
@@ -194,8 +201,8 @@ type ListReviewItemsArgs = {
 type UpsertReviewItemStateArgs = {
     fingerprint: string;
     organizationUuid: string;
-    projectUuid: string;
-    agentUuid: string;
+    projectUuid: string | null;
+    agentUuid: string | null;
     status: AiAgentReviewItemStatus;
     dismissedReason: AiAgentReviewItemDismissedReason | null;
     statusUpdatedByUserUuid: string | null;
@@ -204,12 +211,24 @@ type UpsertReviewItemStateArgs = {
     boardPosition?: number | null;
 };
 
+type CreateManualReviewItemArgs = {
+    organizationUuid: string;
+    title: string;
+    description: string | null;
+    projectUuid: string;
+    agentUuid: string | null;
+    assignedToUserUuid: string | null;
+    primaryRootCause: AiAgentRootCause | null;
+    priority: AiAgentReviewItemPriority;
+    createdByUserUuid: string | null;
+};
+
 type CreateReviewRemediationArgs = {
     fingerprint: string;
     organizationUuid: string;
-    sourceFindingUuid: string;
-    sourcePromptUuid: string;
-    sourceThreadUuid: string;
+    sourceFindingUuid: string | null;
+    sourcePromptUuid: string | null;
+    sourceThreadUuid: string | null;
     sourceProjectUuid: string;
     sourceAgentUuid: string;
     workThreadUuid: string | null;
@@ -1039,27 +1058,29 @@ export class AiAgentReviewClassifierModel {
             .limit(limit)) as ReviewItemAggregateRow[];
 
         const fingerprints = aggregateRows.map((row) => row.fingerprint);
-        if (fingerprints.length === 0) {
-            return [];
-        }
-
-        const latestRows = (await this.database<AiAgentTurnSignalTable>(
-            AiAgentTurnSignalTableName,
-        )
-            .distinctOn('fingerprint')
-            .select('*')
-            .where('organization_uuid', args.organizationUuid)
-            .whereIn('fingerprint', fingerprints)
-            .modify((query) => {
-                if (args.projectUuid) {
-                    void query.where('project_uuid', args.projectUuid);
-                }
-                if (args.agentUuid) {
-                    void query.where('agent_uuid', args.agentUuid);
-                }
-            })
-            .orderBy('fingerprint')
-            .orderBy('created_at', 'desc')) as DbAiAgentTurnSignal[];
+        const latestRows =
+            fingerprints.length === 0
+                ? []
+                : ((await this.database<AiAgentTurnSignalTable>(
+                      AiAgentTurnSignalTableName,
+                  )
+                      .distinctOn('fingerprint')
+                      .select('*')
+                      .where('organization_uuid', args.organizationUuid)
+                      .whereIn('fingerprint', fingerprints)
+                      .modify((query) => {
+                          if (args.projectUuid) {
+                              void query.where(
+                                  'project_uuid',
+                                  args.projectUuid,
+                              );
+                          }
+                          if (args.agentUuid) {
+                              void query.where('agent_uuid', args.agentUuid);
+                          }
+                      })
+                      .orderBy('fingerprint')
+                      .orderBy('created_at', 'desc')) as DbAiAgentTurnSignal[]);
 
         const latestByFingerprint = new Map(
             latestRows
@@ -1110,12 +1131,14 @@ export class AiAgentReviewClassifierModel {
                 return {
                     uuid: fingerprint,
                     fingerprint,
+                    source: item?.source ?? 'ai_finding',
                     organizationUuid: latest.organization_uuid,
                     projectUuid: latest.project_uuid,
                     agentUuid: latest.agent_uuid,
                     title: latest.review_item_title ?? 'Review AI agent issue',
                     description: latest.review_item_description ?? '',
                     primaryRootCause: latest.primary_root_cause ?? 'ambiguous',
+                    priority: item?.priority ?? 'none',
                     status: item?.status ?? 'triage',
                     dismissedReason: item?.dismissed_reason ?? null,
                     ownerType: latest.owner_type ?? 'unknown',
@@ -1136,6 +1159,7 @@ export class AiAgentReviewClassifierModel {
                         ? WRITEBACK_TIMED_OUT_MESSAGE
                         : (item?.pr_writeback_message ?? null),
                     boardPosition: item?.board_position ?? null,
+                    createdByUserUuid: item?.created_by_user_uuid ?? null,
                     writebackEligible: false,
                     writebackEligibility: defaultWritebackEligibility,
                     remediation,
@@ -1163,7 +1187,152 @@ export class AiAgentReviewClassifierModel {
                     reviewItem !== null,
             );
 
-        return reviewItems;
+        const aiFingerprints = new Set(
+            reviewItems.map((item) => item.fingerprint),
+        );
+        const manualRows = (await this.database<AiAgentReviewItemTable>(
+            AiAgentReviewItemTableName,
+        )
+            .where('organization_uuid', args.organizationUuid)
+            .where('source', 'manual')
+            .modify((query) => {
+                if (args.projectUuid) {
+                    void query.where('project_uuid', args.projectUuid);
+                }
+                if (args.agentUuid) {
+                    void query.where('agent_uuid', args.agentUuid);
+                }
+                if (args.fingerprint) {
+                    void query.where('fingerprint', args.fingerprint);
+                }
+                if (args.statuses) {
+                    void query.whereIn('status', args.statuses);
+                }
+            })
+            .select<ReviewItemRow[]>(
+                '*',
+                this.database.raw(
+                    '(extract(epoch from (now() - updated_at)) * 1000)::float8 as updated_at_age_ms',
+                ),
+            )) as ReviewItemRow[];
+
+        const manualFingerprints = manualRows
+            .map((row) => row.fingerprint)
+            .filter((fingerprint) => !aiFingerprints.has(fingerprint));
+        const manualRemediations =
+            await this.getLatestReviewRemediationsByFingerprint({
+                organizationUuid: args.organizationUuid,
+                fingerprints: manualFingerprints,
+            });
+        const manualItems = manualRows
+            .filter((row) => !aiFingerprints.has(row.fingerprint))
+            .map((row): AiAgentReviewItemSummary => {
+                const writebackStale = isStaleWritebackStatus(
+                    row.pr_writeback_status,
+                    row.updated_at_age_ms,
+                );
+                const remediation =
+                    manualRemediations.get(row.fingerprint) ?? null;
+                return {
+                    uuid: row.ai_agent_review_item_uuid,
+                    fingerprint: row.fingerprint,
+                    source: 'manual',
+                    organizationUuid: row.organization_uuid,
+                    projectUuid: row.project_uuid,
+                    agentUuid: row.agent_uuid,
+                    title: row.title ?? 'Untitled issue',
+                    description: row.description ?? '',
+                    primaryRootCause: row.primary_root_cause ?? 'ambiguous',
+                    priority: row.priority ?? 'none',
+                    status: row.status,
+                    dismissedReason: row.dismissed_reason,
+                    ownerType: 'unknown',
+                    assignedToUserUuid: row.assigned_to_user_uuid,
+                    firstSeenAt: row.created_at,
+                    lastSeenAt: row.updated_at,
+                    findingCount: 0,
+                    statusUpdatedAt: row.status_updated_at ?? row.updated_at,
+                    statusUpdatedByUserUuid: row.status_updated_by_user_uuid,
+                    linkedIssueUrl: row.linked_issue_url,
+                    linkedPrUrl: row.linked_pr_url,
+                    prState: row.pr_state,
+                    prWritebackStatus: writebackStale
+                        ? 'failed'
+                        : row.pr_writeback_status,
+                    prWritebackMessage: writebackStale
+                        ? WRITEBACK_TIMED_OUT_MESSAGE
+                        : row.pr_writeback_message,
+                    boardPosition: row.board_position,
+                    createdByUserUuid: row.created_by_user_uuid,
+                    writebackEligible: false,
+                    writebackEligibility: defaultWritebackEligibility,
+                    remediation,
+                    createdAt: row.created_at,
+                    updatedAt: row.updated_at,
+                    latestFinding: null,
+                };
+            });
+
+        return [...reviewItems, ...manualItems]
+            .sort((a, b) => {
+                if (a.boardPosition == null && b.boardPosition == null) {
+                    return (
+                        new Date(b.lastSeenAt).getTime() -
+                        new Date(a.lastSeenAt).getTime()
+                    );
+                }
+                if (a.boardPosition == null) return 1;
+                if (b.boardPosition == null) return -1;
+                return a.boardPosition - b.boardPosition;
+            })
+            .slice(0, limit);
+    }
+
+    async createManualReviewItem(
+        args: CreateManualReviewItemArgs,
+    ): Promise<AiAgentReviewItemSummary> {
+        const itemUuid = uuidv4();
+        const fingerprint = `manual:${itemUuid}`;
+        await this.database.transaction(async (trx) => {
+            await trx<AiAgentReviewItemTable>(
+                AiAgentReviewItemTableName,
+            ).insert({
+                ai_agent_review_item_uuid: itemUuid,
+                fingerprint,
+                source: 'manual',
+                organization_uuid: args.organizationUuid,
+                project_uuid: args.projectUuid,
+                agent_uuid: args.agentUuid,
+                title: args.title,
+                description: args.description,
+                primary_root_cause: args.primaryRootCause,
+                priority: args.priority,
+                status: 'open',
+                assigned_to_user_uuid: args.assignedToUserUuid,
+                created_by_user_uuid: args.createdByUserUuid,
+                status_updated_at: trx.fn.now() as never,
+                status_updated_by_user_uuid: args.createdByUserUuid,
+            });
+            await this.createReviewItemEvent({
+                fingerprint,
+                organizationUuid: args.organizationUuid,
+                event: {
+                    eventType: 'created',
+                    payload: { rootCause: args.primaryRootCause },
+                },
+                createdByUserUuid: args.createdByUserUuid,
+                trx,
+            });
+        });
+
+        const item = await this.getReviewItem(
+            args.organizationUuid,
+            fingerprint,
+        );
+        if (!item) {
+            throw new Error('Failed to create manual review item');
+        }
+        return item;
     }
 
     async getReviewItemsByFingerprint(
@@ -1506,6 +1675,55 @@ export class AiAgentReviewClassifierModel {
         } as AiAgentReviewRemediationEvent;
     }
 
+    async createReviewItemEvent(args: {
+        fingerprint: string;
+        organizationUuid: string;
+        event: AiAgentReviewItemEventDetail;
+        occurredAt?: Date;
+        createdByUserUuid?: string | null;
+        trx?: Knex;
+    }): Promise<void> {
+        const db = args.trx ?? this.database;
+        await db<AiAgentReviewItemEventsTable>(
+            AiAgentReviewItemEventsTableName,
+        ).insert({
+            fingerprint: args.fingerprint,
+            organization_uuid: args.organizationUuid,
+            event_type: args.event.eventType,
+            payload: args.event.payload,
+            occurred_at: args.occurredAt ?? (db.fn.now() as never),
+            created_by_user_uuid: args.createdByUserUuid ?? null,
+        });
+    }
+
+    async listReviewItemEvents(args: {
+        fingerprint: string;
+        organizationUuid: string;
+    }): Promise<AiAgentReviewItemEvent[]> {
+        const rows = await this.database<AiAgentReviewItemEventsTable>(
+            AiAgentReviewItemEventsTableName,
+        )
+            .where('fingerprint', args.fingerprint)
+            .where('organization_uuid', args.organizationUuid)
+            .orderBy('occurred_at', 'asc')
+            .select('*');
+
+        return rows.map(AiAgentReviewClassifierModel.mapReviewItemEvent);
+    }
+
+    private static mapReviewItemEvent(
+        row: DbAiAgentReviewItemEvent,
+    ): AiAgentReviewItemEvent {
+        return {
+            uuid: row.ai_agent_review_item_event_uuid,
+            fingerprint: row.fingerprint,
+            occurredAt: row.occurred_at,
+            createdByUserUuid: row.created_by_user_uuid,
+            eventType: row.event_type,
+            payload: row.payload,
+        } as AiAgentReviewItemEvent;
+    }
+
     /**
      * Persists a stale (queued/running past WRITEBACK_STALE_MS) remediation as
      * failed so the one-active-per-fingerprint index allows a retry. The age
@@ -1627,6 +1845,32 @@ export class AiAgentReviewClassifierModel {
         return { projectUuid: row.project_uuid, agentUuid: row.agent_uuid };
     }
 
+    async getReviewItemScope(
+        organizationUuid: string,
+        fingerprint: string,
+    ): Promise<{
+        projectUuid: string | null;
+        agentUuid: string | null;
+    } | null> {
+        const promoted = await this.getPromotedFingerprintScope(
+            organizationUuid,
+            fingerprint,
+        );
+        if (promoted) {
+            return promoted;
+        }
+        const row = await this.database<AiAgentReviewItemTable>(
+            AiAgentReviewItemTableName,
+        )
+            .where('organization_uuid', organizationUuid)
+            .where('fingerprint', fingerprint)
+            .first('project_uuid', 'agent_uuid');
+        if (!row) {
+            return null;
+        }
+        return { projectUuid: row.project_uuid, agentUuid: row.agent_uuid };
+    }
+
     async upsertReviewItemState(
         args: UpsertReviewItemStateArgs,
     ): Promise<void> {
@@ -1666,8 +1910,8 @@ export class AiAgentReviewClassifierModel {
         organizationUuid: string;
         items: {
             fingerprint: string;
-            projectUuid: string;
-            agentUuid: string;
+            projectUuid: string | null;
+            agentUuid: string | null;
         }[];
     }): Promise<void> {
         if (args.items.length === 0) return;
@@ -1693,6 +1937,33 @@ export class AiAgentReviewClassifierModel {
         });
     }
 
+    // Legacy fingerprints promoted before item rows were written on promotion
+    // are listed with a synthesized 'triage' status but have no
+    // ai_agent_review_item row, so plain UPDATEs match nothing and event
+    // inserts violate the fingerprint FK. Insert the missing row first.
+    async ensureReviewItemRow(args: {
+        organizationUuid: string;
+        fingerprint: string;
+    }): Promise<void> {
+        const scope = await this.getReviewItemScope(
+            args.organizationUuid,
+            args.fingerprint,
+        );
+        if (!scope) {
+            return;
+        }
+        await this.database<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
+            .insert({
+                fingerprint: args.fingerprint,
+                organization_uuid: args.organizationUuid,
+                project_uuid: scope.projectUuid,
+                agent_uuid: scope.agentUuid,
+                status: 'triage',
+            })
+            .onConflict('fingerprint')
+            .ignore();
+    }
+
     async updateReviewItemAssignee(args: {
         fingerprint: string;
         organizationUuid: string;
@@ -1703,6 +1974,20 @@ export class AiAgentReviewClassifierModel {
             .where('organization_uuid', args.organizationUuid)
             .update({
                 assigned_to_user_uuid: args.assignedToUserUuid,
+                updated_at: this.database.fn.now() as never,
+            });
+    }
+
+    async setReviewItemPriority(args: {
+        fingerprint: string;
+        organizationUuid: string;
+        priority: AiAgentReviewItemPriority;
+    }): Promise<void> {
+        await this.database<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
+            .where('fingerprint', args.fingerprint)
+            .where('organization_uuid', args.organizationUuid)
+            .update({
+                priority: args.priority,
                 updated_at: this.database.fn.now() as never,
             });
     }
@@ -1962,7 +2247,7 @@ export class AiAgentReviewClassifierModel {
 
             // Write the review item in the same transaction so a signal and the
             // item it promotes are always created together.
-            if (newFingerprint) {
+            if (newFingerprint && finding) {
                 const existingItem = await trx<AiAgentReviewItemTable>(
                     AiAgentReviewItemTableName,
                 )
@@ -1996,6 +2281,35 @@ export class AiAgentReviewClassifierModel {
                             status: 'open',
                             status_updated_at: trx.fn.now() as never,
                         });
+                }
+
+                // System-authored issue activity: first promotion opens the
+                // issue; a promotion of the same fingerprint from a different
+                // turn recurs it. A re-review of the same turn (supersede path)
+                // is neither — it already produced this fingerprint's event.
+                const isSameTurnReReview =
+                    supersededFingerprints.includes(newFingerprint);
+                if (!isSameTurnReReview) {
+                    await this.createReviewItemEvent({
+                        fingerprint: newFingerprint,
+                        organizationUuid: turnSignal.subject.organizationUuid,
+                        event: existingItem
+                            ? {
+                                  eventType: 'recurred',
+                                  payload: {
+                                      threadUuid: turnSignal.subject.threadUuid,
+                                      promptUuid,
+                                  },
+                              }
+                            : {
+                                  eventType: 'created',
+                                  payload: {
+                                      rootCause: finding.primaryRootCause,
+                                  },
+                              },
+                        createdByUserUuid: null,
+                        trx,
+                    });
                 }
             }
 

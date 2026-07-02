@@ -1,4 +1,5 @@
 import {
+    type AiAgentReviewActivityEvent,
     type AiAgentReviewItemSummary,
     type AiAgentReviewRemediationEvent,
     type AiAgentReviewRemediationLiveState,
@@ -7,6 +8,8 @@ import { Anchor, Box } from '@mantine-8/core';
 import dayjs from 'dayjs';
 import { useMemo, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
+import { LightdashUserAvatar } from '../../../../../components/Avatar';
+import { useOrgUsersByUuid } from '../../../../../hooks/useOrganizationUsers';
 import { useAiAgentReviewItemActivity } from '../../hooks/useAiAgentAdmin';
 import styles from './RemediationActivityTimeline.module.css';
 
@@ -33,6 +36,44 @@ type TimelineRow = {
     meta: ReactNode;
     when: string;
     state: 'done' | 'live';
+    author: ReactNode;
+};
+
+const humanizeStatus = (status: string) => status.replaceAll('_', ' ');
+
+const issueEventRow = (
+    event: Extract<AiAgentReviewActivityEvent, { kind: 'issue' }>,
+): Pick<TimelineRow, 'label' | 'meta'> => {
+    switch (event.eventType) {
+        case 'created':
+            return { label: 'Issue opened', meta: null };
+        case 'status_changed':
+            return {
+                label: `Status changed to ${humanizeStatus(event.payload.to)}`,
+                meta: event.payload.from
+                    ? `from ${humanizeStatus(event.payload.from)}`
+                    : null,
+            };
+        case 'assignee_changed':
+            return {
+                label: event.payload.toUserUuid ? 'Assigned' : 'Unassigned',
+                meta: null,
+            };
+        case 'recurred':
+            return { label: 'Recurred — seen again', meta: null };
+        case 'priority_changed':
+            return {
+                label: 'Priority changed',
+                meta: `${event.payload.from} → ${event.payload.to}`,
+            };
+        case 'comment_added':
+            return {
+                label: 'Comment added',
+                meta: truncate(event.payload.body, 160),
+            };
+        default:
+            return { label: 'Activity', meta: null };
+    }
 };
 
 const buildThreadPath = (
@@ -51,11 +92,13 @@ const eventRow = (
     const remediation = reviewItem.remediation;
     switch (event.eventType) {
         case 'finding_opened': {
-            const threadPath = buildThreadPath(
-                reviewItem.projectUuid,
-                reviewItem.agentUuid,
-                event.payload.sourceThreadUuid,
-            );
+            const threadPath = event.payload.sourceThreadUuid
+                ? buildThreadPath(
+                      reviewItem.projectUuid,
+                      reviewItem.agentUuid,
+                      event.payload.sourceThreadUuid,
+                  )
+                : null;
             return {
                 label: 'Finding opened',
                 meta: (
@@ -167,6 +210,7 @@ const liveRow = (
               : 'Re-running the original question in the preview…',
     when: 'now',
     state: 'live',
+    author: null,
 });
 
 type Props = {
@@ -174,8 +218,8 @@ type Props = {
 };
 
 export const RemediationActivityTimeline: FC<Props> = ({ reviewItem }) => {
+    const usersByUuid = useOrgUsersByUuid();
     const { data } = useAiAgentReviewItemActivity(reviewItem.fingerprint, {
-        enabled: !!reviewItem.remediation,
         // Poll only while a step is in flight — settled feeds are static.
         refetchInterval: (latest) =>
             latest?.liveState === 'writeback'
@@ -185,39 +229,43 @@ export const RemediationActivityTimeline: FC<Props> = ({ reviewItem }) => {
                   : false,
     });
 
-    const workThreadUrl = useMemo(() => {
-        const r = reviewItem.remediation;
-        if (
-            r?.previewProjectUuid &&
-            r.previewAgentUuid &&
-            r.previewThreadUuid
-        ) {
-            return `/projects/${r.previewProjectUuid}/ai-agents/${r.previewAgentUuid}/threads/${r.previewThreadUuid}`;
-        }
-        return null;
-    }, [reviewItem.remediation]);
-
     const rows = useMemo<TimelineRow[]>(() => {
         if (!data || data.events.length === 0) {
             return [];
         }
+        const authorNode = (userUuid: string | null): ReactNode => {
+            if (!userUuid) return null;
+            const user = usersByUuid.get(userUuid);
+            if (!user) return null;
+            const name =
+                `${user.firstName} ${user.lastName}`.trim() || user.email;
+            return (
+                <span className={styles.author}>
+                    <LightdashUserAvatar size="xs" radius="xl" name={name} />
+                    {name}
+                </span>
+            );
+        };
         let previous: Date | null = null;
         const eventRows = data.events.map((event) => {
             const when = formatWhen(event.occurredAt, previous);
             previous = dayjs(event.occurredAt).toDate();
+            const base =
+                event.kind === 'issue'
+                    ? issueEventRow(event)
+                    : eventRow(event, reviewItem);
             return {
                 key: event.uuid,
                 when,
                 state: 'done' as const,
-                ...eventRow(event, reviewItem),
+                author: authorNode(event.createdByUserUuid),
+                ...base,
             };
         });
-        const liveRows = data.liveState
+        return data.liveState
             ? [...eventRows, liveRow(data.liveState, data.liveMessage)]
             : eventRows;
-        if (!workThreadUrl) return liveRows;
-        return liveRows;
-    }, [data, reviewItem, workThreadUrl]);
+    }, [data, reviewItem, usersByUuid]);
 
     if (rows.length === 0) {
         return null;
@@ -234,7 +282,10 @@ export const RemediationActivityTimeline: FC<Props> = ({ reviewItem }) => {
                 >
                     <span className={styles.when}>{row.when}</span>
                     <div className={styles.node} />
-                    <div className={styles.event}>{row.label}</div>
+                    <div className={styles.event}>
+                        {row.label}
+                        {row.author}
+                    </div>
                     {row.meta ? (
                         <div className={styles.meta}>{row.meta}</div>
                     ) : null}

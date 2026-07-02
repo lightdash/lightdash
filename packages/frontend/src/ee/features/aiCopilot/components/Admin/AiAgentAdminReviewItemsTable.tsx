@@ -106,10 +106,12 @@ const signalLabels: Record<AiAgentTurnSignal, string> = {
 
 type ReviewSurface = 'findings' | 'signals';
 
+// Manual issues have no source thread, so the thread coordinates are null and
+// the detail modal renders from the review item alone.
 export type AiAgentAdminReviewItemPreviewTarget = {
-    projectUuid: string;
-    agentUuid: string;
-    threadUuid: string;
+    projectUuid: string | null;
+    agentUuid: string | null;
+    threadUuid: string | null;
     reviewItemUuid?: string | null;
 };
 
@@ -135,7 +137,7 @@ const getSignalResultLabel = (signal: AiAgentReviewSignalSummary): string => {
 const getSignalWhyText = (signal: AiAgentReviewSignalSummary): string =>
     signal.promotionReason ??
     signal.finding?.recommendation?.rationale ??
-    'The judge reviewed this turn but did not promote it into a review item.';
+    'The judge reviewed this turn but did not promote it into an issue.';
 
 const getSignalActionText = (signal: AiAgentReviewSignalSummary): string => {
     if (signal.finding?.recommendation) {
@@ -682,7 +684,7 @@ const AiAgentAdminReviewItemsTable = ({
     }: {
         visibleCount: number;
         totalCount: number;
-        noun: 'finding' | 'turn';
+        noun: 'issue' | 'turn';
         isLoading: boolean;
         surface: ReviewSurface;
         selectedCount?: number;
@@ -698,7 +700,7 @@ const AiAgentAdminReviewItemsTable = ({
               ? `${visibleCount} of ${totalCount} ${pluralised}`
               : `${visibleCount} ${pluralised}`;
         const helperCopy =
-            'Findings are issues worth attention. Click a row to inspect details and thread context.';
+            'Issues are items worth attention. Click a row to inspect details and thread context.';
 
         return (
             <Box>
@@ -707,7 +709,7 @@ const AiAgentAdminReviewItemsTable = ({
                         <SearchFilter
                             search={search}
                             setSearch={setSearch}
-                            placeholder="Search findings"
+                            placeholder="Search issues"
                         />
 
                         <Group
@@ -716,7 +718,7 @@ const AiAgentAdminReviewItemsTable = ({
                             className={styles.toolbarHeading}
                         >
                             <Text fz="sm" fw={700} c="ldGray.9">
-                                Findings
+                                Issues
                             </Text>
                             <ReviewConceptHelp />
                         </Group>
@@ -786,7 +788,7 @@ const AiAgentAdminReviewItemsTable = ({
                                         }
                                         onClick={onDismissSelected}
                                     >
-                                        Dismiss findings
+                                        Dismiss issues
                                     </Button>
                                     {onClearSelection && (
                                         <Button
@@ -1208,20 +1210,21 @@ const AiAgentAdminReviewItemsTable = ({
             return {
                 className: styles.bodyRow,
                 style: {
-                    cursor: latestFinding ? 'pointer' : 'default',
+                    cursor: 'pointer',
                     backgroundColor: isSelected
                         ? theme.colors.ldGray[0]
                         : undefined,
                 },
-                onClick: latestFinding
-                    ? () =>
-                          onReviewItemSelect?.({
-                              projectUuid: latestFinding.projectUuid,
-                              agentUuid: latestFinding.agentUuid,
-                              threadUuid: latestFinding.threadUuid,
-                              reviewItemUuid: reviewItem.uuid,
-                          })
-                    : undefined,
+                onClick: () =>
+                    onReviewItemSelect?.({
+                        projectUuid:
+                            latestFinding?.projectUuid ??
+                            reviewItem.projectUuid,
+                        agentUuid:
+                            latestFinding?.agentUuid ?? reviewItem.agentUuid,
+                        threadUuid: latestFinding?.threadUuid ?? null,
+                        reviewItemUuid: reviewItem.uuid,
+                    }),
             };
         },
         renderTopToolbar: ({ table: tableInstance }) => {
@@ -1245,7 +1248,7 @@ const AiAgentAdminReviewItemsTable = ({
             return renderReviewsToolbar({
                 visibleCount: filteredReviewItems.length,
                 totalCount: searchFilteredReviewItems.length,
-                noun: 'finding',
+                noun: 'issue',
                 isLoading,
                 surface: 'findings',
                 selectedCount: selectedRows.length,
@@ -1256,9 +1259,9 @@ const AiAgentAdminReviewItemsTable = ({
             });
         },
         emptyState: {
-            entityName: 'findings',
+            entityName: 'issues',
             emptyMessage:
-                'Nothing to review yet. When an agent answer looks wrong, it shows up here.',
+                'No issues yet. When an agent answer looks wrong, it shows up here.',
             search,
             hasActiveFilters,
             onClearFilters: clearAllFilters,

@@ -46,8 +46,8 @@ type AiThreadInfo = { aiThreadUuid: string; aiAgentUuid: string | null };
 type ReviewSourceInfo = {
     reviewItemTitle: string | null;
     primaryRootCause: AiAgentRootCause | null;
-    sourceFindingUuid: string;
-    sourceThreadUuid: string;
+    sourceFindingUuid: string | null;
+    sourceThreadUuid: string | null;
     sourceProjectUuid: string;
     sourceAgentUuid: string;
 };
@@ -217,18 +217,21 @@ export class PullRequestsModel {
                 'remediation.source_ai_agent_review_turn_signal_uuid',
             )
             .whereIn('remediation.pull_request_uuid', pullRequestUuids)
-            .select<DirectReviewContextRow[]>({
-                pullRequestUuid: 'remediation.pull_request_uuid',
-                fingerprint: 'remediation.fingerprint',
-                reviewStatus: 'review_item.status',
-                reviewItemTitle: 'source_finding.review_item_title',
-                primaryRootCause: 'source_finding.primary_root_cause',
-                sourceFindingUuid:
-                    'remediation.source_ai_agent_review_turn_signal_uuid',
-                sourceThreadUuid: 'remediation.source_thread_uuid',
-                sourceProjectUuid: 'remediation.source_project_uuid',
-                sourceAgentUuid: 'remediation.source_agent_uuid',
-            })
+            .select<DirectReviewContextRow[]>(
+                'remediation.pull_request_uuid as pullRequestUuid',
+                'remediation.fingerprint as fingerprint',
+                'review_item.status as reviewStatus',
+                this.database.raw(
+                    'coalesce(source_finding.review_item_title, review_item.title) as "reviewItemTitle"',
+                ),
+                this.database.raw(
+                    'coalesce(source_finding.primary_root_cause, review_item.primary_root_cause) as "primaryRootCause"',
+                ),
+                'remediation.source_ai_agent_review_turn_signal_uuid as sourceFindingUuid',
+                'remediation.source_thread_uuid as sourceThreadUuid',
+                'remediation.source_project_uuid as sourceProjectUuid',
+                'remediation.source_agent_uuid as sourceAgentUuid',
+            )
             .orderBy('remediation.updated_at', 'desc');
 
         rows.forEach((row) => {

@@ -20,8 +20,8 @@ export type PullRequestReviewContext = {
     reviewTitle: string;
     reviewStatus: AiAgentReviewItemStatus;
     primaryRootCause: AiAgentRootCause;
-    sourceFindingUuid: string;
-    sourceThreadUuid: string;
+    sourceFindingUuid: string | null;
+    sourceThreadUuid: string | null;
     sourceProjectUuid: string;
     sourceAgentUuid: string;
 };

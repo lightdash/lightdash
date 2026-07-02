@@ -4,6 +4,7 @@ import {
     AiAgentAdminFilters,
     AiAgentAdminPromptActivityPoint,
     AiAgentAdminSort,
+    AiAgentReviewActivityEvent,
     AiAgentReviewItemActivity,
     AiAgentReviewItemPrDiff,
     AiAgentReviewItemStatus,
@@ -17,6 +18,7 @@ import {
     AiReviewNotificationSettings,
     AlreadyExistsError,
     assertUnreachable,
+    CreateAiAgentReviewItem,
     DbtProjectType,
     extractPreviewProjectUuidFromUrl,
     extractPreviewUrlFromComments,
@@ -32,6 +34,7 @@ import {
     PullRequestProvider,
     PullRequestSource,
     RequestMethod,
+    UpdateAiAgentReviewItemPriority,
     UpdateAiAgentReviewItemStatus,
     UpdateAiReviewNotificationSettings,
     type AiAgentReviewItemWritebackBlockedReason,
@@ -188,6 +191,9 @@ const getWritebackStrategy = (
         };
     }
     if (!item.latestFinding?.projectContextEntry) {
+        if (item.source === 'manual') {
+            return { strategy: 'project_context' };
+        }
         return {
             eligibility: unavailableWritebackEligibility(
                 'missing_project_context_entry',
@@ -257,6 +263,9 @@ export const getAiAgentReviewItemWritebackEligibility = (args: {
 
     if (!item.projectUuid) {
         return unavailableWritebackEligibility('missing_project', strategy);
+    }
+    if (!item.agentUuid) {
+        return unavailableWritebackEligibility('missing_agent', strategy);
     }
     if (!projectAccess || !projectAccess.provider) {
         return unavailableWritebackEligibility(
@@ -378,6 +387,18 @@ export class AiAgentAdminService extends BaseService {
             throw new ForbiddenError(
                 'Insufficient permissions to access organization-wide AI agent data',
             );
+        }
+    }
+
+    private async checkAssigneeInOrganization(
+        organizationUuid: string,
+        assignedToUserUuid: string,
+    ): Promise<void> {
+        const assignee = await this.userModel
+            .getUserDetailsByUuid(assignedToUserUuid)
+            .catch(() => null);
+        if (!assignee || assignee.organizationUuid !== organizationUuid) {
+            throw new NotFoundError('Assignee not found');
         }
     }
 
@@ -694,6 +715,70 @@ export class AiAgentAdminService extends BaseService {
         return filtered;
     }
 
+    async createReviewItem(
+        user: SessionUser,
+        body: CreateAiAgentReviewItem,
+    ): Promise<AiAgentReviewItemSummary> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkReviewAccess(user, organizationUuid);
+
+        const title = body.title.trim();
+        if (title.length === 0) {
+            throw new ParameterError('Issue title is required');
+        }
+
+        const project = await this.projectModel.get(body.projectUuid);
+        if (project.organizationUuid !== organizationUuid) {
+            throw new NotFoundError('Project not found');
+        }
+
+        if (body.agentUuid) {
+            const agents = await this.aiAgentModel.findAllAgents({
+                organizationUuid,
+            });
+            if (!agents.some((agent) => agent.uuid === body.agentUuid)) {
+                throw new NotFoundError('Agent not found');
+            }
+        }
+
+        if (body.assignedToUserUuid) {
+            await this.checkAssigneeInOrganization(
+                organizationUuid,
+                body.assignedToUserUuid,
+            );
+        }
+
+        const item =
+            await this.aiAgentReviewClassifierModel.createManualReviewItem({
+                organizationUuid,
+                title,
+                description: body.description?.trim() || null,
+                projectUuid: body.projectUuid,
+                agentUuid: body.agentUuid,
+                assignedToUserUuid: body.assignedToUserUuid,
+                primaryRootCause: body.primaryRootCause,
+                priority: body.priority,
+                createdByUserUuid: user.userUuid,
+            });
+
+        this.analytics.track({
+            event: 'ai_agent_review_item.created',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                fingerprint: item.fingerprint,
+                projectId: item.projectUuid,
+                agentId: item.agentUuid,
+                priority: item.priority,
+            },
+        });
+
+        return item;
+    }
+
     private async areReviewsEnabled(user: SessionUser): Promise<boolean> {
         const { organizationUuid } = user;
         if (!organizationUuid) {
@@ -839,6 +924,10 @@ export class AiAgentAdminService extends BaseService {
             case 'missing_project':
                 throw new ParameterError(
                     'Writeback requires a project-scoped review item',
+                );
+            case 'missing_agent':
+                throw new ParameterError(
+                    'Writeback requires an agent-scoped review item',
                 );
             case 'missing_project_context_entry':
                 throw new ParameterError(
@@ -1013,7 +1102,7 @@ export class AiAgentAdminService extends BaseService {
         }
 
         const scope =
-            await this.aiAgentReviewClassifierModel.getPromotedFingerprintScope(
+            await this.aiAgentReviewClassifierModel.getReviewItemScope(
                 organizationUuid,
                 fingerprint,
             );
@@ -1056,6 +1145,19 @@ export class AiAgentAdminService extends BaseService {
                     previousStatus: previousReviewItem?.status ?? 'triage',
                     newStatus: update.status,
                 },
+            });
+            await this.aiAgentReviewClassifierModel.createReviewItemEvent({
+                fingerprint,
+                organizationUuid,
+                event: {
+                    eventType: 'status_changed',
+                    payload: {
+                        from: previousReviewItem?.status ?? null,
+                        to: update.status,
+                        dismissedReason: update.dismissedReason,
+                    },
+                },
+                createdByUserUuid: user.userUuid,
             });
         }
         if (
@@ -1113,7 +1215,7 @@ export class AiAgentAdminService extends BaseService {
         const resolved = await Promise.all(
             orderedFingerprints.map(async (fingerprint) => {
                 const scope =
-                    await this.aiAgentReviewClassifierModel.getPromotedFingerprintScope(
+                    await this.aiAgentReviewClassifierModel.getReviewItemScope(
                         organizationUuid,
                         fingerprint,
                     );
@@ -1145,11 +1247,46 @@ export class AiAgentAdminService extends BaseService {
         }
         this.checkReviewAccess(user, organizationUuid);
 
+        const previousItem =
+            await this.aiAgentReviewClassifierModel.getReviewItem(
+                organizationUuid,
+                fingerprint,
+            );
+        if (!previousItem) {
+            throw new NotFoundError('Review item not found');
+        }
+
+        if (assignedToUserUuid !== null) {
+            await this.checkAssigneeInOrganization(
+                organizationUuid,
+                assignedToUserUuid,
+            );
+        }
+
+        await this.aiAgentReviewClassifierModel.ensureReviewItemRow({
+            organizationUuid,
+            fingerprint,
+        });
         await this.aiAgentReviewClassifierModel.updateReviewItemAssignee({
             fingerprint,
             organizationUuid,
             assignedToUserUuid,
         });
+
+        if (previousItem.assignedToUserUuid !== assignedToUserUuid) {
+            await this.aiAgentReviewClassifierModel.createReviewItemEvent({
+                fingerprint,
+                organizationUuid,
+                event: {
+                    eventType: 'assignee_changed',
+                    payload: {
+                        fromUserUuid: previousItem.assignedToUserUuid,
+                        toUserUuid: assignedToUserUuid,
+                    },
+                },
+                createdByUserUuid: user.userUuid,
+            });
+        }
 
         const item = await this.getReviewItem(user, fingerprint);
 
@@ -1164,6 +1301,52 @@ export class AiAgentAdminService extends BaseService {
         }
 
         return item;
+    }
+
+    async updateReviewItemPriority(
+        user: SessionUser,
+        fingerprint: string,
+        update: UpdateAiAgentReviewItemPriority,
+    ): Promise<AiAgentReviewItemSummary> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkReviewAccess(user, organizationUuid);
+
+        const previousReviewItem =
+            await this.aiAgentReviewClassifierModel.getReviewItem(
+                organizationUuid,
+                fingerprint,
+            );
+        if (!previousReviewItem) {
+            throw new NotFoundError('Review item not found');
+        }
+        await this.aiAgentReviewClassifierModel.ensureReviewItemRow({
+            organizationUuid,
+            fingerprint,
+        });
+        await this.aiAgentReviewClassifierModel.setReviewItemPriority({
+            fingerprint,
+            organizationUuid,
+            priority: update.priority,
+        });
+        if (previousReviewItem.priority !== update.priority) {
+            await this.aiAgentReviewClassifierModel.createReviewItemEvent({
+                fingerprint,
+                organizationUuid,
+                event: {
+                    eventType: 'priority_changed',
+                    payload: {
+                        from: previousReviewItem?.priority ?? 'none',
+                        to: update.priority,
+                    },
+                },
+                createdByUserUuid: user.userUuid,
+            });
+        }
+
+        return this.getReviewItem(user, fingerprint);
     }
 
     async createReviewItemWriteback(
@@ -1185,11 +1368,6 @@ export class AiAgentAdminService extends BaseService {
             throw new NotFoundError('Review item not found');
         }
         const finding = reviewItem.latestFinding;
-        if (!finding) {
-            throw new ParameterError(
-                'Writeback requires a promoted review finding',
-            );
-        }
         const [reviewsEnabled, projectContextEnabled] = await Promise.all([
             this.areReviewsEnabled(user),
             reviewItem.primaryRootCause === 'project_context'
@@ -1200,11 +1378,13 @@ export class AiAgentAdminService extends BaseService {
             organizationUuid,
             reviewItem.projectUuid ? [reviewItem.projectUuid] : [],
         );
-        const writebackPrByThread =
-            await this.aiAgentReviewClassifierModel.getThreadWritebackPullRequests(
-                [finding.threadUuid],
-            );
+        const writebackPrByThread = finding
+            ? await this.aiAgentReviewClassifierModel.getThreadWritebackPullRequests(
+                  [finding.threadUuid],
+              )
+            : new Map();
         const sourceThreadHasWritebackPr =
+            finding !== null &&
             (writebackPrByThread.get(finding.threadUuid)?.length ?? 0) > 0;
         const writebackEligibility = getAiAgentReviewItemWritebackEligibility({
             item: reviewItem,
@@ -1221,20 +1401,22 @@ export class AiAgentAdminService extends BaseService {
         }
 
         const scope =
-            await this.aiAgentReviewClassifierModel.getPromotedFingerprintScope(
+            await this.aiAgentReviewClassifierModel.getReviewItemScope(
                 organizationUuid,
                 fingerprint,
             );
-        if (!scope) {
-            throw new NotFoundError('Review item not found');
+        if (!scope?.projectUuid || !scope.agentUuid) {
+            throw new NotFoundError('Review item scope not found');
         }
+        const { projectUuid } = scope;
+        const { agentUuid } = scope;
 
         // Plan the writeback up front: for semantic_layer we seed a real
         // Build-fix thread with the writeback prompt so the workspace can show
         // it the moment Create PR is clicked; project_context stays a
         // deterministic, threadless writeback.
         const explores = await this.projectModel.findExploresFromCache(
-            scope.projectUuid,
+            projectUuid,
             'name',
         );
         const plan = planReviewWriteback(
@@ -1253,11 +1435,21 @@ export class AiAgentAdminService extends BaseService {
             });
         }
 
-        const retryPrompt =
-            await this.aiAgentReviewClassifierModel.getPromptText({
-                organizationUuid,
-                promptUuid: finding.promptUuid,
-            });
+        let retryPrompt: string | null;
+        if (finding) {
+            retryPrompt = await this.aiAgentReviewClassifierModel.getPromptText(
+                {
+                    organizationUuid,
+                    promptUuid: finding.promptUuid,
+                },
+            );
+        } else if (plan.strategy === 'prompt') {
+            retryPrompt = plan.promptText;
+        } else {
+            retryPrompt = [reviewItem.title, reviewItem.description]
+                .filter(Boolean)
+                .join('\n\n');
+        }
 
         // Create the work thread before the remediation row so a failed
         // unique-index insert leaves only a harmless orphan thread, never a
@@ -1274,10 +1466,10 @@ export class AiAgentAdminService extends BaseService {
             await this.aiAgentModel.createWebAppThreadWithPrompt({
                 thread: {
                     organizationUuid,
-                    projectUuid: scope.projectUuid,
+                    projectUuid,
                     userUuid: user.userUuid,
                     createdFrom: 'web_app' as const,
-                    agentUuid: scope.agentUuid,
+                    agentUuid,
                 },
                 prompt: {
                     createdByUserUuid: user.userUuid,
@@ -1286,11 +1478,15 @@ export class AiAgentAdminService extends BaseService {
                     // structured agent context). The PR/preview pins are added
                     // once those exist — they post-date this seed.
                     context: [
-                        {
-                            type: 'thread',
-                            threadUuid: finding.threadUuid,
-                            promptUuid: finding.promptUuid,
-                        },
+                        ...(finding
+                            ? [
+                                  {
+                                      type: 'thread' as const,
+                                      threadUuid: finding.threadUuid,
+                                      promptUuid: finding.promptUuid,
+                                  },
+                              ]
+                            : []),
                         { type: 'review_finding', fingerprint },
                         { type: 'proposed_change', fingerprint },
                     ],
@@ -1298,7 +1494,7 @@ export class AiAgentAdminService extends BaseService {
             });
         await this.aiAgentModel.updateThreadTitle({
             threadUuid: workThreadUuid,
-            title: `Fix review: ${reviewItem.title}`,
+            title: `Fix issue: ${reviewItem.title}`,
         });
 
         // The one-active-per-fingerprint index can still reject the insert in
@@ -1311,11 +1507,11 @@ export class AiAgentAdminService extends BaseService {
                     {
                         fingerprint,
                         organizationUuid,
-                        sourceFindingUuid: finding.uuid,
-                        sourcePromptUuid: finding.promptUuid,
-                        sourceThreadUuid: finding.threadUuid,
-                        sourceProjectUuid: finding.projectUuid,
-                        sourceAgentUuid: finding.agentUuid,
+                        sourceFindingUuid: finding?.uuid ?? null,
+                        sourcePromptUuid: finding?.promptUuid ?? null,
+                        sourceThreadUuid: finding?.threadUuid ?? null,
+                        sourceProjectUuid: projectUuid,
+                        sourceAgentUuid: agentUuid,
                         workThreadUuid,
                         retryPrompt,
                         createdByUserUuid: user.userUuid,
@@ -1332,25 +1528,27 @@ export class AiAgentAdminService extends BaseService {
 
         // Anchor the feed at the finding itself, backdated to when it was
         // first seen — the remediation row is created much later.
-        await this.aiAgentReviewClassifierModel.createRemediationEvent({
-            remediationUuid: remediation.uuid,
-            organizationUuid,
-            event: {
-                eventType: 'finding_opened',
-                payload: {
-                    excerpt: retryPrompt,
-                    sourceThreadUuid: finding.threadUuid,
-                    sourcePromptUuid: finding.promptUuid,
+        if (finding) {
+            await this.aiAgentReviewClassifierModel.createRemediationEvent({
+                remediationUuid: remediation.uuid,
+                organizationUuid,
+                event: {
+                    eventType: 'finding_opened',
+                    payload: {
+                        excerpt: retryPrompt,
+                        sourceThreadUuid: finding.threadUuid,
+                        sourcePromptUuid: finding.promptUuid,
+                    },
                 },
-            },
-            occurredAt: reviewItem.firstSeenAt,
-        });
+                occurredAt: reviewItem.firstSeenAt,
+            });
+        }
 
         await this.aiAgentReviewClassifierModel.setReviewItemWritebackStatus({
             fingerprint,
             organizationUuid,
-            projectUuid: scope.projectUuid,
-            agentUuid: scope.agentUuid,
+            projectUuid,
+            agentUuid,
             status: 'queued',
             message: 'Queued',
         });
@@ -1358,7 +1556,7 @@ export class AiAgentAdminService extends BaseService {
         await this.schedulerClient.aiAgentReviewWriteback({
             fingerprint,
             organizationUuid,
-            projectUuid: scope.projectUuid,
+            projectUuid,
             userUuid: user.userUuid,
             remediationUuid: remediation.uuid,
         });
@@ -1368,7 +1566,7 @@ export class AiAgentAdminService extends BaseService {
             userId: user.userUuid,
             properties: {
                 organizationId: organizationUuid,
-                projectId: scope.projectUuid,
+                projectId: projectUuid,
                 fingerprint,
                 rootCause: reviewItem.primaryRootCause,
                 strategy: writebackEligibility.strategy,
@@ -1405,7 +1603,7 @@ export class AiAgentAdminService extends BaseService {
             );
 
         const scope =
-            await this.aiAgentReviewClassifierModel.getPromotedFingerprintScope(
+            await this.aiAgentReviewClassifierModel.getReviewItemScope(
                 organizationUuid,
                 fingerprint,
             );
@@ -1414,7 +1612,7 @@ export class AiAgentAdminService extends BaseService {
                 organizationUuid,
                 fingerprint,
             );
-        if (!scope || !reviewItem) {
+        if (!scope?.projectUuid || !scope.agentUuid || !reviewItem) {
             if (remediationUuid) {
                 await this.aiAgentReviewClassifierModel.updateReviewRemediationStatus(
                     {
@@ -1755,34 +1953,91 @@ export class AiAgentAdminService extends BaseService {
                 reviewItem.projectUuid,
             );
         }
-        if (!reviewItem?.remediation) {
-            return {
-                events: [],
-                liveState: null,
-                liveMessage: null,
-                verdictStale: false,
-            };
-        }
 
-        const events =
-            await this.aiAgentReviewClassifierModel.listRemediationEvents({
-                remediationUuid: reviewItem.remediation.uuid,
+        const issueEvents =
+            await this.aiAgentReviewClassifierModel.listReviewItemEvents({
+                fingerprint,
                 organizationUuid,
             });
 
-        const liveState = AiAgentAdminService.deriveRemediationLiveState(
-            reviewItem.remediation.status,
-            events,
+        const remediationEvents = reviewItem?.remediation
+            ? await this.aiAgentReviewClassifierModel.listRemediationEvents({
+                  remediationUuid: reviewItem.remediation.uuid,
+                  organizationUuid,
+              })
+            : [];
+
+        const events: AiAgentReviewActivityEvent[] = [
+            ...issueEvents.map((e) => ({ kind: 'issue' as const, ...e })),
+            ...remediationEvents.map((e) => ({
+                kind: 'remediation' as const,
+                ...e,
+            })),
+        ].sort(
+            (a, b) =>
+                new Date(a.occurredAt).getTime() -
+                new Date(b.occurredAt).getTime(),
         );
+
+        const liveState = reviewItem?.remediation
+            ? AiAgentAdminService.deriveRemediationLiveState(
+                  reviewItem.remediation.status,
+                  remediationEvents,
+              )
+            : null;
+
         return {
             events,
             liveState,
             liveMessage:
                 liveState === 'writeback'
-                    ? reviewItem.prWritebackMessage
+                    ? (reviewItem?.prWritebackMessage ?? null)
                     : null,
-            verdictStale: AiAgentAdminService.deriveVerdictStale(events),
+            verdictStale:
+                AiAgentAdminService.deriveVerdictStale(remediationEvents),
         };
+    }
+
+    async addReviewItemComment(
+        user: SessionUser,
+        fingerprint: string,
+        body: string,
+    ): Promise<AiAgentReviewItemActivity> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkReviewAccess(user, organizationUuid);
+
+        const comment = body.trim();
+        if (comment.length === 0) {
+            throw new ParameterError('Comment body is required');
+        }
+
+        const reviewItem =
+            await this.aiAgentReviewClassifierModel.getReviewItem(
+                organizationUuid,
+                fingerprint,
+            );
+        if (!reviewItem) {
+            throw new NotFoundError('Review item not found');
+        }
+
+        await this.aiAgentReviewClassifierModel.ensureReviewItemRow({
+            organizationUuid,
+            fingerprint,
+        });
+        await this.aiAgentReviewClassifierModel.createReviewItemEvent({
+            fingerprint,
+            organizationUuid,
+            event: {
+                eventType: 'comment_added',
+                payload: { body: comment },
+            },
+            createdByUserUuid: user.userUuid,
+        });
+
+        return this.getReviewItemActivity(user, fingerprint);
     }
 
     /**
@@ -2039,11 +2294,18 @@ export class AiAgentAdminService extends BaseService {
                             remediation.linkedPrUrl,
                         ),
                         context: [
-                            {
-                                type: 'thread',
-                                threadUuid: remediation.sourceThreadUuid,
-                                promptUuid: remediation.sourcePromptUuid,
-                            },
+                            ...(remediation.sourceThreadUuid &&
+                            remediation.sourcePromptUuid
+                                ? [
+                                      {
+                                          type: 'thread' as const,
+                                          threadUuid:
+                                              remediation.sourceThreadUuid,
+                                          promptUuid:
+                                              remediation.sourcePromptUuid,
+                                      },
+                                  ]
+                                : []),
                         ],
                     },
                 }));

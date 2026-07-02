@@ -136,7 +136,7 @@ export const ReviewFindingsPreview: FC<Props> = ({
             </Box>
 
             <Group justify="space-between" px="xs" pt={4} pb={2} wrap="nowrap">
-                <Text className={classes.heading}>Review findings</Text>
+                <Text className={classes.heading}>Issues</Text>
                 <Text className={classes.heading}>{totalOpen} open</Text>
             </Group>
 
@@ -144,7 +144,7 @@ export const ReviewFindingsPreview: FC<Props> = ({
                 <Box
                     key={item.fingerprint}
                     component={Link}
-                    to={`/generalSettings/ai/reviews/${encodeURIComponent(
+                    to={`/generalSettings/ai/issues/${encodeURIComponent(
                         item.fingerprint,
                     )}`}
                     className={classes.row}
@@ -167,7 +167,7 @@ export const ReviewFindingsPreview: FC<Props> = ({
 
             <Box component={Link} to={reviewsUrl} className={classes.footer}>
                 <Text size="xs" fw={500}>
-                    View all reviews
+                    View all issues
                 </Text>
                 <MantineIcon icon={IconArrowRight} size={12} />
             </Box>
