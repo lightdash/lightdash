@@ -3,6 +3,8 @@ import * as Sentry from '@sentry/node';
 import express from 'express';
 import http from 'http';
 import knex, { Knex } from 'knex';
+import { BufferedEventStreamWriter } from './analytics/eventStream/BufferedEventStreamWriter';
+import { createEventStreamWriter } from './analytics/eventStream/createEventStreamWriter';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
 import { registerOAuthRefreshStrategies } from './auth/registerOAuthRefreshStrategies';
 import {
@@ -97,6 +99,8 @@ export default class NatsWorkerApp {
 
     private readonly prometheusMetrics: PrometheusMetrics;
 
+    private readonly eventStreamWriter: BufferedEventStreamWriter | null;
+
     constructor(args: NatsWorkerAppArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.port = args.port;
@@ -141,6 +145,10 @@ export default class NatsWorkerApp {
         });
         this.prometheusMetrics = new PrometheusMetrics(
             this.lightdashConfig.prometheus,
+        );
+        this.eventStreamWriter = createEventStreamWriter(
+            this.lightdashConfig,
+            this.prometheusMetrics,
         );
 
         this.clients = clients;
@@ -249,6 +257,10 @@ export default class NatsWorkerApp {
                 Logger.info('Shutting down NATS worker gracefully');
             },
             onSignal: async () => {
+                if (this.eventStreamWriter) {
+                    Logger.info('Flushing usage event stream writer');
+                    await this.eventStreamWriter.close();
+                }
                 Logger.info('Stopping Prometheus metrics');
                 await this.prometheusMetrics.stop();
                 await shutdownOtelTracing();
@@ -268,5 +280,9 @@ export default class NatsWorkerApp {
         });
 
         server.listen(this.port);
+    }
+
+    public getEventStreamWriter() {
+        return this.eventStreamWriter;
     }
 }
