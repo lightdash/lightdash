@@ -377,6 +377,75 @@ function getDownloadLimit(limit: DownloadResultsLimit | undefined): {
     return { kind: 'rerun', limit };
 }
 
+type ChartResponseMetricQuery = {
+    dimensions?: string[];
+    metrics?: string[];
+    filters?: {
+        dimensions?: Record<string, unknown>;
+        metrics?: Record<string, unknown>;
+    };
+};
+
+function buildSavedChartUnderlyingDataBody({
+    metricQuery,
+    queryUuid,
+    row,
+    metricId,
+    limit,
+    parameters,
+}: {
+    metricQuery: ChartResponseMetricQuery;
+    queryUuid: string;
+    row: Row;
+    metricId: string;
+    limit?: number | null;
+    parameters?: ParametersValuesMap;
+}): Record<string, unknown> {
+    const rowFilters = (metricQuery.dimensions ?? []).map((dimension, i) => {
+        if (!Object.prototype.hasOwnProperty.call(row, dimension)) {
+            throw new Error(
+                `Cannot fetch underlying data because the row is missing dimension "${dimension}". Pass the original row returned by useLightdash().`,
+            );
+        }
+        const value = row[dimension];
+        return {
+            id: `sdk-underlying-row-filter-${i}`,
+            target: { fieldId: dimension },
+            operator: value === null ? 'isNull' : 'equals',
+            ...(value === null ? {} : { values: [value] }),
+        };
+    });
+
+    const chartDimensionFilters = metricQuery.filters?.dimensions;
+    const dimensionRules = [
+        ...(chartDimensionFilters ? [chartDimensionFilters] : []),
+        ...rowFilters,
+    ];
+
+    return {
+        context: 'viewUnderlyingData',
+        underlyingDataSourceQueryUuid: queryUuid,
+        underlyingDataItemId: metricId,
+        filters: {
+            ...(dimensionRules.length > 0
+                ? {
+                      dimensions: {
+                          id: 'sdk-underlying-root',
+                          and: dimensionRules,
+                      },
+                  }
+                : {}),
+            ...(metricQuery.filters?.metrics
+                ? { metrics: metricQuery.filters.metrics }
+                : {}),
+        },
+        ...(limit !== undefined ? { limit } : {}),
+        ...(parameters && Object.keys(parameters).length > 0
+            ? { parameters }
+            : {}),
+    };
+}
+
 function getUnderlyingDownloadLimit(
     limit: DownloadResultsLimit | undefined,
 ): number | null | undefined {
@@ -887,7 +956,10 @@ export function createApiTransport(
                 buildChartBody(),
                 metadata,
             );
-            const { queryUuid, fields } = execResult;
+            const { queryUuid, fields, metricQuery } =
+                execResult as AsyncQueryResponse & {
+                    metricQuery?: ChartResponseMetricQuery;
+                };
 
             const { firstReadyPage, apiRows } = await pollQueryRows(
                 fetchFn,
@@ -896,8 +968,11 @@ export function createApiTransport(
             );
 
             // No client-side QueryDefinition for a saved chart — derive the
-            // field ids from the response (same approach as underlying-data),
-            // and key rows by their field id (identity).
+            // field ids from the response (same approach as underlying-data).
+            // The response `metricQuery` (merged with any `.filters()`
+            // overrides server-side) provides the dimensions/metrics/filters
+            // context needed for underlying-data requests, and rows are
+            // keyed by their field id (identity).
             const fieldIds = [
                 ...Object.keys(fields),
                 ...Object.keys(firstReadyPage.columns).filter(
@@ -912,6 +987,85 @@ export function createApiTransport(
                 fieldIds,
                 fieldNameForId: (fieldId) => fieldId,
             });
+
+            const chartMetrics = metricQuery?.metrics ?? [];
+
+            const execUnderlying = async (
+                options: { metric: string; row: Row },
+                limit?: number | null,
+            ) => {
+                if (!chartMetrics.includes(options.metric)) {
+                    throw new Error(
+                        `Cannot fetch underlying data for "${options.metric}" because it is not a metric in the linked chart.`,
+                    );
+                }
+                return fetchFn<AsyncQueryResponse>(
+                    'POST',
+                    `/api/v2/projects/${config.projectUuid}/query/underlying-data`,
+                    buildSavedChartUnderlyingDataBody({
+                        metricQuery: metricQuery ?? {},
+                        queryUuid,
+                        row: options.row,
+                        metricId: options.metric,
+                        limit,
+                        parameters: params.parameters,
+                    }),
+                );
+            };
+
+            const getUnderlyingData = async (
+                options: UnderlyingDataOptions,
+            ): Promise<UnderlyingDataResult> => {
+                const underlyingExecResult = await execUnderlying(
+                    options,
+                    options.limit,
+                );
+                const {
+                    firstReadyPage: underlyingFirstReadyPage,
+                    apiRows: underlyingApiRows,
+                } = await pollQueryRows(
+                    fetchFn,
+                    config.projectUuid,
+                    underlyingExecResult.queryUuid,
+                );
+                const underlyingFieldIds = [
+                    ...Object.keys(underlyingExecResult.fields),
+                    ...Object.keys(underlyingFirstReadyPage.columns).filter(
+                        (fieldId) => !(fieldId in underlyingExecResult.fields),
+                    ),
+                ];
+                return {
+                    ...mapApiRowsToQueryResult({
+                        apiRows: underlyingApiRows,
+                        columns: underlyingFirstReadyPage.columns,
+                        fields: underlyingExecResult.fields,
+                        fieldIds: underlyingFieldIds,
+                        fieldNameForId: (fieldId) => fieldId,
+                    }),
+                    queryUuid: underlyingExecResult.queryUuid,
+                };
+            };
+
+            const downloadUnderlyingData = async (
+                options: DownloadUnderlyingDataOptions,
+            ): Promise<DownloadResultsResult> => {
+                const underlyingExecResult = await execUnderlying(
+                    options,
+                    getUnderlyingDownloadLimit(options.limit),
+                );
+                await pollQueryReady(
+                    fetchFn,
+                    config.projectUuid,
+                    underlyingExecResult.queryUuid,
+                    1,
+                );
+                return scheduleDownloadForQuery({
+                    fetchFn,
+                    projectUuid: config.projectUuid,
+                    queryUuid: underlyingExecResult.queryUuid,
+                    options,
+                });
+            };
 
             const downloadResults = async (
                 options: DownloadResultsOptions = {},
@@ -947,6 +1101,8 @@ export function createApiTransport(
                 ...mappedResult,
                 totalResults: firstReadyPage.totalResults,
                 queryUuid,
+                getUnderlyingData,
+                downloadUnderlyingData,
                 downloadResults,
             };
         },

@@ -293,3 +293,111 @@ describe('executeSavedChart downloads', () => {
         });
     });
 });
+
+describe('executeSavedChart underlying data', () => {
+    const chartMetricQuery = {
+        exploreName: 'orders',
+        dimensions: ['orders_status'],
+        metrics: ['orders_revenue'],
+        filters: {
+            dimensions: {
+                id: 'chart-root',
+                and: [
+                    {
+                        id: 'chart-0',
+                        target: { fieldId: 'orders_region' },
+                        operator: 'equals',
+                        values: ['EU'],
+                    },
+                ],
+            },
+        },
+    };
+
+    const makeAdapter =
+        (
+            calls: Array<{ method: string; path: string; body?: unknown }>,
+        ): FetchAdapter =>
+        async <T>(method: string, path: string, body?: unknown): Promise<T> => {
+            calls.push({ method, path, body });
+            if (method === 'POST' && path.endsWith('/query/chart')) {
+                return {
+                    queryUuid: 'q-1',
+                    metricQuery: chartMetricQuery,
+                    fields: {},
+                } as T;
+            }
+            if (method === 'POST' && path.endsWith('/query/underlying-data')) {
+                return { queryUuid: 'q-under', fields: {} } as T;
+            }
+            return {
+                status: 'ready',
+                columns: {
+                    orders_status: {
+                        reference: 'orders_status',
+                        type: 'string',
+                    },
+                    orders_revenue: {
+                        reference: 'orders_revenue',
+                        type: 'number',
+                    },
+                },
+                rows: [
+                    {
+                        orders_status: {
+                            value: { raw: 'done', formatted: 'done' },
+                        },
+                        orders_revenue: { value: { raw: 10, formatted: '10' } },
+                    },
+                ],
+                totalResults: 1,
+                nextPage: undefined,
+            } as T;
+        };
+
+    it('builds the underlying-data body from the response metricQuery', async () => {
+        const calls: Array<{ method: string; path: string; body?: unknown }> =
+            [];
+        const transport = createApiTransport(
+            { apiKey: '', baseUrl: '', projectUuid: 'p-1' },
+            makeAdapter(calls),
+        );
+        const result = await transport.executeSavedChart({ chartUuid: 'c-1' });
+        expect(result.getUnderlyingData).toBeDefined();
+        await result.getUnderlyingData!({
+            metric: 'orders_revenue',
+            row: result.rows[0],
+        });
+        const underlyingPost = calls.find((c) =>
+            c.path.endsWith('/query/underlying-data'),
+        );
+        expect(underlyingPost).toBeDefined();
+        expect(underlyingPost!.body).toMatchObject({
+            context: 'viewUnderlyingData',
+            underlyingDataSourceQueryUuid: 'q-1',
+            underlyingDataItemId: 'orders_revenue',
+        });
+        const body = underlyingPost!.body as {
+            filters: { dimensions: { and: unknown[] } };
+        };
+        const { and } = body.filters.dimensions;
+        // chart's own filter group survives...
+        expect(JSON.stringify(and)).toContain('orders_region');
+        // ...and the clicked row pins the dimension value
+        expect(JSON.stringify(and)).toContain('orders_status');
+        expect(JSON.stringify(and)).toContain('done');
+    });
+
+    it('rejects a metric not present in the chart', async () => {
+        const calls: Array<{ method: string; path: string; body?: unknown }> =
+            [];
+        const transport = createApiTransport(
+            { apiKey: '', baseUrl: '', projectUuid: 'p-1' },
+            makeAdapter(calls),
+        );
+        const result = await transport.executeSavedChart({ chartUuid: 'c-1' });
+        await expect(
+            result.getUnderlyingData!({ metric: 'not_a_metric', row: {} }),
+        ).rejects.toThrow(/not a metric/);
+    });
+});
