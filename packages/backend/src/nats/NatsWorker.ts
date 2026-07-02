@@ -1,4 +1,5 @@
 import { getErrorMessage } from '@lightdash/common';
+import { trace } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
 import { StringCodec, type Consumer, type JsMsg } from 'nats';
 import { z } from 'zod';
@@ -345,6 +346,18 @@ export class NatsWorker {
             }
 
             Sentry.setTags({
+                ...(organizationUuid && {
+                    'organization.uuid': organizationUuid,
+                }),
+                ...(organizationName && {
+                    'organization.name': organizationName,
+                }),
+            });
+
+            // Sentry tags are error-scope only; stamp the same attribution on
+            // the queue_consumer span so it's queryable in the trace backend.
+            trace.getActiveSpan()?.setAttributes({
+                ...(createdByUserUuid && { 'user.uuid': createdByUserUuid }),
                 ...(organizationUuid && {
                     'organization.uuid': organizationUuid,
                 }),

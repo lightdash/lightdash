@@ -8,7 +8,7 @@ import { ParameterError } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import type { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
-import { traceSpan } from '../../tracing/tracing';
+import { traceSpan, type TraceSpan } from '../../tracing/tracing';
 import {
     getManagedAgentConfigHash,
     renderManagedAgentConfig,
@@ -319,7 +319,7 @@ export class ManagedAgentClient {
         sessionConfig: ManagedAgentSessionConfig,
         projectName: string,
         onCustomToolUse: CustomToolHandler,
-        span: Sentry.Span,
+        span: TraceSpan,
         onSessionCreated?: (sessionId: string) => void,
     ): Promise<{
         sessionId: string;

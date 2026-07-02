@@ -11,6 +11,7 @@ import {
     UnexpectedServerError,
     UPLOAD_GSHEET_FROM_ROWS_MAX_BYTES,
 } from '@lightdash/common';
+import { trace } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
 import flash from 'connect-flash';
 import connectSessionKnex from 'connect-session-knex';
@@ -692,6 +693,17 @@ export default class App {
                         req.user.organizationName,
                     );
                 }
+                // Sentry tags are error-scope only; stamp the same attribution
+                // on the request span so it's queryable in the trace backend.
+                trace.getActiveSpan()?.setAttributes({
+                    'user.uuid': req.user.userUuid,
+                    ...(req.user.organizationUuid && {
+                        'organization.uuid': req.user.organizationUuid,
+                    }),
+                    ...(req.user.organizationName && {
+                        'organization.name': req.user.organizationName,
+                    }),
+                });
             }
             next();
         });
