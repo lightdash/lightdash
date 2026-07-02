@@ -9,6 +9,6 @@
 
 .swatchSelected {
     box-shadow:
-        0 0 8px rgba(60, 60, 60, 0.5),
-        inset 0 0 0 1px rgba(100, 100, 100, 0.3);
+        0 0 6px rgba(80, 80, 80, 0.25),
+        inset 0 0 0 1px rgba(120, 120, 120, 0.15);
 }
