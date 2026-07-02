@@ -569,13 +569,18 @@ const AppGenerate: FC = () => {
     const handleLineageSelected = useCallback(
         (event: { queryUuid: string }) => {
             setNetworkPanelHidden(false);
-            setFocusedQueryUuid(event.queryUuid);
+            // Selection persists (row highlight + in-app element outline);
+            // re-clicking the selected element deselects it.
+            setFocusedQueryUuid((prev) =>
+                prev === event.queryUuid ? null : event.queryUuid,
+            );
         },
         [],
     );
 
     const handleLineageCancelled = useCallback(() => {
         setLineageEnabled(false);
+        setFocusedQueryUuid(null);
     }, []);
 
     const handleToggleLineage = useCallback(() => {
@@ -584,6 +589,7 @@ const AppGenerate: FC = () => {
             if (next) setInspectorEnabled(false);
             return next;
         });
+        setFocusedQueryUuid(null);
     }, []);
     const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
     // Pre-build clarification round: captured submission args that we need
@@ -3076,7 +3082,9 @@ const AppGenerate: FC = () => {
                                             handleLineageSelected
                                         }
                                         lineageHighlightQueryUuid={
-                                            hoveredQueryUuid
+                                            // Hover overrides; falls back to
+                                            // the persistent click-selection.
+                                            hoveredQueryUuid ?? focusedQueryUuid
                                         }
                                         onLineageCancelled={
                                             handleLineageCancelled

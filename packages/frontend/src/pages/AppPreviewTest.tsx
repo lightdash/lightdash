@@ -101,21 +101,25 @@ export default function AppPreviewTest() {
         clearExternalRequests();
     }, [clearQueries, clearExternalRequests]);
 
-    const handleToggleLineage = useCallback(
-        () => setLineageEnabled((v) => !v),
-        [],
-    );
+    const handleToggleLineage = useCallback(() => {
+        setLineageEnabled((v) => !v);
+        setFocusedQueryUuid(null);
+    }, []);
     const handleLineageSelected = useCallback(
         (event: { queryUuid: string }) => {
             setNetworkPanelHidden(false);
-            setFocusedQueryUuid(event.queryUuid);
+            // Selection persists (row highlight + in-app element outline);
+            // re-clicking the selected element deselects it.
+            setFocusedQueryUuid((prev) =>
+                prev === event.queryUuid ? null : event.queryUuid,
+            );
         },
         [],
     );
-    const handleLineageCancelled = useCallback(
-        () => setLineageEnabled(false),
-        [],
-    );
+    const handleLineageCancelled = useCallback(() => {
+        setLineageEnabled(false);
+        setFocusedQueryUuid(null);
+    }, []);
 
     const previewOrigin = usePreviewOrigin();
 
@@ -275,7 +279,11 @@ export default function AppPreviewTest() {
                     lineageEnabled={lineageEnabled}
                     onLineageAvailabilityChange={setLineageAvailable}
                     onLineageSelected={handleLineageSelected}
-                    lineageHighlightQueryUuid={hoveredQueryUuid}
+                    lineageHighlightQueryUuid={
+                        // Hover overrides; falls back to the persistent
+                        // click-selection.
+                        hoveredQueryUuid ?? focusedQueryUuid
+                    }
                     onLineageCancelled={handleLineageCancelled}
                 />
                 {!networkPanelHidden && (
