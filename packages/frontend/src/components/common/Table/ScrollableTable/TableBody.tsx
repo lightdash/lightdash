@@ -93,6 +93,8 @@ const TableRow: FC<TableRowProps> = ({
     rowSpanMergesByColumnId,
 }) => {
     const { colorScheme } = useMantineColorScheme();
+    // Subtotal (group) rows are treated as totals for conditional-formatting scope.
+    const isTotalRow = row.getIsGrouped();
     const rowFields = useMemo(
         () =>
             row
@@ -134,8 +136,9 @@ const TableRow: FC<TableRowProps> = ({
                 conditionalFormattings,
                 rowFields,
                 minMaxMap,
+                isTotal: isTotalRow,
             }),
-        [conditionalFormattings, rowFields, minMaxMap],
+        [conditionalFormattings, rowFields, minMaxMap, isTotalRow],
     );
 
     const rowConditionalFormattingConfig = useMemo(
@@ -144,8 +147,9 @@ const TableRow: FC<TableRowProps> = ({
                 conditionalFormattings,
                 rowFields,
                 minMaxMap,
+                isTotal: isTotalRow,
             }),
-        [conditionalFormattings, rowFields, minMaxMap],
+        [conditionalFormattings, rowFields, minMaxMap, isTotalRow],
     );
 
     return (
@@ -172,6 +176,7 @@ const TableRow: FC<TableRowProps> = ({
                         conditionalFormattings,
                         rowFields,
                         applyTo: ConditionalFormattingColorApplyTo.CELL,
+                        isTotal: isTotalRow,
                     });
                 const textConditionalFormattingConfig =
                     getConditionalFormattingConfig({
@@ -181,6 +186,7 @@ const TableRow: FC<TableRowProps> = ({
                         conditionalFormattings,
                         rowFields,
                         applyTo: ConditionalFormattingColorApplyTo.TEXT,
+                        isTotal: isTotalRow,
                     });
 
                 const cellConditionalFormattingResult =
