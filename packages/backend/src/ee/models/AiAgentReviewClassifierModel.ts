@@ -8,6 +8,7 @@ import type {
     AiAgentEvidenceExcerpt,
     AiAgentFixTarget,
     AiAgentImplicitSignalSource,
+    AiAgentMcpServerSnapshot,
     AiAgentRecommendation,
     AiAgentReviewClassifierConfidence,
     AiAgentReviewClassifierContextTurn,
@@ -52,6 +53,13 @@ import {
     AiThreadTableName,
     AiWritebackThreadTableName,
 } from '../database/entities/ai';
+import {
+    AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_ALLOW,
+    AiAgentMcpServerTableName,
+    AiAgentMcpServerToolTableName,
+    AiMcpServerTableName,
+    AiMcpServerToolTableName,
+} from '../database/entities/aiAgent';
 import {
     AiAgentReviewClassifierRunTableName,
     AiAgentReviewItemEventsTableName,
@@ -963,6 +971,60 @@ export class AiAgentReviewClassifierModel {
                 filters: row.metric_query?.filters ?? {},
                 sorts: row.metric_query?.sorts ?? [],
             },
+        }));
+    }
+
+    async getAgentMcpCapabilities(
+        agentUuid: string,
+    ): Promise<AiAgentMcpServerSnapshot[]> {
+        const servers = await this.database(AiAgentMcpServerTableName)
+            .innerJoin(
+                AiMcpServerTableName,
+                `${AiAgentMcpServerTableName}.ai_mcp_server_uuid`,
+                `${AiMcpServerTableName}.ai_mcp_server_uuid`,
+            )
+            .select<{ ai_mcp_server_uuid: string; name: string }[]>({
+                ai_mcp_server_uuid: `${AiMcpServerTableName}.ai_mcp_server_uuid`,
+                name: `${AiMcpServerTableName}.name`,
+            })
+            .where(`${AiAgentMcpServerTableName}.ai_agent_uuid`, agentUuid)
+            .orderBy(`${AiMcpServerTableName}.name`, 'asc');
+
+        if (servers.length === 0) {
+            return [];
+        }
+
+        const toolRows = await this.database(AiAgentMcpServerToolTableName)
+            .innerJoin(
+                AiMcpServerToolTableName,
+                `${AiAgentMcpServerToolTableName}.ai_mcp_server_tool_uuid`,
+                `${AiMcpServerToolTableName}.ai_mcp_server_tool_uuid`,
+            )
+            .select<{ ai_mcp_server_uuid: string; tool_name: string }[]>({
+                ai_mcp_server_uuid: `${AiAgentMcpServerToolTableName}.ai_mcp_server_uuid`,
+                tool_name: `${AiMcpServerToolTableName}.tool_name`,
+            })
+            .where(`${AiAgentMcpServerToolTableName}.ai_agent_uuid`, agentUuid)
+            .andWhere(
+                `${AiAgentMcpServerToolTableName}.permission_mode`,
+                AI_AGENT_MCP_SERVER_TOOL_PERMISSION_MODE_ALWAYS_ALLOW,
+            )
+            .orderBy(`${AiMcpServerToolTableName}.tool_name`, 'asc');
+
+        const toolsByServer = toolRows.reduce<Map<string, string[]>>(
+            (acc, row) => {
+                const tools = acc.get(row.ai_mcp_server_uuid) ?? [];
+                tools.push(row.tool_name);
+                acc.set(row.ai_mcp_server_uuid, tools);
+                return acc;
+            },
+            new Map(),
+        );
+
+        return servers.map((server) => ({
+            name: server.name,
+            enabledToolNames:
+                toolsByServer.get(server.ai_mcp_server_uuid) ?? [],
         }));
     }
 

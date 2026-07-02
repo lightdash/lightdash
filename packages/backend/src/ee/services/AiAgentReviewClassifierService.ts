@@ -3,14 +3,18 @@ import {
     aiAgentReviewClassifierJudgeOutputSchema,
     CatalogType,
     FeatureFlags,
+    filterExploreByTags,
     ForbiddenError,
     getAiAgentConfigSnapshotHash,
     getAiAgentReviewItemFingerprint,
+    isExploreError,
     ProjectType,
     type AiAgentAvailableCapability,
     type AiAgentConfigSnapshot,
     type AiAgentConfigurationSetting,
     type AiAgentEvidenceExcerpt,
+    type AiAgentKnowledgeDocumentSnapshot,
+    type AiAgentMcpServerSnapshot,
     type AiAgentReviewClassifierEventType,
     type AiAgentReviewClassifierJudgeOutput,
     type AiAgentReviewClassifierRunScope,
@@ -22,6 +26,7 @@ import {
     type AiAgentTargetRef,
     type AiAgentTurnSignal,
     type CatalogItemSummary,
+    type Explore,
     type QueryHistoryStatus,
 } from '@lightdash/common';
 import { generateObject } from 'ai';
@@ -42,7 +47,7 @@ import { getAiCallTelemetry } from './ai/utils/aiCallTelemetry';
 import { type AiAgentReviewNotificationService } from './AiAgentReviewNotificationService';
 
 const REVIEW_AGENT_VERSION = 'llm-judge-v1';
-const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v12';
+const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v13';
 const WRITEBACK_TOOL_NAMES = new Set([
     'editDbtProject',
     'propose_writeback',
@@ -80,7 +85,7 @@ type AiAgentReviewClassifierServiceDependencies = {
     aiAgentDocumentModel: Pick<AiAgentDocumentModel, 'findAllForAgent'>;
     aiOrganizationSettingsModel: AiOrganizationSettingsModel;
     catalogModel: Pick<CatalogModel, 'getCatalogItemsSummary'>;
-    projectModel: Pick<ProjectModel, 'getSummary'>;
+    projectModel: Pick<ProjectModel, 'getSummary' | 'findExploresFromCache'>;
     featureFlagService: FeatureFlagService;
     lightdashConfig: LightdashConfig;
     aiAgentReviewNotificationService: AiAgentReviewNotificationService;
@@ -110,8 +115,11 @@ export type AiAgentReviewJudgeEvidencePacket = {
         availableCapabilities: AiAgentAvailableCapability[];
         dataAccessEnabled: boolean | null;
         selfImprovementEnabled: boolean | null;
+        contentToolsEnabled: boolean | null;
         instructionSummary: string | null;
         knowledgeDocumentCount: number;
+        knowledgeDocuments: AiAgentKnowledgeDocumentSnapshot[];
+        mcpServers: AiAgentMcpServerSnapshot[];
     };
     semanticContext: {
         queriedExploreNames: string[];
@@ -149,6 +157,8 @@ type AiAgentReviewAgentConfigEvidence =
     AiAgentReviewJudgeEvidencePacket['agentConfig'] & {
         snapshot: AiAgentConfigSnapshot | null;
         agentUpdatedAt: Date | null;
+        // Agent explore-tag restriction, used to agent-scope the catalog.
+        exploreTags: string[] | null;
     };
 
 type RunArgs = {
@@ -250,7 +260,10 @@ export class AiAgentReviewClassifierService extends BaseService {
 
     private readonly catalogModel: Pick<CatalogModel, 'getCatalogItemsSummary'>;
 
-    private readonly projectModel: Pick<ProjectModel, 'getSummary'>;
+    private readonly projectModel: Pick<
+        ProjectModel,
+        'getSummary' | 'findExploresFromCache'
+    >;
 
     private readonly aiOrganizationSettingsModel: AiOrganizationSettingsModel;
 
@@ -969,7 +982,10 @@ export class AiAgentReviewClassifierService extends BaseService {
         evidencePacket: AiAgentReviewJudgeEvidencePacket;
         agentConfig: AiAgentReviewAgentConfigEvidence;
     }> {
-        const semanticContext = await this.buildSemanticContext(candidate);
+        const semanticContext = await this.buildSemanticContext(
+            candidate,
+            agentConfig.exploreTags,
+        );
         const threadWritebackPullRequests =
             (
                 await this.aiAgentReviewClassifierModel.getThreadWritebackPullRequests(
@@ -998,12 +1014,16 @@ export class AiAgentReviewClassifierService extends BaseService {
                 projectUuid: candidate.subject.projectUuid,
                 agentUuid: candidate.subject.agentUuid,
             });
-            const knowledgeDocuments =
-                await this.aiAgentDocumentModel.findAllForAgent({
+            const [knowledgeDocuments, mcpServers] = await Promise.all([
+                this.aiAgentDocumentModel.findAllForAgent({
                     organizationUuid: candidate.subject.organizationUuid,
                     agentUuid: candidate.subject.agentUuid,
                     projectUuid: candidate.subject.projectUuid,
-                });
+                }),
+                this.aiAgentReviewClassifierModel.getAgentMcpCapabilities(
+                    candidate.subject.agentUuid,
+                ),
+            ]);
 
             const instruction = agent.instruction ?? null;
             const settings = [
@@ -1011,6 +1031,8 @@ export class AiAgentReviewClassifierService extends BaseService {
                 knowledgeDocuments.length > 0 ? 'knowledge_documents' : null,
                 agent.enableDataAccess ? 'data_access' : null,
                 agent.enableSelfImprovement ? 'self_improvement' : null,
+                mcpServers.length > 0 ? 'mcp_servers' : null,
+                agent.tags && agent.tags.length > 0 ? 'explore_tags' : null,
                 agent.spaceAccess.length > 0 ? 'space_access' : null,
                 agent.groupAccess.length > 0 || agent.userAccess.length > 0
                     ? 'user_or_group_access'
@@ -1021,6 +1043,7 @@ export class AiAgentReviewClassifierService extends BaseService {
             const availableCapabilities: AiAgentAvailableCapability[] = [
                 'semantic_query',
                 'chart_generation',
+                'dashboard_generation',
                 'data_value_search',
                 ...(agent.enableDataAccess
                     ? (['chart_data_access'] as const)
@@ -1028,6 +1051,10 @@ export class AiAgentReviewClassifierService extends BaseService {
                 ...(agent.enableSelfImprovement
                     ? (['context_improvement'] as const)
                     : []),
+                ...(agent.enableContentTools
+                    ? (['content_editing'] as const)
+                    : []),
+                ...(mcpServers.length > 0 ? (['mcp_tools'] as const) : []),
             ];
 
             const snapshot: AiAgentConfigSnapshot = {
@@ -1047,6 +1074,7 @@ export class AiAgentReviewClassifierService extends BaseService {
                     updatedAt: document.updatedAt.toISOString(),
                     summary: document.summary,
                 })),
+                mcpServers,
             };
             const snapshotHash = getAiAgentConfigSnapshotHash(snapshot);
 
@@ -1060,8 +1088,12 @@ export class AiAgentReviewClassifierService extends BaseService {
                 availableCapabilities: snapshot.availableCapabilities,
                 dataAccessEnabled: agent.enableDataAccess,
                 selfImprovementEnabled: agent.enableSelfImprovement,
+                contentToolsEnabled: agent.enableContentTools,
                 instructionSummary: snapshot.instructionSummary,
                 knowledgeDocumentCount: snapshot.knowledgeDocuments.length,
+                knowledgeDocuments: snapshot.knowledgeDocuments,
+                mcpServers: snapshot.mcpServers,
+                exploreTags: agent.tags,
             };
         } catch (error) {
             this.debugLog('AgentConfigSnapshotFailed', {
@@ -1084,13 +1116,72 @@ export class AiAgentReviewClassifierService extends BaseService {
             availableCapabilities: [],
             dataAccessEnabled: null,
             selfImprovementEnabled: null,
+            contentToolsEnabled: null,
             instructionSummary: null,
             knowledgeDocumentCount: 0,
+            knowledgeDocuments: [],
+            mcpServers: [],
+            exploreTags: null,
         };
+    }
+
+    /**
+     * Restricts the catalog to what the reviewed agent can actually see,
+     * mirroring the runtime filterExploreByTags scoping. Without this the
+     * judge cannot distinguish "field is missing" (semantic_layer) from
+     * "field exists but this agent cannot access it" (agent_configuration).
+     */
+    private async scopeCatalogToAgent(
+        catalogItems: CatalogItemSummary[],
+        projectUuid: string,
+        exploreTags: string[] | null,
+    ): Promise<CatalogItemSummary[]> {
+        if (!exploreTags || exploreTags.length === 0) {
+            return catalogItems;
+        }
+
+        const explores = Object.values(
+            await this.projectModel.findExploresFromCache(projectUuid, 'name'),
+        );
+        const visibleTables = new Set<string>();
+        const visibleFields = new Set<string>();
+        explores
+            .filter((explore): explore is Explore => !isExploreError(explore))
+            .forEach((explore) => {
+                const filtered = filterExploreByTags({
+                    explore,
+                    availableTags: exploreTags,
+                });
+                if (!filtered) {
+                    return;
+                }
+                Object.entries(filtered.tables).forEach(
+                    ([tableName, table]) => {
+                        const fieldNames = [
+                            ...Object.keys(table.dimensions),
+                            ...Object.keys(table.metrics),
+                        ];
+                        if (fieldNames.length === 0) {
+                            return;
+                        }
+                        visibleTables.add(tableName);
+                        fieldNames.forEach((fieldName) =>
+                            visibleFields.add(`${tableName}.${fieldName}`),
+                        );
+                    },
+                );
+            });
+
+        return catalogItems.filter((item) =>
+            item.type === CatalogType.Table
+                ? visibleTables.has(item.name)
+                : visibleFields.has(`${item.tableName}.${item.name}`),
+        );
     }
 
     private async buildSemanticContext(
         candidate: AiAgentReviewClassifierTurnCandidate,
+        exploreTags: string[] | null,
     ): Promise<AiAgentReviewJudgeEvidencePacket['semanticContext']> {
         const queriedExploreNames = [
             ...new Set(
@@ -1111,8 +1202,12 @@ export class AiAgentReviewClassifierService extends BaseService {
         ];
 
         try {
-            const catalogItems = await this.catalogModel.getCatalogItemsSummary(
+            const catalogItems = await this.scopeCatalogToAgent(
+                await this.catalogModel.getCatalogItemsSummary(
+                    candidate.subject.projectUuid,
+                ),
                 candidate.subject.projectUuid,
+                exploreTags,
             );
 
             return {
@@ -1240,6 +1335,7 @@ When promoting, pick primaryRootCause by mapping the dominant signal:
    - next_user_correction or next_user_dispute about a field, metric, dimension, join, or filter definition within the right explore → semantic_layer.
    - next_user_retry after a failed or empty answer → runtime_reliability or agent_configuration depending on cause.
    - tool_error → runtime_reliability.
+   - Query-construction failures are NOT missing data: when queryHistory shows a filter-validation error, or degenerate filters that guarantee empty or partial results (an isNull filter on the requested date dimension, equality on a single date, stacked over-restrictive filters), attribute the empty/sparse result to the agent's own query construction → runtime_reliability (or agent_configuration when instructions caused it), NOT semantic_layer. Do not emit semantic_yaml_patch or dbt_modeling_ticket fixTargets for it. Do not accept the assistant's own "we don't have this data" prose as ground truth when its queries were malformed — inspect metricQuery.filters yourself.
    - product_capability_request → product_capability.
    - human_intervention → agent_configuration unless evidence clearly points elsewhere.
    - Tiebreaker for semantic_layer vs project_context: if the durable fix is a fact the agent should KNOW — what a term/acronym/entity refers to, or which explore answers a kind of question → project_context. If the durable fix is a CHANGE to the semantic YAML — a model, dimension, metric, join, or filter definition → semantic_layer. Do not default to semantic_layer when the real gap is missing routing or knowledge about which explore to use.
@@ -1249,6 +1345,16 @@ When promoting, pick primaryRootCause by mapping the dominant signal:
 5. Successful queries can still be findings even without implicit signals when the user asked broad business language and the semantic / catalog context does not clearly support the selected field, explore, or metric. Promote those as semantic_layer or project_context when a model definition, AI hint, or project context rule would prevent future ambiguity, choosing between them with the explore-vs-definition tiebreaker above.
 
 6. Use agentConfig to catch Lightdash-layer fixes: missing instructions, disabled data access, missing knowledge docs, access restrictions, or capability settings. Promote those as agent_configuration when the answer quality depends on agent setup.
+   agentConfig.availableCapabilities glossary — what this specific agent can do:
+   - semantic_query: run governed metric/dimension queries over the semantic layer.
+   - chart_generation / dashboard_generation: create charts and dashboards from query results.
+   - data_value_search: search actual values of dimensions.
+   - chart_data_access: read the underlying data of existing charts.
+   - context_improvement: propose project-context improvements.
+   - content_editing: edit or create saved charts/dashboards via content-as-code (editContent/createContent). Some product features exist ONLY through this path — for example big-number tiles and dashboard tab management — so whether a "not supported" claim is true depends on whether this agent has it.
+   - mcp_tools: external MCP servers listed in agentConfig.mcpServers together with their enabled tools (for example Linear or GitHub). Successful mcp_* calls in toolOutcomes are real integrations, not hallucinations.
+   Capability routing: when the assistant claims something is "not supported" but availableCapabilities/mcpServers show the capability DOES exist for this agent → agent_configuration (stale agent knowledge or missing instructions), not product_capability. Use product_capability only when the capability genuinely does not exist for this agent. The semanticContext catalog is already scoped to what this agent can access — a field absent there may still exist in the project but be outside the agent's explore tags; prefer agent_configuration (access/tags) over semantic_layer when the user names data the agent cannot see.
+   agentConfig.knowledgeDocuments lists the agent's actual knowledge documents (with summaries) — never recommend adding a knowledge document that already exists; recommend updating the existing one instead.
 
 7. If you would promote but cannot pick one primaryRootCause confidently, set primaryRootCause=ambiguous with confidence=low or medium and still promote.
 
