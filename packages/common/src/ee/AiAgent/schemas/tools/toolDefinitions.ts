@@ -549,7 +549,7 @@ export const grepFieldsToolDefinition: ToolDefinitionWithoutMcpOutput<
     typeof toolGrepFieldsOutputSchema
 > = defineTool({
     name: 'grepFields',
-    title: 'Grep fields',
+    title: 'Search fields',
     description: GREP_FIELDS_DESCRIPTION,
     availability: ['agent'],
     inputSchema: grepFieldsInputSchema,

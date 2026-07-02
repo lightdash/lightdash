@@ -12,7 +12,7 @@ export const GrepFieldsToolCallDescription: FC<
 > = ({ patterns, exploreName }) => (
     <Text c="dimmed" size="xs" component="div">
         <Group gap={rem(4)} align="center" wrap="wrap" display="inline-flex">
-            Grepped fields matching
+            Searched fields matching
             {patterns.map((pattern, i) => (
                 <ToolCallChip key={`${pattern}-${i}`} ff="monospace">
                     /{pattern}/
