@@ -46,12 +46,12 @@
 }
 .root[data-avatar-gradient='amethyst'] .placeholder {
     background:
-        radial-gradient(circle at 20% 20%, #8001fe 0%, transparent 50%),
-        radial-gradient(circle at 80% 20%, #7500e8 0%, transparent 50%),
-        radial-gradient(circle at 80% 80%, #6d00d1 0%, transparent 50%),
-        radial-gradient(circle at 20% 80%, #7d00f5 0%, transparent 50%),
-        radial-gradient(circle at 50% 50%, #7900ec 0%, transparent 50%), #7600e6;
-    border: 1px solid rgba(128, 1, 254, 0.6);
+        radial-gradient(circle at 20% 20%, #5e4cff 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, #83e2b7 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, #30cf87 0%, transparent 50%),
+        radial-gradient(circle at 20% 80%, #c1f1db 0%, transparent 50%),
+        radial-gradient(circle at 50% 50%, #6fa0d8 0%, transparent 50%), #7fb5c2;
+    border: 1px solid rgba(94, 76, 255, 0.6);
 }
 .root[data-avatar-gradient='sunrise'] .placeholder {
     background:
