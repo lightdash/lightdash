@@ -1,11 +1,22 @@
 import { Group, Stack, Switch, Text, Tooltip } from '@mantine-8/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import MDEditor, { commands } from '@uiw/react-md-editor';
+import { type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { SchedulerFormAiInput } from './SchedulerFormAiInput';
 import { useSchedulerFormContext } from './schedulerFormContext';
 
-export const SchedulerFormCustomizationTab = () => {
+type Props = {
+    projectUuid: string | undefined;
+    canUseAiSummary: boolean;
+};
+
+export const SchedulerFormCustomizationTab: FC<Props> = ({
+    projectUuid,
+    canUseAiSummary,
+}) => {
     const form = useSchedulerFormContext();
+    const isAiMessage = form.values.aiAugmentation !== null;
     return (
         <Stack p="md">
             <Group gap="two">
@@ -29,9 +40,20 @@ export const SchedulerFormCustomizationTab = () => {
                     <MantineIcon icon={IconInfoCircle} color="ldGray.6" />
                 </Tooltip>
             </Group>
+
+            {canUseAiSummary && (
+                <SchedulerFormAiInput projectUuid={projectUuid} />
+            )}
+
             <Text fw={600} fz="sm">
                 Customize delivery message body
             </Text>
+            {isAiMessage && (
+                <Text size="xs" c="ldGray.6">
+                    AI writes the message on every send; this text is only used
+                    if AI generation fails.
+                </Text>
+            )}
 
             <MDEditor
                 preview="edit"
