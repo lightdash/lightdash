@@ -61,6 +61,8 @@ export type ConditionalFormattingConfigWithSingleColor = {
     rules: ConditionalFormattingWithFilterOperator[];
     /** Apply formatting to cell background or text */
     applyTo?: ConditionalFormattingColorApplyTo;
+    /** Scope the rule to data cells only, total cells only, or both (default) */
+    appliesTo?: ConditionalFormattingAppliesTo;
     /** Text styling (bold/italic/underline) applied to matching cell text */
     textStyle?: ConditionalFormattingTextStyle;
 };
@@ -79,6 +81,8 @@ export type ConditionalFormattingConfigWithColorRange = {
     rule: ConditionalFormattingMinMax<number | 'auto'>;
     /** Apply formatting to cell background or text */
     applyTo?: ConditionalFormattingColorApplyTo;
+    /** Scope the rule to data cells only, total cells only, or both (default) */
+    appliesTo?: ConditionalFormattingAppliesTo;
     /** Text styling (bold/italic/underline) applied to matching cell text */
     textStyle?: ConditionalFormattingTextStyle;
 };
@@ -134,6 +138,17 @@ export enum ConditionalFormattingColorApplyTo {
     CELL = 'cell',
     TEXT = 'text',
     ROW = 'row',
+}
+
+/**
+ * Scopes a conditional formatting rule to data cells, total cells (row/column
+ * totals and subtotals), or both. Defaults to ALL for backwards compatibility
+ * with charts saved before this option existed.
+ */
+export enum ConditionalFormattingAppliesTo {
+    ALL = 'all',
+    DATA = 'data',
+    TOTALS = 'totals',
 }
 
 export type ConditionalRuleLabel = {
