@@ -1,3 +1,15 @@
+# [0.3288.0](https://github.com/lightdash/lightdash/compare/0.3287.0...0.3288.0) (2026-07-02)
+
+
+### Bug Fixes
+
+* **ai:** hide trial alert in collapsed agent sidebar (ZAP-580) ([#25025](https://github.com/lightdash/lightdash/issues/25025)) ([795e824](https://github.com/lightdash/lightdash/commit/795e82468b5b55b6d7c32c6e065d13730ca9af95))
+
+
+### Features
+
+* **apps:** render data app vizs live and as saved charts (GLITCH-554, GLITCH-555) ([#24955](https://github.com/lightdash/lightdash/issues/24955)) ([445b7ab](https://github.com/lightdash/lightdash/commit/445b7ab5efd480906caae2799e45be7d1619173f))
+
 # [0.3287.0](https://github.com/lightdash/lightdash/compare/0.3286.0...0.3287.0) (2026-07-02)
 
 
