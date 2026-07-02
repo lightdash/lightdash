@@ -196,13 +196,17 @@ export function serializeRequestBody(body: unknown): {
 
 // Header names an api_key must never be injected under: they let stored config
 // control request routing/framing or overwrite the proxy's own security
-// headers (host pinning, content-type, auth). The api_key header name is
+// headers (host pinning, content-type). The api_key header name is
 // admin-supplied config, and the proxy is where it becomes an outbound
 // request — so reject sensitive and hop-by-hop headers here, even though
 // write-time validation also runs.
+//
+// `authorization` is intentionally allowed: some APIs (e.g. Linear) expect the
+// key directly in the Authorization header rather than as `Bearer <token>`.
+// The proxy only sets its own Authorization header on the mutually-exclusive
+// `bearer_token` path, so an api_key injected here can never clobber it.
 const FORBIDDEN_API_KEY_HEADERS = new Set([
     'host',
-    'authorization',
     'cookie',
     'content-length',
     'content-type',
