@@ -65,6 +65,8 @@ const makeCandidate = (
     tokenUsageTotal: 123,
     queryHistory: [],
     supportingEvidence: [],
+    toolOutcomes: [],
+    pendingApprovalTimeout: false,
     ...overrides,
 });
 
@@ -554,6 +556,42 @@ describe('AiAgentReviewClassifierService', () => {
         expect(judgeTurn).toHaveBeenCalledTimes(1);
         expect(result.findingCount).toBe(1);
         expect(result.reviewItemCount).toBe(1);
+    });
+
+    it('passes tool outcomes and the approval-timeout flag through to the judge packet', async () => {
+        judgeTurn.mockResolvedValueOnce(makeJudgeOutput());
+        model.listTurnReviewCandidates.mockResolvedValue([
+            makeCandidate({
+                toolOutcomes: [
+                    {
+                        toolCallId: 'content-tool-call-1',
+                        toolName: 'editContent',
+                        status: 'success',
+                    },
+                ],
+                pendingApprovalTimeout: true,
+            }),
+        ]);
+
+        await service.run({
+            organizationUuid: ORGANIZATION_UUID,
+            startedAt: NOW,
+            endedAt: NOW,
+        });
+
+        expect(judgeTurn).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                toolOutcomes: [
+                    {
+                        toolCallId: 'content-tool-call-1',
+                        toolName: 'editContent',
+                        status: 'success',
+                    },
+                ],
+                pendingApprovalTimeout: true,
+            }),
+        );
     });
 
     it('drops project context entries when AI writeback is disabled', async () => {

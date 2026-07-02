@@ -553,11 +553,27 @@ describe('AiAgentReviewClassifierModel', () => {
                 prompt_slack_ts: null,
                 query_history_summaries: [],
                 supporting_evidence_summaries: [],
+                tool_outcomes: [
+                    {
+                        toolCallId: 'tool-call-1',
+                        toolName: 'proposeWriteback',
+                        status: 'success',
+                    },
+                ],
+                pending_approval_timeout: true,
             });
 
             expect(result.subject.assistantPromptUuid).toBe(PROMPT_UUID);
             expect(result.interactionSource).toBe('app');
             expect(result.tokenUsageTotal).toBe(123);
+            expect(result.toolOutcomes).toEqual([
+                {
+                    toolCallId: 'tool-call-1',
+                    toolName: 'proposeWriteback',
+                    status: 'success',
+                },
+            ]);
+            expect(result.pendingApprovalTimeout).toBe(true);
         });
     });
 
