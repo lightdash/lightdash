@@ -93,9 +93,7 @@ export const ReviewAssigneeMenu: FC<Props> = ({
                                         radius="xl"
                                         userUuid={assignee.userUuid}
                                         avatarUrl={assignee.avatarUrl}
-                                        avatarGradient={
-                                            assignee.avatarGradient
-                                        }
+                                        avatarGradient={assignee.avatarGradient}
                                     />
                                 ) : (
                                     <LightdashUserAvatar
