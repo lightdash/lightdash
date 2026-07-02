@@ -41,6 +41,7 @@ import { ExternalConnectionModel } from './models/ExternalConnectionModel';
 import { ManagedAgentModel } from './models/ManagedAgentModel';
 import { ProjectCiStatusModel } from './models/ProjectCiStatusModel';
 import { ProjectContextModel } from './models/ProjectContextModel';
+import { SchedulerAiAugmentationModel } from './models/SchedulerAiAugmentationModel';
 import { SandboxRegistryModel } from './models/SandboxRegistryModel';
 import { ServiceAccountModel } from './models/ServiceAccountModel';
 import { enhanceExploresForPreAggregates } from './preAggregates/enhanceExploresForPreAggregates';
@@ -786,6 +787,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AiAgentReviewNotificationModel({ database }),
             projectContextModel: ({ database }) =>
                 new ProjectContextModel({ database }),
+            schedulerAiAugmentationModel: ({ database }) =>
+                new SchedulerAiAugmentationModel({ database }),
             aiRouterModel: ({ database }) => new AiRouterModel({ database }),
             aiOrganizationSettingsModel: ({ database }) =>
                 new AiOrganizationSettingsModel({ database }),

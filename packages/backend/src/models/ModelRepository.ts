@@ -159,6 +159,7 @@ export type ModelManifest = {
     dashboardSummaryModel: unknown;
     serviceAccountModel: unknown;
     externalConnectionModel: unknown;
+    schedulerAiAugmentationModel: unknown;
 };
 
 /**
@@ -798,6 +799,10 @@ export class ModelRepository
 
     public getProjectContextModel<ModelImplT>(): ModelImplT {
         return this.getModel('projectContextModel');
+    }
+
+    public getSchedulerAiAugmentationModel<ModelImplT>(): ModelImplT {
+        return this.getModel('schedulerAiAugmentationModel');
     }
 
     public getAiAgentReviewClassifierModel<ModelImplT>(): ModelImplT {

@@ -205,6 +205,29 @@ export type SchedulerAndTargets = Scheduler & {
     latestRun?: SchedulerRun | null;
 };
 
+export enum SchedulerAiAugmentationType {
+    AGENT = 'agent',
+    FAST_MODEL = 'fast_model',
+}
+
+/**
+ * Enterprise-only AI augmentation attached to a scheduled delivery. On each
+ * fire the agent (or ambient fast model) writes the delivery message from the
+ * delivery's content and the prompt. Persisted in the EE `scheduler_ai_augmentation`
+ * satellite table, not on the scheduler itself, so OSS carries none of it.
+ */
+export type SchedulerAiAugmentation =
+    | {
+          type: SchedulerAiAugmentationType.AGENT;
+          prompt: string;
+          agentUuid: string;
+          sourceThreadUuid: string | null;
+      }
+    | {
+          type: SchedulerAiAugmentationType.FAST_MODEL;
+          prompt: string;
+      };
+
 export type SchedulerSlackTarget = {
     schedulerSlackTargetUuid: string;
     createdAt: Date;
