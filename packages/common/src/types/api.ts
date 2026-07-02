@@ -324,6 +324,10 @@ export type UpdateMetadata = {
 export type UpdateDefaultUserSpaces = {
     hasDefaultUserSpaces: boolean;
 };
+
+export type UpdateSystemExplores = {
+    systemExploresEnabled: boolean;
+};
 export type ApiFormulaValidationResults =
     | { valid: true; compiledSql: string }
     | { valid: false; error: string };
@@ -678,6 +682,7 @@ export type CreateProject = Omit<
     | 'schedulerFailureContactOverride'
     | 'createdByUserUuid'
     | 'hasDefaultUserSpaces'
+    | 'systemExploresEnabled'
     | 'colorPaletteUuid'
     | 'expiresAt'
 > & {
@@ -716,6 +721,7 @@ export type UpdateProject = Omit<
     | 'schedulerFailureContactOverride'
     | 'createdByUserUuid'
     | 'hasDefaultUserSpaces'
+    | 'systemExploresEnabled'
     | 'colorPaletteUuid'
     | 'expiresAt'
 > & {

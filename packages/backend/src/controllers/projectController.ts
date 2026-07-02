@@ -39,6 +39,7 @@ import {
     UpdateDefaultUserSpaces,
     UpdateMetadata,
     UpdateProjectMember,
+    UpdateSystemExplores,
     UserWarehouseCredentials,
     type ApiCalculateSubtotalsResponse,
     type ApiCreateDashboardResponse,
@@ -710,6 +711,39 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         await this.services
             .getProjectService()
             .updateMetadata(toSessionUser(req.account), projectUuid, body);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
+     * Toggle system explores (Lightdash usage analytics) for a project.
+     * When enabled, usage analytics explores are injected on the next compile.
+     * @summary Update system explores setting
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('{projectUuid}/systemExplores')
+    @OperationId('updateSystemExplores')
+    async updateSystemExplores(
+        @Path() projectUuid: string,
+        @Body() body: UpdateSystemExplores,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        await this.services
+            .getProjectService()
+            .updateSystemExplores(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
+            );
         return {
             status: 'ok',
             results: undefined,
