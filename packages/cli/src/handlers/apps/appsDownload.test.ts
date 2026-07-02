@@ -1,7 +1,9 @@
 import { type DataAppCodeDownload } from '@lightdash/common';
 import {
     appsDownloadSummary,
+    capListedApps,
     ensureDownloadedAppContext,
+    MAX_INCLUDE_APPS,
     selectAppsToDownload,
 } from './appsDownload';
 
@@ -34,16 +36,45 @@ const makeDownload = (): DataAppCodeDownload =>
 
 describe('selectAppsToDownload', () => {
     it('returns explicit uuids without listing when uuids are passed', () => {
-        const selection = selectAppsToDownload(['uuid-a', 'uuid-b']);
-        expect(selection).toEqual({
+        expect(selectAppsToDownload({ apps: ['uuid-a', 'uuid-b'] })).toEqual({
             mode: 'explicit',
             appUuids: ['uuid-a', 'uuid-b'],
         });
     });
 
-    it('lists all apps when the flag is passed with no uuids', () => {
-        expect(selectAppsToDownload(true)).toEqual({ mode: 'list-all' });
-        expect(selectAppsToDownload([])).toEqual({ mode: 'list-all' });
+    it('lists all apps when --include-apps is passed', () => {
+        expect(selectAppsToDownload({ includeApps: true })).toEqual({
+            mode: 'list-all',
+            extraAppUuids: [],
+        });
+    });
+
+    it('combines --include-apps with explicitly passed uuids', () => {
+        expect(
+            selectAppsToDownload({ apps: ['uuid-a'], includeApps: true }),
+        ).toEqual({ mode: 'list-all', extraAppUuids: ['uuid-a'] });
+    });
+
+    it('skips apps when neither flag is passed', () => {
+        expect(selectAppsToDownload({})).toEqual({ mode: 'none' });
+        expect(selectAppsToDownload({ apps: [] })).toEqual({ mode: 'none' });
+    });
+});
+
+describe('capListedApps', () => {
+    it('keeps all listed apps when under the cap', () => {
+        expect(capListedApps(['a', 'b', 'c'])).toEqual({
+            appUuids: ['a', 'b', 'c'],
+            truncatedCount: 0,
+        });
+    });
+
+    it(`caps listed apps at ${MAX_INCLUDE_APPS} and reports the truncated count`, () => {
+        const listed = Array.from({ length: 12 }, (_, i) => `uuid-${i}`);
+        const result = capListedApps(listed);
+        expect(result.appUuids).toHaveLength(MAX_INCLUDE_APPS);
+        expect(result.appUuids).toEqual(listed.slice(0, MAX_INCLUDE_APPS));
+        expect(result.truncatedCount).toBe(2);
     });
 });
 
