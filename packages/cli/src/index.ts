@@ -16,6 +16,7 @@ import {
 } from './env';
 import { getDiagnosticsHint } from './error';
 import GlobalState from './globalState';
+import { appsPreviewHandler } from './handlers/apps/preview';
 import { compileHandler } from './handlers/compile';
 import { connectSnowflakeHandler } from './handlers/connectSnowflake';
 import { refreshHandler } from './handlers/dbt/refresh';
@@ -1017,6 +1018,26 @@ const uploadCommand = program
     );
 
 uploadCommand.action(withOrganizationMode(uploadHandler));
+
+const appsProgram = program
+    .command('apps')
+    .description('Work with data apps (enterprise)');
+appsProgram
+    .command('preview [path]')
+    .description(
+        'Preview a downloaded data app locally against a real Lightdash instance, authenticated as you. Writes .env.local and runs `pnpm dev`.',
+    )
+    .option(
+        '--project <project uuid>',
+        'preview against a specific project (default: the projectUuid in lightdash-app.yml)',
+    )
+    .option('--url <url>', 'Lightdash server URL (default: your login config)')
+    .option(
+        '--token <token>',
+        'API key / personal access token (default: your login config)',
+    )
+    .option('--verbose', undefined, false)
+    .action(appsPreviewHandler);
 
 program
     .command('deploy')
