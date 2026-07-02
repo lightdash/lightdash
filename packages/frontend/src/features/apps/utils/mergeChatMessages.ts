@@ -1,5 +1,6 @@
 import { type AppClarification } from '@lightdash/common';
 import { type ChartKind } from '@lightdash/common';
+import { type DataAppVizSchema } from '@lightdash/common';
 
 export type ChatChart = {
     name: string;
@@ -28,6 +29,7 @@ export type ChatMessage = {
     version: number | null;
     timestamp: Date;
     userName: string | null;
+    vizSchema: DataAppVizSchema | null;
     // For optimistic (local) user bubbles only. Records the latest server
     // version number known at submit time. The bubble is dropped from the
     // merged view once the server has produced a higher version — that's the
