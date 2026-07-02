@@ -21,6 +21,10 @@ vi.mock('../../../hooks/useAiOrganizationSettings', () => ({
     }),
 }));
 
+vi.mock('../../../store/hooks', () => ({
+    useAiAgentStoreDispatch: () => vi.fn(),
+}));
+
 vi.mock('../../../../../../components/common/GuidedTour', () => ({
     GuidedTour: () => null,
 }));
