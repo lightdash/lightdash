@@ -16,7 +16,7 @@ import {
     IconLayoutDashboard,
     IconPlus,
 } from '@tabler/icons-react';
-import { useEffect, useMemo, useState, type FC, type FormEvent } from 'react';
+import { useMemo, useState, type FC, type FormEvent } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { useDashboardQuery } from '../../../../../hooks/dashboard/useDashboard';
@@ -99,20 +99,15 @@ export const CreateIssueModal: FC<Props> = ({ opened, onClose, context }) => {
 
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
-    const [projectUuid, setProjectUuid] = useState<string | null>(null);
+    // The host mounts this modal fresh on each open, so seeding from the
+    // launch context in the initializer is enough — no effect-sync needed.
+    const [projectUuid, setProjectUuid] = useState<string | null>(
+        context?.projectUuid ?? null,
+    );
     const [agentUuid, setAgentUuid] = useState<string | null>(null);
     const [primaryRootCause, setPrimaryRootCause] =
         useState<AiAgentRootCause | null>(null);
     const [priority, setPriority] = useState<AiAgentReviewItemPriority>('none');
-
-    // The content's project is authoritative when launched from a dashboard /
-    // tile / chart — lock the select to it. Re-seed whenever the modal opens
-    // against a new context (keyed on open + projectUuid, not on every render).
-    useEffect(() => {
-        if (opened && context?.projectUuid) {
-            setProjectUuid(context.projectUuid);
-        }
-    }, [opened, context?.projectUuid]);
 
     const projectLocked = !!context?.projectUuid;
 
