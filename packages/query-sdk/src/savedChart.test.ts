@@ -254,6 +254,10 @@ describe('executeSavedChart downloads', () => {
                         '/api/v2/projects/p-1/query/q-1/schedule-download',
             ),
         ).toBe(true);
+        const chartPosts = calls.filter(
+            (c) => c.method === 'POST' && c.path.endsWith('/query/chart'),
+        );
+        expect(chartPosts).toHaveLength(1);
     });
 
     it("re-runs the chart with the limit override for 'all'", async () => {
@@ -273,6 +277,7 @@ describe('executeSavedChart downloads', () => {
                     settings: null,
                 },
             ],
+            parameters: { region: 'US' },
         });
         await result.downloadResults!({ limit: 'all' });
         const chartPosts = calls.filter(
@@ -284,6 +289,7 @@ describe('executeSavedChart downloads', () => {
             chartUuid: 'c-1',
             limit: expect.any(Number),
             filters: expect.any(Object),
+            parameters: { region: 'US' },
         });
     });
 });
