@@ -974,6 +974,34 @@ export class AiAgentReviewClassifierModel {
         }));
     }
 
+    async findTurnSignalSubjects(args: {
+        organizationUuid: string;
+        signalUuids: string[];
+    }): Promise<
+        { signalUuid: string; promptUuid: string; threadUuid: string }[]
+    > {
+        const rows = await this.database(AiAgentTurnSignalTableName)
+            .select<
+                {
+                    ai_agent_review_turn_signal_uuid: string;
+                    ai_prompt_uuid: string;
+                    ai_thread_uuid: string;
+                }[]
+            >(
+                'ai_agent_review_turn_signal_uuid',
+                'ai_prompt_uuid',
+                'ai_thread_uuid',
+            )
+            .where('organization_uuid', args.organizationUuid)
+            .whereIn('ai_agent_review_turn_signal_uuid', args.signalUuids);
+
+        return rows.map((row) => ({
+            signalUuid: row.ai_agent_review_turn_signal_uuid,
+            promptUuid: row.ai_prompt_uuid,
+            threadUuid: row.ai_thread_uuid,
+        }));
+    }
+
     async getAgentMcpCapabilities(
         agentUuid: string,
     ): Promise<AiAgentMcpServerSnapshot[]> {

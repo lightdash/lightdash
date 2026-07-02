@@ -186,6 +186,13 @@ export enum FeatureFlags {
     AiWriteback = 'ai-writeback',
 
     /**
+     * Enable the admin API endpoint that captures AI review judge replay
+     * inputs (candidate + evidence packet) for the offline eval scoreboard.
+     * Off by default — intended only for orgs running classifier evals.
+     */
+    AiReviewReplayCapture = 'ai-review-replay-capture',
+
+    /**
      * Enable the `searchSemanticLayer` agent tool, which lets the AI agent
      * list/search metrics and dimensions across ALL explores at once (backed
      * by the catalog search index) to answer project-wide questions like

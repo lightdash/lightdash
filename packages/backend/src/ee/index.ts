@@ -346,6 +346,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentModel: models.getAiAgentModel(),
                     aiAgentReviewClassifierModel:
                         models.getAiAgentReviewClassifierModel<AiAgentReviewClassifierModel>(),
+                    aiAgentReviewClassifierService:
+                        repository.getAiAgentReviewClassifierService<AiAgentReviewClassifierService>(),
                     aiAgentReviewNotificationModel:
                         models.getAiAgentReviewNotificationModel<AiAgentReviewNotificationModel>(),
                     aiAgentReviewNotificationService:

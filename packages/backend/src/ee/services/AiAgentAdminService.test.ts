@@ -202,6 +202,7 @@ const makeOrgViewerUser = (): SessionUser => ({
 const makeService = ({
     aiAgentModel = {},
     aiAgentReviewClassifierModel = {},
+    aiAgentReviewClassifierService = {},
     aiAgentReviewNotificationModel = {},
     featureFlagService = {},
     aiOrganizationSettingsService = {},
@@ -219,6 +220,7 @@ const makeService = ({
 }: {
     aiAgentModel?: Record<string, unknown>;
     aiAgentReviewClassifierModel?: Record<string, unknown>;
+    aiAgentReviewClassifierService?: Record<string, unknown>;
     aiAgentReviewNotificationModel?: Record<string, unknown>;
     featureFlagService?: Record<string, unknown>;
     aiOrganizationSettingsService?: Record<string, unknown>;
@@ -297,6 +299,10 @@ const makeService = ({
                 slackChannelId: 'C123',
             }),
             ...aiAgentReviewNotificationModel,
+        },
+        aiAgentReviewClassifierService: {
+            captureJudgeReplayInput: vi.fn().mockResolvedValue(null),
+            ...aiAgentReviewClassifierService,
         },
         featureFlagService: {
             get: vi.fn().mockResolvedValue({ enabled: true }),
@@ -458,6 +464,88 @@ describe('AiAgentAdminService review access', () => {
             'Insufficient permissions to access AI agent reviews',
         );
         expect(listReviewSignals).not.toHaveBeenCalled();
+    });
+});
+
+describe('AiAgentAdminService.captureReviewReplayInputs', () => {
+    it('rejects when the feature flag is disabled', async () => {
+        const service = makeService({
+            featureFlagService: {
+                get: vi.fn().mockResolvedValue({ enabled: false }),
+            },
+        });
+
+        await expect(
+            service.captureReviewReplayInputs(makeAdminUser(), {
+                signalUuids: ['signal-1'],
+            }),
+        ).rejects.toThrow('Review replay capture is not enabled');
+    });
+
+    it('rejects non org admins', async () => {
+        const service = makeService();
+
+        await expect(
+            service.captureReviewReplayInputs(makeDeveloperUser(), {
+                signalUuids: ['signal-1'],
+            }),
+        ).rejects.toThrow();
+    });
+
+    it('rejects batches over 50 signals', async () => {
+        const service = makeService();
+
+        await expect(
+            service.captureReviewReplayInputs(makeAdminUser(), {
+                signalUuids: Array.from({ length: 51 }, (_, i) => `s-${i}`),
+            }),
+        ).rejects.toThrow('at most 50 signals');
+    });
+
+    it('resolves signals to prompts and returns captured inputs', async () => {
+        const replayInput = { candidate: {}, evidencePacket: {} };
+        const captureJudgeReplayInput = vi.fn().mockResolvedValue(replayInput);
+        const findTurnSignalSubjects = vi.fn().mockResolvedValue([
+            {
+                signalUuid: 'signal-1',
+                promptUuid: 'prompt-1',
+                threadUuid: 'thread-1',
+            },
+        ]);
+        const service = makeService({
+            aiAgentReviewClassifierModel: { findTurnSignalSubjects },
+            aiAgentReviewClassifierService: { captureJudgeReplayInput },
+        });
+
+        const results = await service.captureReviewReplayInputs(
+            makeAdminUser(),
+            { signalUuids: ['signal-1', 'signal-2'] },
+        );
+
+        expect(findTurnSignalSubjects).toHaveBeenCalledWith({
+            organizationUuid: ORGANIZATION_UUID,
+            signalUuids: ['signal-1', 'signal-2'],
+        });
+        expect(captureJudgeReplayInput).toHaveBeenCalledWith({
+            organizationUuid: ORGANIZATION_UUID,
+            promptUuid: 'prompt-1',
+        });
+        expect(results).toEqual([
+            {
+                signalUuid: 'signal-1',
+                promptUuid: 'prompt-1',
+                threadUuid: 'thread-1',
+                captureError: null,
+                input: replayInput,
+            },
+            {
+                signalUuid: 'signal-2',
+                promptUuid: null,
+                threadUuid: null,
+                captureError: 'signal not found',
+                input: null,
+            },
+        ]);
     });
 });
 

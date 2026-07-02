@@ -12,6 +12,8 @@ import {
     AiAgentReviewRemediationCompileJobPayload,
     AiAgentReviewRemediationPreviewJobPayload,
     AiAgentReviewRemediationRunJobPayload,
+    AiAgentReviewReplayCaptureEntry,
+    AiAgentReviewReplayCaptureRequest,
     AiAgentReviewSignalSummary,
     AiAgentReviewWritebackJobPayload,
     AiAgentSummary,
@@ -77,6 +79,7 @@ import {
     planReviewWriteback,
     PROJECT_CONTEXT_WORK_THREAD_INSTRUCTION,
 } from './ai/reviewWriteback/buildReviewWritebackPrompt';
+import { type AiAgentReviewClassifierService } from './AiAgentReviewClassifierService';
 import { type AiAgentReviewNotificationService } from './AiAgentReviewNotificationService';
 import { type AiAgentService } from './AiAgentService/AiAgentService';
 import { type AiOrganizationSettingsService } from './AiOrganizationSettingsService';
@@ -87,6 +90,10 @@ type AiAgentAdminServiceDependencies = {
     analytics: LightdashAnalytics;
     aiAgentModel: AiAgentModel;
     aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
+    aiAgentReviewClassifierService: Pick<
+        AiAgentReviewClassifierService,
+        'captureJudgeReplayInput'
+    >;
     aiAgentReviewNotificationModel: AiAgentReviewNotificationModel;
     aiAgentReviewNotificationService: AiAgentReviewNotificationService;
     aiAgentService: AiAgentService;
@@ -315,6 +322,11 @@ export class AiAgentAdminService extends BaseService {
 
     private readonly aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
 
+    private readonly aiAgentReviewClassifierService: Pick<
+        AiAgentReviewClassifierService,
+        'captureJudgeReplayInput'
+    >;
+
     private readonly aiAgentReviewNotificationModel: AiAgentReviewNotificationModel;
 
     private readonly aiAgentReviewNotificationService: AiAgentReviewNotificationService;
@@ -351,6 +363,8 @@ export class AiAgentAdminService extends BaseService {
         this.aiAgentModel = dependencies.aiAgentModel;
         this.aiAgentReviewClassifierModel =
             dependencies.aiAgentReviewClassifierModel;
+        this.aiAgentReviewClassifierService =
+            dependencies.aiAgentReviewClassifierService;
         this.aiAgentReviewNotificationModel =
             dependencies.aiAgentReviewNotificationModel;
         this.aiAgentReviewNotificationService =
@@ -1078,6 +1092,92 @@ export class AiAgentAdminService extends BaseService {
         return this.aiAgentReviewClassifierModel.listReviewSignals({
             organizationUuid,
         });
+    }
+
+    /**
+     * Rebuilds the judge inputs (candidate + evidence packet) for historical
+     * turn signals so the eval scoreboard can replay the judge offline.
+     * Read-only; gated behind the AiReviewReplayCapture feature flag.
+     */
+    async captureReviewReplayInputs(
+        user: SessionUser,
+        body: AiAgentReviewReplayCaptureRequest,
+    ): Promise<AiAgentReviewReplayCaptureEntry[]> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkOrganizationAdminAccess(user);
+        const { enabled } = await this.featureFlagService.get({
+            featureFlagId: FeatureFlags.AiReviewReplayCapture,
+            user,
+        });
+        if (!enabled) {
+            throw new ForbiddenError('Review replay capture is not enabled');
+        }
+        if (body.signalUuids.length === 0) {
+            return [];
+        }
+        if (body.signalUuids.length > 50) {
+            throw new ParameterError(
+                'Capture at most 50 signals per request; batch larger sets',
+            );
+        }
+
+        const subjects =
+            await this.aiAgentReviewClassifierModel.findTurnSignalSubjects({
+                organizationUuid,
+                signalUuids: body.signalUuids,
+            });
+        const subjectsBySignalUuid = new Map(
+            subjects.map((subjectRow) => [subjectRow.signalUuid, subjectRow]),
+        );
+
+        return Promise.all(
+            body.signalUuids.map(
+                async (
+                    signalUuid,
+                ): Promise<AiAgentReviewReplayCaptureEntry> => {
+                    const subjectRow = subjectsBySignalUuid.get(signalUuid);
+                    if (!subjectRow) {
+                        return {
+                            signalUuid,
+                            promptUuid: null,
+                            threadUuid: null,
+                            captureError: 'signal not found',
+                            input: null,
+                        };
+                    }
+                    try {
+                        const input =
+                            await this.aiAgentReviewClassifierService.captureJudgeReplayInput(
+                                {
+                                    organizationUuid,
+                                    promptUuid: subjectRow.promptUuid,
+                                },
+                            );
+                        return {
+                            signalUuid,
+                            promptUuid: subjectRow.promptUuid,
+                            threadUuid: subjectRow.threadUuid,
+                            captureError: input ? null : 'candidate not found',
+                            input,
+                        };
+                    } catch (error) {
+                        return {
+                            signalUuid,
+                            promptUuid: subjectRow.promptUuid,
+                            threadUuid: subjectRow.threadUuid,
+                            captureError:
+                                error instanceof Error
+                                    ? error.message
+                                    : String(error),
+                            input: null,
+                        };
+                    }
+                },
+            ),
+        );
     }
 
     async updateReviewItemStatus(
