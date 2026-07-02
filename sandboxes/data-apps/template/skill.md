@@ -166,10 +166,18 @@ Each file has a `linked` boolean and a `chartUuid`:
   `query(...)`. **There is NO `lightdash` object — call `savedChart(...)` and
   `query(...)` directly; a `lightdash.` prefix is undefined and crashes the app.**
   `savedChart(...)` is chainable like `query(...)` — always `.label()` it. Its
-  query is **fixed by the saved chart**: `.label()`,
-  `.limit()` and `.parameters()` apply, but `.dimensions()/.metrics()/.filters()
-  /.sorts()` are IGNORED — if the user needs a different shape or extra filters,
-  build an inline `query(...)` instead of linking. Do NOT copy the metricQuery.
+  query SHAPE is **fixed by the saved chart**: `.label()`, `.limit()`,
+  `.parameters()` and `.filters()` apply, but `.dimensions()/.metrics()/.sorts()`
+  are IGNORED. `.filters()` NARROWS the chart server-side (your filters are
+  ANDed onto the chart's own filters — you cannot widen or replace them), so
+  interactive filter controls on a LINKED chart work: pass the user's selection
+  via `.filters()` and the query re-runs. Filter field ids on a linked chart are
+  the QUALIFIED ids exactly as they appear in the result columns (e.g.
+  `orders_status`) — do NOT strip the explore prefix like you would for
+  `query(...)`. Never filter a linked chart's rows client-side in JS — the rows
+  are limit-truncated, so client-side filtering silently shows wrong data. If
+  the user needs a different SHAPE (other dimensions/metrics), build an inline
+  `query(...)` instead of linking. Do NOT copy the metricQuery.
   The rows are keyed by the chart's field ids (as listed under
   `metricQuery.dimensions` / `metricQuery.metrics`); read the returned `columns`
   to know what's available. The listing line marks these with "LINKED".
