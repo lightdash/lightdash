@@ -448,6 +448,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('view', 'Analytics', {
             organizationUuid: member.organizationUuid,
         });
+        can('view', 'SystemAnalytics', {
+            organizationUuid: member.organizationUuid,
+        });
         can('manage', 'OrganizationMemberProfile', {
             organizationUuid: member.organizationUuid,
         });

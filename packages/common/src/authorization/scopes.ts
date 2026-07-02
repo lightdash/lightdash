@@ -726,6 +726,13 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'view:SystemAnalytics',
+        description: 'View and query Lightdash usage analytics explores',
+        isEnterprise: true,
+        group: ScopeGroup.DATA,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'manage:ExportCsv',
         description: 'Export data to CSV',
         isEnterprise: false,

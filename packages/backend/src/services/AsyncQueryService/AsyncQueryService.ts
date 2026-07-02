@@ -85,6 +85,7 @@ import {
     S3Error,
     SchedulerFormat,
     SqlChart,
+    SupportedDbtAdapter,
     TrialExpiredError,
     UnexpectedServerError,
     UserAccessControls,
@@ -123,12 +124,21 @@ import {
     type WarehouseResults,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
-import { SshTunnel, warehouseSqlBuilderFromType } from '@lightdash/warehouses';
+import {
+    DuckdbWarehouseClient,
+    SshTunnel,
+    warehouseSqlBuilderFromType,
+} from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import { createInterface } from 'readline';
 import { Readable, Writable } from 'stream';
 import { v4 as uuidv4 } from 'uuid';
 import { DownloadCsv } from '../../analytics/LightdashAnalytics';
+import type { QueryExecutionSource } from '../../analytics/LightdashAnalytics';
+import {
+    getSystemExploreAllowedUriPrefix,
+    isSystemExploreName,
+} from '../../analytics/systemExplores/buildSystemExplores';
 import { transformAndExportResults } from '../../clients/Aws/transformAndExportResults';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import type { INatsClient } from '../../clients/NatsClient';
@@ -288,6 +298,8 @@ type ResolvedWarehouseCredentials = CreateWarehouseCredentials & {
     userWarehouseCredentialsUuid: string | undefined;
 };
 
+const SYSTEM_EXPLORE_QUERY_INSTANCE_CACHE_KEY = 'system-explore-query-instance';
+
 export class AsyncQueryService extends ProjectService {
     private static sleep(ms: number, signal?: AbortSignal) {
         if (signal?.aborted) {
@@ -372,6 +384,8 @@ export class AsyncQueryService extends ProjectService {
     private readonly organizationAccessService: OrganizationAccessService;
 
     protected readonly preAggregateStrategy: PreAggregateStrategy;
+
+    private cachedSystemExploreWarehouseClient: WarehouseClient | null = null;
 
     constructor(args: AsyncQueryServiceArguments) {
         super(args);
@@ -576,6 +590,83 @@ export class AsyncQueryService extends ProjectService {
         });
     }
 
+    /**
+     * SYSTEM (usage analytics) explores are compiled for DuckDB regardless
+     * of the project warehouse — they execute over the compacted usage
+     * events parquet zone, not the project warehouse.
+     */
+    private static getWarehouseSqlBuilderForExplore(
+        explore: Explore,
+        warehouseCredentials: Pick<
+            ResolvedWarehouseCredentials,
+            'type' | 'startOfWeek'
+        >,
+    ): WarehouseSqlBuilder {
+        if (explore.type === ExploreType.SYSTEM) {
+            return warehouseSqlBuilderFromType(
+                SupportedDbtAdapter.DUCKDB,
+                warehouseCredentials.startOfWeek,
+            );
+        }
+        return warehouseSqlBuilderFromType(
+            warehouseCredentials.type,
+            warehouseCredentials.startOfWeek,
+        );
+    }
+
+    private getSystemExploreWarehouseClient(): WarehouseClient {
+        if (!this.cachedSystemExploreWarehouseClient) {
+            const usageEventsS3 = this.lightdashConfig.usageEvents.s3;
+            const duckdbRuntimeConfig = getDuckdbRuntimeConfig(
+                usageEventsS3 ?? undefined,
+            );
+            if (!usageEventsS3 || !duckdbRuntimeConfig) {
+                throw new UnexpectedServerError(
+                    'System explore execution is unavailable: missing usage events S3 configuration',
+                );
+            }
+            this.cachedSystemExploreWarehouseClient = new DuckdbWarehouseClient(
+                { type: 'duckdb_s3', s3Config: duckdbRuntimeConfig },
+                {
+                    instanceCacheKey: SYSTEM_EXPLORE_QUERY_INSTANCE_CACHE_KEY,
+                    logger: Logger,
+                    allowedReadParquetUriPrefixes: [
+                        getSystemExploreAllowedUriPrefix(usageEventsS3.bucket),
+                    ],
+                },
+            );
+        }
+        return this.cachedSystemExploreWarehouseClient;
+    }
+
+    /**
+     * Detects queries against SYSTEM explores and returns the DuckDB
+     * client that executes them over the usage events bucket. Detection
+     * happens here (rather than at enqueue time) so both the inline and
+     * queued (NATS worker) execution paths route consistently.
+     */
+    private async getSystemExploreClientOverride(
+        projectUuid: string,
+        queryTags: RunQueryTags,
+    ): Promise<WarehouseClient | null> {
+        const exploreName = queryTags.explore_name;
+        if (
+            !this.lightdashConfig.usageEvents.enabled ||
+            !exploreName ||
+            !isSystemExploreName(exploreName)
+        ) {
+            return null;
+        }
+        const explore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            exploreName,
+        );
+        if (isExploreError(explore) || explore.type !== ExploreType.SYSTEM) {
+            return null;
+        }
+        return this.getSystemExploreWarehouseClient();
+    }
+
     private getResultsStorageClientForContext(
         context?: QueryExecutionContext | null,
     ): S3ResultsFileStorageClient {
@@ -649,6 +740,19 @@ export class AsyncQueryService extends ProjectService {
             ability.cannot(
                 'manage',
                 subject('PreAggregation', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new NotFoundError(`Explore "${exploreName}" does not exist.`);
+        }
+
+        if (
+            explore.type === ExploreType.SYSTEM &&
+            ability.cannot(
+                'view',
+                subject('SystemAnalytics', {
                     organizationUuid,
                     projectUuid,
                 }),
@@ -2544,13 +2648,23 @@ export class AsyncQueryService extends ProjectService {
             },
         };
 
-        const executionSource: 'warehouse' | 'pre_aggregate_duckdb' =
-            warehouseClientOverride ? 'pre_aggregate_duckdb' : 'warehouse';
+        const systemExploreClientOverride = warehouseClientOverride
+            ? null
+            : await this.getSystemExploreClientOverride(projectUuid, queryTags);
+        const clientOverride =
+            warehouseClientOverride ?? systemExploreClientOverride;
+
+        let executionSource: QueryExecutionSource = 'warehouse';
+        if (warehouseClientOverride) {
+            executionSource = 'pre_aggregate_duckdb';
+        } else if (systemExploreClientOverride) {
+            executionSource = 'system_duckdb';
+        }
         let queryStartTime = Date.now();
 
         try {
-            if (warehouseClientOverride) {
-                warehouseClient = warehouseClientOverride;
+            if (clientOverride) {
+                warehouseClient = clientOverride;
                 warehouseCredentialsType =
                     warehouseCredentialsTypeOverride ??
                     warehouseClient.credentials.type;
@@ -3586,10 +3700,11 @@ export class AsyncQueryService extends ProjectService {
                         );
                     }
 
-                    const warehouseSqlBuilder = warehouseSqlBuilderFromType(
-                        warehouseCredentialsType,
-                        warehouseCredentials.startOfWeek,
-                    );
+                    const warehouseSqlBuilder =
+                        AsyncQueryService.getWarehouseSqlBuilderForExplore(
+                            explore,
+                            warehouseCredentials,
+                        );
 
                     let pivotedQuery = null;
                     if (pivotConfiguration) {
@@ -3704,7 +3819,7 @@ export class AsyncQueryService extends ProjectService {
                         },
                     };
                     const trackQueryExecuted = (
-                        executionSource?: 'warehouse' | 'pre_aggregate_duckdb',
+                        executionSource?: QueryExecutionSource,
                     ) =>
                         this.analytics.trackAccount(account, {
                             event: 'query.executed',
@@ -4263,10 +4378,11 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
-        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
-            warehouseCredentials.type,
-            warehouseCredentials.startOfWeek,
-        );
+        const warehouseSqlBuilder =
+            AsyncQueryService.getWarehouseSqlBuilderForExplore(
+                explore,
+                warehouseCredentials,
+            );
 
         // Combine default parameter values with request parameters first
         const combinedParameters = await this.combineParameters(
@@ -4536,10 +4652,11 @@ export class AsyncQueryService extends ProjectService {
             isServiceAccount: account.isServiceAccount(),
         });
 
-        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
-            warehouseCredentials.type,
-            warehouseCredentials.startOfWeek,
-        );
+        const warehouseSqlBuilder =
+            AsyncQueryService.getWarehouseSqlBuilderForExplore(
+                explore,
+                warehouseCredentials,
+            );
 
         const combinedParameters = await this.combineParameters(
             projectUuid,
@@ -4779,10 +4896,11 @@ export class AsyncQueryService extends ProjectService {
             isServiceAccount: account.isServiceAccount(),
         });
 
-        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
-            warehouseCredentials.type,
-            warehouseCredentials.startOfWeek,
-        );
+        const warehouseSqlBuilder =
+            AsyncQueryService.getWarehouseSqlBuilderForExplore(
+                explore,
+                warehouseCredentials,
+            );
 
         // Combine default parameter values, saved chart parameters, and request parameters first
         const combinedParameters = await this.combineParameters(
@@ -5221,10 +5339,11 @@ export class AsyncQueryService extends ProjectService {
                 this.projectParametersModel.find(projectUuid),
         ]);
 
-        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
-            warehouseCredentials.type,
-            warehouseCredentials.startOfWeek,
-        );
+        const warehouseSqlBuilder =
+            AsyncQueryService.getWarehouseSqlBuilderForExplore(
+                explore,
+                warehouseCredentials,
+            );
 
         const dashboardParameters = convertDashboardParametersToValuesMap(
             rawDashboardParameters,
@@ -5428,11 +5547,6 @@ export class AsyncQueryService extends ProjectService {
             isServiceAccount: account.isServiceAccount(),
         });
 
-        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
-            warehouseCredentials.type,
-            warehouseCredentials.startOfWeek,
-        );
-
         const { metricQuery, fields: metricQueryFields } =
             await this.queryHistoryModel.get(
                 underlyingDataSourceQueryUuid,
@@ -5448,6 +5562,12 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
                 exploreName,
                 organizationUuid,
+            );
+
+        const warehouseSqlBuilder =
+            AsyncQueryService.getWarehouseSqlBuilderForExplore(
+                explore,
+                warehouseCredentials,
             );
 
         // Combine parameters early so we can filter dimensions by parameter availability
@@ -6669,10 +6789,11 @@ export class AsyncQueryService extends ProjectService {
             isServiceAccount: account.isServiceAccount(),
         });
 
-        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
-            warehouseCredentials.type,
-            warehouseCredentials.startOfWeek,
-        );
+        const warehouseSqlBuilder =
+            AsyncQueryService.getWarehouseSqlBuilderForExplore(
+                explore,
+                warehouseCredentials,
+            );
 
         const {
             sql,
