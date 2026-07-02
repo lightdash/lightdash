@@ -43,11 +43,42 @@ export type FieldEntry = {
     label: string;
     description: string;
     aiHint: string;
+    // Locality slices of the haystack, so callers can rank a match in the
+    // field's own name/label above one buried in a description or hint.
+    nameHaystack: string;
+    descHaystack: string;
+    hintHaystack: string;
+    // Field-only annotations. Deliberately excludes explore-level label/hint/
+    // tags: those live in the explore index (buildExploreIndex) — folding them
+    // in here made every field of an explore match any pattern that matched
+    // the explore hint, flooding results with false positives.
     haystack: string;
     // How many verified charts use this field (0 = not in any verified chart).
     // Governs verified-first ranking; 0 when no usage map is supplied.
     verifiedUsage: number;
 };
+
+/** One greppable explore: name/label/hint/tags, matched at the explore level. */
+export type ExploreEntry = {
+    exploreName: string;
+    exploreLabel: string;
+    haystack: string;
+};
+
+export const buildExploreIndex = (explores: Explore[]): ExploreEntry[] =>
+    explores.map((explore) => ({
+        exploreName: explore.name,
+        exploreLabel: explore.label,
+        haystack: [
+            explore.name,
+            explore.label,
+            flatHint(explore.aiHint),
+            ...(explore.tags ?? []),
+        ]
+            .filter(Boolean)
+            .join('\n')
+            .toLowerCase(),
+    }));
 
 /**
  * @param verifiedUsage Project-wide verified-chart usage keyed
@@ -60,13 +91,6 @@ export const buildFieldIndex = (
 ): FieldEntry[] => {
     const entries: FieldEntry[] = [];
     for (const explore of explores) {
-        const exploreHints = [
-            explore.label,
-            flatHint(explore.aiHint),
-            ...(explore.tags ?? []),
-        ]
-            .filter(Boolean)
-            .join(' ');
         for (const table of Object.values(explore.tables ?? {})) {
             const fields = [
                 ...Object.values(table.dimensions ?? {}).map(
@@ -81,16 +105,15 @@ export const buildFieldIndex = (
                     const fieldId = `${field.table}_${field.name}`;
                     const description = field.description ?? '';
                     const aiHint = flatHint(field.aiHint);
-                    const annotations = [
-                        fieldId,
-                        field.label,
-                        description,
-                        aiHint,
-                        ...(field.tags ?? []),
-                        exploreHints,
-                    ]
+                    const nameHaystack = [fieldId, field.label]
                         .filter(Boolean)
-                        .join('\n');
+                        .join('\n')
+                        .toLowerCase();
+                    const descHaystack = description.toLowerCase();
+                    const hintHaystack = [aiHint, ...(field.tags ?? [])]
+                        .filter(Boolean)
+                        .join('\n')
+                        .toLowerCase();
                     entries.push({
                         exploreName: explore.name,
                         exploreLabel: explore.label,
@@ -100,7 +123,12 @@ export const buildFieldIndex = (
                         label: field.label,
                         description,
                         aiHint,
-                        haystack: annotations.toLowerCase(),
+                        nameHaystack,
+                        descHaystack,
+                        hintHaystack,
+                        haystack: [nameHaystack, descHaystack, hintHaystack]
+                            .filter(Boolean)
+                            .join('\n'),
                         verifiedUsage:
                             verifiedUsage?.get(`${fieldId}::${kind}`) ?? 0,
                     });
@@ -122,8 +150,40 @@ export const buildFieldIndex = (
  *  - `|` separates OR-alternatives ("revenue|sales").
  *  - within an alternative, whitespace / `.*` / `.+` / `.` separate AND-terms
  *    ("order.*status" → both "order" and "status" present, any order).
- *  - terms are matched as case-insensitive substrings.
+ *  - terms are matched as case-insensitive substrings, except very short terms
+ *    (≤3 chars) which must match a whole token — a substring "led" would
+ *    otherwise match inside "canceled"/"scheduled" and flood the results.
  */
+
+const SHORT_TERM_MAX_LENGTH = 3;
+
+// Token separators are anything outside [a-z0-9] — underscore included, since
+// field ids are underscore-joined ("events_sales_led_flag" tokenizes to led).
+const isTokenChar = (char: string): boolean =>
+    (char >= 'a' && char <= 'z') || (char >= '0' && char <= '9');
+
+const hasWholeToken = (haystack: string, term: string): boolean => {
+    let from = 0;
+    for (;;) {
+        const at = haystack.indexOf(term, from);
+        if (at === -1) return false;
+        const before = at > 0 ? haystack[at - 1] : '';
+        const after = haystack[at + term.length] ?? '';
+        if (
+            (before === '' || !isTokenChar(before)) &&
+            (after === '' || !isTokenChar(after))
+        ) {
+            return true;
+        }
+        from = at + 1;
+    }
+};
+
+const termMatches = (haystack: string, term: string): boolean =>
+    term.length <= SHORT_TERM_MAX_LENGTH
+        ? hasWholeToken(haystack, term)
+        : haystack.includes(term);
+
 export const compileMatcher = (
     pattern: string,
 ): ((haystack: string) => boolean) => {
@@ -140,7 +200,7 @@ export const compileMatcher = (
     if (alternatives.length === 0) return () => false;
     return (haystack) =>
         alternatives.some((terms) =>
-            terms.every((term) => haystack.includes(term)),
+            terms.every((term) => termMatches(haystack, term)),
         );
 };
 

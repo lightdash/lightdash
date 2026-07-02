@@ -3,10 +3,12 @@ import { tool } from 'ai';
 import type { FindExploresFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import {
+    buildExploreIndex,
     buildFieldIndex,
     buildMetricAmbiguityNote,
     compileMatcher,
     summarizeRequiredFilters,
+    type ExploreEntry,
     type FieldEntry,
 } from './grepFieldsIndex';
 
@@ -55,12 +57,35 @@ const renderFtsFallback = (
 // Per-pattern cap so a batch of broad patterns can't flood the context.
 const MAX_PER_PATTERN = 40;
 
+// A pattern that matches every field in a scope this large carries no signal —
+// it's the grep equivalent of `grep .` — so it must not count as a hit (and
+// must not suppress the FTS fallback).
+const ALL_MATCH_NO_SIGNAL_MIN = 25;
+
+// Where the pattern matched, most-specific first: the field's own name/label
+// beats its description, which beats its ai hint. Keeps a name-matching field
+// visible above the display cap even when many popular fields match loosely.
+const localityScore = (
+    entry: FieldEntry,
+    matches: (haystack: string) => boolean,
+): number => {
+    if (matches(entry.nameHaystack)) return 3;
+    if (matches(entry.descHaystack)) return 2;
+    if (matches(entry.hintHaystack)) return 1;
+    return 0;
+};
+
 const renderHits = (
     hits: FieldEntry[],
+    matches: (haystack: string) => boolean,
     requiredFiltersByExplore: Map<string, string>,
 ): string => {
-    // Verified/governed fields first, then the rest in index order.
-    const ordered = [...hits].sort((a, b) => b.verifiedUsage - a.verifiedUsage);
+    // Match locality first (name > description > hint), then verified usage.
+    const ordered = [...hits].sort(
+        (a, b) =>
+            localityScore(b, matches) - localityScore(a, matches) ||
+            b.verifiedUsage - a.verifiedUsage,
+    );
     const byExplore = new Map<string, FieldEntry[]>();
     for (const m of ordered.slice(0, MAX_PER_PATTERN)) {
         const list = byExplore.get(m.exploreName) ?? [];
@@ -96,24 +121,64 @@ const renderHits = (
         .join('\n');
 };
 
+// Explores whose own name/label/hint matched, minus ones already visible via
+// field hits — a compact pointer instead of dumping their full field lists.
+const renderExplorePointers = (
+    exploreHits: ExploreEntry[],
+    fieldHits: FieldEntry[],
+): string | null => {
+    const coveredExplores = new Set(fieldHits.map((h) => h.exploreName));
+    const pointers = exploreHits.filter(
+        (e) => !coveredExplores.has(e.exploreName),
+    );
+    if (pointers.length === 0) return null;
+    const names = pointers
+        .slice(0, 8)
+        .map((e) => `${e.exploreName} (${e.exploreLabel})`)
+        .join(', ');
+    return `  explores whose name/label/hint match: ${names} — grep within one (exploreName) or call getMetadata.`;
+};
+
 // One block per pattern so the agent sees which angle matched what.
 const renderPattern = (
     pattern: string,
     hits: FieldEntry[],
+    exploreHits: ExploreEntry[],
+    matches: (haystack: string) => boolean,
+    scopeSize: number,
     requiredFiltersByExplore: Map<string, string>,
-): string => {
+): { text: string; isSignal: boolean } => {
+    if (hits.length === scopeSize && scopeSize >= ALL_MATCH_NO_SIGNAL_MIN) {
+        return {
+            text: `/${pattern}/ — matched all ${hits.length} fields in scope, so it carries no signal. Use more specific terms.`,
+            isSignal: false,
+        };
+    }
+    const explorePointers = renderExplorePointers(exploreHits, hits);
     if (hits.length === 0) {
-        return `/${pattern}/ — no matches.`;
+        return explorePointers
+            ? {
+                  text: `/${pattern}/ — no direct field matches.\n${explorePointers}`,
+                  isSignal: true,
+              }
+            : { text: `/${pattern}/ — no matches.`, isSignal: false };
     }
     const capped =
         hits.length > MAX_PER_PATTERN
             ? ` (showing ${MAX_PER_PATTERN} of ${hits.length})`
             : '';
-    const body = renderHits(hits, requiredFiltersByExplore);
+    const body = renderHits(hits, matches, requiredFiltersByExplore);
     const ambiguityNote = buildMetricAmbiguityNote(hits);
-    return `/${pattern}/ — ${hits.length} match${
-        hits.length === 1 ? '' : 'es'
-    }${capped}:\n${body}${ambiguityNote ? `\n${ambiguityNote}` : ''}`;
+    const extras = [ambiguityNote, explorePointers]
+        .filter(Boolean)
+        .map((line) => `\n${line}`)
+        .join('');
+    return {
+        text: `/${pattern}/ — ${hits.length} match${
+            hits.length === 1 ? '' : 'es'
+        }${capped}:\n${body}${extras}`,
+        isSignal: true,
+    };
 };
 
 /**
@@ -135,6 +200,13 @@ export const getGrepFields = ({
         }
         return index;
     };
+    let exploreIndex: ExploreEntry[] | null = null;
+    const getExploreIndex = () => {
+        if (exploreIndex === null) {
+            exploreIndex = buildExploreIndex(availableExplores);
+        }
+        return exploreIndex;
+    };
 
     const requiredFiltersByExplore = new Map<string, string>();
     for (const explore of availableExplores) {
@@ -149,21 +221,30 @@ export const getGrepFields = ({
                 const scoped = exploreName
                     ? getIndex().filter((e) => e.exploreName === exploreName)
                     : getIndex();
+                // When already scoped to one explore, explore-level pointers
+                // add nothing — the agent is inside that explore.
+                const scopedExplores = exploreName ? [] : getExploreIndex();
                 // Each pattern is matched against the whole (pre-filtered) index
                 // in one pass — "parallel" greps without an extra round-trip.
                 const blocks = patterns.map((pattern) => {
                     const matches = compileMatcher(pattern);
                     const hits = scoped.filter((e) => matches(e.haystack));
+                    const exploreHits = scopedExplores.filter((e) =>
+                        matches(e.haystack),
+                    );
                     return renderPattern(
                         pattern,
                         hits,
+                        exploreHits,
+                        matches,
+                        scoped.length,
                         requiredFiltersByExplore,
                     );
                 });
-                const anyHit = blocks.some((b) => !b.includes('— no matches.'));
+                const anyHit = blocks.some((b) => b.isSignal);
                 if (anyHit) {
                     return {
-                        result: blocks.join('\n\n'),
+                        result: blocks.map((b) => b.text).join('\n\n'),
                         metadata: { status: 'success' as const },
                     };
                 }
@@ -189,11 +270,14 @@ export const getGrepFields = ({
                     ftsFields = [];
                 }
                 const scope = exploreName ? ` in explore "${exploreName}"` : '';
+                // Keep the per-pattern diagnosis (e.g. "matched all N fields")
+                // in front of the fallback so the agent knows WHY grep is dry.
+                const blocksText = blocks.map((b) => b.text).join('\n\n');
                 return {
                     result:
                         ftsFields.length > 0
-                            ? renderFtsFallback(ftsFields)
-                            : `No fields matched any of the patterns${scope}, and the catalog search found nothing close. Try broader or alternative keywords.`,
+                            ? `${blocksText}\n\n${renderFtsFallback(ftsFields)}`
+                            : `${blocksText}\n\nNo fields matched any of the patterns${scope}, and the catalog search found nothing close. Try broader or alternative keywords.`,
                     metadata: { status: 'success' as const },
                 };
             } catch (error) {
