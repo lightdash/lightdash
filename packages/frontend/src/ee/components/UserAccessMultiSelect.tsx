@@ -167,6 +167,7 @@ export const UserAccessMultiSelect: FC<UserAccessMultiSelectProps> = ({
                         name={user.label}
                         size="sm"
                         radius="xl"
+                        userUuid={user.userUuid}
                     />
                     <Stack gap="two">
                         <Group gap="xs">

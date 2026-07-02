@@ -30,7 +30,11 @@ export const MetricsCatalogColumnOwner: FC<Props> = ({ row }) => {
         <Tooltip label={owner.email} openDelay={300}>
             <Paper px="xs" w="fit-content" style={{ cursor: 'default' }}>
                 <Group gap="two" wrap="nowrap" maw="200px">
-                    <LightdashUserAvatar size={16} name={displayName} />
+                    <LightdashUserAvatar
+                        size={16}
+                        name={displayName}
+                        userUuid={owner.userUuid}
+                    />
                     <Text fz="sm" fw={600} c="ldGray.9" truncate>
                         {displayName}
                     </Text>
