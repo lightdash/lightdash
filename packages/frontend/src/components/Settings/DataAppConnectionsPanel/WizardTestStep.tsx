@@ -1,4 +1,5 @@
 import {
+    EXTERNAL_CONNECTION_METHODS,
     type CreateExternalConnection,
     type ExternalConnectionMethod,
     type ExternalConnectionSampleRequest,
@@ -7,8 +8,10 @@ import {
     Button,
     Checkbox,
     Group,
+    Select,
     Stack,
     Text,
+    Textarea,
     TextInput,
 } from '@mantine-8/core';
 import { type FC, useState } from 'react';
@@ -19,7 +22,7 @@ import { type ConnectionTestResult as ConnectionTestResultValue } from './AddCon
 type Props = {
     projectUuid: string;
     config: CreateExternalConnection;
-    method: ExternalConnectionMethod;
+    allowedMethods: ExternalConnectionMethod[];
     onTestResult: (result: ConnectionTestResultValue | null) => void;
     saveSample: boolean;
     onSaveSampleChange: (value: boolean) => void;
@@ -31,18 +34,52 @@ type Props = {
 export const WizardTestStep: FC<Props> = ({
     projectUuid,
     config,
-    method,
+    allowedMethods,
     onTestResult,
     saveSample,
     onSaveSampleChange,
 }) => {
     const [path, setPath] = useState('');
+    const [selectedMethod, setSelectedMethod] =
+        useState<ExternalConnectionMethod | null>(null);
+    const [body, setBody] = useState('');
     const testMutation = useTestConnectionConfig();
 
+    // Only the methods the connection allows can be tested — the backend rejects
+    // the rest. Kept in canonical order for a stable dropdown.
+    const methodOptions = EXTERNAL_CONNECTION_METHODS.filter((m) =>
+        allowedMethods.includes(m),
+    );
+    // Clamp to a valid choice so going back and narrowing allowedMethods can't
+    // leave a stale selection. Defaults to GET when allowed, else the first.
+    const method: ExternalConnectionMethod =
+        selectedMethod && methodOptions.includes(selectedMethod)
+            ? selectedMethod
+            : (methodOptions[0] ?? 'GET');
+
+    const bodyError = (() => {
+        if (method === 'GET' || !body.trim()) return null;
+        try {
+            JSON.parse(body);
+            return null;
+        } catch {
+            return 'Request body must be valid JSON';
+        }
+    })();
+
     const handleTest = async () => {
+        let parsedBody: unknown;
+        if (method !== 'GET' && body.trim()) {
+            try {
+                parsedBody = JSON.parse(body);
+            } catch {
+                return; // Invalid JSON — bodyError already surfaced.
+            }
+        }
         const request: ExternalConnectionSampleRequest = {
             method,
             path: path.trim() || '/',
+            ...(parsedBody !== undefined ? { body: parsedBody } : {}),
         };
         try {
             const response = await testMutation.mutateAsync({
@@ -64,18 +101,49 @@ export const WizardTestStep: FC<Props> = ({
             </Text>
 
             <Group align="flex-end" gap="xs">
+                <Select
+                    label="Method"
+                    w={110}
+                    allowDeselect={false}
+                    value={method}
+                    onChange={(v) => {
+                        if (!v) return;
+                        setSelectedMethod(v as ExternalConnectionMethod);
+                        // A result from the previous method no longer matches
+                        // the request being described — clear it.
+                        testMutation.reset();
+                        onTestResult(null);
+                    }}
+                    data={methodOptions}
+                />
                 <TextInput
                     label="Path"
-                    description={`Sent as a ${method} request, relative to the base URL`}
+                    description="Relative to the base URL"
                     placeholder="/v1/endpoint"
                     style={{ flexGrow: 1 }}
                     value={path}
                     onChange={(e) => setPath(e.currentTarget.value)}
                 />
+            </Group>
+
+            {method !== 'GET' && (
+                <Textarea
+                    label="Request body (JSON)"
+                    placeholder='{"key": "value"}'
+                    rows={4}
+                    ff="monospace"
+                    value={body}
+                    onChange={(e) => setBody(e.currentTarget.value)}
+                    error={bodyError}
+                />
+            )}
+
+            <Group>
                 <Button
                     type="button"
                     onClick={handleTest}
                     loading={testMutation.isLoading}
+                    disabled={!!bodyError}
                 >
                     Send test
                 </Button>

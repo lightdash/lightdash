@@ -29,8 +29,12 @@ export const ConnectionTestResult: FC<Props> = ({ response }) => (
             {response.truncated && <Badge color="yellow">truncated</Badge>}
         </Group>
 
-        <ScrollArea.Autosize mah={260} offsetScrollbars>
-            <Code block fz="xs">
+        <ScrollArea.Autosize mah={260} w="100%" offsetScrollbars>
+            <Code
+                block
+                fz="xs"
+                style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+            >
                 {JSON.stringify(response.body, null, 2).slice(
                     0,
                     MAX_BODY_RENDER_CHARS,

@@ -315,8 +315,6 @@ export const AddConnectionWizard: FC<Props> = ({
     });
 
     const config = toCreatePayload(form.values);
-    const testMethod: ExternalConnectionMethod =
-        form.values.allowedMethods.includes('GET') ? 'GET' : 'POST';
 
     // Going back may change the config, so a captured test result no longer
     // describes what would be created — drop it until the user re-tests.
@@ -456,7 +454,7 @@ export const AddConnectionWizard: FC<Props> = ({
                     <WizardTestStep
                         projectUuid={projectUuid}
                         config={config}
-                        method={testMethod}
+                        allowedMethods={config.allowedMethods}
                         onTestResult={setTestResult}
                         saveSample={saveSample}
                         onSaveSampleChange={setSaveSample}
