@@ -13,14 +13,19 @@ const schema: DataAppVizSchema = {
 };
 
 describe('DataAppVizResultCard', () => {
-    it('renders each declared field with label, type and required state', () => {
+    it('renders each declared field with its label and type badge', () => {
         renderWithProviders(<DataAppVizResultCard schema={schema} />);
 
         expect(screen.getByText('Source')).toBeInTheDocument();
         expect(screen.getByText('Value')).toBeInTheDocument();
         expect(screen.getByText(/dimension/i)).toBeInTheDocument();
         expect(screen.getByText(/metric/i)).toBeInTheDocument();
-        expect(screen.getByText(/required/i)).toBeInTheDocument();
+    });
+
+    it('does not badge required state on the card', () => {
+        renderWithProviders(<DataAppVizResultCard schema={schema} />);
+
+        expect(screen.queryByText(/required/i)).not.toBeInTheDocument();
     });
 
     it('renders gracefully with an empty fields array', () => {
