@@ -6894,6 +6894,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 const withVersions = await this.appModel.getAppWithVersions(
                     app.app_id,
                     projectUuid,
+                    { limit: 100 },
                 );
                 const promptMd = promptHistoryToMarkdown(
                     withVersions.versions.map((v) => ({

@@ -402,6 +402,29 @@ describe('AppGenerateService.getAppCode', () => {
         expect(semanticContent).toContain('# Semantic layer unavailable');
     });
 
+    it('passes limit: 100 to getAppWithVersions when assembling prompt history', async () => {
+        const fakeS3 = makeFakeS3(sourceTarBuffer);
+
+        const getAppWithVersionsSpy = vi
+            .fn()
+            .mockResolvedValue({ versions: [], hasMore: false });
+
+        const appModel = {
+            getApp: vi.fn().mockResolvedValue(fakeApp),
+            getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
+            getAppWithVersions: getAppWithVersionsSpy,
+        };
+
+        const svc = buildService({ appModel, s3ClientOverride: fakeS3 });
+        await svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID);
+
+        expect(getAppWithVersionsSpy).toHaveBeenCalledWith(
+            APP_UUID,
+            PROJECT_UUID,
+            { limit: 100 },
+        );
+    });
+
     it('assembles context: semantic layer, null parameters (empty), prompt history, and empty theme', async () => {
         const fakeS3 = makeFakeS3(sourceTarBuffer);
 
