@@ -235,7 +235,15 @@ export type AiAgentTargetRef =
     | { type: 'agent'; agentUuid: string }
     | { type: 'agent_config'; setting: AiAgentConfigurationSetting }
     | { type: 'product_capability'; capabilityKey: string }
-    | { type: 'runtime'; key: string };
+    | { type: 'runtime'; key: string }
+    // Content the issue was filed from (manual issues): keeps chart/dashboard
+    // provenance so the board and writeback know what the issue is about.
+    | {
+          type: 'content';
+          chartUuid: string | null;
+          dashboardUuid: string | null;
+          tileUuid: string | null;
+      };
 
 export type AiAgentEvidenceExcerpt = {
     source:
@@ -695,6 +703,8 @@ export type CreateAiAgentReviewItem = {
     assignedToUserUuid: string | null;
     primaryRootCause: AiAgentRootCause | null;
     priority: AiAgentReviewItemPriority;
+    // Explores/fields the issue is about; feeds the manual-issue writeback.
+    targetRefs: AiAgentTargetRef[];
 };
 
 export type UpdateAiAgentReviewItemPriority = {

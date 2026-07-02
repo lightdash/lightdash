@@ -1,11 +1,13 @@
 import {
     type AiAgentReviewItemPriority,
     type AiAgentRootCause,
+    type AiAgentTargetRef,
 } from '@lightdash/common';
 import {
     Badge,
     Button,
     Group,
+    MultiSelect,
     Select,
     Stack,
     Text,
@@ -22,6 +24,7 @@ import { useMemo, useState, type FC, type FormEvent } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { useDashboardQuery } from '../../../../../hooks/dashboard/useDashboard';
+import { useExplores } from '../../../../../hooks/useExplores';
 import { useProjects } from '../../../../../hooks/useProjects';
 import { useSavedQuery } from '../../../../../hooks/useSavedQuery';
 import {
@@ -109,12 +112,28 @@ export const CreateIssueModal: FC<Props> = ({ opened, onClose, context }) => {
         context?.projectUuid ?? null,
     );
     const [agentUuid, setAgentUuid] = useState<string | null>(null);
+    const [targetExploreNamesOverride, setTargetExploreNamesOverride] =
+        useState<string[] | null>(null);
     const [suggestionReasoning, setSuggestionReasoning] = useState<
         string | null
     >(null);
     const [primaryRootCause, setPrimaryRootCause] =
         useState<AiAgentRootCause | null>(null);
     const [priority, setPriority] = useState<AiAgentReviewItemPriority>('none');
+
+    const { data: explores = [] } = useExplores(projectUuid ?? undefined);
+    const { data: seedChart } = useSavedQuery({
+        uuidOrSlug: context?.chartUuid,
+        projectUuid: context?.projectUuid,
+    });
+
+    // Seed the related explores with the chart's base explore when filing from
+    // a chart, so the writeback starts from the right model. Derived, not
+    // effect-synced: once the user edits the multiselect their override wins,
+    // so a late-resolving chart query can't clobber it.
+    const targetExploreNames =
+        targetExploreNamesOverride ??
+        (seedChart?.tableName ? [seedChart.tableName] : []);
 
     const projectLocked = !!context?.projectUuid;
 
@@ -129,11 +148,21 @@ export const CreateIssueModal: FC<Props> = ({ opened, onClose, context }) => {
         [agents, projectUuid],
     );
 
+    const exploreOptions = useMemo(
+        () =>
+            explores.map((explore) => ({
+                value: explore.name,
+                label: explore.label,
+            })),
+        [explores],
+    );
+
     const resetForm = () => {
         setTitle('');
         setDescription('');
         setProjectUuid(context?.projectUuid ?? null);
         setAgentUuid(null);
+        setTargetExploreNamesOverride(null);
         setSuggestionReasoning(null);
         setPrimaryRootCause(null);
         setPriority('none');
@@ -165,6 +194,18 @@ export const CreateIssueModal: FC<Props> = ({ opened, onClose, context }) => {
     const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         if (!projectUuid || title.trim().length === 0) return;
+        const targetRefs: AiAgentTargetRef[] = targetExploreNames.map(
+            (name) => ({ type: 'explore', modelName: name, exploreName: name }),
+        );
+        // Persist which content the issue was filed from, not just its explores.
+        if (context && (context.chartUuid || context.dashboardUuid)) {
+            targetRefs.push({
+                type: 'content',
+                chartUuid: context.chartUuid ?? null,
+                dashboardUuid: context.dashboardUuid ?? null,
+                tileUuid: context.tileUuid ?? null,
+            });
+        }
         createIssue.mutate(
             {
                 title: title.trim(),
@@ -174,6 +215,7 @@ export const CreateIssueModal: FC<Props> = ({ opened, onClose, context }) => {
                 assignedToUserUuid: null,
                 primaryRootCause,
                 priority,
+                targetRefs,
             },
             {
                 onSuccess: () => {
@@ -228,10 +270,22 @@ export const CreateIssueModal: FC<Props> = ({ opened, onClose, context }) => {
                         onChange={(value) => {
                             setProjectUuid(value);
                             setAgentUuid(null);
+                            setTargetExploreNamesOverride([]);
                         }}
                         searchable
                         required
                         disabled={projectLocked}
+                    />
+                    <MultiSelect
+                        label="Related explores"
+                        description="Which models this issue is about — guides the fix."
+                        data={exploreOptions}
+                        value={targetExploreNames}
+                        onChange={setTargetExploreNamesOverride}
+                        searchable
+                        clearable
+                        disabled={!projectUuid}
+                        nothingFoundMessage="No explores"
                     />
                     <Stack gap={4}>
                         <Group

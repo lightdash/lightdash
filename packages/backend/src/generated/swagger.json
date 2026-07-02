@@ -1740,6 +1740,10 @@
                         },
                         "type": "array"
                     },
+                    "instructions": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "origin": {
                         "type": "string"
                     },
@@ -1774,6 +1778,7 @@
                     "allowedContentTypes",
                     "allowedMethods",
                     "allowedPathPrefixes",
+                    "instructions",
                     "origin",
                     "type",
                     "name",
@@ -1851,6 +1856,10 @@
                         },
                         "type": "array"
                     },
+                    "instructions": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "origin": {
                         "type": "string"
                     },
@@ -1899,6 +1908,10 @@
                     },
                     "origin": {
                         "type": "string"
+                    },
+                    "instructions": {
+                        "type": "string",
+                        "nullable": true
                     },
                     "allowedPathPrefixes": {
                         "items": {
@@ -11648,6 +11661,9 @@
             },
             "DataAppManifest": {
                 "properties": {
+                    "scaffoldingVersion": {
+                        "type": "string"
+                    },
                     "downloadedAt": {
                         "type": "string"
                     },
@@ -15631,6 +15647,34 @@
                             }
                         },
                         "required": ["key", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "tileUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "dashboardUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "chartUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["content"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "tileUuid",
+                            "dashboardUuid",
+                            "chartUuid",
+                            "type"
+                        ],
                         "type": "object"
                     }
                 ]
@@ -23723,6 +23767,12 @@
             },
             "CreateAiAgentReviewItem": {
                 "properties": {
+                    "targetRefs": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentTargetRef"
+                        },
+                        "type": "array"
+                    },
                     "priority": {
                         "$ref": "#/components/schemas/AiAgentReviewItemPriority"
                     },
@@ -23754,6 +23804,7 @@
                     }
                 },
                 "required": [
+                    "targetRefs",
                     "priority",
                     "primaryRootCause",
                     "assignedToUserUuid",

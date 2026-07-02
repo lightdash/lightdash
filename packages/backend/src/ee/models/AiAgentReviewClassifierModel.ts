@@ -220,6 +220,7 @@ type CreateManualReviewItemArgs = {
     assignedToUserUuid: string | null;
     primaryRootCause: AiAgentRootCause | null;
     priority: AiAgentReviewItemPriority;
+    targetRefs: AiAgentTargetRef[];
     createdByUserUuid: string | null;
 };
 
@@ -1307,6 +1308,8 @@ export class AiAgentReviewClassifierModel {
                 description: args.description,
                 primary_root_cause: args.primaryRootCause,
                 priority: args.priority,
+                target_refs:
+                    args.targetRefs.length > 0 ? args.targetRefs : null,
                 status: 'open',
                 assigned_to_user_uuid: args.assignedToUserUuid,
                 created_by_user_uuid: args.createdByUserUuid,

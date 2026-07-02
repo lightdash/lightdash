@@ -245,6 +245,7 @@ export type DbAiAgentReviewItem = {
     description: string | null;
     primary_root_cause: AiAgentRootCause | null;
     priority: AiAgentReviewItemPriority;
+    target_refs: AiAgentTargetRef[] | null;
     status: AiAgentReviewItemStatus;
     dismissed_reason: AiAgentReviewItemDismissedReason | null;
     assigned_to_user_uuid: string | null;
