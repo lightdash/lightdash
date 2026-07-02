@@ -6894,6 +6894,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 const withVersions = await this.appModel.getAppWithVersions(
                     app.app_id,
                     projectUuid,
+                    { limit: 100 },
                 );
                 const promptMd = promptHistoryToMarkdown(
                     withVersions.versions.map((v) => ({
@@ -6991,6 +6992,19 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 existingApp,
                 'You do not have access to update this app',
             );
+            const nameChanged = code.manifest.name !== existingApp.name;
+            const descChanged =
+                code.manifest.description !== existingApp.description;
+            if (nameChanged || descChanged) {
+                const update: Partial<Pick<DbApp, 'name' | 'description'>> = {};
+                if (nameChanged) update.name = code.manifest.name;
+                if (descChanged) update.description = code.manifest.description;
+                await this.appModel.updateApp(
+                    existingApp.app_id,
+                    projectUuid,
+                    update,
+                );
+            }
             newAppUuid = existingApp.app_id;
             const latestVersion = await this.appModel.getLatestVersion(
                 existingApp.app_id,
