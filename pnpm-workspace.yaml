@@ -53,6 +53,8 @@ minimumReleaseAgeExclude:
   - vite@7.3.5
   # Renovate security update: undici@6.27.0
   - undici@6.27.0
+  # Renovate security update: scim-patch@0.9.1
+  - scim-patch@0.9.1
 
 overrides:
   '@typescript/typescript6>typescript': 6.0.3
