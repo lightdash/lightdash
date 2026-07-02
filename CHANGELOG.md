@@ -1,3 +1,10 @@
+## [0.3300.1](https://github.com/lightdash/lightdash/compare/0.3300.0...0.3300.1) (2026-07-02)
+
+
+### Bug Fixes
+
+* **dashboard:** scope chart tile description tooltip to title text ([#25106](https://github.com/lightdash/lightdash/issues/25106)) ([b13d61e](https://github.com/lightdash/lightdash/commit/b13d61e860b631ee5379f4e90bd6a57c2e1de95e)), closes [/linear.app/lightdash/issue/PROD-8549/dashboard-chart-tile-description-tooltip-hover-area-is-too-large#agent-session-4cc923f2](https://github.com//linear.app/lightdash/issue/PROD-8549/dashboard-chart-tile-description-tooltip-hover-area-is-too-large/issues/agent-session-4cc923f2)
+
 # [0.3300.0](https://github.com/lightdash/lightdash/compare/0.3299.0...0.3300.0) (2026-07-02)
 
 
