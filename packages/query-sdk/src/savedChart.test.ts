@@ -206,3 +206,211 @@ describe('executeSavedChart filters payload', () => {
         expect(calls[0].body).not.toHaveProperty('filters');
     });
 });
+
+describe('executeSavedChart downloads', () => {
+    const makeAdapter =
+        (
+            calls: Array<{ method: string; path: string; body?: unknown }>,
+        ): FetchAdapter =>
+        async <T>(method: string, path: string, body?: unknown): Promise<T> => {
+            calls.push({ method, path, body });
+            if (method === 'POST' && path.endsWith('/query/chart')) {
+                return { queryUuid: 'q-1', metricQuery: {}, fields: {} } as T;
+            }
+            if (method === 'POST' && path.includes('/schedule-download')) {
+                return { jobId: 'job-1' } as T;
+            }
+            if (method === 'GET' && path.includes('/schedulers/job/')) {
+                return {
+                    status: 'completed',
+                    details: { fileUrl: 'http://f/x.csv' },
+                } as T;
+            }
+            return {
+                status: 'ready',
+                columns: {},
+                rows: [],
+                totalResults: 0,
+                nextPage: undefined,
+            } as T;
+        };
+
+    it('schedules a download for the existing query run (table limit)', async () => {
+        const calls: Array<{ method: string; path: string; body?: unknown }> =
+            [];
+        const transport = createApiTransport(
+            { apiKey: '', baseUrl: '', projectUuid: 'p-1' },
+            makeAdapter(calls),
+        );
+        const result = await transport.executeSavedChart({ chartUuid: 'c-1' });
+        expect(result.downloadResults).toBeDefined();
+        const dl = await result.downloadResults!({ fileType: 'csv' });
+        expect(dl.fileUrl).toBe('http://f/x.csv');
+        expect(
+            calls.some(
+                (c) =>
+                    c.method === 'POST' &&
+                    c.path ===
+                        '/api/v2/projects/p-1/query/q-1/schedule-download',
+            ),
+        ).toBe(true);
+        const chartPosts = calls.filter(
+            (c) => c.method === 'POST' && c.path.endsWith('/query/chart'),
+        );
+        expect(chartPosts).toHaveLength(1);
+    });
+
+    it("re-runs the chart with the limit override for 'all'", async () => {
+        const calls: Array<{ method: string; path: string; body?: unknown }> =
+            [];
+        const transport = createApiTransport(
+            { apiKey: '', baseUrl: '', projectUuid: 'p-1' },
+            makeAdapter(calls),
+        );
+        const result = await transport.executeSavedChart({
+            chartUuid: 'c-1',
+            filters: [
+                {
+                    fieldId: 'orders_status',
+                    operator: 'equals',
+                    values: ['done'],
+                    settings: null,
+                },
+            ],
+            parameters: { region: 'US' },
+        });
+        await result.downloadResults!({ limit: 'all' });
+        const chartPosts = calls.filter(
+            (c) => c.method === 'POST' && c.path.endsWith('/query/chart'),
+        );
+        expect(chartPosts).toHaveLength(2);
+        // rerun keeps the filters and overrides the limit
+        expect(chartPosts[1].body).toMatchObject({
+            chartUuid: 'c-1',
+            limit: expect.any(Number),
+            filters: expect.any(Object),
+            parameters: { region: 'US' },
+        });
+    });
+});
+
+describe('executeSavedChart underlying data', () => {
+    const chartMetricQuery = {
+        exploreName: 'orders',
+        dimensions: ['orders_status'],
+        metrics: ['orders_revenue'],
+        filters: {
+            dimensions: {
+                id: 'chart-root',
+                and: [
+                    {
+                        id: 'chart-0',
+                        target: { fieldId: 'orders_region' },
+                        operator: 'equals',
+                        values: ['EU'],
+                    },
+                ],
+            },
+            metrics: {
+                id: 'chart-metrics-root',
+                and: [
+                    {
+                        id: 'chart-metrics-0',
+                        target: { fieldId: 'orders_revenue' },
+                        operator: 'greaterThan',
+                        values: [10000],
+                    },
+                ],
+            },
+        },
+    };
+
+    const makeAdapter =
+        (
+            calls: Array<{ method: string; path: string; body?: unknown }>,
+        ): FetchAdapter =>
+        async <T>(method: string, path: string, body?: unknown): Promise<T> => {
+            calls.push({ method, path, body });
+            if (method === 'POST' && path.endsWith('/query/chart')) {
+                return {
+                    queryUuid: 'q-1',
+                    metricQuery: chartMetricQuery,
+                    fields: {},
+                } as T;
+            }
+            if (method === 'POST' && path.endsWith('/query/underlying-data')) {
+                return { queryUuid: 'q-under', fields: {} } as T;
+            }
+            return {
+                status: 'ready',
+                columns: {
+                    orders_status: {
+                        reference: 'orders_status',
+                        type: 'string',
+                    },
+                    orders_revenue: {
+                        reference: 'orders_revenue',
+                        type: 'number',
+                    },
+                },
+                rows: [
+                    {
+                        orders_status: {
+                            value: { raw: 'done', formatted: 'done' },
+                        },
+                        orders_revenue: { value: { raw: 10, formatted: '10' } },
+                    },
+                ],
+                totalResults: 1,
+                nextPage: undefined,
+            } as T;
+        };
+
+    it('builds the underlying-data body from the response metricQuery', async () => {
+        const calls: Array<{ method: string; path: string; body?: unknown }> =
+            [];
+        const transport = createApiTransport(
+            { apiKey: '', baseUrl: '', projectUuid: 'p-1' },
+            makeAdapter(calls),
+        );
+        const result = await transport.executeSavedChart({ chartUuid: 'c-1' });
+        expect(result.getUnderlyingData).toBeDefined();
+        await result.getUnderlyingData!({
+            metric: 'orders_revenue',
+            row: result.rows[0],
+        });
+        const underlyingPost = calls.find((c) =>
+            c.path.endsWith('/query/underlying-data'),
+        );
+        expect(underlyingPost).toBeDefined();
+        expect(underlyingPost!.body).toMatchObject({
+            context: 'viewUnderlyingData',
+            underlyingDataSourceQueryUuid: 'q-1',
+            underlyingDataItemId: 'orders_revenue',
+        });
+        const body = underlyingPost!.body as {
+            filters: { dimensions: { and: unknown[] }; metrics?: unknown };
+        };
+        const { and } = body.filters.dimensions;
+        // chart's own dimension filter group survives NESTED, not flattened...
+        expect(and[0]).toEqual(chartMetricQuery.filters.dimensions);
+        // ...and the clicked row pins the dimension value
+        expect(JSON.stringify(and)).toContain('orders_status');
+        expect(JSON.stringify(and)).toContain('done');
+        // the chart's metric (HAVING) filters must never leak into a drill-down
+        expect(body.filters).not.toHaveProperty('metrics');
+    });
+
+    it('rejects a metric not present in the chart', async () => {
+        const calls: Array<{ method: string; path: string; body?: unknown }> =
+            [];
+        const transport = createApiTransport(
+            { apiKey: '', baseUrl: '', projectUuid: 'p-1' },
+            makeAdapter(calls),
+        );
+        const result = await transport.executeSavedChart({ chartUuid: 'c-1' });
+        await expect(
+            result.getUnderlyingData!({ metric: 'not_a_metric', row: {} }),
+        ).rejects.toThrow(/not a metric/);
+    });
+});
