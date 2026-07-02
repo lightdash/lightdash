@@ -697,6 +697,100 @@ describe('DuckdbWarehouseClient', () => {
             expect(streamMock).not.toHaveBeenCalled();
         });
 
+        describe('allowedReadParquetUriPrefixes', () => {
+            const ALLOWED_PREFIX = 's3://bucket/events/compacted/';
+            const newClientWithPrefix = () =>
+                new DuckdbWarehouseClient(undefined, {
+                    allowedReadParquetUriPrefixes: [ALLOWED_PREFIX],
+                });
+
+            it('should allow read_parquet with a literal uri under an allowed prefix', async () => {
+                const streamMock = vi.fn(async () =>
+                    getMockStreamResult(
+                        [[{ val: 1 }]],
+                        [DUCKDB_TYPE_IDS.INTEGER],
+                    ),
+                );
+                createInstanceMock.mockResolvedValue(
+                    createMockConnection(streamMock),
+                );
+
+                const client = newClientWithPrefix();
+                await client.runQuery(
+                    "SELECT * FROM read_parquet('s3://bucket/events/compacted/org_id=abc/**/*.parquet', hive_partitioning=true, union_by_name=true) AS t",
+                );
+                expect(streamMock).toHaveBeenCalled();
+            });
+
+            it('should reject read_parquet with a literal uri outside allowed prefixes', async () => {
+                const streamMock = vi.fn();
+                createInstanceMock.mockResolvedValue(
+                    createMockConnection(streamMock),
+                );
+
+                const client = newClientWithPrefix();
+                await expect(
+                    client.runQuery(
+                        "SELECT * FROM read_parquet('s3://bucket/other/file.parquet')",
+                    ),
+                ).rejects.toThrow(
+                    "SQL validation error: function 'read_parquet' is not allowed",
+                );
+                expect(streamMock).not.toHaveBeenCalled();
+            });
+
+            it('should reject read_parquet with a non-literal uri even when prefixed', async () => {
+                const streamMock = vi.fn();
+                createInstanceMock.mockResolvedValue(
+                    createMockConnection(streamMock),
+                );
+
+                const client = newClientWithPrefix();
+                await expect(
+                    client.runQuery(
+                        "SELECT * FROM read_parquet('s3://bucket/events/compacted/' || secret)",
+                    ),
+                ).rejects.toThrow(
+                    "SQL validation error: function 'read_parquet' is not allowed",
+                );
+                expect(streamMock).not.toHaveBeenCalled();
+            });
+
+            it('should reject read_parquet with a list uri argument', async () => {
+                const streamMock = vi.fn();
+                createInstanceMock.mockResolvedValue(
+                    createMockConnection(streamMock),
+                );
+
+                const client = newClientWithPrefix();
+                await expect(
+                    client.runQuery(
+                        "SELECT * FROM read_parquet(['s3://bucket/events/compacted/a.parquet'])",
+                    ),
+                ).rejects.toThrow(
+                    "SQL validation error: function 'read_parquet' is not allowed",
+                );
+                expect(streamMock).not.toHaveBeenCalled();
+            });
+
+            it('should still reject other file readers when prefixes are configured', async () => {
+                const streamMock = vi.fn();
+                createInstanceMock.mockResolvedValue(
+                    createMockConnection(streamMock),
+                );
+
+                const client = newClientWithPrefix();
+                await expect(
+                    client.runQuery(
+                        "SELECT * FROM read_csv('s3://bucket/events/compacted/a.csv')",
+                    ),
+                ).rejects.toThrow(
+                    "SQL validation error: function 'read_csv' is not allowed",
+                );
+                expect(streamMock).not.toHaveBeenCalled();
+            });
+        });
+
         it('should reject user queries that use file table paths', async () => {
             const streamMock = vi.fn(async () =>
                 getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),

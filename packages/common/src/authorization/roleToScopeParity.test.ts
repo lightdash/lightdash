@@ -80,6 +80,7 @@ const ENTERPRISE_SUBJECTS = new Set([
     'AiAgentThread',
     'ContentAsCode',
     'PreAggregation',
+    'SystemAnalytics',
     'ExternalConnection',
     // The matching scopes (`view:` + `manage:OrganizationWarehouseCredentials`)
     // are `isEnterprise: true` in scopes.ts, so the scope-build path
@@ -138,6 +139,7 @@ const PROJECT_PARITY_IGNORE = new Set([
     '*:GitIntegration',
     '*:OrganizationWarehouseCredentials',
     '*:User', // impersonate:User
+    '*:SystemAnalytics', // org-admin only, granted at org-level assignment
 
     // Case 2: granular actions subsumed by project's broader `manage:X`.
     'create:Job',

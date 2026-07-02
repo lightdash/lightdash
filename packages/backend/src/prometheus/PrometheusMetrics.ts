@@ -1094,7 +1094,7 @@ export default class PrometheusMetrics {
 
     public observeS3ResultsUploadDuration(
         durationMs: number,
-        source: 'warehouse' | 'pre_aggregate_duckdb',
+        source: 'warehouse' | 'pre_aggregate_duckdb' | 'system_duckdb',
     ) {
         this.s3ResultsUploadDurationHistogram?.observe(
             { source },

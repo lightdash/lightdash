@@ -138,6 +138,13 @@ export type DuckdbWarehouseClientOptions = {
     instanceCacheKey?: string;
     logger?: DuckdbLogger;
     onQueryProfile?: (profile: DuckdbQueryProfileMetrics) => void;
+    /**
+     * Server-generated `read_parquet('<uri>', ...)` FROM targets whose uri is
+     * a single string literal starting with one of these prefixes pass the
+     * user-SQL file access validation. Everything else (other file readers,
+     * non-literal uris, other prefixes) stays blocked.
+     */
+    allowedReadParquetUriPrefixes?: string[];
 };
 
 export const mapFieldTypeFromTypeId = (typeId: number): DimensionType => {
@@ -327,6 +334,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         profile: DuckdbQueryProfileMetrics,
     ) => void;
 
+    private readonly allowedReadParquetUriPrefixes: string[];
+
     constructor(
         credentials?: CreateDuckdbCredentials | DuckdbConnectionCredentials,
         options?: DuckdbWarehouseClientOptions,
@@ -415,6 +424,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             options?.instanceCacheKey ?? ducklakeAutoCacheKey;
         this.logger = options?.logger;
         this.onQueryProfile = options?.onQueryProfile;
+        this.allowedReadParquetUriPrefixes =
+            options?.allowedReadParquetUriPrefixes ?? [];
     }
 
     private static hashDucklakeConfig(
@@ -1443,8 +1454,32 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         }
     }
 
-    private static validateUserSqlFileAccess(sql: string): void {
-        const stripped = DuckdbWarehouseClient.stripSqlComments(sql);
+    /**
+     * Blanks out `read_parquet('<literal uri>' [,...)])` calls whose uri
+     * starts with an allowed prefix so the file-access blocklist below does
+     * not reject server-generated FROM targets (e.g. system usage-analytics
+     * explores). The literal must be the complete first argument — dynamic
+     * uris (concatenation, subqueries, lists) are never allowed.
+     */
+    private sanitizeAllowedReadParquetCalls(sql: string): string {
+        if (this.allowedReadParquetUriPrefixes.length === 0) {
+            return sql;
+        }
+        return sql.replace(
+            /\bread_parquet(\s*\(\s*'([^']*)')(?=\s*[,)])/gi,
+            (match, rest, uri) =>
+                this.allowedReadParquetUriPrefixes.some((prefix) =>
+                    uri.startsWith(prefix),
+                )
+                    ? `allowed_read_parquet${rest}`
+                    : match,
+        );
+    }
+
+    private validateUserSqlFileAccess(sql: string): void {
+        const stripped = this.sanitizeAllowedReadParquetCalls(
+            DuckdbWarehouseClient.stripSqlComments(sql),
+        );
         const functionMatch = stripped.match(
             BLOCKED_USER_SQL_FILE_FUNCTION_PATTERN,
         );
@@ -1466,7 +1501,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         sql: string,
     ): Promise<void> {
         DuckdbWarehouseClient.validateSqlFunctions(sql);
-        DuckdbWarehouseClient.validateUserSqlFileAccess(sql);
+        this.validateUserSqlFileAccess(sql);
 
         const extracted = await db.extractStatements(sql);
 
