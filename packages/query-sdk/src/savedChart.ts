@@ -1,7 +1,9 @@
+import { toInternalFilters } from './filterConversion';
 import type {
     AdditionalMetric,
     CustomDimension,
     Filter,
+    InternalFilterDefinition,
     ParametersValuesMap,
     Sort,
     TableCalculation,
@@ -20,9 +22,10 @@ import type {
  * below exists and is chainable.
  *
  * A saved chart's structure is governed by the chart itself, so the structural
- * methods (dimensions/metrics/filters/sorts/table-calcs/additional-metrics/
- * custom-dimensions) are accepted but IGNORED. Only `.label()`, `.limit()` and
- * `.parameters()` affect the run — the `/query/chart` endpoint supports them.
+ * methods (dimensions/metrics/sorts/table-calcs/additional-metrics/
+ * custom-dimensions) are accepted but IGNORED. `.label()`, `.limit()`,
+ * `.parameters()` and `.filters()` affect the run — the `/query/chart`
+ * endpoint supports them.
  *
  * If you add a method to `QueryBuilder`, add it here too (see savedChart.test.ts,
  * which chains every QueryBuilder method to guard against a missing one).
@@ -36,16 +39,18 @@ export type SavedChartQuery = {
     limitValue?: number;
     /** Captured `.parameters()` values — sent to /query/chart. */
     parameterValues?: ParametersValuesMap;
+    /** Captured .filters() — ANDed onto the chart's filters server-side. Field ids are qualified (e.g. orders_status). */
+    filterValues?: InternalFilterDefinition[];
 
     // Honored (the /query/chart endpoint supports these):
     label: (name: string) => SavedChartQuery;
     limit: (n: number) => SavedChartQuery;
     parameters: (map: ParametersValuesMap) => SavedChartQuery;
+    filters: (filters: Filter[]) => SavedChartQuery;
 
     // Accepted but ignored — a saved chart's structure is fixed by the chart:
     dimensions: (fields: string[]) => SavedChartQuery;
     metrics: (fields: string[]) => SavedChartQuery;
-    filters: (filters: Filter[]) => SavedChartQuery;
     sorts: (sorts: Sort[]) => SavedChartQuery;
     tableCalculations: (calcs: TableCalculation[]) => SavedChartQuery;
     additionalMetrics: (metrics: AdditionalMetric[]) => SavedChartQuery;
@@ -57,12 +62,10 @@ type SavedChartState = {
     labelText?: string;
     limitValue?: number;
     parameterValues?: ParametersValuesMap;
+    filterValues?: InternalFilterDefinition[];
 };
 
-export function savedChart(
-    chartUuid: string,
-    label?: string,
-): SavedChartQuery {
+export function savedChart(chartUuid: string, label?: string): SavedChartQuery {
     const build = (state: SavedChartState): SavedChartQuery => {
         const self: SavedChartQuery = {
             kind: 'savedChart',
@@ -70,19 +73,30 @@ export function savedChart(
             labelText: state.labelText,
             limitValue: state.limitValue,
             parameterValues: state.parameterValues,
+            filterValues: state.filterValues,
 
             label: (name) => build({ ...state, labelText: name }),
             limit: (n) => build({ ...state, limitValue: n }),
             parameters: (map) =>
                 build({
                     ...state,
-                    parameterValues: { ...(state.parameterValues ?? {}), ...map },
+                    parameterValues: {
+                        ...(state.parameterValues ?? {}),
+                        ...map,
+                    },
+                }),
+            filters: (fs) =>
+                build({
+                    ...state,
+                    filterValues: [
+                        ...(state.filterValues ?? []),
+                        ...toInternalFilters(fs),
+                    ],
                 }),
 
             // Structural methods: chainable no-ops (governed by the saved chart).
             dimensions: () => self,
             metrics: () => self,
-            filters: () => self,
             sorts: () => self,
             tableCalculations: () => self,
             additionalMetrics: () => self,
@@ -91,4 +105,11 @@ export function savedChart(
         return self;
     };
     return build({ chartUuid, labelText: label });
+}
+
+/** Identity key for a saved-chart query — anything that changes the run must change the key. */
+export function savedChartQueryKey(q: SavedChartQuery): string {
+    return `savedChart:${q.chartUuid}:${q.limitValue ?? ''}:${JSON.stringify(
+        q.parameterValues ?? {},
+    )}:${JSON.stringify(q.filterValues ?? [])}`;
 }
