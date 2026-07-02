@@ -1,3 +1,10 @@
+# [0.3293.0](https://github.com/lightdash/lightdash/compare/0.3292.1...0.3293.0) (2026-07-02)
+
+
+### Features
+
+* **apps:** render data app viz schema as a result card in the generator ([#25039](https://github.com/lightdash/lightdash/issues/25039)) ([c173beb](https://github.com/lightdash/lightdash/commit/c173bebbb2cd8ee26b5ac08a55f013302a292fd5))
+
 ## [0.3292.1](https://github.com/lightdash/lightdash/compare/0.3292.0...0.3292.1) (2026-07-02)
 
 
