@@ -23,6 +23,7 @@ import FormSection from '../../ProjectConnection/Inputs/FormSection';
 export type ExternalConnectionFormValues = {
     name: string;
     origin: string;
+    instructions: string;
     type: 'none' | 'api_key' | 'bearer_token';
     secret: string;
     apiKeyName: string;

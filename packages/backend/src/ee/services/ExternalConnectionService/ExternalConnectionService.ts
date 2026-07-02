@@ -278,6 +278,10 @@ export class ExternalConnectionService extends BaseService {
             {
                 type: data.type ?? existing.type,
                 origin: data.origin ?? existing.origin,
+                instructions:
+                    data.instructions !== undefined
+                        ? data.instructions
+                        : existing.instructions,
                 allowedPathPrefixes:
                     data.allowedPathPrefixes ?? existing.allowedPathPrefixes,
                 allowedMethods: data.allowedMethods ?? existing.allowedMethods,
@@ -1042,6 +1046,7 @@ export class ExternalConnectionService extends BaseService {
             name: data.name,
             type: data.type,
             origin: data.origin,
+            instructions: data.instructions ?? null,
             allowedPathPrefixes: data.allowedPathPrefixes,
             allowedMethods: data.allowedMethods,
             allowedContentTypes: data.allowedContentTypes,

@@ -61,6 +61,7 @@ export class ExternalConnectionModel {
             name: row.name,
             type: row.type,
             origin: row.origin,
+            instructions: row.instructions,
             allowedPathPrefixes: row.allowed_path_prefixes,
             allowedMethods: row.allowed_methods,
             allowedContentTypes: row.allowed_content_types,
@@ -107,6 +108,7 @@ export class ExternalConnectionModel {
                     name: data.name,
                     type: data.type,
                     origin: data.origin,
+                    instructions: data.instructions ?? null,
                     allowed_path_prefixes: JSON.stringify(
                         data.allowedPathPrefixes,
                     ),
@@ -178,6 +180,7 @@ export class ExternalConnectionModel {
                         name: src.name,
                         type: src.type,
                         origin: src.origin,
+                        instructions: src.instructions,
                         allowed_path_prefixes: JSON.stringify(
                             src.allowed_path_prefixes,
                         ),
@@ -372,6 +375,8 @@ export class ExternalConnectionModel {
             if (data.name !== undefined) updatePayload.name = data.name;
             if (data.type !== undefined) updatePayload.type = data.type;
             if (data.origin !== undefined) updatePayload.origin = data.origin;
+            if (data.instructions !== undefined)
+                updatePayload.instructions = data.instructions;
             if (data.allowedPathPrefixes !== undefined)
                 updatePayload.allowed_path_prefixes = JSON.stringify(
                     data.allowedPathPrefixes,

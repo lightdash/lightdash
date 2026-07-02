@@ -19,6 +19,7 @@ export type DbExternalConnection = {
     name: string;
     type: ExternalConnectionAuthType;
     origin: string;
+    instructions: string | null;
     allowed_path_prefixes: string[];
     allowed_methods: ExternalConnectionMethod[];
     allowed_content_types: string[];
@@ -49,6 +50,7 @@ export type ExternalConnectionsTable = Knex.CompositeTableType<
             Pick<
                 DbExternalConnection,
                 | 'external_connection_uuid'
+                | 'instructions'
                 | 'response_max_bytes'
                 | 'request_max_bytes'
                 | 'timeout_ms'
@@ -65,6 +67,7 @@ export type ExternalConnectionsTable = Knex.CompositeTableType<
             | 'name'
             | 'type'
             | 'origin'
+            | 'instructions'
             | 'response_max_bytes'
             | 'request_max_bytes'
             | 'timeout_ms'
