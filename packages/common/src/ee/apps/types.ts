@@ -238,6 +238,11 @@ export type AppVersionResources = {
     // history reflects which theme was active even if it was later renamed
     // or deleted.
     design?: AppVersionDesignSnapshot | null;
+    // The viz declaration (fields + configOptions) for a data_app_viz version,
+    // sourced from app_versions.viz_schema. Null/absent for non-viz versions or
+    // versions whose generation emitted no valid schema. Optional for rows
+    // predating this field.
+    vizSchema?: DataAppVizSchema | null;
 };
 
 export type ApiAppImageUrlResponse = ApiSuccess<{

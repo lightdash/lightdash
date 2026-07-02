@@ -11256,6 +11256,14 @@
             },
             "AppVersionResources": {
                 "properties": {
+                    "vizSchema": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DataAppVizSchema"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "design": {
                         "allOf": [
                             {

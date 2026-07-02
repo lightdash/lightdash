@@ -3290,7 +3290,7 @@ export class AppGenerateService extends BaseService {
                 version,
                 'ready',
                 null,
-                responseText,
+                isDataAppViz ? 'Visualization ready' : responseText,
             );
             durations.dbMs = AppGenerateService.elapsed(dbStart);
             if (!updated) {
@@ -5585,14 +5585,24 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 status: v.status,
                 statusMessage: v.status_message,
                 error: v.error,
-                // Backfill `clarifications` for rows persisted before the
-                // field existed on `resources`.
-                resources: v.resources
-                    ? {
-                          ...v.resources,
-                          clarifications: v.resources.clarifications ?? [],
-                      }
-                    : null,
+                // Attach `vizSchema` even when `resources` JSONB is null (a
+                // viz with no other attachments) — never drop existing
+                // resources fields, and backfill `clarifications` for rows
+                // persisted before the field existed on `resources`.
+                resources:
+                    v.resources || v.viz_schema
+                        ? {
+                              images: v.resources?.images ?? [],
+                              charts: v.resources?.charts ?? [],
+                              externalConnections:
+                                  v.resources?.externalConnections,
+                              dashboardName: v.resources?.dashboardName ?? null,
+                              clarifications: v.resources?.clarifications ?? [],
+                              claudeModel: v.resources?.claudeModel,
+                              design: v.resources?.design,
+                              vizSchema: v.viz_schema ?? null,
+                          }
+                        : null,
                 createdAt: v.created_at,
                 statusUpdatedAt: v.status_updated_at,
                 // LEFT JOIN may miss for hard-deleted users — collapse the
