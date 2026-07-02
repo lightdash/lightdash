@@ -52,6 +52,7 @@ import {
     capListedApps,
     classifyAppUpload,
     ensureDownloadedAppContext,
+    manifestRetargetHint,
     MAX_INCLUDE_APPS,
     selectAppsToDownload,
     shouldWarnAllSkipped,
@@ -1979,7 +1980,7 @@ export const uploadHandler = async (
                             ]);
                             if (!confirmed) {
                                 GlobalState.log(
-                                    `Skipped "${subDir.name}" (cross-project create declined). Pass --create-new to make this explicit.`,
+                                    `Skipped "${subDir.name}" (cross-project create declined). Pass --create-new to make this explicit. If this app was already moved to the target project, set appUuid and projectUuid in lightdash-app.yml to the moved app instead.`,
                                 );
                                 appsSkipped += 1;
                                 // eslint-disable-next-line no-continue
@@ -1988,7 +1989,7 @@ export const uploadHandler = async (
                         } else {
                             GlobalState.log(
                                 styles.error(
-                                    `Cannot upload "${subDir.name}": its manifest targets project ${code.manifest.projectUuid} but you are uploading to project ${projectId}. Pass --create-new to create a new app in the target project.`,
+                                    `Cannot upload "${subDir.name}": its manifest targets project ${code.manifest.projectUuid} but you are uploading to project ${projectId}. Pass --create-new to create a new app in the target project. If this app was already moved there, set appUuid and projectUuid in lightdash-app.yml to the moved app instead.`,
                                 ),
                             );
                             appsFailed += 1;
@@ -2036,7 +2037,7 @@ export const uploadHandler = async (
                                 {
                                     type: 'confirm',
                                     name: 'retarget',
-                                    message: `Update ${subDir.name}/lightdash-app.yml to target the new app, so future uploads update it?`,
+                                    message: `Update ${subDir.name}/lightdash-app.yml to target the new app? This sets appUuid ${appUuid}, projectUuid ${projectId}, version ${version} — future uploads will update this app.`,
                                     default: true,
                                 },
                             ]);
@@ -2049,14 +2050,28 @@ export const uploadHandler = async (
                                 });
                                 GlobalState.log(
                                     styles.success(
-                                        `Updated ${subDir.name}/lightdash-app.yml to target ${appUuid}.`,
+                                        `Updated ${subDir.name}/lightdash-app.yml → appUuid ${appUuid}, projectUuid ${projectId}, version ${version}.`,
+                                    ),
+                                );
+                            } else {
+                                GlobalState.log(
+                                    styles.warning(
+                                        manifestRetargetHint({
+                                            folder: subDir.name,
+                                            appUuid,
+                                            projectUuid: projectId,
+                                        }),
                                     ),
                                 );
                             }
                         } else {
                             GlobalState.log(
                                 styles.warning(
-                                    `${subDir.name}/lightdash-app.yml still targets the original app. Set appUuid: ${appUuid} (and projectUuid: ${projectId}) there to update the new app on future uploads.`,
+                                    manifestRetargetHint({
+                                        folder: subDir.name,
+                                        appUuid,
+                                        projectUuid: projectId,
+                                    }),
                                 ),
                             );
                         }
