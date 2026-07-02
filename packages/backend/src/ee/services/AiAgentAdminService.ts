@@ -1118,66 +1118,98 @@ export class AiAgentAdminService extends BaseService {
         if (body.signalUuids.length === 0) {
             return [];
         }
-        if (body.signalUuids.length > 50) {
+        if (body.signalUuids.length > 20) {
             throw new ParameterError(
-                'Capture at most 50 signals per request; batch larger sets',
+                'Capture at most 20 signals per request; batch larger sets',
             );
         }
 
+        const uuidPattern =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const validSignalUuids = body.signalUuids.filter((signalUuid) =>
+            uuidPattern.test(signalUuid),
+        );
         const subjects =
-            await this.aiAgentReviewClassifierModel.findTurnSignalSubjects({
-                organizationUuid,
-                signalUuids: body.signalUuids,
-            });
+            validSignalUuids.length > 0
+                ? await this.aiAgentReviewClassifierModel.findTurnSignalSubjects(
+                      {
+                          organizationUuid,
+                          signalUuids: validSignalUuids,
+                      },
+                  )
+                : [];
         const subjectsBySignalUuid = new Map(
             subjects.map((subjectRow) => [subjectRow.signalUuid, subjectRow]),
         );
 
-        return Promise.all(
-            body.signalUuids.map(
-                async (
+        const captureEntry = async (
+            signalUuid: string,
+        ): Promise<AiAgentReviewReplayCaptureEntry> => {
+            if (!uuidPattern.test(signalUuid)) {
+                return {
                     signalUuid,
-                ): Promise<AiAgentReviewReplayCaptureEntry> => {
-                    const subjectRow = subjectsBySignalUuid.get(signalUuid);
-                    if (!subjectRow) {
-                        return {
-                            signalUuid,
-                            promptUuid: null,
-                            threadUuid: null,
-                            captureError: 'signal not found',
-                            input: null,
-                        };
-                    }
-                    try {
-                        const input =
-                            await this.aiAgentReviewClassifierService.captureJudgeReplayInput(
-                                {
-                                    organizationUuid,
-                                    promptUuid: subjectRow.promptUuid,
-                                },
-                            );
-                        return {
-                            signalUuid,
+                    promptUuid: null,
+                    threadUuid: null,
+                    captureError: 'invalid signal uuid',
+                    input: null,
+                };
+            }
+            const subjectRow = subjectsBySignalUuid.get(signalUuid);
+            if (!subjectRow) {
+                return {
+                    signalUuid,
+                    promptUuid: null,
+                    threadUuid: null,
+                    captureError: 'signal not found',
+                    input: null,
+                };
+            }
+            try {
+                const input =
+                    await this.aiAgentReviewClassifierService.captureJudgeReplayInput(
+                        {
+                            organizationUuid,
                             promptUuid: subjectRow.promptUuid,
-                            threadUuid: subjectRow.threadUuid,
-                            captureError: input ? null : 'candidate not found',
-                            input,
-                        };
-                    } catch (error) {
-                        return {
-                            signalUuid,
-                            promptUuid: subjectRow.promptUuid,
-                            threadUuid: subjectRow.threadUuid,
-                            captureError:
-                                error instanceof Error
-                                    ? error.message
-                                    : String(error),
-                            input: null,
-                        };
-                    }
-                },
-            ),
+                        },
+                    );
+                return {
+                    signalUuid,
+                    promptUuid: subjectRow.promptUuid,
+                    threadUuid: subjectRow.threadUuid,
+                    captureError: input ? null : 'candidate not found',
+                    input,
+                };
+            } catch (error) {
+                return {
+                    signalUuid,
+                    promptUuid: subjectRow.promptUuid,
+                    threadUuid: subjectRow.threadUuid,
+                    captureError:
+                        error instanceof Error ? error.message : String(error),
+                    input: null,
+                };
+            }
+        };
+
+        // Bounded concurrency — each capture loads the explore cache and full
+        // catalog; an unbounded fan-out would starve the API pod's DB pool.
+        const results: AiAgentReviewReplayCaptureEntry[] = new Array(
+            body.signalUuids.length,
         );
+        let nextIndex = 0;
+        await Promise.all(
+            Array.from({ length: 3 }, async () => {
+                while (nextIndex < body.signalUuids.length) {
+                    const index = nextIndex;
+                    nextIndex += 1;
+                    // eslint-disable-next-line no-await-in-loop
+                    results[index] = await captureEntry(
+                        body.signalUuids[index],
+                    );
+                }
+            }),
+        );
+        return results;
     }
 
     async updateReviewItemStatus(
