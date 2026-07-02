@@ -197,6 +197,15 @@ export const CreateIssueModal: FC<Props> = ({ opened, onClose, context }) => {
         const targetRefs: AiAgentTargetRef[] = targetExploreNames.map(
             (name) => ({ type: 'explore', modelName: name, exploreName: name }),
         );
+        // Persist which content the issue was filed from, not just its explores.
+        if (context && (context.chartUuid || context.dashboardUuid)) {
+            targetRefs.push({
+                type: 'content',
+                chartUuid: context.chartUuid ?? null,
+                dashboardUuid: context.dashboardUuid ?? null,
+                tileUuid: context.tileUuid ?? null,
+            });
+        }
         createIssue.mutate(
             {
                 title: title.trim(),
