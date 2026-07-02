@@ -88,6 +88,7 @@ import {
     toolDashboardArgsSchema,
     ToolDashboardV2Args,
     toolDashboardV2ArgsSchema,
+    UnexpectedServerError,
     UpdateSlackResponse,
     UpdateWebAppResponse,
     UserAttributeValueMap,
@@ -2544,6 +2545,58 @@ export class AiAgentService extends BaseService {
             organizationUuid,
             agentUuid,
             threadUuid,
+        });
+    }
+
+    /**
+     * Runs an agent over a scheduled delivery's content in a fresh
+     * `scheduler`-origin thread and returns its report. The caller passes the
+     * delivery creator as `user`, so the agent runs with their permissions —
+     * access to the agent and any pinned thread is enforced here, not by
+     * whoever triggered the delivery.
+     */
+    async generateScheduledReport(
+        user: SessionUser,
+        {
+            agentUuid,
+            prompt,
+            savedChartUuid,
+            dashboardUuid,
+            sourceThreadUuid,
+        }: {
+            agentUuid: string;
+            prompt: string;
+            savedChartUuid: string | null;
+            dashboardUuid: string | null;
+            sourceThreadUuid: string | null;
+        },
+    ): Promise<string> {
+        const context: AiPromptContextInput = [];
+        if (savedChartUuid) {
+            context.push({ type: 'chart', chartUuid: savedChartUuid });
+        }
+        if (dashboardUuid) {
+            context.push({ type: 'dashboard', dashboardUuid });
+        }
+        if (sourceThreadUuid) {
+            context.push({ type: 'thread', threadUuid: sourceThreadUuid });
+        }
+
+        const thread = await this.createAgentThread(
+            user,
+            agentUuid,
+            { prompt, context: context.length > 0 ? context : undefined },
+            'scheduler',
+        );
+        if (!thread) {
+            throw new UnexpectedServerError(
+                'Failed to create scheduled agent thread',
+            );
+        }
+
+        return this.generateAgentThreadResponse(user, {
+            agentUuid,
+            threadUuid: thread.uuid,
         });
     }
 

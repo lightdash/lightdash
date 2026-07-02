@@ -41,8 +41,8 @@ import { ExternalConnectionModel } from './models/ExternalConnectionModel';
 import { ManagedAgentModel } from './models/ManagedAgentModel';
 import { ProjectCiStatusModel } from './models/ProjectCiStatusModel';
 import { ProjectContextModel } from './models/ProjectContextModel';
-import { SchedulerAiAugmentationModel } from './models/SchedulerAiAugmentationModel';
 import { SandboxRegistryModel } from './models/SandboxRegistryModel';
+import { SchedulerAiAugmentationModel } from './models/SchedulerAiAugmentationModel';
 import { ServiceAccountModel } from './models/ServiceAccountModel';
 import { enhanceExploresForPreAggregates } from './preAggregates/enhanceExploresForPreAggregates';
 import { preAggregatePostProcessor } from './preAggregates/postProcessor';
@@ -73,6 +73,7 @@ import { McpService } from './services/McpService/McpService';
 import { OrganizationWarehouseCredentialsService } from './services/OrganizationWarehouseCredentialsService';
 import { PreviewDeploySetupService } from './services/PreviewDeploySetupService/PreviewDeploySetupService';
 import { ProjectContextService } from './services/ProjectContextService/ProjectContextService';
+import { SchedulerAiAugmentationService } from './services/SchedulerAiAugmentationService/SchedulerAiAugmentationService';
 import { ScimService } from './services/ScimService/ScimService';
 import { ServiceAccountService } from './services/ServiceAccountService/ServiceAccountService';
 import { CommercialSlackService } from './services/SlackService/SlackService';
@@ -422,6 +423,16 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     commercialFeatureFlagModel:
                         models.getFeatureFlagModel() as CommercialFeatureFlagModel,
                     lightdashConfig: context.lightdashConfig,
+                }),
+            schedulerAiAugmentationService: ({ models, repository }) =>
+                new SchedulerAiAugmentationService({
+                    schedulerAiAugmentationModel:
+                        models.getSchedulerAiAugmentationModel<SchedulerAiAugmentationModel>(),
+                    schedulerModel: models.getSchedulerModel(),
+                    userModel: models.getUserModel(),
+                    aiAgentService:
+                        repository.getAiAgentService<AiAgentService>(),
+                    aiService: repository.getAiService<AiService>(),
                 }),
             scimService: ({ models, context }) =>
                 new ScimService({
