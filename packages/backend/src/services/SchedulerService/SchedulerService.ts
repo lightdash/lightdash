@@ -1542,6 +1542,10 @@ export class SchedulerService extends BaseService {
             new Date(),
             {
                 ...scheduler,
+                // Force the creator to the authenticated caller: the body is
+                // client-supplied, and downstream (e.g. AI augmentation) runs
+                // as createdBy, so a forged uuid must never be trusted.
+                createdBy: user.userUuid,
                 organizationUuid,
                 projectUuid,
                 userUuid: user.userUuid,
