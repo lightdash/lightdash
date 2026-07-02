@@ -296,15 +296,17 @@ describe('serializeRequestBody', () => {
 });
 
 describe('assertSafeApiKeyHeaderName', () => {
-    it('accepts a normal api key header', () => {
-        expect(() => assertSafeApiKeyHeaderName('X-Api-Key')).not.toThrow();
-    });
+    it.each([['X-Api-Key'], ['Authorization'], ['authorization']])(
+        'accepts the api key header %s',
+        (name) => {
+            expect(() => assertSafeApiKeyHeaderName(name)).not.toThrow();
+        },
+    );
 
     it.each([
         ['Host'],
         ['host'],
         ['Cookie'],
-        ['Authorization'],
         ['Content-Length'],
         ['Transfer-Encoding'],
         ['Connection'],
