@@ -1223,18 +1223,22 @@ export function RevenueBySegment() {
 
 **This applies to every `useLightdash()` call — no exceptions.** A chart that ignores `filtersFor(EXPLORE)` silently shows stale or contradictory data after the user filters.
 
-**Linked charts take global filters too — but with QUALIFIED field ids.** `savedChart(...).filters(...)` expects qualified ids (see "Linked vs. copied charts"), while global filters may carry inline-convention fields (short or dot-notation) or already-qualified ids (added from a linked chart's own menu). Qualify without double-prefixing, and only pass filters whose fields exist on that chart — an unknown field fails the WHOLE run with a 400 error:
+**Linked charts take global filters too — but with QUALIFIED field ids.** `savedChart(...).filters(...)` expects qualified ids (see "Linked vs. copied charts"), while global filters may carry inline-convention fields (short or dot-notation) or already-qualified ids (added from a linked chart's own menu). Qualify without double-prefixing:
 
 ```tsx
 const qualify = (field) =>
     field.includes('.') ? field.replace(/\./g, '_')
     : field.startsWith(`${EXPLORE}_`) ? field
     : `${EXPLORE}_${field}`;
-const chartFieldIds = new Set(columns.map((c) => c.name)); // from a prior useLightdash result
-const linkedFilters = filtersFor(EXPLORE)
-    .map((f) => ({ ...f, field: qualify(f.field) }))
-    .filter((f) => chartFieldIds.has(f.field));
+const linkedFilters = filtersFor(EXPLORE).map((f) => ({ ...f, field: qualify(f.field) }));
 ```
+
+Filters may target ANY dimension of the chart's explore — selected on the chart or
+not; the query narrows server-side either way. Do NOT allowlist against the result
+`columns` (those are only the chart's selected fields — you'd silently drop valid
+filters). The explore-scoping of `filtersFor(EXPLORE)` is what keeps fields valid:
+they were added from charts on that explore. A field from OUTSIDE the explore fails
+the whole run with a 400.
 
 #### Active filters bar
 
