@@ -490,7 +490,8 @@ export const hasMatchingConditionalRules = (
     }
 
     if (isConditionalFormattingConfigWithColorRange(config)) {
-        if (typeof convertedValue !== 'number') return false;
+        if (typeof convertedValue !== 'number' || Number.isNaN(convertedValue))
+            return false;
 
         let min: number;
         let max: number;
@@ -513,7 +514,9 @@ export const hasMatchingConditionalRules = (
             max = config.rule.max;
         }
 
-        return convertedValue >= min && convertedValue <= max;
+        // Out-of-range values still match — they are clamped to the range
+        // colors by getColorFromRange
+        return min <= max;
     }
 
     return assertUnreachable(config, 'Unknown conditional formatting config');
