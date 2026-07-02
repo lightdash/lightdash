@@ -3,8 +3,12 @@ import type {
     QueryExecutionEvent,
     QueryReadyEvent,
 } from '../LightdashAnalytics';
-import type { ProjectionResult } from './projection';
-import { queryEventsProjections } from './queryEventsStream';
+import type { ProjectionResult, StreamName } from './projection';
+import {
+    queryEventsCompactedColumns,
+    queryEventsProjections,
+} from './queryEventsStream';
+import type { CompactedStreamColumn } from './types';
 
 /**
  * Union of every analytics event projected into a usage event stream.
@@ -27,3 +31,22 @@ export type EventStreamRegistry = {
 export const eventStreamRegistry: EventStreamRegistry = {
     ...queryEventsProjections,
 };
+
+/**
+ * Typed parquet schema per stream, used by the nightly compaction job.
+ * Streams found in the raw zone without an entry here are skipped (their raw
+ * files are never deleted).
+ */
+export const compactedStreamSchemas: Record<
+    StreamName,
+    CompactedStreamColumn[]
+> = {
+    query_events: queryEventsCompactedColumns,
+};
+
+export const getCompactedStreamColumns = (
+    stream: string,
+): CompactedStreamColumn[] | null =>
+    stream in compactedStreamSchemas
+        ? compactedStreamSchemas[stream as StreamName]
+        : null;

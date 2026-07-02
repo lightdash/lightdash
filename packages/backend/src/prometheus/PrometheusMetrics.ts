@@ -178,6 +178,12 @@ export default class PrometheusMetrics {
 
     public usageEventsPutFailuresCounter: prometheus.Counter | null = null;
 
+    public usageEventsCompactedPartitionsCounter: prometheus.Counter | null =
+        null;
+
+    public usageEventsCompactionFailuresCounter: prometheus.Counter | null =
+        null;
+
     public preAggregateMaterializationFileSizeHistogram: prometheus.Histogram<string> | null =
         null;
 
@@ -793,6 +799,20 @@ export default class PrometheusMetrics {
                     ...rest,
                 });
 
+                this.usageEventsCompactedPartitionsCounter =
+                    new prometheus.Counter({
+                        name: 'lightdash_usage_events_compacted_partitions_total',
+                        help: 'Total raw usage event partitions compacted to parquet',
+                        ...rest,
+                    });
+
+                this.usageEventsCompactionFailuresCounter =
+                    new prometheus.Counter({
+                        name: 'lightdash_usage_events_compaction_failures_total',
+                        help: 'Total usage event partition compactions that failed',
+                        ...rest,
+                    });
+
                 const app = express();
                 this.server = http.createServer(app);
                 app.get(metricsPath, async (req, res) => {
@@ -1389,6 +1409,14 @@ export default class PrometheusMetrics {
 
     public incrementUsageEventsPutFailure() {
         this.usageEventsPutFailuresCounter?.inc();
+    }
+
+    public incrementUsageEventsCompactedPartitions() {
+        this.usageEventsCompactedPartitionsCounter?.inc();
+    }
+
+    public incrementUsageEventsCompactionFailures() {
+        this.usageEventsCompactionFailuresCounter?.inc();
     }
 
     public monitorEventMetrics(eventEmitter: EventEmitter) {

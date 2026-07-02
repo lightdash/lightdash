@@ -4,6 +4,34 @@ import type {
     QueryReadyEvent,
 } from '../LightdashAnalytics';
 import { buildEnvelope, ProjectionResult } from './projection';
+import type { CompactedStreamColumn } from './types';
+
+/**
+ * Typed column list for the compacted (parquet) zone of the `query_events`
+ * stream, v1. Envelope columns first, then the union of typed columns across
+ * the projections below — rows missing a column read as NULL.
+ */
+export const queryEventsCompactedColumns: CompactedStreamColumn[] = [
+    { name: 'event_name', type: 'VARCHAR' },
+    { name: 'org_id', type: 'VARCHAR' },
+    { name: 'user_id', type: 'VARCHAR' },
+    { name: 'event_ts', type: 'TIMESTAMP' },
+    { name: 'schema_version', type: 'INTEGER' },
+    { name: 'project_id', type: 'VARCHAR' },
+    { name: 'query_id', type: 'VARCHAR' },
+    { name: 'context', type: 'VARCHAR' },
+    { name: 'execution_source', type: 'VARCHAR' },
+    { name: 'warehouse_type', type: 'VARCHAR' },
+    { name: 'cache_hit', type: 'BOOLEAN' },
+    { name: 'pre_aggregate_hit', type: 'BOOLEAN' },
+    { name: 'explore_name', type: 'VARCHAR' },
+    { name: 'chart_id', type: 'VARCHAR' },
+    { name: 'dashboard_id', type: 'VARCHAR' },
+    { name: 'sql_chart_id', type: 'VARCHAR' },
+    { name: 'warehouse_execution_time_ms', type: 'BIGINT' },
+    { name: 'total_row_count', type: 'BIGINT' },
+    { name: 'columns_count', type: 'INTEGER' },
+];
 
 /**
  * Projections for the `query_events` stream (v1): the three query lifecycle

@@ -69,6 +69,7 @@ const schedulerWorkerFactory = (context: {
     clients: ClientRepository;
     utils: UtilRepository;
     workerHealth: SchedulerWorkerHealth;
+    prometheusMetrics?: PrometheusMetrics;
 }) =>
     new SchedulerWorker({
         lightdashConfig: context.lightdashConfig,
@@ -105,6 +106,7 @@ const schedulerWorkerFactory = (context: {
         resolveOrganizationName: createOrganizationNameResolver(
             context.models.getOrganizationModel(),
         ),
+        prometheusMetrics: context.prometheusMetrics,
     });
 
 export default class SchedulerApp {
@@ -263,6 +265,7 @@ export default class SchedulerApp {
             clients: this.clients,
             utils: this.utils,
             workerHealth,
+            prometheusMetrics: this.prometheusMetrics,
         });
         await worker.run();
         return { worker, workerHealth };
