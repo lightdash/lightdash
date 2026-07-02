@@ -73,7 +73,7 @@ const AvatarSettings: FC = () => {
                     Remove photo
                 </Button>
             )}
-            <Group gap="xs" wrap="nowrap">
+            <Group gap="xs" wrap="nowrap" align="center">
                 <Tooltip label="No color (default)">
                     <button
                         type="button"
