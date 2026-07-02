@@ -47,6 +47,8 @@ import {
     type CompiledTable,
     type DataAppClaudeModel,
     type DataAppCode,
+    type DataAppCodeDownload,
+    type DataAppContext,
     type DataAppTemplate,
     type DataAppViz,
     type DataAppVizSchema,
@@ -120,6 +122,7 @@ import {
     s3KeyToRelPath,
     versionPrefix,
 } from './appCode';
+import { contextFile, promptHistoryToMarkdown } from './appContext';
 import {
     classifyClaudeCliFailure,
     ClaudeGenerationError,
@@ -139,6 +142,7 @@ import {
     copyDesignIntoSandbox,
     type DesignSandboxCopyResult,
 } from './designSandboxCopy';
+import { readDesignForDownload } from './readDesignForDownload';
 import { getTemplateInstructions } from './templates';
 
 /**
@@ -6713,7 +6717,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         projectUuid: string,
         appUuid: string,
         version?: number,
-    ): Promise<DataAppCode> {
+    ): Promise<DataAppCodeDownload> {
         const app = await this.appModel.getApp(appUuid, projectUuid);
         await this.assertCanViewApp(user, app);
 
@@ -6814,7 +6818,117 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             downloadedAt: new Date().toISOString(),
         });
 
-        return { manifest, files };
+        const context = await this.assembleAppContext(
+            app,
+            projectUuid,
+            app.organization_uuid,
+        );
+
+        return { manifest, files, context };
+    }
+
+    private async assembleAppContext(
+        app: { app_id: string; design_uuid: string | null },
+        projectUuid: string,
+        organizationUuid: string,
+    ): Promise<DataAppContext> {
+        // Each piece is fetched independently — a failure in one degrades only
+        // that piece and never blocks the download of manifest + files.
+
+        const semanticLayer = await (async () => {
+            try {
+                const exploresByUuid =
+                    await this.projectModel.getAllExploresFromCache(
+                        projectUuid,
+                    );
+                const explores = Object.values(exploresByUuid).filter(
+                    (e): e is Explore => !isExploreError(e),
+                );
+                const { yaml: modelYaml } =
+                    AppGenerateService.exploresToYaml(explores);
+                return contextFile('semantic-layer.yml', modelYaml);
+            } catch (err) {
+                this.logger.warn(
+                    `assembleAppContext: semantic layer unavailable for project ${projectUuid}`,
+                    err,
+                );
+                return contextFile(
+                    'semantic-layer.yml',
+                    '# Semantic layer unavailable\n',
+                );
+            }
+        })();
+
+        const parameters = await (async () => {
+            try {
+                const globalParameters =
+                    await this.projectParametersModel.find(projectUuid);
+                const configYaml =
+                    AppGenerateService.projectParametersToConfigYaml(
+                        globalParameters,
+                    );
+                return configYaml
+                    ? contextFile('parameters.yml', configYaml)
+                    : null;
+            } catch (err) {
+                this.logger.warn(
+                    `assembleAppContext: parameters unavailable for project ${projectUuid}`,
+                    err,
+                );
+                return null;
+            }
+        })();
+
+        const promptHistory = await (async () => {
+            try {
+                const withVersions = await this.appModel.getAppWithVersions(
+                    app.app_id,
+                    projectUuid,
+                );
+                const promptMd = promptHistoryToMarkdown(
+                    withVersions.versions.map((v) => ({
+                        version: v.version,
+                        prompt: v.prompt ?? '',
+                        createdAt:
+                            v.created_at instanceof Date
+                                ? v.created_at.toISOString()
+                                : String(v.created_at),
+                    })),
+                );
+                return contextFile('prompt-history.md', promptMd);
+            } catch (err) {
+                this.logger.warn(
+                    `assembleAppContext: prompt history unavailable for app ${app.app_id}`,
+                    err,
+                );
+                return contextFile(
+                    'prompt-history.md',
+                    '# Prompt history\n\n_Unavailable._\n',
+                );
+            }
+        })();
+
+        const theme = await (async () => {
+            try {
+                const { client: s3Client, bucket } = this.getS3Client();
+                return await readDesignForDownload({
+                    s3Client,
+                    bucket,
+                    organizationDesignModel: this.organizationDesignModel,
+                    organizationUuid,
+                    designUuid: app.design_uuid,
+                    logger: this.logger,
+                });
+            } catch (err) {
+                this.logger.warn(
+                    `assembleAppContext: theme unavailable for org ${organizationUuid}`,
+                    err,
+                );
+                return { instructions: null, assets: [], skippedAssetCount: 0 };
+            }
+        })();
+
+        return { semanticLayer, parameters, promptHistory, theme };
     }
 
     async importAppCode(

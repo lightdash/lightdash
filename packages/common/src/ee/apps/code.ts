@@ -27,7 +27,27 @@ export type DataAppCode = {
     files: DataAppCodeFile[];
 };
 
-export type ApiGetAppCodeResponse = ApiSuccess<DataAppCode>;
+export type DataAppContextFile = {
+    path: string; // relative to the bundle root, e.g. `.lightdash/context/semantic-layer.yml`
+    contentBase64: string;
+};
+
+export type DataAppThemeContext = {
+    instructions: DataAppContextFile | null;
+    assets: DataAppContextFile[];
+    skippedAssetCount: number; // > 0 when assets were dropped by the cap
+};
+
+export type DataAppContext = {
+    semanticLayer: DataAppContextFile;
+    parameters: DataAppContextFile | null;
+    promptHistory: DataAppContextFile;
+    theme: DataAppThemeContext;
+};
+
+export type DataAppCodeDownload = DataAppCode & { context: DataAppContext };
+
+export type ApiGetAppCodeResponse = ApiSuccess<DataAppCodeDownload>;
 
 export type ImportAppCodeRequestBody = {
     code: DataAppCode;

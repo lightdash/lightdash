@@ -75,6 +75,7 @@ const fakeApp = {
     name: 'My App',
     description: 'A test app',
     template: null,
+    design_uuid: null,
 };
 
 const fakeAppVersion = {
@@ -147,8 +148,40 @@ function makeFakeS3(tarBuffer: Buffer, expectedVersion: number = VERSION) {
 function buildService(overrides: {
     appModel?: Record<string, unknown>;
     s3ClientOverride?: { client: never; bucket: string };
+    projectModel?: Record<string, unknown>;
+    projectParametersModel?: Record<string, unknown>;
+    organizationDesignModel?: Record<string, unknown>;
 }): AppGenerateService {
-    const { appModel = {}, s3ClientOverride } = overrides;
+    const {
+        appModel = {},
+        s3ClientOverride,
+        projectModel = {},
+        projectParametersModel = {},
+        organizationDesignModel = {},
+    } = overrides;
+
+    // Default mocks for context-assembly methods so existing tests don't break
+    const fullAppModel = {
+        getAppWithVersions: vi
+            .fn()
+            .mockResolvedValue({ versions: [], hasMore: false }),
+        ...appModel,
+    };
+
+    const fullProjectModel = {
+        getAllExploresFromCache: vi.fn().mockResolvedValue({}),
+        ...projectModel,
+    };
+
+    const fullProjectParametersModel = {
+        find: vi.fn().mockResolvedValue([]),
+        ...projectParametersModel,
+    };
+
+    const fullOrganizationDesignModel = {
+        findInOrganization: vi.fn().mockResolvedValue(null),
+        ...organizationDesignModel,
+    };
 
     const featureFlagModel = {
         get: vi.fn().mockResolvedValue({ enabled: true }),
@@ -162,12 +195,12 @@ function buildService(overrides: {
         analytics: {} as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
-        appModel: appModel as never,
+        appModel: fullAppModel as never,
         featureFlagModel: featureFlagModel as never,
-        organizationDesignModel: {} as never,
+        organizationDesignModel: fullOrganizationDesignModel as never,
         pinnedListModel: {} as never,
-        projectModel: {} as never,
-        projectParametersModel: {} as never,
+        projectModel: fullProjectModel as never,
+        projectParametersModel: fullProjectParametersModel as never,
         spaceModel: {} as never,
         schedulerClient: {} as never,
         savedChartService: {} as never,
@@ -320,5 +353,136 @@ describe('AppGenerateService.getAppCode', () => {
         await expect(
             svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID),
         ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('resolves with manifest and files intact when semanticLayer fetch fails (degraded context)', async () => {
+        const fakeS3 = makeFakeS3(sourceTarBuffer);
+
+        const appModel = {
+            getApp: vi.fn().mockResolvedValue(fakeApp),
+            getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
+            getAppWithVersions: vi
+                .fn()
+                .mockResolvedValue({ versions: [], hasMore: false }),
+        };
+
+        const svc = buildService({
+            appModel,
+            s3ClientOverride: fakeS3,
+            projectModel: {
+                getAllExploresFromCache: vi
+                    .fn()
+                    .mockRejectedValue(new Error('cache miss')),
+            },
+            projectParametersModel: {
+                find: vi.fn().mockResolvedValue([]),
+            },
+            organizationDesignModel: {
+                findInOrganization: vi.fn().mockResolvedValue(null),
+            },
+        });
+
+        // Should not throw even though semanticLayer fetch fails
+        const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID);
+
+        // Core deliverables are intact
+        expect(result.manifest.appUuid).toBe(APP_UUID);
+        expect(result.manifest.version).toBe(VERSION);
+        expect(result.files).toHaveLength(2);
+
+        // Semantic layer is degraded placeholder, not absent
+        expect(result.context.semanticLayer).toBeDefined();
+        expect(result.context.semanticLayer.path).toBe(
+            '.lightdash/context/semantic-layer.yml',
+        );
+        const semanticContent = Buffer.from(
+            result.context.semanticLayer.contentBase64,
+            'base64',
+        ).toString('utf8');
+        expect(semanticContent).toContain('# Semantic layer unavailable');
+    });
+
+    it('assembles context: semantic layer, null parameters (empty), prompt history, and empty theme', async () => {
+        const fakeS3 = makeFakeS3(sourceTarBuffer);
+
+        const versions = [
+            {
+                app_version_id: 'v1-id',
+                app_id: APP_UUID,
+                version: 1,
+                prompt: 'Build a sales dashboard',
+                status: 'ready' as const,
+                error: null,
+                status_message: null,
+                status_updated_at: null,
+                resources: null,
+                viz_schema: null,
+                created_at: new Date('2024-01-01T10:00:00Z'),
+                created_by_user_uuid: 'user-uuid',
+                created_by_user_first_name: 'Test',
+                created_by_user_last_name: 'User',
+            },
+            {
+                app_version_id: 'v2-id',
+                app_id: APP_UUID,
+                version: 2,
+                prompt: 'Add a bar chart for revenue',
+                status: 'ready' as const,
+                error: null,
+                status_message: null,
+                status_updated_at: null,
+                resources: null,
+                viz_schema: null,
+                created_at: new Date('2024-01-02T10:00:00Z'),
+                created_by_user_uuid: 'user-uuid',
+                created_by_user_first_name: 'Test',
+                created_by_user_last_name: 'User',
+            },
+        ];
+
+        const appModel = {
+            getApp: vi.fn().mockResolvedValue({ ...fakeApp, version: VERSION }),
+            getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
+            getAppWithVersions: vi
+                .fn()
+                .mockResolvedValue({ versions, hasMore: false }),
+        };
+
+        const svc = buildService({
+            appModel,
+            s3ClientOverride: fakeS3,
+            projectModel: {
+                getAllExploresFromCache: vi.fn().mockResolvedValue({}),
+            },
+            projectParametersModel: {
+                find: vi.fn().mockResolvedValue([]),
+            },
+            organizationDesignModel: {
+                findInOrganization: vi.fn().mockResolvedValue(null),
+            },
+        });
+
+        const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID);
+
+        // semantic layer context file is always present
+        expect(result.context.semanticLayer.path).toBe(
+            '.lightdash/context/semantic-layer.yml',
+        );
+
+        // empty parameters → null
+        expect(result.context.parameters).toBeNull();
+
+        // prompt history includes both prompts (newest-first ordering)
+        const promptHistoryContent = Buffer.from(
+            result.context.promptHistory.contentBase64,
+            'base64',
+        ).toString('utf8');
+        expect(promptHistoryContent).toContain('Build a sales dashboard');
+        expect(promptHistoryContent).toContain('Add a bar chart for revenue');
+
+        // no theme (design_uuid is null) → empty theme with skippedAssetCount 0
+        expect(result.context.theme.skippedAssetCount).toBe(0);
+        expect(result.context.theme.assets).toHaveLength(0);
+        expect(result.context.theme.instructions).toBeNull();
     });
 });

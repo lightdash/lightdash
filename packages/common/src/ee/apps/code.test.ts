@@ -2,6 +2,7 @@ import {
     currentDataAppCodeVersion,
     validateDataAppCode,
     type DataAppCode,
+    type DataAppCodeDownload,
 } from './code';
 
 const valid: DataAppCode = {
@@ -88,4 +89,23 @@ describe('validateDataAppCode', () => {
         };
         expect(validateDataAppCode(withVersion)).toEqual(withVersion);
     });
+});
+
+it('DataAppCodeDownload carries manifest, files, and context', () => {
+    const dl: DataAppCodeDownload = {
+        ...valid,
+        context: {
+            semanticLayer: {
+                path: '.lightdash/context/semantic-layer.yml',
+                contentBase64: '',
+            },
+            parameters: null,
+            promptHistory: {
+                path: '.lightdash/context/prompt-history.md',
+                contentBase64: '',
+            },
+            theme: { instructions: null, assets: [], skippedAssetCount: 0 },
+        },
+    };
+    expect(dl.context.theme.skippedAssetCount).toBe(0);
 });

@@ -23,7 +23,7 @@ import {
     PromotionChanges,
     removePivotedSeriesValuesFromChartConfig,
     SqlChartAsCode,
-    type DataAppCode,
+    type DataAppCodeDownload,
     type SpaceAsCode,
 } from '@lightdash/common';
 import { Dirent, promises as fs, type Stats } from 'fs';
@@ -41,6 +41,7 @@ import {
     buildImportBody,
     readBundleFromDir,
     writeBundleToDir,
+    writeContextToDir,
     writeFilesToDir,
 } from './apps/appCodeFiles';
 import { buildStaticAuthoringFiles } from './apps/scaffolding';
@@ -1057,7 +1058,7 @@ export const downloadHandler = async (
                 for (const appUuid of appUuidsToDownload) {
                     try {
                         // eslint-disable-next-line no-await-in-loop
-                        const code = await lightdashApi<DataAppCode>({
+                        const code = await lightdashApi<DataAppCodeDownload>({
                             method: 'GET',
                             url: `/api/v1/ee/projects/${projectId}/apps/${appUuid}/download`,
                             body: undefined,
@@ -1085,6 +1086,8 @@ export const downloadHandler = async (
                                 sdkVersion: CLI_VERSION,
                             }),
                         );
+                        // eslint-disable-next-line no-await-in-loop
+                        await writeContextToDir(appDir, code.context);
                         appSuccessCount += 1;
                     } catch (appErr) {
                         if (

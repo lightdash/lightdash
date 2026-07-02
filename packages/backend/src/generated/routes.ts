@@ -10353,12 +10353,86 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiSuccess_DataAppCode_: {
+    DataAppContextFile: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                results: { ref: 'DataAppCode', required: true },
+                contentBase64: { dataType: 'string', required: true },
+                path: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppThemeContext: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                skippedAssetCount: { dataType: 'double', required: true },
+                assets: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'DataAppContextFile' },
+                    required: true,
+                },
+                instructions: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'DataAppContextFile' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppContext: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                theme: { ref: 'DataAppThemeContext', required: true },
+                promptHistory: { ref: 'DataAppContextFile', required: true },
+                parameters: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'DataAppContextFile' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                semanticLayer: { ref: 'DataAppContextFile', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppCodeDownload: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'DataAppCode' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        context: { ref: 'DataAppContext', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSuccess_DataAppCodeDownload_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'DataAppCodeDownload', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
@@ -10367,7 +10441,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiGetAppCodeResponse: {
         dataType: 'refAlias',
-        type: { ref: 'ApiSuccess_DataAppCode_', validators: {} },
+        type: { ref: 'ApiSuccess_DataAppCodeDownload_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'ApiSuccess__appUuid-string--version-number--action-create-or-append__': {
