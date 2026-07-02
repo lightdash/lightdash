@@ -1,7 +1,7 @@
 import {
+    capOutput,
     CappedOutput,
     MAX_CAPTURED_OUTPUT_BYTES,
-    capOutput,
 } from './commandOutput';
 
 describe('commandOutput cap', () => {
