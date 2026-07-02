@@ -30,9 +30,9 @@ describe('getUserAvatarGradient', () => {
         expect(
             getUserAvatarGradient(
                 'b264d83a-9000-426a-85ec-3f9c20f368ce',
-                'ember',
+                'lilac',
             ),
-        ).toBe('ember');
+        ).toBe('lilac');
     });
 
     it('spreads different uuids across gradients', () => {
@@ -52,7 +52,7 @@ describe('getUserAvatarGradient', () => {
 
 describe('isUserAvatarGradientId', () => {
     it('accepts known ids and rejects unknown strings', () => {
-        expect(isUserAvatarGradientId('ember')).toBe(true);
+        expect(isUserAvatarGradientId('lilac')).toBe(true);
         expect(isUserAvatarGradientId('not-a-gradient')).toBe(false);
     });
 });
