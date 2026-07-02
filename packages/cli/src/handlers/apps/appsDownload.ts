@@ -1,22 +1,37 @@
 import { type DataAppCodeDownload } from '@lightdash/common';
 
+export const MAX_INCLUDE_APPS = 10;
+
 export type AppsDownloadSelection =
+    | { mode: 'none' }
     | { mode: 'explicit'; appUuids: string[] }
-    | { mode: 'list-all' };
+    | { mode: 'list-all'; extraAppUuids: string[] };
 
 /**
- * Explicit UUIDs are fetched directly (works for apps not in any space);
- * only the no-uuid form falls back to listing apps via the space-scoped
- * content API, which omits apps that were never added to a space.
+ * Explicit UUIDs (--apps) are fetched directly (works for apps not in any
+ * space); only --include-apps lists apps via the space-scoped content API,
+ * which omits apps that were never added to a space.
  */
-export const selectAppsToDownload = (
-    appsOption: true | string[],
-): AppsDownloadSelection => {
-    if (Array.isArray(appsOption) && appsOption.length > 0) {
-        return { mode: 'explicit', appUuids: appsOption };
+export const selectAppsToDownload = (request: {
+    apps?: string[];
+    includeApps?: boolean;
+}): AppsDownloadSelection => {
+    const explicitUuids = request.apps ?? [];
+    if (request.includeApps) {
+        return { mode: 'list-all', extraAppUuids: explicitUuids };
     }
-    return { mode: 'list-all' };
+    if (explicitUuids.length > 0) {
+        return { mode: 'explicit', appUuids: explicitUuids };
+    }
+    return { mode: 'none' };
 };
+
+export const capListedApps = (
+    listedUuids: string[],
+): { appUuids: string[]; truncatedCount: number } => ({
+    appUuids: listedUuids.slice(0, MAX_INCLUDE_APPS),
+    truncatedCount: Math.max(0, listedUuids.length - MAX_INCLUDE_APPS),
+});
 
 /**
  * Pre-context servers return a download payload without `context`.

@@ -46,7 +46,9 @@ import {
 } from './apps/appCodeFiles';
 import {
     appsDownloadSummary,
+    capListedApps,
     ensureDownloadedAppContext,
+    MAX_INCLUDE_APPS,
     selectAppsToDownload,
     type AppDownloadFailure,
 } from './apps/appsDownload';
@@ -68,7 +70,8 @@ export type DownloadHandlerOptions = {
     verbose: boolean;
     charts: string[]; // These can be slugs, uuids or urls
     dashboards: string[]; // These can be slugs, uuids or urls
-    apps: string[] | boolean | null; // true = all apps; string[] = specific UUIDs; null/false/absent = skip
+    apps: string[] | boolean | null; // download: string[] = specific UUIDs; upload: true = all app folders on disk; null/false/absent = skip
+    includeApps?: boolean; // download only: include the project's apps (space-scoped listing, capped)
     force: boolean;
     path?: string; // New optional path parameter
     project?: string;
@@ -1003,18 +1006,13 @@ export const downloadHandler = async (
             }
         }
 
-        // Download data apps (enterprise, opt-in via --apps)
-        const appsOption = options.apps;
-        const shouldDownloadApps =
-            appsOption !== null &&
-            appsOption !== false &&
-            appsOption !== undefined;
+        // Download data apps (enterprise, opt-in via --apps / --include-apps)
+        const appsSelection = selectAppsToDownload({
+            apps: Array.isArray(options.apps) ? options.apps : undefined,
+            includeApps: options.includeApps === true,
+        });
 
-        if (shouldDownloadApps) {
-            const appsSelection = selectAppsToDownload(
-                Array.isArray(appsOption) ? appsOption : true,
-            );
-
+        if (appsSelection.mode !== 'none') {
             let appUuidsToDownload: string[];
 
             if (appsSelection.mode === 'explicit') {
@@ -1022,7 +1020,7 @@ export const downloadHandler = async (
             } else {
                 // List all apps via content API (paginated)
                 spinner.start(`Listing data apps in project`);
-                appUuidsToDownload = [];
+                const listedAppUuids: string[] = [];
                 let page = 1;
                 let totalPageCount = 1;
 
@@ -1036,7 +1034,7 @@ export const downloadHandler = async (
                         body: undefined,
                     });
 
-                    appUuidsToDownload.push(
+                    listedAppUuids.push(
                         ...contentResult.data
                             .filter((item) => item.contentType === 'data_app')
                             .map((item) => item.uuid),
@@ -1046,6 +1044,22 @@ export const downloadHandler = async (
                         contentResult.pagination?.totalPageCount ?? 1;
                     page += 1;
                 } while (page <= totalPageCount);
+
+                const { appUuids: cappedAppUuids, truncatedCount } =
+                    capListedApps(listedAppUuids);
+                if (truncatedCount > 0) {
+                    GlobalState.log(
+                        styles.warning(
+                            `--include-apps is capped at ${MAX_INCLUDE_APPS} apps (${listedAppUuids.length} found, ${truncatedCount} skipped). Pass --apps <uuids> to download specific apps.`,
+                        ),
+                    );
+                }
+                appUuidsToDownload = [
+                    ...new Set([
+                        ...cappedAppUuids,
+                        ...appsSelection.extraAppUuids,
+                    ]),
+                ];
             }
 
             if (appUuidsToDownload.length === 0) {

@@ -760,8 +760,13 @@ program
         false,
     )
     .option(
-        '--apps [appUuids...]',
-        'Include data apps (enterprise). Optionally limit to specific app UUIDs; default: all apps in the project. Apps not added to a space are only included when their UUID is passed explicitly.',
+        '--apps <appUuids...>',
+        'Include specific data apps by UUID (enterprise). Works for apps not added to a space.',
+    )
+    .option(
+        '--include-apps',
+        'Include the project\'s data apps (enterprise), capped at the first 10. Only lists apps that are in a space; use "--apps <uuids>" for the rest.',
+        false,
     )
     .action(downloadHandler);
 
