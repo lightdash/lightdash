@@ -22,6 +22,10 @@ import { IconPlugConnected } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
 import { MethodsField } from '../../../features/externalConnections/components/MethodsField';
 import { PathRulesField } from '../../../features/externalConnections/components/PathRulesField';
+import {
+    isValidOAuthScope,
+    SUGGESTED_GOOGLE_SCOPES,
+} from '../../../features/externalConnections/constants';
 import { useCreateExternalConnection } from '../../../features/externalConnections/hooks/useCreateExternalConnection';
 import { useSaveConnectionSample } from '../../../features/externalConnections/hooks/useSaveConnectionSample';
 import {
@@ -40,12 +44,6 @@ const DEFAULT_ALLOWED_CONTENT_TYPES = ['application/json'];
 
 // RFC 7230 token chars — must match the backend's apiKeyName validator.
 const HTTP_TOKEN = /^[A-Za-z0-9!#$%&'*+.^_`|~-]+$/;
-
-// Suggested Google OAuth scopes; admins can type any https scope.
-const SUGGESTED_GOOGLE_SCOPES = [
-    'https://www.googleapis.com/auth/bigquery',
-    'https://www.googleapis.com/auth/cloud-platform',
-];
 
 const TEST_STEP = 3;
 
@@ -286,10 +284,14 @@ export const AddConnectionWizard: FC<Props> = ({
                 }
                 return null;
             },
-            oauthScopes: (value, values) =>
-                values.type === 'google_service_account' && value.length === 0
-                    ? 'Add at least one OAuth scope'
-                    : null,
+            oauthScopes: (value, values) => {
+                if (values.type !== 'google_service_account') return null;
+                if (value.length === 0) return 'Add at least one OAuth scope';
+                const invalid = value.find((s) => !isValidOAuthScope(s));
+                return invalid
+                    ? `Invalid OAuth scope: ${invalid} (use an https:// scope)`
+                    : null;
+            },
             apiKeyName: (value, values) => {
                 if (values.type !== 'api_key') return null;
                 if (value.trim().length === 0)

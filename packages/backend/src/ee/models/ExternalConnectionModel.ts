@@ -129,7 +129,7 @@ export class ExternalConnectionModel {
                     rate_limit_per_minute: data.rateLimitPerMinute ?? null,
                     api_key_name: data.apiKeyName ?? null,
                     api_key_location: data.apiKeyLocation ?? null,
-                    oauth_scopes: data.oauthScopes
+                    oauth_scopes: data.oauthScopes?.length
                         ? JSON.stringify(data.oauthScopes)
                         : null,
                     created_by_user_uuid: userUuid,
@@ -198,6 +198,9 @@ export class ExternalConnectionModel {
                         rate_limit_per_minute: src.rate_limit_per_minute,
                         api_key_name: src.api_key_name,
                         api_key_location: src.api_key_location,
+                        oauth_scopes: src.oauth_scopes
+                            ? JSON.stringify(src.oauth_scopes)
+                            : null,
                         created_by_user_uuid: src.created_by_user_uuid,
                         updated_by_user_uuid: src.updated_by_user_uuid,
                     })
@@ -406,7 +409,7 @@ export class ExternalConnectionModel {
             if (data.apiKeyLocation !== undefined)
                 updatePayload.api_key_location = data.apiKeyLocation;
             if (data.oauthScopes !== undefined)
-                updatePayload.oauth_scopes = data.oauthScopes
+                updatePayload.oauth_scopes = data.oauthScopes?.length
                     ? JSON.stringify(data.oauthScopes)
                     : null;
 
@@ -416,9 +419,17 @@ export class ExternalConnectionModel {
 
             // Secret tri-state: `null` clears it, a non-empty string sets it,
             // and undefined/blank leaves it unchanged. Switching to type
-            // 'none' also clears any stored secret so it can never be used.
+            // 'none', or changing the auth type without supplying a new secret,
+            // also clears any stored secret so an old credential can never be
+            // reused by (or leaked through) the new auth method.
             const resultingType = data.type ?? existing.type;
-            if (resultingType === 'none' || data.secret === null) {
+            const typeChanged =
+                data.type !== undefined && data.type !== existing.type;
+            if (
+                resultingType === 'none' ||
+                data.secret === null ||
+                (typeChanged && !data.secret)
+            ) {
                 await ExternalConnectionModel.deleteSecret(trx, uuid);
             } else if (data.secret) {
                 await ExternalConnectionModel.upsertSecret(

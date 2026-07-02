@@ -18,6 +18,9 @@ const SUPPORTED_METHODS = new Set<string>(EXTERNAL_CONNECTION_METHODS);
 // RFC 7230 token chars — valid for HTTP header names and a safe set for query keys.
 const HTTP_TOKEN = /^[A-Za-z0-9!#$%&'*+.^_`|~-]+$/;
 const CONTENT_TYPE = /^[a-z0-9*]+\/[a-z0-9.+*-]+$/i;
+// Google OAuth scopes are full https URLs, except the OIDC scopes
+// openid/email/profile which Google's token endpoint accepts as bare names.
+export const OAUTH_SCOPE = /^(https:\/\/\S+|openid|email|profile)$/;
 // Must be an absolute path with no whitespace, query, or fragment.
 const PATH_PREFIX = /^\/[^\s?#]*$/;
 
@@ -264,10 +267,7 @@ export function validateExternalConnectionConfig(
                 );
             }
             config.oauthScopes.forEach((scope) => {
-                if (
-                    typeof scope !== 'string' ||
-                    !/^https:\/\/\S+$/.test(scope)
-                ) {
+                if (typeof scope !== 'string' || !OAUTH_SCOPE.test(scope)) {
                     throw new ParameterError(
                         `Invalid OAuth scope: ${JSON.stringify(scope)}`,
                     );

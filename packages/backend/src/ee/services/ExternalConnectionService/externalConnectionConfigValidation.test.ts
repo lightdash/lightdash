@@ -186,6 +186,19 @@ describe('validateExternalConnectionConfig', () => {
             ).not.toThrow();
         });
 
+        it('accepts the bare OIDC scopes openid/email/profile', () => {
+            expect(() =>
+                validateExternalConnectionConfig(
+                    {
+                        ...base,
+                        type: 'google_service_account',
+                        oauthScopes: ['openid', 'email', 'profile'],
+                    },
+                    true,
+                ),
+            ).not.toThrow();
+        });
+
         it('rejects oauthScopes on a non-google type', () => {
             expect(() =>
                 validateExternalConnectionConfig(

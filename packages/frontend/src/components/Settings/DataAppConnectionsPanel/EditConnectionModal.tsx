@@ -6,6 +6,7 @@ import { Button, Stack, Tabs, Text, Textarea } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { IconPencil } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { isValidOAuthScope } from '../../../features/externalConnections/constants';
 import { useUpdateExternalConnection } from '../../../features/externalConnections/hooks/useUpdateExternalConnection';
 import {
     derivePathRules,
@@ -72,10 +73,14 @@ const EditConnectionModalContent: FC<Props> = ({
                 }
                 return null;
             },
-            oauthScopes: (value, values) =>
-                values.type === 'google_service_account' && value.length === 0
-                    ? 'Add at least one OAuth scope'
-                    : null,
+            oauthScopes: (value, values) => {
+                if (values.type !== 'google_service_account') return null;
+                if (value.length === 0) return 'Add at least one OAuth scope';
+                const invalid = value.find((s) => !isValidOAuthScope(s));
+                return invalid
+                    ? `Invalid OAuth scope: ${invalid} (use an https:// scope)`
+                    : null;
+            },
             allowedMethods: (value) =>
                 value.length === 0 ? 'Select at least one method' : null,
             allowedPathPrefixes: (value, values) => {

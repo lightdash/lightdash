@@ -18,6 +18,7 @@ import { type UseFormReturnType } from '@mantine/form';
 import { type FC, useState } from 'react';
 import { MethodsField } from '../../../features/externalConnections/components/MethodsField';
 import { PathRulesField } from '../../../features/externalConnections/components/PathRulesField';
+import { SUGGESTED_GOOGLE_SCOPES } from '../../../features/externalConnections/constants';
 import {
     type PathMode,
     type PathPrefix,
@@ -51,12 +52,6 @@ const CONTENT_TYPE_OPTIONS = [
     'text/csv',
     'text/plain',
     'text/tab-separated-values',
-];
-
-// Suggested Google OAuth scopes; admins can type any https scope.
-const SUGGESTED_GOOGLE_SCOPES = [
-    'https://www.googleapis.com/auth/bigquery',
-    'https://www.googleapis.com/auth/cloud-platform',
 ];
 
 type Props = {

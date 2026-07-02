@@ -279,15 +279,58 @@ export class ExternalConnectionService extends BaseService {
             projectUuid,
             connectionUuid,
         );
+        const resultingType = data.type ?? existing.type;
+        const typeChanged =
+            data.type !== undefined && data.type !== existing.type;
+
+        // A blank secret keeps the stored one ONLY when the type is unchanged.
+        // On a type change the stored secret belongs to the old auth method, so
+        // it is dropped and the caller must supply a new one (validation then
+        // requires it). This prevents e.g. a stored service-account keyfile from
+        // being reused — and leaked — as a bearer token when switching types.
+        let hasSecretAfter: boolean;
+        if (data.secret === null) {
+            hasSecretAfter = false;
+        } else if (data.secret) {
+            hasSecretAfter = true;
+        } else {
+            hasSecretAfter = !typeChanged && existing.hasSecret;
+        }
+
+        // Resolve a field that belongs only to the resulting auth type: use the
+        // patch value if provided, else keep the existing value — but a type
+        // change never carries the previous type's values forward, and fields
+        // foreign to the resulting type are always cleared.
+        const resolveTypeField = <T>(
+            belongsToResultingType: boolean,
+            patchValue: T | undefined,
+            existingValue: T,
+        ): T | null => {
+            if (!belongsToResultingType) return null;
+            if (patchValue !== undefined) return patchValue;
+            return typeChanged ? null : existingValue;
+        };
+        const resolvedApiKeyName = resolveTypeField(
+            resultingType === 'api_key',
+            data.apiKeyName,
+            existing.apiKeyName,
+        );
+        const resolvedApiKeyLocation = resolveTypeField(
+            resultingType === 'api_key',
+            data.apiKeyLocation,
+            existing.apiKeyLocation,
+        );
+        const resolvedOauthScopes = resolveTypeField(
+            resultingType === 'google_service_account',
+            data.oauthScopes,
+            existing.oauthScopes,
+        );
+
         // Validate the resulting (merged) config so a partial update can't
         // leave the connection in an invalid or unsafe state.
-        const hasSecretAfter =
-            data.secret === null
-                ? false
-                : Boolean(data.secret) || existing.hasSecret;
         validateExternalConnectionConfig(
             {
-                type: data.type ?? existing.type,
+                type: resultingType,
                 origin: data.origin ?? existing.origin,
                 instructions:
                     data.instructions !== undefined
@@ -307,33 +350,28 @@ export class ExternalConnectionService extends BaseService {
                     data.rateLimitPerMinute !== undefined
                         ? data.rateLimitPerMinute
                         : existing.rateLimitPerMinute,
-                apiKeyName:
-                    data.apiKeyName !== undefined
-                        ? data.apiKeyName
-                        : existing.apiKeyName,
-                apiKeyLocation:
-                    data.apiKeyLocation !== undefined
-                        ? data.apiKeyLocation
-                        : existing.apiKeyLocation,
-                oauthScopes:
-                    data.oauthScopes !== undefined
-                        ? data.oauthScopes
-                        : existing.oauthScopes,
+                apiKeyName: resolvedApiKeyName,
+                apiKeyLocation: resolvedApiKeyLocation,
+                oauthScopes: resolvedOauthScopes,
             },
             hasSecretAfter,
         );
         // Validate the keyfile only when a new secret is supplied — a secret-less
-        // update keeps the already-validated stored keyfile.
-        if (
-            (data.type ?? existing.type) === 'google_service_account' &&
-            data.secret
-        ) {
+        // (same-type) update keeps the already-validated stored keyfile.
+        if (resultingType === 'google_service_account' && data.secret) {
             validateServiceAccountKeyfile(data.secret);
         }
+        // Persist the resolved type-specific fields so foreign fields (and the
+        // stale scopes/api-key config) are cleared when the type changes.
         const updated = await this.externalConnectionModel.update(
             connectionUuid,
             account.user.id,
-            data,
+            {
+                ...data,
+                apiKeyName: resolvedApiKeyName,
+                apiKeyLocation: resolvedApiKeyLocation,
+                oauthScopes: resolvedOauthScopes,
+            },
         );
         this.analytics.track({
             event: 'external_connection.updated',

@@ -104,6 +104,17 @@ describe('GoogleServiceAccountTokenProvider', () => {
         expect(JWTMock).toHaveBeenCalledTimes(2);
     });
 
+    it('shares a single mint across concurrent cache-miss calls (single-flight)', async () => {
+        const provider = new GoogleServiceAccountTokenProvider();
+        const [a, b] = await Promise.all([
+            provider.getAccessToken(KEYFILE, ['a']),
+            provider.getAccessToken(KEYFILE, ['a']),
+        ]);
+        expect(a).toBe('tok-1');
+        expect(b).toBe('tok-1');
+        expect(JWTMock).toHaveBeenCalledTimes(1);
+    });
+
     it('throws when Google returns no token', async () => {
         currentToken = null;
         const provider = new GoogleServiceAccountTokenProvider();

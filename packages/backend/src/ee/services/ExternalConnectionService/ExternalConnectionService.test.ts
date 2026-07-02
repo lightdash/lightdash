@@ -78,6 +78,7 @@ const makeAccount = (_canManage: boolean): RegisteredAccount => {
 function buildService(opts: {
     connection?: ExternalConnection | null;
     secret?: string | null;
+    updateFn?: import('vitest').Mock;
     saveSampleFn?: import('vitest').Mock;
     countSamplesFn?: import('vitest').Mock;
     listSamplesFn?: import('vitest').Mock;
@@ -95,6 +96,13 @@ function buildService(opts: {
         getProjectOrganizationUuid: vi.fn().mockResolvedValue(orgUuid),
         list: vi.fn().mockResolvedValue([connection]),
         getDecryptedSecret: vi.fn().mockResolvedValue(opts.secret ?? 's3cr3t'),
+        update:
+            opts.updateFn ??
+            vi
+                .fn()
+                .mockImplementation((_uuid, _user, data) =>
+                    Promise.resolve({ ...connection, ...data }),
+                ),
         saveSample: opts.saveSampleFn ?? vi.fn().mockResolvedValue(fakeSample),
         countSamples: opts.countSamplesFn ?? vi.fn().mockResolvedValue(0),
         listSamples:
@@ -219,6 +227,100 @@ describe('ExternalConnectionService reads (view, not manage)', () => {
                 secret: null,
             }),
         ).rejects.toThrow(ForbiddenError);
+    });
+});
+
+// -------------------------------------------------------------------
+// update — auth type switches must not carry the old secret/fields across
+// -------------------------------------------------------------------
+describe('ExternalConnectionService.update type switches', () => {
+    const googleConnection: ExternalConnection = {
+        ...connection,
+        type: 'google_service_account',
+        oauthScopes: ['https://www.googleapis.com/auth/bigquery'],
+        apiKeyName: null,
+        apiKeyLocation: null,
+        hasSecret: true,
+    };
+    const apiKeyConnection: ExternalConnection = {
+        ...connection,
+        type: 'api_key',
+        apiKeyName: 'X-Api-Key',
+        apiKeyLocation: 'header',
+        oauthScopes: null,
+        hasSecret: true,
+    };
+    const keyfile = JSON.stringify({
+        type: 'service_account',
+        client_email: 'sa@proj.iam.gserviceaccount.com',
+        private_key:
+            '-----BEGIN PRIVATE KEY-----\nk\n-----END PRIVATE KEY-----\n',
+    });
+
+    it('rejects switching google → bearer_token with a blank secret (no key reuse/leak)', async () => {
+        const { service, model } = buildService({
+            connection: googleConnection,
+        });
+        mockAbility(service, true);
+        await expect(
+            service.update(adminAccount, projectUuid, connectionUuid, {
+                type: 'bearer_token',
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(model.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects switching bearer_token → google without a keyfile', async () => {
+        const { service, model } = buildService({});
+        mockAbility(service, true);
+        await expect(
+            service.update(adminAccount, projectUuid, connectionUuid, {
+                type: 'google_service_account',
+                oauthScopes: ['https://www.googleapis.com/auth/bigquery'],
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(model.update).not.toHaveBeenCalled();
+    });
+
+    it('clears oauthScopes when switching google → bearer_token with a new secret', async () => {
+        const { service, model } = buildService({
+            connection: googleConnection,
+        });
+        mockAbility(service, true);
+        await service.update(adminAccount, projectUuid, connectionUuid, {
+            type: 'bearer_token',
+            secret: 'new-token',
+        });
+        expect(model.update).toHaveBeenCalledWith(
+            connectionUuid,
+            expect.anything(),
+            expect.objectContaining({
+                oauthScopes: null,
+                apiKeyName: null,
+                apiKeyLocation: null,
+            }),
+        );
+    });
+
+    it('clears api-key fields when switching api_key → google with a keyfile + scopes', async () => {
+        const { service, model } = buildService({
+            connection: apiKeyConnection,
+        });
+        mockAbility(service, true);
+        await service.update(adminAccount, projectUuid, connectionUuid, {
+            type: 'google_service_account',
+            secret: keyfile,
+            oauthScopes: ['https://www.googleapis.com/auth/bigquery'],
+        });
+        expect(model.update).toHaveBeenCalledWith(
+            connectionUuid,
+            expect.anything(),
+            expect.objectContaining({
+                apiKeyName: null,
+                apiKeyLocation: null,
+                oauthScopes: ['https://www.googleapis.com/auth/bigquery'],
+            }),
+        );
     });
 });
 

@@ -27,6 +27,10 @@ export class GoogleServiceAccountTokenProvider {
         { token: string; expiresAt: number }
     >();
 
+    // In-flight mints, keyed like the cache, so concurrent misses share one
+    // token-endpoint call instead of each hitting Google independently.
+    private readonly inFlight = new Map<string, Promise<string>>();
+
     /**
      * @param keyfileJson decrypted service account JSON (caller must have already
      *  validated it parses and has client_email + private_key)
@@ -45,6 +49,26 @@ export class GoogleServiceAccountTokenProvider {
             return cached.token;
         }
 
+        // Single-flight: reuse a pending mint for the same keyfile+scopes.
+        const pending = this.inFlight.get(cacheKey);
+        if (pending) {
+            return pending;
+        }
+
+        const mint = this.mint(keyfileJson, scopes, cacheKey);
+        this.inFlight.set(cacheKey, mint);
+        try {
+            return await mint;
+        } finally {
+            this.inFlight.delete(cacheKey);
+        }
+    }
+
+    private async mint(
+        keyfileJson: string,
+        scopes: string[],
+        cacheKey: string,
+    ): Promise<string> {
         const key = JSON.parse(keyfileJson) as ServiceAccountKeyfile;
         const jwtClient = new google.auth.JWT({
             email: key.client_email,
@@ -58,6 +82,15 @@ export class GoogleServiceAccountTokenProvider {
 
         const expiresAt =
             jwtClient.credentials.expiry_date ?? Date.now() + FALLBACK_TTL_MS;
+
+        // Evict expired entries so rotated keys / deleted connections don't
+        // accumulate — keeps the cache bounded to roughly the active set.
+        const now = Date.now();
+        for (const [k, v] of this.cache) {
+            if (v.expiresAt <= now) {
+                this.cache.delete(k);
+            }
+        }
         this.cache.set(cacheKey, { token, expiresAt });
         return token;
     }
