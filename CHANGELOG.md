@@ -1,3 +1,22 @@
+# [0.3292.0](https://github.com/lightdash/lightdash/compare/0.3291.0...0.3292.0) (2026-07-02)
+
+
+### Bug Fixes
+
+* **data-apps:** prevent deselecting the Authentication value in external connection form ([#25052](https://github.com/lightdash/lightdash/issues/25052)) ([a7f2b11](https://github.com/lightdash/lightdash/commit/a7f2b11a72e0dcaa780402ed06b933d7fc1242b4))
+
+
+### Features
+
+* **ai-agents:** capture related explores (targetRefs) when filing an issue [ZAP-515] ([#24874](https://github.com/lightdash/lightdash/issues/24874)) ([1fc8268](https://github.com/lightdash/lightdash/commit/1fc826814d128a4afb0742652e33634e64417651)), closes [#4](https://github.com/lightdash/lightdash/issues/4) [#24872](https://github.com/lightdash/lightdash/issues/24872)
+* **ai-agents:** create data issues from dashboards, tiles & charts [ZAP-514] ([#24870](https://github.com/lightdash/lightdash/issues/24870)) ([66f0705](https://github.com/lightdash/lightdash/commit/66f070532f46d9c9caa50d3c7d5aa3819a2ad68e)), closes [#2](https://github.com/lightdash/lightdash/issues/2) [#24869](https://github.com/lightdash/lightdash/issues/24869)
+* **ai-agents:** feed an issue's related explores into manual writeback [ZAP-515] ([#24876](https://github.com/lightdash/lightdash/issues/24876)) ([2691d92](https://github.com/lightdash/lightdash/commit/2691d924399ef266f68de2560d0c7a6b5cca9704)), closes [#5](https://github.com/lightdash/lightdash/issues/5) [#24874](https://github.com/lightdash/lightdash/issues/24874) [#24874](https://github.com/lightdash/lightdash/issues/24874)
+* **ai-agents:** keep the issues board reachable from the navbar when empty [ZAP-516] ([#24878](https://github.com/lightdash/lightdash/issues/24878)) ([734b05d](https://github.com/lightdash/lightdash/commit/734b05d146740a0fa7a79a5d69c7541ecf087574)), closes [#24876](https://github.com/lightdash/lightdash/issues/24876)
+* **ai-agents:** suggest the best agent when filing a data issue [ZAP-515] ([#24872](https://github.com/lightdash/lightdash/issues/24872)) ([982f0c8](https://github.com/lightdash/lightdash/commit/982f0c8d12fe17d13eed25a0eaea31d2d633272e)), closes [#3](https://github.com/lightdash/lightdash/issues/3) [#24870](https://github.com/lightdash/lightdash/issues/24870)
+* **ai-reviews:** Issues board foundation — manual issues, modal & activity [ZAP-514] ([#24869](https://github.com/lightdash/lightdash/issues/24869)) ([63519c4](https://github.com/lightdash/lightdash/commit/63519c4fc7dcf0ecb5f2fbdd1794bf3c6c5ea1f5)), closes [#1](https://github.com/lightdash/lightdash/issues/1) [#24633](https://github.com/lightdash/lightdash/issues/24633)
+* data apps as code — project context for local editing [GLITCH-569] ([#25017](https://github.com/lightdash/lightdash/issues/25017)) ([ef74eaa](https://github.com/lightdash/lightdash/commit/ef74eaa5f8e398932794819bf485ca57db6a0d61))
+* data apps as code — upload safety, docs & verification [GLITCH-570] ([#25018](https://github.com/lightdash/lightdash/issues/25018)) ([db9cb40](https://github.com/lightdash/lightdash/commit/db9cb40ecdfd942e76cbeb8c58f6d82ad4f54ac1))
+
 # [0.3291.0](https://github.com/lightdash/lightdash/compare/0.3290.0...0.3291.0) (2026-07-02)
 
 
