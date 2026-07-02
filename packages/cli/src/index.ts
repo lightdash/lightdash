@@ -761,7 +761,7 @@ program
     )
     .option(
         '--apps [appUuids...]',
-        'Include data apps (enterprise). Optionally limit to specific app UUIDs; default: all apps in the project.',
+        'Include data apps (enterprise). Optionally limit to specific app UUIDs; default: all apps in the project. Apps not added to a space are only included when their UUID is passed explicitly.',
     )
     .action(downloadHandler);
 
