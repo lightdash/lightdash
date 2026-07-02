@@ -1030,6 +1030,7 @@ export type Project = {
     createdByUserUuid: string | null;
     organizationWarehouseCredentialsUuid?: string;
     hasDefaultUserSpaces: boolean;
+    systemExploresEnabled: boolean;
     projectDefaults?: ProjectDefaults;
     colorPaletteUuid: string | null;
     expiresAt: Date | null;

@@ -64,6 +64,7 @@ export const projectMock = {
     scheduler_failure_include_contact: false,
     scheduler_failure_contact_override: null,
     has_default_user_spaces: false,
+    system_explores_enabled: false,
 };
 
 export const tableSelectionMock: Pick<
@@ -117,6 +118,7 @@ export const expectedProject: Project = {
     schedulerFailureContactOverride: null,
     createdByUserUuid: null,
     hasDefaultUserSpaces: false,
+    systemExploresEnabled: false,
     colorPaletteUuid: null,
     expiresAt: null,
 };
