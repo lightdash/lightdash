@@ -4,7 +4,7 @@ Downloaded with `lightdash download --apps`.
 
 ## Edit → build → upload
 1. Edit files under `src/`.
-2. `pnpm install && pnpm build` to check it compiles locally.
+2. Optionally, `pnpm install && pnpm build` to check it compiles locally. If install fails in your environment, skip it — the server build on upload is authoritative and surfaces errors on the app page. Don't change machine or registry config to force it.
 3. `lightdash upload --apps` — Lightdash rebuilds and serves the app.
 
 ## What's read-only
