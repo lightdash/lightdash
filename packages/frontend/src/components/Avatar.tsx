@@ -79,7 +79,7 @@ export const LightdashUserAvatar = forwardRef<HTMLDivElement, Props>(
             return (
                 <Fragment>
                     <style>
-                        {`.${meshClassName} { background-image: ${generateAvatarMeshBackgroundImage(
+                        {`.${classes.root}[data-avatar-gradient='custom'] .${classes.placeholder}.${meshClassName} { background-image: ${generateAvatarMeshBackgroundImage(
                             avatarGradient,
                         )}; box-shadow: inset 0 0 3px ${generateAvatarMeshBorderColor(
                             avatarGradient,
@@ -103,7 +103,7 @@ export const LightdashUserAvatar = forwardRef<HTMLDivElement, Props>(
             return (
                 <Fragment>
                     <style>
-                        {`.${solidClassName} { background-image: none; background-color: ${hex}; box-shadow: inset 0 0 3px ${hexToRgba(
+                        {`.${classes.root}[data-avatar-gradient='custom'] .${classes.placeholder}.${solidClassName} { background-image: none; background-color: ${hex}; box-shadow: inset 0 0 3px ${hexToRgba(
                             hex,
                             0.4,
                         )}; color: ${textColor}; }`}
