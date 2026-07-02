@@ -8,3 +8,8 @@
         var(--mantine-color-dark-6)
     );
 }
+
+/* Line the subtitle up under the title, past the icon and its gap. */
+.subtitle {
+    padding-left: calc(18px + var(--mantine-spacing-sm));
+}
