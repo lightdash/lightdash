@@ -1,3 +1,15 @@
+# [0.3297.0](https://github.com/lightdash/lightdash/compare/0.3296.0...0.3297.0) (2026-07-02)
+
+
+### Features
+
+* **apps:** inline test-with-data panel for generated data app viz ([#25044](https://github.com/lightdash/lightdash/issues/25044)) ([5fb734e](https://github.com/lightdash/lightdash/commit/5fb734eb0604d36523829278a08915852ce60df6))
+* **avatars:** avatar upload, delete and immutable serve endpoints ([#25054](https://github.com/lightdash/lightdash/issues/25054)) ([e5ae548](https://github.com/lightdash/lightdash/commit/e5ae54820f56ba85766fb8da5401ac07fa426a5b)), closes [#25053](https://github.com/lightdash/lightdash/issues/25053)
+* **avatars:** comments, space access lists and navbar ring ([#25084](https://github.com/lightdash/lightdash/issues/25084)) ([37abbad](https://github.com/lightdash/lightdash/commit/37abbad71ad5dc6fdf123a74cbcbafadaa8c001d)), closes [#25083](https://github.com/lightdash/lightdash/issues/25083)
+* **avatars:** custom color picker with gradient/solid modes ([#25083](https://github.com/lightdash/lightdash/issues/25083)) ([9481995](https://github.com/lightdash/lightdash/commit/9481995bfd115f034ea39d766187eef63789c30b)), closes [#25056](https://github.com/lightdash/lightdash/issues/25056) [#5e4](https://github.com/lightdash/lightdash/issues/5e4) [#5e4](https://github.com/lightdash/lightdash/issues/5e4)
+* **avatars:** gradient and image rendering in LightdashUserAvatar ([#25055](https://github.com/lightdash/lightdash/issues/25055)) ([ce09af2](https://github.com/lightdash/lightdash/commit/ce09af2f8d3f53a6fa4966684db3fe243f56cc7c)), closes [#25054](https://github.com/lightdash/lightdash/issues/25054) [#25056](https://github.com/lightdash/lightdash/issues/25056)
+* **avatars:** profile settings avatar section and user call sites ([#25056](https://github.com/lightdash/lightdash/issues/25056)) ([09930f3](https://github.com/lightdash/lightdash/commit/09930f3bc651d549fc548d17f0791823bfdfa346)), closes [#25055](https://github.com/lightdash/lightdash/issues/25055) [#25083](https://github.com/lightdash/lightdash/issues/25083) [#25084](https://github.com/lightdash/lightdash/issues/25084)
+
 # [0.3296.0](https://github.com/lightdash/lightdash/compare/0.3295.0...0.3296.0) (2026-07-02)
 
 
