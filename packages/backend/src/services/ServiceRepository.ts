@@ -1101,6 +1101,7 @@ export class ServiceRepository
                         this.models.getWarehouseAvailableTablesModel(),
                     projectModel: this.models.getProjectModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
+                    userAvatarModel: this.models.getUserAvatarModel(),
                 }),
         );
     }
