@@ -91,6 +91,9 @@ export const ReviewAssigneeMenu: FC<Props> = ({
                                         name={assigneeName ?? undefined}
                                         size={withName ? 18 : 'sm'}
                                         radius="xl"
+                                        userUuid={assignee.userUuid}
+                                        avatarUrl={assignee.avatarUrl}
+                                        avatarGradient={assignee.avatarGradient}
                                     />
                                 ) : (
                                     <LightdashUserAvatar
@@ -157,6 +160,11 @@ export const ReviewAssigneeMenu: FC<Props> = ({
                                                 name={name}
                                                 size="xs"
                                                 radius="xl"
+                                                userUuid={member.userUuid}
+                                                avatarUrl={member.avatarUrl}
+                                                avatarGradient={
+                                                    member.avatarGradient
+                                                }
                                             />
                                         }
                                         onClick={(e) => {

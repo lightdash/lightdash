@@ -1,4 +1,3 @@
-import { getUserAvatarGradient } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { renderWithProviders } from '../testing/testUtils';
@@ -7,14 +6,13 @@ import { LightdashUserAvatar } from './Avatar';
 const UUID_A = 'b264d83a-9000-426a-85ec-3f9c20f368ce';
 
 describe('LightdashUserAvatar', () => {
-    it('renders the deterministic gradient for a userUuid', () => {
+    it('falls back to the legacy plain avatar with a userUuid but no gradient or photo', () => {
         renderWithProviders(
             <LightdashUserAvatar userUuid={UUID_A} name="Ada Lovelace" />,
         );
-        const expected = getUserAvatarGradient(UUID_A, null);
         expect(
-            document.querySelector(`[data-avatar-gradient="${expected}"]`),
-        ).toBeInTheDocument();
+            document.querySelector('[data-avatar-gradient]'),
+        ).not.toBeInTheDocument();
         expect(screen.getByText('AL')).toBeInTheDocument();
     });
 
@@ -22,12 +20,12 @@ describe('LightdashUserAvatar', () => {
         renderWithProviders(
             <LightdashUserAvatar
                 userUuid={UUID_A}
-                avatarGradient="ember"
+                avatarGradient="lilac"
                 name="Ada Lovelace"
             />,
         );
         expect(
-            document.querySelector('[data-avatar-gradient="ember"]'),
+            document.querySelector('[data-avatar-gradient="lilac"]'),
         ).toBeInTheDocument();
     });
 

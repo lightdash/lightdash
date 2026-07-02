@@ -28,6 +28,7 @@ import { VerifyEmailModal } from '../../../pages/VerifyEmail';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
 import TimeZonePicker from '../../common/TimeZonePicker';
+import AvatarSettings from './AvatarSettings';
 
 const validationSchema = z.object({
     firstName: z.string().nonempty(),
@@ -128,6 +129,8 @@ const ProfilePanel: FC = () => {
     return (
         <form onSubmit={handleOnSubmit}>
             <Stack mt="md">
+                <AvatarSettings />
+
                 <TextInput
                     placeholder="First name"
                     label="First name"

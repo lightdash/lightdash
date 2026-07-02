@@ -1,11 +1,8 @@
 export const USER_AVATAR_GRADIENT_IDS = [
-    'dusk',
-    'ocean',
-    'ember',
-    'meadow',
-    'tide',
-    'plum',
-    'sand',
+    'lilac',
+    'blush',
+    'amethyst',
+    'sunrise',
     'slate',
 ] as const;
 
