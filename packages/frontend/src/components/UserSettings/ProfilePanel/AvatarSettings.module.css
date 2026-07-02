@@ -8,6 +8,6 @@
 }
 
 .swatchSelected {
-    outline: 2px solid var(--mantine-color-blue-5);
+    outline: 2px solid #5e4cff;
     outline-offset: 2px;
 }
