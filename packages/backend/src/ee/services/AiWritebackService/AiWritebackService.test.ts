@@ -2003,9 +2003,7 @@ describe('AiWritebackService.resolveWritableRepoTarget (fail-closed authz)', () 
         const { service } = (() => {
             const svc = buildService({
                 githubAppService: {
-                    getValidUserToken: vi
-                        .fn()
-                        .mockResolvedValue('user-token'),
+                    getValidUserToken: vi.fn().mockResolvedValue('user-token'),
                 } as AnyType,
             });
             vi.spyOn(
@@ -2023,9 +2021,9 @@ describe('AiWritebackService.resolveWritableRepoTarget (fail-closed authz)', () 
         })();
 
         // The installation can reach the target...
-        (listReposAccessibleToInstallation as import('vitest').Mock).mockResolvedValue([
-            { owner: 'acme', repo: 'analytics' },
-        ]);
+        (
+            listReposAccessibleToInstallation as import('vitest').Mock
+        ).mockResolvedValue([{ owner: 'acme', repo: 'analytics' }]);
         // ...but listing the user's own repos fails transiently.
         (listReposAccessibleToUser as import('vitest').Mock).mockRejectedValue(
             new Error('GitHub 503'),
@@ -2061,9 +2059,9 @@ describe('AiWritebackService.resolveWritableRepoTarget (fail-closed authz)', () 
             commitAuthor: { name: 'n', email: 'e' },
             coAuthorTrailer: '',
         } as AnyType);
-        (listReposAccessibleToInstallation as import('vitest').Mock).mockResolvedValue([
-            { owner: 'acme', repo: 'analytics' },
-        ]);
+        (
+            listReposAccessibleToInstallation as import('vitest').Mock
+        ).mockResolvedValue([{ owner: 'acme', repo: 'analytics' }]);
         // 250 MB checkout against a 100 MB limit → reject before cloning.
         (getRepoMetadata as import('vitest').Mock).mockResolvedValue({
             defaultBranch: 'main',
