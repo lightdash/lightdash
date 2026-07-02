@@ -3779,4 +3779,129 @@ describe('AsyncQueryService', () => {
             );
         });
     });
+
+    describe('executeAsyncSavedChartQuery filterOverrides wiring', () => {
+        const authorizedAccount = {
+            ...sessionAccount,
+            user: {
+                ...sessionAccount.user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: ['view'] },
+                    { subject: 'SavedChart', action: ['view'] },
+                ]),
+            },
+        } as unknown as Account;
+
+        // metricQueryMock.filters is `{}`, so give the chart its own
+        // dimensions filter group here to make the AND-merge assertion
+        // meaningful (otherwise there'd be nothing on the chart side to merge).
+        const chartFilterGroup = {
+            id: 'chart-root',
+            and: [
+                {
+                    id: 'chart-filter-0',
+                    target: { fieldId: 'a_dim1' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['chart-value'],
+                },
+            ],
+        };
+
+        const chart = {
+            uuid: 'savedChartUuid',
+            name: 'Chart with filters',
+            organizationUuid: projectSummary.organizationUuid,
+            projectUuid,
+            spaceUuid: 'spaceUuid',
+            tableName: validExplore.name,
+            metricQuery: {
+                ...metricQueryMock,
+                filters: { dimensions: chartFilterGroup },
+            },
+            parameters: undefined,
+            pivotConfig: undefined,
+            chartConfig: { type: ChartType.CARTESIAN },
+        };
+
+        test('ANDs filterOverrides onto the chart metricQuery filters', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                savedChartModel: {
+                    get: vi.fn(async () => chart),
+                } as unknown as SavedChartModel,
+                analyticsModel: {
+                    addChartViewEvent: vi.fn(async () => {}),
+                } as unknown as AnalyticsModel,
+            });
+            service.getExploreWithUserAccessControls = vi
+                .fn()
+                .mockResolvedValue({
+                    explore: validExplore,
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                });
+            (service as AnyType).getWarehouseCredentials = vi
+                .fn()
+                .mockResolvedValue(warehouseClientMock.credentials);
+            service.combineParameters = vi.fn().mockResolvedValue(undefined);
+            (service as AnyType).getMetricQueryFields = vi
+                .fn()
+                .mockResolvedValue({ fields: {} });
+            const prepareSpy = vi.fn().mockResolvedValue({
+                sql: 'SELECT 1',
+                fields: {},
+                warnings: [],
+                parameterReferences: [],
+                missingParameterReferences: [],
+                usedParameters: {},
+                responseMetricQuery: metricQueryMock,
+                userAccessControls: {
+                    userAttributes: {},
+                    intrinsicUserAttributes: {},
+                },
+                availableParameterDefinitions: {},
+            });
+            (service as AnyType).prepareMetricQueryAsyncQueryArgs = prepareSpy;
+            service['executeAsyncQuery'] = vi.fn().mockResolvedValue({
+                queryUuid: 'queryUuid',
+                cacheMetadata: { cacheHit: false },
+            });
+
+            const overrideGroup = {
+                id: 'app-root',
+                and: [
+                    {
+                        id: 'app-filter-0',
+                        target: { fieldId: 'a_dim1' },
+                        operator: FilterOperator.EQUALS,
+                        values: ['enterprise'],
+                    },
+                ],
+            };
+            await service.executeAsyncSavedChartQuery({
+                account: authorizedAccount,
+                projectUuid,
+                chartUuid: chart.uuid,
+                versionUuid: undefined,
+                context: QueryExecutionContext.CHART,
+                invalidateCache: false,
+                limit: undefined,
+                parameters: undefined,
+                pivotResults: false,
+                filterOverrides: {
+                    dimensions: overrideGroup,
+                },
+            });
+
+            const merged = prepareSpy.mock.calls[0][0].metricQuery;
+            // Chart's own dimensions filter group survives AND the override
+            // group is added alongside it (AND semantics, not a replace).
+            expect(merged.filters.dimensions.and).toHaveLength(2);
+            expect(merged.filters.dimensions.and).toContainEqual(
+                chartFilterGroup,
+            );
+            expect(merged.filters.dimensions.and).toContainEqual(overrideGroup);
+        });
+    });
 });

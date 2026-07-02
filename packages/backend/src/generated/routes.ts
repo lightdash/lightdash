@@ -40335,6 +40335,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        filters: { ref: 'Filters' },
                         pivotResults: { dataType: 'boolean' },
                         limit: {
                             dataType: 'union',
