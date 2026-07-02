@@ -864,23 +864,27 @@ export function createApiTransport(
             filters?: InternalFilterDefinition[];
         }): Promise<QueryResult> {
             const metadata = params.label ? { label: params.label } : undefined;
-            const body: Record<string, unknown> = {
-                chartUuid: params.chartUuid,
+            const buildChartBody = (limitOverride?: number) => {
+                const body: Record<string, unknown> = {
+                    chartUuid: params.chartUuid,
+                };
+                const effectiveLimit = limitOverride ?? params.limit;
+                if (effectiveLimit !== undefined) body.limit = effectiveLimit;
+                if (
+                    params.parameters &&
+                    Object.keys(params.parameters).length > 0
+                ) {
+                    body.parameters = params.parameters;
+                }
+                if (params.filters && params.filters.length > 0) {
+                    body.filters = buildApiFilters(params.filters);
+                }
+                return body;
             };
-            if (params.limit !== undefined) body.limit = params.limit;
-            if (
-                params.parameters &&
-                Object.keys(params.parameters).length > 0
-            ) {
-                body.parameters = params.parameters;
-            }
-            if (params.filters && params.filters.length > 0) {
-                body.filters = buildApiFilters(params.filters);
-            }
             const execResult = await fetchFn<AsyncQueryResponse>(
                 'POST',
                 `/api/v2/projects/${config.projectUuid}/query/chart`,
-                body,
+                buildChartBody(),
                 metadata,
             );
             const { queryUuid, fields } = execResult;
@@ -909,10 +913,41 @@ export function createApiTransport(
                 fieldNameForId: (fieldId) => fieldId,
             });
 
+            const downloadResults = async (
+                options: DownloadResultsOptions = {},
+            ): Promise<DownloadResultsResult> => {
+                const downloadLimit = getDownloadLimit(options.limit);
+                let downloadQueryUuid = queryUuid;
+
+                if (downloadLimit.kind === 'rerun') {
+                    const rerun = await fetchFn<AsyncQueryResponse>(
+                        'POST',
+                        `/api/v2/projects/${config.projectUuid}/query/chart`,
+                        buildChartBody(downloadLimit.limit),
+                        metadata,
+                    );
+                    await pollQueryReady(
+                        fetchFn,
+                        config.projectUuid,
+                        rerun.queryUuid,
+                        1,
+                    );
+                    downloadQueryUuid = rerun.queryUuid;
+                }
+
+                return scheduleDownloadForQuery({
+                    fetchFn,
+                    projectUuid: config.projectUuid,
+                    queryUuid: downloadQueryUuid,
+                    options,
+                });
+            };
+
             return {
                 ...mappedResult,
                 totalResults: firstReadyPage.totalResults,
                 queryUuid,
+                downloadResults,
             };
         },
 

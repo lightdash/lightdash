@@ -206,3 +206,84 @@ describe('executeSavedChart filters payload', () => {
         expect(calls[0].body).not.toHaveProperty('filters');
     });
 });
+
+describe('executeSavedChart downloads', () => {
+    const makeAdapter =
+        (
+            calls: Array<{ method: string; path: string; body?: unknown }>,
+        ): FetchAdapter =>
+        async <T>(method: string, path: string, body?: unknown): Promise<T> => {
+            calls.push({ method, path, body });
+            if (method === 'POST' && path.endsWith('/query/chart')) {
+                return { queryUuid: 'q-1', metricQuery: {}, fields: {} } as T;
+            }
+            if (method === 'POST' && path.includes('/schedule-download')) {
+                return { jobId: 'job-1' } as T;
+            }
+            if (method === 'GET' && path.includes('/schedulers/job/')) {
+                return {
+                    status: 'completed',
+                    details: { fileUrl: 'http://f/x.csv' },
+                } as T;
+            }
+            return {
+                status: 'ready',
+                columns: {},
+                rows: [],
+                totalResults: 0,
+                nextPage: undefined,
+            } as T;
+        };
+
+    it('schedules a download for the existing query run (table limit)', async () => {
+        const calls: Array<{ method: string; path: string; body?: unknown }> =
+            [];
+        const transport = createApiTransport(
+            { apiKey: '', baseUrl: '', projectUuid: 'p-1' },
+            makeAdapter(calls),
+        );
+        const result = await transport.executeSavedChart({ chartUuid: 'c-1' });
+        expect(result.downloadResults).toBeDefined();
+        const dl = await result.downloadResults!({ fileType: 'csv' });
+        expect(dl.fileUrl).toBe('http://f/x.csv');
+        expect(
+            calls.some(
+                (c) =>
+                    c.method === 'POST' &&
+                    c.path ===
+                        '/api/v2/projects/p-1/query/q-1/schedule-download',
+            ),
+        ).toBe(true);
+    });
+
+    it("re-runs the chart with the limit override for 'all'", async () => {
+        const calls: Array<{ method: string; path: string; body?: unknown }> =
+            [];
+        const transport = createApiTransport(
+            { apiKey: '', baseUrl: '', projectUuid: 'p-1' },
+            makeAdapter(calls),
+        );
+        const result = await transport.executeSavedChart({
+            chartUuid: 'c-1',
+            filters: [
+                {
+                    fieldId: 'orders_status',
+                    operator: 'equals',
+                    values: ['done'],
+                    settings: null,
+                },
+            ],
+        });
+        await result.downloadResults!({ limit: 'all' });
+        const chartPosts = calls.filter(
+            (c) => c.method === 'POST' && c.path.endsWith('/query/chart'),
+        );
+        expect(chartPosts).toHaveLength(2);
+        // rerun keeps the filters and overrides the limit
+        expect(chartPosts[1].body).toMatchObject({
+            chartUuid: 'c-1',
+            limit: expect.any(Number),
+            filters: expect.any(Object),
+        });
+    });
+});
