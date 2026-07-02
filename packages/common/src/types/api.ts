@@ -1053,6 +1053,7 @@ type ApiResults =
     | ApiCreateComment['results']
     | ApiGetComments['results']
     | ApiDeleteComment
+    | ApiUserAvatarResponse['results']
     | ApiSuccessEmpty
     | ApiCreateProjectResults
     | ApiDeployExploresResults

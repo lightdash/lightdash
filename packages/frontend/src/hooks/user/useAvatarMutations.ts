@@ -7,22 +7,12 @@ const uploadAvatar = async (
     file: File,
 ): Promise<ApiUserAvatarResponse['results']> => {
     const blob = await downscaleAvatarImage(file);
-    const response = await fetch('/api/v1/user/me/avatar', {
+    return lightdashApi<ApiUserAvatarResponse['results']>({
+        url: '/user/me/avatar',
         method: 'PUT',
-        credentials: 'include',
         headers: { 'Content-Type': blob.type },
         body: blob,
     });
-    let json: unknown;
-    try {
-        json = await response.json();
-    } catch (e) {
-        throw new Error('Unexpected response uploading avatar');
-    }
-    if (!response.ok) {
-        throw json;
-    }
-    return (json as ApiUserAvatarResponse).results;
 };
 
 export const useAvatarUploadMutation = () => {
