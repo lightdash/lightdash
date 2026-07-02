@@ -118,6 +118,14 @@ export type DbAiWritebackThread = {
      */
     sandbox_uuid: string | null;
     pull_request_uuid: string | null;
+    /**
+     * The dbt source this thread (and its single PR) is bound to: a
+     * `project_dbt_sources` row uuid for an additional source, or null for the
+     * project's primary dbt connection. Every resumed turn re-resolves to this
+     * source so the thread keeps editing the same repo. FK is ON DELETE SET
+     * NULL — deleting the source degrades a resume back to the primary.
+     */
+    project_dbt_source_uuid: string | null;
     created_at: Date;
 };
 
@@ -126,7 +134,8 @@ export type AiWritebackThreadTable = Knex.CompositeTableType<
     Pick<
         DbAiWritebackThread,
         'ai_thread_uuid' | 'sandbox_uuid' | 'pull_request_uuid'
-    >,
+    > &
+        Partial<Pick<DbAiWritebackThread, 'project_dbt_source_uuid'>>,
     Pick<DbAiWritebackThread, 'sandbox_uuid' | 'pull_request_uuid'>
 >;
 

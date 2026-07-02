@@ -14,8 +14,10 @@ import {
     RequestMethod,
     SupportedDbtVersions,
     WarehouseTypes,
+    type AiWritebackDbtSourceOption,
     type AiWritebackRunResult,
     type AiWritebackStep,
+    type DbtProjectConfig,
     type GitRepo,
     type MergePullRequestResult,
     type PullRequestWritebackAction,
@@ -37,6 +39,7 @@ import type { LightdashConfig } from '../../../config/parseConfig';
 import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import type { GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import type { GitlabAppInstallationsModel } from '../../../models/GitlabAppInstallations/GitlabAppInstallationsModel';
+import type { ProjectDbtSourcesModel } from '../../../models/ProjectDbtSourcesModel';
 import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type { PullRequestsModel } from '../../../models/PullRequestsModel';
 import type PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
@@ -146,10 +149,35 @@ const getPrAction = (
     return applied.prCreated ? 'opened' : 'updated';
 };
 
+/**
+ * Outcome of `prepareTurn`: either a turn ready to run, or — when the project
+ * has several dbt sources and the prompt didn't name one — a request for the
+ * caller to choose which source to target.
+ */
+type PreparedTurn =
+    | { kind: 'run'; turn: TurnContext }
+    | {
+          kind: 'select';
+          projectName: string;
+          options: AiWritebackDbtSourceOption[];
+      };
+
+/** A dbt source a writeback run can target, with its decrypted connection. */
+type DbtTargetCandidate = {
+    /** `project_dbt_sources` row uuid for an additional source; null for primary. */
+    sourceUuid: string | null;
+    /** Client-facing id: the project uuid for primary, the row uuid otherwise. */
+    optionUuid: string;
+    name: string;
+    isPrimary: boolean;
+    connection: DbtProjectConfig;
+};
+
 type AiWritebackServiceDeps = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
+    projectDbtSourcesModel: ProjectDbtSourcesModel;
     featureFlagModel: FeatureFlagModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
     githubAppService: GithubAppService;
@@ -242,6 +270,8 @@ export class AiWritebackService extends BaseService {
 
     private readonly projectModel: ProjectModel;
 
+    private readonly projectDbtSourcesModel: ProjectDbtSourcesModel;
+
     private readonly featureFlagModel: FeatureFlagModel;
 
     private readonly aiWritebackThreadModel: AiWritebackThreadModel;
@@ -269,6 +299,7 @@ export class AiWritebackService extends BaseService {
         lightdashConfig,
         analytics,
         projectModel,
+        projectDbtSourcesModel,
         featureFlagModel,
         githubAppInstallationsModel,
         githubAppService,
@@ -284,6 +315,7 @@ export class AiWritebackService extends BaseService {
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.projectModel = projectModel;
+        this.projectDbtSourcesModel = projectDbtSourcesModel;
         this.featureFlagModel = featureFlagModel;
         this.aiWritebackThreadModel = aiWritebackThreadModel;
         this.sandboxRegistryModel = sandboxRegistryModel;
@@ -1216,6 +1248,7 @@ export class AiWritebackService extends BaseService {
             prUrl,
             aiThreadUuid,
             source,
+            dbtSourceUuid,
             onProgress,
         } = args;
         const runStartedAt = performance.now();
@@ -1247,12 +1280,32 @@ export class AiWritebackService extends BaseService {
             reportProgress(text);
         };
 
-        const turn = await this.prepareTurn({
+        const prepared = await this.prepareTurn({
             user,
             projectUuid,
+            prompt,
             aiThreadUuid,
             source,
+            dbtSourceUuid,
         });
+
+        // The project has more than one dbt source and the prompt didn't pin a
+        // single one down. Ask the caller to choose before spending a sandbox —
+        // no clone, no PR. The caller re-runs with the chosen `dbtSourceUuid`.
+        if (prepared.kind === 'select') {
+            this.logger.info('AI writeback needs a dbt source selection', {
+                event: 'ai_writeback.run.needs_selection',
+                source,
+                projectUuid,
+                aiThreadUuid: aiThreadUuid ?? null,
+                optionCount: prepared.options.length,
+            });
+            return AiWritebackService.buildDbtSourceSelectionResult(
+                prepared.projectName,
+                prepared.options,
+            );
+        }
+        const { turn } = prepared;
 
         this.logger.info('AI writeback run started', {
             event: 'ai_writeback.run.started',
@@ -1424,6 +1477,7 @@ export class AiWritebackService extends BaseService {
                     projectName: turn.projectName,
                     repository,
                     steps: stepLog,
+                    dbtSourceUuid: turn.projectDbtSourceUuid,
                 };
             }
 
@@ -1481,6 +1535,7 @@ export class AiWritebackService extends BaseService {
                 projectName: turn.projectName,
                 repository,
                 steps: stepLog,
+                dbtSourceUuid: turn.projectDbtSourceUuid,
             };
         } catch (error) {
             this.logger.error('AI writeback run failed', {
@@ -1525,20 +1580,26 @@ export class AiWritebackService extends BaseService {
 
     /**
      * Pre-flight: enforce source-specific rollout gates, the
-     * `manage:SourceCode` permission, and resolve everything from the request
-     * that doesn't require a sandbox.
+     * `manage:SourceCode` permission, decide which dbt source the run targets,
+     * and resolve everything from the request that doesn't require a sandbox.
+     * Returns `kind: 'select'` instead when the project has several dbt sources
+     * and the prompt doesn't pin one down — the caller asks the user to choose.
      */
     private async prepareTurn({
         user,
         projectUuid,
+        prompt,
         aiThreadUuid,
         source,
+        dbtSourceUuid,
     }: {
         user: SessionUser;
         projectUuid: string;
+        prompt: string;
         aiThreadUuid: string | undefined;
         source: AiWritebackSource;
-    }): Promise<TurnContext> {
+        dbtSourceUuid: string | undefined;
+    }): Promise<PreparedTurn> {
         await this.assertEnabled(user, source);
 
         const project = await this.projectModel.get(projectUuid);
@@ -1561,10 +1622,6 @@ export class AiWritebackService extends BaseService {
             throw new ForbiddenError('User is not part of an organization');
         }
 
-        // Resolve the git host once; the rest of the run stays host-agnostic.
-        const provider = this.getGitProvider(project.dbtConnection.type);
-        const gitConnection = provider.resolveConnection(project.dbtConnection);
-
         // Resume only when both the caller supplied a thread uuid AND we
         // have a stored sandbox for it. Otherwise we start fresh.
         const storedRow = aiThreadUuid
@@ -1583,6 +1640,30 @@ export class AiWritebackService extends BaseService {
             storedRow && storedRow.sandbox_uuid !== null
                 ? { ...storedRow, sandbox_uuid: storedRow.sandbox_uuid }
                 : null;
+
+        // Decide which dbt source to target before resolving the git host: a
+        // resumed thread stays bound to its source, otherwise we honour an
+        // explicit choice, infer from the prompt, or ask the caller to pick.
+        const target = await this.resolveDbtTarget({
+            projectUuid,
+            project,
+            prompt,
+            dbtSourceUuid,
+            existingRow,
+        });
+        if (target.kind === 'select') {
+            return {
+                kind: 'select',
+                projectName: project.name,
+                options: target.options,
+            };
+        }
+        const { candidate } = target;
+
+        // Resolve the git host from the chosen source; the rest stays
+        // host-agnostic.
+        const provider = this.getGitProvider(candidate.connection.type);
+        const gitConnection = provider.resolveConnection(candidate.connection);
 
         // A thread is bound to its first PR. If that PR has since been merged or
         // closed (from the chat card or directly on the host), editing it again
@@ -1616,14 +1697,271 @@ export class AiWritebackService extends BaseService {
         const dbtVersion = resolveSandboxDbtVersion(project.dbtVersion);
 
         return {
-            organizationUuid: user.organizationUuid,
-            projectName: project.name,
-            provider,
-            gitConnection,
-            existingRow,
-            isResume: existingRow !== null,
-            warehouseType,
-            dbtVersion,
+            kind: 'run',
+            turn: {
+                organizationUuid: user.organizationUuid,
+                projectName: project.name,
+                provider,
+                gitConnection,
+                projectDbtSourceUuid: candidate.sourceUuid,
+                existingRow,
+                isResume: existingRow !== null,
+                warehouseType,
+                dbtVersion,
+            },
+        };
+    }
+
+    /**
+     * Build the candidate dbt sources a writeback run can target: the project's
+     * primary dbt connection (precedence 0) plus any additional
+     * `project_dbt_sources`, keeping only the git-backed ones — GitHub/GitLab
+     * are the only sources writeback can open a PR against. A non-git primary
+     * (e.g. a local `dbt` or dbt-cloud project) is therefore dropped, but its
+     * git-backed additional sources are still targetable. A project with no
+     * additional sources yields just the primary — the single-source path.
+     */
+    private async listDbtTargetCandidates(
+        projectUuid: string,
+        project: { projectUuid: string; dbtConnection: DbtProjectConfig },
+    ): Promise<DbtTargetCandidate[]> {
+        const primary: DbtTargetCandidate | null =
+            AiWritebackService.isWritebackTargetable(project.dbtConnection.type)
+                ? {
+                      sourceUuid: null,
+                      // The primary's client-facing id is the project uuid — the
+                      // same id the project's dbt-sources list synthesises for it.
+                      optionUuid: project.projectUuid,
+                      name: 'Project dbt connection',
+                      isPrimary: true,
+                      connection: project.dbtConnection,
+                  }
+                : null;
+        const additional =
+            await this.projectDbtSourcesModel.getSources(projectUuid);
+        const extra = additional.flatMap<DbtTargetCandidate>((dbtSource) =>
+            dbtSource.dbtConnection &&
+            AiWritebackService.isWritebackTargetable(
+                dbtSource.dbtConnection.type,
+            )
+                ? [
+                      {
+                          sourceUuid: dbtSource.projectDbtSourceUuid,
+                          optionUuid: dbtSource.projectDbtSourceUuid,
+                          name: dbtSource.name,
+                          isPrimary: false,
+                          connection: dbtSource.dbtConnection,
+                      },
+                  ]
+                : [],
+        );
+        return primary ? [primary, ...extra] : extra;
+    }
+
+    /**
+     * Decide which dbt source a turn targets. Precedence:
+     * 1. a resumed thread stays bound to its original source (never re-infer, or
+     *    a follow-up could retarget the sandbox's already-cloned repo);
+     * 2. an explicit `dbtSourceUuid` (a UI picker, or an agent re-call);
+     * 3. the only source, when the project has one — unchanged behaviour;
+     * 4. the source the prompt names, when exactly one matches;
+     * otherwise return the candidates for the caller to choose from.
+     */
+    private async resolveDbtTarget({
+        projectUuid,
+        project,
+        prompt,
+        dbtSourceUuid,
+        existingRow,
+    }: {
+        projectUuid: string;
+        project: { projectUuid: string; dbtConnection: DbtProjectConfig };
+        prompt: string;
+        dbtSourceUuid: string | undefined;
+        existingRow: ResumableWritebackThread | null;
+    }): Promise<
+        | { kind: 'resolved'; candidate: DbtTargetCandidate }
+        | { kind: 'select'; options: AiWritebackDbtSourceOption[] }
+    > {
+        const candidates = await this.listDbtTargetCandidates(
+            projectUuid,
+            project,
+        );
+
+        // No git-backed source anywhere (non-git primary, no git additional
+        // sources) — there's nothing to open a PR against. Mirror the connection
+        // gate getGitProvider enforced when the primary was the only target.
+        if (candidates.length === 0) {
+            throw new WritebackGitNotConnectedError(
+                null,
+                `AI writeback requires a GitHub or GitLab dbt source, but this project ("${project.dbtConnection.type}") has none`,
+            );
+        }
+
+        if (existingRow) {
+            const bound = candidates.find(
+                (c) => c.sourceUuid === existingRow.project_dbt_source_uuid,
+            );
+            if (bound) {
+                return { kind: 'resolved', candidate: bound };
+            }
+            // The bound source is null (the primary) or was deleted after the
+            // thread started (FK SET NULL). Prefer the primary — but it is only a
+            // candidate when git-backed, so `candidates[0]` is NOT always the
+            // primary. Look it up explicitly, and when the primary is non-git
+            // (absent) fall back to the first git-backed source.
+            const primary = candidates.find((c) => c.isPrimary);
+            return { kind: 'resolved', candidate: primary ?? candidates[0] };
+        }
+
+        if (dbtSourceUuid) {
+            const chosen = candidates.find(
+                (c) => c.optionUuid === dbtSourceUuid,
+            );
+            if (!chosen) {
+                throw new ParameterError(
+                    'The specified dbt source is not a valid writeback target for this project',
+                );
+            }
+            return { kind: 'resolved', candidate: chosen };
+        }
+
+        if (candidates.length === 1) {
+            return { kind: 'resolved', candidate: candidates[0] };
+        }
+
+        // Score each candidate by how specifically the prompt names it (the
+        // length of the longest identifier of it found in the prompt), then take
+        // the single best. Scoring by length — not just "matched at all" — is
+        // what disambiguates prefix-related names: a prompt saying "jaffle-2"
+        // matches both `jaffle` and `jaffle-2` as substrings, but `jaffle-2` is
+        // the more specific (longer) match and wins. A tie for the top score
+        // (e.g. the prompt names two sources) stays ambiguous and asks.
+        const scored = candidates
+            .map((candidate) => ({
+                candidate,
+                score: AiWritebackService.dbtSourceMatchScore(
+                    prompt,
+                    candidate,
+                ),
+            }))
+            .filter((s) => s.score > 0);
+        if (scored.length > 0) {
+            const topScore = Math.max(...scored.map((s) => s.score));
+            const top = scored.filter((s) => s.score === topScore);
+            if (top.length === 1) {
+                return { kind: 'resolved', candidate: top[0].candidate };
+            }
+        }
+
+        return {
+            kind: 'select',
+            options: candidates.map(AiWritebackService.toDbtSourceOption),
+        };
+    }
+
+    private static isWritebackTargetable(type: DbtProjectType): boolean {
+        // Mirrors getGitProvider: only GitHub and GitLab can have a PR opened.
+        return type === DbtProjectType.GITHUB || type === DbtProjectType.GITLAB;
+    }
+
+    /** Git identity safe to surface (repo/branch/subpath); nulls for non-git. */
+    private static dbtSourceGitIdentity(connection: DbtProjectConfig): {
+        repository: string | null;
+        branch: string | null;
+        projectSubPath: string | null;
+    } {
+        if (
+            connection.type === DbtProjectType.GITHUB ||
+            connection.type === DbtProjectType.GITLAB ||
+            connection.type === DbtProjectType.BITBUCKET ||
+            connection.type === DbtProjectType.AZURE_DEVOPS
+        ) {
+            return {
+                repository: connection.repository,
+                branch: connection.branch,
+                projectSubPath: connection.project_sub_path,
+            };
+        }
+        return { repository: null, branch: null, projectSubPath: null };
+    }
+
+    private static toDbtSourceOption(
+        candidate: DbtTargetCandidate,
+    ): AiWritebackDbtSourceOption {
+        return {
+            projectDbtSourceUuid: candidate.optionUuid,
+            name: candidate.name,
+            isPrimary: candidate.isPrimary,
+            ...AiWritebackService.dbtSourceGitIdentity(candidate.connection),
+        };
+    }
+
+    /**
+     * How specifically the prompt names this dbt source: the length of the
+     * longest identifier of it (full `owner/repo`, the repo name, or a
+     * non-generic source name) that appears in the prompt, or 0 if none do.
+     * Returning a length — rather than a boolean — lets the caller prefer the
+     * most specific match, so prefix-related names (`jaffle` vs `jaffle-2`)
+     * disambiguate to the longer one instead of colliding.
+     */
+    private static dbtSourceMatchScore(
+        prompt: string,
+        candidate: DbtTargetCandidate,
+    ): number {
+        const haystack = prompt.toLowerCase();
+        const { repository } = AiWritebackService.dbtSourceGitIdentity(
+            candidate.connection,
+        );
+        const needles: string[] = [];
+        if (repository) {
+            needles.push(repository.toLowerCase());
+            const repoName = repository.split('/').pop();
+            if (repoName) {
+                needles.push(repoName.toLowerCase());
+            }
+        }
+        // Skip the synthesised primary's generic name — it names nothing useful.
+        if (!candidate.isPrimary && candidate.name.trim().length >= 3) {
+            needles.push(candidate.name.toLowerCase());
+        }
+        return needles
+            .filter((needle) => needle.length >= 3 && haystack.includes(needle))
+            .reduce((best, needle) => Math.max(best, needle.length), 0);
+    }
+
+    /**
+     * The "which dbt source?" response: a normal run result that opened no PR,
+     * carrying the options to choose from plus a human-readable `output` so every
+     * surface (API, MCP, Slack, web) can present the choice with no bespoke code.
+     */
+    private static buildDbtSourceSelectionResult(
+        projectName: string,
+        options: AiWritebackDbtSourceOption[],
+    ): AiWritebackRunResult {
+        const lines = options.map((option) => {
+            const repo = option.repository ? ` (${option.repository})` : '';
+            const tag = option.isPrimary ? ' [primary]' : '';
+            return `- ${option.name}${repo}${tag}`;
+        });
+        const output = [
+            "This project has more than one dbt source, so I couldn't tell which one to change. Pick one and run the writeback again with that dbt source selected:",
+            ...lines,
+        ].join('\n');
+        return {
+            output,
+            exitCode: 0,
+            prUrl: null,
+            prAction: null,
+            commitSha: null,
+            additions: null,
+            deletions: null,
+            projectName,
+            repository: '',
+            steps: [],
+            dbtSourceUuid: null,
+            needsDbtSourceSelection: true,
+            dbtSourceOptions: options,
         };
     }
 
@@ -2453,6 +2791,9 @@ export class AiWritebackService extends BaseService {
                 aiThreadUuid,
                 sandboxUuid,
                 pullRequestUuid: pullRequest.pullRequestUuid,
+                // Bind the thread to the source it targeted so every resume
+                // re-resolves to the same repo — one thread, one PR.
+                projectDbtSourceUuid: turn.projectDbtSourceUuid,
             });
         }
     }

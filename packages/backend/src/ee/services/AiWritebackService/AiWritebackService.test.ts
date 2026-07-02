@@ -6,6 +6,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     getLatestSupportDbtVersion,
+    ParameterError,
     PullRequestProvider,
     RequestMethod,
     SupportedDbtVersions,
@@ -36,6 +37,7 @@ import {
     PR_TITLE_CLOSE,
     PR_TITLE_OPEN,
 } from './constants';
+import { WritebackGitNotConnectedError } from './errors';
 
 // Stub e2b and the GitHub/octokit client so the run() tests drive fakes and the
 // unit tests below never reach the real SDKs.
@@ -87,6 +89,11 @@ const buildService = (overrides: Record<string, AnyType> = {}) =>
         lightdashConfig: { gitlab: {} } as AnyType,
         analytics: { track: vi.fn() } as AnyType,
         projectModel: { get: vi.fn() } as AnyType,
+        // Default: no additional dbt sources, so the single-source (primary)
+        // path is taken unless a test overrides this.
+        projectDbtSourcesModel: {
+            getSources: vi.fn().mockResolvedValue([]),
+        } as AnyType,
         featureFlagModel: { get: vi.fn() } as AnyType,
         githubAppInstallationsModel: {} as AnyType,
         githubAppService: {
@@ -340,12 +347,22 @@ describe('AiWritebackService.prepareTurn', () => {
         warehouseConnection: { type: WarehouseTypes.POSTGRES },
     });
 
-    const prepareTurn = (service: AiWritebackService, user: SessionUser) =>
-        (service as AnyType).prepareTurn({
+    // prepareTurn now returns a discriminated union ({ kind: 'run', turn } |
+    // { kind: 'select', ... }); unwrap the turn so these single-source tests keep
+    // asserting on the turn context directly. Rejections still propagate.
+    const prepareTurn = async (
+        service: AiWritebackService,
+        user: SessionUser,
+    ) => {
+        const prepared = await (service as AnyType).prepareTurn({
             user,
             projectUuid: 'p1',
+            prompt: 'add a revenue metric',
             aiThreadUuid: undefined,
+            dbtSourceUuid: undefined,
         });
+        return prepared.kind === 'run' ? prepared.turn : prepared;
+    };
 
     it('rejects when the AI writeback feature flag is disabled', async () => {
         const service = buildService({
@@ -471,6 +488,314 @@ describe('AiWritebackService.prepareTurn', () => {
                 hostDomain: 'gitlab.acme.com',
             },
         });
+    });
+});
+
+describe('AiWritebackService dbt source targeting', () => {
+    const PRIMARY_CONNECTION = {
+        type: DbtProjectType.GITHUB,
+        authorization_method: 'installation_id',
+        repository: 'acme/analytics',
+        branch: 'main',
+        project_sub_path: '/',
+    };
+    const project = (): AnyType => ({
+        projectUuid: 'p1',
+        dbtConnection: PRIMARY_CONNECTION,
+    });
+    // An additional (non-primary) GitHub dbt source pointing at a different repo.
+    const marketingSource = (): AnyType => ({
+        projectDbtSourceUuid: 'src-marketing',
+        projectUuid: 'p1',
+        name: 'Marketing dbt',
+        isPrimary: false,
+        precedence: 1,
+        dbtConnection: {
+            type: DbtProjectType.GITHUB,
+            authorization_method: 'installation_id',
+            repository: 'acme/marketing',
+            branch: 'main',
+            project_sub_path: '/',
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+    });
+
+    const serviceWithSources = (sources: AnyType[]) =>
+        buildService({
+            projectDbtSourcesModel: {
+                getSources: vi.fn().mockResolvedValue(sources),
+            } as AnyType,
+        });
+
+    const resolve = (
+        service: AiWritebackService,
+        args: {
+            prompt?: string;
+            dbtSourceUuid?: string;
+            existingRow?: AnyType;
+        },
+    ) =>
+        (service as AnyType).resolveDbtTarget({
+            projectUuid: 'p1',
+            project: project(),
+            prompt: args.prompt ?? '',
+            dbtSourceUuid: args.dbtSourceUuid,
+            existingRow: args.existingRow ?? null,
+        });
+
+    it('targets the primary connection when the project has no additional sources', async () => {
+        const result = await resolve(serviceWithSources([]), {
+            prompt: 'add a revenue metric',
+        });
+        expect(result).toMatchObject({
+            kind: 'resolved',
+            candidate: { sourceUuid: null, isPrimary: true, optionUuid: 'p1' },
+        });
+    });
+
+    it('honours an explicit additional dbtSourceUuid', async () => {
+        const result = await resolve(serviceWithSources([marketingSource()]), {
+            dbtSourceUuid: 'src-marketing',
+        });
+        expect(result).toMatchObject({
+            kind: 'resolved',
+            candidate: {
+                sourceUuid: 'src-marketing',
+                isPrimary: false,
+                connection: { repository: 'acme/marketing' },
+            },
+        });
+    });
+
+    it('treats the project uuid as an explicit choice of the primary source', async () => {
+        const result = await resolve(serviceWithSources([marketingSource()]), {
+            dbtSourceUuid: 'p1',
+        });
+        expect(result).toMatchObject({
+            kind: 'resolved',
+            candidate: { sourceUuid: null, isPrimary: true },
+        });
+    });
+
+    it('rejects an explicit dbtSourceUuid that is not a target', async () => {
+        await expect(
+            resolve(serviceWithSources([marketingSource()]), {
+                dbtSourceUuid: 'does-not-exist',
+            }),
+        ).rejects.toThrow(ParameterError);
+    });
+
+    it('infers the source from the prompt when exactly one matches', async () => {
+        const result = await resolve(serviceWithSources([marketingSource()]), {
+            prompt: 'add a spend metric to the marketing models',
+        });
+        expect(result).toMatchObject({
+            kind: 'resolved',
+            candidate: { sourceUuid: 'src-marketing' },
+        });
+    });
+
+    it('prefers the most specific source when names share a prefix', async () => {
+        // Primary `jaffle` is a substring of the additional `jaffle-2`, so naive
+        // substring matching would flag both and ask. The longest-match rule
+        // resolves "jaffle-2" to jaffle-2 and bare "jaffle" to the primary.
+        const jaffle2 = {
+            projectDbtSourceUuid: 'src-j2',
+            projectUuid: 'p1',
+            name: 'jaffle-2',
+            isPrimary: false,
+            precedence: 1,
+            dbtConnection: {
+                type: DbtProjectType.GITHUB,
+                authorization_method: 'installation_id',
+                repository: 'charliedowler/jaffle-2',
+                branch: 'main',
+                project_sub_path: '/dbt',
+            },
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        };
+        const service = serviceWithSources([jaffle2]);
+        const primaryJaffle = {
+            projectUuid: 'p1',
+            dbtConnection: {
+                type: DbtProjectType.GITHUB,
+                authorization_method: 'installation_id',
+                repository: 'charliedowler/jaffle',
+                branch: 'main',
+                project_sub_path: '/dbt',
+            },
+        };
+        const resolvePrompt = (prompt: string) =>
+            (service as AnyType).resolveDbtTarget({
+                projectUuid: 'p1',
+                project: primaryJaffle,
+                prompt,
+                dbtSourceUuid: undefined,
+                existingRow: null,
+            });
+        await expect(
+            resolvePrompt('In jaffle-2, add a total_revenue metric to orders'),
+        ).resolves.toMatchObject({
+            kind: 'resolved',
+            candidate: { sourceUuid: 'src-j2' },
+        });
+        await expect(
+            resolvePrompt('add a metric in the jaffle repo'),
+        ).resolves.toMatchObject({
+            kind: 'resolved',
+            candidate: { sourceUuid: null, isPrimary: true },
+        });
+    });
+
+    it('asks the caller to choose when the prompt names no source', async () => {
+        const result = await resolve(serviceWithSources([marketingSource()]), {
+            prompt: 'add a new metric',
+        });
+        expect(result.kind).toBe('select');
+        expect(result.options).toHaveLength(2);
+        expect(result.options).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    projectDbtSourceUuid: 'p1',
+                    isPrimary: true,
+                }),
+                expect.objectContaining({
+                    projectDbtSourceUuid: 'src-marketing',
+                    repository: 'acme/marketing',
+                }),
+            ]),
+        );
+    });
+
+    it('keeps a resumed thread bound to its original source, ignoring the prompt', async () => {
+        const result = await resolve(serviceWithSources([marketingSource()]), {
+            // The prompt names the primary repo, but the thread is bound to the
+            // additional source — binding wins so the resumed sandbox stays put.
+            prompt: 'change something in analytics',
+            existingRow: { project_dbt_source_uuid: 'src-marketing' },
+        });
+        expect(result).toMatchObject({
+            kind: 'resolved',
+            candidate: { sourceUuid: 'src-marketing' },
+        });
+    });
+
+    it('falls back to the primary when a resumed thread`s bound source was deleted', async () => {
+        const result = await resolve(serviceWithSources([marketingSource()]), {
+            existingRow: { project_dbt_source_uuid: 'deleted-source' },
+        });
+        expect(result).toMatchObject({
+            kind: 'resolved',
+            candidate: { sourceUuid: null, isPrimary: true },
+        });
+    });
+
+    it('falls back to the first git source (not by stale array order) when the bound source is deleted and the primary is non-git', async () => {
+        // Graphite-flagged scenario: with a non-git primary the primary is not a
+        // candidate, so `candidates[0]` is the first *additional* source, not the
+        // primary. When the bound source has been deleted there is no primary to
+        // return; degrade deterministically to the first git-backed source.
+        const service = serviceWithSources([marketingSource()]);
+        const result = await (service as AnyType).resolveDbtTarget({
+            projectUuid: 'p1',
+            project: {
+                projectUuid: 'p1',
+                dbtConnection: { type: DbtProjectType.DBT },
+            },
+            prompt: 'change something',
+            dbtSourceUuid: undefined,
+            existingRow: { project_dbt_source_uuid: 'deleted-src' },
+        });
+        expect(result).toMatchObject({
+            kind: 'resolved',
+            candidate: { sourceUuid: 'src-marketing', isPrimary: false },
+        });
+    });
+
+    it('drops a non-git primary but still targets git-backed additional sources', async () => {
+        const service = serviceWithSources([marketingSource()]);
+        const result = await (service as AnyType).resolveDbtTarget({
+            projectUuid: 'p1',
+            // Local (non-git) primary — cannot be a writeback target.
+            project: {
+                projectUuid: 'p1',
+                dbtConnection: { type: DbtProjectType.DBT },
+            },
+            prompt: 'add a metric',
+            dbtSourceUuid: undefined,
+            existingRow: null,
+        });
+        // Only the git-backed additional source remains, so it's the sole target.
+        expect(result).toMatchObject({
+            kind: 'resolved',
+            candidate: { sourceUuid: 'src-marketing', isPrimary: false },
+        });
+    });
+
+    it('rejects when no git-backed source exists at all', async () => {
+        const service = serviceWithSources([]);
+        await expect(
+            (service as AnyType).resolveDbtTarget({
+                projectUuid: 'p1',
+                project: {
+                    projectUuid: 'p1',
+                    dbtConnection: { type: DbtProjectType.DBT },
+                },
+                prompt: 'add a metric',
+                dbtSourceUuid: undefined,
+                existingRow: null,
+            }),
+        ).rejects.toThrow(WritebackGitNotConnectedError);
+    });
+
+    it('run() returns a selection request without starting a sandbox', async () => {
+        const service = buildService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            } as AnyType,
+            projectModel: {
+                get: vi.fn().mockResolvedValue({
+                    projectUuid: 'p1',
+                    organizationUuid: ORG,
+                    name: 'Analytics',
+                    dbtConnection: PRIMARY_CONNECTION,
+                    warehouseConnection: null,
+                    dbtVersion: SupportedDbtVersions.V1_9,
+                }),
+            } as AnyType,
+            projectDbtSourcesModel: {
+                getSources: vi.fn().mockResolvedValue([marketingSource()]),
+            } as AnyType,
+            aiWritebackThreadModel: {
+                findByAiThreadUuid: vi.fn().mockResolvedValue(null),
+            } as AnyType,
+        });
+        const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+        can('manage', 'SourceCode', { organizationUuid: ORG });
+        const user = {
+            userUuid: 'u1',
+            organizationUuid: ORG,
+            organizationName: 'Acme',
+            organizationCreatedAt: new Date(),
+            role: 'admin',
+            ability: build(),
+        } as AnyType;
+
+        const result = await service.run({
+            user,
+            projectUuid: 'p1',
+            prompt: 'add a new metric',
+            source: 'api',
+        });
+
+        expect(result.needsDbtSourceSelection).toBe(true);
+        expect(result.prUrl).toBeNull();
+        expect(result.dbtSourceUuid).toBeNull();
+        expect(result.dbtSourceOptions).toHaveLength(2);
+        // No sandbox manager is ever constructed on the selection path.
+        expect(createSandboxManager).not.toHaveBeenCalled();
     });
 });
 

@@ -1116,9 +1116,28 @@ export class McpService extends BaseService {
                         source: 'mcp',
                     });
 
-                    const summary = result.prUrl
-                        ? `AI writeback complete. Pull request opened: ${result.prUrl}`
-                        : 'AI writeback complete. The agent made no file changes, so no pull request was opened.';
+                    let summary: string;
+                    if (result.needsDbtSourceSelection) {
+                        // The project has several dbt sources and the prompt
+                        // didn't name one. Surface the choices by name/repo and
+                        // ask the agent to re-run naming the source in the prompt
+                        // — no id round-trip. No PR was opened.
+                        const choices = (result.dbtSourceOptions ?? [])
+                            .map(
+                                (option) =>
+                                    `- ${option.name}${
+                                        option.repository
+                                            ? ` (${option.repository})`
+                                            : ''
+                                    }${option.isPrimary ? ' [primary]' : ''}`,
+                            )
+                            .join('\n');
+                        summary = `This project has more than one dbt source, so I couldn't tell which one to change. Ask again and name the source in your request (e.g. "In jaffle-2, ..."). Available sources:\n${choices}`;
+                    } else {
+                        summary = result.prUrl
+                            ? `AI writeback complete. Pull request opened: ${result.prUrl}`
+                            : 'AI writeback complete. The agent made no file changes, so no pull request was opened.';
+                    }
 
                     return await this.buildScopedResponse(
                         ctx,
