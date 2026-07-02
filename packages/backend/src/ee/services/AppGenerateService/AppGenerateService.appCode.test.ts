@@ -65,6 +65,7 @@ function buildService() {
         createVersion: vi.fn().mockResolvedValue({ version: 1 }),
         getLatestVersion: vi.fn().mockResolvedValue(null),
         countInProgressVersionsForProject: vi.fn().mockResolvedValue(0),
+        updateApp: vi.fn().mockResolvedValue({}),
     };
 
     const schedulerClient = {
@@ -186,6 +187,8 @@ describe('AppGenerateService.importAppCode', () => {
             space_uuid: null,
             created_by_user_uuid: USER_UUID,
             organization_uuid: PROJECT_ORG_UUID,
+            name: 'Test App',
+            description: 'A test app',
         };
         appModel.findApp.mockResolvedValue(existingApp);
         appModel.getLatestVersion.mockResolvedValue({ version: 4 });
@@ -310,6 +313,61 @@ describe('AppGenerateService.importAppCode', () => {
         expect(result.action).toBe('create');
         expect(appModel.createWithVersion).toHaveBeenCalledOnce();
         expect(schedulerClient.appBuildFromSource).toHaveBeenCalledOnce();
+    });
+
+    it('append mode: calls updateApp when manifest name and description differ from existing app', async () => {
+        const { service, appModel } = buildService();
+
+        const existingApp = {
+            app_id: EXISTING_APP_UUID,
+            project_uuid: PROJECT_UUID,
+            space_uuid: null,
+            created_by_user_uuid: USER_UUID,
+            organization_uuid: PROJECT_ORG_UUID,
+            name: 'Old Name',
+            description: 'Old description',
+        };
+        appModel.findApp.mockResolvedValue(existingApp);
+        appModel.getLatestVersion.mockResolvedValue({ version: 1 });
+
+        const updatedCode = makeCode();
+        updatedCode.manifest.name = 'New Name';
+        updatedCode.manifest.description = 'New description';
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: updatedCode,
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        expect(appModel.updateApp).toHaveBeenCalledOnce();
+        expect(appModel.updateApp).toHaveBeenCalledWith(
+            EXISTING_APP_UUID,
+            PROJECT_UUID,
+            { name: 'New Name', description: 'New description' },
+        );
+    });
+
+    it('append mode: does not call updateApp when manifest name and description are unchanged', async () => {
+        const { service, appModel } = buildService();
+
+        const existingApp = {
+            app_id: EXISTING_APP_UUID,
+            project_uuid: PROJECT_UUID,
+            space_uuid: null,
+            created_by_user_uuid: USER_UUID,
+            organization_uuid: PROJECT_ORG_UUID,
+            name: 'Test App',
+            description: 'A test app',
+        };
+        appModel.findApp.mockResolvedValue(existingApp);
+        appModel.getLatestVersion.mockResolvedValue({ version: 1 });
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(),
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        expect(appModel.updateApp).not.toHaveBeenCalled();
     });
 
     it('create mode: source.tar contains only src/ entries when bundle has mixed files', async () => {
