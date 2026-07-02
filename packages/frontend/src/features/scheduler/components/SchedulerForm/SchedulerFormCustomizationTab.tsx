@@ -18,7 +18,41 @@ export const SchedulerFormCustomizationTab: FC<Props> = ({
     const form = useSchedulerFormContext();
     const isAiMessage = form.values.aiAugmentation !== null;
     return (
-        <Stack p="md">
+        <Stack p="md" gap="lg">
+            {canUseAiSummary && (
+                <SchedulerFormAiInput projectUuid={projectUuid} />
+            )}
+
+            <Stack gap="xs">
+                <Text fw={600} fz="sm">
+                    Delivery message body
+                </Text>
+                {isAiMessage && (
+                    <Text fz="xs" c="ldGray.6">
+                        AI writes the message on every send; this text is only
+                        used if AI generation fails.
+                    </Text>
+                )}
+                <MDEditor
+                    preview="edit"
+                    commands={[
+                        commands.bold,
+                        commands.italic,
+                        commands.strikethrough,
+                        commands.divider,
+                        commands.link,
+                    ]}
+                    maxHeight={300}
+                    minHeight={100}
+                    visibleDragbar
+                    value={form.values.message}
+                    onChange={(value) =>
+                        form.setFieldValue('message', value || '')
+                    }
+                    overflow={false}
+                />
+            </Stack>
+
             <Group gap="two">
                 <Switch
                     label="Include links to Lightdash"
@@ -40,37 +74,6 @@ export const SchedulerFormCustomizationTab: FC<Props> = ({
                     <MantineIcon icon={IconInfoCircle} color="ldGray.6" />
                 </Tooltip>
             </Group>
-
-            {canUseAiSummary && (
-                <SchedulerFormAiInput projectUuid={projectUuid} />
-            )}
-
-            <Text fw={600} fz="sm">
-                Customize delivery message body
-            </Text>
-            {isAiMessage && (
-                <Text size="xs" c="ldGray.6">
-                    AI writes the message on every send; this text is only used
-                    if AI generation fails.
-                </Text>
-            )}
-
-            <MDEditor
-                preview="edit"
-                commands={[
-                    commands.bold,
-                    commands.italic,
-                    commands.strikethrough,
-                    commands.divider,
-                    commands.link,
-                ]}
-                maxHeight={300}
-                minHeight={100}
-                visibleDragbar
-                value={form.values.message}
-                onChange={(value) => form.setFieldValue('message', value || '')}
-                overflow={false}
-            />
         </Stack>
     );
 };

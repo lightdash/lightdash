@@ -1,0 +1,10 @@
+.panel {
+    padding: var(--mantine-spacing-md);
+    border-radius: var(--mantine-radius-md);
+    border: 1px solid
+        light-dark(var(--mantine-color-indigo-2), var(--mantine-color-indigo-8));
+    background-color: light-dark(
+        var(--mantine-color-indigo-0),
+        var(--mantine-color-dark-6)
+    );
+}
