@@ -162,6 +162,8 @@ const AuthStep: FC<{ form: UseFormReturnType<WizardValues> }> = ({ form }) => {
                         {...form.getInputProps('apiKeyName')}
                     />
                     <Select
+                        required
+                        allowDeselect={false}
                         label="Send key as"
                         data={[
                             { value: 'header', label: 'Request header' },
