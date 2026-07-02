@@ -1,4 +1,5 @@
 import { ALL_TRAFFIC, CommandExitError, Sandbox, TimeoutError } from 'e2b';
+import { capOutput } from './commandOutput';
 import { SandboxCommandError, SandboxTimeoutError } from './errors';
 import { createGitOverCommands } from './gitOverCommands';
 import {
@@ -28,8 +29,8 @@ const normalizeError = (error: unknown): never => {
     if (error instanceof CommandExitError) {
         throw new SandboxCommandError(
             error.exitCode,
-            error.stderr,
-            error.stdout,
+            capOutput(error.stderr),
+            capOutput(error.stdout),
         );
     }
     if (error instanceof TimeoutError) {
@@ -59,8 +60,8 @@ class E2bSandboxHandle implements SandboxHandle {
                     onStderr: options?.onStderr,
                 });
                 return {
-                    stdout: result.stdout,
-                    stderr: result.stderr,
+                    stdout: capOutput(result.stdout),
+                    stderr: capOutput(result.stderr),
                     exitCode: result.exitCode,
                 };
             } catch (error) {

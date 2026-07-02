@@ -1,10 +1,11 @@
 import {
     DeleteObjectCommand,
     GetObjectCommand,
-    PutObjectCommand,
     type S3,
 } from '@aws-sdk/client-s3';
+import { Upload } from '@aws-sdk/lib-storage';
 import { MissingConfigError } from '@lightdash/common';
+import { type Readable } from 'node:stream';
 import { S3BaseClient } from '../../../clients/Aws/S3BaseClient';
 import { type LightdashConfig } from '../../../config/parseConfig';
 
@@ -15,7 +16,12 @@ import { type LightdashConfig } from '../../../config/parseConfig';
  * backing store without touching provider code.
  */
 export interface SnapshotStore {
-    put(key: string, body: Buffer): Promise<void>;
+    /**
+     * Upload a snapshot by streaming its bytes to storage, so a large archive is
+     * never buffered whole in the worker's heap. The body is a byte stream (e.g.
+     * a tarball piped out of the sandbox container).
+     */
+    putStream(key: string, body: Readable): Promise<void>;
     get(key: string): Promise<Buffer>;
     delete(key: string): Promise<void>;
 }
@@ -44,16 +50,20 @@ export class S3SnapshotStore extends S3BaseClient implements SnapshotStore {
         return { client: this.s3, bucket: this.bucket };
     }
 
-    async put(key: string, body: Buffer): Promise<void> {
+    async putStream(key: string, body: Readable): Promise<void> {
         const { client, bucket } = this.requireClient();
-        await client.send(
-            new PutObjectCommand({
+        // lib-storage's Upload multiparts an unknown-length stream, so the whole
+        // archive is never materialized in memory here.
+        const upload = new Upload({
+            client,
+            params: {
                 Bucket: bucket,
                 Key: key,
                 Body: body,
                 ContentType: 'application/gzip',
-            }),
-        );
+            },
+        });
+        await upload.done();
     }
 
     async get(key: string): Promise<Buffer> {
