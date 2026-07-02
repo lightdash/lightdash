@@ -434,7 +434,7 @@ the `/etc/hosts` configuration in your computer otherwise it will fail with a `D
 To setup Development Environment without Docker you need following pre-requisites before running Lightdash:
 
 -   node >= v18.x (20 is preferred)
--   python >= 3.3
+-   python >= 3.8
 -   pnpm
 -   postgres >= 12
 -   dbt 1.7.x aliased to `dbt1.7`
