@@ -599,6 +599,34 @@ describe('convert tables from dbt models', () => {
         });
     });
 
+    it('should convert dimension filter autocomplete label_dimension', () => {
+        const table = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            {
+                ...MODEL_WITH_NO_METRICS,
+                columns: {
+                    user_id: {
+                        ...MODEL_WITH_NO_METRICS.columns.user_id,
+                        meta: {
+                            dimension: {
+                                filter_autocomplete: {
+                                    label_dimension: 'user_name',
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(table.dimensions.user_id.filterAutocomplete).toEqual({
+            fetchFromWarehouse: true,
+            labelDimension: 'user_name',
+        });
+    });
+
     it('should warn and keep the first duplicate dimension filter autocomplete value', () => {
         const table = convertTable(
             SupportedDbtAdapter.BIGQUERY,

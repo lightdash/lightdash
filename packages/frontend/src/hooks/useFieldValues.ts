@@ -239,22 +239,44 @@ export const getFieldValuesAsync = async (
     }
 
     // The backend may rewrite the fieldId (e.g. aliased joins), so read the
-    // single result column key from the response instead
-    const resultColumn = Object.keys(queryResult.columns)[0] ?? fieldId;
+    // value/label column keys from the execute response instead
+    const valueColumn =
+        executeResult.valueFieldId ??
+        Object.keys(queryResult.columns)[0] ??
+        fieldId;
+    const labelColumn = executeResult.labelFieldId;
 
-    const results: string[] = queryResult.rows
-        .map((row) => {
-            const cell = row[resultColumn];
-            if (!cell?.value) return undefined;
-            const { raw } = cell.value;
-            if (raw === null || raw === undefined) return undefined;
-            return String(raw);
-        })
-        .filter((v): v is string => v !== undefined);
+    const readCell = (
+        row: (typeof queryResult.rows)[number],
+        column: string,
+    ): string | undefined => {
+        const cell = row[column];
+        if (!cell?.value) return undefined;
+        const { raw } = cell.value;
+        if (raw === null || raw === undefined) return undefined;
+        return String(raw);
+    };
+
+    const results: string[] = [];
+    const resultsWithLabels: FilterAutocompleteValue[] = [];
+    const seenValues = new Set<string>();
+    queryResult.rows.forEach((row) => {
+        const value = readCell(row, valueColumn);
+        if (value === undefined || seenValues.has(value)) return;
+        seenValues.add(value);
+        results.push(value);
+        if (labelColumn) {
+            resultsWithLabels.push({
+                value,
+                label: readCell(row, labelColumn) ?? value,
+            });
+        }
+    });
 
     return {
         search,
         results,
+        ...(labelColumn ? { resultsWithLabels } : {}),
         cached: executeResult.cacheMetadata.cacheHit,
         refreshedAt: executeResult.cacheMetadata.cacheUpdatedTime
             ? new Date(executeResult.cacheMetadata.cacheUpdatedTime)
@@ -407,7 +429,8 @@ export const useFieldValues = (
                 useQueryOptions?.enabled !== false,
             staleTime: 0,
             onSuccess: (data) => {
-                const { results: newResults, search: newSearch } = data;
+                const { search: newSearch } = data;
+                const newResults = data.resultsWithLabels ?? data.results;
 
                 const normalizedNewResults = newResults.flatMap((result) => {
                     const normalizedResult = normalizeSearchResult(result);

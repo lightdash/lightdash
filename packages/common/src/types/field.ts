@@ -686,6 +686,7 @@ export type FilterAutocompleteValue = {
 export type FilterAutocompleteConfig = {
     values?: FilterAutocompleteValue[];
     fetchFromWarehouse: boolean;
+    labelDimension?: string;
 };
 
 /**

@@ -235,6 +235,59 @@ describe('getFieldValuesAsync', () => {
 
         expect(result.results).toEqual(['completed']);
     });
+
+    it('builds resultsWithLabels from the value and label columns and dedups by value', async () => {
+        const executeResultWithLabel = {
+            queryUuid: 'query-uuid',
+            cacheMetadata: { cacheHit: false },
+            valueFieldId: 'users_user_id',
+            labelFieldId: 'users_user_name',
+        };
+        const readyResult = {
+            status: QueryHistoryStatus.READY,
+            queryUuid: 'query-uuid',
+            rows: [
+                {
+                    users_user_id: { value: { raw: 'u1', formatted: 'u1' } },
+                    users_user_name: {
+                        value: { raw: 'Alice', formatted: 'Alice' },
+                    },
+                },
+                {
+                    users_user_id: { value: { raw: 'u1', formatted: 'u1' } },
+                    users_user_name: {
+                        value: { raw: 'Alice dup', formatted: 'Alice dup' },
+                    },
+                },
+                {
+                    users_user_id: { value: { raw: 'u2', formatted: 'u2' } },
+                    users_user_name: { value: { raw: null, formatted: '' } },
+                },
+            ],
+            columns: {},
+            metadata: { performance: {} },
+            pivotDetails: null,
+        };
+
+        vi.mocked(lightdashApi)
+            .mockResolvedValueOnce(executeResultWithLabel as never)
+            .mockResolvedValueOnce(readyResult as never);
+
+        const result = await getFieldValuesAsync(
+            'project-uuid',
+            'users',
+            'users_user_id',
+            '',
+            false,
+            undefined,
+        );
+
+        expect(result.results).toEqual(['u1', 'u2']);
+        expect(result.resultsWithLabels).toEqual([
+            { value: 'u1', label: 'Alice' },
+            { value: 'u2', label: 'u2' },
+        ]);
+    });
 });
 
 describe('useFieldValues', () => {
