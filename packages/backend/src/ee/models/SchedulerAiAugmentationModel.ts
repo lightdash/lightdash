@@ -56,9 +56,7 @@ export class SchedulerAiAugmentationModel {
         this.database = database;
     }
 
-    async find(
-        schedulerUuid: string,
-    ): Promise<SchedulerAiAugmentation | null> {
+    async find(schedulerUuid: string): Promise<SchedulerAiAugmentation | null> {
         const row = await this.database(SchedulerAiAugmentationTableName)
             .where('scheduler_uuid', schedulerUuid)
             .first();
