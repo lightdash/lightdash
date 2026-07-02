@@ -1,6 +1,9 @@
 import {
+    APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
+    APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
     JWT_HEADER_NAME,
     LightdashAppUuidHeader,
+    type DataAppVizContext,
     type DashboardFilters,
 } from '@lightdash/common';
 import { useCallback, useEffect, useRef, type RefObject } from 'react';
@@ -231,6 +234,9 @@ export type UseAppSdkBridgeParams = {
      * and a terminal `ready`/`error` event when it settles.
      */
     onExternalRequestEvent?: (event: ExternalRequestEvent) => void;
+    // When set, the host pushes this render context into the iframe over the
+    // existing bridge — on load and on every change. Only set for data app vizs.
+    dataAppVizContext?: DataAppVizContext;
 };
 
 export function useAppSdkBridge({
@@ -248,6 +254,7 @@ export function useAppSdkBridge({
     onLineageAvailable,
     onLineageSelected,
     onExternalRequestEvent,
+    dataAppVizContext,
 }: UseAppSdkBridgeParams) {
     // Embed mode adapts the bridge's outgoing fetches in two ways:
     //   - Attaches the embed JWT header in lieu of session cookies
@@ -270,6 +277,21 @@ export function useAppSdkBridge({
     // in-flight set never drains and the screenshot indicator never
     // mounts).
     const queryUuidToPostIdRef = useRef<Map<string, string>>(new Map());
+
+    // Push the render context into the iframe. Sent in response to the iframe's
+    // `viz-context-request` handshake (the renderer mounts after its bundle
+    // loads, so a single push on `load` can arrive before its listener exists)
+    // and re-sent whenever the context changes. No-op for non-viz apps.
+    const pushDataAppVizContext = useCallback(() => {
+        if (!dataAppVizContext) return;
+        iframeRef.current?.contentWindow?.postMessage(
+            {
+                type: APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
+                ...dataAppVizContext,
+            },
+            '*',
+        );
+    }, [iframeRef, dataAppVizContext]);
 
     const handleMessage = useCallback(
         async (event: MessageEvent) => {
@@ -294,6 +316,14 @@ export function useAppSdkBridge({
 
             if (data?.type === 'lightdash:sdk:screenshot-available') {
                 onScreenshotAvailable?.();
+                return;
+            }
+
+            // Handshake: the iframe's viz renderer asks for the current context
+            // once its listener is mounted. Reply with a push (no-op if this
+            // isn't a data app viz).
+            if (data?.type === APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE) {
+                pushDataAppVizContext();
                 return;
             }
 
@@ -818,6 +848,7 @@ export function useAppSdkBridge({
             onLineageAvailable,
             onLineageSelected,
             onExternalRequestEvent,
+            pushDataAppVizContext,
             health.data,
             user.data,
         ],
@@ -839,6 +870,14 @@ export function useAppSdkBridge({
             '*',
         );
     }, [iframeRef]);
+
+    // Re-push the render context whenever the host's field mapping or rows
+    // change, so an already-loaded iframe re-renders live. The initial delivery
+    // is driven by the iframe's `viz-context-request` handshake, so no push on
+    // `load` is needed here.
+    useEffect(() => {
+        pushDataAppVizContext();
+    }, [pushDataAppVizContext]);
 
     const enableInspector = useCallback(() => {
         iframeRef.current?.contentWindow?.postMessage(

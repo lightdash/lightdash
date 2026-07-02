@@ -1,4 +1,9 @@
-import { LightdashAppUuidHeader } from '@lightdash/common';
+import {
+    APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
+    APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
+    LightdashAppUuidHeader,
+    type DataAppVizContext,
+} from '@lightdash/common';
 import { renderHook } from '@testing-library/react';
 import { type RefObject } from 'react';
 import {
@@ -819,5 +824,91 @@ describe('external-fetch branch', () => {
                 (r) => r['type'] === 'lightdash:sdk:external-fetch-response',
             ),
         ).toBeUndefined();
+    });
+});
+
+describe('data-app-viz-context push', () => {
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    const dataAppVizContext: DataAppVizContext = {
+        fieldMapping: { category: 'orders_status', value: 'orders_count' },
+        rows: [
+            {
+                orders_status: {
+                    value: { raw: 'completed', formatted: 'Completed' },
+                },
+                orders_count: { value: { raw: 42, formatted: '42' } },
+            },
+        ],
+    };
+
+    function renderWithDataAppVizContext(ctx: DataAppVizContext | undefined) {
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        return renderHook(() =>
+            useAppSdkBridge({
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                dataAppVizContext: ctx,
+            }),
+        );
+    }
+
+    it('pushes the render context to the iframe when set', () => {
+        const postSpy = vi.spyOn(window, 'postMessage');
+        renderWithDataAppVizContext(dataAppVizContext);
+        expect(postSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                type: APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
+                fieldMapping: dataAppVizContext.fieldMapping,
+                rows: dataAppVizContext.rows,
+            }),
+            '*',
+        );
+    });
+
+    it('re-pushes the context in response to the iframe handshake request', () => {
+        const postSpy = vi.spyOn(window, 'postMessage');
+        renderWithDataAppVizContext(dataAppVizContext);
+        // Isolate the handshake push from the on-mount push.
+        postSpy.mockClear();
+        dispatchFetchMessage({ type: APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE });
+        expect(postSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                type: APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
+                fieldMapping: dataAppVizContext.fieldMapping,
+                rows: dataAppVizContext.rows,
+            }),
+            '*',
+        );
+    });
+
+    it('does not push a render context for ordinary apps (no context)', () => {
+        const postSpy = vi.spyOn(window, 'postMessage');
+        renderWithDataAppVizContext(undefined);
+        expect(postSpy).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                type: APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
+            }),
+            '*',
+        );
+    });
+
+    it('ignores a handshake request for ordinary apps (no context)', () => {
+        const postSpy = vi.spyOn(window, 'postMessage');
+        renderWithDataAppVizContext(undefined);
+        postSpy.mockClear();
+        dispatchFetchMessage({ type: APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE });
+        expect(postSpy).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                type: APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
+            }),
+            '*',
+        );
     });
 });
