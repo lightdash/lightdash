@@ -16617,6 +16617,13 @@
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
+                                                                        "joinedTables": {
+                                                                            "items": {
+                                                                                "type": "string"
+                                                                            },
+                                                                            "type": "array",
+                                                                            "nullable": true
+                                                                        },
                                                                         "requiredFilters": {
                                                                             "items": {
                                                                                 "properties": {
@@ -16651,13 +16658,6 @@
                                                                                 "type": "object"
                                                                             },
                                                                             "type": "array"
-                                                                        },
-                                                                        "joinedTables": {
-                                                                            "items": {
-                                                                                "type": "string"
-                                                                            },
-                                                                            "type": "array",
-                                                                            "nullable": true
                                                                         },
                                                                         "label": {
                                                                             "type": "string"
@@ -16863,6 +16863,10 @@
                                                         "anyOf": [
                                                             {
                                                                 "properties": {
+                                                                    "rationale": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
                                                                     "fields": {
                                                                         "items": {
                                                                             "properties": {
@@ -16922,10 +16926,6 @@
                                                                             "type": "object"
                                                                         },
                                                                         "type": "array"
-                                                                    },
-                                                                    "rationale": {
-                                                                        "type": "string",
-                                                                        "nullable": true
                                                                     },
                                                                     "explore": {
                                                                         "properties": {
@@ -16997,8 +16997,8 @@
                                                                     }
                                                                 },
                                                                 "required": [
-                                                                    "fields",
                                                                     "rationale",
+                                                                    "fields",
                                                                     "explore",
                                                                     "status"
                                                                 ],
@@ -17012,10 +17012,10 @@
                                                                     "candidates": {
                                                                         "items": {
                                                                             "properties": {
-                                                                                "exploreLabel": {
+                                                                                "reason": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "reason": {
+                                                                                "exploreLabel": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "exploreName": {
@@ -17023,8 +17023,8 @@
                                                                                 }
                                                                             },
                                                                             "required": [
-                                                                                "exploreLabel",
                                                                                 "reason",
+                                                                                "exploreLabel",
                                                                                 "exploreName"
                                                                             ],
                                                                             "type": "object"
@@ -17272,8 +17272,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "timeout",
                                                             "error",
+                                                            "timeout",
                                                             "rejected",
                                                             "success"
                                                         ]
@@ -28840,6 +28840,18 @@
             },
             "SpaceAccessUserMetadata": {
                 "properties": {
+                    "avatarGradient": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/UserAvatarColorValue"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "avatarUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "isInternal": {
                         "type": "boolean"
                     },
@@ -28853,7 +28865,14 @@
                         "type": "string"
                     }
                 },
-                "required": ["isInternal", "email", "lastName", "firstName"],
+                "required": [
+                    "avatarGradient",
+                    "avatarUrl",
+                    "isInternal",
+                    "email",
+                    "lastName",
+                    "firstName"
+                ],
                 "type": "object"
             },
             "SpaceShare": {
@@ -38435,11 +38454,31 @@
                     },
                     "user": {
                         "properties": {
+                            "avatarGradient": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/UserAvatarColorValue"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "avatarUrl": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "userUuid": {
+                                "type": "string"
+                            },
                             "name": {
                                 "type": "string"
                             }
                         },
-                        "required": ["name"],
+                        "required": [
+                            "avatarGradient",
+                            "avatarUrl",
+                            "userUuid",
+                            "name"
+                        ],
                         "type": "object"
                     },
                     "createdAt": {
