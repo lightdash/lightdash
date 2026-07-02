@@ -24,20 +24,29 @@ import {
 import { ProjectContextWritebackModal } from './ProjectContextWritebackModal';
 import {
     shouldShowWritebackBlockedReason,
+    writebackBlockedReasonDescriptions,
     writebackBlockedReasonLabels,
 } from './reviewItemDetails';
 
 type ReviewItemActionsProps = {
     reviewItem: AiAgentReviewItemSummary;
-    mode?: 'table' | 'drawer';
+    /**
+     * `header` renders the compact modal-header form: the stage's primary
+     * action (Accept / Open workspace / Create PR) with Dismiss demoted to a
+     * quiet secondary beside it, and no blocked-reason note.
+     */
+    mode?: 'table' | 'drawer' | 'header';
     /** Suppress the "Open workspace" button (e.g. when it lives elsewhere). */
     hideWorkspaceLink?: boolean;
+    /** Suppress the writeback-blocked note (e.g. when it's rendered elsewhere). */
+    hideBlockedReason?: boolean;
 };
 
 export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
     reviewItem,
     mode = 'table',
     hideWorkspaceLink = false,
+    hideBlockedReason = false,
 }) => {
     const createWriteback = useCreateAiAgentReviewItemWriteback();
     const updateStatus = useUpdateAiAgentReviewItemStatus();
@@ -76,6 +85,11 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
     const blockedReasonLabel = shouldShowWritebackBlockedReason(blockedReason)
         ? writebackBlockedReasonLabels[blockedReason]
         : null;
+    const blockedReasonDescription = shouldShowWritebackBlockedReason(
+        blockedReason,
+    )
+        ? (writebackBlockedReasonDescriptions[blockedReason] ?? null)
+        : null;
     const previewsDiff = current.primaryRootCause === 'project_context';
 
     const phase = current.prWritebackMessage ?? 'Opening pull request…';
@@ -84,16 +98,19 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
             ? current.remediation.errorMessage
             : null;
     const buttonSize: 'xs' | 'compact-xs' =
-        mode === 'drawer' ? 'xs' : 'compact-xs';
+        mode === 'table' ? 'compact-xs' : 'xs';
     const stopPropagation = (event: SyntheticEvent) => event.stopPropagation();
-    const errorIconSize = mode === 'drawer' ? 16 : 15;
+    const errorIconSize = mode === 'table' ? 15 : 16;
+    // In the header the stage's primary action reads as the app's primary
+    // (filled dark) and Dismiss demotes to a quiet secondary beside it.
+    const isHeader = mode === 'header';
 
     return (
         <>
             {isWritebackInFlight ? (
-                // The drawer's Activity timeline owns the live progress row —
+                // The modal's Activity timeline owns the live progress row —
                 // a second spinner in the corner would duplicate it.
-                mode === 'drawer' ? null : (
+                mode !== 'table' ? null : (
                     <Tooltip label={phase} withArrow openDelay={300}>
                         <Group gap={8} wrap="nowrap" maw={180}>
                             <Loader size={12} color="ldGray.5" />
@@ -109,7 +126,7 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                         size={buttonSize}
                         radius="md"
                         variant="filled"
-                        color="indigo"
+                        color={isHeader ? 'dark' : 'indigo'}
                         loading={updateStatus.isLoading}
                         onClick={(event) => {
                             stopPropagation(event);
@@ -154,8 +171,9 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                                       onClick={stopPropagation}
                                       size={buttonSize}
                                       fz="xs"
-                                      variant="light"
-                                      color="indigo"
+                                      radius={isHeader ? 'md' : undefined}
+                                      variant={isHeader ? 'filled' : 'light'}
+                                      color={isHeader ? 'dark' : 'indigo'}
                                       leftSection={
                                           <MantineIcon
                                               size="sm"
@@ -265,21 +283,43 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                         )}
                     </Group>
 
-                    {!canCreatePr &&
+                    {!hideBlockedReason &&
+                        !isHeader &&
+                        !canCreatePr &&
                         !current.linkedPrUrl &&
                         !isWritebackInFlight &&
-                        blockedReasonLabel && (
+                        blockedReasonLabel &&
+                        (mode === 'drawer' ? (
+                            <Group
+                                gap={10}
+                                wrap="nowrap"
+                                align="flex-start"
+                                maw={360}
+                            >
+                                <MantineIcon
+                                    icon={IconInfoCircle}
+                                    size={20}
+                                    stroke={1.6}
+                                    color="ldGray.5"
+                                />
+                                <Stack gap={2}>
+                                    <Text fz="xs" fw={600} c="ldGray.7">
+                                        {blockedReasonLabel}
+                                    </Text>
+                                    {blockedReasonDescription && (
+                                        <Text fz="xs" c="ldGray.6" lh={1.45}>
+                                            {blockedReasonDescription}
+                                        </Text>
+                                    )}
+                                </Stack>
+                            </Group>
+                        ) : (
                             <Tooltip
                                 label={blockedReasonLabel}
                                 withArrow
                                 openDelay={300}
-                                disabled={mode === 'drawer'}
                             >
-                                <Group
-                                    gap={4}
-                                    wrap="nowrap"
-                                    maw={mode === 'drawer' ? 360 : 220}
-                                >
+                                <Group gap={4} wrap="nowrap" maw={220}>
                                     <MantineIcon
                                         icon={IconInfoCircle}
                                         size="xs"
@@ -288,13 +328,13 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                                         fz="xs"
                                         c="ldGray.6"
                                         fw={500}
-                                        lineClamp={mode === 'drawer' ? 3 : 1}
+                                        lineClamp={1}
                                     >
                                         {blockedReasonLabel}
                                     </Text>
                                 </Group>
                             </Tooltip>
-                        )}
+                        ))}
                 </Stack>
             )}
 

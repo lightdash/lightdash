@@ -1,6 +1,7 @@
-import { Button, HoverCard, Text } from '@mantine-8/core';
+import { Anchor, Button, HoverCard, Stack, Text } from '@mantine-8/core';
+import { IconArrowRight } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { AiAgentIcon } from '../../ee/features/aiCopilot/components/AiAgentIcon';
 import { ReviewFindingsPreview } from '../../ee/features/aiCopilot/components/ReviewFindingsPreview';
 import {
@@ -10,6 +11,7 @@ import {
 import { useAiAgentOrgPermission } from '../../ee/features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentButtonVisibility } from '../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
+import MantineIcon from '../common/MantineIcon';
 
 const PREVIEW_LIMIT = 3;
 const PROMPT_TREND_DAYS = 30;
@@ -60,8 +62,12 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
         return null;
     }
 
-    // Original button — nothing to surface (no review access, or no active findings).
-    if (!showReviews || reviewCount === 0) {
+    const reviewsUrl = `/generalSettings/ai/issues?projects=${encodeURIComponent(
+        projectUuid,
+    )}`;
+
+    // No review access — plain Ask AI button, board not reachable from here.
+    if (!showReviews) {
         return (
             <Button
                 size="xs"
@@ -77,9 +83,59 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
         );
     }
 
-    const reviewsUrl = `/generalSettings/ai/issues?projects=${encodeURIComponent(
-        projectUuid,
-    )}`;
+    // Reviews enabled but nothing open yet — keep the board reachable (users can
+    // file issues manually), without the findings preview / trend chart.
+    if (reviewCount === 0) {
+        return (
+            <HoverCard
+                width={240}
+                shadow="lg"
+                position="bottom-start"
+                offset={6}
+                openDelay={120}
+                closeDelay={80}
+                withinPortal
+                portalProps={{ target: '#navbar-header' }}
+            >
+                <HoverCard.Target>
+                    <Button
+                        size="xs"
+                        variant="default"
+                        fz="sm"
+                        leftSection={<AiAgentIcon size={14} />}
+                        onClick={goToAskAi}
+                    >
+                        <Text span truncate="end" maw={150} size="sm">
+                            Ask AI
+                        </Text>
+                    </Button>
+                </HoverCard.Target>
+                <HoverCard.Dropdown p="sm">
+                    <Stack gap={6}>
+                        <Text fz="xs" c="dimmed">
+                            No open issues yet. Track a data gap, correction, or
+                            request from a chart, dashboard, or the board.
+                        </Text>
+                        <Anchor
+                            component={Link}
+                            to={reviewsUrl}
+                            fz="xs"
+                            fw={500}
+                        >
+                            <Text span fz="xs" fw={500}>
+                                Go to the issues board
+                            </Text>{' '}
+                            <MantineIcon
+                                icon={IconArrowRight}
+                                size={12}
+                                display="inline"
+                            />
+                        </Anchor>
+                    </Stack>
+                </HoverCard.Dropdown>
+            </HoverCard>
+        );
+    }
 
     return (
         <HoverCard

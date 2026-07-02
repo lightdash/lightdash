@@ -1,0 +1,52 @@
+/* Transcript ledger — the same gutter grammar as the Activity timeline:
+   speaker right-aligned in a fixed column, quoted text beside it. */
+.transcript {
+    display: grid;
+    grid-template-columns: 70px minmax(0, 1fr);
+    column-gap: 12px;
+    row-gap: 12px;
+    align-items: start;
+}
+
+.speaker {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-align: right;
+    padding-top: 3px;
+    color: var(--mantine-color-ldGray-6);
+    white-space: nowrap;
+}
+
+.speaker[data-muted] {
+    color: var(--mantine-color-ldGray-5);
+    font-weight: 500;
+}
+
+/* Quoted turns — AiMarkdown owns the inner typography; we tighten it to the
+   transcript scale. Secondary (context / tool) sources dim so the cited user
+   & assistant turns lead. */
+.text {
+    font-size: 12.5px;
+    color: var(--mantine-color-ldGray-8);
+    min-width: 0;
+}
+
+.text p {
+    font-size: 12.5px;
+    line-height: 1.55;
+}
+
+.text[data-muted] {
+    opacity: 0.65;
+}
+
+/* Tool call/result — machine output reads as machine output. */
+.text[data-mono] {
+    font-family: var(--mantine-font-family-monospace);
+    font-size: 11.5px;
+    line-height: 1.5;
+    padding-top: 2px;
+    overflow-wrap: anywhere;
+}

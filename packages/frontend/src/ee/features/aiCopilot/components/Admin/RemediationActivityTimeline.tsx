@@ -30,6 +30,11 @@ const formatWhen = (occurredAt: Date | string, previous: Date | null) => {
 const truncate = (text: string, max = 90) =>
     text.length > max ? `${text.slice(0, max).trimEnd()}…` : text;
 
+// Tones color the timeline node by what the event means: teal for fix
+// progress, indigo for PR motion, green for verified/resolved, red for
+// failures, orange for recurrences. Neutral events stay gray.
+type TimelineTone = 'progress' | 'pr' | 'success' | 'danger' | 'attention';
+
 type TimelineRow = {
     key: string;
     label: string;
@@ -37,13 +42,14 @@ type TimelineRow = {
     when: string;
     state: 'done' | 'live';
     author: ReactNode;
+    tone?: TimelineTone;
 };
 
 const humanizeStatus = (status: string) => status.replaceAll('_', ' ');
 
 const issueEventRow = (
     event: Extract<AiAgentReviewActivityEvent, { kind: 'issue' }>,
-): Pick<TimelineRow, 'label' | 'meta'> => {
+): Pick<TimelineRow, 'label' | 'meta' | 'tone'> => {
     switch (event.eventType) {
         case 'created':
             return { label: 'Issue opened', meta: null };
@@ -60,7 +66,11 @@ const issueEventRow = (
                 meta: null,
             };
         case 'recurred':
-            return { label: 'Recurred — seen again', meta: null };
+            return {
+                label: 'Recurred — seen again',
+                meta: null,
+                tone: 'attention',
+            };
         case 'priority_changed':
             return {
                 label: 'Priority changed',
@@ -72,7 +82,7 @@ const issueEventRow = (
                 meta: truncate(event.payload.body, 160),
             };
         default:
-            return { label: 'Activity', meta: null };
+            return { label: 'Updated', meta: null };
     }
 };
 
@@ -88,7 +98,7 @@ const buildThreadPath = (
 const eventRow = (
     event: AiAgentReviewRemediationEvent,
     reviewItem: AiAgentReviewItemSummary,
-): Pick<TimelineRow, 'label' | 'meta'> => {
+): Pick<TimelineRow, 'label' | 'meta' | 'tone'> => {
     const remediation = reviewItem.remediation;
     switch (event.eventType) {
         case 'finding_opened': {
@@ -135,11 +145,13 @@ const eventRow = (
             return {
                 label: 'Writeback ran',
                 meta: files ? `Edited ${files}${counts}` : null,
+                tone: 'progress',
             };
         }
         case 'pr_opened':
             return {
                 label: 'Pull request opened',
+                tone: 'pr',
                 meta: (
                     <Anchor
                         href={event.payload.prUrl}
@@ -153,8 +165,23 @@ const eventRow = (
                     </Anchor>
                 ),
             };
+        case 'pr_updated':
+            return {
+                label: 'Pull request updated',
+                tone: 'pr',
+                meta: event.payload.prUrl ? (
+                    <Anchor
+                        href={event.payload.prUrl}
+                        target="_blank"
+                        className={styles.metaLink}
+                        inherit
+                    >
+                        View PR
+                    </Anchor>
+                ) : null,
+            };
         case 'preview_compiled':
-            return { label: 'Preview compiled', meta: null };
+            return { label: 'Preview compiled', meta: null, tone: 'progress' };
         case 'verification_completed': {
             const threadPath = buildThreadPath(
                 remediation?.previewProjectUuid ?? null,
@@ -163,6 +190,7 @@ const eventRow = (
             );
             return {
                 label: 'Fix verified',
+                tone: 'success',
                 meta: threadPath ? (
                     <Anchor
                         component={Link}
@@ -176,18 +204,19 @@ const eventRow = (
             };
         }
         case 'pr_merged':
-            return { label: 'Pull request merged', meta: null };
+            return { label: 'Pull request merged', meta: null, tone: 'pr' };
         case 'pr_closed':
             return { label: 'Pull request closed', meta: null };
         case 'resolved':
-            return { label: 'Resolved', meta: null };
+            return { label: 'Resolved', meta: null, tone: 'success' };
         case 'failed':
             return {
                 label: 'Failed',
                 meta: event.payload.errorMessage,
+                tone: 'danger',
             };
         default:
-            return { label: 'Activity', meta: null };
+            return { label: 'Updated', meta: null };
     }
 };
 
@@ -279,6 +308,7 @@ export const RemediationActivityTimeline: FC<Props> = ({ reviewItem }) => {
                     className={styles.item}
                     data-done={row.state === 'done' || undefined}
                     data-live={row.state === 'live' || undefined}
+                    data-tone={row.tone}
                 >
                     <span className={styles.when}>{row.when}</span>
                     <div className={styles.node} />

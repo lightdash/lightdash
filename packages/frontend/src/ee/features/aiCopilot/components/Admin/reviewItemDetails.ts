@@ -74,6 +74,26 @@ export const writebackBlockedReasonLabels: Record<
     writeback_in_progress: 'Writeback is already in progress',
 };
 
+/**
+ * One-line explanations of what a blocked reason means and how to unblock it.
+ * Only the actionable reasons get a description; the rest fall back to the
+ * short label alone.
+ */
+export const writebackBlockedReasonDescriptions: Partial<
+    Record<AiAgentReviewItemWritebackBlockedReason, string>
+> = {
+    unsupported_source_control:
+        'Connect this project to GitHub or GitLab so Lightdash can open a pull request that fixes issues like this for you.',
+    reviews_disabled:
+        'Turn on Issues for your organization to let agents file and fix issues automatically.',
+    git_app_not_installed:
+        'Install the Lightdash app on your repository so it can open pull requests.',
+    project_context_disabled:
+        'Enable project context so Lightdash can propose updates to your project knowledge.',
+    missing_writeback_config:
+        'Ask an admin to configure the writeback runtime to enable automatic fixes.',
+};
+
 export const shouldShowWritebackBlockedReason = (
     reason: AiAgentReviewItemWritebackBlockedReason | null,
 ): reason is Exclude<
