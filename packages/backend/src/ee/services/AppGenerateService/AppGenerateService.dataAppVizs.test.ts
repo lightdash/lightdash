@@ -82,7 +82,10 @@ function buildService(appModel: unknown) {
     // Bypass real CASL — the mapping/flow is what these tests cover.
     (
         service as unknown as { createAuditedAbility: () => unknown }
-    ).createAuditedAbility = () => ({ cannot: () => false });
+    ).createAuditedAbility = () => ({
+        can: () => true,
+        cannot: () => false,
+    });
     return service;
 }
 
@@ -170,5 +173,53 @@ describe('AppGenerateService data app vizs', () => {
                 'not-a-data-app-viz',
             ),
         ).rejects.toThrow(NotFoundError);
+    });
+
+    it('surfaces viz_schema per version as resources.vizSchema', async () => {
+        const makeVersion = (overrides: Record<string, unknown> = {}) => ({
+            app_version_id: 'app-version-1',
+            app_id: 'app-1',
+            prompt: 'build a chart',
+            status: 'ready',
+            error: null,
+            status_message: 'Visualization ready',
+            status_updated_at: new Date('2026-06-30'),
+            resources: null,
+            viz_schema: null,
+            created_at: new Date('2026-06-30'),
+            created_by_user_uuid: 'user-1',
+            created_by_user_first_name: 'A',
+            created_by_user_last_name: 'B',
+            ...overrides,
+        });
+        const appModel = {
+            getAppWithVersions: vi.fn().mockResolvedValue({
+                name: 'a',
+                description: '',
+                createdByUserUuid: 'user-1',
+                organizationUuid: 'org-1',
+                spaceUuid: null,
+                spaceName: null,
+                template: DATA_APP_VIZ_TEMPLATE,
+                pinnedListUuid: null,
+                pinnedListOrder: null,
+                hasMore: false,
+                versions: [
+                    makeVersion({ version: 2, viz_schema: vizSchema }),
+                    makeVersion({ version: 1, viz_schema: null }),
+                ],
+            }),
+        };
+        const service = buildService(appModel);
+
+        const res = await service.getAppVersions(
+            USER,
+            'project-1',
+            'app-1',
+            {},
+        );
+
+        expect(res.versions[0].resources?.vizSchema).toEqual(vizSchema);
+        expect(res.versions[1].resources?.vizSchema ?? null).toBeNull();
     });
 });

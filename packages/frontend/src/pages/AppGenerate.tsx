@@ -93,6 +93,7 @@ import ChatMessageContent from '../features/apps/ChatMessageContent';
 import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
 import AppSpaceChip from '../features/apps/components/AppSpaceChip';
+import DataAppVizResultCard from '../features/apps/components/DataAppVizResultCard';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppImageUpload } from '../features/apps/hooks/useAppImageUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
@@ -860,6 +861,7 @@ const AppGenerate: FC = () => {
                     version: null,
                     timestamp: new Date(v.createdAt),
                     userName: authorName,
+                    vizSchema: null,
                 },
             ];
             if (v.status === 'ready') {
@@ -880,6 +882,7 @@ const AppGenerate: FC = () => {
                     version: v.version,
                     timestamp: new Date(replyTimestamp),
                     userName: null,
+                    vizSchema: v.resources?.vizSchema ?? null,
                 });
             } else if (v.status === 'error') {
                 msgs.push({
@@ -898,6 +901,7 @@ const AppGenerate: FC = () => {
                     version: null,
                     timestamp: new Date(replyTimestamp),
                     userName: null,
+                    vizSchema: null,
                 });
             }
             // 'building' status is not rendered as a history message —
@@ -1065,6 +1069,7 @@ const AppGenerate: FC = () => {
                         [user.data?.firstName, user.data?.lastName]
                             .filter((s): s is string => !!s && s.length > 0)
                             .join(' ') || null,
+                    vizSchema: null,
                     submittedAtVersion: maxHistoryVersion,
                 },
             ]);
@@ -1103,6 +1108,7 @@ const AppGenerate: FC = () => {
                                 version: null,
                                 timestamp: new Date(),
                                 userName: null,
+                                vizSchema: null,
                             },
                         ]);
                     },
@@ -1509,6 +1515,7 @@ const AppGenerate: FC = () => {
                     version: null,
                     timestamp: new Date(),
                     userName: null,
+                    vizSchema: null,
                 },
             ]);
         },
@@ -1659,6 +1666,7 @@ const AppGenerate: FC = () => {
                         [user.data?.firstName, user.data?.lastName]
                             .filter((s): s is string => !!s && s.length > 0)
                             .join(' ') || null,
+                    vizSchema: null,
                     // Snapshot the highest server version known at submit time.
                     // Once history catches up past this number the optimistic
                     // bubble is dropped by `mergeChatMessages` — even if the
@@ -2235,7 +2243,13 @@ const AppGenerate: FC = () => {
                                                                     : undefined
                                                             }
                                                         />
-                                                        {msg.appUuid ? (
+                                                        {msg.vizSchema ? (
+                                                            <DataAppVizResultCard
+                                                                schema={
+                                                                    msg.vizSchema
+                                                                }
+                                                            />
+                                                        ) : msg.appUuid ? (
                                                             <AiMarkdown>
                                                                 {msg.content}
                                                             </AiMarkdown>

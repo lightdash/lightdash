@@ -14,6 +14,7 @@ const baseMessage: ChatMessage = {
     version: null,
     timestamp: new Date('2026-05-15T10:00:00Z'),
     userName: 'Test User',
+    vizSchema: null,
 };
 
 describe('mergeChatMessages', () => {
