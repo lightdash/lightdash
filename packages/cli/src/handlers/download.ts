@@ -27,6 +27,7 @@ import {
     type SpaceAsCode,
 } from '@lightdash/common';
 import { Dirent, promises as fs, type Stats } from 'fs';
+import inquirer from 'inquirer';
 import * as yaml from 'js-yaml';
 import groupBy from 'lodash/groupBy';
 import pLimit from 'p-limit';
@@ -40,6 +41,7 @@ import {
     appFolderName,
     buildImportBody,
     readBundleFromDir,
+    retargetManifest,
     writeBundleToDir,
     writeContextToDir,
     writeFilesToDir,
@@ -72,6 +74,7 @@ export type DownloadHandlerOptions = {
     dashboards: string[]; // These can be slugs, uuids or urls
     apps: string[] | boolean | null; // download: string[] = specific UUIDs; upload: true = all app folders on disk; null/false/absent = skip
     includeApps?: boolean; // download only: include the project's apps (space-scoped listing, capped)
+    createNew?: boolean; // upload only: always create a new app instead of updating the manifest's app
     force: boolean;
     path?: string; // New optional path parameter
     project?: string;
@@ -1913,7 +1916,9 @@ export const uploadHandler = async (
                         continue;
                     }
 
-                    const body = buildImportBody(code, projectId, {});
+                    const body = buildImportBody(code, projectId, {
+                        createNew: options.createNew === true,
+                    });
 
                     // eslint-disable-next-line no-await-in-loop
                     const { appUuid, version, action } = await lightdashApi<
@@ -1931,6 +1936,44 @@ export const uploadHandler = async (
                             `Uploaded "${code.manifest.name}" — ${actionLabel} v${version} (${appUuid}). Building in the background; the app will show "building" until the server finishes.`,
                         ),
                     );
+
+                    if (action === 'create') {
+                        GlobalState.log(
+                            `New app: ${config.context.serverUrl}/projects/${projectId}/apps/${appUuid}`,
+                        );
+                        if (process.stdin.isTTY && process.stdout.isTTY) {
+                            // eslint-disable-next-line no-await-in-loop
+                            const { retarget } = await inquirer.prompt<{
+                                retarget: boolean;
+                            }>([
+                                {
+                                    type: 'confirm',
+                                    name: 'retarget',
+                                    message: `Update ${subDir.name}/lightdash-app.yml to target the new app, so future uploads update it?`,
+                                    default: true,
+                                },
+                            ]);
+                            if (retarget) {
+                                // eslint-disable-next-line no-await-in-loop
+                                await retargetManifest(folderPath, {
+                                    appUuid,
+                                    projectUuid: projectId,
+                                    version,
+                                });
+                                GlobalState.log(
+                                    styles.success(
+                                        `Updated ${subDir.name}/lightdash-app.yml to target ${appUuid}.`,
+                                    ),
+                                );
+                            }
+                        } else {
+                            GlobalState.log(
+                                styles.warning(
+                                    `${subDir.name}/lightdash-app.yml still targets the original app. Set appUuid: ${appUuid} (and projectUuid: ${projectId}) there to update the new app on future uploads.`,
+                                ),
+                            );
+                        }
+                    }
                 } catch (appErr) {
                     const status =
                         appErr instanceof LightdashError

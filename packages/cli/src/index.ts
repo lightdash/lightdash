@@ -822,6 +822,11 @@ program
         '--apps [appUuids...]',
         'Include data apps (enterprise). Optionally limit to specific app UUIDs; default: all app folders on disk.',
     )
+    .option(
+        '--create-new',
+        'Always create a new app from the uploaded code instead of updating the app referenced by lightdash-app.yml.',
+        false,
+    )
     .action(uploadHandler);
 
 program
