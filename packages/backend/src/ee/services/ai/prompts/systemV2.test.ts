@@ -1,3 +1,4 @@
+import { OrganizationMemberRole } from '@lightdash/common';
 import { getSystemPromptV2 } from './systemV2';
 
 const promptText = (args: Parameters<typeof getSystemPromptV2>[0]): string => {
@@ -30,6 +31,76 @@ describe('getSystemPromptV2 project context', () => {
     test('leaves no unfilled project_context placeholder', () => {
         const content = promptText({ availableExplores: [] });
         expect(content).not.toContain('{{project_context}}');
+    });
+});
+
+describe('getSystemPromptV2 requesting user', () => {
+    test('renders identity and non-technical guidance for a viewer', () => {
+        const content = promptText({
+            availableExplores: [],
+            requestingUser: {
+                name: 'Ada Lovelace',
+                role: OrganizationMemberRole.VIEWER,
+                groups: ['Finance', 'Ops'],
+            },
+        });
+        expect(content).toContain('## Who you are talking to');
+        expect(content).toContain('Ada Lovelace');
+        expect(content).toContain('organization role: Viewer');
+        expect(content).toContain('member of: Finance, Ops');
+        expect(content).toContain('business user');
+        expect(content).toContain('Never advise them to use a different table');
+        expect(content).toContain("user's team(s)");
+    });
+
+    test('renders technical guidance for a developer', () => {
+        const content = promptText({
+            availableExplores: [],
+            requestingUser: {
+                name: 'Grace Hopper',
+                role: OrganizationMemberRole.DEVELOPER,
+                groups: [],
+            },
+        });
+        expect(content).toContain('organization role: Developer');
+        expect(content).toContain('technical detail is appropriate');
+        expect(content).not.toContain('business user');
+        // no team-disambiguation guidance without groups
+        expect(content).not.toContain("user's team(s)");
+    });
+
+    test('defaults to the non-technical register when the role is unknown', () => {
+        const content = promptText({
+            availableExplores: [],
+            requestingUser: {
+                name: 'Sam Service',
+                role: null,
+                groups: [],
+            },
+        });
+        expect(content).toContain('Sam Service');
+        expect(content).not.toContain('organization role:');
+        expect(content).toContain('business user');
+    });
+
+    test('omits the section entirely when the requesting user is unknown', () => {
+        const contentNull = promptText({
+            availableExplores: [],
+            requestingUser: null,
+        });
+        const contentOmitted = promptText({ availableExplores: [] });
+        for (const content of [contentNull, contentOmitted]) {
+            expect(content).not.toContain('## Who you are talking to');
+            expect(content).not.toContain('{{requesting_user_section}}');
+        }
+    });
+
+    test('omits the section when all identity fields are empty', () => {
+        const content = promptText({
+            availableExplores: [],
+            requestingUser: { name: '', role: null, groups: [] },
+        });
+        expect(content).not.toContain('## Who you are talking to');
     });
 });
 
