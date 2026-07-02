@@ -1355,6 +1355,80 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "SchedulerAiAugmentationType.AGENT": {
+                "enum": ["agent"],
+                "type": "string"
+            },
+            "SchedulerAiAugmentationType.FAST_MODEL": {
+                "enum": ["fast_model"],
+                "type": "string"
+            },
+            "SchedulerAiAugmentation": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "sourceThreadUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "agentUuid": {
+                                "type": "string"
+                            },
+                            "prompt": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/SchedulerAiAugmentationType.AGENT"
+                            }
+                        },
+                        "required": [
+                            "sourceThreadUuid",
+                            "agentUuid",
+                            "prompt",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "prompt": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/SchedulerAiAugmentationType.FAST_MODEL"
+                            }
+                        },
+                        "required": ["prompt", "type"],
+                        "type": "object"
+                    }
+                ],
+                "description": "Enterprise-only AI augmentation attached to a scheduled delivery. On each\nfire the agent (or ambient fast model) writes the delivery message from the\ndelivery's content and the prompt. Persisted in the EE `scheduler_ai_augmentation`\nsatellite table, not on the scheduler itself, so OSS carries none of it."
+            },
+            "ApiSchedulerAiAugmentationResponse": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SchedulerAiAugmentation"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "UUID": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Stringified UUIDv4.\nSee [RFC 4112](https://tools.ietf.org/html/rfc4122)",
+                "pattern": "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}"
+            },
             "ManagedAgentScheduleOption": {
                 "enum": [
                     "every_6_hours",
@@ -14374,6 +14448,11 @@
                 },
                 "type": "object"
             },
+            "AiThreadCreatedFrom": {
+                "type": "string",
+                "enum": ["slack", "web_app", "evals", "scheduler"],
+                "description": "Every origin an ai_thread can be created from. Canonical source for the\nDB column type and the admin/list filters — add new origins here."
+            },
             "AiAgentUser": {
                 "properties": {
                     "name": {
@@ -14412,7 +14491,7 @@
                         "nullable": true
                     },
                     "createdFrom": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/AiThreadCreatedFrom"
                     },
                     "createdAt": {
                         "type": "string"
@@ -15406,7 +15485,7 @@
                         "nullable": true
                     },
                     "createdFrom": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/AiThreadCreatedFrom"
                     },
                     "createdAt": {
                         "type": "string"
@@ -16863,67 +16942,6 @@
                                                         "anyOf": [
                                                             {
                                                                 "properties": {
-                                                                    "explore": {
-                                                                        "properties": {
-                                                                            "requiredFilters": {
-                                                                                "items": {
-                                                                                    "properties": {
-                                                                                        "settings": {},
-                                                                                        "values": {
-                                                                                            "items": {},
-                                                                                            "type": "array"
-                                                                                        },
-                                                                                        "required": {
-                                                                                            "type": "boolean"
-                                                                                        },
-                                                                                        "tableName": {
-                                                                                            "type": "string"
-                                                                                        },
-                                                                                        "fieldRef": {
-                                                                                            "type": "string"
-                                                                                        },
-                                                                                        "fieldId": {
-                                                                                            "type": "string"
-                                                                                        },
-                                                                                        "operator": {
-                                                                                            "type": "string"
-                                                                                        }
-                                                                                    },
-                                                                                    "required": [
-                                                                                        "required",
-                                                                                        "tableName",
-                                                                                        "fieldRef",
-                                                                                        "fieldId",
-                                                                                        "operator"
-                                                                                    ],
-                                                                                    "type": "object"
-                                                                                },
-                                                                                "type": "array"
-                                                                            },
-                                                                            "baseTable": {
-                                                                                "type": "string"
-                                                                            },
-                                                                            "joinedTables": {
-                                                                                "items": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "type": "array"
-                                                                            },
-                                                                            "label": {
-                                                                                "type": "string"
-                                                                            },
-                                                                            "name": {
-                                                                                "type": "string"
-                                                                            }
-                                                                        },
-                                                                        "required": [
-                                                                            "baseTable",
-                                                                            "joinedTables",
-                                                                            "label",
-                                                                            "name"
-                                                                        ],
-                                                                        "type": "object"
-                                                                    },
                                                                     "fields": {
                                                                         "items": {
                                                                             "properties": {
@@ -16988,6 +17006,67 @@
                                                                         "type": "string",
                                                                         "nullable": true
                                                                     },
+                                                                    "explore": {
+                                                                        "properties": {
+                                                                            "requiredFilters": {
+                                                                                "items": {
+                                                                                    "properties": {
+                                                                                        "settings": {},
+                                                                                        "values": {
+                                                                                            "items": {},
+                                                                                            "type": "array"
+                                                                                        },
+                                                                                        "required": {
+                                                                                            "type": "boolean"
+                                                                                        },
+                                                                                        "tableName": {
+                                                                                            "type": "string"
+                                                                                        },
+                                                                                        "fieldRef": {
+                                                                                            "type": "string"
+                                                                                        },
+                                                                                        "fieldId": {
+                                                                                            "type": "string"
+                                                                                        },
+                                                                                        "operator": {
+                                                                                            "type": "string"
+                                                                                        }
+                                                                                    },
+                                                                                    "required": [
+                                                                                        "required",
+                                                                                        "tableName",
+                                                                                        "fieldRef",
+                                                                                        "fieldId",
+                                                                                        "operator"
+                                                                                    ],
+                                                                                    "type": "object"
+                                                                                },
+                                                                                "type": "array"
+                                                                            },
+                                                                            "baseTable": {
+                                                                                "type": "string"
+                                                                            },
+                                                                            "joinedTables": {
+                                                                                "items": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "type": "array"
+                                                                            },
+                                                                            "label": {
+                                                                                "type": "string"
+                                                                            },
+                                                                            "name": {
+                                                                                "type": "string"
+                                                                            }
+                                                                        },
+                                                                        "required": [
+                                                                            "baseTable",
+                                                                            "joinedTables",
+                                                                            "label",
+                                                                            "name"
+                                                                        ],
+                                                                        "type": "object"
+                                                                    },
                                                                     "status": {
                                                                         "type": "string",
                                                                         "enum": [
@@ -16997,9 +17076,9 @@
                                                                     }
                                                                 },
                                                                 "required": [
-                                                                    "explore",
                                                                     "fields",
                                                                     "rationale",
+                                                                    "explore",
                                                                     "status"
                                                                 ],
                                                                 "type": "object"
@@ -18124,6 +18203,11 @@
             },
             "ApiCloneThreadResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiAgentThreadSummary_"
+            },
+            "AiClonedThreadCreatedFrom": {
+                "type": "string",
+                "enum": ["web_app", "evals"],
+                "description": "Origins a thread can be cloned into — Slack and scheduler threads are never clone targets."
             },
             "AiAgentExploreAccessSummary": {
                 "properties": {
@@ -23178,7 +23262,7 @@
                         "nullable": true
                     },
                     "createdFrom": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/AiThreadCreatedFrom"
                     }
                 },
                 "required": [
@@ -25655,6 +25739,9 @@
             "HexColor": {
                 "type": "string"
             },
+            "MeshColor": {
+                "type": "string"
+            },
             "SolidColor": {
                 "type": "string"
             },
@@ -25665,6 +25752,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/HexColor"
+                    },
+                    {
+                        "$ref": "#/components/schemas/MeshColor"
                     },
                     {
                         "$ref": "#/components/schemas/SolidColor"
@@ -26753,12 +26843,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "UUID": {
-                "type": "string",
-                "format": "uuid",
-                "description": "Stringified UUIDv4.\nSee [RFC 4112](https://tools.ietf.org/html/rfc4122)",
-                "pattern": "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}"
             },
             "UserAttributeValue": {
                 "properties": {
@@ -42711,16 +42795,16 @@
                     },
                     {
                         "properties": {
-                            "schedulerCount": {
+                            "chartCount": {
                                 "type": "number",
                                 "format": "double"
                             },
-                            "chartCount": {
+                            "schedulerCount": {
                                 "type": "number",
                                 "format": "double"
                             }
                         },
-                        "required": ["schedulerCount", "chartCount"],
+                        "required": ["chartCount", "schedulerCount"],
                         "type": "object"
                     }
                 ]
@@ -42802,11 +42886,11 @@
                                 "type": "number",
                                 "format": "double"
                             },
-                            "schedulerCount": {
+                            "chartCount": {
                                 "type": "number",
                                 "format": "double"
                             },
-                            "chartCount": {
+                            "schedulerCount": {
                                 "type": "number",
                                 "format": "double"
                             },
@@ -42818,8 +42902,8 @@
                         "required": [
                             "appCount",
                             "nestedSpaceCount",
-                            "schedulerCount",
                             "chartCount",
+                            "schedulerCount",
                             "dashboardCount"
                         ],
                         "type": "object"
@@ -43100,7 +43184,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3298.0",
+        "version": "0.3301.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -44468,6 +44552,135 @@
                 ]
             }
         },
+        "/api/v1/schedulers/{schedulerUuid}/ai-augmentation": {
+            "get": {
+                "operationId": "getSchedulerAiAugmentation",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSchedulerAiAugmentationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the AI augmentation attached to a scheduled delivery, or null.",
+                "summary": "Get scheduler AI augmentation",
+                "tags": ["Schedulers"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "schedulerUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "put": {
+                "operationId": "upsertSchedulerAiAugmentation",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSchedulerAiAugmentationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Attach or replace the AI augmentation on a scheduled delivery.",
+                "summary": "Upsert scheduler AI augmentation",
+                "tags": ["Schedulers"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "schedulerUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SchedulerAiAugmentation"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "deleteSchedulerAiAugmentation",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Remove the AI augmentation from a scheduled delivery.",
+                "summary": "Delete scheduler AI augmentation",
+                "tags": ["Schedulers"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "schedulerUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/databricks/sso/is-authenticated": {
             "get": {
                 "operationId": "getDatabricksAccessToken",
@@ -45570,8 +45783,7 @@
                         "name": "createdFrom",
                         "required": false,
                         "schema": {
-                            "type": "string",
-                            "enum": ["web_app", "slack"]
+                            "$ref": "#/components/schemas/AiThreadCreatedFrom"
                         }
                     },
                     {
@@ -46926,8 +47138,7 @@
                         "name": "createdFrom",
                         "required": false,
                         "schema": {
-                            "type": "string",
-                            "enum": ["web_app", "evals"]
+                            "$ref": "#/components/schemas/AiClonedThreadCreatedFrom"
                         }
                     }
                 ]
@@ -49967,8 +50178,7 @@
                         "name": "createdFrom",
                         "required": false,
                         "schema": {
-                            "type": "string",
-                            "enum": ["slack", "web_app"]
+                            "$ref": "#/components/schemas/AiThreadCreatedFrom"
                         }
                     },
                     {

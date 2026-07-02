@@ -341,6 +341,19 @@ export class SchedulerService extends BaseService {
         return { scheduler, resource };
     }
 
+    // Public entry point for callers outside SchedulerService (e.g. the EE
+    // AI-augmentation sub-resource) that need the same manage:ScheduledDeliveries
+    // check the update path enforces.
+    async checkUserCanManageScheduler(
+        user: SessionUser,
+        schedulerUuid: string,
+    ): Promise<{
+        scheduler: Scheduler;
+        resource: { projectUuid: string; organizationUuid: string };
+    }> {
+        return this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
+    }
+
     private async checkViewResource(
         user: SessionUser,
         scheduler: Pick<

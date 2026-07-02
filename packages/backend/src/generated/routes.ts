@@ -161,6 +161,8 @@ import { OrganizationWarehouseCredentialsController } from './../ee/controllers/
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { PreAggregateController } from './../ee/controllers/PreAggregateController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { SchedulerAiAugmentationController } from './../ee/controllers/schedulerAiAugmentationController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ScimGroupController } from './../ee/controllers/scimGroupController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ScimOrganizationAccessTokenController } from './../ee/controllers/scimOrganizationAccessTokenController';
@@ -1342,6 +1344,86 @@ const models: TsoaRoute.Models = {
             },
         },
         additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'SchedulerAiAugmentationType.AGENT': {
+        dataType: 'refEnum',
+        enums: ['agent'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'SchedulerAiAugmentationType.FAST_MODEL': {
+        dataType: 'refEnum',
+        enums: ['fast_model'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SchedulerAiAugmentation: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        sourceThreadUuid: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        agentUuid: { dataType: 'string', required: true },
+                        prompt: { dataType: 'string', required: true },
+                        type: {
+                            ref: 'SchedulerAiAugmentationType.AGENT',
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        prompt: { dataType: 'string', required: true },
+                        type: {
+                            ref: 'SchedulerAiAugmentationType.FAST_MODEL',
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSchedulerAiAugmentationResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'SchedulerAiAugmentation' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    UUID: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'string',
+            validators: {
+                pattern: {
+                    value: '[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}',
+                },
+            },
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ManagedAgentScheduleOption: {
@@ -12767,6 +12849,20 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiThreadCreatedFrom: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['slack'] },
+                { dataType: 'enum', enums: ['web_app'] },
+                { dataType: 'enum', enums: ['evals'] },
+                { dataType: 'enum', enums: ['scheduler'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiAgentUser: {
         dataType: 'refAlias',
         type: {
@@ -12809,7 +12905,7 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
-                createdFrom: { dataType: 'string', required: true },
+                createdFrom: { ref: 'AiThreadCreatedFrom', required: true },
                 createdAt: { dataType: 'string', required: true },
                 agentUuid: { dataType: 'string', required: true },
                 uuid: { dataType: 'string', required: true },
@@ -13846,7 +13942,7 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
-                createdFrom: { dataType: 'string', required: true },
+                createdFrom: { ref: 'AiThreadCreatedFrom', required: true },
                 createdAt: { dataType: 'string', required: true },
                 agentUuid: { dataType: 'string', required: true },
                 uuid: { dataType: 'string', required: true },
@@ -15685,117 +15781,6 @@ const models: TsoaRoute.Models = {
                                                             dataType:
                                                                 'nestedObjectLiteral',
                                                             nestedProperties: {
-                                                                explore: {
-                                                                    dataType:
-                                                                        'nestedObjectLiteral',
-                                                                    nestedProperties:
-                                                                        {
-                                                                            requiredFilters:
-                                                                                {
-                                                                                    dataType:
-                                                                                        'union',
-                                                                                    subSchemas:
-                                                                                        [
-                                                                                            {
-                                                                                                dataType:
-                                                                                                    'array',
-                                                                                                array: {
-                                                                                                    dataType:
-                                                                                                        'nestedObjectLiteral',
-                                                                                                    nestedProperties:
-                                                                                                        {
-                                                                                                            settings:
-                                                                                                                {
-                                                                                                                    dataType:
-                                                                                                                        'any',
-                                                                                                                },
-                                                                                                            values: {
-                                                                                                                dataType:
-                                                                                                                    'union',
-                                                                                                                subSchemas:
-                                                                                                                    [
-                                                                                                                        {
-                                                                                                                            dataType:
-                                                                                                                                'array',
-                                                                                                                            array: {
-                                                                                                                                dataType:
-                                                                                                                                    'any',
-                                                                                                                            },
-                                                                                                                        },
-                                                                                                                        {
-                                                                                                                            dataType:
-                                                                                                                                'undefined',
-                                                                                                                        },
-                                                                                                                    ],
-                                                                                                            },
-                                                                                                            required:
-                                                                                                                {
-                                                                                                                    dataType:
-                                                                                                                        'boolean',
-                                                                                                                    required: true,
-                                                                                                                },
-                                                                                                            tableName:
-                                                                                                                {
-                                                                                                                    dataType:
-                                                                                                                        'string',
-                                                                                                                    required: true,
-                                                                                                                },
-                                                                                                            fieldRef:
-                                                                                                                {
-                                                                                                                    dataType:
-                                                                                                                        'string',
-                                                                                                                    required: true,
-                                                                                                                },
-                                                                                                            fieldId:
-                                                                                                                {
-                                                                                                                    dataType:
-                                                                                                                        'string',
-                                                                                                                    required: true,
-                                                                                                                },
-                                                                                                            operator:
-                                                                                                                {
-                                                                                                                    dataType:
-                                                                                                                        'string',
-                                                                                                                    required: true,
-                                                                                                                },
-                                                                                                        },
-                                                                                                },
-                                                                                            },
-                                                                                            {
-                                                                                                dataType:
-                                                                                                    'undefined',
-                                                                                            },
-                                                                                        ],
-                                                                                },
-                                                                            baseTable:
-                                                                                {
-                                                                                    dataType:
-                                                                                        'string',
-                                                                                    required: true,
-                                                                                },
-                                                                            joinedTables:
-                                                                                {
-                                                                                    dataType:
-                                                                                        'array',
-                                                                                    array: {
-                                                                                        dataType:
-                                                                                            'string',
-                                                                                    },
-                                                                                    required: true,
-                                                                                },
-                                                                            label: {
-                                                                                dataType:
-                                                                                    'string',
-                                                                                required: true,
-                                                                            },
-                                                                            name: {
-                                                                                dataType:
-                                                                                    'string',
-                                                                                required: true,
-                                                                            },
-                                                                        },
-                                                                    required: true,
-                                                                },
                                                                 fields: {
                                                                     dataType:
                                                                         'array',
@@ -15937,6 +15922,117 @@ const models: TsoaRoute.Models = {
                                                                                 ],
                                                                             },
                                                                         ],
+                                                                    required: true,
+                                                                },
+                                                                explore: {
+                                                                    dataType:
+                                                                        'nestedObjectLiteral',
+                                                                    nestedProperties:
+                                                                        {
+                                                                            requiredFilters:
+                                                                                {
+                                                                                    dataType:
+                                                                                        'union',
+                                                                                    subSchemas:
+                                                                                        [
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'array',
+                                                                                                array: {
+                                                                                                    dataType:
+                                                                                                        'nestedObjectLiteral',
+                                                                                                    nestedProperties:
+                                                                                                        {
+                                                                                                            settings:
+                                                                                                                {
+                                                                                                                    dataType:
+                                                                                                                        'any',
+                                                                                                                },
+                                                                                                            values: {
+                                                                                                                dataType:
+                                                                                                                    'union',
+                                                                                                                subSchemas:
+                                                                                                                    [
+                                                                                                                        {
+                                                                                                                            dataType:
+                                                                                                                                'array',
+                                                                                                                            array: {
+                                                                                                                                dataType:
+                                                                                                                                    'any',
+                                                                                                                            },
+                                                                                                                        },
+                                                                                                                        {
+                                                                                                                            dataType:
+                                                                                                                                'undefined',
+                                                                                                                        },
+                                                                                                                    ],
+                                                                                                            },
+                                                                                                            required:
+                                                                                                                {
+                                                                                                                    dataType:
+                                                                                                                        'boolean',
+                                                                                                                    required: true,
+                                                                                                                },
+                                                                                                            tableName:
+                                                                                                                {
+                                                                                                                    dataType:
+                                                                                                                        'string',
+                                                                                                                    required: true,
+                                                                                                                },
+                                                                                                            fieldRef:
+                                                                                                                {
+                                                                                                                    dataType:
+                                                                                                                        'string',
+                                                                                                                    required: true,
+                                                                                                                },
+                                                                                                            fieldId:
+                                                                                                                {
+                                                                                                                    dataType:
+                                                                                                                        'string',
+                                                                                                                    required: true,
+                                                                                                                },
+                                                                                                            operator:
+                                                                                                                {
+                                                                                                                    dataType:
+                                                                                                                        'string',
+                                                                                                                    required: true,
+                                                                                                                },
+                                                                                                        },
+                                                                                                },
+                                                                                            },
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'undefined',
+                                                                                            },
+                                                                                        ],
+                                                                                },
+                                                                            baseTable:
+                                                                                {
+                                                                                    dataType:
+                                                                                        'string',
+                                                                                    required: true,
+                                                                                },
+                                                                            joinedTables:
+                                                                                {
+                                                                                    dataType:
+                                                                                        'array',
+                                                                                    array: {
+                                                                                        dataType:
+                                                                                            'string',
+                                                                                    },
+                                                                                    required: true,
+                                                                                },
+                                                                            label: {
+                                                                                dataType:
+                                                                                    'string',
+                                                                                required: true,
+                                                                            },
+                                                                            name: {
+                                                                                dataType:
+                                                                                    'string',
+                                                                                required: true,
+                                                                            },
+                                                                        },
                                                                     required: true,
                                                                 },
                                                                 status: {
@@ -17611,6 +17707,18 @@ const models: TsoaRoute.Models = {
     ApiCloneThreadResponse: {
         dataType: 'refAlias',
         type: { ref: 'ApiSuccess_AiAgentThreadSummary_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiClonedThreadCreatedFrom: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['web_app'] },
+                { dataType: 'enum', enums: ['evals'] },
+            ],
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiAgentExploreAccessSummary: {
@@ -22818,7 +22926,7 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
-                    createdFrom: { dataType: 'string', required: true },
+                    createdFrom: { ref: 'AiThreadCreatedFrom', required: true },
                 },
                 validators: {},
             },
@@ -25495,6 +25603,11 @@ const models: TsoaRoute.Models = {
         type: { dataType: 'string', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MeshColor: {
+        dataType: 'refAlias',
+        type: { dataType: 'string', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SolidColor: {
         dataType: 'refAlias',
         type: { dataType: 'string', validators: {} },
@@ -25507,6 +25620,7 @@ const models: TsoaRoute.Models = {
             subSchemas: [
                 { ref: 'UserAvatarGradientId' },
                 { ref: 'HexColor' },
+                { ref: 'MeshColor' },
                 { ref: 'SolidColor' },
             ],
             validators: {},
@@ -26578,18 +26692,6 @@ const models: TsoaRoute.Models = {
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    UUID: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'string',
-            validators: {
-                pattern: {
-                    value: '[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}',
-                },
-            },
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -42347,8 +42449,8 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        schedulerCount: { dataType: 'double', required: true },
                         chartCount: { dataType: 'double', required: true },
+                        schedulerCount: { dataType: 'double', required: true },
                     },
                 },
             ],
@@ -42421,11 +42523,11 @@ const models: TsoaRoute.Models = {
                                 dataType: 'double',
                                 required: true,
                             },
+                            chartCount: { dataType: 'double', required: true },
                             schedulerCount: {
                                 dataType: 'double',
                                 required: true,
                             },
-                            chartCount: { dataType: 'double', required: true },
                             dashboardCount: {
                                 dataType: 'double',
                                 required: true,
@@ -44713,6 +44815,195 @@ export function RegisterRoutes(app: Router) {
                     next,
                     validatedArgs,
                     successStatus: undefined,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSchedulerAiAugmentationController_getAugmentation: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        schedulerUuid: {
+            in: 'path',
+            name: 'schedulerUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.get(
+        '/api/v1/schedulers/:schedulerUuid/ai-augmentation',
+        ...fetchMiddlewares<RequestHandler>(SchedulerAiAugmentationController),
+        ...fetchMiddlewares<RequestHandler>(
+            SchedulerAiAugmentationController.prototype.getAugmentation,
+        ),
+
+        async function SchedulerAiAugmentationController_getAugmentation(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsSchedulerAiAugmentationController_getAugmentation,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SchedulerAiAugmentationController>(
+                        SchedulerAiAugmentationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getAugmentation',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSchedulerAiAugmentationController_upsertAugmentation: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        schedulerUuid: {
+            in: 'path',
+            name: 'schedulerUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'SchedulerAiAugmentation',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.put(
+        '/api/v1/schedulers/:schedulerUuid/ai-augmentation',
+        ...fetchMiddlewares<RequestHandler>(SchedulerAiAugmentationController),
+        ...fetchMiddlewares<RequestHandler>(
+            SchedulerAiAugmentationController.prototype.upsertAugmentation,
+        ),
+
+        async function SchedulerAiAugmentationController_upsertAugmentation(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsSchedulerAiAugmentationController_upsertAugmentation,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SchedulerAiAugmentationController>(
+                        SchedulerAiAugmentationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'upsertAugmentation',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSchedulerAiAugmentationController_deleteAugmentation: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        schedulerUuid: {
+            in: 'path',
+            name: 'schedulerUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.delete(
+        '/api/v1/schedulers/:schedulerUuid/ai-augmentation',
+        ...fetchMiddlewares<RequestHandler>(SchedulerAiAugmentationController),
+        ...fetchMiddlewares<RequestHandler>(
+            SchedulerAiAugmentationController.prototype.deleteAugmentation,
+        ),
+
+        async function SchedulerAiAugmentationController_deleteAugmentation(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsSchedulerAiAugmentationController_deleteAugmentation,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SchedulerAiAugmentationController>(
+                        SchedulerAiAugmentationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'deleteAugmentation',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
                 });
             } catch (err) {
                 return next(err);
@@ -51074,11 +51365,7 @@ export function RegisterRoutes(app: Router) {
         createdFrom: {
             in: 'query',
             name: 'createdFrom',
-            dataType: 'union',
-            subSchemas: [
-                { dataType: 'enum', enums: ['web_app'] },
-                { dataType: 'enum', enums: ['slack'] },
-            ],
+            ref: 'AiThreadCreatedFrom',
         },
         search: { in: 'query', name: 'search', dataType: 'string' },
     };
@@ -52860,11 +53147,7 @@ export function RegisterRoutes(app: Router) {
         createdFrom: {
             in: 'query',
             name: 'createdFrom',
-            dataType: 'union',
-            subSchemas: [
-                { dataType: 'enum', enums: ['web_app'] },
-                { dataType: 'enum', enums: ['evals'] },
-            ],
+            ref: 'AiClonedThreadCreatedFrom',
         },
     };
     app.post(
@@ -57262,11 +57545,7 @@ export function RegisterRoutes(app: Router) {
         createdFrom: {
             in: 'query',
             name: 'createdFrom',
-            dataType: 'union',
-            subSchemas: [
-                { dataType: 'enum', enums: ['slack'] },
-                { dataType: 'enum', enums: ['web_app'] },
-            ],
+            ref: 'AiThreadCreatedFrom',
         },
         humanScore: { in: 'query', name: 'humanScore', dataType: 'double' },
         dateFrom: { in: 'query', name: 'dateFrom', dataType: 'string' },
