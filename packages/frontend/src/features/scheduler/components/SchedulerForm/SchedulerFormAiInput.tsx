@@ -88,16 +88,16 @@ export const SchedulerFormAiInput: FC<Props> = ({ projectUuid }) => {
 
     return (
         <Box className={classes.panel}>
-            <Group justify="space-between" wrap="nowrap" align="flex-start">
-                <Group gap="sm" wrap="nowrap" align="flex-start">
-                    <AiAgentIcon size={22} animated calm />
+            <Group justify="space-between" wrap="nowrap" align="center">
+                <Group gap="sm" wrap="nowrap" align="center">
+                    <AiAgentIcon size={18} animated calm />
                     <Stack gap={2}>
                         <Text fw={600} fz="sm">
-                            Let AI write the message
+                            AI-enhanced message
                         </Text>
                         <Text fz="xs" c="ldGray.6">
-                            Generates the delivery message from your data on
-                            every send.
+                            Writes the delivery message from your data on every
+                            send.
                         </Text>
                     </Stack>
                 </Group>
@@ -125,8 +125,8 @@ export const SchedulerFormAiInput: FC<Props> = ({ projectUuid }) => {
                     />
                     {agents.length > 0 && (
                         <Select
-                            label="AI agent"
-                            description="Optional. Use an agent's tools and context instead of summarising the data."
+                            label="AI agent (optional)"
+                            description="Uses the agent's tools and context."
                             placeholder="None"
                             clearable
                             data={agents.map((agent) => ({
