@@ -1,7 +1,4 @@
-import {
-    getUserAvatarGradient,
-    USER_AVATAR_GRADIENT_IDS,
-} from '@lightdash/common';
+import { USER_AVATAR_GRADIENT_IDS } from '@lightdash/common';
 import {
     Button,
     FileButton,
@@ -33,8 +30,6 @@ const AvatarSettings: FC = () => {
     const { userUuid, firstName, lastName, avatarUrl, avatarGradient } =
         user.data;
     const initials = `${firstName[0] ?? ''}${lastName[0] ?? ''}`.trim();
-    const activeGradient = getUserAvatarGradient(userUuid, avatarGradient);
-    const defaultGradient = getUserAvatarGradient(userUuid, null);
 
     const handleFile = (file: File | null) => {
         if (!file) return;
@@ -91,34 +86,44 @@ const AvatarSettings: FC = () => {
                     Or pick a color — it shows when you have no photo.
                 </Text>
                 <Group gap="xs">
-                    {USER_AVATAR_GRADIENT_IDS.map((gradientId) => (
-                        <Tooltip
-                            key={gradientId}
-                            label={
-                                gradientId === defaultGradient
-                                    ? `${gradientId} (default)`
-                                    : gradientId
+                    <Tooltip label="No color (default)">
+                        <button
+                            type="button"
+                            aria-label="Use default avatar"
+                            className={
+                                !avatarGradient
+                                    ? `${classes.swatchButton} ${classes.swatchSelected}`
+                                    : classes.swatchButton
+                            }
+                            onClick={() =>
+                                updateUserMutation.mutate({
+                                    avatarGradient: null,
+                                })
                             }
                         >
+                            <LightdashUserAvatar size="sm">
+                                {initials}
+                            </LightdashUserAvatar>
+                        </button>
+                    </Tooltip>
+                    {USER_AVATAR_GRADIENT_IDS.map((gradientId) => (
+                        <Tooltip key={gradientId} label={gradientId}>
                             <button
                                 type="button"
                                 aria-label={`Use ${gradientId} avatar color`}
                                 className={
-                                    gradientId === activeGradient
+                                    gradientId === avatarGradient
                                         ? `${classes.swatchButton} ${classes.swatchSelected}`
                                         : classes.swatchButton
                                 }
                                 onClick={() =>
                                     updateUserMutation.mutate({
-                                        avatarGradient:
-                                            gradientId === defaultGradient
-                                                ? null
-                                                : gradientId,
+                                        avatarGradient: gradientId,
                                     })
                                 }
                             >
                                 <LightdashUserAvatar
-                                    size="md"
+                                    size="sm"
                                     userUuid={userUuid}
                                     avatarGradient={gradientId}
                                 >

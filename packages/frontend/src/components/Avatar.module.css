@@ -1,27 +1,111 @@
 .root[data-avatar-gradient] .placeholder {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    border-radius: 50%;
     color: var(--mantine-color-white);
 }
+
+/* Subtle grain overlay — sits behind the initials so legibility isn't affected. */
+.root[data-avatar-gradient] .placeholder::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 100px 100px;
+    opacity: 0.35;
+    mix-blend-mode: overlay;
+    pointer-events: none;
+}
+
 .root[data-avatar-gradient='dusk'] .placeholder {
-    background: linear-gradient(135deg, #7048e8, #d6336c);
+    background:
+        radial-gradient(120% 120% at 25% 25%, #a499ff 0%, transparent 65%),
+        radial-gradient(120% 120% at 75% 75%, #5e4cff 0%, transparent 65%),
+        #7a5cff;
+}
+.root[data-avatar-gradient='lilac'] .placeholder {
+    background:
+        radial-gradient(120% 120% at 25% 25%, #d1ccff 0%, transparent 65%),
+        radial-gradient(120% 120% at 75% 75%, #a499ff 0%, transparent 65%),
+        #c2b8ff;
 }
 .root[data-avatar-gradient='ocean'] .placeholder {
-    background: linear-gradient(135deg, #1971c2, #0ca678);
+    background:
+        radial-gradient(120% 120% at 25% 25%, #8001fe 0%, transparent 65%),
+        radial-gradient(120% 120% at 75% 75%, #1200b2 0%, transparent 65%),
+        #4b2f9e;
 }
 .root[data-avatar-gradient='ember'] .placeholder {
-    background: linear-gradient(135deg, #e8590c, #f08c00);
+    background:
+        radial-gradient(120% 120% at 25% 25%, #b267fe 0%, transparent 65%),
+        radial-gradient(120% 120% at 75% 75%, #26004c 0%, transparent 65%),
+        #5c1a94;
 }
-.root[data-avatar-gradient='meadow'] .placeholder {
-    background: linear-gradient(135deg, #2f9e44, #66a80f);
+.root[data-avatar-gradient='blush'] .placeholder {
+    background:
+        radial-gradient(120% 120% at 25% 25%, #ffd1e8 0%, transparent 65%),
+        radial-gradient(120% 120% at 75% 75%, #d9b3ff 0%, transparent 65%),
+        #f0bedd;
 }
-.root[data-avatar-gradient='tide'] .placeholder {
-    background: linear-gradient(135deg, #0c8599, #4263eb);
+.root[data-avatar-gradient='minty'] .placeholder {
+    background:
+        radial-gradient(120% 120% at 25% 25%, #edfbd0 0%, transparent 65%),
+        radial-gradient(120% 120% at 75% 75%, #dbfe95 0%, transparent 65%),
+        #dff9b0;
 }
-.root[data-avatar-gradient='plum'] .placeholder {
-    background: linear-gradient(135deg, #9c36b5, #f06595);
+.root[data-avatar-gradient='forest'] .placeholder {
+    background:
+        radial-gradient(120% 120% at 25% 25%, #1d7c51 0%, transparent 65%),
+        radial-gradient(120% 120% at 75% 75%, #1200b2 0%, transparent 65%),
+        #1a3e71;
 }
-.root[data-avatar-gradient='sand'] .placeholder {
-    background: linear-gradient(135deg, #e67700, #ca8a04);
+.root[data-avatar-gradient='sunrise'] .placeholder {
+    background:
+        radial-gradient(120% 120% at 25% 25%, #d1ccff 0%, transparent 65%),
+        radial-gradient(120% 120% at 75% 75%, #daf6a2 0%, transparent 65%),
+        #cde1bd;
 }
-.root[data-avatar-gradient='slate'] .placeholder {
-    background: linear-gradient(135deg, #3b5bdb, #748ffc);
+.root[data-avatar-gradient='twilight'] .placeholder {
+    background:
+        radial-gradient(120% 120% at 25% 25%, #26004c 0%, transparent 65%),
+        radial-gradient(120% 120% at 75% 75%, #0e3e29 0%, transparent 65%),
+        #151f3a;
+}
+.root[data-avatar-gradient='lavender'] .placeholder {
+    background:
+        radial-gradient(120% 120% at 25% 25%, #d1ccff 0%, transparent 65%),
+        radial-gradient(120% 120% at 75% 75%, #d9b3ff 0%, transparent 65%),
+        #d5c2ff;
+}
+.root[data-avatar-gradient='emerald'] .placeholder {
+    background:
+        radial-gradient(120% 120% at 25% 25%, #30cf87 0%, transparent 65%),
+        radial-gradient(120% 120% at 75% 75%, #0e3e29 0%, transparent 65%),
+        #1a6b54;
+}
+.root[data-avatar-gradient='amethyst'] .placeholder {
+    background:
+        radial-gradient(120% 120% at 25% 25%, #8001fe 0%, transparent 65%),
+        radial-gradient(120% 120% at 75% 75%, #5e4cff 0%, transparent 65%),
+        #7040cd;
+}
+.root[data-avatar-gradient='sage'] .placeholder {
+    background:
+        radial-gradient(120% 120% at 25% 25%, #edfbd0 0%, transparent 65%),
+        radial-gradient(120% 120% at 75% 75%, #83e2b7 0%, transparent 65%),
+        #c1e8a0;
+}
+.root[data-avatar-gradient='orchid'] .placeholder {
+    background:
+        radial-gradient(120% 120% at 25% 25%, #d9b3ff 0%, transparent 65%),
+        radial-gradient(120% 120% at 75% 75%, #8001fe 0%, transparent 65%),
+        #b589f0;
+}
+.root[data-avatar-gradient='jungle'] .placeholder {
+    background:
+        radial-gradient(120% 120% at 25% 25%, #3b5408 0%, transparent 65%),
+        radial-gradient(120% 120% at 75% 75%, #1d7c51 0%, transparent 65%),
+        #2e6527;
 }
