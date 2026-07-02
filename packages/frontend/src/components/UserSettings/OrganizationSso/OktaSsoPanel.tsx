@@ -379,6 +379,7 @@ const OktaSsoPanel: FC = () => {
                 <MantineModal
                     opened
                     onClose={() => setDeleteOpen(false)}
+                    role="alertdialog"
                     title="Remove Okta configuration"
                     icon={IconShieldCheck}
                     cancelLabel="Cancel"

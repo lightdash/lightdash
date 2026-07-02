@@ -498,6 +498,7 @@ export const AiChartQuickOptions = ({
             <MantineModal
                 opened={verifyModalOpened}
                 onClose={closeVerifyModal}
+                role="alertdialog"
                 title="Remove from verified answers"
                 icon={IconCircleCheck}
                 size="sm"

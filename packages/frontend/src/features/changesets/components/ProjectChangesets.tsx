@@ -258,6 +258,8 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
     const handleRevertChange = (changeUuid: string, entityName: string) => {
         modals.openConfirmModal({
             title: 'Revert change',
+            closeOnClickOutside: false,
+            closeOnEscape: false,
             children: (
                 <Text>
                     Are you sure you want to revert the change to{' '}
@@ -293,6 +295,8 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
     const handleRevertAllChanges = () => {
         modals.openConfirmModal({
             title: 'Revert all changes',
+            closeOnClickOutside: false,
+            closeOnEscape: false,
             children: (
                 <Text>
                     Are you sure you want to revert all{' '}

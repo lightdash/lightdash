@@ -185,6 +185,7 @@ export const TabDeleteModal: FC<DeleteProps> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
+            role="alertdialog"
             title="Remove tab"
             icon={IconTrash}
             actions={

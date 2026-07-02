@@ -301,6 +301,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
             <MantineModal
                 opened={unverifyModalOpened}
                 onClose={closeUnverifyModal}
+                role="alertdialog"
                 title="Remove verification?"
                 description="This will remove the verified badge from this content. You can verify it again later."
                 actions={
