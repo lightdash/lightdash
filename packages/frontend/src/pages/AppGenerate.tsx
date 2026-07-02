@@ -2849,6 +2849,10 @@ const AppGenerate: FC = () => {
                                                             );
                                                         return next;
                                                     });
+                                                    // Entering inspector mode
+                                                    // force-disables lineage —
+                                                    // drop its selection too.
+                                                    setFocusedQueryUuid(null);
                                                 }}
                                                 disabled={!inspectorAvailable}
                                             />
