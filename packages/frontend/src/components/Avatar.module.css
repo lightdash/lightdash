@@ -35,23 +35,23 @@
         radial-gradient(circle at 50% 55%, #d984c8 0%, transparent 58%), #d987c8;
     border: 1px solid rgba(255, 100, 190, 0.6);
 }
-.root[data-avatar-gradient='minty'] .placeholder {
+.root[data-avatar-gradient='slate'] .placeholder {
     background:
-        radial-gradient(circle at 35% 20%, #e8ff99 0%, transparent 48%),
-        radial-gradient(circle at 75% 35%, #b8e037 0%, transparent 52%),
-        radial-gradient(circle at 65% 75%, #7cd68c 0%, transparent 50%),
-        radial-gradient(circle at 15% 60%, #a8d729 0%, transparent 55%),
-        radial-gradient(circle at 45% 45%, #c4dd55 0%, transparent 60%), #b8d73a;
-    border: 1px solid rgba(168, 215, 41, 0.6);
+        radial-gradient(circle at 25% 35%, #3a3a3a 0%, transparent 48%),
+        radial-gradient(circle at 70% 20%, #1a1a1a 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, #4a4a4a 0%, transparent 52%),
+        radial-gradient(circle at 15% 65%, #2a2a2a 0%, transparent 55%),
+        radial-gradient(circle at 55% 50%, #383838 0%, transparent 58%), #353535;
+    border: 1px solid rgba(60, 60, 60, 0.6);
 }
 .root[data-avatar-gradient='amethyst'] .placeholder {
     background:
-        radial-gradient(circle at 15% 35%, #8001fe 0%, transparent 45%),
-        radial-gradient(circle at 75% 20%, #6f00ff 0%, transparent 55%),
-        radial-gradient(circle at 85% 75%, #4c0198 0%, transparent 50%),
-        radial-gradient(circle at 25% 70%, #7500e8 0%, transparent 55%),
-        radial-gradient(circle at 60% 45%, #5e4cff 0%, transparent 60%), #6a3dff;
-    border: 1px solid rgba(128, 1, 254, 0.6);
+        radial-gradient(circle at 20% 30%, #5e4cff 0%, transparent 48%),
+        radial-gradient(circle at 75% 15%, #83e2b7 0%, transparent 50%),
+        radial-gradient(circle at 80% 75%, #30cf87 0%, transparent 52%),
+        radial-gradient(circle at 10% 65%, #c1f1db 0%, transparent 55%),
+        radial-gradient(circle at 50% 50%, #6fa0d8 0%, transparent 58%), #7fb5c2;
+    border: 1px solid rgba(94, 76, 255, 0.6);
 }
 .root[data-avatar-gradient='sunrise'] .placeholder {
     background:
