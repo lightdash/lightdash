@@ -94,7 +94,9 @@ import {
     validateAgentSuggestion,
     type AgentSuggestionTool,
     type AiAgentModelConfig,
+    type AiClonedThreadCreatedFrom,
     type AiPromptContextInput,
+    type AiWebAppThreadCreatedFrom,
     type SessionUser,
     type SuggestionValidationCatalog,
 } from '@lightdash/common';
@@ -2456,7 +2458,7 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         agentUuid: string,
         body: ApiAiAgentThreadCreateRequest,
-        createdFrom: 'web_app' | 'evals' = 'web_app',
+        createdFrom: AiWebAppThreadCreatedFrom = 'web_app',
         runtimeOptions?: EmbedAiAgentRuntimeOptions,
     ) {
         const { organizationUuid } = user;
@@ -12047,7 +12049,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         agentUuid: string,
         threadUuid: string,
         promptUuid: string,
-        { createdFrom }: { createdFrom?: 'web_app' | 'evals' },
+        { createdFrom }: { createdFrom?: AiClonedThreadCreatedFrom },
     ): Promise<AiAgentThreadSummary> {
         const { organizationUuid } = user;
         if (!organizationUuid) {

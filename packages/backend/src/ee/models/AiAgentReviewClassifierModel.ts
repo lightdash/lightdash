@@ -1,4 +1,5 @@
 import {
+    AiSlackThreadCreatedFrom,
     ProjectType,
     QueryExecutionContext,
     shouldReopenReviewItem,
@@ -284,7 +285,7 @@ type BaseCandidateRow = {
     organization_uuid: string;
     project_uuid: string;
     agent_uuid: string;
-    created_from: 'web_app' | 'slack';
+    created_from: AiSlackThreadCreatedFrom;
     prompt: string;
     response: string | null;
     error_message: string | null;
