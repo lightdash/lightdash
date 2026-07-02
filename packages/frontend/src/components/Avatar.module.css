@@ -1,0 +1,27 @@
+.root[data-avatar-gradient] .placeholder {
+    color: var(--mantine-color-white);
+}
+.root[data-avatar-gradient='dusk'] .placeholder {
+    background: linear-gradient(135deg, #7048e8, #d6336c);
+}
+.root[data-avatar-gradient='ocean'] .placeholder {
+    background: linear-gradient(135deg, #1971c2, #0ca678);
+}
+.root[data-avatar-gradient='ember'] .placeholder {
+    background: linear-gradient(135deg, #e8590c, #f08c00);
+}
+.root[data-avatar-gradient='meadow'] .placeholder {
+    background: linear-gradient(135deg, #2f9e44, #66a80f);
+}
+.root[data-avatar-gradient='tide'] .placeholder {
+    background: linear-gradient(135deg, #0c8599, #4263eb);
+}
+.root[data-avatar-gradient='plum'] .placeholder {
+    background: linear-gradient(135deg, #9c36b5, #f06595);
+}
+.root[data-avatar-gradient='sand'] .placeholder {
+    background: linear-gradient(135deg, #e67700, #ca8a04);
+}
+.root[data-avatar-gradient='slate'] .placeholder {
+    background: linear-gradient(135deg, #3b5bdb, #748ffc);
+}
