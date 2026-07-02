@@ -50,15 +50,14 @@ import type {
 } from '../../models/AiWritebackThreadModel';
 import type { SandboxRegistryModel } from '../../models/SandboxRegistryModel';
 import {
-    createSandboxManager,
-    S3SnapshotStore,
+    resolveSandboxRuntime,
     SandboxCommandError,
     SandboxExpiredError,
     SandboxManager,
     SandboxTimeoutError,
-    type AzureSandboxesConfig,
     type PersistentWorkspace,
     type SandboxHandle,
+    type SandboxRuntime,
     type SandboxSpec,
 } from '../SandboxRuntime';
 import {
@@ -119,7 +118,6 @@ import {
     progressTextForStage,
     resolvePrMetadataValue,
     resolveSandboxDbtVersion,
-    resolveSandboxTemplateRef,
     splitStreamBuffer,
     summarizeToolInput,
 } from './utils';
@@ -262,8 +260,8 @@ export class AiWritebackService extends BaseService {
 
     private readonly projectService: ProjectService;
 
-    /** Memoized sandbox provider (e2b | docker), selected by SANDBOX_PROVIDER. */
-    private sandboxManager: SandboxManager | undefined;
+    /** Memoized sandbox runtime (manager + template ref), selected by SANDBOX_PROVIDER. */
+    private sandboxRuntime: SandboxRuntime | undefined;
 
     constructor({
         lightdashConfig,
@@ -922,116 +920,34 @@ export class AiWritebackService extends BaseService {
     }
 
     /**
-     * The sandbox manager over the provider selected by `SANDBOX_PROVIDER`
-     * (e2b | docker). Memoized — the feature talks only to the manager for
-     * lifecycle and to the returned {@link SandboxHandle} for the data plane.
-     * See docs/sandbox-runtime.md.
+     * The sandbox runtime (manager + image/template ref) over the provider
+     * selected by `SANDBOX_PROVIDER`. Memoized — the feature talks only to the
+     * manager for lifecycle and to the returned {@link SandboxHandle} for the
+     * data plane. See docs/sandbox-runtime.md.
      */
-    private getSandboxManager(): SandboxManager {
-        if (!this.sandboxManager) {
-            const { sandboxProvider } = this.lightdashConfig.appRuntime;
-            this.sandboxManager = createSandboxManager({
-                provider: sandboxProvider,
-                e2bApiKey: this.lightdashConfig.appRuntime.e2bApiKey,
-                dockerImage:
-                    this.lightdashConfig.appRuntime
-                        .sandboxAiWritebackDockerImage,
-                lambdaMicroVm: this.lightdashConfig.appRuntime.lambdaMicroVm,
-                azureSandboxes:
-                    sandboxProvider === 'azure-sandboxes'
-                        ? this.getAzureSandboxesConfig()
-                        : null,
-                // Object-store snapshots are only for the Docker backend (no
-                // native pause); native-pause providers (E2B, Lambda, Azure
-                // Sandboxes) never touch S3, so don't construct a client.
-                snapshotStore:
-                    sandboxProvider === 'docker'
-                        ? new S3SnapshotStore({
-                              lightdashConfig: this.lightdashConfig,
-                          })
-                        : null,
+    private getSandboxRuntime(): SandboxRuntime {
+        if (!this.sandboxRuntime) {
+            this.sandboxRuntime = resolveSandboxRuntime({
+                lightdashConfig: this.lightdashConfig,
+                feature: 'ai-writeback',
                 registryModel: this.sandboxRegistryModel,
                 logger: this.logger,
             });
         }
-        return this.sandboxManager;
+        return this.sandboxRuntime;
+    }
+
+    private getSandboxManager(): SandboxManager {
+        return this.getSandboxRuntime().manager;
     }
 
     private buildSandboxSpec(): SandboxSpec {
         return {
-            templateRef: this.getSandboxTemplateRef(),
+            templateRef: this.getSandboxRuntime().templateRef,
             timeoutMs: SANDBOX_TIMEOUT_MS,
             egress: {
                 allow: ['api.anthropic.com', 'github.com', 'gitlab.com'],
             },
-        };
-    }
-
-    /**
-     * Resolve the template/image ref the active provider launches from. E2B
-     * composes the writeback `name:tag`; Docker uses the writeback-specific
-     * local image (separate from the data-app image — different toolchain).
-     */
-    private getSandboxTemplateRef(): string {
-        const { sandboxProvider } = this.lightdashConfig.appRuntime;
-        if (sandboxProvider === 'docker') {
-            return this.lightdashConfig.appRuntime
-                .sandboxAiWritebackDockerImage;
-        }
-        if (sandboxProvider === 'lambda-microvm') {
-            const imageArn =
-                this.lightdashConfig.appRuntime
-                    .lambdaMicroVmAiWritebackImageArn;
-            if (!imageArn) {
-                throw new MissingConfigError(
-                    'Lambda MicroVM AI writeback image ARN is not configured (LAMBDA_MICROVM_AI_WRITEBACK_IMAGE_ARN)',
-                );
-            }
-            return imageArn;
-        }
-        if (sandboxProvider === 'azure-sandboxes') {
-            const diskImage =
-                this.lightdashConfig.appRuntime
-                    .azureSandboxesAiWritebackDiskImage;
-            if (!diskImage) {
-                throw new MissingConfigError(
-                    'Azure AI writeback sandbox disk image is not configured (AZURE_SANDBOXES_AI_WRITEBACK_DISK_IMAGE)',
-                );
-            }
-            return diskImage;
-        }
-        return resolveSandboxTemplateRef({
-            name: this.lightdashConfig.appRuntime.e2bAiWritebackTemplateName,
-            tag: this.lightdashConfig.appRuntime.e2bAiWritebackTemplateTag,
-        });
-    }
-
-    /** Assemble the `azure-sandboxes` provider config for the AI writeback
-     * pipeline (the writeback sandbox group + shared subscription/region settings). */
-    private getAzureSandboxesConfig(): AzureSandboxesConfig {
-        const {
-            azureSandboxes,
-            azureSandboxesAiWritebackGroup,
-            sandboxIdleTimeoutMs,
-        } = this.lightdashConfig.appRuntime;
-        if (
-            !azureSandboxes.subscriptionId ||
-            !azureSandboxes.resourceGroup ||
-            !azureSandboxesAiWritebackGroup
-        ) {
-            throw new MissingConfigError(
-                'Azure Sandboxes is not configured (AZURE_SANDBOXES_SUBSCRIPTION_ID / AZURE_SANDBOXES_RESOURCE_GROUP / AZURE_SANDBOXES_AI_WRITEBACK_GROUP)',
-            );
-        }
-        return {
-            subscriptionId: azureSandboxes.subscriptionId,
-            resourceGroup: azureSandboxes.resourceGroup,
-            region: azureSandboxes.region,
-            sandboxGroup: azureSandboxesAiWritebackGroup,
-            apiVersion: azureSandboxes.apiVersion,
-            tokenScope: azureSandboxes.tokenScope,
-            resourceTier: azureSandboxes.resourceTier,
-            autoSuspendIdleSeconds: Math.floor(sandboxIdleTimeoutMs / 1000),
         };
     }
 

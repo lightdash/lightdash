@@ -15,23 +15,36 @@ export const shQuote = (value: string): string =>
     `'${value.replace(/'/g, `'\\''`)}'`;
 
 /**
- * Build a `git -c http.extraHeader=...` prefix carrying HTTPS basic-auth
- * credentials. Passed per-invocation (never written to the repo's `.git/config`),
- * so the cloned remote URL stays clean.
- * The same pattern GitHub Actions uses for token-authenticated checkouts.
+ * Build the per-invocation env that carries HTTPS basic-auth credentials to git
+ * as an `http.extraHeader` config entry, injected via `GIT_CONFIG_COUNT`/`_KEY`/
+ * `_VALUE` (git 2.31+) rather than `-c` on the command line. This keeps the
+ * short-lived token out of argv — where it would otherwise be world-readable via
+ * `/proc/<pid>/cmdline` to any process in the sandbox for the life of the git
+ * command — and off disk (never written to the repo's `.git/config`). The env is
+ * scoped to the single clone/push exec the host drives, so the untrusted in-
+ * sandbox agent's own processes never inherit it. A fresh token is passed on
+ * each invocation; nothing here caches or reuses it across turns.
  */
-const gitAuthPrefix = (username: string, password: string): string => {
+const gitAuthEnv = (
+    username: string,
+    password: string,
+): Record<string, string> => {
     const token = Buffer.from(`${username}:${password}`).toString('base64');
-    return `git -c ${shQuote(`http.extraHeader=AUTHORIZATION: basic ${token}`)}`;
+    return {
+        GIT_CONFIG_COUNT: '1',
+        GIT_CONFIG_KEY_0: 'http.extraHeader',
+        GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${token}`,
+    };
 };
 
 /**
  * Implement {@link SandboxGit} on top of a sandbox's `commands`/`files` data
- * plane, using the system `git` binary inside the sandbox. Providers without a
- * native git SDK (Docker, Lambda MicroVMs) share this — `commands.run` throws
- * `SandboxCommandError` on a non-zero exit, so each operation fails loudly.
- * Credentials are supplied per-invocation via an
- * auth header and never persisted to the repo (see {@link gitAuthPrefix}).
+ * plane, using the system `git` binary inside the sandbox. Every provider shares
+ * this — including E2B, which routes through it rather than its vendor git SDK so
+ * failures surface as `SandboxCommandError` (thrown by `commands.run` on a non-
+ * zero exit) instead of leaking a vendor error type. Credentials are supplied
+ * per-invocation via the process env and never persisted to the repo or placed
+ * on argv (see {@link gitAuthEnv}).
  */
 export const createGitOverCommands = (
     commands: SandboxCommands,
@@ -47,10 +60,13 @@ export const createGitOverCommands = (
             .filter(Boolean)
             .join(' ');
         await commands.run(
-            `${gitAuthPrefix(options.username, options.password)} clone ${flags} ${shQuote(url)} ${shQuote(options.path)}`,
-            options.timeoutMs !== undefined
-                ? { timeoutMs: options.timeoutMs }
-                : undefined,
+            `git clone ${flags} ${shQuote(url)} ${shQuote(options.path)}`,
+            {
+                envs: gitAuthEnv(options.username, options.password),
+                ...(options.timeoutMs !== undefined
+                    ? { timeoutMs: options.timeoutMs }
+                    : {}),
+            },
         );
     },
     status: async (path: string): Promise<GitStatus> => {
@@ -104,8 +120,9 @@ export const createGitOverCommands = (
     push: async (path: string, options: GitPushOptions): Promise<void> => {
         const upstream = options.setUpstream ? '-u ' : '';
         await commands.run(
-            `${gitAuthPrefix(options.username, options.password)} -C ${shQuote(path)} ` +
+            `git -C ${shQuote(path)} ` +
                 `push ${upstream}${shQuote(options.remote)} ${shQuote(options.branch)}`,
+            { envs: gitAuthEnv(options.username, options.password) },
         );
     },
 });

@@ -24,7 +24,7 @@ import {
     listReposAccessibleToInstallation,
     listReposAccessibleToUser,
 } from '../../../clients/github/Github';
-import { createSandboxManager, SandboxManager } from '../SandboxRuntime';
+import { resolveSandboxRuntime, SandboxManager } from '../SandboxRuntime';
 import {
     AiWritebackService,
     mergeSourceCodeRepoAccess,
@@ -47,13 +47,13 @@ vi.mock('e2b', () => ({
 }));
 // The service talks to a SandboxManager over a provider, never a concrete SDK.
 // Keep the real SandboxManager + error classes (the service branches on them
-// with instanceof) but stub the manager factory so the run() tests wrap a fake
+// with instanceof) but stub the runtime factory so the run() tests wrap a fake
 // provider in a real manager.
 vi.mock('../SandboxRuntime', async () => ({
     ...(await vi.importActual<typeof import('../SandboxRuntime')>(
         '../SandboxRuntime',
     )),
-    createSandboxManager: vi.fn(),
+    resolveSandboxRuntime: vi.fn(),
 }));
 vi.mock('../../../clients/github/Github', () => ({
     createBranch: vi.fn().mockResolvedValue(undefined),
@@ -616,14 +616,16 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         fakeSandboxProvider.destroy.mockResolvedValue(undefined);
         // Wrap the fake provider in a real SandboxManager, threading the
         // service's own fake registry model through.
-        (createSandboxManager as import('vitest').Mock).mockImplementation(
-            (opts: AnyType) =>
-                new SandboxManager({
+        (resolveSandboxRuntime as import('vitest').Mock).mockImplementation(
+            (opts: AnyType) => ({
+                manager: new SandboxManager({
                     provider: fakeSandboxProvider as AnyType,
                     providerKind: 'e2b',
                     registryModel: opts.registryModel,
                     logger: opts.logger,
                 }),
+                templateRef: 'ai-writeback-template',
+            }),
         );
         (getInstallationToken as import('vitest').Mock).mockResolvedValue(
             'install-token',

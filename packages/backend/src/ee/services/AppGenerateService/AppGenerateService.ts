@@ -104,13 +104,12 @@ import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient'
 import { getModel } from '../ai/models';
 import { getAiCallTelemetry } from '../ai/utils/aiCallTelemetry';
 import {
-    createSandboxManager,
-    S3SnapshotStore,
+    resolveSandboxRuntime,
     SandboxCommandError,
     SandboxManager,
-    type AzureSandboxesConfig,
     type PersistentWorkspace,
     type SandboxHandle,
+    type SandboxRuntime,
     type SandboxSpec,
 } from '../SandboxRuntime';
 import { assertCanViewApp as assertUserCanViewApp } from './appAuthz';
@@ -271,7 +270,7 @@ export class AppGenerateService extends BaseService {
     private readonly sandboxRegistryModel: SandboxRegistryModel;
 
     // Lazily built from config on first use; memoized for the service lifetime.
-    private sandboxManager: SandboxManager | undefined;
+    private sandboxRuntime: SandboxRuntime | undefined;
 
     constructor({
         lightdashConfig,
@@ -451,109 +450,31 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
-     * The sandbox manager over the provider selected by `SANDBOX_PROVIDER`
-     * (e2b | docker). Memoized — the feature talks only to the manager for
-     * lifecycle (acquire/resume/suspend/destroy via the stable `sandbox_uuid`)
-     * and to the returned {@link SandboxHandle} for the data plane.
-     * See docs/sandbox-runtime.md.
+     * The sandbox runtime (manager + image/template ref) over the provider
+     * selected by `SANDBOX_PROVIDER`. Memoized — the feature talks only to the
+     * manager for lifecycle (acquire/resume/suspend/destroy via the stable
+     * `sandbox_uuid`) and to the returned {@link SandboxHandle} for the data
+     * plane. See docs/sandbox-runtime.md.
      */
-    private getSandboxManager(): SandboxManager {
-        if (!this.sandboxManager) {
-            const { sandboxProvider } = this.lightdashConfig.appRuntime;
-            this.sandboxManager = createSandboxManager({
-                provider: sandboxProvider,
-                e2bApiKey: this.lightdashConfig.appRuntime.e2bApiKey,
-                dockerImage: this.lightdashConfig.appRuntime.sandboxDockerImage,
-                lambdaMicroVm: this.lightdashConfig.appRuntime.lambdaMicroVm,
-                azureSandboxes:
-                    sandboxProvider === 'azure-sandboxes'
-                        ? this.getAzureSandboxesConfig()
-                        : null,
-                // Object-store snapshots are only for the Docker backend (no
-                // native pause); native-pause providers (E2B, Lambda, Azure
-                // Sandboxes) never touch S3, so don't construct a client.
-                snapshotStore:
-                    sandboxProvider === 'docker'
-                        ? new S3SnapshotStore({
-                              lightdashConfig: this.lightdashConfig,
-                          })
-                        : null,
+    private getSandboxRuntime(): SandboxRuntime {
+        if (!this.sandboxRuntime) {
+            this.sandboxRuntime = resolveSandboxRuntime({
+                lightdashConfig: this.lightdashConfig,
+                feature: 'data-app',
                 registryModel: this.sandboxRegistryModel,
                 logger: this.logger,
             });
         }
-        return this.sandboxManager;
+        return this.sandboxRuntime;
     }
 
-    /**
-     * Resolve the template/image ref the active provider launches from. E2B
-     * composes `name:tag`; Docker uses the local image name.
-     */
-    private getSandboxTemplateRef(): string {
-        const { sandboxProvider, e2bTemplateName, e2bTemplateTag } =
-            this.lightdashConfig.appRuntime;
-        if (sandboxProvider === 'docker') {
-            return this.lightdashConfig.appRuntime.sandboxDockerImage;
-        }
-        if (sandboxProvider === 'lambda-microvm') {
-            const imageArn =
-                this.lightdashConfig.appRuntime.lambdaMicroVmDataAppImageArn;
-            if (!imageArn) {
-                throw new MissingConfigError(
-                    'Lambda MicroVM data-app image ARN is not configured (LAMBDA_MICROVM_DATA_APP_IMAGE_ARN)',
-                );
-            }
-            return imageArn;
-        }
-        if (sandboxProvider === 'azure-sandboxes') {
-            const diskImage =
-                this.lightdashConfig.appRuntime.azureSandboxesDataAppDiskImage;
-            if (!diskImage) {
-                throw new MissingConfigError(
-                    'Azure data-app sandbox disk image is not configured (AZURE_SANDBOXES_DATA_APP_DISK_IMAGE)',
-                );
-            }
-            return diskImage;
-        }
-        // E2B treats `name` and `name:default` interchangeably, so an empty
-        // tag is fine — it just resolves to the implicit `default` build.
-        return e2bTemplateTag
-            ? `${e2bTemplateName}:${e2bTemplateTag}`
-            : e2bTemplateName;
-    }
-
-    /** Assemble the `azure-sandboxes` provider config for the data-app pipeline
-     * (the data-app sandbox group + shared subscription/region settings). */
-    private getAzureSandboxesConfig(): AzureSandboxesConfig {
-        const {
-            azureSandboxes,
-            azureSandboxesDataAppGroup,
-            sandboxIdleTimeoutMs,
-        } = this.lightdashConfig.appRuntime;
-        if (
-            !azureSandboxes.subscriptionId ||
-            !azureSandboxes.resourceGroup ||
-            !azureSandboxesDataAppGroup
-        ) {
-            throw new MissingConfigError(
-                'Azure Sandboxes is not configured (AZURE_SANDBOXES_SUBSCRIPTION_ID / AZURE_SANDBOXES_RESOURCE_GROUP / AZURE_SANDBOXES_DATA_APP_GROUP)',
-            );
-        }
-        return {
-            subscriptionId: azureSandboxes.subscriptionId,
-            resourceGroup: azureSandboxes.resourceGroup,
-            region: azureSandboxes.region,
-            sandboxGroup: azureSandboxesDataAppGroup,
-            apiVersion: azureSandboxes.apiVersion,
-            tokenScope: azureSandboxes.tokenScope,
-            resourceTier: azureSandboxes.resourceTier,
-            autoSuspendIdleSeconds: Math.floor(sandboxIdleTimeoutMs / 1000),
-        };
+    private getSandboxManager(): SandboxManager {
+        return this.getSandboxRuntime().manager;
     }
 
     private buildSandboxSpec(): SandboxSpec {
         return {
-            templateRef: this.getSandboxTemplateRef(),
+            templateRef: this.getSandboxRuntime().templateRef,
             timeoutMs: 60 * 60 * 1000,
             egress: {
                 allow: claudeCodeAllowedHosts(this.lightdashConfig.ai.copilot),
