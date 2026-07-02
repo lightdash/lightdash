@@ -288,19 +288,24 @@ export const attachDependenciesToCode = (
 ): DataAppCode =>
     Object.keys(customDeps).length > 0 ? { ...code, dependencies: deps } : code;
 
-export const readBundleFromDir = async (dir: string): Promise<DataAppCode> => {
+export const readManifestFromDir = async (
+    dir: string,
+): Promise<DataAppManifest> => {
     const manifestRaw = await fs.readFile(
         path.join(dir, MANIFEST_FILENAME),
         'utf-8',
     );
-    let manifest: DataAppManifest;
     try {
-        manifest = YAML.parse(manifestRaw) as DataAppManifest;
+        return YAML.parse(manifestRaw) as DataAppManifest;
     } catch (err) {
         throw new Error(
             `Could not parse ${MANIFEST_FILENAME}: ${getErrorMessage(err)}`,
         );
     }
+};
+
+export const readBundleFromDir = async (dir: string): Promise<DataAppCode> => {
+    const manifest = await readManifestFromDir(dir);
 
     const srcDir = path.join(dir, 'src');
     const srcExists = await fs

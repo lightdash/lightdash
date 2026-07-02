@@ -10,6 +10,7 @@ import {
     buildImportBody,
     readBundleFromDir,
     readDependenciesFromDir,
+    readManifestFromDir,
     retargetManifest,
     writeBundleToDir,
     writeContextToDir,
@@ -116,6 +117,13 @@ const bundle = {
         },
     ],
 };
+
+it('readManifestFromDir returns just the manifest', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-app-'));
+    await writeBundleToDir(dir, bundle);
+    const manifest = await readManifestFromDir(dir);
+    expect(manifest).toEqual(bundle.manifest);
+});
 
 it('writes then reads back an identical bundle', async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-app-'));
