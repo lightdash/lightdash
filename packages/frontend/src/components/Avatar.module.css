@@ -7,17 +7,6 @@
     color: var(--mantine-color-white);
 }
 
-.root[data-avatar-gradient] .placeholder::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23n)' opacity='0.15'/%3E%3C/svg%3E");
-    background-size: 100px 100px;
-    mix-blend-mode: overlay;
-    pointer-events: none;
-}
-
 .root[data-avatar-gradient='lilac'] .placeholder {
     background:
         radial-gradient(circle at 25% 30%, #d1ccff 0%, transparent 60%),
