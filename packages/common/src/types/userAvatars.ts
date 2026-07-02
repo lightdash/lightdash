@@ -4,6 +4,7 @@ export const USER_AVATAR_GRADIENT_IDS = [
     'amethyst',
     'sunrise',
     'slate',
+    'pearl',
 ] as const;
 
 export type UserAvatarGradientId = (typeof USER_AVATAR_GRADIENT_IDS)[number];
