@@ -136,7 +136,9 @@ const AvatarSettings: FC = () => {
                         <LightdashUserAvatar
                             size={64}
                             userUuid={userUuid}
-                            avatarGradient={avatarGradient}
+                            avatarGradient={
+                                opened ? previewValue : avatarGradient
+                            }
                         >
                             {initials}
                         </LightdashUserAvatar>
@@ -148,18 +150,9 @@ const AvatarSettings: FC = () => {
             </Popover.Target>
             <Popover.Dropdown>
                 <Stack gap="sm">
-                    <Group justify="space-between" align="center">
-                        <Text size="xs" c="dimmed" fw={500}>
-                            Avatar color
-                        </Text>
-                        <LightdashUserAvatar
-                            size="sm"
-                            userUuid={userUuid}
-                            avatarGradient={previewValue}
-                        >
-                            {initials}
-                        </LightdashUserAvatar>
-                    </Group>
+                    <Text size="xs" c="dimmed" fw={500}>
+                        Avatar color
+                    </Text>
                     <SegmentedControl
                         fullWidth
                         size="xs"
