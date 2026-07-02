@@ -1,4 +1,8 @@
-export type ExternalConnectionAuthType = 'none' | 'api_key' | 'bearer_token';
+export type ExternalConnectionAuthType =
+    | 'none'
+    | 'api_key'
+    | 'bearer_token'
+    | 'google_service_account';
 
 /** HTTP methods an admin can opt a connection into. Single source of truth for
  *  the backend validation allowlist and the frontend method pickers. */
@@ -31,6 +35,8 @@ export type ExternalConnection = {
     rateLimitPerMinute: number | null;
     apiKeyName: string | null;
     apiKeyLocation: ApiKeyLocation | null;
+    // OAuth scopes for type 'google_service_account'; null for other types.
+    oauthScopes: string[] | null;
     hasSecret: boolean;
     createdByUserUuid: string | null;
     updatedByUserUuid: string | null;
@@ -53,7 +59,8 @@ export type CreateExternalConnection = {
     rateLimitPerMinute?: number | null;
     apiKeyName?: string | null;
     apiKeyLocation?: ApiKeyLocation | null;
-    secret?: string | null; // bearer token or api key value; null for type 'none'
+    oauthScopes?: string[] | null; // OAuth scopes for type 'google_service_account'
+    secret?: string | null; // bearer token, api key, or service account keyfile JSON; null for type 'none'
 };
 
 /** Omitted/blank `secret` means the stored secret is left unchanged. */

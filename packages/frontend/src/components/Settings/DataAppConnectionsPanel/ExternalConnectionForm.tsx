@@ -1,18 +1,24 @@
-import { type ExternalConnectionMethod } from '@lightdash/common';
+import {
+    type ExternalConnectionAuthType,
+    type ExternalConnectionMethod,
+} from '@lightdash/common';
 import {
     Divider,
     Group,
+    JsonInput,
     MultiSelect,
     NumberInput,
     PasswordInput,
     Select,
     Stack,
+    TagsInput,
     TextInput,
 } from '@mantine-8/core';
 import { type UseFormReturnType } from '@mantine/form';
 import { type FC, useState } from 'react';
 import { MethodsField } from '../../../features/externalConnections/components/MethodsField';
 import { PathRulesField } from '../../../features/externalConnections/components/PathRulesField';
+import { SUGGESTED_GOOGLE_SCOPES } from '../../../features/externalConnections/constants';
 import {
     type PathMode,
     type PathPrefix,
@@ -24,10 +30,11 @@ export type ExternalConnectionFormValues = {
     name: string;
     origin: string;
     instructions: string;
-    type: 'none' | 'api_key' | 'bearer_token';
+    type: ExternalConnectionAuthType;
     secret: string;
     apiKeyName: string;
     apiKeyLocation: 'header' | 'query';
+    oauthScopes: string[];
     allowedMethods: ExternalConnectionMethod[];
     pathMode: PathMode;
     allowedPathPrefixes: PathPrefix[];
@@ -95,17 +102,46 @@ export const ExternalConnectionForm: FC<Props> = ({
                     { value: 'none', label: 'None' },
                     { value: 'api_key', label: 'API key' },
                     { value: 'bearer_token', label: 'Bearer token' },
+                    {
+                        value: 'google_service_account',
+                        label: 'Google service account',
+                    },
                 ]}
                 {...form.getInputProps('type')}
             />
 
-            {type !== 'none' && (
+            {type !== 'none' && type !== 'google_service_account' && (
                 <PasswordInput
                     label={type === 'api_key' ? 'API key' : 'Bearer token'}
                     placeholder={secretPlaceholder}
                     disabled={disabled}
                     {...form.getInputProps('secret')}
                 />
+            )}
+
+            {type === 'google_service_account' && (
+                <>
+                    <JsonInput
+                        label="Service account JSON"
+                        description="Paste the full service account key file"
+                        placeholder={
+                            secretPlaceholder ??
+                            '{ "type": "service_account", ... }'
+                        }
+                        formatOnBlur
+                        autosize
+                        minRows={4}
+                        disabled={disabled}
+                        {...form.getInputProps('secret')}
+                    />
+                    <TagsInput
+                        label="OAuth scopes"
+                        description="e.g. https://www.googleapis.com/auth/bigquery"
+                        data={SUGGESTED_GOOGLE_SCOPES}
+                        disabled={disabled}
+                        {...form.getInputProps('oauthScopes')}
+                    />
+                </>
             )}
 
             {type === 'api_key' && (

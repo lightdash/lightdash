@@ -28,7 +28,11 @@ import {
 } from '../../../utils/secureFetch/secureFetch';
 import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import { assertCanViewApp } from '../AppGenerateService/appAuthz';
-import { validateExternalConnectionConfig } from './externalConnectionConfigValidation';
+import {
+    validateExternalConnectionConfig,
+    validateServiceAccountKeyfile,
+} from './externalConnectionConfigValidation';
+import { type GoogleServiceAccountTokenProvider } from './GoogleServiceAccountTokenProvider';
 import {
     assertSafeApiKeyHeaderName,
     buildOutboundUrl,
@@ -42,6 +46,7 @@ type ExternalConnectionServiceArguments = {
     externalConnectionModel: ExternalConnectionModel;
     appModel: AppModel;
     spacePermissionService: SpacePermissionService;
+    googleTokenProvider: GoogleServiceAccountTokenProvider;
 };
 
 export class ExternalConnectionService extends BaseService {
@@ -53,6 +58,8 @@ export class ExternalConnectionService extends BaseService {
 
     private readonly spacePermissionService: SpacePermissionService;
 
+    private readonly googleTokenProvider: GoogleServiceAccountTokenProvider;
+
     private static readonly DEFAULT_RATE_LIMIT_PER_MINUTE = 60;
 
     constructor(args: ExternalConnectionServiceArguments) {
@@ -61,6 +68,7 @@ export class ExternalConnectionService extends BaseService {
         this.externalConnectionModel = args.externalConnectionModel;
         this.appModel = args.appModel;
         this.spacePermissionService = args.spacePermissionService;
+        this.googleTokenProvider = args.googleTokenProvider;
     }
 
     private assertCanManage(
@@ -167,6 +175,9 @@ export class ExternalConnectionService extends BaseService {
         }
         this.assertCanManage(account, projectUuid, organizationUuid);
         validateExternalConnectionConfig(data, Boolean(data.secret));
+        if (data.type === 'google_service_account' && data.secret) {
+            validateServiceAccountKeyfile(data.secret);
+        }
         const connection = await this.externalConnectionModel.create(
             projectUuid,
             organizationUuid,
@@ -268,15 +279,58 @@ export class ExternalConnectionService extends BaseService {
             projectUuid,
             connectionUuid,
         );
+        const resultingType = data.type ?? existing.type;
+        const typeChanged =
+            data.type !== undefined && data.type !== existing.type;
+
+        // A blank secret keeps the stored one ONLY when the type is unchanged.
+        // On a type change the stored secret belongs to the old auth method, so
+        // it is dropped and the caller must supply a new one (validation then
+        // requires it). This prevents e.g. a stored service-account keyfile from
+        // being reused — and leaked — as a bearer token when switching types.
+        let hasSecretAfter: boolean;
+        if (data.secret === null) {
+            hasSecretAfter = false;
+        } else if (data.secret) {
+            hasSecretAfter = true;
+        } else {
+            hasSecretAfter = !typeChanged && existing.hasSecret;
+        }
+
+        // Resolve a field that belongs only to the resulting auth type: use the
+        // patch value if provided, else keep the existing value — but a type
+        // change never carries the previous type's values forward, and fields
+        // foreign to the resulting type are always cleared.
+        const resolveTypeField = <T>(
+            belongsToResultingType: boolean,
+            patchValue: T | undefined,
+            existingValue: T,
+        ): T | null => {
+            if (!belongsToResultingType) return null;
+            if (patchValue !== undefined) return patchValue;
+            return typeChanged ? null : existingValue;
+        };
+        const resolvedApiKeyName = resolveTypeField(
+            resultingType === 'api_key',
+            data.apiKeyName,
+            existing.apiKeyName,
+        );
+        const resolvedApiKeyLocation = resolveTypeField(
+            resultingType === 'api_key',
+            data.apiKeyLocation,
+            existing.apiKeyLocation,
+        );
+        const resolvedOauthScopes = resolveTypeField(
+            resultingType === 'google_service_account',
+            data.oauthScopes,
+            existing.oauthScopes,
+        );
+
         // Validate the resulting (merged) config so a partial update can't
         // leave the connection in an invalid or unsafe state.
-        const hasSecretAfter =
-            data.secret === null
-                ? false
-                : Boolean(data.secret) || existing.hasSecret;
         validateExternalConnectionConfig(
             {
-                type: data.type ?? existing.type,
+                type: resultingType,
                 origin: data.origin ?? existing.origin,
                 instructions:
                     data.instructions !== undefined
@@ -296,21 +350,28 @@ export class ExternalConnectionService extends BaseService {
                     data.rateLimitPerMinute !== undefined
                         ? data.rateLimitPerMinute
                         : existing.rateLimitPerMinute,
-                apiKeyName:
-                    data.apiKeyName !== undefined
-                        ? data.apiKeyName
-                        : existing.apiKeyName,
-                apiKeyLocation:
-                    data.apiKeyLocation !== undefined
-                        ? data.apiKeyLocation
-                        : existing.apiKeyLocation,
+                apiKeyName: resolvedApiKeyName,
+                apiKeyLocation: resolvedApiKeyLocation,
+                oauthScopes: resolvedOauthScopes,
             },
             hasSecretAfter,
         );
+        // Validate the keyfile only when a new secret is supplied — a secret-less
+        // (same-type) update keeps the already-validated stored keyfile.
+        if (resultingType === 'google_service_account' && data.secret) {
+            validateServiceAccountKeyfile(data.secret);
+        }
+        // Persist the resolved type-specific fields so foreign fields (and the
+        // stale scopes/api-key config) are cleared when the type changes.
         const updated = await this.externalConnectionModel.update(
             connectionUuid,
             account.user.id,
-            data,
+            {
+                ...data,
+                apiKeyName: resolvedApiKeyName,
+                apiKeyLocation: resolvedApiKeyLocation,
+                oauthScopes: resolvedOauthScopes,
+            },
         );
         this.analytics.track({
             event: 'external_connection.updated',
@@ -599,7 +660,6 @@ export class ExternalConnectionService extends BaseService {
      * alias resolution — those live in the caller so M5's testConnection can
      * reuse this exact path with an admin-supplied connection.
      */
-    // eslint-disable-next-line class-methods-use-this
     private async executeExternalFetch(
         connection: ExternalConnection,
         secret: string | null,
@@ -652,6 +712,33 @@ export class ExternalConnectionService extends BaseService {
                     'Connection has an invalid api key location',
                 );
             }
+        } else if (connection.type === 'google_service_account') {
+            // Fail closed: mint a short-lived Google access token from the stored
+            // service account keyfile + scopes and inject it as a bearer token.
+            if (!secret) {
+                throw new ParameterError(
+                    'Connection is missing its service account key',
+                );
+            }
+            const scopes = connection.oauthScopes ?? [];
+            if (scopes.length === 0) {
+                throw new ParameterError(
+                    'Connection is missing its OAuth scopes',
+                );
+            }
+            let accessToken: string;
+            try {
+                accessToken = await this.googleTokenProvider.getAccessToken(
+                    secret,
+                    scopes,
+                );
+            } catch {
+                // No library/upstream detail reaches the client.
+                throw new ParameterError(
+                    'Failed to obtain Google access token',
+                );
+            }
+            headers.Authorization = `Bearer ${accessToken}`;
         }
         // type === 'none' → no auth injected.
 
@@ -805,6 +892,7 @@ export class ExternalConnectionService extends BaseService {
         'secret',
         'password',
         'x-api-key',
+        'private_key',
     ]);
 
     /**
@@ -1029,6 +1117,9 @@ export class ExternalConnectionService extends BaseService {
         // Same validation create runs, so a test can never exercise a config we
         // would refuse to store (SSRF guard, auth invariants, bounded limits).
         validateExternalConnectionConfig(data, Boolean(data.secret));
+        if (data.type === 'google_service_account' && data.secret) {
+            validateServiceAccountKeyfile(data.secret);
+        }
 
         const method: ExternalConnectionMethod = req.method ?? 'GET';
         if (!data.allowedMethods.includes(method)) {
@@ -1060,6 +1151,7 @@ export class ExternalConnectionService extends BaseService {
             rateLimitPerMinute: data.rateLimitPerMinute ?? null,
             apiKeyName: data.apiKeyName ?? null,
             apiKeyLocation: data.apiKeyLocation ?? null,
+            oauthScopes: data.oauthScopes ?? null,
             hasSecret: Boolean(data.secret),
             createdByUserUuid: null,
             updatedByUserUuid: null,

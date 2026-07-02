@@ -29,6 +29,7 @@ export type DbExternalConnection = {
     rate_limit_per_minute: number | null;
     api_key_name: string | null;
     api_key_location: ApiKeyLocation | null;
+    oauth_scopes: string[] | null;
     created_by_user_uuid: string | null;
     updated_by_user_uuid: string | null;
     created_at: Date;
@@ -46,6 +47,7 @@ export type ExternalConnectionsTable = Knex.CompositeTableType<
         allowed_path_prefixes: string;
         allowed_methods: string;
         allowed_content_types: string;
+        oauth_scopes?: string | null;
     } & Partial<
             Pick<
                 DbExternalConnection,
@@ -82,6 +84,7 @@ export type ExternalConnectionsTable = Knex.CompositeTableType<
             allowed_path_prefixes: string;
             allowed_methods: string;
             allowed_content_types: string;
+            oauth_scopes: string | null;
         }
     >
 >;

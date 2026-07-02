@@ -7,11 +7,13 @@ import {
     type ExternalFetchResponse,
 } from '@lightdash/common';
 import {
+    JsonInput,
     PasswordInput,
     SegmentedControl,
     Select,
     Stack,
     Stepper,
+    TagsInput,
     Text,
     TextInput,
 } from '@mantine-8/core';
@@ -20,6 +22,10 @@ import { IconPlugConnected } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
 import { MethodsField } from '../../../features/externalConnections/components/MethodsField';
 import { PathRulesField } from '../../../features/externalConnections/components/PathRulesField';
+import {
+    isValidOAuthScope,
+    SUGGESTED_GOOGLE_SCOPES,
+} from '../../../features/externalConnections/constants';
 import { useCreateExternalConnection } from '../../../features/externalConnections/hooks/useCreateExternalConnection';
 import { useSaveConnectionSample } from '../../../features/externalConnections/hooks/useSaveConnectionSample';
 import {
@@ -48,6 +54,7 @@ type WizardValues = {
     secret: string;
     apiKeyName: string;
     apiKeyLocation: ApiKeyLocation;
+    oauthScopes: string[];
     allowedMethods: ExternalConnectionMethod[];
     pathMode: PathMode;
     allowedPathPrefixes: PathPrefix[];
@@ -81,6 +88,8 @@ const toCreatePayload = (values: WizardValues): CreateExternalConnection => ({
     secret: values.type !== 'none' ? values.secret : null,
     apiKeyName: values.type === 'api_key' ? values.apiKeyName.trim() : null,
     apiKeyLocation: values.type === 'api_key' ? values.apiKeyLocation : null,
+    oauthScopes:
+        values.type === 'google_service_account' ? values.oauthScopes : null,
     allowedMethods: values.allowedMethods,
     allowedPathPrefixes: resolvePathPrefixes(
         values.pathMode,
@@ -128,6 +137,7 @@ const AuthStep: FC<{ form: UseFormReturnType<WizardValues> }> = ({ form }) => {
                         { value: 'none', label: 'None' },
                         { value: 'api_key', label: 'API key' },
                         { value: 'bearer_token', label: 'Bearer token' },
+                        { value: 'google_service_account', label: 'Google' },
                     ]}
                     value={type}
                     onChange={(value) =>
@@ -139,7 +149,7 @@ const AuthStep: FC<{ form: UseFormReturnType<WizardValues> }> = ({ form }) => {
                 />
             </Stack>
 
-            {type !== 'none' && (
+            {type !== 'none' && type !== 'google_service_account' && (
                 <PasswordInput
                     required
                     label={type === 'api_key' ? 'API key' : 'Bearer token'}
@@ -150,6 +160,28 @@ const AuthStep: FC<{ form: UseFormReturnType<WizardValues> }> = ({ form }) => {
                     }
                     {...form.getInputProps('secret')}
                 />
+            )}
+
+            {type === 'google_service_account' && (
+                <>
+                    <JsonInput
+                        required
+                        label="Service account JSON"
+                        description="Paste the full service account key file"
+                        placeholder='{ "type": "service_account", ... }'
+                        formatOnBlur
+                        autosize
+                        minRows={4}
+                        {...form.getInputProps('secret')}
+                    />
+                    <TagsInput
+                        required
+                        label="OAuth scopes"
+                        description="e.g. https://www.googleapis.com/auth/bigquery"
+                        data={SUGGESTED_GOOGLE_SCOPES}
+                        {...form.getInputProps('oauthScopes')}
+                    />
+                </>
             )}
 
             {type === 'api_key' && (
@@ -230,6 +262,7 @@ export const AddConnectionWizard: FC<Props> = ({
             secret: '',
             apiKeyName: '',
             apiKeyLocation: 'header',
+            oauthScopes: [],
             allowedMethods: ['GET'],
             pathMode: 'all',
             allowedPathPrefixes: [],
@@ -238,10 +271,27 @@ export const AddConnectionWizard: FC<Props> = ({
             name: (value) =>
                 value.trim().length === 0 ? 'Name is required' : null,
             origin: validateOrigin,
-            secret: (value, values) =>
-                values.type !== 'none' && value.length === 0
-                    ? 'A secret is required for this auth method'
-                    : null,
+            secret: (value, values) => {
+                if (values.type === 'none') return null;
+                if (value.length === 0)
+                    return 'A secret is required for this auth method';
+                if (values.type === 'google_service_account') {
+                    try {
+                        JSON.parse(value);
+                    } catch {
+                        return 'Paste valid service account JSON';
+                    }
+                }
+                return null;
+            },
+            oauthScopes: (value, values) => {
+                if (values.type !== 'google_service_account') return null;
+                if (value.length === 0) return 'Add at least one OAuth scope';
+                const invalid = value.find((s) => !isValidOAuthScope(s));
+                return invalid
+                    ? `Invalid OAuth scope: ${invalid} (use an https:// scope)`
+                    : null;
+            },
             apiKeyName: (value, values) => {
                 if (values.type !== 'api_key') return null;
                 if (value.trim().length === 0)
@@ -288,7 +338,8 @@ export const AddConnectionWizard: FC<Props> = ({
     const goToAccess = () => {
         const secret = form.validateField('secret');
         const apiKeyName = form.validateField('apiKeyName');
-        if (!secret.hasError && !apiKeyName.hasError) {
+        const oauthScopes = form.validateField('oauthScopes');
+        if (!secret.hasError && !apiKeyName.hasError && !oauthScopes.hasError) {
             setActive(2);
         }
     };

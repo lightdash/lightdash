@@ -6,6 +6,7 @@ import { Button, Stack, Tabs, Text, Textarea } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { IconPencil } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { isValidOAuthScope } from '../../../features/externalConnections/constants';
 import { useUpdateExternalConnection } from '../../../features/externalConnections/hooks/useUpdateExternalConnection';
 import {
     derivePathRules,
@@ -44,6 +45,7 @@ const EditConnectionModalContent: FC<Props> = ({
             secret: '',
             apiKeyName: connection.apiKeyName ?? '',
             apiKeyLocation: connection.apiKeyLocation ?? 'header',
+            oauthScopes: connection.oauthScopes ?? [],
             allowedMethods: connection.allowedMethods,
             pathMode: pathRules.mode,
             allowedPathPrefixes: pathRules.prefixes,
@@ -60,6 +62,25 @@ const EditConnectionModalContent: FC<Props> = ({
                 value.startsWith('https://')
                     ? null
                     : 'Origin must start with https://',
+            secret: (value, values) => {
+                // Blank keeps the stored secret; only validate a new one.
+                if (values.type === 'google_service_account' && value) {
+                    try {
+                        JSON.parse(value);
+                    } catch {
+                        return 'Paste valid service account JSON';
+                    }
+                }
+                return null;
+            },
+            oauthScopes: (value, values) => {
+                if (values.type !== 'google_service_account') return null;
+                if (value.length === 0) return 'Add at least one OAuth scope';
+                const invalid = value.find((s) => !isValidOAuthScope(s));
+                return invalid
+                    ? `Invalid OAuth scope: ${invalid} (use an https:// scope)`
+                    : null;
+            },
             allowedMethods: (value) =>
                 value.length === 0 ? 'Select at least one method' : null,
             allowedPathPrefixes: (value, values) => {
@@ -93,6 +114,10 @@ const EditConnectionModalContent: FC<Props> = ({
             apiKeyName: values.type === 'api_key' ? values.apiKeyName : null,
             apiKeyLocation:
                 values.type === 'api_key' ? values.apiKeyLocation : null,
+            oauthScopes:
+                values.type === 'google_service_account'
+                    ? values.oauthScopes
+                    : null,
             // Blank => omit so the stored secret is unchanged. A non-blank
             // value on a non-"none" type rotates it via PATCH.
             ...(values.type !== 'none' && values.secret

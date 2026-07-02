@@ -1,6 +1,7 @@
 import { ParameterError } from '@lightdash/common';
 import {
     validateExternalConnectionConfig,
+    validateServiceAccountKeyfile,
     type ValidatableExternalConnectionConfig,
 } from './externalConnectionConfigValidation';
 
@@ -129,6 +130,141 @@ describe('validateExternalConnectionConfig', () => {
                     true,
                 ),
             ).not.toThrow();
+        });
+
+        const googleScopes = ['https://www.googleapis.com/auth/bigquery'];
+
+        it('rejects google_service_account without a secret', () => {
+            expect(() =>
+                validateExternalConnectionConfig(
+                    {
+                        ...base,
+                        type: 'google_service_account',
+                        oauthScopes: googleScopes,
+                    },
+                    false,
+                ),
+            ).toThrow(ParameterError);
+        });
+
+        it('rejects google_service_account with no scopes', () => {
+            expect(() =>
+                validateExternalConnectionConfig(
+                    {
+                        ...base,
+                        type: 'google_service_account',
+                        oauthScopes: [],
+                    },
+                    true,
+                ),
+            ).toThrow(ParameterError);
+        });
+
+        it('rejects google_service_account with an invalid scope', () => {
+            expect(() =>
+                validateExternalConnectionConfig(
+                    {
+                        ...base,
+                        type: 'google_service_account',
+                        oauthScopes: ['not-a-url'],
+                    },
+                    true,
+                ),
+            ).toThrow(ParameterError);
+        });
+
+        it('accepts google_service_account with a secret + scopes', () => {
+            expect(() =>
+                validateExternalConnectionConfig(
+                    {
+                        ...base,
+                        type: 'google_service_account',
+                        oauthScopes: googleScopes,
+                    },
+                    true,
+                ),
+            ).not.toThrow();
+        });
+
+        it('accepts the bare OIDC scopes openid/email/profile', () => {
+            expect(() =>
+                validateExternalConnectionConfig(
+                    {
+                        ...base,
+                        type: 'google_service_account',
+                        oauthScopes: ['openid', 'email', 'profile'],
+                    },
+                    true,
+                ),
+            ).not.toThrow();
+        });
+
+        it('rejects oauthScopes on a non-google type', () => {
+            expect(() =>
+                validateExternalConnectionConfig(
+                    {
+                        ...base,
+                        type: 'bearer_token',
+                        oauthScopes: googleScopes,
+                    },
+                    true,
+                ),
+            ).toThrow(ParameterError);
+        });
+    });
+
+    describe('validateServiceAccountKeyfile', () => {
+        const validKeyfile = JSON.stringify({
+            type: 'service_account',
+            client_email: 'sa@proj.iam.gserviceaccount.com',
+            private_key:
+                '-----BEGIN PRIVATE KEY-----\nk\n-----END PRIVATE KEY-----\n',
+        });
+
+        it('accepts a valid keyfile', () => {
+            expect(() =>
+                validateServiceAccountKeyfile(validKeyfile),
+            ).not.toThrow();
+        });
+
+        it('rejects non-JSON', () => {
+            expect(() => validateServiceAccountKeyfile('not json')).toThrow(
+                ParameterError,
+            );
+        });
+
+        it('rejects a keyfile with the wrong type', () => {
+            expect(() =>
+                validateServiceAccountKeyfile(
+                    JSON.stringify({
+                        type: 'authorized_user',
+                        client_email: 'x@y.z',
+                        private_key: 'k',
+                    }),
+                ),
+            ).toThrow(ParameterError);
+        });
+
+        it('rejects a keyfile missing client_email', () => {
+            expect(() =>
+                validateServiceAccountKeyfile(
+                    JSON.stringify({
+                        type: 'service_account',
+                        private_key: 'k',
+                    }),
+                ),
+            ).toThrow(ParameterError);
+        });
+
+        it('rejects a keyfile missing private_key', () => {
+            expect(() =>
+                validateServiceAccountKeyfile(
+                    JSON.stringify({
+                        type: 'service_account',
+                        client_email: 'x@y.z',
+                    }),
+                ),
+            ).toThrow(ParameterError);
         });
     });
 
