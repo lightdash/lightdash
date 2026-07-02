@@ -9,46 +9,151 @@
 
 .root[data-avatar-gradient='lilac'] .placeholder {
     background:
-        radial-gradient(circle at 25% 30%, #d1ccff 0%, transparent 60%),
-        radial-gradient(circle at 70% 15%, #a499ff 0%, transparent 65%),
-        radial-gradient(circle at 80% 70%, #8f6fff 0%, transparent 60%),
-        radial-gradient(circle at 15% 65%, #b884ff 0%, transparent 65%),
-        radial-gradient(circle at 55% 50%, #9d7fff 0%, transparent 70%), #a383ff;
+        radial-gradient(
+            ellipse 75% 75% at 25% 30%,
+            #d1ccff 0%,
+            transparent 100%
+        ),
+        radial-gradient(
+            ellipse 75% 75% at 70% 15%,
+            #a499ff 0%,
+            transparent 100%
+        ),
+        radial-gradient(
+            ellipse 75% 75% at 80% 70%,
+            #8f6fff 0%,
+            transparent 100%
+        ),
+        radial-gradient(
+            ellipse 75% 75% at 15% 65%,
+            #b884ff 0%,
+            transparent 100%
+        ),
+        radial-gradient(
+            ellipse 75% 75% at 55% 50%,
+            #9d7fff 0%,
+            transparent 100%
+        ),
+        #a383ff;
     box-shadow: inset 0 0 3px rgba(159, 111, 255, 0.4);
 }
 .root[data-avatar-gradient='blush'] .placeholder {
     background:
-        radial-gradient(circle at 30% 25%, #ffd1e8 0%, transparent 62%),
-        radial-gradient(circle at 65% 10%, #ff99d9 0%, transparent 63%),
-        radial-gradient(circle at 85% 65%, #c499ff 0%, transparent 65%),
-        radial-gradient(circle at 10% 70%, #d98ac0 0%, transparent 65%),
-        radial-gradient(circle at 50% 55%, #d984c8 0%, transparent 68%), #d987c8;
+        radial-gradient(
+            ellipse 75% 75% at 30% 25%,
+            #ffd1e8 0%,
+            transparent 100%
+        ),
+        radial-gradient(
+            ellipse 75% 75% at 65% 10%,
+            #ff99d9 0%,
+            transparent 100%
+        ),
+        radial-gradient(
+            ellipse 75% 75% at 85% 65%,
+            #c499ff 0%,
+            transparent 100%
+        ),
+        radial-gradient(
+            ellipse 75% 75% at 10% 70%,
+            #d98ac0 0%,
+            transparent 100%
+        ),
+        radial-gradient(
+            ellipse 75% 75% at 50% 55%,
+            #d984c8 0%,
+            transparent 100%
+        ),
+        #d987c8;
     box-shadow: inset 0 0 3px rgba(255, 99, 180, 0.4);
 }
 .root[data-avatar-gradient='slate'] .placeholder {
     background:
-        radial-gradient(circle at 25% 35%, #3a3a3a 0%, transparent 62%),
-        radial-gradient(circle at 70% 20%, #1a1a1a 0%, transparent 63%),
-        radial-gradient(circle at 80% 70%, #4a4a4a 0%, transparent 65%),
-        radial-gradient(circle at 15% 65%, #2a2a2a 0%, transparent 65%),
-        radial-gradient(circle at 55% 50%, #383838 0%, transparent 68%), #353535;
+        radial-gradient(
+            ellipse 75% 75% at 25% 35%,
+            #3a3a3a 0%,
+            transparent 100%
+        ),
+        radial-gradient(
+            ellipse 75% 75% at 70% 20%,
+            #1a1a1a 0%,
+            transparent 100%
+        ),
+        radial-gradient(
+            ellipse 75% 75% at 80% 70%,
+            #4a4a4a 0%,
+            transparent 100%
+        ),
+        radial-gradient(
+            ellipse 75% 75% at 15% 65%,
+            #2a2a2a 0%,
+            transparent 100%
+        ),
+        radial-gradient(
+            ellipse 75% 75% at 55% 50%,
+            #383838 0%,
+            transparent 100%
+        ),
+        #353535;
     box-shadow: inset 0 0 3px rgba(70, 70, 70, 0.5);
 }
 .root[data-avatar-gradient='amethyst'] .placeholder {
     background:
-        radial-gradient(circle at 75% 15%, #5e4cff 0%, transparent 63%),
-        radial-gradient(circle at 20% 30%, #83e2b7 0%, transparent 62%),
-        radial-gradient(circle at 10% 65%, #30cf87 0%, transparent 65%),
-        radial-gradient(circle at 80% 75%, #c1f1db 0%, transparent 65%),
-        radial-gradient(circle at 50% 50%, #7fb5c2 0%, transparent 68%), #6fa0d8;
+        radial-gradient(
+            ellipse 75% 75% at 75% 15%,
+            #5e4cff 0%,
+            transparent 100%
+        ),
+        radial-gradient(
+            ellipse 75% 75% at 20% 30%,
+            #83e2b7 0%,
+            transparent 100%
+        ),
+        radial-gradient(
+            ellipse 75% 75% at 10% 65%,
+            #30cf87 0%,
+            transparent 100%
+        ),
+        radial-gradient(
+            ellipse 75% 75% at 80% 75%,
+            #c1f1db 0%,
+            transparent 100%
+        ),
+        radial-gradient(
+            ellipse 75% 75% at 50% 50%,
+            #7fb5c2 0%,
+            transparent 100%
+        ),
+        #6fa0d8;
     box-shadow: inset 0 0 3px rgba(131, 226, 183, 0.4);
 }
 .root[data-avatar-gradient='sunrise'] .placeholder {
     background:
-        radial-gradient(circle at 20% 20%, #b3a0ff 0%, transparent 63%),
-        radial-gradient(circle at 80% 20%, #c4d966 0%, transparent 63%),
-        radial-gradient(circle at 80% 80%, #b8cd55 0%, transparent 63%),
-        radial-gradient(circle at 20% 80%, #a8c755 0%, transparent 63%),
-        radial-gradient(circle at 50% 50%, #b8c855 0%, transparent 63%), #b8c855;
+        radial-gradient(
+            ellipse 75% 75% at 20% 20%,
+            #b3a0ff 0%,
+            transparent 100%
+        ),
+        radial-gradient(
+            ellipse 75% 75% at 80% 20%,
+            #c4d966 0%,
+            transparent 100%
+        ),
+        radial-gradient(
+            ellipse 75% 75% at 80% 80%,
+            #b8cd55 0%,
+            transparent 100%
+        ),
+        radial-gradient(
+            ellipse 75% 75% at 20% 80%,
+            #a8c755 0%,
+            transparent 100%
+        ),
+        radial-gradient(
+            ellipse 75% 75% at 50% 50%,
+            #b8c855 0%,
+            transparent 100%
+        ),
+        #b8c855;
     box-shadow: inset 0 0 3px rgba(180, 160, 255, 0.4);
 }
