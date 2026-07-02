@@ -3985,6 +3985,9 @@
             },
             "FilterAutocompleteConfig": {
                 "properties": {
+                    "labelDimension": {
+                        "type": "string"
+                    },
                     "fetchFromWarehouse": {
                         "type": "boolean"
                     },
@@ -10551,9 +10554,16 @@
                     "cached": {
                         "type": "boolean"
                     },
+                    "resultsWithLabels": {
+                        "items": {
+                            "$ref": "#/components/schemas/FilterAutocompleteValue"
+                        },
+                        "type": "array"
+                    },
                     "results": {
                         "items": {},
-                        "type": "array"
+                        "type": "array",
+                        "deprecated": true
                     },
                     "search": {
                         "type": "string"
@@ -39929,6 +39939,13 @@
             },
             "ApiExecuteAsyncFieldValueSearchResults": {
                 "properties": {
+                    "labelFieldId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "valueFieldId": {
+                        "type": "string"
+                    },
                     "cacheMetadata": {
                         "$ref": "#/components/schemas/CacheMetadata"
                     },
@@ -39936,7 +39953,12 @@
                         "type": "string"
                     }
                 },
-                "required": ["cacheMetadata", "queryUuid"],
+                "required": [
+                    "labelFieldId",
+                    "valueFieldId",
+                    "cacheMetadata",
+                    "queryUuid"
+                ],
                 "type": "object"
             },
             "ApiSuccess_ApiExecuteAsyncFieldValueSearchResults_": {
@@ -42370,7 +42392,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3277.1",
+        "version": "0.3285.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

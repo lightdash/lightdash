@@ -1664,6 +1664,10 @@
                                 "fetch_from_warehouse": {
                                     "type": "boolean",
                                     "description": "When false, filter autocomplete will not fetch values from the warehouse for this dimension. Defaults to true."
+                                },
+                                "label_dimension": {
+                                    "type": "string",
+                                    "description": "Name of another dimension in the same table whose value is shown as the display label for each warehouse-fetched value."
                                 }
                             }
                         }
@@ -1907,6 +1911,10 @@
                                         "fetch_from_warehouse": {
                                             "type": "boolean",
                                             "description": "When false, filter autocomplete will not fetch values from the warehouse for this dimension. Defaults to true."
+                                        },
+                                        "label_dimension": {
+                                            "type": "string",
+                                            "description": "Name of another dimension in the same table whose value is shown as the display label for each warehouse-fetched value."
                                         }
                                     }
                                 }

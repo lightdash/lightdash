@@ -777,6 +777,8 @@ export type ApiExecuteAsyncDashboardSqlChartQueryResults =
 export type ApiExecuteAsyncFieldValueSearchResults = {
     queryUuid: string;
     cacheMetadata: CacheMetadata;
+    valueFieldId: string;
+    labelFieldId: string | null;
 };
 
 export type QueryResultsPerformance = {

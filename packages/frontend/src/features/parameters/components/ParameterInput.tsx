@@ -137,6 +137,16 @@ export const ParameterInput: FC<ParameterInputProps> = ({
         [results, shouldFetch],
     );
 
+    const fetchedLabelMap = useMemo(() => {
+        const map = new Map<string, string>();
+        if (shouldFetch && results) {
+            results.forEach(({ value: resultValue, label }) => {
+                if (label !== undefined) map.set(resultValue, label);
+            });
+        }
+        return map;
+    }, [results, shouldFetch]);
+
     const placeholder = useMemo(() => {
         const defaultValues = parameter.default
             ? Array.isArray(parameter.default)
@@ -305,10 +315,16 @@ export const ParameterInput: FC<ParameterInputProps> = ({
                       {
                           group: 'Dimension values',
                           items: [...fetchedResults] // Create a copy to avoid mutating Redux state
-                              .sort((a, b) => a.localeCompare(b))
+                              .sort((a, b) => {
+                                  const aLabel = fetchedLabelMap.get(a) ?? a;
+                                  const bLabel = fetchedLabelMap.get(b) ?? b;
+                                  return aLabel.localeCompare(bLabel);
+                              })
                               .map((option) => ({
                                   value: option,
-                                  label: formatDisplayValue(option),
+                                  label:
+                                      fetchedLabelMap.get(option) ??
+                                      formatDisplayValue(option),
                               })),
                       } satisfies ComboboxItemGroup,
                   ]
@@ -346,6 +362,7 @@ export const ParameterInput: FC<ParameterInputProps> = ({
         return [...regularItems, ...fetchedItems, ...specialItems];
     }, [
         fetchedResults,
+        fetchedLabelMap,
         shouldFetch,
         optionsData,
         parameter.allow_custom_values,
