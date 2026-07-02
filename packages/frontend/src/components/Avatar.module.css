@@ -6,19 +6,6 @@
     color: var(--mantine-color-white);
 }
 
-/* Subtle grain overlay — sits behind the initials so legibility isn't affected. */
-.root[data-avatar-gradient] .placeholder::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23n)'/%3E%3C/svg%3E");
-    background-size: 100px 100px;
-    opacity: 0.35;
-    mix-blend-mode: overlay;
-    pointer-events: none;
-}
-
 .root[data-avatar-gradient='dusk'] .placeholder {
     background:
         radial-gradient(120% 120% at 25% 25%, #a499ff 0%, transparent 65%),
