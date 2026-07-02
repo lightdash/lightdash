@@ -1,3 +1,16 @@
+# [0.3295.0](https://github.com/lightdash/lightdash/compare/0.3294.1...0.3295.0) (2026-07-02)
+
+
+### Bug Fixes
+
+* **data-apps:** announce lineage availability only when the app has query stamps [GLITCH-575] ([#25030](https://github.com/lightdash/lightdash/issues/25030)) ([c8aeca7](https://github.com/lightdash/lightdash/commit/c8aeca75b6ebf20a257391d7b04873507de1fa43))
+* **embed:** retry transient network failures when loading embedded dashboards ([#25081](https://github.com/lightdash/lightdash/issues/25081)) ([1f8052a](https://github.com/lightdash/lightdash/commit/1f8052afb7b87f413e3258bd7115c142955eaf2f)), closes [#25077](https://github.com/lightdash/lightdash/issues/25077)
+
+
+### Features
+
+* **data-apps:** Google service account auth for external connections ([#25048](https://github.com/lightdash/lightdash/issues/25048)) ([c8c7444](https://github.com/lightdash/lightdash/commit/c8c74441540aa3fb12786424d7691c83d8d038b8))
+
 ## [0.3294.1](https://github.com/lightdash/lightdash/compare/0.3294.0...0.3294.1) (2026-07-02)
 
 
