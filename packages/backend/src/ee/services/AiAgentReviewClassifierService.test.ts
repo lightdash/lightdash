@@ -292,6 +292,9 @@ describe('AiAgentReviewClassifierService', () => {
     const aiAgentModel = {
         getAgent: vi.fn(),
     };
+    const aiAgentDocumentModel = {
+        findAllForAgent: vi.fn().mockResolvedValue([]),
+    };
     const aiOrganizationSettingsModel = {
         findByOrganizationUuid: vi.fn(),
     } as unknown as import('vitest').Mocked<AiOrganizationSettingsModel>;
@@ -309,6 +312,7 @@ describe('AiAgentReviewClassifierService', () => {
     const service = new AiAgentReviewClassifierService({
         aiAgentReviewClassifierModel: model,
         aiAgentModel: aiAgentModel as never,
+        aiAgentDocumentModel,
         aiOrganizationSettingsModel,
         catalogModel: catalogModel as never,
         projectModel: projectModel as never,
@@ -339,6 +343,7 @@ describe('AiAgentReviewClassifierService', () => {
         aiAgentReviewNotificationService.notifyNeedsReview.mockResolvedValue(
             undefined,
         );
+        aiAgentDocumentModel.findAllForAgent.mockResolvedValue([]);
         aiAgentModel.getAgent.mockResolvedValue({
             uuid: AGENT_UUID,
             organizationUuid: ORGANIZATION_UUID,

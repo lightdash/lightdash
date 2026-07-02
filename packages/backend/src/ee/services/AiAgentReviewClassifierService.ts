@@ -31,6 +31,7 @@ import { type CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../services/BaseService';
 import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
+import { type AiAgentDocumentModel } from '../models/AiAgentDocumentModel';
 import { type AiAgentModel } from '../models/AiAgentModel';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
@@ -75,6 +76,7 @@ type AiAgentReviewClassifierJudgeTargetRef =
 type AiAgentReviewClassifierServiceDependencies = {
     aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
     aiAgentModel: AiAgentModel;
+    aiAgentDocumentModel: Pick<AiAgentDocumentModel, 'findAllForAgent'>;
     aiOrganizationSettingsModel: AiOrganizationSettingsModel;
     catalogModel: Pick<CatalogModel, 'getCatalogItemsSummary'>;
     projectModel: Pick<ProjectModel, 'getSummary'>;
@@ -235,6 +237,11 @@ export class AiAgentReviewClassifierService extends BaseService {
 
     private readonly aiAgentModel: AiAgentModel;
 
+    private readonly aiAgentDocumentModel: Pick<
+        AiAgentDocumentModel,
+        'findAllForAgent'
+    >;
+
     private readonly catalogModel: Pick<CatalogModel, 'getCatalogItemsSummary'>;
 
     private readonly projectModel: Pick<ProjectModel, 'getSummary'>;
@@ -254,6 +261,7 @@ export class AiAgentReviewClassifierService extends BaseService {
         this.aiAgentReviewClassifierModel =
             dependencies.aiAgentReviewClassifierModel;
         this.aiAgentModel = dependencies.aiAgentModel;
+        this.aiAgentDocumentModel = dependencies.aiAgentDocumentModel;
         this.catalogModel = dependencies.catalogModel;
         this.projectModel = dependencies.projectModel;
         this.aiOrganizationSettingsModel =
@@ -918,11 +926,18 @@ export class AiAgentReviewClassifierService extends BaseService {
                 projectUuid: candidate.subject.projectUuid,
                 agentUuid: candidate.subject.agentUuid,
             });
+            const knowledgeDocuments =
+                await this.aiAgentDocumentModel.findAllForAgent({
+                    organizationUuid: candidate.subject.organizationUuid,
+                    agentUuid: candidate.subject.agentUuid,
+                    projectUuid: candidate.subject.projectUuid,
+                });
 
             const instruction = agent.instruction ?? null;
             const settings = [
                 instruction ? 'instructions' : null,
-                'data_access',
+                knowledgeDocuments.length > 0 ? 'knowledge_documents' : null,
+                agent.enableDataAccess ? 'data_access' : null,
                 agent.enableSelfImprovement ? 'self_improvement' : null,
                 agent.spaceAccess.length > 0 ? 'space_access' : null,
                 agent.groupAccess.length > 0 || agent.userAccess.length > 0
@@ -952,9 +967,14 @@ export class AiAgentReviewClassifierService extends BaseService {
                 availableCapabilities,
                 instructionHash: instruction ? hashText(instruction) : null,
                 instructionSummary: instruction
-                    ? truncate(instruction, 500)
+                    ? truncate(instruction, 2000)
                     : null,
-                knowledgeDocuments: [],
+                knowledgeDocuments: knowledgeDocuments.map((document) => ({
+                    uuid: document.uuid,
+                    name: document.name,
+                    updatedAt: document.updatedAt.toISOString(),
+                    summary: document.summary,
+                })),
             };
             const snapshotHash = getAiAgentConfigSnapshotHash(snapshot);
 
