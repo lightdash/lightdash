@@ -17,6 +17,7 @@ import type {
     AiAgentReviewClassifierRunStatus,
     AiAgentReviewClassifierSignalFinding,
     AiAgentReviewClassifierSupportingEvidence,
+    AiAgentReviewClassifierToolOutcome,
     AiAgentReviewClassifierTurnCandidate,
     AiAgentReviewClassifierTurnSignal,
     AiAgentReviewItemDismissedReason,
@@ -321,6 +322,8 @@ type TurnReviewCandidateRow = BaseCandidateRow & {
               createdAt: string;
           })[]
         | null;
+    tool_outcomes: AiAgentReviewClassifierToolOutcome[] | null;
+    pending_approval_timeout: boolean;
 };
 
 type ToolCallEvidenceRow = {
@@ -359,6 +362,25 @@ const TOOL_NAME_PRIORITY = new Map<string, number>([
 
 const MCP_TOOL_NAME_PREFIX = 'mcp_';
 const MCP_TOOL_NAME_SCORE = 50;
+
+// Tools whose success/failure the judge must always see, independent of the
+// relevance-ranked top-5 supportingEvidence selection.
+const TOOL_OUTCOME_NAMES = new Set([
+    'editDbtProject',
+    'proposeWriteback',
+    'propose_writeback',
+    'runAiWriteback',
+    'run_ai_writeback',
+    'editContent',
+    'createContent',
+    'setupPreviewDeploy',
+]);
+
+const isToolOutcomeName = (toolName: string): boolean =>
+    TOOL_OUTCOME_NAMES.has(toolName) ||
+    toolName.startsWith(MCP_TOOL_NAME_PREFIX);
+
+const SQL_APPROVAL_TIMEOUT_PATTERN = /sql approval timed out/i;
 
 const TOOL_RESULT_ERROR_PATTERN =
     /no match|no relevant|not found|empty|error|failed/i;
@@ -630,6 +652,8 @@ export class AiAgentReviewClassifierModel {
                     createdAt: new Date(evidence.createdAt),
                 }),
             ),
+            toolOutcomes: row.tool_outcomes ?? [],
+            pendingApprovalTimeout: row.pending_approval_timeout,
         };
     }
 
@@ -709,6 +733,7 @@ export class AiAgentReviewClassifierModel {
                     previousTurnContext,
                     queryHistorySummaries,
                     supportingEvidenceSummaries,
+                    turnToolOutcomes,
                 ] = await Promise.all([
                     this.fetchNextPrompt(
                         base.ai_thread_uuid,
@@ -730,6 +755,7 @@ export class AiAgentReviewClassifierModel {
                         base.human_feedback,
                         base.error_message,
                     ),
+                    this.fetchTurnToolOutcomes(base.ai_prompt_uuid),
                 ]);
 
                 const row: TurnReviewCandidateRow = {
@@ -739,6 +765,9 @@ export class AiAgentReviewClassifierModel {
                     previous_turn_context: previousTurnContext,
                     query_history_summaries: queryHistorySummaries,
                     supporting_evidence_summaries: supportingEvidenceSummaries,
+                    tool_outcomes: turnToolOutcomes.toolOutcomes,
+                    pending_approval_timeout:
+                        turnToolOutcomes.pendingApprovalTimeout,
                 };
 
                 return AiAgentReviewClassifierModel.mapTurnReviewCandidate(row);
@@ -797,14 +826,15 @@ export class AiAgentReviewClassifierModel {
             // Preview projects host writeback verification threads — reviewing
             // them would feed the reviewer's own output back into itself.
             .whereNot('project.project_type', ProjectType.PREVIEW)
-            // Remediation build-fix threads are the reviewer's own output;
-            // reviewing them would open a review item on the fix it just made.
+            // Remediation build-fix and preview-verification threads are the
+            // reviewer's own output; reviewing them would open a review item
+            // on the fix it just made.
             .whereNotExists((builder) => {
                 void builder
                     .select(this.database.raw('1'))
                     .from(`${AiAgentReviewRemediationTableName} as remediation`)
                     .whereRaw(
-                        'remediation.work_thread_uuid = thread.ai_thread_uuid',
+                        'remediation.work_thread_uuid = thread.ai_thread_uuid OR remediation.preview_thread_uuid = thread.ai_thread_uuid',
                     );
             })
             .whereIn('thread.created_from', ['web_app', 'slack'])
@@ -934,6 +964,59 @@ export class AiAgentReviewClassifierModel {
                 sorts: row.metric_query?.sorts ?? [],
             },
         }));
+    }
+
+    private async fetchTurnToolOutcomes(promptUuid: string): Promise<{
+        toolOutcomes: AiAgentReviewClassifierToolOutcome[];
+        pendingApprovalTimeout: boolean;
+    }> {
+        const rows = await this.database(
+            `${AiAgentToolCallTableName} as tool_call`,
+        )
+            .leftJoin(
+                `${AiAgentToolResultTableName} as tool_result`,
+                function joinToolResult() {
+                    this.on(
+                        'tool_result.ai_prompt_uuid',
+                        '=',
+                        'tool_call.ai_prompt_uuid',
+                    ).andOn(
+                        'tool_result.tool_call_id',
+                        '=',
+                        'tool_call.tool_call_id',
+                    );
+                },
+            )
+            .select<
+                {
+                    tool_call_id: string;
+                    tool_name: string;
+                    created_at: Date;
+                    result: string | null;
+                }[]
+            >({
+                tool_call_id: 'tool_call.tool_call_id',
+                tool_name: 'tool_call.tool_name',
+                created_at: 'tool_call.created_at',
+                result: 'tool_result.result',
+            })
+            .where('tool_call.ai_prompt_uuid', promptUuid)
+            .orderBy('tool_call.created_at', 'asc');
+
+        return {
+            toolOutcomes: rows
+                .filter((row) => isToolOutcomeName(row.tool_name))
+                .map((row) => ({
+                    toolCallId: row.tool_call_id,
+                    toolName: row.tool_name,
+                    status: TOOL_RESULT_ERROR_PATTERN.test(row.result ?? '')
+                        ? ('error' as const)
+                        : ('success' as const),
+                })),
+            pendingApprovalTimeout: rows.some((row) =>
+                SQL_APPROVAL_TIMEOUT_PATTERN.test(row.result ?? ''),
+            ),
+        };
     }
 
     private async fetchSupportingEvidence(
