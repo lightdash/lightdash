@@ -166,10 +166,20 @@ Each file has a `linked` boolean and a `chartUuid`:
   `query(...)`. **There is NO `lightdash` object — call `savedChart(...)` and
   `query(...)` directly; a `lightdash.` prefix is undefined and crashes the app.**
   `savedChart(...)` is chainable like `query(...)` — always `.label()` it. Its
-  query is **fixed by the saved chart**: `.label()`,
-  `.limit()` and `.parameters()` apply, but `.dimensions()/.metrics()/.filters()
-  /.sorts()` are IGNORED — if the user needs a different shape or extra filters,
-  build an inline `query(...)` instead of linking. Do NOT copy the metricQuery.
+  query SHAPE is **fixed by the saved chart**: `.label()`, `.limit()`,
+  `.parameters()` and `.filters()` apply, but `.dimensions()/.metrics()/.sorts()`
+  are IGNORED. `.filters()` NARROWS the chart server-side (your filters are
+  ANDed onto the chart's own filters — you cannot widen or replace them), so
+  interactive filter controls on a LINKED chart work: pass the user's selection
+  via `.filters()` and the query re-runs. Filter field ids on a linked chart are
+  the QUALIFIED ids exactly as they appear in the result columns (e.g.
+  `orders_status`) — do NOT strip the explore prefix like you would for
+  `query(...)`. `.filters()` accepts DIMENSION fields only — filtering on a
+  metric column fails the whole run with a 400; if the user needs a metric
+  threshold, that belongs in the saved chart itself. Never filter a linked chart's rows client-side in JS — the rows
+  are limit-truncated, so client-side filtering silently shows wrong data. If
+  the user needs a different SHAPE (other dimensions/metrics), build an inline
+  `query(...)` instead of linking. Do NOT copy the metricQuery.
   The rows are keyed by the chart's field ids (as listed under
   `metricQuery.dimensions` / `metricQuery.metrics`); read the returned `columns`
   to know what's available. The listing line marks these with "LINKED".
@@ -1212,6 +1222,23 @@ export function RevenueBySegment() {
 ```
 
 **This applies to every `useLightdash()` call — no exceptions.** A chart that ignores `filtersFor(EXPLORE)` silently shows stale or contradictory data after the user filters.
+
+**Linked charts take global filters too — but with QUALIFIED field ids.** `savedChart(...).filters(...)` expects qualified ids (see "Linked vs. copied charts"), while global filters may carry inline-convention fields (short or dot-notation) or already-qualified ids (added from a linked chart's own menu). Qualify without double-prefixing:
+
+```tsx
+const qualify = (field) =>
+    field.includes('.') ? field.replace(/\./g, '_')
+    : field.startsWith(`${EXPLORE}_`) ? field
+    : `${EXPLORE}_${field}`;
+const linkedFilters = filtersFor(EXPLORE).map((f) => ({ ...f, field: qualify(f.field) }));
+```
+
+Filters may target ANY dimension of the chart's explore — selected on the chart or
+not; the query narrows server-side either way. Do NOT allowlist against the result
+`columns` (those are only the chart's selected fields — you'd silently drop valid
+filters). The explore-scoping of `filtersFor(EXPLORE)` is what keeps fields valid:
+they were added from charts on that explore. A field from OUTSIDE the explore fails
+the whole run with a 400.
 
 #### Active filters bar
 

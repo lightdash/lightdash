@@ -16,7 +16,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTransport } from './LightdashProvider';
 import { QueryBuilder } from './query';
-import type { SavedChartQuery } from './savedChart';
+import { savedChartQueryKey, type SavedChartQuery } from './savedChart';
 import type {
     Column,
     DownloadUnderlyingDataOptions,
@@ -109,9 +109,7 @@ export function useLightdash(
         () =>
             query instanceof QueryBuilder
                 ? JSON.stringify(query.build())
-                : `savedChart:${query.chartUuid}:${
-                      query.limitValue ?? ''
-                  }:${JSON.stringify(query.parameterValues ?? {})}`,
+                : savedChartQueryKey(query),
         [query],
     );
 
@@ -151,60 +149,56 @@ export function useLightdash(
                       label: query.labelText,
                       limit: query.limitValue,
                       parameters: query.parameterValues,
+                      filters: query.filterValues,
                   });
 
-        exec
-            .then((res) => {
-                if (!cancelled) {
-                    setData(res.rows);
-                    setColumns(res.columns);
-                    setFormat(() => res.format);
-                    setTotalResults(res.totalResults ?? res.rows.length);
-                    setQueryUuid(res.queryUuid ?? null);
-                    setGetUnderlyingData(
-                        () => async (options: UnderlyingDataOptions) => {
-                            if (!res.getUnderlyingData) {
-                                throw new Error(
-                                    'Underlying data is not supported by this Lightdash transport.',
-                                );
-                            }
-                            return res.getUnderlyingData(options);
-                        },
-                    );
-                    setDownloadResults(
-                        () => async (options?: DownloadResultsOptions) => {
-                            if (!res.downloadResults) {
-                                throw new Error(
-                                    'Downloads are not supported by this Lightdash transport.',
-                                );
-                            }
-                            return res.downloadResults(options);
-                        },
-                    );
-                    setDownloadUnderlyingData(
-                        () =>
-                            async (options: DownloadUnderlyingDataOptions) => {
-                                if (!res.downloadUnderlyingData) {
-                                    throw new Error(
-                                        'Underlying data downloads are not supported by this Lightdash transport.',
-                                    );
-                                }
-                                return res.downloadUnderlyingData(options);
-                            },
-                    );
-                    setLoading(false);
-                }
-            })
-            .catch((err: unknown) => {
-                if (!cancelled) {
-                    setError(
-                        err instanceof Error ? err : new Error(String(err)),
-                    );
-                    setQueryUuid(null);
-                    setTotalResults(null);
-                    setLoading(false);
-                }
-            });
+        exec.then((res) => {
+            if (!cancelled) {
+                setData(res.rows);
+                setColumns(res.columns);
+                setFormat(() => res.format);
+                setTotalResults(res.totalResults ?? res.rows.length);
+                setQueryUuid(res.queryUuid ?? null);
+                setGetUnderlyingData(
+                    () => async (options: UnderlyingDataOptions) => {
+                        if (!res.getUnderlyingData) {
+                            throw new Error(
+                                'Underlying data is not supported by this Lightdash transport.',
+                            );
+                        }
+                        return res.getUnderlyingData(options);
+                    },
+                );
+                setDownloadResults(
+                    () => async (options?: DownloadResultsOptions) => {
+                        if (!res.downloadResults) {
+                            throw new Error(
+                                'Downloads are not supported by this Lightdash transport.',
+                            );
+                        }
+                        return res.downloadResults(options);
+                    },
+                );
+                setDownloadUnderlyingData(
+                    () => async (options: DownloadUnderlyingDataOptions) => {
+                        if (!res.downloadUnderlyingData) {
+                            throw new Error(
+                                'Underlying data downloads are not supported by this Lightdash transport.',
+                            );
+                        }
+                        return res.downloadUnderlyingData(options);
+                    },
+                );
+                setLoading(false);
+            }
+        }).catch((err: unknown) => {
+            if (!cancelled) {
+                setError(err instanceof Error ? err : new Error(String(err)));
+                setQueryUuid(null);
+                setTotalResults(null);
+                setLoading(false);
+            }
+        });
 
         return () => {
             cancelled = true;

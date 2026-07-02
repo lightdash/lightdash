@@ -861,10 +861,9 @@ export function createApiTransport(
             label?: string;
             limit?: number;
             parameters?: ParametersValuesMap;
+            filters?: InternalFilterDefinition[];
         }): Promise<QueryResult> {
-            const metadata = params.label
-                ? { label: params.label }
-                : undefined;
+            const metadata = params.label ? { label: params.label } : undefined;
             const body: Record<string, unknown> = {
                 chartUuid: params.chartUuid,
             };
@@ -874,6 +873,9 @@ export function createApiTransport(
                 Object.keys(params.parameters).length > 0
             ) {
                 body.parameters = params.parameters;
+            }
+            if (params.filters && params.filters.length > 0) {
+                body.filters = buildApiFilters(params.filters);
             }
             const execResult = await fetchFn<AsyncQueryResponse>(
                 'POST',
