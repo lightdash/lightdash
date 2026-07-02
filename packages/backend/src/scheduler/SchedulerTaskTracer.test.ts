@@ -38,7 +38,8 @@ continueTraceMock.mockImplementation(
 );
 startSpanMock.mockImplementation(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (_opts: unknown, cb: any) => cb({ setStatus: vi.fn() }),
+    (_opts: unknown, cb: any) =>
+        cb({ setStatus: vi.fn(), setAttributes: vi.fn() }),
 );
 
 const makeHelpers = () =>

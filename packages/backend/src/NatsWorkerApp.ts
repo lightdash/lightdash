@@ -20,7 +20,7 @@ import {
     shouldSelfRegisterHttpInstrumentation,
 } from './prometheus/otelHttpMetrics';
 import PrometheusMetrics from './prometheus/PrometheusMetrics';
-import { IGNORE_ERRORS } from './sentry';
+import { errorsOnlyIntegrations, IGNORE_ERRORS } from './sentry';
 import { createOrganizationNameResolver } from './sentry/organizationNameResolver';
 import {
     OperationContext,
@@ -191,11 +191,17 @@ export default class NatsWorkerApp {
                     : this.lightdashConfig.mode,
             skipOpenTelemetrySetup: otelTracingEnabled(),
             registerEsmLoaderHooks: !otelTracingEnabled(),
-            integrations: [],
+            // OTel mode owns traces; strip Sentry's span-emitting default
+            // integrations (postgres etc.) so the worker is errors-only.
+            integrations: otelTracingEnabled() ? errorsOnlyIntegrations : [],
             ignoreErrors: IGNORE_ERRORS,
-            tracesSampleRate:
-                this.lightdashConfig.sentry.queryTracesSampleRate ??
-                this.lightdashConfig.sentry.tracesSampleRate,
+            ...(otelTracingEnabled()
+                ? {}
+                : {
+                      tracesSampleRate:
+                          this.lightdashConfig.sentry.queryTracesSampleRate ??
+                          this.lightdashConfig.sentry.tracesSampleRate,
+                  }),
         });
         initOtelTracing();
     }
