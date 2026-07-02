@@ -11,11 +11,15 @@ const getDataAppVisualizations = async (
     projectUuid: string,
     page: number,
     pageSize: number,
+    search: string,
 ): Promise<DataAppVizsPage> => {
     const params = new URLSearchParams({
         page: String(page),
         pageSize: String(pageSize),
     });
+    if (search) {
+        params.set('search', search);
+    }
     return lightdashApi<DataAppVizsPage>({
         method: 'GET',
         url: `/ee/projects/${projectUuid}/apps/visualizations?${params.toString()}`,
@@ -25,15 +29,20 @@ const getDataAppVisualizations = async (
 
 const FETCH_SIZE = 25;
 
-// Lists the project's saved data app vizs (paginated) for the library picker.
-export const useDataAppVisualizations = (projectUuid: string | undefined) =>
+// Lists the project's saved data app vizs (paginated, optionally filtered by
+// `search`) for the library picker.
+export const useDataAppVisualizations = (
+    projectUuid: string | undefined,
+    search: string = '',
+) =>
     useInfiniteQuery<DataAppVizsPage, ApiError>({
-        queryKey: ['data-app-vizs', projectUuid, FETCH_SIZE],
+        queryKey: ['data-app-vizs', projectUuid, FETCH_SIZE, search],
         queryFn: ({ pageParam = 1 }) =>
             getDataAppVisualizations(
                 projectUuid!,
                 pageParam as number,
                 FETCH_SIZE,
+                search,
             ),
         getNextPageParam: (lastPage, pages) => {
             const totalPages = lastPage.pagination?.totalPageCount ?? 0;

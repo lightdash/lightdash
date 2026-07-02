@@ -73,6 +73,7 @@ export const ConfigTabs: FC = memo(() => {
                         <DataAppVizLibraryPicker
                             projectUuid={projectUuid ?? ''}
                             selectedDataAppVizUuid={dataAppVizUuid || null}
+                            selectedDataAppViz={dataAppViz ?? null}
                             onSelect={setDataAppVizUuid}
                         />
                     </Config.Section>
@@ -93,10 +94,7 @@ export const ConfigTabs: FC = memo(() => {
                     return (
                         <Config key={field.name}>
                             <Config.Section>
-                                <Config.Heading>
-                                    {field.label}
-                                    {field.required ? ' *' : ''}
-                                </Config.Heading>
+                                <Config.Heading>{field.label}</Config.Heading>
                                 <FieldSelect
                                     placeholder={`Select ${field.label.toLowerCase()}`}
                                     disabled={items.length === 0}

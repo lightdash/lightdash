@@ -571,6 +571,7 @@ export class AppModel {
     async listDataAppVisualizations(
         projectUuid: string,
         paginateArgs?: KnexPaginateArgs,
+        search?: string,
     ): Promise<
         KnexPaginatedData<(DbApp & { viz_schema: DataAppVizSchema })[]>
     > {
@@ -586,6 +587,9 @@ export class AppModel {
                 `${AppVersionsTableName}.viz_schema`,
             )
             .orderBy(`${AppsTableName}.created_at`, 'desc');
+        if (search) {
+            void query.whereILike(`${AppsTableName}.name`, `%${search}%`);
+        }
         return KnexPaginate.paginate(query, paginateArgs);
     }
 
