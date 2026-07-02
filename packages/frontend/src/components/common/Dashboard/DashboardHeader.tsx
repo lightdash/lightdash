@@ -49,6 +49,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useToggle } from 'react-use';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
+import { CreateIssueMenuItem } from '../../../ee/features/aiCopilot/components/CreateIssue/CreateIssueMenuItem';
 import AIDashboardSummary from '../../../ee/features/ambientAi/components/aiDashboardSummary';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
@@ -739,6 +740,10 @@ const DashboardHeader = memo(
                                         projectUuid={projectUuid}
                                         dashboardUuid={dashboard.uuid}
                                         clickedFrom="dashboard_header"
+                                    />
+                                    <CreateIssueMenuItem
+                                        projectUuid={projectUuid}
+                                        dashboardUuid={dashboard.uuid}
                                         withDivider
                                     />
                                     {!!userCanManageDashboard && (
