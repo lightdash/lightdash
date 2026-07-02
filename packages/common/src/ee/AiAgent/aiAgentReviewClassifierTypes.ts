@@ -480,6 +480,14 @@ export type AiAgentJudgeProjectContextEntry = {
     objects: string[];
 };
 
+// Signals that describe a healthy turn — mutually exclusive with promotion.
+const NOT_A_FAILURE_SIGNALS: ReadonlySet<string> = new Set([
+    'normal_refinement',
+    'output_shape_correction',
+    'new_question',
+    'acceptance_or_continuation',
+]);
+
 export const aiAgentReviewClassifierJudgeOutputSchema = z
     .object({
         signal: z.enum([
@@ -606,6 +614,27 @@ export const aiAgentReviewClassifierJudgeOutputSchema = z
                 message:
                     'promotedToFinding must be false when primaryRootCause is not_a_failure',
                 path: ['promotedToFinding'],
+            });
+        }
+        if (
+            output.promotedToFinding &&
+            NOT_A_FAILURE_SIGNALS.has(output.signal)
+        ) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: `promotedToFinding must be false when signal is ${output.signal}; promoted findings need a failure signal`,
+                path: ['signal'],
+            });
+        }
+        if (
+            output.promotedToFinding &&
+            output.recommendation?.actionType === 'no_action'
+        ) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message:
+                    'promoted findings must carry an actionable recommendation, not no_action',
+                path: ['recommendation', 'actionType'],
             });
         }
     });
