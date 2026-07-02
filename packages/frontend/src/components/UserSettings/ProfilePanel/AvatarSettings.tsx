@@ -41,6 +41,7 @@ const GRADIENT_SWATCH_COLORS: Record<UserAvatarGradientId, HexColor> = {
     amethyst: '#5e4cff',
     sunrise: '#b3a0ff',
     slate: '#2a2a2a',
+    pearl: '#e4e4ea',
 };
 
 type CustomMode = 'gradient' | 'solid';
@@ -186,9 +187,7 @@ const AvatarSettings: FC = () => {
                                     }
                                     onClick={() => handlePresetClick(null)}
                                 >
-                                    <LightdashUserAvatar size="sm">
-                                        {' '}
-                                    </LightdashUserAvatar>
+                                    <span className={classes.noColorSwatch} />
                                 </button>
                             </Tooltip>
                             {USER_AVATAR_GRADIENT_IDS.map((gradientId) => (

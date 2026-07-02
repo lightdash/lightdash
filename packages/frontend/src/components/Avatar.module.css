@@ -95,3 +95,22 @@
         linear-gradient(135deg, #4a4a4a 0%, #0a0a0a 100%);
     box-shadow: inset 0 0 3px rgba(90, 90, 90, 0.5);
 }
+.root[data-avatar-gradient='pearl'] .placeholder {
+    background-image:
+        radial-gradient(
+            circle at 18% 12%,
+            rgba(255, 255, 255, 0.95) 0%,
+            transparent 40%
+        ),
+        radial-gradient(
+            circle at 85% 90%,
+            rgba(255, 255, 255, 0.6) 0%,
+            transparent 35%
+        ),
+        radial-gradient(circle at 75% 25%, #f4f4f6 0%, transparent 32%),
+        radial-gradient(circle at 25% 75%, #b9b9c2 0%, transparent 34%),
+        linear-gradient(135deg, #ffffff 0%, #cfcfd7 100%);
+    box-shadow: inset 0 0 3px rgba(160, 160, 170, 0.5);
+    /* Background is always light regardless of color scheme — fixed dark text. */
+    color: #35353a;
+}
