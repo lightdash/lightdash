@@ -33,6 +33,6 @@ describe('DataAppVizResultCard', () => {
             <DataAppVizResultCard schema={{ fields: [], configOptions: [] }} />,
         );
 
-        expect(screen.getByText(/0 fields to map/i)).toBeInTheDocument();
+        expect(screen.getByText('Visualization ready')).toBeInTheDocument();
     });
 });
