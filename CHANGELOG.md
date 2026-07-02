@@ -1,3 +1,10 @@
+# [0.3294.0](https://github.com/lightdash/lightdash/compare/0.3293.0...0.3294.0) (2026-07-02)
+
+
+### Features
+
+* **cli:** upload --create-new forces a new app; offer manifest retarget after create [GLITCH-581] ([#25051](https://github.com/lightdash/lightdash/issues/25051)) ([b8171fe](https://github.com/lightdash/lightdash/commit/b8171fe69ccd896d0268baeac8eceab5d3330fe8))
+
 # [0.3293.0](https://github.com/lightdash/lightdash/compare/0.3292.1...0.3293.0) (2026-07-02)
 
 
