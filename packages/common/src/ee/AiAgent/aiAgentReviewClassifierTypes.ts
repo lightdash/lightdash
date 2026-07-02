@@ -1024,6 +1024,17 @@ export type AiAgentReviewClassifierTurnCandidate = {
     tokenUsageTotal: number | null;
     queryHistory: AiAgentReviewClassifierQueryHistorySummary[];
     supportingEvidence: AiAgentReviewClassifierSupportingEvidence[];
+    toolOutcomes: AiAgentReviewClassifierToolOutcome[];
+    pendingApprovalTimeout: boolean;
+};
+
+// Compact outcome line for every content-mutating / writeback / preview-deploy
+// / MCP tool call in the turn — guaranteed visible to the judge regardless of
+// the relevance-ranked (top-5) supportingEvidence selection.
+export type AiAgentReviewClassifierToolOutcome = {
+    toolCallId: string;
+    toolName: string;
+    status: 'success' | 'error';
 };
 
 export type AiAgentReviewClassifierQueryHistorySummary = {

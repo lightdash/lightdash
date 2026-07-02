@@ -15,6 +15,7 @@ import {
     type AiAgentReviewClassifierJudgeOutput,
     type AiAgentReviewClassifierRunScope,
     type AiAgentReviewClassifierSignalFinding,
+    type AiAgentReviewClassifierToolOutcome,
     type AiAgentReviewClassifierTurnCandidate,
     type AiAgentReviewClassifierTurnSignal,
     type AiAgentRootCause,
@@ -41,7 +42,7 @@ import { getAiCallTelemetry } from './ai/utils/aiCallTelemetry';
 import { type AiAgentReviewNotificationService } from './AiAgentReviewNotificationService';
 
 const REVIEW_AGENT_VERSION = 'llm-judge-v1';
-const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v11';
+const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v12';
 const WRITEBACK_TOOL_NAMES = new Set([
     'editDbtProject',
     'propose_writeback',
@@ -137,6 +138,11 @@ export type AiAgentReviewJudgeEvidencePacket = {
     // PRs the agent already opened in this thread via writeback tools. Non-empty
     // means a real PR exists — the judge should only promote if it failed/was wrong.
     threadWritebackPullRequests: { prUrl: string | null; createdAt: Date }[];
+    // Complete success/error outcome per content-mutating/writeback/preview/MCP
+    // tool call in the turn — never truncated by the top-5 evidence ranking.
+    toolOutcomes: AiAgentReviewClassifierToolOutcome[];
+    // A human SQL-approval gate expired during the turn (user stepped away).
+    pendingApprovalTimeout: boolean;
 };
 
 type AiAgentReviewAgentConfigEvidence =
@@ -1204,7 +1210,7 @@ Implicit signal definitions — set these whenever the evidence supports them:
 - next_user_dispute: the next user prompt explicitly says the previous answer was wrong.
 - next_user_retry: the next user prompt asks the same unresolved question again or asks to try a different approach after a failed, empty, non-substantive, or off-target answer. Do not use this for normal iterative exploration after a useful answer.
 - output_shape_correction: the next user prompt asks for a different chart / format / grouping with no semantic change.
-- tool_error: a tool call errored, timed out, or returned an empty / error result the assistant did not recover from.
+- tool_error: a tool call errored, timed out, or returned an empty / error result the assistant did not recover from. A human SQL-approval gate expiring (evidence packet pendingApprovalTimeout=true, or a result saying the SQL approval timed out / the user may have stepped away) is NOT a tool_error — it is expected behavior when the user steps away, not a runtime or warehouse defect. Do not promote it as runtime_reliability; when it is the only issue in the turn use promotedToFinding=false (or feedback_quality at most), especially when humanFeedback.score is not negative.
 - product_capability_request: the user asked for something Lightdash cannot currently express.
 - human_intervention: an admin or engineer had to step in.
 
@@ -1217,7 +1223,7 @@ Decision rules — apply in order:
 
 1. First, populate implicitSignalSources by inspecting the evidence packet. Do not skip this step.
 
-2. If the evidence shows the assistant successfully called a writeback tool (for example editDbtProject or runAiWriteback) and opened or updated a pull request, do not promote this as a semantic_layer or project_context finding. The remediation is already in progress; use promotedToFinding=false, signal=acceptance_or_continuation, primaryRootCause=not_a_failure, and promotionReason=writeback_tool_already_started. The evidence packet field threadWritebackPullRequests lists PRs the agent has already opened in this thread — when it is non-empty a real pull request exists, so do not infer from prose that the assistant fabricated it. Only consider writeback turns promotable when the tool failed, opened no pull request despite a clear requested change, or the user later says the PR is wrong.
+2. The evidence packet field toolOutcomes lists the success/error outcome of EVERY content-mutating, writeback, preview-deploy, and MCP tool call in the turn — it is complete even when the corresponding trace is not in supportingEvidence. A success there means the action really happened: never claim the assistant lacks a capability, fabricated an action, or failed to execute when toolOutcomes shows that tool succeeding. If the evidence shows the assistant successfully called a writeback tool (for example editDbtProject or runAiWriteback) and opened or updated a pull request, do not promote this as a semantic_layer or project_context finding. The remediation is already in progress; use promotedToFinding=false, signal=acceptance_or_continuation, primaryRootCause=not_a_failure, and promotionReason=writeback_tool_already_started. The evidence packet field threadWritebackPullRequests lists PRs the agent has already opened in this thread — when it is non-empty a real pull request exists, so do not infer from prose that the assistant fabricated it. Only consider writeback turns promotable when the tool failed, opened no pull request despite a clear requested change, or the user later says the PR is wrong.
 
 3. Treat implicitSignalSources as strong evidence of unresolved user intent, not as decoration. Promote when the implicit signal points to likely assistant failure:
    - Always promote assistant_no_answer, next_user_dispute, tool_error, product_capability_request, and human_intervention.
@@ -1447,6 +1453,8 @@ Set projectContextEntry ONLY when primaryRootCause=project_context and a single 
             suggestedEvidenceExcerpts:
                 AiAgentReviewClassifierService.buildEvidenceExcerpts(candidate),
             threadWritebackPullRequests,
+            toolOutcomes: candidate.toolOutcomes,
+            pendingApprovalTimeout: candidate.pendingApprovalTimeout,
         };
     }
 
