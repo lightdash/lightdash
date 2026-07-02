@@ -24,7 +24,7 @@
         radial-gradient(circle at 80% 80%, #d9b3ff 0%, transparent 50%),
         radial-gradient(circle at 20% 80%, #b8a5ff 0%, transparent 50%),
         radial-gradient(circle at 50% 50%, #c0b6ff 0%, transparent 50%), #bfb4ff;
-    box-shadow: inset 0 0 0 1px rgba(212, 204, 255, 0.6);
+    border: 1px solid rgba(212, 204, 255, 0.6);
 }
 .root[data-avatar-gradient='blush'] .placeholder {
     background:
@@ -33,7 +33,7 @@
         radial-gradient(circle at 80% 80%, #f0a5d8 0%, transparent 50%),
         radial-gradient(circle at 20% 80%, #e8b8e8 0%, transparent 50%),
         radial-gradient(circle at 50% 50%, #dfa5d0 0%, transparent 50%), #dfa5d0;
-    box-shadow: inset 0 0 0 1px rgba(255, 179, 230, 0.6);
+    border: 1px solid rgba(255, 179, 230, 0.6);
 }
 .root[data-avatar-gradient='minty'] .placeholder {
     background:
@@ -42,7 +42,7 @@
         radial-gradient(circle at 80% 80%, #d4f9a0 0%, transparent 50%),
         radial-gradient(circle at 20% 80%, #e5f9c0 0%, transparent 50%),
         radial-gradient(circle at 50% 50%, #ddf58e 0%, transparent 50%), #ddf58e;
-    box-shadow: inset 0 0 0 1px rgba(219, 254, 149, 0.6);
+    border: 1px solid rgba(219, 254, 149, 0.6);
 }
 .root[data-avatar-gradient='amethyst'] .placeholder {
     background:
@@ -51,7 +51,7 @@
         radial-gradient(circle at 80% 80%, #9980ff 0%, transparent 50%),
         radial-gradient(circle at 20% 80%, #ad7dff 0%, transparent 50%),
         radial-gradient(circle at 50% 50%, #a87dff 0%, transparent 50%), #a87dff;
-    box-shadow: inset 0 0 0 1px rgba(180, 153, 255, 0.6);
+    border: 1px solid rgba(180, 153, 255, 0.6);
 }
 .root[data-avatar-gradient='sunrise'] .placeholder {
     background:
@@ -60,5 +60,5 @@
         radial-gradient(circle at 80% 80%, #d5eea5 0%, transparent 50%),
         radial-gradient(circle at 20% 80%, #cfd8b8 0%, transparent 50%),
         radial-gradient(circle at 50% 50%, #cccdb3 0%, transparent 50%), #cccdb3;
-    box-shadow: inset 0 0 0 1px rgba(218, 246, 162, 0.6);
+    border: 1px solid rgba(218, 246, 162, 0.6);
 }
