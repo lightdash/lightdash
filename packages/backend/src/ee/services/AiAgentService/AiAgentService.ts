@@ -2729,6 +2729,7 @@ export class AiAgentService extends BaseService {
             enableSelfImprovement: body.enableSelfImprovement,
             enableContentTools:
                 body.enableDataAccess && (body.enableContentTools ?? false),
+            enableUserContext: body.enableUserContext ?? false,
             adminOnly: body.adminOnly ?? false,
             modelConfig: body.modelConfig ?? null,
             version: body.version,
@@ -3645,6 +3646,7 @@ export class AiAgentService extends BaseService {
             enableContentTools: nextEnableDataAccess
                 ? body.enableContentTools
                 : false,
+            enableUserContext: body.enableUserContext,
             adminOnly: body.adminOnly,
             modelConfig: body.modelConfig,
             version: body.version,
@@ -7405,7 +7407,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         // Slack without aiRequireOAuth resolves the actor to the workspace
         // installer, not the requester — omit rather than describe the wrong person.
         let requestingUser: AiAgentRequestingUser | null = null;
-        if (hasTrustedPromptUserIdentity && user.organizationUuid) {
+        if (
+            agentSettings.enableUserContext &&
+            hasTrustedPromptUserIdentity &&
+            user.organizationUuid
+        ) {
             const userGroups = await this.groupsModel.findUserGroups({
                 userUuid: user.userUuid,
                 organizationUuid: user.organizationUuid,
