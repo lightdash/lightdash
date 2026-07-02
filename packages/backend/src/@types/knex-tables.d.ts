@@ -470,6 +470,10 @@ import {
     ProjectCiStatusTableName,
 } from '../ee/database/entities/projectCiStatus';
 import {
+    SchedulerAiAugmentationTable,
+    SchedulerAiAugmentationTableName,
+} from '../ee/database/entities/schedulerAiAugmentation';
+import {
     ServiceAccountsTableName,
     ServiceAccountTable,
 } from '../ee/database/entities/serviceAccounts';
@@ -648,5 +652,6 @@ declare module 'knex/types/tables' {
         [AppExternalConnectionsTableName]: AppExternalConnectionsTable;
         [ExternalConnectionRateCountersTableName]: ExternalConnectionRateCountersTable;
         [ExternalConnectionSamplesTableName]: ExternalConnectionSamplesTable;
+        [SchedulerAiAugmentationTableName]: SchedulerAiAugmentationTable;
     }
 }
