@@ -28,11 +28,6 @@
 }
 .root[data-avatar-gradient='amethyst'] .placeholder {
     background:
-        radial-gradient(circle at 20% 25%, #8001fe 0%, transparent 60%),
-        radial-gradient(circle at 80% 75%, #5e4cff 0%, transparent 60%), #6331c4;
-}
-.root[data-avatar-gradient='jungle'] .placeholder {
-    background:
-        radial-gradient(circle at 25% 35%, #3b5408 0%, transparent 60%),
-        radial-gradient(circle at 75% 65%, #1d7c51 0%, transparent 60%), #2c5825;
+        radial-gradient(circle at 20% 25%, #b267fe 0%, transparent 60%),
+        radial-gradient(circle at 80% 75%, #a499ff 0%, transparent 60%), #a87dff;
 }
