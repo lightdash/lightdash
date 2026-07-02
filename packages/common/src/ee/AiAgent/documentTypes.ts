@@ -49,8 +49,7 @@ export type ApiCreateAiAgentDocument = {
 
 export type ApiUpdateAiAgentDocument = {
     name?: string;
-    projectUuid?: string | null;
-    agentAccess?: string[];
+    content?: string;
 };
 
 export type ApiAiAgentDocumentResponse = {

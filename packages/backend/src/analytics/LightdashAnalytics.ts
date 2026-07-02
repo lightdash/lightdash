@@ -1963,6 +1963,17 @@ export type AiAgentDocumentCreatedEvent = BaseTrack & {
     };
 };
 
+export type AiAgentDocumentUpdatedEvent = BaseTrack & {
+    event: 'ai_agent_document.updated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | null;
+        documentId: string;
+        contentChanged: boolean;
+    };
+};
+
 export type AiAgentDocumentDeletedEvent = BaseTrack & {
     event: 'ai_agent_document.deleted';
     userId: string;
@@ -2479,6 +2490,7 @@ type TypedEvent =
     | AiAgentDeletedEvent
     | AiAgentUpdatedEvent
     | AiAgentDocumentCreatedEvent
+    | AiAgentDocumentUpdatedEvent
     | AiAgentDocumentDeletedEvent
     | AiAgentPromptCreatedEvent
     | AiAgentPromptFeedbackEvent
