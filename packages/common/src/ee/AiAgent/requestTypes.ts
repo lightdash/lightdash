@@ -45,27 +45,29 @@ export type AiPromptTokenUsage = {
 
 /**
  * Every origin an ai_thread can be created from. Canonical source for the
- * DB column type and the admin/list filters — add new origins here and the
- * derived subsets below track them. Subsets use Exclude (not Extract) so a
- * rename of a member surfaces as a type error everywhere instead of silently
- * dropping from the subset.
+ * DB column type and the admin/list filters — add new origins here.
  */
 export type AiThreadCreatedFrom = 'slack' | 'web_app' | 'evals' | 'scheduler';
 
+// Subsets are spelled out (not Exclude<>) because tsoa can't resolve mapped
+// types at API boundaries. The assertion below fails to compile if any subset
+// drifts outside the canonical union — e.g. after renaming a member — so they
+// can't silently diverge.
+
 /** Origins for threads created through the web app path — everything but Slack. */
-export type AiWebAppThreadCreatedFrom = Exclude<AiThreadCreatedFrom, 'slack'>;
+export type AiWebAppThreadCreatedFrom = 'web_app' | 'evals' | 'scheduler';
 
 /** Origins handled through the Slack path. */
-export type AiSlackThreadCreatedFrom = Exclude<
-    AiThreadCreatedFrom,
-    'evals' | 'scheduler'
->;
+export type AiSlackThreadCreatedFrom = 'slack' | 'web_app';
 
 /** Origins a thread can be cloned into — Slack and scheduler threads are never clone targets. */
-export type AiClonedThreadCreatedFrom = Exclude<
-    AiThreadCreatedFrom,
-    'slack' | 'scheduler'
->;
+export type AiClonedThreadCreatedFrom = 'web_app' | 'evals';
+
+type AssertSubsetOfCreatedFrom<T extends AiThreadCreatedFrom> = T;
+export type AiCreatedFromSubsetsAreValid =
+    | AssertSubsetOfCreatedFrom<AiWebAppThreadCreatedFrom>
+    | AssertSubsetOfCreatedFrom<AiSlackThreadCreatedFrom>
+    | AssertSubsetOfCreatedFrom<AiClonedThreadCreatedFrom>;
 
 export type CreateSlackThread = {
     organizationUuid: string;

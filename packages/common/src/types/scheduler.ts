@@ -510,6 +510,11 @@ export type ApiSchedulerAndTargetsResponse = {
     results: SchedulerAndTargets;
 };
 
+export type ApiSchedulerAiAugmentationResponse = {
+    status: 'ok';
+    results: SchedulerAiAugmentation | null;
+};
+
 export type ApiAppSchedulersResponse = {
     status: 'ok';
     results: SchedulerAndTargets[];
