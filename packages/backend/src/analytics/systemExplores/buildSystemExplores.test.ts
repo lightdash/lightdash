@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
     buildSystemExplores,
     getSystemExploresForProject,
+    isSystemExploreName,
 } from './buildSystemExplores';
 
 const ORGANIZATION_UUID = '172a2270-000f-42be-9c68-c4752c23ae51';
@@ -143,5 +144,16 @@ describe('getSystemExploresForProject', () => {
                 systemExploresEnabled: false,
             }),
         ).toEqual([]);
+    });
+});
+
+describe('isSystemExploreName', () => {
+    it('matches generated system explore names', () => {
+        expect(isSystemExploreName('lightdash_query_events')).toBe(true);
+    });
+
+    it('does not match other explore names', () => {
+        expect(isSystemExploreName('query_events')).toBe(false);
+        expect(isSystemExploreName('orders')).toBe(false);
     });
 });

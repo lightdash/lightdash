@@ -246,6 +246,9 @@ const applyServiceAccountStaticAbilities: Record<
         can('manage', 'PreAggregation', {
             organizationUuid,
         });
+        can('view', 'SystemAnalytics', {
+            organizationUuid,
+        });
         can('manage', 'VirtualView', {
             organizationUuid,
         });

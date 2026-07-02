@@ -181,6 +181,7 @@ const BASE_ROLE_SCOPES = {
         'manage:GitIntegration',
         'manage:OrganizationWarehouseCredentials',
         'manage:Organization',
+        'view:SystemAnalytics',
         'impersonate:User',
 
         // PAT management. Granted dynamically at runtime via

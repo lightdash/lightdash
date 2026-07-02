@@ -326,7 +326,7 @@ export default class PrometheusMetrics {
                 this.warehouseDurationHistogram = new prometheus.Histogram({
                     name: 'lightdash_query_warehouse_duration_seconds',
                     help: 'Warehouse query execution duration',
-                    labelNames: ['warehouse_type', 'context'],
+                    labelNames: ['warehouse_type', 'context', 'source'],
                     buckets: [0.1, 0.5, 1, 2.5, 5, 10, 30, 60, 120],
                     ...rest,
                 });
@@ -1161,7 +1161,7 @@ export default class PrometheusMetrics {
 
     public observeS3ResultsUploadDuration(
         durationMs: number,
-        source: 'warehouse' | 'pre_aggregate_duckdb',
+        source: 'warehouse' | 'pre_aggregate_duckdb' | 'system_duckdb',
     ) {
         this.s3ResultsUploadDurationHistogram?.observe(
             { source },
@@ -1255,11 +1255,13 @@ export default class PrometheusMetrics {
         durationMs: number,
         warehouseType: string,
         context: string,
+        source: 'warehouse' | 'pre_aggregate_duckdb' | 'system_duckdb',
     ) {
         this.warehouseDurationHistogram?.observe(
             {
                 warehouse_type: warehouseType,
                 context: getQueryContextLabel(context),
+                source,
             },
             durationMs / 1000,
         );

@@ -23,6 +23,7 @@ import type {
     CompactedColumnType,
     CompactedStreamColumn,
 } from '../eventStream/types';
+import { COMPACTED_KEY_PREFIX } from '../eventStream/UsageEventsCompactor';
 
 export const SYSTEM_EXPLORE_GROUP = 'Usage analytics';
 
@@ -30,6 +31,11 @@ const SYSTEM_EXPLORE_NAME_PREFIX = 'lightdash_';
 
 export const getSystemExploreName = (stream: string): string =>
     `${SYSTEM_EXPLORE_NAME_PREFIX}${stream}`;
+
+export const isSystemExploreName = (exploreName: string): boolean =>
+    Object.keys(compactedStreamSchemas).some(
+        (stream) => getSystemExploreName(stream) === exploreName,
+    );
 
 type SystemMetricDef = Pick<Metric, 'name' | 'description' | 'percentile'> & {
     type: MetricType;
@@ -241,7 +247,11 @@ const buildSqlTable = (args: {
     organizationUuid: string;
     stream: string;
 }): string =>
-    `read_parquet('s3://${args.bucket}/events/compacted/org_id=${args.organizationUuid}/stream=${args.stream}/**/*.parquet', hive_partitioning=true, union_by_name=true)`;
+    `read_parquet('s3://${args.bucket}/${COMPACTED_KEY_PREFIX}/org_id=${args.organizationUuid}/stream=${args.stream}/**/*.parquet', hive_partitioning=true, union_by_name=true)`;
+
+/** URI prefix that system explore queries are allowed to read from. */
+export const getSystemExploreAllowedUriPrefix = (bucket: string): string =>
+    `s3://${bucket}/${COMPACTED_KEY_PREFIX}/`;
 
 export type BuildSystemExploresArgs = {
     organizationUuid: string;
