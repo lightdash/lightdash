@@ -2,9 +2,12 @@ import { type DataAppCodeDownload } from '@lightdash/common';
 import {
     appsDownloadSummary,
     capListedApps,
+    classifyAppUpload,
+    computeUpsertedTotal,
     ensureDownloadedAppContext,
     MAX_INCLUDE_APPS,
     selectAppsToDownload,
+    shouldWarnAllSkipped,
 } from './appsDownload';
 
 const makeDownload = (): DataAppCodeDownload =>
@@ -93,6 +96,73 @@ describe('ensureDownloadedAppContext', () => {
                 withoutContext as DataAppCodeDownload,
             ),
         ).toThrow(/does not support app context downloads/i);
+    });
+});
+
+describe('computeUpsertedTotal', () => {
+    it('sums only keys that are neither skipped nor failed', () => {
+        const changes = {
+            'charts created': 2,
+            'charts skipped': 3,
+            'charts failed': 1,
+            'dashboards updated': 4,
+        };
+        expect(computeUpsertedTotal(changes)).toBe(6); // 2 + 4
+    });
+
+    it('returns 0 when all keys are skipped or failed', () => {
+        const changes = {
+            'charts skipped': 5,
+            'data apps failed': 1,
+        };
+        expect(computeUpsertedTotal(changes)).toBe(0);
+    });
+
+    it('returns 0 for empty changes', () => {
+        expect(computeUpsertedTotal({})).toBe(0);
+    });
+});
+
+describe('shouldWarnAllSkipped', () => {
+    it('returns true when everything was skipped', () => {
+        expect(shouldWarnAllSkipped({ 'charts skipped': 3 })).toBe(true);
+    });
+
+    it('returns false when some content was upserted', () => {
+        expect(
+            shouldWarnAllSkipped({
+                'charts skipped': 3,
+                'data apps created': 1,
+            }),
+        ).toBe(false);
+    });
+
+    it('returns false when only failures exist (no skipped)', () => {
+        expect(shouldWarnAllSkipped({ 'data apps failed': 1 })).toBe(false);
+    });
+
+    it('returns false when nothing was skipped', () => {
+        expect(shouldWarnAllSkipped({ 'charts created': 2 })).toBe(false);
+    });
+
+    it('returns false for empty changes', () => {
+        expect(shouldWarnAllSkipped({})).toBe(false);
+    });
+});
+
+describe('classifyAppUpload', () => {
+    it('proceeds when createNew is true regardless of project mismatch', () => {
+        expect(classifyAppUpload('proj-a', 'proj-b', true)).toBe('proceed');
+    });
+
+    it('proceeds when manifest project matches target project', () => {
+        expect(classifyAppUpload('proj-a', 'proj-a', false)).toBe('proceed');
+    });
+
+    it('needs-confirmation when projects differ and createNew is false', () => {
+        expect(classifyAppUpload('proj-a', 'proj-b', false)).toBe(
+            'needs-confirmation',
+        );
     });
 });
 
