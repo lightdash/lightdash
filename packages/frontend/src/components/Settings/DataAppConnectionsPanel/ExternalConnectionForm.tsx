@@ -90,6 +90,7 @@ export const ExternalConnectionForm: FC<Props> = ({
             <Select
                 label="Authentication"
                 disabled={disabled}
+                allowDeselect={false}
                 data={[
                     { value: 'none', label: 'None' },
                     { value: 'api_key', label: 'API key' },
