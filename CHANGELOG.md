@@ -1,3 +1,10 @@
+## [0.3294.1](https://github.com/lightdash/lightdash/compare/0.3294.0...0.3294.1) (2026-07-02)
+
+
+### Bug Fixes
+
+* **external-connections:** allow Authorization as an api_key header name ([#25078](https://github.com/lightdash/lightdash/issues/25078)) ([4c27cb1](https://github.com/lightdash/lightdash/commit/4c27cb1826f9fd1f9f8ee774d41e7c8ab3f13b20))
+
 # [0.3294.0](https://github.com/lightdash/lightdash/compare/0.3293.0...0.3294.0) (2026-07-02)
 
 
