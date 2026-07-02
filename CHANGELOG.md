@@ -1,3 +1,28 @@
+# [0.3299.0](https://github.com/lightdash/lightdash/compare/0.3298.0...0.3299.0) (2026-07-02)
+
+
+### Bug Fixes
+
+* **ai-reviews:** address stack code-review findings — outcome truthfulness, run resilience, per-agent config ([#25093](https://github.com/lightdash/lightdash/issues/25093)) ([1037e72](https://github.com/lightdash/lightdash/commit/1037e72526bd65e5edb64551dbb45dc8b67c7b9e)), closes [#25064](https://github.com/lightdash/lightdash/issues/25064) [#25082](https://github.com/lightdash/lightdash/issues/25082)
+* **ai:** make grepFields precise — stop explore hints matching every field ([#25094](https://github.com/lightdash/lightdash/issues/25094)) ([c3ffe88](https://github.com/lightdash/lightdash/commit/c3ffe8829df09cb950d202735d7172180be60b74))
+* **ai:** use theme-aware text color for viz field chips ([#25097](https://github.com/lightdash/lightdash/issues/25097)) ([d868506](https://github.com/lightdash/lightdash/commit/d868506b42e36fe12d02cb0062cc5e28c7434e58))
+
+
+### Features
+
+* **ai-reviews:** add replay scoreboard for the review classifier judge ([#25064](https://github.com/lightdash/lightdash/issues/25064)) ([54959a6](https://github.com/lightdash/lightdash/commit/54959a692360e38679426c421d539ff3eabd3e35))
+* **ai-reviews:** admin API endpoint to capture judge replay inputs for the eval scoreboard ([#25082](https://github.com/lightdash/lightdash/issues/25082)) ([08583ec](https://github.com/lightdash/lightdash/commit/08583eccb796b1f0b45d6ea9ace025edbd762f5f)), closes [#25064](https://github.com/lightdash/lightdash/issues/25064) [#25064](https://github.com/lightdash/lightdash/issues/25064) [#25080](https://github.com/lightdash/lightdash/issues/25080)
+* **ai-reviews:** ground next-user-turn signals in a real next user prompt ([#25066](https://github.com/lightdash/lightdash/issues/25066)) ([b0c8608](https://github.com/lightdash/lightdash/commit/b0c860858dda628dc3e961e45cc952378bdc55c8)), closes [#25065](https://github.com/lightdash/lightdash/issues/25065) [#25064](https://github.com/lightdash/lightdash/issues/25064)
+* **ai-reviews:** guaranteed tool outcomes, approval-timeout carve-out, preview-thread exclusion ([#25067](https://github.com/lightdash/lightdash/issues/25067)) ([3b721f7](https://github.com/lightdash/lightdash/commit/3b721f712a741714ac20c0b9c3503a0e5f67cbda)), closes [#25066](https://github.com/lightdash/lightdash/issues/25066) [#25064](https://github.com/lightdash/lightdash/issues/25064) [#2](https://github.com/lightdash/lightdash/issues/2) [#24517](https://github.com/lightdash/lightdash/issues/24517) [#24239](https://github.com/lightdash/lightdash/issues/24239)
+* **ai-reviews:** phase-1 quick wins for the review classifier evidence packet ([#25065](https://github.com/lightdash/lightdash/issues/25065)) ([69cf8be](https://github.com/lightdash/lightdash/commit/69cf8be3733e83fb80b4d97ee2b495ff144b4a44)), closes [#25064](https://github.com/lightdash/lightdash/issues/25064) [#25064](https://github.com/lightdash/lightdash/issues/25064)
+* **ai-reviews:** root-cause accuracy — real agent capabilities, agent-scoped catalog, query-construction carve-out ([#25079](https://github.com/lightdash/lightdash/issues/25079)) ([1ac2f89](https://github.com/lightdash/lightdash/commit/1ac2f89b31e95dfab42f9d6cd2f079b13b591811)), closes [#25067](https://github.com/lightdash/lightdash/issues/25067) [#25064](https://github.com/lightdash/lightdash/issues/25064) [#105](https://github.com/lightdash/lightdash/issues/105)
+* **ai-reviews:** two-tier judge — fast promotion gate, strong-model verdict on promoted turns ([#25080](https://github.com/lightdash/lightdash/issues/25080)) ([324653a](https://github.com/lightdash/lightdash/commit/324653a7dea880542893db4ba7c58747a95cc2df)), closes [#25079](https://github.com/lightdash/lightdash/issues/25079)
+* **ai:** harden field discovery against false 'data missing' answers ([#25096](https://github.com/lightdash/lightdash/issues/25096)) ([106a586](https://github.com/lightdash/lightdash/commit/106a58615c34a1edce068b57808b46f22d458662))
+* **ai:** hide explore names by default in rendered tables ([#25034](https://github.com/lightdash/lightdash/issues/25034)) ([b248b88](https://github.com/lightdash/lightdash/commit/b248b88ce575e2f49d572e330c2ba9bccdd3a70c)), closes [/linear.app/lightdash/issue/PROD-8647/hide-explore-names-by-default-in-rendered-tables-ai-agent-artifacts#agent-session-c25b1537](https://github.com//linear.app/lightdash/issue/PROD-8647/hide-explore-names-by-default-in-rendered-tables-ai-agent-artifacts/issues/agent-session-c25b1537)
+* **data-apps:** downloads + underlying data for linked charts (GLITCH-534) ([#25086](https://github.com/lightdash/lightdash/issues/25086)) ([ccde3a2](https://github.com/lightdash/lightdash/commit/ccde3a25489e5ec271592929dd6f26df16ec019d))
+* **data-apps:** honor savedChart().filters() server-side (GLITCH-534) ([#25060](https://github.com/lightdash/lightdash/issues/25060)) ([9562c1a](https://github.com/lightdash/lightdash/commit/9562c1a72764d47afd8196c75f21a57c267141fb))
+* **query:** accept filters on POST /query/chart (GLITCH-534) ([#25046](https://github.com/lightdash/lightdash/issues/25046)) ([41957de](https://github.com/lightdash/lightdash/commit/41957de0a9627c96fe7b70b09032864d0f9a79fb))
+
 # [0.3298.0](https://github.com/lightdash/lightdash/compare/0.3297.0...0.3298.0) (2026-07-02)
 
 
