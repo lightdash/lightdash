@@ -290,6 +290,7 @@ describe('AiAgentReviewClassifierService', () => {
         updateRun: vi.fn(),
         createTurnSignal: vi.fn(),
         getThreadWritebackPullRequests: vi.fn().mockResolvedValue(new Map()),
+        getAgentMcpCapabilities: vi.fn().mockResolvedValue([]),
     } as unknown as import('vitest').Mocked<AiAgentReviewClassifierModel>;
     const aiAgentModel = {
         getAgent: vi.fn(),
@@ -305,6 +306,7 @@ describe('AiAgentReviewClassifierService', () => {
     };
     const projectModel = {
         getSummary: vi.fn(),
+        findExploresFromCache: vi.fn(),
     };
     const aiAgentReviewNotificationService = {
         notifyNeedsReview: vi.fn(),
@@ -346,6 +348,7 @@ describe('AiAgentReviewClassifierService', () => {
             undefined,
         );
         aiAgentDocumentModel.findAllForAgent.mockResolvedValue([]);
+        model.getAgentMcpCapabilities.mockResolvedValue([]);
         aiAgentModel.getAgent.mockResolvedValue({
             uuid: AGENT_UUID,
             organizationUuid: ORGANIZATION_UUID,
@@ -360,6 +363,7 @@ describe('AiAgentReviewClassifierService', () => {
             imageUrl: null,
             enableDataAccess: true,
             enableSelfImprovement: false,
+            enableContentTools: false,
             version: 'v1',
             groupAccess: [],
             userAccess: [],
@@ -590,6 +594,125 @@ describe('AiAgentReviewClassifierService', () => {
                     },
                 ],
                 pendingApprovalTimeout: true,
+            }),
+        );
+    });
+
+    it('surfaces MCP servers and content tools as agent capabilities in the judge packet', async () => {
+        judgeTurn.mockResolvedValueOnce(makeJudgeOutput());
+        model.getAgentMcpCapabilities.mockResolvedValue([
+            { name: 'Linear', enabledToolNames: ['list_issues'] },
+        ]);
+        model.listTurnReviewCandidates.mockResolvedValue([makeCandidate()]);
+
+        await service.run({
+            organizationUuid: ORGANIZATION_UUID,
+            startedAt: NOW,
+            endedAt: NOW,
+        });
+
+        expect(judgeTurn).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                agentConfig: expect.objectContaining({
+                    availableCapabilities: expect.arrayContaining([
+                        'mcp_tools',
+                    ]),
+                    mcpServers: [
+                        { name: 'Linear', enabledToolNames: ['list_issues'] },
+                    ],
+                    settings: expect.arrayContaining(['mcp_servers']),
+                }),
+            }),
+        );
+    });
+
+    it('scopes the catalog to the agent explore tags before matching', async () => {
+        judgeTurn.mockResolvedValueOnce(makeJudgeOutput());
+        aiAgentModel.getAgent.mockResolvedValue({
+            uuid: AGENT_UUID,
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PROJECT_UUID,
+            name: 'Jaffle Shop',
+            description: null,
+            tags: ['sales'],
+            integrations: [],
+            updatedAt: NOW,
+            createdAt: NOW,
+            instruction: null,
+            imageUrl: null,
+            enableDataAccess: true,
+            enableSelfImprovement: false,
+            enableContentTools: false,
+            version: 'v1',
+            groupAccess: [],
+            userAccess: [],
+            spaceAccess: [],
+        });
+        catalogModel.getCatalogItemsSummary.mockResolvedValue([
+            {
+                catalogSearchUuid: 'catalog-1',
+                cachedExploreUuid: 'explore-1',
+                projectUuid: PROJECT_UUID,
+                name: 'flightcount',
+                type: 'field',
+                label: 'Flight count',
+                description: null,
+                tableName: 'orders',
+                fieldType: 'metric',
+            },
+            {
+                catalogSearchUuid: 'catalog-2',
+                cachedExploreUuid: 'explore-2',
+                projectUuid: PROJECT_UUID,
+                name: 'flightcount',
+                type: 'field',
+                label: 'Flight count (staff)',
+                description: null,
+                tableName: 'staff',
+                fieldType: 'metric',
+            },
+        ]);
+        projectModel.findExploresFromCache.mockResolvedValue({
+            orders: {
+                name: 'orders',
+                tags: ['sales'],
+                baseTable: 'orders',
+                tables: {
+                    orders: {
+                        dimensions: {},
+                        metrics: { flightcount: {} },
+                    },
+                },
+            },
+            staff: {
+                name: 'staff',
+                tags: [],
+                baseTable: 'staff',
+                tables: {
+                    staff: {
+                        dimensions: {},
+                        metrics: { flightcount: {} },
+                    },
+                },
+            },
+        });
+        model.listTurnReviewCandidates.mockResolvedValue([
+            makeCandidate({ userPrompt: 'what is the flightcount?' }),
+        ]);
+
+        await service.run({
+            organizationUuid: ORGANIZATION_UUID,
+            startedAt: NOW,
+            endedAt: NOW,
+        });
+
+        const evidencePacket = judgeTurn.mock.calls[0][1];
+        expect(evidencePacket.semanticContext.catalogMatches).toHaveLength(1);
+        expect(evidencePacket.semanticContext.catalogMatches[0]).toEqual(
+            expect.objectContaining({
+                name: 'flightcount',
+                tableName: 'orders',
             }),
         );
     });

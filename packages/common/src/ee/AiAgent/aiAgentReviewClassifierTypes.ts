@@ -99,6 +99,7 @@ export type AiAgentAvailableCapability =
     | 'sql_runner'
     | 'context_improvement'
     | 'semantic_change_proposals'
+    | 'content_editing'
     | 'mcp_tools';
 
 export type AiAgentKnowledgeDocumentSnapshot = {
@@ -106,6 +107,11 @@ export type AiAgentKnowledgeDocumentSnapshot = {
     name: string;
     updatedAt: string;
     summary: AiAgentDocumentStructuredSummary;
+};
+
+export type AiAgentMcpServerSnapshot = {
+    name: string;
+    enabledToolNames: string[];
 };
 
 export type AiAgentConfigSnapshot = {
@@ -116,6 +122,7 @@ export type AiAgentConfigSnapshot = {
     instructionHash: string | null;
     instructionSummary: string | null;
     knowledgeDocuments: AiAgentKnowledgeDocumentSnapshot[];
+    mcpServers: AiAgentMcpServerSnapshot[];
 };
 
 const normalizeForHash = (value: unknown): unknown => {
