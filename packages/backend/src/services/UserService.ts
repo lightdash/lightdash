@@ -18,11 +18,13 @@ import {
     FeatureFlags,
     ForbiddenError,
     getEmailDomain,
+    getUserAvatarUrl,
     hasInviteCode,
     hasProperty,
     InviteLink,
     isOpenIdIdentityIssuerType,
     isOpenIdUser,
+    isUserAvatarGradientId,
     isUserWithOrg,
     isValidTimezone,
     LightdashMode,
@@ -90,10 +92,12 @@ import { OrganizationSsoModel } from '../models/OrganizationSsoModel';
 import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { SessionModel } from '../models/SessionModel';
+import { UserAvatarModel } from '../models/UserAvatarModel';
 import { UserModel } from '../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { wrapSentryTransaction } from '../utils';
+import { processAvatarImage } from '../utils/processAvatarImage';
 import { BaseService } from './BaseService';
 import { getOrganizationSettingsInstanceDefaults } from './OrganizationSettingsService/getInstanceDefaults';
 
@@ -118,6 +122,7 @@ type UserServiceArguments = {
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
     projectModel: ProjectModel;
     featureFlagModel: FeatureFlagModel;
+    userAvatarModel: UserAvatarModel;
 };
 
 function isSameMinute(a: Date | null, b: Date): boolean {
@@ -198,6 +203,8 @@ export class UserService extends BaseService {
 
     private readonly userModel: UserModel;
 
+    private readonly userAvatarModel: UserAvatarModel;
+
     private readonly groupsModel: GroupsModel;
 
     private readonly sessionModel: SessionModel;
@@ -255,6 +262,7 @@ export class UserService extends BaseService {
         warehouseAvailableTablesModel,
         projectModel,
         featureFlagModel,
+        userAvatarModel,
     }: UserServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -278,6 +286,7 @@ export class UserService extends BaseService {
         this.warehouseAvailableTablesModel = warehouseAvailableTablesModel;
         this.projectModel = projectModel;
         this.featureFlagModel = featureFlagModel;
+        this.userAvatarModel = userAvatarModel;
     }
 
     private identifyUser(
@@ -1440,6 +1449,16 @@ export class UserService extends BaseService {
             throw new ParameterError(`Invalid timezone: ${data.timezone}`);
         }
 
+        if (
+            data.avatarGradient !== undefined &&
+            data.avatarGradient !== null &&
+            !isUserAvatarGradientId(data.avatarGradient)
+        ) {
+            throw new ParameterError(
+                `Invalid avatar gradient: ${data.avatarGradient}`,
+            );
+        }
+
         const updatedUser = await this.userModel.updateUser(
             user.userUuid,
             user.email,
@@ -1450,6 +1469,7 @@ export class UserService extends BaseService {
                 isMarketingOptedIn: data.isMarketingOptedIn,
                 isTrackingAnonymized: data.isTrackingAnonymized,
                 timezone: data.timezone,
+                avatarGradient: data.avatarGradient,
             },
         );
         this.identifyUser(updatedUser);
@@ -1469,6 +1489,41 @@ export class UserService extends BaseService {
         }
 
         return updatedUser;
+    }
+
+    async updateAvatar(
+        user: SessionUser,
+        body: Buffer,
+    ): Promise<{ avatarUrl: string }> {
+        const { image, contentHash } = await processAvatarImage(body);
+        await this.userAvatarModel.upsert(user.userUuid, image, contentHash);
+        this.analytics.track({
+            userId: user.userUuid,
+            event: 'user_avatar.updated',
+            properties: {
+                organizationId: user.organizationUuid,
+            },
+        });
+        return { avatarUrl: getUserAvatarUrl(user.userUuid, contentHash) };
+    }
+
+    async deleteAvatar(user: SessionUser): Promise<void> {
+        await this.userAvatarModel.delete(user.userUuid);
+    }
+
+    async getAvatarImage(
+        actor: SessionUser,
+        userUuid: string,
+        contentHash: string,
+    ): Promise<Buffer> {
+        const target = await this.userModel.getUserDetailsByUuid(userUuid);
+        if (
+            !actor.organizationUuid ||
+            actor.organizationUuid !== target.organizationUuid
+        ) {
+            throw new ForbiddenError();
+        }
+        return this.userAvatarModel.getImage(userUuid, contentHash);
     }
 
     async registerOrActivateUser(

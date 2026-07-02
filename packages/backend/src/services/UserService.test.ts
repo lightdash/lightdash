@@ -27,6 +27,7 @@ import { OrganizationSsoModel } from '../models/OrganizationSsoModel';
 import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { SessionModel } from '../models/SessionModel';
+import { UserAvatarModel } from '../models/UserAvatarModel';
 import { UserModel } from '../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
@@ -146,6 +147,7 @@ const createUserService = (lightdashConfig: LightdashConfig) =>
                 enabled: true,
             })),
         } as unknown as FeatureFlagModel,
+        userAvatarModel: {} as UserAvatarModel,
     });
 
 vi.spyOn(analyticsMock, 'track');
@@ -1469,6 +1471,7 @@ describe('UserService', () => {
                         enabled: true,
                     })),
                 } as unknown as FeatureFlagModel,
+                userAvatarModel: {} as UserAvatarModel,
             });
 
             await expect(
@@ -1545,6 +1548,7 @@ describe('UserService', () => {
                         enabled: true,
                     })),
                 } as unknown as FeatureFlagModel,
+                userAvatarModel: {} as UserAvatarModel,
             });
 
             await expect(
