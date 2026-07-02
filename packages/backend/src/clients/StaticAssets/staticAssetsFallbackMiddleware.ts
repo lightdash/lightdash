@@ -1,4 +1,7 @@
+import { getErrorMessage } from '@lightdash/common';
 import { RequestHandler } from 'express';
+import { pipeline } from 'stream';
+import Logger from '../../logging/logger';
 import { StaticAssetsS3Client } from './StaticAssetsS3Client';
 
 export const isSafeAssetPath = (relativePath: string): boolean =>
@@ -41,5 +44,18 @@ export const createStaticAssetsFallbackHandler =
         if (asset.contentLength !== undefined) {
             res.setHeader('Content-Length', asset.contentLength);
         }
-        asset.body.pipe(res);
+        // pipeline (unlike pipe) destroys both streams if the bucket read
+        // fails mid-transfer instead of emitting an unhandled 'error'
+        pipeline(asset.body, res, (error) => {
+            if (error) {
+                Logger.warn(
+                    `Streaming static asset '${relativePath}' failed: ${getErrorMessage(
+                        error,
+                    )}`,
+                );
+                if (!res.headersSent) {
+                    res.status(500).end();
+                }
+            }
+        });
     };

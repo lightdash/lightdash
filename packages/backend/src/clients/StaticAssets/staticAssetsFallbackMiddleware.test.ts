@@ -1,9 +1,20 @@
 import type { NextFunction, Request, Response } from 'express';
+import { Readable, Writable } from 'stream';
 import {
     createStaticAssetsFallbackHandler,
     isSafeAssetPath,
 } from './staticAssetsFallbackMiddleware';
 import type { StaticAsset, StaticAssetsS3Client } from './StaticAssetsS3Client';
+
+vi.mock('../../logging/logger', () => ({
+    __esModule: true,
+    default: {
+        debug: vi.fn(),
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+    },
+}));
 
 type ClientStub = {
     isEnabled: boolean;
@@ -21,6 +32,28 @@ const createRequest = (assetPath: string): Request =>
 
 const createResponse = (): Response =>
     ({ setHeader: vi.fn() }) as unknown as Response;
+
+type WritableResponse = Writable & {
+    setHeader: ReturnType<typeof vi.fn>;
+    status: ReturnType<typeof vi.fn>;
+    headersSent: boolean;
+    writtenBody: () => string;
+};
+
+const createWritableResponse = (): WritableResponse => {
+    const chunks: Buffer[] = [];
+    const res = new Writable({
+        write(chunk, _encoding, callback) {
+            chunks.push(Buffer.from(chunk));
+            callback();
+        },
+    }) as WritableResponse;
+    res.setHeader = vi.fn();
+    res.status = vi.fn(() => res);
+    res.headersSent = false;
+    res.writtenBody = () => Buffer.concat(chunks).toString();
+    return res;
+};
 
 const runHandler = async (
     client: ClientStub,
@@ -41,9 +74,12 @@ describe('isSafeAssetPath', () => {
     it('rejects traversal and empty segments', () => {
         expect(isSafeAssetPath('../secrets.env')).toBe(false);
         expect(isSafeAssetPath('foo/../../etc/passwd')).toBe(false);
+        expect(isSafeAssetPath('..%2Fsecrets.env')).toBe(false);
         expect(isSafeAssetPath('foo//bar.js')).toBe(false);
         expect(isSafeAssetPath('.')).toBe(false);
         expect(isSafeAssetPath('foo bar.js')).toBe(false);
+        expect(isSafeAssetPath('foo\\bar.js')).toBe(false);
+        expect(isSafeAssetPath('foo\0.js')).toBe(false);
     });
 });
 
@@ -95,17 +131,25 @@ describe('createStaticAssetsFallbackHandler', () => {
 
     it('streams a bucket hit with immutable caching headers', async () => {
         const asset: StaticAsset = {
-            body: { pipe: vi.fn() } as unknown as StaticAsset['body'],
+            body: Readable.from(['chunk contents']),
             contentType: 'text/javascript; charset=utf-8',
             contentLength: 123,
         };
         const client = createClientStub({
             getAsset: vi.fn().mockResolvedValue(asset),
         });
-        const res = createResponse();
+        const res = createWritableResponse();
         const next = vi.fn();
 
-        await runHandler(client, createRequest('chunk.js'), res, next);
+        await runHandler(
+            client,
+            createRequest('chunk.js'),
+            res as unknown as Response,
+            next,
+        );
+        await new Promise((resolve) => {
+            res.on('finish', resolve);
+        });
 
         expect(next).not.toHaveBeenCalled();
         expect(res.setHeader).toHaveBeenCalledWith(
@@ -117,6 +161,36 @@ describe('createStaticAssetsFallbackHandler', () => {
             'text/javascript; charset=utf-8',
         );
         expect(res.setHeader).toHaveBeenCalledWith('Content-Length', 123);
-        expect(asset.body.pipe).toHaveBeenCalledWith(res);
+        expect(res.writtenBody()).toBe('chunk contents');
+    });
+
+    it('ends the response with a 500 when the stream errors before any data', async () => {
+        const asset: StaticAsset = {
+            body: new Readable({
+                read() {
+                    this.destroy(new Error('connection reset'));
+                },
+            }),
+            contentType: 'text/javascript; charset=utf-8',
+            contentLength: 123,
+        };
+        const client = createClientStub({
+            getAsset: vi.fn().mockResolvedValue(asset),
+        });
+        const res = createWritableResponse();
+        const next = vi.fn();
+
+        await runHandler(
+            client,
+            createRequest('chunk.js'),
+            res as unknown as Response,
+            next,
+        );
+        await new Promise((resolve) => {
+            res.on('close', resolve);
+        });
+
+        expect(res.status).toHaveBeenCalledWith(500);
+        expect(next).not.toHaveBeenCalled();
     });
 });
