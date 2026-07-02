@@ -27,6 +27,7 @@ export enum PartialFailureType {
     MISSING_TARGETS = 'missing_targets',
     DASHBOARD_CHART = 'dashboard_chart',
     DASHBOARD_SQL_CHART = 'dashboard_sql_chart',
+    AI_AUGMENTATION = 'ai_augmentation',
 }
 
 export type DashboardChartPartialFailure = {
@@ -49,11 +50,19 @@ export type MissingTargetsPartialFailure = {
     type: PartialFailureType.MISSING_TARGETS;
 };
 
+// The delivery shipped, but its AI-written message could not be generated so
+// the stored message (if any) was sent instead.
+export type AiAugmentationPartialFailure = {
+    type: PartialFailureType.AI_AUGMENTATION;
+    error: string;
+};
+
 // Union of all partial failure types
 export type PartialFailure =
     | DashboardChartPartialFailure
     | DashboardSqlChartPartialFailure
-    | MissingTargetsPartialFailure;
+    | MissingTargetsPartialFailure
+    | AiAugmentationPartialFailure;
 
 /**
  * Outcome of evaluating a threshold-alert scheduler against the latest query results.

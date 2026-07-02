@@ -437,6 +437,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     schedulerModel: models.getSchedulerModel(),
                     schedulerService: repository.getSchedulerService(),
                     userModel: models.getUserModel(),
+                    dashboardModel: models.getDashboardModel(),
+                    savedChartModel: models.getSavedChartModel(),
+                    asyncQueryService: repository.getAsyncQueryService(),
                     aiAgentService:
                         repository.getAiAgentService<AiAgentService>(),
                     aiService: repository.getAiService<AiService>(),
@@ -855,6 +858,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 googleDriveClient: context.clients.getGoogleDriveClient(),
                 fileStorageClient: context.clients.getFileStorageClient(),
                 schedulerClient: context.clients.getSchedulerClient(),
+                schedulerAiAugmentation:
+                    context.serviceRepository.getSchedulerAiAugmentationService<SchedulerAiAugmentationService>(),
                 aiAgentService: context.serviceRepository.getAiAgentService(),
                 catalogService: context.serviceRepository.getCatalogService(),
                 encryptionUtil: context.utils.getEncryptionUtil(),

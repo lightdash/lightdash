@@ -387,6 +387,13 @@ export class MicrosoftTeamsClient {
                                             wrap: true,
                                             spacing: 'None',
                                         };
+                                    case PartialFailureType.AI_AUGMENTATION:
+                                        return {
+                                            type: 'TextBlock',
+                                            text: `- **AI summary could not be generated**`,
+                                            wrap: true,
+                                            spacing: 'None',
+                                        };
                                     default:
                                         return assertUnreachable(
                                             f,
@@ -425,6 +432,13 @@ export class MicrosoftTeamsClient {
                                     return {
                                         type: 'TextBlock',
                                         text: `- **No targets found for this scheduled delivery**`,
+                                        wrap: true,
+                                        spacing: 'None',
+                                    };
+                                case PartialFailureType.AI_AUGMENTATION:
+                                    return {
+                                        type: 'TextBlock',
+                                        text: `- **AI summary could not be generated**`,
                                         wrap: true,
                                         spacing: 'None',
                                     };
