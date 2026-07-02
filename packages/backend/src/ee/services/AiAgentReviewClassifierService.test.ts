@@ -619,6 +619,8 @@ describe('AiAgentReviewClassifierService', () => {
             makeCandidate({
                 userPrompt:
                     'No, country is not available here, so use airport name.',
+                nextUserPromptUuid: '00000000-0000-0000-0000-000000000013',
+                nextUserPrompt: 'Thanks, airport name works.',
                 contextTurns: [
                     {
                         relation: 'previous',
@@ -773,5 +775,105 @@ describe('resolveReviewJudgeProvider', () => {
         expect(resolveReviewJudgeProvider(copilotWith({ openai: {} }))).toBe(
             undefined,
         );
+    });
+});
+
+describe('enforceNextUserSignalGrounding', () => {
+    const promotedWithNextUserSignal = (
+        overrides: Partial<AiAgentReviewClassifierJudgeOutput> = {},
+    ): AiAgentReviewClassifierJudgeOutput =>
+        makeJudgeOutput({
+            signal: 'implicit_correction',
+            implicitSignalSources: ['next_user_correction'],
+            promotedToFinding: true,
+            promotionReason: 'User corrected the metric.',
+            primaryRootCause: 'semantic_layer',
+            ...overrides,
+        });
+
+    it('returns the output untouched when a next user prompt exists', () => {
+        const output = promotedWithNextUserSignal();
+        expect(
+            AiAgentReviewClassifierService.enforceNextUserSignalGrounding(
+                output,
+                true,
+            ),
+        ).toBe(output);
+    });
+
+    it('returns the output untouched when no next_user_* sources were emitted', () => {
+        const output = promotedWithNextUserSignal({
+            implicitSignalSources: ['tool_error'],
+        });
+        expect(
+            AiAgentReviewClassifierService.enforceNextUserSignalGrounding(
+                output,
+                false,
+            ),
+        ).toBe(output);
+    });
+
+    it('strips fabricated next_user_* sources and demotes when nothing else supports promotion', () => {
+        const result =
+            AiAgentReviewClassifierService.enforceNextUserSignalGrounding(
+                promotedWithNextUserSignal({
+                    implicitSignalSources: [
+                        'next_user_correction',
+                        'next_user_retry',
+                    ],
+                }),
+                false,
+            );
+        expect(result.implicitSignalSources).toEqual([]);
+        expect(result.promotedToFinding).toBe(false);
+        expect(result.promotionReason).toBe(
+            'next_user_signal_without_next_user_prompt',
+        );
+    });
+
+    it('strips fabricated sources but keeps the promotion when other promotable evidence remains', () => {
+        const result =
+            AiAgentReviewClassifierService.enforceNextUserSignalGrounding(
+                promotedWithNextUserSignal({
+                    implicitSignalSources: [
+                        'next_user_correction',
+                        'tool_error',
+                    ],
+                }),
+                false,
+            );
+        expect(result.implicitSignalSources).toEqual(['tool_error']);
+        expect(result.promotedToFinding).toBe(true);
+    });
+
+    it('demotes when only output_shape_correction remains after stripping', () => {
+        const result =
+            AiAgentReviewClassifierService.enforceNextUserSignalGrounding(
+                promotedWithNextUserSignal({
+                    implicitSignalSources: [
+                        'next_user_retry',
+                        'output_shape_correction',
+                    ],
+                }),
+                false,
+            );
+        expect(result.implicitSignalSources).toEqual([
+            'output_shape_correction',
+        ]);
+        expect(result.promotedToFinding).toBe(false);
+    });
+
+    it('strips without demoting when the output was not promoted', () => {
+        const result =
+            AiAgentReviewClassifierService.enforceNextUserSignalGrounding(
+                promotedWithNextUserSignal({
+                    promotedToFinding: false,
+                    promotionReason: null,
+                }),
+                false,
+            );
+        expect(result.implicitSignalSources).toEqual([]);
+        expect(result.promotedToFinding).toBe(false);
+        expect(result.promotionReason).toBeNull();
     });
 });
