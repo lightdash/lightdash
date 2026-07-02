@@ -5,4 +5,8 @@ import {
 
 export const getTableChartConfig = (): TableChartConfig => ({
     type: ChartType.TABLE,
+    // Hide explore name prefixes in column headers by default
+    config: {
+        showTableNames: false,
+    },
 });
