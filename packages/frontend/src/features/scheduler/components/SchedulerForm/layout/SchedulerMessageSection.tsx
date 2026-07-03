@@ -13,11 +13,10 @@ export const SchedulerMessageSection: FC = () => {
             <Group justify="space-between" wrap="nowrap" align="flex-start">
                 <Stack gap={2}>
                     <Text fw={500} fz="sm">
-                        Include links back to Lightdash
+                        Link to Lightdash
                     </Text>
                     <Text fz="xs" c="dimmed">
-                        Recipients get a link to open this in Lightdash. Turn
-                        off if they don't have access to your project.
+                        Recipients can open this in Lightdash.
                     </Text>
                 </Stack>
                 <Switch
@@ -34,11 +33,12 @@ export const SchedulerMessageSection: FC = () => {
             <Stack gap="xs">
                 <Stack gap={2}>
                     <span className={classes.subBlockLabel}>Message body</span>
-                    <Text fz="xs" c="dimmed">
-                        {isAiMessage
-                            ? 'AI writes the message on every send; this text is only used if AI generation fails.'
-                            : 'Shown at the top of every email and Slack message.'}
-                    </Text>
+                    {isAiMessage && (
+                        <Text fz="xs" c="dimmed">
+                            AI writes the message on every send; this text is
+                            only used if AI generation fails.
+                        </Text>
+                    )}
                 </Stack>
                 <MDEditor
                     preview="edit"
