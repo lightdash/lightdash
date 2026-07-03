@@ -4,6 +4,22 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Lightdash Data App</title>
+        <!-- Apply the host's color scheme (URL-hash `theme=`) before the
+             bundle loads so the first paint doesn't flash the wrong theme.
+             The SDK keeps it in sync with host toggles after boot. -->
+        <script>
+            (function () {
+                var match = /[#&]theme=(light|dark)(?:&|$)/.exec(
+                    window.location.hash,
+                );
+                if (!match) return;
+                document.documentElement.classList.toggle(
+                    'dark',
+                    match[1] === 'dark',
+                );
+                document.documentElement.style.colorScheme = match[1];
+            })();
+        </script>
     </head>
     <body>
         <div id="root"></div>

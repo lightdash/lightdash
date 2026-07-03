@@ -93,3 +93,7 @@ export type {
     DataAppVizContextMessage,
     VizContextRequestMessage,
 } from './vizContext';
+
+// Host color-scheme sync (light/dark mode follows the Lightdash parent)
+export { getHashColorScheme, mountThemeSync, useColorScheme } from './theme';
+export type { ColorScheme, SdkThemeMessage } from './theme';

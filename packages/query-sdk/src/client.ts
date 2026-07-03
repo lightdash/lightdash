@@ -10,6 +10,7 @@ import { mountInspector } from './inspector';
 import { mountLineage } from './lineage';
 import { createPostMessageTransport } from './postMessageTransport';
 import { QueryBuilder } from './query';
+import { mountThemeSync } from './theme';
 import type {
     ExternalFetchOptions,
     ExternalFetchResult,
@@ -103,14 +104,20 @@ function configFromEnv(): LightdashClientConfig | null {
 export function createClient(): LightdashClient {
     // 1. postMessage transport (iframe hosted by Lightdash parent)
     if (typeof window !== 'undefined' && window.location.hash) {
-        const params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+        const params = new URLSearchParams(
+            window.location.hash.replace(/^#/, ''),
+        );
         if (params.get('transport') === 'postMessage') {
             const projectUuid = params.get('projectUuid') ?? '';
             mountInspector(window.parent);
             mountLineage(window.parent);
+            mountThemeSync();
             return new LightdashClient(
                 { apiKey: '', baseUrl: '', projectUuid },
-                createPostMessageTransport({ targetWindow: window.parent, projectUuid }),
+                createPostMessageTransport({
+                    targetWindow: window.parent,
+                    projectUuid,
+                }),
             );
         }
     }
